@@ -45,6 +45,13 @@
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
 
+    <!-- Loads backend/.env into the Spring environment so DATABASE_URL etc. resolve without exporting shell vars -->
+    <dependency>
+      <groupId>me.paulschwarz</groupId>
+      <artifactId>spring-dotenv</artifactId>
+      <version>4.0.0</version>
+    </dependency>
+
     <!-- JWT -->
     <dependency>
       <groupId>io.jsonwebtoken</groupId>
