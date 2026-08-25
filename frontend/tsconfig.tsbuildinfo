@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/api/auth.ts","./src/components/authbrandpanel.tsx","./src/components/authmobilebrand.tsx","./src/pages/employeedashboard.tsx","./src/pages/forgotpassword.tsx","./src/pages/login.tsx","./src/pages/owneradmindashboard.tsx","./src/types/auth.ts"],"version":"5.9.3"}
