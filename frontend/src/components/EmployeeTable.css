@@ -1,0 +1,46 @@
+.employee-table__card {
+  background: var(--color-surface-card);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  overflow-y: visible;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.employee-table__emp-id {
+  color: var(--color-accent);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+}
+
+.employee-table__name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.employee-table__shift-name {
+  color: var(--color-text-secondary);
+}
+
+.employee-table__shift-range {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.employee-table__link {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.employee-table__link:hover {
+  text-decoration: underline;
+}
+
+.employee-table__actions-cell {
+  text-align: right;
+}
+
+.employee-table__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
