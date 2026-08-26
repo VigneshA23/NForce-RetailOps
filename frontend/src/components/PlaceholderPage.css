@@ -1,0 +1,29 @@
+.placeholder-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  text-align: center;
+  padding: var(--space-xl);
+  min-height: 50vh;
+  color: var(--color-text-secondary);
+}
+
+.placeholder-page__icon {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-sm);
+}
+
+.placeholder-page__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.placeholder-page__message {
+  font-size: 14px;
+  margin: 0;
+  max-width: 320px;
+}

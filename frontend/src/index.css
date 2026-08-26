@@ -1,16 +1,6 @@
-:root {
-  --color-bg: #ffffff;
-  --color-text: #1a1a1a;
-  --color-primary: #2563eb;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background: var(--color-bg);
-  color: var(--color-text);
-}
+@import './styles/tokens.css';
+@import './styles/base.css';
+@import './styles/buttons.css';
+@import './styles/forms.css';
+@import './styles/pills.css';
+@import './styles/table.css';
