@@ -1,5 +1,5 @@
 # --- Environment / secrets ---
-.env
+/backend/.env
 .env.local
 .env.*.local
 !.env.example
