@@ -10,6 +10,8 @@ import './EmployeeDashboard.css'
 
 interface EmployeeDashboardProps {
   store: StoreSummary
+  onLogout: () => void
+  loggingOut?: boolean
 }
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {

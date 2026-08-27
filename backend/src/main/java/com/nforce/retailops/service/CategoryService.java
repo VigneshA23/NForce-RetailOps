@@ -63,4 +63,12 @@ public class CategoryService {
 
         return CategoryResponse.from(category);
     }
+
+    @Transactional
+    public void deleteCategory(Long ownerId, Long categoryId) {
+        Category category = categoryRepository.findByIdAndOwnerId(categoryId, ownerId)
+            .orElseThrow(() -> new CategoryNotFoundException("Category not found"));
+
+        categoryRepository.delete(category);
+    }
 }
