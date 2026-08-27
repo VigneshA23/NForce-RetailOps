@@ -13,6 +13,9 @@ public class Store {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String name;
 
+    @Column(columnDefinition = "TEXT")
+    private String location;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -29,6 +32,14 @@ public class Store {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 
     public boolean isActive() {
