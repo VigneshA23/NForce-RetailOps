@@ -46,45 +46,6 @@
   margin-top: 2px;
 }
 
-.store-picker-profile {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 999px;
-  padding: 6px 16px 6px 6px;
-}
-
-.store-picker-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #b11116;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
-  flex-shrink: 0;
-}
-
-.store-picker-profile-name {
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.store-picker-logout {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 12px;
-  color: #ff3b3f;
-  cursor: pointer;
-  font-family: inherit;
-}
-
 .store-picker-body {
   flex: 1;
   display: flex;

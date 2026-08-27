@@ -1,4 +1,5 @@
 import type { AuthUser } from '../types/auth'
+import { authHeaders } from '../utils/authStorage'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api'
 
@@ -14,6 +15,13 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   }
 
   return response.json()
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${API_BASE_URL}/auth/logout`, {
+    method: 'POST',
+    headers: authHeaders(),
+  })
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
