@@ -23,6 +23,18 @@ public class StoreEmployee {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    @Column(nullable = false)
+    private String phone;
+
+    @Column(nullable = false)
+    private String shift;
+
+    @Column(name = "employee_type", nullable = false)
+    private String employeeType;
+
+    @Column(nullable = false)
+    private String gender;
+
     public StoreEmployee() {
     }
 
@@ -55,5 +67,37 @@ public class StoreEmployee {
 
     public OffsetDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getShift() {
+        return shift;
+    }
+
+    public void setShift(String shift) {
+        this.shift = shift;
+    }
+
+    public String getEmployeeType() {
+        return employeeType;
+    }
+
+    public void setEmployeeType(String employeeType) {
+        this.employeeType = employeeType;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
     }
 }

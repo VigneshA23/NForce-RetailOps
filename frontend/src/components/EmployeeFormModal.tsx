@@ -1,57 +1,78 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { EmployeeFormValues } from '../types/employee';
-import {
-  EMPLOYEE_TYPE_OPTIONS,
-  GENDER_OPTIONS,
-  SHIFT_OPTIONS,
-  STORE_OPTIONS,
-} from '../utils/employeeOptions';
+import type { EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
+import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import { validateEmployeeForm } from '../utils/employeeUtils';
 import Modal from './Modal';
 import FormField from './FormField';
 import './EmployeeFormModal.css';
 
+type FormValues = EmployeeUpdateValues & { password: string };
+
 interface EmployeeFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
-  initialValues?: EmployeeFormValues;
+  initialValues?: EmployeeUpdateValues;
+  storeOptions: StoreOption[];
+  errorMessage?: string | null;
+  isSubmitting?: boolean;
   onClose: () => void;
-  onSubmit: (values: EmployeeFormValues) => void;
+  onSubmit: (values: EmployeeCreateValues | EmployeeUpdateValues) => void;
 }
 
-const EMPTY_VALUES: EmployeeFormValues = {
-  name: '',
-  store: STORE_OPTIONS[0],
-  shift: SHIFT_OPTIONS[0].name,
-  phone: '',
-  type: EMPLOYEE_TYPE_OPTIONS[0],
-  email: '',
-  gender: GENDER_OPTIONS[0],
-};
+function emptyValues(storeOptions: StoreOption[]): FormValues {
+  return {
+    name: '',
+    storeId: storeOptions[0]?.id ?? 0,
+    shift: SHIFT_OPTIONS[0].name,
+    phone: '',
+    type: EMPLOYEE_TYPE_OPTIONS[0],
+    email: '',
+    gender: GENDER_OPTIONS[0],
+    password: '',
+  };
+}
 
-function EmployeeFormModal({ isOpen, mode, initialValues, onClose, onSubmit }: EmployeeFormModalProps) {
-  const [values, setValues] = useState<EmployeeFormValues>(initialValues ?? EMPTY_VALUES);
-  const [errors, setErrors] = useState<Partial<Record<keyof EmployeeFormValues, string>>>({});
+function EmployeeFormModal({
+  isOpen,
+  mode,
+  initialValues,
+  storeOptions,
+  errorMessage,
+  isSubmitting = false,
+  onClose,
+  onSubmit,
+}: EmployeeFormModalProps) {
+  const [values, setValues] = useState<FormValues>(
+    initialValues ? { ...initialValues, password: '' } : emptyValues(storeOptions),
+  );
+  const [errors, setErrors] = useState<Partial<Record<keyof EmployeeCreateValues, string>>>({});
 
   useEffect(() => {
     if (isOpen) {
-      setValues(initialValues ?? EMPTY_VALUES);
+      setValues(initialValues ? { ...initialValues, password: '' } : emptyValues(storeOptions));
       setErrors({});
     }
-  }, [isOpen, initialValues]);
+  }, [isOpen, initialValues, storeOptions]);
 
-  function updateField<K extends keyof EmployeeFormValues>(field: K, value: EmployeeFormValues[K]) {
+  function updateField<K extends keyof FormValues>(field: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
   }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const validationErrors = validateEmployeeForm(values);
+    const requirePassword = mode === 'create';
+    const validationErrors = validateEmployeeForm(values, requirePassword);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
-    onSubmit(values);
+
+    const { password, ...rest } = values;
+    if (mode === 'create') {
+      onSubmit({ ...rest, password: password.trim() } satisfies EmployeeCreateValues);
+    } else {
+      onSubmit(rest satisfies EmployeeUpdateValues);
+    }
   }
 
   return (
@@ -64,8 +85,8 @@ function EmployeeFormModal({ isOpen, mode, initialValues, onClose, onSubmit }: E
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="employee-form" className="btn btn--primary">
-            {mode === 'create' ? 'Add Employee' : 'Save Changes'}
+          <button type="submit" form="employee-form" className="btn btn--primary" disabled={isSubmitting}>
+            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Add Employee' : 'Save Changes'}
           </button>
         </>
       }
@@ -81,16 +102,16 @@ function EmployeeFormModal({ isOpen, mode, initialValues, onClose, onSubmit }: E
             />
           </FormField>
 
-          <FormField label="Assigned Store" htmlFor="employee-store" error={errors.store}>
+          <FormField label="Assigned Store" htmlFor="employee-store" error={errors.storeId}>
             <select
               id="employee-store"
               className="select"
-              value={values.store}
-              onChange={(event) => updateField('store', event.target.value as EmployeeFormValues['store'])}
+              value={values.storeId}
+              onChange={(event) => updateField('storeId', Number(event.target.value))}
             >
-              {STORE_OPTIONS.map((store) => (
-                <option key={store} value={store}>
-                  {store}
+              {storeOptions.map((store) => (
+                <option key={store.id} value={store.id}>
+                  {store.name}
                 </option>
               ))}
             </select>
@@ -101,7 +122,7 @@ function EmployeeFormModal({ isOpen, mode, initialValues, onClose, onSubmit }: E
               id="employee-shift"
               className="select"
               value={values.shift}
-              onChange={(event) => updateField('shift', event.target.value as EmployeeFormValues['shift'])}
+              onChange={(event) => updateField('shift', event.target.value as FormValues['shift'])}
             >
               {SHIFT_OPTIONS.map((shift) => (
                 <option key={shift.name} value={shift.name}>
@@ -116,7 +137,7 @@ function EmployeeFormModal({ isOpen, mode, initialValues, onClose, onSubmit }: E
               id="employee-type"
               className="select"
               value={values.type}
-              onChange={(event) => updateField('type', event.target.value as EmployeeFormValues['type'])}
+              onChange={(event) => updateField('type', event.target.value as FormValues['type'])}
             >
               {EMPLOYEE_TYPE_OPTIONS.map((type) => (
                 <option key={type} value={type}>
@@ -141,7 +162,7 @@ function EmployeeFormModal({ isOpen, mode, initialValues, onClose, onSubmit }: E
               id="employee-gender"
               className="select"
               value={values.gender}
-              onChange={(event) => updateField('gender', event.target.value as EmployeeFormValues['gender'])}
+              onChange={(event) => updateField('gender', event.target.value as FormValues['gender'])}
             >
               {GENDER_OPTIONS.map((gender) => (
                 <option key={gender} value={gender}>
@@ -162,7 +183,24 @@ function EmployeeFormModal({ isOpen, mode, initialValues, onClose, onSubmit }: E
               />
             </FormField>
           </div>
+
+          {mode === 'create' && (
+            <div className="form-field--full">
+              <FormField label="Temporary Password" htmlFor="employee-password" error={errors.password}>
+                <input
+                  id="employee-password"
+                  type="password"
+                  className="input"
+                  value={values.password}
+                  onChange={(event) => updateField('password', event.target.value)}
+                  placeholder="At least 8 characters"
+                  autoComplete="new-password"
+                />
+              </FormField>
+            </div>
+          )}
         </div>
+        {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>
     </Modal>
   );
