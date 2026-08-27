@@ -1,0 +1,24 @@
+.stores-page {
+  padding: var(--space-lg);
+}
+
+.stores-page__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
+.stores-page__add-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.stores-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-md);
+  color: var(--color-text-secondary);
+}

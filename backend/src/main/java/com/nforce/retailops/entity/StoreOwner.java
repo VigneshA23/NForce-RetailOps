@@ -16,8 +16,8 @@ public class StoreOwner {
     @JoinColumn(name = "store_id", nullable = false, unique = true)
     private Store store;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "owner_id", nullable = false, unique = true)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
     private User owner;
 
     @Column(name = "created_at", nullable = false)

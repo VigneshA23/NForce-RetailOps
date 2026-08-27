@@ -6,13 +6,13 @@ import Dock, { type DockItemData } from '../components/Dock';
 import Employees from '../pages/Employees';
 import Categories from '../pages/Categories';
 import Home from '../pages/Home';
-import StoreManagement from '../pages/StoreManagement';
+import Stores from '../pages/Stores';
 import History from '../pages/History';
 import './DashboardShell.css';
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'Home', icon: LayoutGrid },
-  { key: 'store-management', label: 'Store Management', icon: Store },
+  { key: 'store-management', label: 'Stores', icon: Store },
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'history', label: 'History', icon: Clock },
@@ -20,7 +20,7 @@ const NAV_ITEMS: NavItem[] = [
 
 const PAGE_TITLES: Record<NavTabKey, string> = {
   home: 'Home',
-  'store-management': 'Store Management',
+  'store-management': 'Stores',
   employees: 'Employees',
   categories: 'Categories',
   history: 'History',
@@ -62,7 +62,7 @@ function DashboardShell() {
       case 'home':
         return <Home />;
       case 'store-management':
-        return <StoreManagement />;
+        return <Stores />;
       case 'employees':
         return <Employees />;
       case 'categories':
