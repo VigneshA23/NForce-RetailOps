@@ -1,6 +1,4 @@
-import type { EmployeeType, Gender, ShiftName, StoreName } from '../types/employee';
-
-export const STORE_OPTIONS: StoreName[] = ['Store 1', 'Store 2', 'Store 3'];
+import type { EmployeeType, Gender, ShiftName } from '../types/employee';
 
 export const SHIFT_OPTIONS: { name: ShiftName; timeRange: string }[] = [
   { name: 'Morning', timeRange: '6AM-2PM' },

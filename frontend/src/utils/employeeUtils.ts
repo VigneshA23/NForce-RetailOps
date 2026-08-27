@@ -1,15 +1,5 @@
-import type { Employee, EmployeeFormValues, ShiftName } from '../types/employee';
+import type { EmployeeCreateValues, EmployeeUpdateValues, ShiftName } from '../types/employee';
 import { SHIFT_OPTIONS } from './employeeOptions';
-
-export function getNextEmpId(employees: Employee[]): string {
-  const maxNumber = employees.reduce((max, employee) => {
-    const match = /^EMP-(\d+)$/.exec(employee.empId);
-    if (!match) return max;
-    return Math.max(max, Number(match[1]));
-  }, 0);
-
-  return `EMP-${String(maxNumber + 1).padStart(3, '0')}`;
-}
 
 export function getShiftTimeRange(shift: ShiftName): string {
   return SHIFT_OPTIONS.find((option) => option.name === shift)?.timeRange ?? '';
@@ -17,18 +7,22 @@ export function getShiftTimeRange(shift: ShiftName): string {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_DIGIT_MIN = 7;
+const PASSWORD_MIN_LENGTH = 8;
+
+type EmployeeFormValues = EmployeeUpdateValues & { password?: string };
 
 export function validateEmployeeForm(
   values: EmployeeFormValues,
-): Partial<Record<keyof EmployeeFormValues, string>> {
-  const errors: Partial<Record<keyof EmployeeFormValues, string>> = {};
+  requirePassword: boolean,
+): Partial<Record<keyof EmployeeCreateValues, string>> {
+  const errors: Partial<Record<keyof EmployeeCreateValues, string>> = {};
 
   if (!values.name.trim()) {
     errors.name = 'Name is required';
   }
 
-  if (!values.store) {
-    errors.store = 'Assigned store is required';
+  if (!values.storeId) {
+    errors.storeId = 'Assigned store is required';
   }
 
   if (!values.shift) {
@@ -53,6 +47,14 @@ export function validateEmployeeForm(
 
   if (!values.gender) {
     errors.gender = 'Gender is required';
+  }
+
+  if (requirePassword) {
+    if (!values.password || !values.password.trim()) {
+      errors.password = 'Temporary password is required';
+    } else if (values.password.trim().length < PASSWORD_MIN_LENGTH) {
+      errors.password = `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
+    }
   }
 
   return errors;

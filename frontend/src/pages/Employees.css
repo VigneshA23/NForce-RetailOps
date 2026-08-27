@@ -13,3 +13,11 @@
   align-items: center;
   gap: var(--space-xs);
 }
+
+.employees-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  color: var(--color-text-secondary);
+}

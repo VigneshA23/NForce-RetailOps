@@ -37,7 +37,7 @@ function EmployeeTable({ employees, isLoading = false, onEdit, onDelete }: Emplo
             <tr key={employee.empId}>
               <td className="employee-table__emp-id">{employee.empId}</td>
               <td className="employee-table__name">{employee.name}</td>
-              <td>{employee.store}</td>
+              <td>{employee.storeName}</td>
               <td>
                 <div className="employee-table__shift-name">{employee.shift}</div>
                 <div className="employee-table__shift-range">

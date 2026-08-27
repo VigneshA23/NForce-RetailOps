@@ -1,66 +1,53 @@
-import type { Employee } from '../types/employee';
+import type { Employee, EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
+import { authHeaders } from '../utils/authStorage';
 
-export const MOCK_EMPLOYEES: Employee[] = [
-  {
-    empId: 'EMP-001',
-    name: 'Alex Johnson',
-    store: 'Store 1',
-    shift: 'Morning',
-    phone: '(555) 201-3344',
-    type: 'Full Time',
-    email: 'alexjohnson@nforceone.com',
-    gender: 'Male',
-  },
-  {
-    empId: 'EMP-002',
-    name: 'Priya Natarajan',
-    store: 'Store 2',
-    shift: 'Afternoon',
-    phone: '(555) 201-7788',
-    type: 'Full Time',
-    email: 'priya.n@nforceone.com',
-    gender: 'Female',
-  },
-  {
-    empId: 'EMP-003',
-    name: 'Jordan Lee',
-    store: 'Store 2',
-    shift: 'Evening',
-    phone: '(555) 201-9021',
-    type: 'Part Time',
-    email: 'jordan.lee@nforceone.com',
-    gender: 'Non-binary',
-  },
-  {
-    empId: 'EMP-004',
-    name: 'Morgan Diaz',
-    store: 'Store 1',
-    shift: 'Morning',
-    phone: '(555) 201-4471',
-    type: 'Part Time',
-    email: 'morgan.diaz@nforceone.com',
-    gender: 'Female',
-  },
-  {
-    empId: 'EMP-005',
-    name: 'Sam Carter',
-    store: 'Store 3',
-    shift: 'Afternoon',
-    phone: '(555) 201-5528',
-    type: 'Full Time',
-    email: 'sam.carter@nforceone.com',
-    gender: 'Male',
-  },
-];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
-const SIMULATED_LATENCY_MS = 300;
-
-export async function getEmployees(): Promise<Employee[]> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(MOCK_EMPLOYEES.map((employee) => ({ ...employee }))), SIMULATED_LATENCY_MS);
-  });
+async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = await response.json();
+    return body.message ?? fallback;
+  } catch {
+    return fallback;
+  }
 }
 
-// TODO: once the backend exposes /api/employees, add createEmployee/updateEmployee/deleteEmployee
-// here as fetch calls against VITE_API_BASE_URL and swap the local-state mutations in
-// src/pages/Employees.tsx for calls into these.
+export async function getEmployees(): Promise<Employee[]> {
+  const response = await fetch(`${API_BASE_URL}/employees`, { headers: authHeaders() });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to load employees'));
+  return response.json();
+}
+
+export async function getAssignableStores(): Promise<StoreOption[]> {
+  const response = await fetch(`${API_BASE_URL}/employees/stores`, { headers: authHeaders() });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to load stores'));
+  return response.json();
+}
+
+export async function createEmployee(values: EmployeeCreateValues): Promise<Employee> {
+  const response = await fetch(`${API_BASE_URL}/employees`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(values),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to create employee'));
+  return response.json();
+}
+
+export async function updateEmployee(id: number, values: EmployeeUpdateValues): Promise<Employee> {
+  const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(values),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to update employee'));
+  return response.json();
+}
+
+export async function deleteEmployee(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to delete employee'));
+}
