@@ -1,0 +1,119 @@
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--color-nav-bg);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.2s ease;
+}
+
+.sidebar--collapsed {
+  width: 76px;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 18px var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  position: relative;
+}
+
+.sidebar--collapsed .sidebar__brand {
+  padding: 18px var(--space-md);
+  justify-content: center;
+}
+
+.sidebar__brand-text {
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.sidebar__collapse-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sidebar--collapsed .sidebar__collapse-toggle {
+  position: absolute;
+  right: -12px;
+  top: 20px;
+  background: var(--color-nav-bg);
+}
+
+.sidebar__collapse-icon--flipped {
+  transform: rotate(180deg);
+}
+
+.sidebar__nav {
+  padding: var(--space-md) var(--space-sm);
+  overflow-y: auto;
+}
+
+.sidebar__section-label {
+  padding: 0 var(--space-md);
+  margin-bottom: var(--space-sm);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.sidebar__nav-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar__nav-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 11px var(--space-md);
+  border: none;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.sidebar--collapsed .sidebar__nav-item {
+  justify-content: center;
+  padding: 11px 0;
+}
+
+.sidebar__nav-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+
+.sidebar__nav-item--active {
+  background: rgba(225, 29, 51, 0.14);
+  border-left-color: var(--color-accent);
+  color: #ffffff;
+}

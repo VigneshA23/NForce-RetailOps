@@ -20,6 +20,12 @@
   --color-badge-outline-text: #4b4b52;
   --color-badge-outline-border: #d4d4d8;
 
+  --color-success: #16a34a;
+  --color-success-bg: #dcfce7;
+  --color-success-text: #15803d;
+  --color-danger-bg: #fee2e2;
+  --color-danger-text: #b91c1c;
+
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -32,10 +38,7 @@
   --radius-pill: 999px;
 
   --z-header: 100;
-  --z-bottom-nav: 100;
   --z-modal: 1000;
-
-  --bottom-nav-height: 110px;
 }
 
 :root[data-theme='dark'] {
@@ -56,4 +59,10 @@
   --color-badge-outline-bg: #232329;
   --color-badge-outline-text: #d4d4d8;
   --color-badge-outline-border: #38383f;
+
+  --color-success: #22c55e;
+  --color-success-bg: #14291d;
+  --color-success-text: #4ade80;
+  --color-danger-bg: #2e1618;
+  --color-danger-text: #f87171;
 }

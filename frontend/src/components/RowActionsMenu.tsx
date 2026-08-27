@@ -1,16 +1,33 @@
 import { useEffect, useRef, useState } from 'react';
+<<<<<<< Updated upstream
 import { createPortal } from 'react-dom';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+=======
+import { MoreVertical, Pencil, type LucideIcon } from 'lucide-react';
+>>>>>>> Stashed changes
 import './RowActionsMenu.css';
 
 interface RowActionsMenuProps {
   onEdit: () => void;
-  onDelete: () => void;
+  secondaryLabel: string;
+  secondaryIcon: LucideIcon;
+  onSecondary: () => void;
+  secondaryDanger?: boolean;
 }
 
+<<<<<<< Updated upstream
 const MENU_WIDTH = 140;
 
 function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
+=======
+function RowActionsMenu({
+  onEdit,
+  secondaryLabel,
+  secondaryIcon: SecondaryIcon,
+  onSecondary,
+  secondaryDanger = false,
+}: RowActionsMenuProps) {
+>>>>>>> Stashed changes
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -81,6 +98,7 @@ function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
             role="menu"
             style={{ top: position.top, left: position.left }}
           >
+<<<<<<< Updated upstream
             <button
               type="button"
               role="menuitem"
@@ -108,6 +126,25 @@ function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
           </div>,
           document.body,
         )}
+=======
+            <Pencil size={14} />
+            Edit
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={`row-actions__item${secondaryDanger ? ' row-actions__item--danger' : ''}`}
+            onClick={() => {
+              setIsOpen(false);
+              onSecondary();
+            }}
+          >
+            <SecondaryIcon size={14} />
+            {secondaryLabel}
+          </button>
+        </div>
+      )}
+>>>>>>> Stashed changes
     </div>
   );
 }

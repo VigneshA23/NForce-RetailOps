@@ -35,6 +35,7 @@ function App() {
     )
   }
 
+<<<<<<< Updated upstream
   if (user.role === 'OWNER_ADMIN') {
     return <DashboardShell />
   }
@@ -44,6 +45,18 @@ function App() {
   }
 
   return <EmployeeDashboard user={user} store={activeStore} />
+=======
+  function handleLogout() {
+    setUser(null)
+    setView('login')
+  }
+
+  return user.role === 'OWNER_ADMIN' ? (
+    <DashboardShell user={user} onLogout={handleLogout} />
+  ) : (
+    <EmployeeDashboard user={user} />
+  )
+>>>>>>> Stashed changes
 }
 
 export default App;

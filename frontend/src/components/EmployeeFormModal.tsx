@@ -1,5 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
+<<<<<<< Updated upstream
 import type { EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
+=======
+import type { EmployeeFormValues, StoreOption } from '../types/employee';
+>>>>>>> Stashed changes
 import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import { validateEmployeeForm } from '../utils/employeeUtils';
 import Modal from './Modal';
@@ -11,22 +15,35 @@ type FormValues = EmployeeUpdateValues & { password: string };
 interface EmployeeFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
+<<<<<<< Updated upstream
   initialValues?: EmployeeUpdateValues;
   storeOptions: StoreOption[];
   errorMessage?: string | null;
   isSubmitting?: boolean;
+=======
+  stores: StoreOption[];
+  initialValues?: EmployeeFormValues;
+>>>>>>> Stashed changes
   onClose: () => void;
   onSubmit: (values: EmployeeCreateValues | EmployeeUpdateValues) => void;
 }
 
+<<<<<<< Updated upstream
 function emptyValues(storeOptions: StoreOption[]): FormValues {
   return {
     name: '',
     storeId: storeOptions[0]?.id ?? 0,
+=======
+function emptyValues(stores: StoreOption[]): EmployeeFormValues {
+  return {
+    name: '',
+    storeId: stores[0]?.id ?? 0,
+>>>>>>> Stashed changes
     shift: SHIFT_OPTIONS[0].name,
     phone: '',
     type: EMPLOYEE_TYPE_OPTIONS[0],
     email: '',
+<<<<<<< Updated upstream
     gender: GENDER_OPTIONS[0],
     password: '',
   };
@@ -53,6 +70,23 @@ function EmployeeFormModal({
       setErrors({});
     }
   }, [isOpen, initialValues, storeOptions]);
+=======
+    password: '',
+    gender: GENDER_OPTIONS[0],
+  };
+}
+
+function EmployeeFormModal({ isOpen, mode, stores, initialValues, onClose, onSubmit }: EmployeeFormModalProps) {
+  const [values, setValues] = useState<EmployeeFormValues>(initialValues ?? emptyValues(stores));
+  const [errors, setErrors] = useState<Partial<Record<keyof EmployeeFormValues, string>>>({});
+
+  useEffect(() => {
+    if (isOpen) {
+      setValues(initialValues ?? emptyValues(stores));
+      setErrors({});
+    }
+  }, [isOpen, initialValues, stores]);
+>>>>>>> Stashed changes
 
   function updateField<K extends keyof FormValues>(field: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -60,8 +94,12 @@ function EmployeeFormModal({
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
+<<<<<<< Updated upstream
     const requirePassword = mode === 'create';
     const validationErrors = validateEmployeeForm(values, requirePassword);
+=======
+    const validationErrors = validateEmployeeForm(values, mode);
+>>>>>>> Stashed changes
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -106,10 +144,17 @@ function EmployeeFormModal({
             <select
               id="employee-store"
               className="select"
+<<<<<<< Updated upstream
               value={values.storeId}
               onChange={(event) => updateField('storeId', Number(event.target.value))}
             >
               {storeOptions.map((store) => (
+=======
+              value={values.storeId || ''}
+              onChange={(event) => updateField('storeId', Number(event.target.value))}
+            >
+              {stores.map((store) => (
+>>>>>>> Stashed changes
                 <option key={store.id} value={store.id}>
                   {store.name}
                 </option>
@@ -191,10 +236,17 @@ function EmployeeFormModal({
                   id="employee-password"
                   type="password"
                   className="input"
+<<<<<<< Updated upstream
                   value={values.password}
                   onChange={(event) => updateField('password', event.target.value)}
                   placeholder="At least 8 characters"
                   autoComplete="new-password"
+=======
+                  autoComplete="new-password"
+                  value={values.password}
+                  onChange={(event) => updateField('password', event.target.value)}
+                  placeholder="At least 8 characters"
+>>>>>>> Stashed changes
                 />
               </FormField>
             </div>

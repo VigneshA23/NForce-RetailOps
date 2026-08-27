@@ -1,26 +1,23 @@
 .dashboard-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .dashboard-shell__header {
   position: sticky;
   top: 0;
   z-index: var(--z-header);
+  flex-shrink: 0;
+}
+
+.dashboard-shell__body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
 }
 
 .dashboard-shell__main {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: var(--bottom-nav-height);
-}
-
-.dashboard-shell__nav {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: var(--space-md);
-  pointer-events: none;
-  z-index: var(--z-bottom-nav);
 }

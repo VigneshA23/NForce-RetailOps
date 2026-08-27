@@ -15,9 +15,18 @@
 }
 
 .employees-page__error {
+<<<<<<< Updated upstream
   display: flex;
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-lg);
   color: var(--color-text-secondary);
+=======
+  margin-bottom: var(--space-md);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+  font-size: 13px;
+>>>>>>> Stashed changes
 }
