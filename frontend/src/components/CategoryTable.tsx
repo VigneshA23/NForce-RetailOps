@@ -1,15 +1,15 @@
-import { Pencil } from 'lucide-react';
 import type { Category } from '../types/category';
-import IconButton from './IconButton';
+import RowActionsMenu from './RowActionsMenu';
 import './CategoryTable.css';
 
 interface CategoryTableProps {
   categories: Category[];
   isLoading?: boolean;
   onEdit: (category: Category) => void;
+  onDelete: (category: Category) => void;
 }
 
-function CategoryTable({ categories, isLoading = false, onEdit }: CategoryTableProps) {
+function CategoryTable({ categories, isLoading = false, onEdit, onDelete }: CategoryTableProps) {
   return (
     <div className="category-table__card">
       <table className="data-table">
@@ -30,7 +30,7 @@ function CategoryTable({ categories, isLoading = false, onEdit }: CategoryTableP
                 </span>
               </td>
               <td className="category-table__actions-cell">
-                <IconButton icon={Pencil} ariaLabel={`Edit ${category.name}`} onClick={() => onEdit(category)} />
+                <RowActionsMenu onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
               </td>
             </tr>
           ))}
