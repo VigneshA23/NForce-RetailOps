@@ -4,6 +4,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import StorePicker from './pages/StorePicker'
 import EmployeeDashboard from './pages/EmployeeDashboard'
 import DashboardShell from './layouts/DashboardShell'
+import SuperAdminDashboard from './pages/SuperAdminDashboard'
 import type { AuthUser } from './types/auth'
 import type { StoreSummary } from './types/store'
 import { setAuthToken, clearAuthToken } from './utils/authStorage'
@@ -44,6 +45,10 @@ function App() {
     ) : (
       <Login onLoginSuccess={handleLoginSuccess} onForgotPassword={() => setView('forgot-password')} />
     )
+  }
+
+  if (user.role === 'SUPER_ADMIN') {
+    return <SuperAdminDashboard user={user} onLogout={handleLogout} loggingOut={loggingOut} />
   }
 
   if (user.role === 'OWNER_ADMIN') {

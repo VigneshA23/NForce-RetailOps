@@ -55,6 +55,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(OwnerNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleOwnerNotFound(OwnerNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied() {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)

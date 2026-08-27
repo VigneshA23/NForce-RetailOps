@@ -1,0 +1,41 @@
+.super-admin-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.super-admin-shell__header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+}
+
+.super-admin-shell__main {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.owners-page {
+  padding: var(--space-lg);
+}
+
+.owners-page__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
+.owners-page__add-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.owners-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-md);
+  color: var(--color-text-secondary);
+}
