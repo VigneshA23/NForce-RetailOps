@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import EmployeeDashboard from './pages/EmployeeDashboard'
-import OwnerAdminDashboard from './pages/OwnerAdminDashboard'
+import DashboardShell from './layouts/DashboardShell'
 import type { AuthUser } from './types/auth'
 
 type View = 'login' | 'forgot-password'
@@ -19,11 +19,7 @@ function App() {
     )
   }
 
-  return user.role === 'OWNER_ADMIN' ? (
-    <OwnerAdminDashboard user={user} />
-  ) : (
-    <EmployeeDashboard user={user} />
-  )
+  return user.role === 'OWNER_ADMIN' ? <DashboardShell /> : <EmployeeDashboard user={user} />
 }
 
-export default App
+export default App;

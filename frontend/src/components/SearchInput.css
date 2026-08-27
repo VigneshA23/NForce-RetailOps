@@ -1,0 +1,23 @@
+.search-input {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-pill);
+  padding: 8px 14px;
+  color: var(--color-text-muted);
+  min-width: 220px;
+}
+
+.search-input__field {
+  border: none;
+  background: transparent;
+  outline: none;
+  color: var(--color-header-text);
+  font-size: 13px;
+  width: 100%;
+}
+
+.search-input__field::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}

@@ -1,0 +1,20 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge--solid {
+  background: var(--color-badge-solid-bg);
+  color: var(--color-badge-solid-text);
+}
+
+.badge--outline {
+  background: var(--color-badge-outline-bg);
+  color: var(--color-badge-outline-text);
+  border: 1px solid var(--color-badge-outline-border);
+}

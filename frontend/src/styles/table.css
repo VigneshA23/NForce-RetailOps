@@ -1,0 +1,31 @@
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface-card);
+}
+
+.data-table thead th {
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table tbody td {
+  padding: var(--space-md);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 3%, transparent);
+}
