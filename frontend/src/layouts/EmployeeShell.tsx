@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { CalendarCheck, HelpCircle, History as HistoryIcon, Inbox, LogOut, Settings, Store as StoreIcon } from 'lucide-react'
+import { CalendarCheck, HelpCircle, History as HistoryIcon, Inbox, Settings, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
 import PlaceholderPage from '../components/PlaceholderPage'
+import ProfileMenu from '../components/ProfileMenu'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
 import './EmployeeShell.css'
@@ -13,6 +14,7 @@ interface EmployeeShellProps {
   store: StoreSummary
   onLogout: () => void
   onSwitchStore: () => void
+  loggingOut?: boolean
 }
 
 const NAV_ITEMS: EmployeeNavItem[] = [
@@ -26,7 +28,7 @@ const FOOTER_NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'support', label: 'Support', icon: HelpCircle },
 ]
 
-function EmployeeShell({ user, store, onLogout, onSwitchStore }: EmployeeShellProps) {
+function EmployeeShell({ user, store, onLogout, onSwitchStore, loggingOut }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
 
   function renderActivePage() {
@@ -100,16 +102,7 @@ function EmployeeShell({ user, store, onLogout, onSwitchStore }: EmployeeShellPr
               <StoreIcon size={16} />
               Switch Store
             </button>
-            <div className="employee-shell-profile">
-              <span className="employee-shell-avatar">{user.fullName.charAt(0).toUpperCase()}</span>
-              <div>
-                <div className="employee-shell-profile-name">{user.fullName}</div>
-                <button type="button" className="employee-shell-logout" onClick={onLogout}>
-                  <LogOut size={12} />
-                  Log out
-                </button>
-              </div>
-            </div>
+            <ProfileMenu fullName={user.fullName} onLogout={onLogout} loggingOut={loggingOut} />
           </div>
         </div>
 

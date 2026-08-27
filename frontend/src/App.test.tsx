@@ -26,7 +26,7 @@ async function loginAsEmployee(user: ReturnType<typeof userEvent.setup>) {
 async function selectFirstOpenStore(user: ReturnType<typeof userEvent.setup>) {
   const storeCard = await screen.findByRole('button', { name: /store 1/i })
   await user.click(storeCard)
-  await screen.findByRole('heading', { name: /welcome, jane doe/i })
+  await screen.findByRole('heading', { name: /today's tasks/i })
 }
 
 beforeEach(() => {
@@ -58,7 +58,7 @@ describe('sign-out', () => {
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /^log out$/i }))
 
-    await screen.findByText(/welcome back/i)
+    await screen.findByText(/welcome to retailops/i)
     expect(mockLogout).toHaveBeenCalledTimes(1)
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
   })
@@ -99,7 +99,7 @@ describe('sign-out', () => {
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /^log out$/i }))
 
-    await screen.findByText(/welcome back/i)
+    await screen.findByText(/welcome to retailops/i)
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
   })
 
@@ -126,7 +126,7 @@ describe('sign-out', () => {
     expect(screen.getByRole('menuitem', { name: /log out/i })).toBeDisabled()
 
     resolveLogout()
-    await screen.findByText(/welcome back/i)
+    await screen.findByText(/welcome to retailops/i)
     expect(mockLogout).toHaveBeenCalledTimes(1)
   })
 
@@ -137,7 +137,7 @@ describe('sign-out', () => {
     unmount()
     render(<App />)
 
-    await screen.findByText(/welcome back/i)
+    await screen.findByText(/welcome to retailops/i)
     expect(screen.queryByLabelText(/signed in as/i)).not.toBeInTheDocument()
   })
 })

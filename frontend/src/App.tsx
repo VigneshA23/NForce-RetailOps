@@ -72,6 +72,7 @@ function App() {
       store={activeStore}
       onLogout={handleLogout}
       onSwitchStore={() => setActiveStore(null)}
+      loggingOut={loggingOut}
     />
   )
 }
