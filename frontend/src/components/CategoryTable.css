@@ -1,0 +1,22 @@
+.category-table__card {
+  background: var(--color-surface-card);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+  overflow-y: visible;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.category-table__name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.category-table__actions-cell {
+  text-align: right;
+}
+
+.category-table__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}

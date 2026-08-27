@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Clock, LayoutGrid, Store, Users } from 'lucide-react';
+import { Clock, LayoutGrid, Store, Tags, Users } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import Header from '../components/Header';
 import Dock, { type DockItemData } from '../components/Dock';
 import Employees from '../pages/Employees';
+import Categories from '../pages/Categories';
 import Home from '../pages/Home';
 import StoreManagement from '../pages/StoreManagement';
 import History from '../pages/History';
@@ -13,6 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'Home', icon: LayoutGrid },
   { key: 'store-management', label: 'Store Management', icon: Store },
   { key: 'employees', label: 'Employees', icon: Users },
+  { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'history', label: 'History', icon: Clock },
 ];
 
@@ -20,6 +22,7 @@ const PAGE_TITLES: Record<NavTabKey, string> = {
   home: 'Home',
   'store-management': 'Store Management',
   employees: 'Employees',
+  categories: 'Categories',
   history: 'History',
 };
 
@@ -62,6 +65,8 @@ function DashboardShell() {
         return <StoreManagement />;
       case 'employees':
         return <Employees />;
+      case 'categories':
+        return <Categories />;
       case 'history':
         return <History />;
       default: {

@@ -4,6 +4,7 @@ import ForgotPassword from './pages/ForgotPassword'
 import EmployeeDashboard from './pages/EmployeeDashboard'
 import DashboardShell from './layouts/DashboardShell'
 import type { AuthUser } from './types/auth'
+import { setAuthToken } from './utils/authStorage'
 
 type View = 'login' | 'forgot-password'
 
@@ -11,11 +12,16 @@ function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [view, setView] = useState<View>('login')
 
+  function handleLoginSuccess(authUser: AuthUser) {
+    setAuthToken(authUser.token)
+    setUser(authUser)
+  }
+
   if (!user) {
     return view === 'forgot-password' ? (
       <ForgotPassword onBackToSignIn={() => setView('login')} />
     ) : (
-      <Login onLoginSuccess={setUser} onForgotPassword={() => setView('forgot-password')} />
+      <Login onLoginSuccess={handleLoginSuccess} onForgotPassword={() => setView('forgot-password')} />
     )
   }
 

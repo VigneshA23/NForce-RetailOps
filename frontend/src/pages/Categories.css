@@ -1,0 +1,23 @@
+.categories-page {
+  padding: var(--space-lg);
+}
+
+.categories-page__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
+.categories-page__add-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.categories-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  color: var(--color-text-secondary);
+}

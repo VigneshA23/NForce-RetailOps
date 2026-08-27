@@ -1,0 +1,108 @@
+import { useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
+import { getCategories, createCategory, updateCategory } from '../api/categories';
+import type { Category, CategoryFormValues } from '../types/category';
+import CategoryTable from '../components/CategoryTable';
+import CategoryFormModal from '../components/CategoryFormModal';
+import SpecularButton from '../components/SpecularButton';
+import './Categories.css';
+
+type FormModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
+
+function Categories() {
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [formModalState, setFormModalState] = useState<FormModalState>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  function loadCategories() {
+    setIsLoading(true);
+    setLoadError(null);
+    getCategories()
+      .then(setCategories)
+      .catch((error: Error) => setLoadError(error.message))
+      .finally(() => setIsLoading(false));
+  }
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  async function handleFormSubmit(values: CategoryFormValues) {
+    setFormError(null);
+    setIsSubmitting(true);
+    try {
+      if (formModalState?.mode === 'edit') {
+        const updated = await updateCategory(formModalState.category.id, values);
+        setCategories((current) => current.map((c) => (c.id === updated.id ? updated : c)));
+      } else {
+        const created = await createCategory(values);
+        setCategories((current) => [...current, created]);
+      }
+      setFormModalState(null);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Something went wrong');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="categories-page">
+      <div className="categories-page__toolbar">
+        <SpecularButton
+          size="sm"
+          radius={999}
+          tint="var(--color-badge-solid-bg)"
+          tintOpacity={1}
+          textColor="var(--color-badge-solid-text)"
+          lineColor="#e11d33"
+          baseColor="#e4e4e7"
+          followMouse
+          proximity={180}
+          onClick={() => {
+            setFormError(null);
+            setFormModalState({ mode: 'create' });
+          }}
+        >
+          <span className="categories-page__add-label">
+            <Plus size={16} />
+            Add Category
+          </span>
+        </SpecularButton>
+      </div>
+
+      {loadError ? (
+        <div className="categories-page__error">
+          {loadError}
+          <button type="button" className="btn btn--secondary" onClick={loadCategories}>
+            Retry
+          </button>
+        </div>
+      ) : (
+        <CategoryTable
+          categories={categories}
+          isLoading={isLoading}
+          onEdit={(category) => {
+            setFormError(null);
+            setFormModalState({ mode: 'edit', category });
+          }}
+        />
+      )}
+
+      <CategoryFormModal
+        isOpen={formModalState !== null}
+        mode={formModalState?.mode ?? 'create'}
+        initialValues={formModalState?.mode === 'edit' ? { name: formModalState.category.name } : undefined}
+        errorMessage={formError}
+        isSubmitting={isSubmitting}
+        onClose={() => setFormModalState(null)}
+        onSubmit={handleFormSubmit}
+      />
+    </div>
+  );
+}
+
+export default Categories;
