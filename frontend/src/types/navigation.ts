@@ -7,3 +7,11 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
 }
+
+export type EmployeeNavTabKey = 'today' | 'history' | 'audits' | 'settings' | 'support';
+
+export interface EmployeeNavItem {
+  key: EmployeeNavTabKey;
+  label: string;
+  icon: LucideIcon;
+}

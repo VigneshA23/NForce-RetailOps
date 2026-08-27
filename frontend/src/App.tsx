@@ -2,7 +2,7 @@ import { useState } from 'react'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import StorePicker from './pages/StorePicker'
-import EmployeeDashboard from './pages/EmployeeDashboard'
+import EmployeeShell from './layouts/EmployeeShell'
 import DashboardShell from './layouts/DashboardShell'
 import type { AuthUser } from './types/auth'
 import type { StoreSummary } from './types/store'
@@ -43,7 +43,14 @@ function App() {
     return <StorePicker user={user} onSelectStore={setActiveStore} onLogout={handleLogout} />
   }
 
-  return <EmployeeDashboard user={user} store={activeStore} />
+  return (
+    <EmployeeShell
+      user={user}
+      store={activeStore}
+      onLogout={handleLogout}
+      onSwitchStore={() => setActiveStore(null)}
+    />
+  )
 }
 
 export default App;
