@@ -1,12 +1,13 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.AddOwnerRequest;
-import com.nforce.retailops.dto.AddOwnerResponse;
+import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailAlreadyExistsException;
+import com.nforce.retailops.exception.OwnerNotFoundException;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -15,8 +16,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
-public class OwnerProvisioningService {
+public class OwnerManagementService {
 
     private static final String OWNER_ROLE_NAME = "OWNER_ADMIN";
 
@@ -26,7 +29,7 @@ public class OwnerProvisioningService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public OwnerProvisioningService(
+    public OwnerManagementService(
         UserRepository userRepository,
         RoleRepository roleRepository,
         StoreRepository storeRepository,
@@ -40,8 +43,15 @@ public class OwnerProvisioningService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Transactional(readOnly = true)
+    public List<OwnerResponse> listOwners() {
+        return storeOwnerRepository.findAllWithStoreAndOwner().stream()
+            .map(OwnerResponse::from)
+            .toList();
+    }
+
     @Transactional
-    public AddOwnerResponse addOwner(AddOwnerRequest request) {
+    public OwnerResponse addOwner(AddOwnerRequest request) {
         if (userRepository.findByEmailWithRoles(request.ownerEmail()).isPresent()) {
             throw new EmailAlreadyExistsException("A user with this email already exists");
         }
@@ -64,15 +74,22 @@ public class OwnerProvisioningService {
         StoreOwner storeOwner = new StoreOwner();
         storeOwner.setStore(store);
         storeOwner.setOwner(owner);
-        storeOwnerRepository.save(storeOwner);
+        storeOwner = storeOwnerRepository.save(storeOwner);
 
-        return new AddOwnerResponse(
-            store.getId(),
-            store.getName(),
-            store.getLocation(),
-            owner.getId(),
-            owner.getFullName(),
-            owner.getEmail()
-        );
+        return OwnerResponse.from(storeOwner);
+    }
+
+    @Transactional
+    public List<OwnerResponse> setOwnerActive(Long ownerId, boolean active) {
+        List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
+        if (storeOwners.isEmpty()) {
+            throw new OwnerNotFoundException("Owner not found");
+        }
+
+        User owner = storeOwners.get(0).getOwner();
+        owner.setActive(active);
+        userRepository.save(owner);
+
+        return storeOwners.stream().map(OwnerResponse::from).toList();
     }
 }

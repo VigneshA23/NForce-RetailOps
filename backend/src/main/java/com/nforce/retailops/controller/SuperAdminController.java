@@ -1,41 +1,43 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.AddOwnerRequest;
-import com.nforce.retailops.dto.AddOwnerResponse;
-import com.nforce.retailops.dto.LoginRequest;
-import com.nforce.retailops.dto.LoginResponse;
-import com.nforce.retailops.service.OwnerProvisioningService;
-import com.nforce.retailops.service.SuperAdminAuthService;
+import com.nforce.retailops.dto.OwnerResponse;
+import com.nforce.retailops.dto.UpdateOwnerStatusRequest;
+import com.nforce.retailops.service.OwnerManagementService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api")
+@PreAuthorize("hasRole('SUPER_ADMIN')")
 public class SuperAdminController {
 
-    private final SuperAdminAuthService superAdminAuthService;
-    private final OwnerProvisioningService ownerProvisioningService;
+    private final OwnerManagementService ownerManagementService;
 
-    public SuperAdminController(
-        SuperAdminAuthService superAdminAuthService,
-        OwnerProvisioningService ownerProvisioningService
-    ) {
-        this.superAdminAuthService = superAdminAuthService;
-        this.ownerProvisioningService = ownerProvisioningService;
+    public SuperAdminController(OwnerManagementService ownerManagementService) {
+        this.ownerManagementService = ownerManagementService;
     }
 
-    @PostMapping("/superlogin")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(superAdminAuthService.login(request.email(), request.password()));
+    @GetMapping("/owners")
+    public ResponseEntity<List<OwnerResponse>> listOwners() {
+        return ResponseEntity.ok(ownerManagementService.listOwners());
     }
 
     @PostMapping("/addowners")
-    public ResponseEntity<AddOwnerResponse> addOwner(@Valid @RequestBody AddOwnerRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(ownerProvisioningService.addOwner(request));
+    public ResponseEntity<OwnerResponse> addOwner(@Valid @RequestBody AddOwnerRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(ownerManagementService.addOwner(request));
+    }
+
+    @PatchMapping("/owners/{ownerId}/status")
+    public ResponseEntity<List<OwnerResponse>> updateOwnerStatus(
+        @PathVariable Long ownerId,
+        @Valid @RequestBody UpdateOwnerStatusRequest request
+    ) {
+        return ResponseEntity.ok(ownerManagementService.setOwnerActive(ownerId, request.active()));
     }
 }

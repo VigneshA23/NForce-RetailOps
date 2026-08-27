@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Clock, LayoutGrid, Store, Tags, Users } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import Header from '../components/Header';
@@ -8,6 +8,7 @@ import Categories from '../pages/Categories';
 import Home from '../pages/Home';
 import Stores from '../pages/Stores';
 import History from '../pages/History';
+import { useTheme } from '../hooks/useTheme';
 import './DashboardShell.css';
 
 const NAV_ITEMS: NavItem[] = [
@@ -26,22 +27,10 @@ const PAGE_TITLES: Record<NavTabKey, string> = {
   history: 'History',
 };
 
-const THEME_STORAGE_KEY = 'nforce-retailops-theme';
-
-function getInitialTheme(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.localStorage.getItem(THEME_STORAGE_KEY) === 'dark';
-}
-
 function DashboardShell() {
   const [activeTab, setActiveTab] = useState<NavTabKey>('employees');
   const [searchValue, setSearchValue] = useState('');
-  const [isDarkTheme, setIsDarkTheme] = useState(getInitialTheme);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = isDarkTheme ? 'dark' : 'light';
-    window.localStorage.setItem(THEME_STORAGE_KEY, isDarkTheme ? 'dark' : 'light');
-  }, [isDarkTheme]);
+  const { isDarkTheme, toggleTheme } = useTheme();
 
   const dockItems: DockItemData[] = useMemo(
     () =>
@@ -84,7 +73,7 @@ function DashboardShell() {
           searchValue={searchValue}
           onSearchChange={setSearchValue}
           isDarkTheme={isDarkTheme}
-          onToggleTheme={() => setIsDarkTheme((current) => !current)}
+          onToggleTheme={toggleTheme}
         />
       </div>
       <main className="dashboard-shell__main">{renderActivePage()}</main>

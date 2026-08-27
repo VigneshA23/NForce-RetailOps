@@ -17,7 +17,7 @@ public class StoreEmployee {
     private Store store;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "employee_id", nullable = false, unique = true)
+    @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User employee;
 
     @Column(name = "created_at", nullable = false)
