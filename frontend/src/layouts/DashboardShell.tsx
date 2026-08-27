@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Clock, LayoutGrid, Store, Tags, Users } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
+import type { AuthUser } from '../types/auth';
 import Header from '../components/Header';
 import Dock, { type DockItemData } from '../components/Dock';
 import Employees from '../pages/Employees';
@@ -33,7 +34,13 @@ function getInitialTheme(): boolean {
   return window.localStorage.getItem(THEME_STORAGE_KEY) === 'dark';
 }
 
-function DashboardShell() {
+interface DashboardShellProps {
+  user: AuthUser;
+  onLogout: () => void;
+  loggingOut?: boolean;
+}
+
+function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('employees');
   const [searchValue, setSearchValue] = useState('');
   const [isDarkTheme, setIsDarkTheme] = useState(getInitialTheme);
@@ -85,6 +92,9 @@ function DashboardShell() {
           onSearchChange={setSearchValue}
           isDarkTheme={isDarkTheme}
           onToggleTheme={() => setIsDarkTheme((current) => !current)}
+          userName={user.fullName}
+          onLogout={onLogout}
+          loggingOut={loggingOut}
         />
       </div>
       <main className="dashboard-shell__main">{renderActivePage()}</main>

@@ -1,0 +1,22 @@
+.employee-dashboard {
+  min-height: 100dvh;
+  background: var(--color-bg-page);
+}
+
+.employee-dashboard__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px var(--space-lg);
+  background: var(--color-header-bg);
+  color: var(--color-header-text);
+}
+
+.employee-dashboard__store {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.employee-dashboard__main {
+  padding: 32px;
+}

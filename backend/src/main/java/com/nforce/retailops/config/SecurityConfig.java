@@ -41,7 +41,7 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/superlogin", "/actuator/health").permitAll()
+                .requestMatchers("/api/auth/login", "/api/superlogin", "/actuator/health").permitAll()
                 .requestMatchers("/api/addowners").hasRole("SUPER_ADMIN")
                 .anyRequest().authenticated()
             )

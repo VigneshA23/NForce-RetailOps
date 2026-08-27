@@ -1,7 +1,7 @@
 import { Bell, Moon, Sun } from 'lucide-react';
 import SearchInput from './SearchInput';
 import IconButton from './IconButton';
-import UserAvatar from './UserAvatar';
+import ProfileMenu from './ProfileMenu';
 import './Header.css';
 
 interface HeaderProps {
@@ -10,7 +10,9 @@ interface HeaderProps {
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;
   onToggleTheme: () => void;
-  userInitials?: string;
+  userName: string;
+  onLogout: () => void;
+  loggingOut?: boolean;
 }
 
 function Header({
@@ -19,7 +21,9 @@ function Header({
   onSearchChange,
   isDarkTheme,
   onToggleTheme,
-  userInitials = 'JB',
+  userName,
+  onLogout,
+  loggingOut,
 }: HeaderProps) {
   return (
     <header className="header">
@@ -43,7 +47,7 @@ function Header({
           variant="accent"
         />
         <IconButton icon={Bell} ariaLabel="Notifications" />
-        <UserAvatar initials={userInitials} />
+        <ProfileMenu fullName={userName} onLogout={onLogout} loggingOut={loggingOut} />
       </div>
     </header>
   );
