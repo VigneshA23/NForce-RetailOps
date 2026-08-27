@@ -1,15 +1,24 @@
 import { useState } from 'react'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
+import StorePicker from './pages/StorePicker'
 import EmployeeDashboard from './pages/EmployeeDashboard'
 import DashboardShell from './layouts/DashboardShell'
 import type { AuthUser } from './types/auth'
+import type { StoreSummary } from './types/store'
 
 type View = 'login' | 'forgot-password'
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [view, setView] = useState<View>('login')
+  const [activeStore, setActiveStore] = useState<StoreSummary | null>(null)
+
+  function handleLogout() {
+    setUser(null)
+    setActiveStore(null)
+    setView('login')
+  }
 
   if (!user) {
     return view === 'forgot-password' ? (
@@ -19,7 +28,15 @@ function App() {
     )
   }
 
-  return user.role === 'OWNER_ADMIN' ? <DashboardShell /> : <EmployeeDashboard user={user} />
+  if (user.role === 'OWNER_ADMIN') {
+    return <DashboardShell />
+  }
+
+  if (!activeStore) {
+    return <StorePicker user={user} onSelectStore={setActiveStore} onLogout={handleLogout} />
+  }
+
+  return <EmployeeDashboard user={user} store={activeStore} />
 }
 
 export default App;
