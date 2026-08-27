@@ -50,7 +50,7 @@ function EmployeeTable({ employees, isLoading = false, onEdit, onDelete }: Emplo
                 </a>
               </td>
               <td>
-                <TypeBadge type={employee.type} />
+                <TypeBadge type={employee.employeeType} />
               </td>
               <td>
                 <a className="employee-table__link" href={`mailto:${employee.email}`}>

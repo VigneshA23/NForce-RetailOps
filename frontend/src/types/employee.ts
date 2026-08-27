@@ -11,7 +11,7 @@ export interface Employee {
   email: string;
   phone: string;
   shift: ShiftName;
-  type: EmployeeType;
+  employeeType: EmployeeType;
   gender: Gender;
   storeId: number;
   storeName: string;

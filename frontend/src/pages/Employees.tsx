@@ -22,7 +22,7 @@ function toUpdateValues(employee: Employee): EmployeeUpdateValues {
     email: employee.email,
     phone: employee.phone,
     shift: employee.shift,
-    type: employee.type,
+    employeeType: employee.employeeType,
     gender: employee.gender,
     storeId: employee.storeId,
   };

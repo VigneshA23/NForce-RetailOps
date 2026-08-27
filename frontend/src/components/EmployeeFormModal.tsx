@@ -25,7 +25,7 @@ function emptyValues(storeOptions: StoreOption[]): FormValues {
     storeId: storeOptions[0]?.id ?? 0,
     shift: SHIFT_OPTIONS[0].name,
     phone: '',
-    type: EMPLOYEE_TYPE_OPTIONS[0],
+    employeeType: EMPLOYEE_TYPE_OPTIONS[0],
     email: '',
     gender: GENDER_OPTIONS[0],
     password: '',
@@ -132,12 +132,12 @@ function EmployeeFormModal({
             </select>
           </FormField>
 
-          <FormField label="Type" htmlFor="employee-type" error={errors.type}>
+          <FormField label="Type" htmlFor="employee-type" error={errors.employeeType}>
             <select
               id="employee-type"
               className="select"
-              value={values.type}
-              onChange={(event) => updateField('type', event.target.value as FormValues['type'])}
+              value={values.employeeType}
+              onChange={(event) => updateField('employeeType', event.target.value as FormValues['employeeType'])}
             >
               {EMPLOYEE_TYPE_OPTIONS.map((type) => (
                 <option key={type} value={type}>

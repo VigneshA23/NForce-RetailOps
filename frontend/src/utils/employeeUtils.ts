@@ -35,8 +35,8 @@ export function validateEmployeeForm(
     errors.phone = 'Enter a valid contact number';
   }
 
-  if (!values.type) {
-    errors.type = 'Employment type is required';
+  if (!values.employeeType) {
+    errors.employeeType = 'Employment type is required';
   }
 
   if (!values.email.trim()) {
