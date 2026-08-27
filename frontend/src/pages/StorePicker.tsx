@@ -31,6 +31,13 @@ function StorePicker({ user, onSelectStore, onLogout }: StorePickerProps) {
   return (
     <div className="store-picker">
       <div className="store-picker-topbar">
+        <div className="store-picker-brand">
+          <img src="/nforce-logo.png" alt="NForce logo" className="store-picker-brand-logo" />
+          <div>
+            <div className="store-picker-brand-title">NForce RetailOps</div>
+            <div className="store-picker-brand-subtitle">Retail Store Operations Platform</div>
+          </div>
+        </div>
         <div className="store-picker-profile">
           <span className="store-picker-avatar">{user.fullName.charAt(0).toUpperCase()}</span>
           <div>
