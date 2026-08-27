@@ -2,9 +2,8 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.MeResponse;
 import com.nforce.retailops.entity.Role;
-import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.repository.StoreEmployeeRepository;
+import com.nforce.retailops.repository.StoreOwnerRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,12 +14,10 @@ public class UserProfileService {
 
     private static final String OWNER_ROLE_NAME = "OWNER_ADMIN";
 
-    private final StoreAccessService storeAccessService;
-    private final StoreEmployeeRepository storeEmployeeRepository;
+    private final StoreOwnerRepository storeOwnerRepository;
 
-    public UserProfileService(StoreAccessService storeAccessService, StoreEmployeeRepository storeEmployeeRepository) {
-        this.storeAccessService = storeAccessService;
-        this.storeEmployeeRepository = storeEmployeeRepository;
+    public UserProfileService(StoreOwnerRepository storeOwnerRepository) {
+        this.storeOwnerRepository = storeOwnerRepository;
     }
 
     @Transactional(readOnly = true)
@@ -29,10 +26,10 @@ public class UserProfileService {
         String role = isOwnerAdmin ? "OWNER_ADMIN" : "EMPLOYEE";
 
         List<String> storeNames = isOwnerAdmin
-            ? storeAccessService.getOwnedStores(user).stream().map(Store::getName).toList()
-            : storeEmployeeRepository.findByEmployee_Id(user.getId())
-                .map(storeEmployee -> List.of(storeEmployee.getStore().getName()))
-                .orElseGet(List::of);
+            ? storeOwnerRepository.findByOwnerId(user.getId()).stream()
+                .map(storeOwner -> storeOwner.getStore().getName())
+                .toList()
+            : List.of();
 
         return new MeResponse(user.getId(), user.getFullName(), user.getEmail(), role, storeNames);
     }

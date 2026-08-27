@@ -2,11 +2,13 @@ import { useState } from 'react'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
 import StorePicker from './pages/StorePicker'
-import EmployeeDashboard from './pages/EmployeeDashboard'
+import EmployeeShell from './layouts/EmployeeShell'
 import DashboardShell from './layouts/DashboardShell'
+import SuperAdminDashboard from './pages/SuperAdminDashboard'
 import type { AuthUser } from './types/auth'
 import type { StoreSummary } from './types/store'
 import { setAuthToken, clearAuthToken } from './utils/authStorage'
+import { logout } from './api/auth'
 
 type View = 'login' | 'forgot-password'
 
@@ -14,12 +16,22 @@ function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [view, setView] = useState<View>('login')
   const [activeStore, setActiveStore] = useState<StoreSummary | null>(null)
+  const [loggingOut, setLoggingOut] = useState(false)
 
-  function handleLogout() {
-    clearAuthToken()
-    setUser(null)
-    setActiveStore(null)
-    setView('login')
+  async function handleLogout() {
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await logout()
+    } catch {
+      // local logout must proceed regardless of backend outcome
+    } finally {
+      clearAuthToken()
+      setUser(null)
+      setActiveStore(null)
+      setView('login')
+      setLoggingOut(false)
+    }
   }
 
   function handleLoginSuccess(authUser: AuthUser) {
@@ -35,28 +47,33 @@ function App() {
     )
   }
 
-<<<<<<< Updated upstream
+  if (user.role === 'SUPER_ADMIN') {
+    return <SuperAdminDashboard user={user} onLogout={handleLogout} loggingOut={loggingOut} />
+  }
+
   if (user.role === 'OWNER_ADMIN') {
-    return <DashboardShell />
+    return <DashboardShell user={user} onLogout={handleLogout} loggingOut={loggingOut} />
   }
 
   if (!activeStore) {
-    return <StorePicker user={user} onSelectStore={setActiveStore} onLogout={handleLogout} />
+    return (
+      <StorePicker
+        user={user}
+        onSelectStore={setActiveStore}
+        onLogout={handleLogout}
+        loggingOut={loggingOut}
+      />
+    )
   }
 
-  return <EmployeeDashboard user={user} store={activeStore} />
-=======
-  function handleLogout() {
-    setUser(null)
-    setView('login')
-  }
-
-  return user.role === 'OWNER_ADMIN' ? (
-    <DashboardShell user={user} onLogout={handleLogout} />
-  ) : (
-    <EmployeeDashboard user={user} />
+  return (
+    <EmployeeShell
+      user={user}
+      store={activeStore}
+      onLogout={handleLogout}
+      onSwitchStore={() => setActiveStore(null)}
+    />
   )
->>>>>>> Stashed changes
 }
 
 export default App;

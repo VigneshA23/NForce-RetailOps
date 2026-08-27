@@ -23,6 +23,6 @@ public class DashboardController {
 
     @GetMapping("/summary")
     public ResponseEntity<DashboardSummaryResponse> getSummary(@AuthenticationPrincipal AppUserDetails principal) {
-        return ResponseEntity.ok(dashboardService.getSummary(principal.getUser()));
+        return ResponseEntity.ok(dashboardService.getSummary(principal.getUser().getId()));
     }
 }

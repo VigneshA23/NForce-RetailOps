@@ -26,6 +26,14 @@
   justify-content: center;
 }
 
+.sidebar__brand-logo {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
 .sidebar__brand-text {
   color: #ffffff;
   font-weight: 800;

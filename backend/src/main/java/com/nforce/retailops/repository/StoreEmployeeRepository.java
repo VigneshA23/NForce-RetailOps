@@ -8,7 +8,6 @@ import java.util.Optional;
 
 public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Long> {
 
-<<<<<<< Updated upstream
     int countByStoreId(Long storeId);
 
     void deleteByStoreId(Long storeId);
@@ -16,11 +15,4 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
     List<StoreEmployee> findByStoreIdOrderByIdAsc(Long storeId);
 
     Optional<StoreEmployee> findByIdAndStoreId(Long id, Long storeId);
-=======
-    Optional<StoreEmployee> findByEmployee_Id(Long employeeId);
-
-    List<StoreEmployee> findByStore_IdIn(List<Long> storeIds);
-
-    long countByStore_Id(Long storeId);
->>>>>>> Stashed changes
 }

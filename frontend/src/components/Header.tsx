@@ -1,7 +1,7 @@
 import { Bell, Moon, Sun } from 'lucide-react';
 import SearchInput from './SearchInput';
 import IconButton from './IconButton';
-import UserMenu from './UserMenu';
+import ProfileMenu from './ProfileMenu';
 import './Header.css';
 
 interface HeaderProps {
@@ -10,12 +10,11 @@ interface HeaderProps {
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;
   onToggleTheme: () => void;
-  userInitials: string;
-  fullName: string;
-  roleLabel: string;
-  onProfileClick: () => void;
-  onHelpClick: () => void;
-  onSignOut: () => void;
+  userName: string;
+  onProfileClick?: () => void;
+  onHelpClick?: () => void;
+  onLogout: () => void;
+  loggingOut?: boolean;
 }
 
 function Header({
@@ -24,12 +23,11 @@ function Header({
   onSearchChange,
   isDarkTheme,
   onToggleTheme,
-  userInitials,
-  fullName,
-  roleLabel,
+  userName,
   onProfileClick,
   onHelpClick,
-  onSignOut,
+  onLogout,
+  loggingOut,
 }: HeaderProps) {
   return (
     <header className="header">
@@ -53,13 +51,12 @@ function Header({
           variant="accent"
         />
         <IconButton icon={Bell} ariaLabel="Notifications" />
-        <UserMenu
-          initials={userInitials}
-          fullName={fullName}
-          roleLabel={roleLabel}
+        <ProfileMenu
+          fullName={userName}
           onProfileClick={onProfileClick}
           onHelpClick={onHelpClick}
-          onSignOut={onSignOut}
+          onLogout={onLogout}
+          loggingOut={loggingOut}
         />
       </div>
     </header>

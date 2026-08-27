@@ -1,4 +1,3 @@
-import { UserCheck, UserX } from 'lucide-react';
 import type { Employee, EmployeeType } from '../types/employee';
 import { getShiftTimeRange } from '../utils/employeeUtils';
 import RowActionsMenu from './RowActionsMenu';
@@ -8,7 +7,7 @@ interface EmployeeTableProps {
   employees: Employee[];
   isLoading?: boolean;
   onEdit: (employee: Employee) => void;
-  onToggleStatus: (employee: Employee) => void;
+  onDelete: (employee: Employee) => void;
 }
 
 function TypeBadge({ type }: { type: EmployeeType }) {
@@ -16,15 +15,7 @@ function TypeBadge({ type }: { type: EmployeeType }) {
   return <span className={className}>{type}</span>;
 }
 
-function StatusBadge({ active }: { active: boolean }) {
-  return (
-    <span className={`badge ${active ? 'badge--success' : 'badge--danger'}`}>
-      {active ? 'Active' : 'Inactive'}
-    </span>
-  );
-}
-
-function EmployeeTable({ employees, isLoading = false, onEdit, onToggleStatus }: EmployeeTableProps) {
+function EmployeeTable({ employees, isLoading = false, onEdit, onDelete }: EmployeeTableProps) {
   return (
     <div className="employee-table__card">
       <table className="data-table">
@@ -38,13 +29,12 @@ function EmployeeTable({ employees, isLoading = false, onEdit, onToggleStatus }:
             <th scope="col">Type</th>
             <th scope="col">Email</th>
             <th scope="col">Gender</th>
-            <th scope="col">Status</th>
             <th scope="col">Actions</th>
           </tr>
         </thead>
         <tbody>
           {employees.map((employee) => (
-            <tr key={employee.id}>
+            <tr key={employee.empId}>
               <td className="employee-table__emp-id">{employee.empId}</td>
               <td className="employee-table__name">{employee.name}</td>
               <td>{employee.storeName}</td>
@@ -60,7 +50,7 @@ function EmployeeTable({ employees, isLoading = false, onEdit, onToggleStatus }:
                 </a>
               </td>
               <td>
-                <TypeBadge type={employee.type} />
+                <TypeBadge type={employee.employeeType} />
               </td>
               <td>
                 <a className="employee-table__link" href={`mailto:${employee.email}`}>
@@ -68,17 +58,8 @@ function EmployeeTable({ employees, isLoading = false, onEdit, onToggleStatus }:
                 </a>
               </td>
               <td>{employee.gender}</td>
-              <td>
-                <StatusBadge active={employee.active} />
-              </td>
               <td className="employee-table__actions-cell">
-                <RowActionsMenu
-                  onEdit={() => onEdit(employee)}
-                  secondaryLabel={employee.active ? 'Deactivate' : 'Activate'}
-                  secondaryIcon={employee.active ? UserX : UserCheck}
-                  secondaryDanger={employee.active}
-                  onSecondary={() => onToggleStatus(employee)}
-                />
+                <RowActionsMenu onEdit={() => onEdit(employee)} onDelete={() => onDelete(employee)} />
               </td>
             </tr>
           ))}

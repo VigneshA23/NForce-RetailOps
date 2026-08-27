@@ -1,6 +1,5 @@
 import { ChevronLeft } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
-import Logo from './Logo';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -15,7 +14,7 @@ function Sidebar({ items, activeTab, onSelect, isCollapsed, onToggleCollapse }: 
   return (
     <aside className={`sidebar${isCollapsed ? ' sidebar--collapsed' : ''}`}>
       <div className="sidebar__brand">
-        <Logo size={26} />
+        <img src="/nforce-logo.png" alt="NForce logo" className="sidebar__brand-logo" />
         {!isCollapsed && <span className="sidebar__brand-text">RETAILOPS</span>}
         <button
           type="button"

@@ -3,15 +3,17 @@ import { Store as StoreIcon } from 'lucide-react'
 import { getAuthorizedStores } from '../api/stores'
 import type { StoreSummary } from '../types/store'
 import type { AuthUser } from '../types/auth'
+import ProfileMenu from '../components/ProfileMenu'
 import './StorePicker.css'
 
 interface StorePickerProps {
   user: AuthUser
   onSelectStore: (store: StoreSummary) => void
   onLogout: () => void
+  loggingOut?: boolean
 }
 
-function StorePicker({ user, onSelectStore, onLogout }: StorePickerProps) {
+function StorePicker({ user, onSelectStore, onLogout, loggingOut }: StorePickerProps) {
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -38,15 +40,7 @@ function StorePicker({ user, onSelectStore, onLogout }: StorePickerProps) {
             <div className="store-picker-brand-subtitle">Retail Store Operations Platform</div>
           </div>
         </div>
-        <div className="store-picker-profile">
-          <span className="store-picker-avatar">{user.fullName.charAt(0).toUpperCase()}</span>
-          <div>
-            <div className="store-picker-profile-name">{user.fullName}</div>
-            <button type="button" className="store-picker-logout" onClick={onLogout}>
-              Log out
-            </button>
-          </div>
-        </div>
+        <ProfileMenu fullName={user.fullName} onLogout={onLogout} loggingOut={loggingOut} />
       </div>
 
       <div className="store-picker-body">

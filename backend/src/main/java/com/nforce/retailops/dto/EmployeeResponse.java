@@ -1,6 +1,5 @@
 package com.nforce.retailops.dto;
 
-<<<<<<< Updated upstream
 import com.nforce.retailops.entity.StoreEmployee;
 
 public record EmployeeResponse(
@@ -29,19 +28,4 @@ public record EmployeeResponse(
             storeEmployee.getStore().getName()
         );
     }
-=======
-public record EmployeeResponse(
-    Long id,
-    String empId,
-    String fullName,
-    String email,
-    String phone,
-    String shift,
-    String employmentType,
-    String gender,
-    boolean active,
-    Long storeId,
-    String storeName
-) {
->>>>>>> Stashed changes
 }

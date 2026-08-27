@@ -5,7 +5,6 @@ import UserAvatar from '../components/UserAvatar';
 import './Profile.css';
 
 interface ProfileProps {
-  token: string;
   initials: string;
 }
 
@@ -14,14 +13,14 @@ const ROLE_LABELS: Record<MeResponse['role'], string> = {
   EMPLOYEE: 'Employee',
 };
 
-function Profile({ token, initials }: ProfileProps) {
+function Profile({ initials }: ProfileProps) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    getMe(token)
+    getMe()
       .then((data) => {
         if (isMounted) setMe(data);
       })
@@ -34,7 +33,7 @@ function Profile({ token, initials }: ProfileProps) {
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, []);
 
   if (isLoading) {
     return <div className="profile-page__empty">Loading profile...</div>;

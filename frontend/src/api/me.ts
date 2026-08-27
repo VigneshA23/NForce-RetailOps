@@ -8,6 +8,6 @@ export interface MeResponse {
   storeNames: string[];
 }
 
-export async function getMe(token: string): Promise<MeResponse> {
-  return apiRequest<MeResponse>('/me', { token });
+export async function getMe(): Promise<MeResponse> {
+  return apiRequest<MeResponse>('/me');
 }

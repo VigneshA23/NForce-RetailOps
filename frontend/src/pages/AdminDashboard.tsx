@@ -4,19 +4,18 @@ import { getDashboardSummary, type DashboardSummary } from '../api/dashboard';
 import './AdminDashboard.css';
 
 interface AdminDashboardProps {
-  token: string;
   fullName: string;
   onManageEmployees: () => void;
 }
 
-function AdminDashboard({ token, fullName, onManageEmployees }: AdminDashboardProps) {
+function AdminDashboard({ fullName, onManageEmployees }: AdminDashboardProps) {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
-    getDashboardSummary(token)
+    getDashboardSummary()
       .then((data) => {
         if (isMounted) setSummary(data);
       })
@@ -29,7 +28,7 @@ function AdminDashboard({ token, fullName, onManageEmployees }: AdminDashboardPr
     return () => {
       isMounted = false;
     };
-  }, [token]);
+  }, []);
 
   return (
     <div className="admin-dashboard">
@@ -52,14 +51,6 @@ function AdminDashboard({ token, fullName, onManageEmployees }: AdminDashboardPr
             <div className="stat-card">
               <span className="stat-card__value">{isLoading ? '—' : summary?.totalEmployees ?? 0}</span>
               <span className="stat-card__label">Total Employees</span>
-            </div>
-            <div className="stat-card stat-card--success">
-              <span className="stat-card__value">{isLoading ? '—' : summary?.activeEmployees ?? 0}</span>
-              <span className="stat-card__label">Active</span>
-            </div>
-            <div className="stat-card stat-card--danger">
-              <span className="stat-card__value">{isLoading ? '—' : summary?.inactiveEmployees ?? 0}</span>
-              <span className="stat-card__label">Inactive</span>
             </div>
           </div>
 
@@ -85,7 +76,6 @@ function AdminDashboard({ token, fullName, onManageEmployees }: AdminDashboardPr
                     </div>
                     <div>
                       <div className="store-card__name">{store.name}</div>
-                      {store.location && <div className="store-card__location">{store.location}</div>}
                     </div>
                     <span className={`badge ${store.active ? 'badge--success' : 'badge--danger'}`}>
                       {store.active ? 'Active' : 'Inactive'}

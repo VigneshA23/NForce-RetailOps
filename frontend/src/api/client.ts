@@ -1,3 +1,5 @@
+import { authHeaders } from '../utils/authStorage';
+
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
 export class ApiError extends Error {
@@ -11,16 +13,15 @@ export class ApiError extends Error {
 
 interface RequestOptions {
   method?: string;
-  token: string;
   body?: unknown;
 }
 
-export async function apiRequest<T>(path: string, { method = 'GET', token, body }: RequestOptions): Promise<T> {
+export async function apiRequest<T>(path: string, { method = 'GET', body }: RequestOptions = {}): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
+      ...authHeaders(),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });

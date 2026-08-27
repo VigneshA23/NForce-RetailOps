@@ -1,13 +1,24 @@
 import type { LucideIcon } from 'lucide-react';
 
-<<<<<<< Updated upstream
-export type NavTabKey = 'home' | 'store-management' | 'employees' | 'categories' | 'history';
-=======
-export type NavTabKey = 'dashboard' | 'employees' | 'profile' | 'help';
->>>>>>> Stashed changes
+export type NavTabKey =
+  | 'dashboard'
+  | 'store-management'
+  | 'employees'
+  | 'categories'
+  | 'history'
+  | 'profile'
+  | 'help';
 
 export interface NavItem {
   key: NavTabKey;
+  label: string;
+  icon: LucideIcon;
+}
+
+export type EmployeeNavTabKey = 'today' | 'history' | 'audits' | 'settings' | 'support';
+
+export interface EmployeeNavItem {
+  key: EmployeeNavTabKey;
   label: string;
   icon: LucideIcon;
 }

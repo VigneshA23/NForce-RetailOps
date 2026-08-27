@@ -34,18 +34,6 @@ public class User {
     @Column(nullable = false)
     private boolean active = true;
 
-    @Column(columnDefinition = "TEXT")
-    private String phone;
-
-    @Column(columnDefinition = "TEXT")
-    private String shift;
-
-    @Column(name = "employment_type", columnDefinition = "TEXT")
-    private String employmentType;
-
-    @Column(columnDefinition = "TEXT")
-    private String gender;
-
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -101,38 +89,6 @@ public class User {
 
     public void setActive(boolean active) {
         this.active = active;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
-
-    public String getShift() {
-        return shift;
-    }
-
-    public void setShift(String shift) {
-        this.shift = shift;
-    }
-
-    public String getEmploymentType() {
-        return employmentType;
-    }
-
-    public void setEmploymentType(String employmentType) {
-        this.employmentType = employmentType;
-    }
-
-    public String getGender() {
-        return gender;
-    }
-
-    public void setGender(String gender) {
-        this.gender = gender;
     }
 
     public OffsetDateTime getCreatedAt() {
