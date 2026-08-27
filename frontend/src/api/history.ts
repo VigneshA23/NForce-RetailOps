@@ -1,4 +1,4 @@
-nimport type { DailySummary, HistoryCategoryEntry, HistoryStaffMember, HistoryTaskDetail, ShiftHistory } from '../types/history';
+import type { DailySummary, HistoryCategoryEntry, HistoryStaffMember, HistoryTaskDetail, ShiftHistory } from '../types/history';
 
 const SIMULATED_LATENCY_MS = 200;
 

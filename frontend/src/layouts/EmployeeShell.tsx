@@ -32,7 +32,7 @@ function EmployeeShell({ user, store, onLogout, onSwitchStore }: EmployeeShellPr
   function renderActivePage() {
     switch (activeTab) {
       case 'today':
-        return <EmployeeDashboard store={store} />
+        return <EmployeeDashboard store={store} onLogout={onLogout} loggingOut={false} />
       case 'history':
         return <EmployeeHistory store={store} />
       case 'audits':
