@@ -20,7 +20,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class EmployeeService {
@@ -47,19 +49,37 @@ public class EmployeeService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // An owner can now have multiple stores, so "the owner's store" no longer
-    // makes sense - callers must say which store, and we verify they own it.
-    private Store resolveOwnerStore(Long ownerId, Long storeId) {
-        return storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
-            .map(StoreOwner::getStore)
-            .orElseThrow(() -> new AccessDeniedException("You cannot assign employees to another store"));
+    // An employee can now be assigned to multiple stores, so every store id in
+    // the request must individually be one the caller owns.
+    private Set<Store> resolveOwnerStores(Long ownerId, List<Long> storeIds) {
+        if (storeIds == null || storeIds.isEmpty()) {
+            throw new AccessDeniedException("At least one store must be assigned");
+        }
+        Set<Store> stores = new LinkedHashSet<>();
+        for (Long storeId : storeIds) {
+            Store store = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
+                .map(StoreOwner::getStore)
+                .orElseThrow(() -> new AccessDeniedException("You cannot assign employees to another store"));
+            stores.add(store);
+        }
+        return stores;
+    }
+
+    private boolean ownsAnyStore(StoreEmployee storeEmployee, Long ownerId) {
+        return storeEmployee.getStores().stream()
+            .anyMatch(store -> storeOwnerRepository.findByStoreIdAndOwnerId(store.getId(), ownerId).isPresent());
     }
 
     @Transactional(readOnly = true)
     public List<EmployeeResponse> listEmployees(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+        List<Long> storeIds = storeOwnerRepository.findByOwnerId(ownerId).stream()
             .map(StoreOwner::getStore)
-            .flatMap(store -> storeEmployeeRepository.findByStoreIdOrderByIdAsc(store.getId()).stream())
+            .map(Store::getId)
+            .toList();
+        if (storeIds.isEmpty()) {
+            return List.of();
+        }
+        return storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAsc(storeIds).stream()
             .map(EmployeeResponse::from)
             .toList();
     }
@@ -74,7 +94,7 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeResponse createEmployee(Long ownerId, EmployeeCreateRequest request) {
-        Store store = resolveOwnerStore(ownerId, request.storeId());
+        Set<Store> stores = resolveOwnerStores(ownerId, request.storeIds());
 
         String email = request.email().trim();
         if (userRepository.findByEmailWithRoles(email).isPresent()) {
@@ -92,7 +112,7 @@ public class EmployeeService {
         employee = userRepository.save(employee);
 
         StoreEmployee storeEmployee = new StoreEmployee();
-        storeEmployee.setStore(store);
+        storeEmployee.setStores(stores);
         storeEmployee.setEmployee(employee);
         storeEmployee.setPhone(request.phone().trim());
         storeEmployee.setShift(request.shift());
@@ -105,10 +125,14 @@ public class EmployeeService {
 
     @Transactional
     public EmployeeResponse updateEmployee(Long ownerId, Long id, EmployeeUpdateRequest request) {
-        Store store = resolveOwnerStore(ownerId, request.storeId());
-
-        StoreEmployee storeEmployee = storeEmployeeRepository.findByIdAndStoreId(id, store.getId())
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        if (!ownsAnyStore(storeEmployee, ownerId)) {
+            throw new EmployeeNotFoundException("Employee not found");
+        }
+
+        Set<Store> stores = resolveOwnerStores(ownerId, request.storeIds());
 
         String email = request.email().trim();
         User employee = storeEmployee.getEmployee();
@@ -121,6 +145,7 @@ public class EmployeeService {
         employee.setEmail(email);
         userRepository.save(employee);
 
+        storeEmployee.setStores(stores);
         storeEmployee.setPhone(request.phone().trim());
         storeEmployee.setShift(request.shift());
         storeEmployee.setEmployeeType(request.employeeType());
@@ -135,10 +160,7 @@ public class EmployeeService {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
-        boolean ownsStore = storeOwnerRepository
-            .findByStoreIdAndOwnerId(storeEmployee.getStore().getId(), ownerId)
-            .isPresent();
-        if (!ownsStore) {
+        if (!ownsAnyStore(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
         }
 

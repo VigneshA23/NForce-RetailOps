@@ -7,11 +7,13 @@ interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
+  size?: 'md' | 'lg';
 }
 
-function Modal({ isOpen, onClose, title, children, footer }: ModalProps) {
+function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md' }: ModalProps) {
   const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2)}`).current;
   const modalRef = useRef<HTMLDivElement>(null);
   const triggerElementRef = useRef<Element | null>(null);
@@ -50,11 +52,20 @@ function Modal({ isOpen, onClose, title, children, footer }: ModalProps) {
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} ref={modalRef}>
+      <div
+        className={`modal${size === 'lg' ? ' modal--lg' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        ref={modalRef}
+      >
         <div className="modal__header">
-          <h2 className="modal__title" id={titleId}>
-            {title}
-          </h2>
+          <div>
+            <h2 className="modal__title" id={titleId}>
+              {title}
+            </h2>
+            {subtitle && <p className="modal__subtitle">{subtitle}</p>}
+          </div>
           <button type="button" className="modal__close" aria-label="Close dialog" onClick={onClose}>
             <X size={18} />
           </button>

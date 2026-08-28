@@ -21,8 +21,8 @@ export function validateEmployeeForm(
     errors.name = 'Name is required';
   }
 
-  if (!values.storeId) {
-    errors.storeId = 'Assigned store is required';
+  if (!values.storeIds || values.storeIds.length === 0) {
+    errors.storeIds = 'At least one store must be assigned';
   }
 
   if (!values.shift) {

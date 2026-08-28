@@ -1,0 +1,102 @@
+.task-form__section {
+  padding-bottom: var(--space-lg);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.task-form__section:last-of-type {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.task-form__section--secondary {
+  opacity: 0.9;
+}
+
+.task-form__heading {
+  margin: 0 0 var(--space-md);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-secondary);
+}
+
+.task-form__textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+
+.task-form__empty-state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.task-form__conditional {
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: color-mix(in srgb, var(--color-text-primary) 3%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.task-form__conditional-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-sm);
+}
+
+.task-form__grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.task-form__grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-md);
+}
+
+.task-form__days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.task-form__day {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.task-form__hint {
+  margin: var(--space-sm) 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.task-form__char-count {
+  text-align: right;
+}
+
+@media (max-width: 560px) {
+  .task-form__grid-2,
+  .task-form__grid-3 {
+    grid-template-columns: 1fr;
+  }
+}

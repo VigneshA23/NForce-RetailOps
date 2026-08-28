@@ -4,6 +4,7 @@ import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS, SHIFT_OPTIONS } from '../utils/e
 import { validateEmployeeForm } from '../utils/employeeUtils';
 import Modal from './Modal';
 import FormField from './FormField';
+import MultiSelect from './MultiSelect';
 import './EmployeeFormModal.css';
 
 type FormValues = EmployeeUpdateValues & { password: string };
@@ -19,10 +20,10 @@ interface EmployeeFormModalProps {
   onSubmit: (values: EmployeeCreateValues | EmployeeUpdateValues) => void;
 }
 
-function emptyValues(storeOptions: StoreOption[]): FormValues {
+function emptyValues(): FormValues {
   return {
     name: '',
-    storeId: storeOptions[0]?.id ?? 0,
+    storeIds: [],
     shift: SHIFT_OPTIONS[0].name,
     phone: '',
     employeeType: EMPLOYEE_TYPE_OPTIONS[0],
@@ -43,16 +44,16 @@ function EmployeeFormModal({
   onSubmit,
 }: EmployeeFormModalProps) {
   const [values, setValues] = useState<FormValues>(
-    initialValues ? { ...initialValues, password: '' } : emptyValues(storeOptions),
+    initialValues ? { ...initialValues, password: '' } : emptyValues(),
   );
   const [errors, setErrors] = useState<Partial<Record<keyof EmployeeCreateValues, string>>>({});
 
   useEffect(() => {
     if (isOpen) {
-      setValues(initialValues ? { ...initialValues, password: '' } : emptyValues(storeOptions));
+      setValues(initialValues ? { ...initialValues, password: '' } : emptyValues());
       setErrors({});
     }
-  }, [isOpen, initialValues, storeOptions]);
+  }, [isOpen, initialValues]);
 
   function updateField<K extends keyof FormValues>(field: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -102,20 +103,18 @@ function EmployeeFormModal({
             />
           </FormField>
 
-          <FormField label="Assigned Store" htmlFor="employee-store" error={errors.storeId}>
-            <select
-              id="employee-store"
-              className="select"
-              value={values.storeId}
-              onChange={(event) => updateField('storeId', Number(event.target.value))}
-            >
-              {storeOptions.map((store) => (
-                <option key={store.id} value={store.id}>
-                  {store.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
+          <div className="form-field--full">
+            <FormField label="Assigned Stores" htmlFor="employee-stores" error={errors.storeIds}>
+              <MultiSelect
+                id="employee-stores"
+                options={storeOptions.map((store) => ({ id: store.id, label: store.name }))}
+                value={values.storeIds}
+                onChange={(ids) => updateField('storeIds', ids)}
+                placeholder="Select stores..."
+                searchPlaceholder="Search stores..."
+              />
+            </FormField>
+          </div>
 
           <FormField label="Shift" htmlFor="employee-shift" error={errors.shift}>
             <select
