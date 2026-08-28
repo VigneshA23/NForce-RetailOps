@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Clock, LayoutGrid, Store, Tags, Users } from 'lucide-react';
+import { CheckSquare, Clock, LayoutGrid, Store, Tags, Users } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
 import Header from '../components/Header';
@@ -8,6 +8,7 @@ import Employees from '../pages/Employees';
 import Categories from '../pages/Categories';
 import Home from '../pages/Home';
 import Stores from '../pages/Stores';
+import Tasks from '../pages/Tasks';
 import History from '../pages/History';
 import { useTheme } from '../hooks/useTheme';
 import './DashboardShell.css';
@@ -17,6 +18,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'store-management', label: 'Stores', icon: Store },
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
+  { key: 'tasks', label: 'Tasks', icon: CheckSquare },
   { key: 'history', label: 'History', icon: Clock },
 ];
 
@@ -25,6 +27,7 @@ const PAGE_TITLES: Record<NavTabKey, string> = {
   'store-management': 'Stores',
   employees: 'Employees',
   categories: 'Categories',
+  tasks: 'Tasks',
   history: 'History',
 };
 
@@ -63,6 +66,8 @@ function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
         return <Employees />;
       case 'categories':
         return <Categories />;
+      case 'tasks':
+        return <Tasks onNavigateToCategories={() => setActiveTab('categories')} />;
       case 'history':
         return <History />;
       default: {
