@@ -22,20 +22,23 @@ public class AuthService {
     private final SuperAdminRepository superAdminRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final SessionService sessionService;
 
     public AuthService(
         UserRepository userRepository,
         SuperAdminRepository superAdminRepository,
         PasswordEncoder passwordEncoder,
-        JwtService jwtService
+        JwtService jwtService,
+        SessionService sessionService
     ) {
         this.userRepository = userRepository;
         this.superAdminRepository = superAdminRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.sessionService = sessionService;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse login(String email, String password) {
         Optional<SuperAdmin> superAdminMatch = superAdminRepository.findByEmailIgnoreCase(email);
         if (superAdminMatch.isPresent()) {
@@ -58,6 +61,7 @@ public class AuthService {
         String primaryRole = roleNames.contains("OWNER_ADMIN") ? "OWNER_ADMIN" : "EMPLOYEE";
 
         String token = jwtService.generateToken(user.getEmail(), roleNames);
+        sessionService.createSession(jwtService.extractTokenId(token), user.getEmail());
 
         return new LoginResponse(token, primaryRole, user.getFullName());
     }
@@ -68,6 +72,7 @@ public class AuthService {
         }
 
         String token = jwtService.generateToken(superAdmin.getEmail(), List.of("SUPER_ADMIN"));
+        sessionService.createSession(jwtService.extractTokenId(token), superAdmin.getEmail());
 
         return new LoginResponse(token, "SUPER_ADMIN", superAdmin.getName());
     }

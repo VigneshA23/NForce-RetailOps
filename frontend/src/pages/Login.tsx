@@ -7,9 +7,10 @@ import './LoginCrimson.css'
 interface LoginProps {
   onLoginSuccess: (user: AuthUser) => void
   onForgotPassword: () => void
+  notice?: string | null
 }
 
-function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
+function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -99,6 +100,8 @@ function Login({ onLoginSuccess, onForgotPassword }: LoginProps) {
 
           <h2 className="login2-card-heading">Welcome to RetailOps</h2>
           <p className="login2-card-subheading">Command &amp; Control at your fingertips.</p>
+
+          {notice && <div className="login2-error" role="status">{notice}</div>}
 
           <form onSubmit={handleSubmit} noValidate>
             <div className="login2-field">

@@ -13,5 +13,7 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
 
     List<StoreEmployee> findDistinctByStoresIdInOrderByIdAsc(Collection<Long> storeIds);
 
+    List<StoreEmployee> findByCreatedByOwnerId(Long ownerId);
+
     Optional<StoreEmployee> findByIdAndStoresId(Long id, Long storeId);
 }

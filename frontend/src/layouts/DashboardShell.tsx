@@ -52,7 +52,7 @@ interface DashboardShellProps {
 type Overlay = 'profile' | 'help' | null;
 
 function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
-  const [activeTab, setActiveTab] = useState<NavTabKey>('employees');
+  const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);

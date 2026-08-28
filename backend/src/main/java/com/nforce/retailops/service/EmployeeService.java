@@ -20,8 +20,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -49,11 +52,12 @@ public class EmployeeService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // An employee can now be assigned to multiple stores, so every store id in
-    // the request must individually be one the caller owns.
+    // Store assignment is optional: an employee can be created or edited with no
+    // stores at all. Every store id that IS provided must individually be one the
+    // caller owns.
     private Set<Store> resolveOwnerStores(Long ownerId, List<Long> storeIds) {
         if (storeIds == null || storeIds.isEmpty()) {
-            throw new AccessDeniedException("At least one store must be assigned");
+            return new LinkedHashSet<>();
         }
         Set<Store> stores = new LinkedHashSet<>();
         for (Long storeId : storeIds) {
@@ -70,16 +74,36 @@ public class EmployeeService {
             .anyMatch(store -> storeOwnerRepository.findByStoreIdAndOwnerId(store.getId(), ownerId).isPresent());
     }
 
+    // An owner can manage an employee either through shared store assignment, or
+    // because they were the one who created the employee (which matters once an
+    // employee has no stores assigned at all).
+    private boolean canManageEmployee(StoreEmployee storeEmployee, Long ownerId) {
+        User createdByOwner = storeEmployee.getCreatedByOwner();
+        if (createdByOwner != null && createdByOwner.getId().equals(ownerId)) {
+            return true;
+        }
+        return ownsAnyStore(storeEmployee, ownerId);
+    }
+
     @Transactional(readOnly = true)
     public List<EmployeeResponse> listEmployees(Long ownerId) {
         List<Long> storeIds = storeOwnerRepository.findByOwnerId(ownerId).stream()
             .map(StoreOwner::getStore)
             .map(Store::getId)
             .toList();
-        if (storeIds.isEmpty()) {
-            return List.of();
+
+        Map<Long, StoreEmployee> employeesById = new LinkedHashMap<>();
+        if (!storeIds.isEmpty()) {
+            for (StoreEmployee storeEmployee : storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAsc(storeIds)) {
+                employeesById.put(storeEmployee.getId(), storeEmployee);
+            }
         }
-        return storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAsc(storeIds).stream()
+        for (StoreEmployee storeEmployee : storeEmployeeRepository.findByCreatedByOwnerId(ownerId)) {
+            employeesById.putIfAbsent(storeEmployee.getId(), storeEmployee);
+        }
+
+        return employeesById.values().stream()
+            .sorted(Comparator.comparing(StoreEmployee::getId))
             .map(EmployeeResponse::from)
             .toList();
     }
@@ -114,6 +138,7 @@ public class EmployeeService {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setStores(stores);
         storeEmployee.setEmployee(employee);
+        storeEmployee.setCreatedByOwner(userRepository.getReferenceById(ownerId));
         storeEmployee.setPhone(request.phone().trim());
         storeEmployee.setShift(request.shift());
         storeEmployee.setEmployeeType(request.employeeType());
@@ -128,7 +153,7 @@ public class EmployeeService {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
-        if (!ownsAnyStore(storeEmployee, ownerId)) {
+        if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
         }
 
@@ -160,7 +185,7 @@ public class EmployeeService {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
-        if (!ownsAnyStore(storeEmployee, ownerId)) {
+        if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
         }
 

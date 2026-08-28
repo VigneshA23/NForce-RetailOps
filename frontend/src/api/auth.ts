@@ -24,6 +24,20 @@ export async function logout(): Promise<void> {
   })
 }
 
+export interface SessionConfig {
+  inactivityTimeoutMinutes: number
+}
+
+export async function getSessionConfig(): Promise<SessionConfig> {
+  const response = await fetch(`${API_BASE_URL}/auth/session-config`)
+
+  if (!response.ok) {
+    throw new Error('Unable to load session configuration')
+  }
+
+  return response.json()
+}
+
 export async function requestPasswordReset(email: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
     method: 'POST',

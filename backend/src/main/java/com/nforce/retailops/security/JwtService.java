@@ -11,6 +11,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 @Component
 public class JwtService {
@@ -32,6 +33,7 @@ public class JwtService {
 
         return Jwts.builder()
             .subject(email)
+            .id(UUID.randomUUID().toString())
             .claim("roles", roles)
             .issuedAt(now)
             .expiration(expiry)
@@ -41,6 +43,10 @@ public class JwtService {
 
     public String extractEmail(String token) {
         return parseClaims(token).getSubject();
+    }
+
+    public String extractTokenId(String token) {
+        return parseClaims(token).getId();
     }
 
     public boolean isTokenValid(String token) {

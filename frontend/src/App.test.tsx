@@ -10,10 +10,12 @@ vi.mock('./api/auth', () => ({
   login: vi.fn(),
   logout: vi.fn(),
   requestPasswordReset: vi.fn(),
+  getSessionConfig: vi.fn(),
 }))
 
 const mockLogin = vi.mocked(authApi.login)
 const mockLogout = vi.mocked(authApi.logout)
+const mockGetSessionConfig = vi.mocked(authApi.getSessionConfig)
 
 async function loginAsEmployee(user: ReturnType<typeof userEvent.setup>) {
   mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe' })
@@ -34,6 +36,8 @@ beforeEach(() => {
   mockLogin.mockReset()
   mockLogout.mockReset()
   mockLogout.mockResolvedValue(undefined)
+  mockGetSessionConfig.mockReset()
+  mockGetSessionConfig.mockResolvedValue({ inactivityTimeoutMinutes: 10 })
 })
 
 describe('sign-out', () => {
