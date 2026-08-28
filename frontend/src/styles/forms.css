@@ -16,6 +16,10 @@
   color: var(--color-accent);
 }
 
+.form-field__required {
+  color: var(--color-accent);
+}
+
 .input,
 .select {
   width: 100%;
