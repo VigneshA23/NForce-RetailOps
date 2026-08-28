@@ -5,11 +5,12 @@ interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  variant?: 'header' | 'card';
 }
 
-function SearchInput({ value, onChange, placeholder = 'Search...' }: SearchInputProps) {
+function SearchInput({ value, onChange, placeholder = 'Search...', variant = 'header' }: SearchInputProps) {
   return (
-    <label className="search-input">
+    <label className={`search-input search-input--${variant}`}>
       <Search size={16} />
       <input
         type="search"

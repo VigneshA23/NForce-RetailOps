@@ -21,3 +21,17 @@
 .search-input__field::placeholder {
   color: rgba(255, 255, 255, 0.5);
 }
+
+.search-input--card {
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.search-input--card .search-input__field {
+  color: var(--color-text-primary);
+}
+
+.search-input--card .search-input__field::placeholder {
+  color: var(--color-text-muted);
+}
