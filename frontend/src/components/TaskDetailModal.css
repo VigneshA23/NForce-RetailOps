@@ -1,0 +1,33 @@
+.task-detail__description {
+  margin: var(--space-md) 0 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.task-detail__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin: var(--space-lg) 0 0;
+}
+
+.task-detail__grid dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.task-detail__grid dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .task-detail__grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -7,10 +7,11 @@ import Employees from '../pages/Employees';
 import Categories from '../pages/Categories';
 import Home from '../pages/Home';
 import Stores from '../pages/Stores';
+import Tasks from '../pages/Tasks';
 import History from '../pages/History';
 import Settings from '../pages/Settings';
 
-function renderActivePage(activeTab: NavTabKey) {
+function renderActivePage(activeTab: NavTabKey, onNavigateToCategories: () => void) {
   switch (activeTab) {
     case 'home':
       return <Home />;
@@ -20,6 +21,8 @@ function renderActivePage(activeTab: NavTabKey) {
       return <Employees />;
     case 'categories':
       return <Categories />;
+    case 'tasks':
+      return <Tasks onNavigateToCategories={onNavigateToCategories} />;
     case 'history':
       return <History />;
     case 'settings':
@@ -50,7 +53,7 @@ function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
       onLogout={onLogout}
       loggingOut={loggingOut}
     >
-      {renderActivePage(activeTab)}
+      {renderActivePage(activeTab, () => setActiveTab('categories'))}
     </AppShell>
   );
 }
