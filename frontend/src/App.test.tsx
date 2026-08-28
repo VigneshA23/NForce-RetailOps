@@ -3,8 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as authApi from './api/auth'
-import * as storesApi from './api/stores'
-import * as tasksApi from './api/tasks'
 
 const TOKEN_KEY = 'nforce-retailops-auth-token'
 
@@ -15,20 +13,9 @@ vi.mock('./api/auth', () => ({
   getSessionConfig: vi.fn(),
 }))
 
-vi.mock('./api/stores', () => ({
-  getAuthorizedStores: vi.fn(),
-}))
-
-vi.mock('./api/tasks', () => ({
-  getDailyChecklist: vi.fn(),
-  raiseIssue: vi.fn(),
-}))
-
 const mockLogin = vi.mocked(authApi.login)
 const mockLogout = vi.mocked(authApi.logout)
 const mockGetSessionConfig = vi.mocked(authApi.getSessionConfig)
-const mockGetAuthorizedStores = vi.mocked(storesApi.getAuthorizedStores)
-const mockGetDailyChecklist = vi.mocked(tasksApi.getDailyChecklist)
 
 async function loginAsEmployee(user: ReturnType<typeof userEvent.setup>) {
   mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe' })
@@ -51,10 +38,6 @@ beforeEach(() => {
   mockLogout.mockResolvedValue(undefined)
   mockGetSessionConfig.mockReset()
   mockGetSessionConfig.mockResolvedValue({ inactivityTimeoutMinutes: 10 })
-  mockGetAuthorizedStores.mockReset()
-  mockGetAuthorizedStores.mockResolvedValue([{ id: '1', name: 'Store 1', status: 'Open' }])
-  mockGetDailyChecklist.mockReset()
-  mockGetDailyChecklist.mockResolvedValue([])
 })
 
 describe('sign-out', () => {

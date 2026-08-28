@@ -13,8 +13,6 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     List<StoreOwner> findByOwnerIdAndStoreIdIn(Long ownerId, List<Long> storeIds);
 
-    Optional<StoreOwner> findByStoreId(Long storeId);
-
     Optional<StoreOwner> findByStoreIdAndOwnerId(Long storeId, Long ownerId);
 
     void deleteByStoreId(Long storeId);
