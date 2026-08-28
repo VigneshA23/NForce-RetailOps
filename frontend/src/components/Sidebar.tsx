@@ -1,6 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
-import UserAvatar from './UserAvatar';
 import './Sidebar.css';
 
 interface SidebarProps {
@@ -9,21 +8,9 @@ interface SidebarProps {
   onSelect: (key: NavTabKey) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
-  userName: string;
-  userRoleLabel: string;
-  userInitials: string;
 }
 
-function Sidebar({
-  items,
-  activeKey,
-  onSelect,
-  collapsed,
-  onToggleCollapsed,
-  userName,
-  userRoleLabel,
-  userInitials,
-}: SidebarProps) {
+function Sidebar({ items, activeKey, onSelect, collapsed, onToggleCollapsed }: SidebarProps) {
   return (
     <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
       <div className="sidebar__top">
@@ -59,13 +46,6 @@ function Sidebar({
         </nav>
       </div>
       <div className="sidebar__footer">
-        <div className="sidebar__profile">
-          <UserAvatar initials={userInitials} size={36} />
-          <div className="sidebar__profile-text sidebar__label">
-            <span className="sidebar__profile-name">{userName}</span>
-            <span className="sidebar__profile-role">{userRoleLabel}</span>
-          </div>
-        </div>
         <button
           type="button"
           className="sidebar__toggle"

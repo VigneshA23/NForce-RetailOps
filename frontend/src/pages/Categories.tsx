@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { getCategories, createCategory, updateCategory } from '../api/categories';
+import { getCategories, createCategory, updateCategory, deleteCategory } from '../api/categories';
 import type { Category, CategoryFormValues } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
 import CategoryFormModal from '../components/CategoryFormModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
 import './Categories.css';
 
@@ -16,6 +17,8 @@ function Categories() {
   const [formModalState, setFormModalState] = useState<FormModalState>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   function loadCategories() {
     setIsLoading(true);
@@ -49,6 +52,19 @@ function Categories() {
     }
   }
 
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setDeleteError(null);
+    try {
+      await deleteCategory(deleteTarget.id);
+      setCategories((current) => current.filter((c) => c.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteTarget(null);
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete category');
+    }
+  }
+
   return (
     <div className="categories-page">
       <div className="categories-page__toolbar">
@@ -74,6 +90,8 @@ function Categories() {
         </SpecularButton>
       </div>
 
+      {deleteError && <div className="categories-page__error">{deleteError}</div>}
+
       {loadError ? (
         <div className="categories-page__error">
           {loadError}
@@ -89,6 +107,10 @@ function Categories() {
             setFormError(null);
             setFormModalState({ mode: 'edit', category });
           }}
+          onDelete={(category) => {
+            setDeleteError(null);
+            setDeleteTarget(category);
+          }}
         />
       )}
 
@@ -100,6 +122,18 @@ function Categories() {
         isSubmitting={isSubmitting}
         onClose={() => setFormModalState(null)}
         onSubmit={handleFormSubmit}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete Category"
+        message={
+          deleteTarget
+            ? `Are you sure you want to delete ${deleteTarget.name}? This cannot be undone.`
+            : ''
+        }
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
       />
     </div>
   );

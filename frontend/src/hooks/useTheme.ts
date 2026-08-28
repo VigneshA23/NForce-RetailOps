@@ -15,5 +15,5 @@ export function useTheme() {
     window.localStorage.setItem(THEME_STORAGE_KEY, isDarkTheme ? 'dark' : 'light');
   }, [isDarkTheme]);
 
-  return [isDarkTheme, setIsDarkTheme] as const;
+  return { isDarkTheme, toggleTheme: () => setIsDarkTheme((current) => !current) };
 }

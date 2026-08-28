@@ -1,12 +1,7 @@
-export type Role = 'EMPLOYEE' | 'OWNER_ADMIN'
+export type Role = 'EMPLOYEE' | 'OWNER_ADMIN' | 'SUPER_ADMIN'
 
 export interface AuthUser {
   token: string
   role: Role
   fullName: string
-}
-
-export const ROLE_LABELS: Record<Role, string> = {
-  OWNER_ADMIN: 'Owner / Admin',
-  EMPLOYEE: 'Employee',
 }

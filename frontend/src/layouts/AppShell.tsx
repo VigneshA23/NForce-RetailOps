@@ -1,8 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
-import { ROLE_LABELS } from '../types/auth';
-import { getInitials } from '../utils/user';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import { useTheme } from '../hooks/useTheme';
@@ -15,11 +13,22 @@ interface AppShellProps {
   onSelectTab: (key: NavTabKey) => void;
   title: string;
   user: AuthUser;
+  onLogout: () => void;
+  loggingOut?: boolean;
   children: ReactNode;
 }
 
-function AppShell({ navItems, activeTab, onSelectTab, title, user, children }: AppShellProps) {
-  const [isDarkTheme, setIsDarkTheme] = useTheme();
+function AppShell({
+  navItems,
+  activeTab,
+  onSelectTab,
+  title,
+  user,
+  onLogout,
+  loggingOut,
+  children,
+}: AppShellProps) {
+  const { isDarkTheme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [searchValue, setSearchValue] = useState('');
 
@@ -31,9 +40,6 @@ function AppShell({ navItems, activeTab, onSelectTab, title, user, children }: A
         onSelect={onSelectTab}
         collapsed={collapsed}
         onToggleCollapsed={() => setCollapsed((current) => !current)}
-        userName={user.fullName}
-        userRoleLabel={ROLE_LABELS[user.role]}
-        userInitials={getInitials(user.fullName)}
       />
       <div className="app-shell__content">
         <div className="app-shell__header">
@@ -42,7 +48,10 @@ function AppShell({ navItems, activeTab, onSelectTab, title, user, children }: A
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             isDarkTheme={isDarkTheme}
-            onToggleTheme={() => setIsDarkTheme((current) => !current)}
+            onToggleTheme={toggleTheme}
+            userName={user.fullName}
+            onLogout={onLogout}
+            loggingOut={loggingOut}
           />
         </div>
         <main className="app-shell__main">{children}</main>

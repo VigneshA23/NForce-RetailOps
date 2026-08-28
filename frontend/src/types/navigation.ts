@@ -24,12 +24,6 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export const EMPLOYEE_NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'Home', icon: LayoutGrid },
-  { key: 'history', label: 'History', icon: Clock },
-  { key: 'settings', label: 'Settings', icon: Settings },
-];
-
 export const PAGE_TITLES: Record<NavTabKey, string> = {
   home: 'Home',
   'store-management': 'Stores',
@@ -38,3 +32,11 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   history: 'History',
   settings: 'Settings',
 };
+
+export type EmployeeNavTabKey = 'today' | 'history' | 'audits' | 'settings' | 'support';
+
+export interface EmployeeNavItem {
+  key: EmployeeNavTabKey;
+  label: string;
+  icon: LucideIcon;
+}

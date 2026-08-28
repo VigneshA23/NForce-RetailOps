@@ -51,3 +51,14 @@ export async function updateCategory(id: number, values: CategoryFormValues): Pr
 
   return response.json();
 }
+
+export async function deleteCategory(id: number): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to delete category'));
+  }
+}

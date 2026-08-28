@@ -1,0 +1,215 @@
+.employee-shell {
+  display: flex;
+  height: 100dvh;
+  background: var(--color-bg-page);
+  overflow: hidden;
+}
+
+.employee-shell-sidebar {
+  width: 260px;
+  height: 100dvh;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface-card);
+  border-right: 1px solid var(--color-border);
+  padding: var(--space-lg) 0;
+  overflow-y: auto;
+}
+
+.employee-shell-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.employee-shell-sidebar-brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.employee-shell-sidebar-brand-title {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--color-accent);
+}
+
+.employee-shell-sidebar-brand-subtitle {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.employee-shell-sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: 0 var(--space-sm);
+}
+
+.employee-shell-sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding: var(--space-sm);
+  margin: 0 var(--space-md);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-md);
+}
+
+.employee-shell-nav-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 10px var(--space-md);
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.employee-shell-nav-item:hover {
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+}
+
+.employee-shell-nav-item--active {
+  background: var(--color-badge-solid-bg);
+  color: var(--color-badge-solid-text);
+}
+
+.employee-shell-content {
+  flex: 1;
+  min-width: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.employee-shell-topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--color-surface-card);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.employee-shell-topbar-store {
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--color-text-primary);
+}
+
+.employee-shell-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.employee-shell-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 6px 14px 6px 6px;
+}
+
+.employee-shell-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent-contrast);
+  flex-shrink: 0;
+}
+
+.employee-shell-profile-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.employee-shell-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--color-accent);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.employee-shell-main {
+  flex: 1;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .employee-shell {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+  }
+
+  .employee-shell-sidebar {
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    align-items: center;
+    padding: var(--space-sm);
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  .employee-shell-sidebar-brand {
+    display: none;
+  }
+
+  .employee-shell-sidebar-nav {
+    flex-direction: row;
+    padding: 0;
+  }
+
+  .employee-shell-sidebar-footer {
+    display: none;
+  }
+
+  .employee-shell-content {
+    height: auto;
+    overflow: visible;
+  }
+
+  .employee-shell-main {
+    overflow-y: visible;
+  }
+
+  .employee-shell-topbar {
+    padding: var(--space-md);
+    flex-wrap: wrap;
+  }
+}

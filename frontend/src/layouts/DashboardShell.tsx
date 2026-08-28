@@ -33,9 +33,11 @@ function renderActivePage(activeTab: NavTabKey) {
 
 interface DashboardShellProps {
   user: AuthUser;
+  onLogout: () => void;
+  loggingOut?: boolean;
 }
 
-function DashboardShell({ user }: DashboardShellProps) {
+function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('employees');
 
   return (
@@ -45,6 +47,8 @@ function DashboardShell({ user }: DashboardShellProps) {
       onSelectTab={setActiveTab}
       title={PAGE_TITLES[activeTab]}
       user={user}
+      onLogout={onLogout}
+      loggingOut={loggingOut}
     >
       {renderActivePage(activeTab)}
     </AppShell>
