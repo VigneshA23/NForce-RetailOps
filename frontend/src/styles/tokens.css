@@ -1,3 +1,5 @@
+@import './breakpoints.css';
+
 :root {
   --color-bg-page: #f2f2f4;
   --color-surface-card: #ffffff;
