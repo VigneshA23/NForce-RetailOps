@@ -1,0 +1,195 @@
+.sidebar {
+  flex-shrink: 0;
+  width: var(--sidebar-width-expanded);
+  position: sticky;
+  top: 0;
+  align-self: flex-start;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: var(--color-nav-bg);
+  color: var(--color-header-text);
+  border-right: 1px solid var(--color-border);
+  z-index: var(--z-sidebar);
+  transition: width var(--transition-fast);
+}
+
+.sidebar--collapsed {
+  width: var(--sidebar-width-collapsed);
+}
+
+.sidebar__top {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--header-brand-gap);
+  padding: var(--space-md) var(--sidebar-item-padding-x);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar__brand-logo {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.sidebar__brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.sidebar__brand-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-header-text);
+}
+
+.sidebar__brand-subtitle {
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
+}
+
+.sidebar__nav {
+  padding: var(--space-md) 0;
+}
+
+.sidebar__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sidebar-list-gap);
+}
+
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sidebar-item-gap);
+  width: 100%;
+  padding: var(--sidebar-item-padding-y) var(--sidebar-item-padding-x);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: color-mix(in srgb, var(--color-header-text) 70%, transparent);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.sidebar__item:hover,
+.sidebar__item:focus-visible {
+  background: color-mix(in srgb, var(--color-header-text) 8%, transparent);
+  color: var(--color-header-text);
+}
+
+.sidebar__item--active {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+  color: var(--color-accent);
+}
+
+.sidebar__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar__icon svg {
+  display: block;
+}
+
+.sidebar__label {
+  white-space: nowrap;
+  overflow: hidden;
+  opacity: 1;
+  max-width: 160px;
+  transition: opacity var(--transition-fast), max-width var(--transition-fast);
+}
+
+.sidebar__footer {
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.sidebar__profile {
+  display: flex;
+  align-items: center;
+  gap: var(--sidebar-item-gap);
+  padding: var(--sidebar-item-padding-y) var(--sidebar-item-padding-x);
+}
+
+.sidebar__profile-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.sidebar__profile-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-header-text);
+}
+
+.sidebar__profile-role {
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
+}
+
+.sidebar__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sidebar-item-gap);
+  width: 100%;
+  margin: 0;
+  padding: var(--sidebar-item-padding-y) var(--sidebar-item-padding-x);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+}
+
+.sidebar__toggle:hover,
+.sidebar__toggle:focus-visible {
+  background: color-mix(in srgb, var(--color-header-text) 8%, transparent);
+  color: var(--color-header-text);
+}
+
+.sidebar--collapsed .sidebar__label {
+  opacity: 0;
+  max-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .sidebar:not(.sidebar--collapsed) {
+    width: var(--sidebar-width-collapsed);
+  }
+
+  .sidebar:not(.sidebar--collapsed) .sidebar__label {
+    opacity: 0;
+    max-width: 0;
+  }
+}

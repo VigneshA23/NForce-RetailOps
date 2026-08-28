@@ -32,10 +32,18 @@
   --radius-pill: 999px;
 
   --z-header: 100;
-  --z-bottom-nav: 100;
+  --z-sidebar: 100;
   --z-modal: 1000;
 
-  --bottom-nav-height: 110px;
+  --sidebar-width-expanded: 240px;
+  --sidebar-width-collapsed: 72px;
+
+  --sidebar-item-padding-y: 12px;
+  --sidebar-item-padding-x: var(--space-md);
+  --sidebar-item-gap: 12px;
+  --sidebar-list-gap: var(--space-xs);
+  --header-brand-gap: 12px;
+  --transition-fast: 0.2s ease;
 }
 
 :root[data-theme='dark'] {

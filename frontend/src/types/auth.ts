@@ -5,3 +5,8 @@ export interface AuthUser {
   role: Role
   fullName: string
 }
+
+export const ROLE_LABELS: Record<Role, string> = {
+  OWNER_ADMIN: 'Owner / Admin',
+  EMPLOYEE: 'Employee',
+}

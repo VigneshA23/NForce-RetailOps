@@ -36,7 +36,7 @@ function App() {
   }
 
   if (user.role === 'OWNER_ADMIN') {
-    return <DashboardShell />
+    return <DashboardShell user={user} />
   }
 
   if (!activeStore) {
