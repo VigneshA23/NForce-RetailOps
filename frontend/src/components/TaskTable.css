@@ -1,0 +1,51 @@
+.task-table__card {
+  background: var(--color-surface-card);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.task-table__scroll {
+  overflow-x: auto;
+}
+
+.task-table__card .data-table thead th {
+  padding: 10px var(--space-md);
+  font-size: 11px;
+}
+
+.task-table__card .data-table tbody td {
+  padding: 10px var(--space-md);
+  font-size: 13px;
+}
+
+.task-table__name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.task-table__status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-table__status-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.task-table__actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.task-table__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}

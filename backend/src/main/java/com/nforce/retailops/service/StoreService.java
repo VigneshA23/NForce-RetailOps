@@ -8,6 +8,7 @@ import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,30 +21,35 @@ public class StoreService {
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
+    private final TaskRepository taskRepository;
     private final UserRepository userRepository;
 
     public StoreService(
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
+        TaskRepository taskRepository,
         UserRepository userRepository
     ) {
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
+        this.taskRepository = taskRepository;
         this.userRepository = userRepository;
     }
 
-    private StoreResponse toResponse(Store store) {
+    private StoreResponse toResponse(Store store, Long ownerId) {
         int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
-        return new StoreResponse(store.getId(), store.getName(), store.isActive(), employeeCount, 0);
+        long taskCount = taskRepository.countByStoreId(store.getId())
+            + taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
+        return new StoreResponse(store.getId(), store.getName(), store.isActive(), employeeCount, (int) taskCount);
     }
 
     @Transactional(readOnly = true)
     public List<StoreResponse> listStores(Long ownerId) {
         return storeOwnerRepository.findByOwnerId(ownerId).stream()
             .map(StoreOwner::getStore)
-            .map(this::toResponse)
+            .map(store -> toResponse(store, ownerId))
             .toList();
     }
 
@@ -58,7 +64,7 @@ public class StoreService {
         storeOwner.setOwner(userRepository.getReferenceById(ownerId));
         storeOwnerRepository.save(storeOwner);
 
-        return toResponse(store);
+        return toResponse(store, ownerId);
     }
 
     @Transactional
@@ -70,7 +76,7 @@ public class StoreService {
         store.setName(request.name().trim());
         store = storeRepository.save(store);
 
-        return toResponse(store);
+        return toResponse(store, ownerId);
     }
 
     @Transactional
