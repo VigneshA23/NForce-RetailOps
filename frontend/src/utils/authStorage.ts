@@ -1,4 +1,5 @@
-const TOKEN_KEY = 'nforce-retailops-auth-token';
+export const AUTH_TOKEN_STORAGE_KEY = 'nforce-retailops-auth-token';
+const TOKEN_KEY = AUTH_TOKEN_STORAGE_KEY;
 
 export function setAuthToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);

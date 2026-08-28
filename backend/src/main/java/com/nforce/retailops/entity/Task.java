@@ -73,7 +73,7 @@ public class Task {
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "task_selected_days", joinColumns = @JoinColumn(name = "task_id"))
-    @Column(name = "day", length = 10)
+    @Column(name = "day_of_week", length = 10)
     @Enumerated(EnumType.STRING)
     private Set<DayOfWeekCode> selectedDays = new HashSet<>();
 
