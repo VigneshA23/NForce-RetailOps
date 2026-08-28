@@ -70,6 +70,14 @@
   margin: 0 0 40px;
 }
 
+.store-picker-error {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: rgba(245, 245, 247, 0.75);
+  font-size: 14px;
+}
+
 .store-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

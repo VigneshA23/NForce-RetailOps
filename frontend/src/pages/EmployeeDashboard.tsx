@@ -41,6 +41,8 @@ function loadStoredAnswers(storeId: string): TaskAnswers {
 function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryToken, setRetryToken] = useState(0)
   const [answers, setAnswers] = useState<TaskAnswers>(() => loadStoredAnswers(store.id))
   const [onDuty, setOnDuty] = useState(true)
   const [flagCount, setFlagCount] = useState(0)
@@ -51,16 +53,27 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   useEffect(() => {
     let active = true
     setLoading(true)
-    getDailyChecklist(store.id).then((result) => {
-      if (active) {
-        setCategories(result)
-        setLoading(false)
-      }
-    })
+    setLoadError(null)
+    getDailyChecklist(store.id)
+      .then((result) => {
+        if (active) {
+          setCategories(result)
+        }
+      })
+      .catch((error: Error) => {
+        if (active) {
+          setLoadError(error.message)
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false)
+        }
+      })
     return () => {
       active = false
     }
-  }, [store.id])
+  }, [store.id, retryToken])
 
   useEffect(() => {
     localStorage.setItem(answersStorageKey(store.id), JSON.stringify(answers))
@@ -130,7 +143,18 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
 
         {loading && <p className="employee-dashboard-loading">Loading today's checklist…</p>}
 
-        {!loading && categories.length === 0 && (
+        {!loading && loadError && (
+          <div className="employee-dashboard-empty">
+            <ClipboardList size={32} />
+            <h2>Couldn't load today's checklist</h2>
+            <p>{loadError}</p>
+            <button type="button" className="btn btn--secondary" onClick={() => setRetryToken((token) => token + 1)}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !loadError && categories.length === 0 && (
           <div className="employee-dashboard-empty">
             <ClipboardList size={32} />
             <h2>No checklist tasks yet</h2>
@@ -138,7 +162,7 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
           </div>
         )}
 
-        {!loading && categories.length > 0 && (
+        {!loading && !loadError && categories.length > 0 && (
           <div className="checklist-categories">
             {categories.map((category) => {
               const progress = categoryProgress(category)

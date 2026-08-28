@@ -11,6 +11,8 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
 
     int countByStoresId(Long storeId);
 
+    Optional<StoreEmployee> findByEmployeeId(Long employeeId);
+
     List<StoreEmployee> findDistinctByStoresIdInOrderByIdAsc(Collection<Long> storeIds);
 
     Optional<StoreEmployee> findByIdAndStoresId(Long id, Long storeId);

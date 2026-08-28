@@ -16,19 +16,33 @@ interface StorePickerProps {
 function StorePicker({ user, onSelectStore, onLogout, loggingOut }: StorePickerProps) {
   const [stores, setStores] = useState<StoreSummary[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [retryToken, setRetryToken] = useState(0)
 
   useEffect(() => {
     let active = true
-    getAuthorizedStores().then((result) => {
-      if (active) {
-        setStores(result)
-        setLoading(false)
-      }
-    })
+    setLoading(true)
+    setLoadError(null)
+    getAuthorizedStores()
+      .then((result) => {
+        if (active) {
+          setStores(result)
+        }
+      })
+      .catch((error: Error) => {
+        if (active) {
+          setLoadError(error.message)
+        }
+      })
+      .finally(() => {
+        if (active) {
+          setLoading(false)
+        }
+      })
     return () => {
       active = false
     }
-  }, [])
+  }, [retryToken])
 
   return (
     <div className="store-picker">
@@ -47,7 +61,16 @@ function StorePicker({ user, onSelectStore, onLogout, loggingOut }: StorePickerP
         <h1 className="store-picker-heading">Select your store</h1>
         <p className="store-picker-subheading">Choose an active location to access the RetailOps dashboard.</p>
 
-        {!loading && (
+        {!loading && loadError && (
+          <div className="store-picker-error">
+            {loadError}
+            <button type="button" className="btn btn--secondary" onClick={() => setRetryToken((token) => token + 1)}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !loadError && (
           <div className="store-picker-grid">
             {stores.map((store) => {
               const isOpen = store.status === 'Open'
