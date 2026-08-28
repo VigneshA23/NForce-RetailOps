@@ -1,6 +1,5 @@
 .store-table__card {
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible;
 }
 
 .store-table__name {

@@ -1,4 +1,4 @@
-import { Bell, Moon, Sun } from 'lucide-react';
+import { Bell, Menu, Moon, Sun } from 'lucide-react';
 import SearchInput from './SearchInput';
 import IconButton from './IconButton';
 import ProfileMenu from './ProfileMenu';
@@ -15,6 +15,7 @@ interface HeaderProps {
   onHelpClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
+  onMenuClick?: () => void;
 }
 
 function Header({
@@ -28,10 +29,14 @@ function Header({
   onHelpClick,
   onLogout,
   loggingOut,
+  onMenuClick,
 }: HeaderProps) {
   return (
     <header className="header">
       <div className="header__left">
+        {onMenuClick && (
+          <IconButton icon={Menu} ariaLabel="Open navigation menu" onClick={onMenuClick} />
+        )}
         <h1 className="header__title">{title}</h1>
       </div>
       <div className="header__right">

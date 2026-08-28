@@ -13,7 +13,7 @@ interface TaskTableProps {
 function TaskTable({ tasks, isLoading = false, onEdit, onDelete }: TaskTableProps) {
   return (
     <div className="task-table__card">
-      <div className="task-table__scroll">
+      <div className="table-scroll">
         <table className="data-table">
           <thead>
             <tr>
@@ -30,18 +30,18 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete }: TaskTableProp
           <tbody>
             {tasks.map((task) => (
               <tr key={task.id}>
-                <td className="task-table__name">{task.name}</td>
-                <td>{task.categoryName}</td>
-                <td>{task.appliesToAllStores ? 'All Stores' : `${task.stores.length} store${task.stores.length === 1 ? '' : 's'}`}</td>
-                <td>{scheduleSummary(task.scheduleType, task.selectedDays)}</td>
-                <td>{responseTypeLabel(task.responseType)}</td>
-                <td>{completionTypeLabel(task.completionType)}</td>
-                <td>
+                <td className="task-table__name" data-label="Task">{task.name}</td>
+                <td data-label="Category">{task.categoryName}</td>
+                <td data-label="Store">{task.appliesToAllStores ? 'All Stores' : `${task.stores.length} store${task.stores.length === 1 ? '' : 's'}`}</td>
+                <td data-label="Schedule">{scheduleSummary(task.scheduleType, task.selectedDays)}</td>
+                <td data-label="Response">{responseTypeLabel(task.responseType)}</td>
+                <td data-label="Completion">{completionTypeLabel(task.completionType)}</td>
+                <td data-label="Status">
                   <span className={`badge task-table__status-badge ${task.active ? 'badge--solid' : 'badge--outline'}`}>
                     {task.active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td className="task-table__actions-cell">
+                <td className="task-table__actions-cell" data-label="Actions">
                   <TaskRowActions onEdit={() => onEdit(task)} onDelete={() => onDelete(task)} />
                 </td>
               </tr>

@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .task-row-actions {
   display: inline-flex;
   align-items: center;
@@ -54,4 +56,15 @@
 
 .task-row-actions__menu-item--danger {
   color: var(--color-accent);
+}
+
+@media (--mobile) {
+  .task-row-actions__icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .task-row-actions__menu-item {
+    min-height: 44px;
+  }
 }

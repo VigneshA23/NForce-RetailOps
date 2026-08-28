@@ -1,7 +1,9 @@
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-xs);
+  min-height: 44px;
   padding: 10px 18px;
   border-radius: var(--radius-pill);
   border: 1px solid transparent;
@@ -9,6 +11,7 @@
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s ease;
+  box-sizing: border-box;
 }
 
 .btn:hover {

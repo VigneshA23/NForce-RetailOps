@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .employee-shell {
   display: flex;
   height: 100dvh;
@@ -67,6 +69,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  min-height: 44px;
   padding: 10px var(--space-md);
   border-radius: var(--radius-md);
   border: none;
@@ -76,6 +79,7 @@
   font-weight: 600;
   cursor: pointer;
   text-align: left;
+  box-sizing: border-box;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
@@ -126,34 +130,11 @@
   overflow-y: auto;
 }
 
-@media (max-width: 768px) {
+@media (--mobile) {
   .employee-shell {
     flex-direction: column;
     height: auto;
     overflow: visible;
-  }
-
-  .employee-shell-sidebar {
-    width: 100%;
-    height: auto;
-    flex-direction: row;
-    align-items: center;
-    padding: var(--space-sm);
-    overflow-x: auto;
-    overflow-y: visible;
-  }
-
-  .employee-shell-sidebar-brand {
-    display: none;
-  }
-
-  .employee-shell-sidebar-nav {
-    flex-direction: row;
-    padding: 0;
-  }
-
-  .employee-shell-sidebar-footer {
-    display: none;
   }
 
   .employee-shell-content {
@@ -163,6 +144,7 @@
 
   .employee-shell-main {
     overflow-y: visible;
+    padding-bottom: 72px;
   }
 
   .employee-shell-topbar {

@@ -61,6 +61,13 @@
   --color-badge-icon-info-fg: #1d6fd6;
 }
 
+@media (--mobile) {
+  :root {
+    --space-lg: 16px;
+    --space-xl: 20px;
+  }
+}
+
 :root[data-theme='dark'] {
   --color-bg-page: #131316;
   --color-surface-card: #1c1c21;

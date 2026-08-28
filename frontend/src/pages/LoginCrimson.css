@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .login2-shell {
   --l2-bg: #101319;
   --l2-bg-deep: #0b0e14;
@@ -374,7 +376,7 @@
   pointer-events: none;
 }
 
-@media (min-width: 768px) {
+@media (--tablet-up) {
   .login2-shell {
     flex-direction: row;
   }
@@ -400,6 +402,8 @@
   }
 }
 
+/* Left literal: tuned to the iPad-landscape width (1024px) specifically, not the
+   general breakpoint scale — using --desktop (1025px) would exclude that device. */
 @media (min-width: 1024px) {
   .login2-shell--focused .login2-right {
     transform: translateX(-55vw) translateX(50%);

@@ -3,8 +3,10 @@ import { CalendarCheck, HelpCircle, History as HistoryIcon, Inbox, Settings, Sto
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import PlaceholderPage from '../components/PlaceholderPage'
 import ProfileMenu from '../components/ProfileMenu'
+import BottomNav from '../components/BottomNav'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
 import './EmployeeShell.css'
@@ -28,8 +30,11 @@ const FOOTER_NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'support', label: 'Support', icon: HelpCircle },
 ]
 
+const ALL_NAV_ITEMS: EmployeeNavItem[] = [...NAV_ITEMS, ...FOOTER_NAV_ITEMS]
+
 function EmployeeShell({ user, store, onLogout, onSwitchStore, loggingOut }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
+  const isMobile = useIsMobile()
 
   function renderActivePage() {
     switch (activeTab) {
@@ -52,47 +57,49 @@ function EmployeeShell({ user, store, onLogout, onSwitchStore, loggingOut }: Emp
 
   return (
     <div className="employee-shell">
-      <nav className="employee-shell-sidebar">
-        <div className="employee-shell-sidebar-brand">
-          <img src="/nforce-logo.png" alt="NForce logo" className="employee-shell-sidebar-brand-logo" />
-          <div>
-            <div className="employee-shell-sidebar-brand-title">NForce RetailOps</div>
-            <div className="employee-shell-sidebar-brand-subtitle">Retail Operations</div>
+      {!isMobile && (
+        <nav className="employee-shell-sidebar">
+          <div className="employee-shell-sidebar-brand">
+            <img src="/nforce-logo.png" alt="NForce logo" className="employee-shell-sidebar-brand-logo" />
+            <div>
+              <div className="employee-shell-sidebar-brand-title">NForce RetailOps</div>
+              <div className="employee-shell-sidebar-brand-subtitle">Retail Operations</div>
+            </div>
           </div>
-        </div>
-        <div className="employee-shell-sidebar-nav">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon
-            return (
-              <button
-                key={item.key}
-                type="button"
-                className={`employee-shell-nav-item${activeTab === item.key ? ' employee-shell-nav-item--active' : ''}`}
-                onClick={() => setActiveTab(item.key)}
-              >
-                <Icon size={20} />
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
-        </div>
-        <div className="employee-shell-sidebar-footer">
-          {FOOTER_NAV_ITEMS.map((item) => {
-            const Icon = item.icon
-            return (
-              <button
-                key={item.key}
-                type="button"
-                className={`employee-shell-nav-item${activeTab === item.key ? ' employee-shell-nav-item--active' : ''}`}
-                onClick={() => setActiveTab(item.key)}
-              >
-                <Icon size={20} />
-                <span>{item.label}</span>
-              </button>
-            )
-          })}
-        </div>
-      </nav>
+          <div className="employee-shell-sidebar-nav">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`employee-shell-nav-item${activeTab === item.key ? ' employee-shell-nav-item--active' : ''}`}
+                  onClick={() => setActiveTab(item.key)}
+                >
+                  <Icon size={20} />
+                  <span>{item.label}</span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="employee-shell-sidebar-footer">
+            {FOOTER_NAV_ITEMS.map((item) => {
+              const Icon = item.icon
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`employee-shell-nav-item${activeTab === item.key ? ' employee-shell-nav-item--active' : ''}`}
+                  onClick={() => setActiveTab(item.key)}
+                >
+                  <Icon size={20} />
+                  <span>{item.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </nav>
+      )}
 
       <div className="employee-shell-content">
         <div className="employee-shell-topbar">
@@ -108,6 +115,8 @@ function EmployeeShell({ user, store, onLogout, onSwitchStore, loggingOut }: Emp
 
         <main className="employee-shell-main">{renderActivePage()}</main>
       </div>
+
+      {isMobile && <BottomNav items={ALL_NAV_ITEMS} activeKey={activeTab} onSelect={setActiveTab} />}
     </div>
   )
 }

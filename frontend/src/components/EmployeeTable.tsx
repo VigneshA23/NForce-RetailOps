@@ -108,73 +108,77 @@ function EmployeeTable({ employees, isLoading = false, onEdit, onDelete }: Emplo
           placeholder="Search by name or email..."
         />
       </div>
-      <table className="data-table">
-        <thead>
-          <tr>
-            {COLUMNS.map((column) => (
-              <th key={column.key} scope="col">
-                <button
-                  type="button"
-                  className="employee-table__sort-btn"
-                  onClick={() => handleSort(column.key)}
-                >
-                  {column.label}
-                  {sortKey === column.key ? (
-                    sortDirection === 'asc' ? (
-                      <ArrowUp size={14} />
+      <div className="table-scroll">
+        <table className="data-table">
+          <thead>
+            <tr>
+              {COLUMNS.map((column) => (
+                <th key={column.key} scope="col">
+                  <button
+                    type="button"
+                    className="employee-table__sort-btn"
+                    onClick={() => handleSort(column.key)}
+                  >
+                    {column.label}
+                    {sortKey === column.key ? (
+                      sortDirection === 'asc' ? (
+                        <ArrowUp size={14} />
+                      ) : (
+                        <ArrowDown size={14} />
+                      )
                     ) : (
-                      <ArrowDown size={14} />
-                    )
-                  ) : (
-                    <ArrowUpDown size={14} className="employee-table__sort-icon--idle" />
-                  )}
-                </button>
-              </th>
-            ))}
-            <th scope="col">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {paginatedEmployees.map((employee) => (
-            <tr key={employee.empId}>
-              <td className="employee-table__emp-id">{employee.empId}</td>
-              <td className="employee-table__name">{employee.name}</td>
-              <td>
-                <div className="employee-table__store-chips">
-                  {employee.stores.map((store) => (
-                    <span key={store.id} className="badge badge--outline">
-                      {store.name}
-                    </span>
-                  ))}
-                </div>
-              </td>
-              <td>
-                <div className="employee-table__shift-name">{employee.shift}</div>
-                <div className="employee-table__shift-range">
-                  ({getShiftTimeRange(employee.shift)})
-                </div>
-              </td>
-              <td>
-                <a className="employee-table__link" href={`tel:${employee.phone}`}>
-                  {employee.phone}
-                </a>
-              </td>
-              <td>
-                <TypeBadge type={employee.employeeType} />
-              </td>
-              <td>
-                <a className="employee-table__link" href={`mailto:${employee.email}`}>
-                  {employee.email}
-                </a>
-              </td>
-              <td>{employee.gender}</td>
-              <td className="employee-table__actions-cell">
-                <RowActionsMenu onEdit={() => onEdit(employee)} onDelete={() => onDelete(employee)} />
-              </td>
+                      <ArrowUpDown size={14} className="employee-table__sort-icon--idle" />
+                    )}
+                  </button>
+                </th>
+              ))}
+              <th scope="col">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {paginatedEmployees.map((employee) => (
+              <tr key={employee.empId}>
+                <td className="employee-table__emp-id" data-label="Emp ID">{employee.empId}</td>
+                <td className="employee-table__name" data-label="Employee Name">{employee.name}</td>
+                <td data-label="Assigned Stores">
+                  <div className="employee-table__store-chips">
+                    {employee.stores.map((store) => (
+                      <span key={store.id} className="badge badge--outline">
+                        {store.name}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td data-label="Shift">
+                  <div className="employee-table__shift">
+                    <div className="employee-table__shift-name">{employee.shift}</div>
+                    <div className="employee-table__shift-range">
+                      ({getShiftTimeRange(employee.shift)})
+                    </div>
+                  </div>
+                </td>
+                <td data-label="Contact">
+                  <a className="employee-table__link" href={`tel:${employee.phone}`}>
+                    {employee.phone}
+                  </a>
+                </td>
+                <td data-label="Type">
+                  <TypeBadge type={employee.employeeType} />
+                </td>
+                <td data-label="Email">
+                  <a className="employee-table__link" href={`mailto:${employee.email}`}>
+                    {employee.email}
+                  </a>
+                </td>
+                <td data-label="Gender">{employee.gender}</td>
+                <td className="employee-table__actions-cell" data-label="Actions">
+                  <RowActionsMenu onEdit={() => onEdit(employee)} onDelete={() => onDelete(employee)} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {!isLoading && employees.length === 0 && (
         <div className="employee-table__empty">No employees yet. Add one to get started.</div>
       )}
