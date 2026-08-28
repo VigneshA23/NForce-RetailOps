@@ -44,6 +44,21 @@
   --sidebar-list-gap: var(--space-xs);
   --header-brand-gap: 12px;
   --transition-fast: 0.2s ease;
+
+  --header-height: 68px;
+  --color-nav-divider: rgba(255, 255, 255, 0.08);
+
+  --shadow-card: 0 0 2rem 0 rgba(136, 152, 170, 0.15);
+  --shadow-card-hover: 0 4px 2.5rem 0 rgba(136, 152, 170, 0.25);
+
+  --color-badge-icon-primary-bg: #fde8ea;
+  --color-badge-icon-primary-fg: var(--color-accent);
+  --color-badge-icon-success-bg: #e1f8ec;
+  --color-badge-icon-success-fg: #1a9c5c;
+  --color-badge-icon-warning-bg: #fef2e0;
+  --color-badge-icon-warning-fg: #c8790a;
+  --color-badge-icon-info-bg: #e5f1fd;
+  --color-badge-icon-info-fg: #1d6fd6;
 }
 
 :root[data-theme='dark'] {
@@ -64,4 +79,16 @@
   --color-badge-outline-bg: #232329;
   --color-badge-outline-text: #d4d4d8;
   --color-badge-outline-border: #38383f;
+
+  --shadow-card: 0 0 2rem 0 rgba(0, 0, 0, 0.35);
+  --shadow-card-hover: 0 4px 2.5rem 0 rgba(0, 0, 0, 0.45);
+
+  --color-badge-icon-primary-bg: #3a1f24;
+  --color-badge-icon-primary-fg: #ff6b7f;
+  --color-badge-icon-success-bg: #1a3327;
+  --color-badge-icon-success-fg: #3ddc8b;
+  --color-badge-icon-warning-bg: #3a2e14;
+  --color-badge-icon-warning-fg: #f0ab3d;
+  --color-badge-icon-info-bg: #16283d;
+  --color-badge-icon-info-fg: #5aa4f2;
 }

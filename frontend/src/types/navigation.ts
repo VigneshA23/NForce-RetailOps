@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Clock, LayoutGrid, Settings, Store, Tags, Users } from 'lucide-react';
+import { Building2, Clock, LayoutGrid, Settings, Store, Tags, Users } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -9,8 +9,8 @@ export type NavTabKey =
   | 'history'
   | 'settings';
 
-export interface NavItem {
-  key: NavTabKey;
+export interface NavItem<Key extends string = NavTabKey> {
+  key: Key;
   label: string;
   icon: LucideIcon;
 }
@@ -40,3 +40,13 @@ export interface EmployeeNavItem {
   label: string;
   icon: LucideIcon;
 }
+
+export type SuperAdminNavTabKey = 'owners';
+
+export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
+  { key: 'owners', label: 'Owners', icon: Building2 },
+];
+
+export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
+  owners: 'Owners',
+};

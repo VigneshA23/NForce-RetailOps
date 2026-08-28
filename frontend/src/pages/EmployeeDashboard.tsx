@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Blend, ChevronDown, ClipboardList, Flag, Lock, Sparkles } from 'lucide-react'
+import { Blend, CheckCircle2, ChevronDown, ClipboardList, Flag, ListTodo, Lock, Percent, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getDailyChecklist, raiseIssue } from '../api/tasks'
 import type { StoreSummary } from '../types/store'
 import type { ChecklistCategory, TaskAnswer, TaskAnswers } from '../types/task'
 import Modal from '../components/Modal'
 import FormField from '../components/FormField'
+import StatCard from '../components/StatCard'
 import './EmployeeDashboard.css'
 
 interface EmployeeDashboardProps {
@@ -120,27 +121,11 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
           </label>
         </div>
 
-        <div className="employee-dashboard-summary">
-          <div className="employee-dashboard-summary-item">
-            <span className="employee-dashboard-summary-label">Completion</span>
-            <span className="employee-dashboard-summary-value employee-dashboard-summary-value--accent">
-              {completionPercent}%
-            </span>
-          </div>
-          <div className="employee-dashboard-summary-item">
-            <span className="employee-dashboard-summary-label">Tasks Done</span>
-            <span className="employee-dashboard-summary-value">{completedTasks}</span>
-          </div>
-          <div className="employee-dashboard-summary-item">
-            <span className="employee-dashboard-summary-label">Remaining</span>
-            <span className="employee-dashboard-summary-value">{remainingTasks}</span>
-          </div>
-          <div className="employee-dashboard-summary-item">
-            <span className="employee-dashboard-summary-label">Flags/Issues</span>
-            <span className="employee-dashboard-summary-value employee-dashboard-summary-value--flag">
-              {flagCount}
-            </span>
-          </div>
+        <div className="stat-card-row employee-dashboard-summary">
+          <StatCard icon={Percent} label="Completion" value={`${completionPercent}%`} tone="primary" />
+          <StatCard icon={CheckCircle2} label="Tasks Done" value={completedTasks} tone="success" />
+          <StatCard icon={ListTodo} label="Remaining" value={remainingTasks} tone="info" />
+          <StatCard icon={Flag} label="Flags/Issues" value={flagCount} tone="warning" />
         </div>
 
         {loading && <p className="employee-dashboard-loading">Loading today's checklist…</p>}

@@ -2,15 +2,21 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import './Sidebar.css';
 
-interface SidebarProps {
-  items: NavItem[];
-  activeKey: NavTabKey;
-  onSelect: (key: NavTabKey) => void;
+interface SidebarProps<Key extends string = NavTabKey> {
+  items: NavItem<Key>[];
+  activeKey: Key;
+  onSelect: (key: Key) => void;
   collapsed: boolean;
   onToggleCollapsed: () => void;
 }
 
-function Sidebar({ items, activeKey, onSelect, collapsed, onToggleCollapsed }: SidebarProps) {
+function Sidebar<Key extends string = NavTabKey>({
+  items,
+  activeKey,
+  onSelect,
+  collapsed,
+  onToggleCollapsed,
+}: SidebarProps<Key>) {
   return (
     <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
       <div className="sidebar__top">

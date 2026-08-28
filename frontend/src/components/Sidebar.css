@@ -12,7 +12,6 @@
   justify-content: space-between;
   background: var(--color-nav-bg);
   color: var(--color-header-text);
-  border-right: 1px solid var(--color-border);
   z-index: var(--z-sidebar);
   transition: width var(--transition-fast);
 }
@@ -30,8 +29,11 @@
   display: flex;
   align-items: center;
   gap: var(--header-brand-gap);
-  padding: var(--space-md) var(--sidebar-item-padding-x);
-  border-bottom: 1px solid var(--color-border);
+  height: var(--header-height);
+  padding: 0 var(--sidebar-item-padding-x);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--color-nav-divider);
+  flex-shrink: 0;
 }
 
 .sidebar__brand-logo {
@@ -127,7 +129,7 @@
 
 .sidebar__footer {
   padding: var(--space-sm) 0;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid var(--color-nav-divider);
 }
 
 .sidebar__toggle {

@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Store as StoreIcon, CircleCheck, CircleSlash } from 'lucide-react';
 import { getStores, createStore, renameStore, deleteStore } from '../api/ownerStores';
 import type { OwnerStore, OwnerStoreFormValues } from '../types/ownerStore';
 import StoreTable from '../components/StoreTable';
 import StoreFormModal from '../components/StoreFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
+import StatCard from '../components/StatCard';
 import './Stores.css';
 
 type FormModalState = { mode: 'create' } | { mode: 'edit'; store: OwnerStore } | null;
@@ -65,29 +66,14 @@ function Stores() {
     }
   }
 
+  const activeCount = useMemo(() => stores.filter((store) => store.active).length, [stores]);
+
   return (
     <div className="stores-page">
-      <div className="stores-page__toolbar">
-        <SpecularButton
-          size="sm"
-          radius={999}
-          tint="var(--color-badge-solid-bg)"
-          tintOpacity={1}
-          textColor="var(--color-badge-solid-text)"
-          lineColor="#e11d33"
-          baseColor="#e4e4e7"
-          followMouse
-          proximity={180}
-          onClick={() => {
-            setFormError(null);
-            setFormModalState({ mode: 'create' });
-          }}
-        >
-          <span className="stores-page__add-label">
-            <Plus size={16} />
-            Add Store
-          </span>
-        </SpecularButton>
+      <div className="stat-card-row">
+        <StatCard icon={StoreIcon} label="Total Stores" value={stores.length} tone="primary" />
+        <StatCard icon={CircleCheck} label="Active Stores" value={activeCount} tone="success" />
+        <StatCard icon={CircleSlash} label="Inactive Stores" value={stores.length - activeCount} tone="warning" />
       </div>
 
       {deleteError && <div className="stores-page__error">{deleteError}</div>}
@@ -100,18 +86,45 @@ function Stores() {
           </button>
         </div>
       ) : (
-        <StoreTable
-          stores={stores}
-          isLoading={isLoading}
-          onEdit={(store) => {
-            setFormError(null);
-            setFormModalState({ mode: 'edit', store });
-          }}
-          onDelete={(store) => {
-            setDeleteError(null);
-            setDeleteTarget(store);
-          }}
-        />
+        <div className="card">
+          <div className="card__header">
+            <h2 className="card__title">All Stores</h2>
+            <div className="card__toolbar">
+              <SpecularButton
+                size="sm"
+                radius={999}
+                tint="var(--color-badge-solid-bg)"
+                tintOpacity={1}
+                textColor="var(--color-badge-solid-text)"
+                lineColor="#e11d33"
+                baseColor="#e4e4e7"
+                followMouse
+                proximity={180}
+                onClick={() => {
+                  setFormError(null);
+                  setFormModalState({ mode: 'create' });
+                }}
+              >
+                <span className="stores-page__add-label">
+                  <Plus size={16} />
+                  Add Store
+                </span>
+              </SpecularButton>
+            </div>
+          </div>
+          <StoreTable
+            stores={stores}
+            isLoading={isLoading}
+            onEdit={(store) => {
+              setFormError(null);
+              setFormModalState({ mode: 'edit', store });
+            }}
+            onDelete={(store) => {
+              setDeleteError(null);
+              setDeleteTarget(store);
+            }}
+          />
+        </div>
       )}
 
       <StoreFormModal

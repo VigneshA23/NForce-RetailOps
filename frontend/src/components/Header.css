@@ -3,7 +3,9 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  padding: 14px var(--space-lg);
+  height: var(--header-height);
+  padding: 0 var(--space-lg);
+  box-sizing: border-box;
   background: var(--color-header-bg);
   color: var(--color-header-text);
 }

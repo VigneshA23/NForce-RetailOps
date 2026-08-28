@@ -147,8 +147,8 @@
 
 .employee-history-card {
   background: var(--color-surface-card);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   padding: var(--space-lg);
 }
 
@@ -261,8 +261,8 @@
   position: sticky;
   top: var(--space-lg);
   background: var(--color-surface-card);
-  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   padding: var(--space-lg);
 }
 
@@ -311,30 +311,15 @@
 }
 
 .employee-history-stats {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: var(--space-md);
 }
 
-.employee-history-stat {
+.employee-history-stats .stat-card {
+  box-shadow: none;
   background: var(--color-bg-page);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
   padding: var(--space-md);
-  color: var(--color-accent);
-}
-
-.employee-history-stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin-top: var(--space-xs);
-}
-
-.employee-history-stat-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-text-muted);
 }
 
 .employee-history-report-btn {

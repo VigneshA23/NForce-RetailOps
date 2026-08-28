@@ -2,12 +2,6 @@
   padding: var(--space-lg);
 }
 
-.employees-page__toolbar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-md);
-}
-
 .employees-page__add-label {
   display: inline-flex;
   align-items: center;

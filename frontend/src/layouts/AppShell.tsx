@@ -7,10 +7,10 @@ import { useTheme } from '../hooks/useTheme';
 import { useSidebarCollapsed } from '../hooks/useSidebarCollapsed';
 import './AppShell.css';
 
-interface AppShellProps {
-  navItems: NavItem[];
-  activeTab: NavTabKey;
-  onSelectTab: (key: NavTabKey) => void;
+interface AppShellProps<Key extends string = NavTabKey> {
+  navItems: NavItem<Key>[];
+  activeTab: Key;
+  onSelectTab: (key: Key) => void;
   title: string;
   user: AuthUser;
   onLogout: () => void;
@@ -18,7 +18,7 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-function AppShell({
+function AppShell<Key extends string = NavTabKey>({
   navItems,
   activeTab,
   onSelectTab,
@@ -27,14 +27,14 @@ function AppShell({
   onLogout,
   loggingOut,
   children,
-}: AppShellProps) {
+}: AppShellProps<Key>) {
   const { isDarkTheme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [searchValue, setSearchValue] = useState('');
 
   return (
     <div className="app-shell">
-      <Sidebar
+      <Sidebar<Key>
         items={navItems}
         activeKey={activeTab}
         onSelect={onSelectTab}
