@@ -25,7 +25,7 @@ function toUpdateValues(employee: Employee): EmployeeUpdateValues {
     shift: employee.shift,
     employeeType: employee.employeeType,
     gender: employee.gender,
-    storeId: employee.storeId,
+    storeIds: employee.stores.map((store) => store.id),
   };
 }
 

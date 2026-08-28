@@ -3,6 +3,8 @@ package com.nforce.retailops.entity;
 import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "store_employees")
@@ -12,9 +14,13 @@ public class StoreEmployee {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id", nullable = false)
-    private Store store;
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "employee_stores",
+        joinColumns = @JoinColumn(name = "employee_id"),
+        inverseJoinColumns = @JoinColumn(name = "store_id")
+    )
+    private Set<Store> stores = new LinkedHashSet<>();
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
@@ -49,12 +55,12 @@ public class StoreEmployee {
         return id;
     }
 
-    public Store getStore() {
-        return store;
+    public Set<Store> getStores() {
+        return stores;
     }
 
-    public void setStore(Store store) {
-        this.store = store;
+    public void setStores(Set<Store> stores) {
+        this.stores = stores;
     }
 
     public User getEmployee() {

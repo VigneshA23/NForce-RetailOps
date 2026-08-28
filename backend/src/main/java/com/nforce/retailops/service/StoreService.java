@@ -35,7 +35,7 @@ public class StoreService {
     }
 
     private StoreResponse toResponse(Store store) {
-        int employeeCount = storeEmployeeRepository.countByStoreId(store.getId());
+        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
         return new StoreResponse(store.getId(), store.getName(), store.isActive(), employeeCount, 0);
     }
 
@@ -78,7 +78,6 @@ public class StoreService {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
-        storeEmployeeRepository.deleteByStoreId(storeId);
         storeOwnerRepository.delete(storeOwner);
         storeRepository.delete(storeOwner.getStore());
     }

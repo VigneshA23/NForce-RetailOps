@@ -4,6 +4,11 @@ export type EmployeeType = 'Full Time' | 'Part Time';
 
 export type Gender = 'Male' | 'Female' | 'Non-binary';
 
+export interface StoreOption {
+  id: number;
+  name: string;
+}
+
 export interface Employee {
   id: number;
   empId: string;
@@ -13,15 +18,19 @@ export interface Employee {
   shift: ShiftName;
   employeeType: EmployeeType;
   gender: Gender;
-  storeId: number;
-  storeName: string;
+  stores: StoreOption[];
 }
 
-export interface StoreOption {
-  id: number;
+export interface EmployeeFormValues {
   name: string;
+  email: string;
+  phone: string;
+  shift: ShiftName;
+  employeeType: EmployeeType;
+  gender: Gender;
+  storeIds: number[];
 }
 
-export type EmployeeUpdateValues = Omit<Employee, 'id' | 'empId' | 'storeName'>;
+export type EmployeeUpdateValues = EmployeeFormValues;
 
-export type EmployeeCreateValues = EmployeeUpdateValues & { password: string };
+export type EmployeeCreateValues = EmployeeFormValues & { password: string };

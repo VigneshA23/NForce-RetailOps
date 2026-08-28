@@ -14,7 +14,7 @@ interface EmployeeTableProps {
   onDelete: (employee: Employee) => void;
 }
 
-type SortKey = 'empId' | 'name' | 'storeName' | 'shift' | 'phone' | 'employeeType' | 'email' | 'gender';
+type SortKey = 'empId' | 'name' | 'stores' | 'shift' | 'phone' | 'employeeType' | 'email' | 'gender';
 type SortDirection = 'asc' | 'desc';
 
 const PAGE_SIZE = 10;
@@ -22,7 +22,7 @@ const PAGE_SIZE = 10;
 const COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'empId', label: 'Emp ID' },
   { key: 'name', label: 'Employee Name' },
-  { key: 'storeName', label: 'Assigned Store' },
+  { key: 'stores', label: 'Assigned Stores' },
   { key: 'shift', label: 'Shift' },
   { key: 'phone', label: 'Contact' },
   { key: 'employeeType', label: 'Type' },
@@ -30,11 +30,19 @@ const COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'gender', label: 'Gender' },
 ];
 
-const SEARCHABLE_FIELDS: SortKey[] = ['name', 'email', 'storeName', 'phone', 'shift', 'employeeType', 'gender'];
+const SEARCHABLE_FIELDS: SortKey[] = ['name', 'email', 'stores', 'phone', 'shift', 'employeeType', 'gender'];
 
 function TypeBadge({ type }: { type: EmployeeType }) {
   const className = type === 'Full Time' ? 'badge badge--solid' : 'badge badge--outline';
   return <span className={className}>{type}</span>;
+}
+
+function storeNames(employee: Employee): string {
+  return employee.stores.map((store) => store.name).join(', ');
+}
+
+function fieldValue(employee: Employee, key: SortKey): string {
+  return key === 'stores' ? storeNames(employee) : String(employee[key]);
 }
 
 function EmployeeTable({ employees, isLoading = false, onEdit, onDelete }: EmployeeTableProps) {
@@ -47,14 +55,14 @@ function EmployeeTable({ employees, isLoading = false, onEdit, onDelete }: Emplo
     const query = searchQuery.trim().toLowerCase();
     if (!query) return employees;
     return employees.filter((employee) =>
-      SEARCHABLE_FIELDS.some((field) => String(employee[field]).toLowerCase().includes(query)),
+      SEARCHABLE_FIELDS.some((field) => fieldValue(employee, field).toLowerCase().includes(query)),
     );
   }, [employees, searchQuery]);
 
   const sortedEmployees = useMemo(() => {
     if (!sortKey) return filteredEmployees;
     const sorted = [...filteredEmployees].sort((a, b) => {
-      const result = String(a[sortKey]).localeCompare(String(b[sortKey]), undefined, {
+      const result = fieldValue(a, sortKey).localeCompare(fieldValue(b, sortKey), undefined, {
         sensitivity: 'base',
         numeric: true,
       });
@@ -131,7 +139,15 @@ function EmployeeTable({ employees, isLoading = false, onEdit, onDelete }: Emplo
             <tr key={employee.empId}>
               <td className="employee-table__emp-id">{employee.empId}</td>
               <td className="employee-table__name">{employee.name}</td>
-              <td>{employee.storeName}</td>
+              <td>
+                <div className="employee-table__store-chips">
+                  {employee.stores.map((store) => (
+                    <span key={store.id} className="badge badge--outline">
+                      {store.name}
+                    </span>
+                  ))}
+                </div>
+              </td>
               <td>
                 <div className="employee-table__shift-name">{employee.shift}</div>
                 <div className="employee-table__shift-range">

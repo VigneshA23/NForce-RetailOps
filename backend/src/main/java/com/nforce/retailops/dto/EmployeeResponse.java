@@ -2,6 +2,9 @@ package com.nforce.retailops.dto;
 
 import com.nforce.retailops.entity.StoreEmployee;
 
+import java.util.Comparator;
+import java.util.List;
+
 public record EmployeeResponse(
     Long id,
     String empId,
@@ -11,10 +14,14 @@ public record EmployeeResponse(
     String shift,
     String employeeType,
     String gender,
-    Long storeId,
-    String storeName
+    List<StoreOptionResponse> stores
 ) {
     public static EmployeeResponse from(StoreEmployee storeEmployee) {
+        List<StoreOptionResponse> stores = storeEmployee.getStores().stream()
+            .map(StoreOptionResponse::from)
+            .sorted(Comparator.comparing(StoreOptionResponse::name))
+            .toList();
+
         return new EmployeeResponse(
             storeEmployee.getId(),
             "EMP-" + String.format("%03d", storeEmployee.getId()),
@@ -24,8 +31,7 @@ public record EmployeeResponse(
             storeEmployee.getShift(),
             storeEmployee.getEmployeeType(),
             storeEmployee.getGender(),
-            storeEmployee.getStore().getId(),
-            storeEmployee.getStore().getName()
+            stores
         );
     }
 }

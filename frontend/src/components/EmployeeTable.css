@@ -36,6 +36,13 @@
   text-align: right;
 }
 
+.employee-table__store-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 220px;
+}
+
 .employee-table__empty {
   padding: var(--space-xl);
   text-align: center;
