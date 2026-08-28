@@ -6,6 +6,7 @@ import { getAuthorizedStores } from '../api/stores'
 import type { StoreSummary } from '../types/store'
 import type { AuditStatus, ShiftHistory, TaskStatus } from '../types/history'
 import Modal from '../components/Modal'
+import StatCard from '../components/StatCard'
 import './EmployeeHistory.css'
 
 interface EmployeeHistoryProps {
@@ -191,16 +192,8 @@ function EmployeeHistory({ store }: EmployeeHistoryProps) {
               </div>
             </div>
             <div className="employee-history-stats">
-              <div className="employee-history-stat">
-                <CheckCircle2 size={20} />
-                <div className="employee-history-stat-value">{summary?.totalTasks ?? 0}</div>
-                <div className="employee-history-stat-label">Total Tasks</div>
-              </div>
-              <div className="employee-history-stat">
-                <ShieldCheck size={20} />
-                <div className="employee-history-stat-value">{summary?.audits ?? 0}</div>
-                <div className="employee-history-stat-label">Audits</div>
-              </div>
+              <StatCard icon={CheckCircle2} label="Total Tasks" value={summary?.totalTasks ?? 0} tone="primary" />
+              <StatCard icon={ShieldCheck} label="Audits" value={summary?.audits ?? 0} tone="info" />
             </div>
             <button type="button" className="employee-history-report-btn" onClick={() => setIsReportOpen(true)}>
               View Full Report

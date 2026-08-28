@@ -1,0 +1,22 @@
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+}
+
+.app-shell__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-shell__header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+}
+
+.app-shell__main {
+  flex: 1;
+  overflow-y: auto;
+}

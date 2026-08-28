@@ -1,14 +1,17 @@
-import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
 import { addOwner, getOwners, setOwnerStatus } from '../api/owners';
 import type { OwnerFormValues, OwnerSummary } from '../types/owner';
 import type { AuthUser } from '../types/auth';
+import type { SuperAdminNavTabKey } from '../types/navigation';
+import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
 import OwnerTable from '../components/OwnerTable';
 import OwnerFormModal from '../components/OwnerFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
-import Header from '../components/Header';
-import { useTheme } from '../hooks/useTheme';
+import SearchInput from '../components/SearchInput';
+import StatCard from '../components/StatCard';
+import AppShell from '../layouts/AppShell';
 import './SuperAdminDashboard.css';
 
 interface SuperAdminDashboardProps {
@@ -27,7 +30,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [statusTarget, setStatusTarget] = useState<OwnerSummary | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [searchValue, setSearchValue] = useState('');
-  const { isDarkTheme, toggleTheme } = useTheme();
+  const [activeTab] = useState<SuperAdminNavTabKey>('owners');
 
   function loadOwners() {
     setIsLoading(true);
@@ -80,59 +83,75 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       )
     : owners;
 
+  const uniqueOwnerCount = useMemo(() => new Set(owners.map((owner) => owner.ownerId)).size, [owners]);
+  const activeOwnerCount = useMemo(
+    () => new Set(owners.filter((owner) => owner.active).map((owner) => owner.ownerId)).size,
+    [owners],
+  );
+
   return (
-    <div className="super-admin-shell">
-      <div className="super-admin-shell__header">
-        <Header
-          title="Owners"
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          isDarkTheme={isDarkTheme}
-          onToggleTheme={toggleTheme}
-          userName={user.fullName}
-          onLogout={onLogout}
-          loggingOut={loggingOut}
-        />
-      </div>
-      <main className="super-admin-shell__main">
-        <div className="owners-page">
-          <div className="owners-page__toolbar">
-            <SpecularButton
-              size="sm"
-              radius={999}
-              tint="var(--color-badge-solid-bg)"
-              tintOpacity={1}
-              textColor="var(--color-badge-solid-text)"
-              lineColor="#e11d33"
-              baseColor="#e4e4e7"
-              followMouse
-              proximity={180}
-              onClick={() => {
-                setFormError(null);
-                setIsFormOpen(true);
-              }}
-            >
-              <span className="owners-page__add-label">
-                <Plus size={16} />
-                Add Owner
-              </span>
-            </SpecularButton>
-          </div>
-
-          {statusError && <div className="owners-page__error">{statusError}</div>}
-
-          {loadError ? (
-            <div className="owners-page__error">
-              {loadError}
-              <button type="button" className="btn btn--secondary" onClick={loadOwners}>
-                Retry
-              </button>
-            </div>
-          ) : (
-            <OwnerTable owners={filteredOwners} isLoading={isLoading} onToggleStatus={setStatusTarget} />
-          )}
+    <AppShell<SuperAdminNavTabKey>
+      navItems={SUPER_ADMIN_NAV_ITEMS}
+      activeTab={activeTab}
+      onSelectTab={() => {}}
+      title={SUPER_ADMIN_PAGE_TITLES[activeTab]}
+      user={user}
+      onLogout={onLogout}
+      loggingOut={loggingOut}
+    >
+      <div className="owners-page">
+        <div className="stat-card-row">
+          <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
+          <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
+          <StatCard icon={StoreIcon} label="Total Stores" value={owners.length} tone="info" />
         </div>
-      </main>
+
+        {statusError && <div className="owners-page__error">{statusError}</div>}
+
+        {loadError ? (
+          <div className="owners-page__error">
+            {loadError}
+            <button type="button" className="btn btn--secondary" onClick={loadOwners}>
+              Retry
+            </button>
+          </div>
+        ) : (
+          <div className="card">
+            <div className="card__header">
+              <h2 className="card__title">All Owners</h2>
+              <div className="card__toolbar">
+                <SearchInput
+                  variant="card"
+                  value={searchValue}
+                  onChange={setSearchValue}
+                  placeholder="Search by owner, email, or store..."
+                />
+                <SpecularButton
+                  size="sm"
+                  radius={999}
+                  tint="var(--color-badge-solid-bg)"
+                  tintOpacity={1}
+                  textColor="var(--color-badge-solid-text)"
+                  lineColor="#e11d33"
+                  baseColor="#e4e4e7"
+                  followMouse
+                  proximity={180}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsFormOpen(true);
+                  }}
+                >
+                  <span className="owners-page__add-label">
+                    <Plus size={16} />
+                    Add Owner
+                  </span>
+                </SpecularButton>
+              </div>
+            </div>
+            <OwnerTable owners={filteredOwners} isLoading={isLoading} onToggleStatus={setStatusTarget} />
+          </div>
+        )}
+      </div>
 
       <OwnerFormModal
         isOpen={isFormOpen}
@@ -157,7 +176,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         onConfirm={handleConfirmStatusChange}
         onCancel={() => setStatusTarget(null)}
       />
-    </div>
+    </AppShell>
   );
 }
 

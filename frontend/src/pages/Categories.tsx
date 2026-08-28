@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Tags, CircleCheck, CircleSlash } from 'lucide-react';
 import { getCategories, createCategory, updateCategory, deleteCategory } from '../api/categories';
 import type { Category, CategoryFormValues } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
 import CategoryFormModal from '../components/CategoryFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
+import StatCard from '../components/StatCard';
 import './Categories.css';
 
 type FormModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
@@ -65,29 +66,14 @@ function Categories() {
     }
   }
 
+  const activeCount = useMemo(() => categories.filter((category) => category.active).length, [categories]);
+
   return (
     <div className="categories-page">
-      <div className="categories-page__toolbar">
-        <SpecularButton
-          size="sm"
-          radius={999}
-          tint="var(--color-badge-solid-bg)"
-          tintOpacity={1}
-          textColor="var(--color-badge-solid-text)"
-          lineColor="#e11d33"
-          baseColor="#e4e4e7"
-          followMouse
-          proximity={180}
-          onClick={() => {
-            setFormError(null);
-            setFormModalState({ mode: 'create' });
-          }}
-        >
-          <span className="categories-page__add-label">
-            <Plus size={16} />
-            Add Category
-          </span>
-        </SpecularButton>
+      <div className="stat-card-row">
+        <StatCard icon={Tags} label="Total Categories" value={categories.length} tone="primary" />
+        <StatCard icon={CircleCheck} label="Active" value={activeCount} tone="success" />
+        <StatCard icon={CircleSlash} label="Inactive" value={categories.length - activeCount} tone="warning" />
       </div>
 
       {deleteError && <div className="categories-page__error">{deleteError}</div>}
@@ -100,18 +86,45 @@ function Categories() {
           </button>
         </div>
       ) : (
-        <CategoryTable
-          categories={categories}
-          isLoading={isLoading}
-          onEdit={(category) => {
-            setFormError(null);
-            setFormModalState({ mode: 'edit', category });
-          }}
-          onDelete={(category) => {
-            setDeleteError(null);
-            setDeleteTarget(category);
-          }}
-        />
+        <div className="card">
+          <div className="card__header">
+            <h2 className="card__title">All Categories</h2>
+            <div className="card__toolbar">
+              <SpecularButton
+                size="sm"
+                radius={999}
+                tint="var(--color-badge-solid-bg)"
+                tintOpacity={1}
+                textColor="var(--color-badge-solid-text)"
+                lineColor="#e11d33"
+                baseColor="#e4e4e7"
+                followMouse
+                proximity={180}
+                onClick={() => {
+                  setFormError(null);
+                  setFormModalState({ mode: 'create' });
+                }}
+              >
+                <span className="categories-page__add-label">
+                  <Plus size={16} />
+                  Add Category
+                </span>
+              </SpecularButton>
+            </div>
+          </div>
+          <CategoryTable
+            categories={categories}
+            isLoading={isLoading}
+            onEdit={(category) => {
+              setFormError(null);
+              setFormModalState({ mode: 'edit', category });
+            }}
+            onDelete={(category) => {
+              setDeleteError(null);
+              setDeleteTarget(category);
+            }}
+          />
+        </div>
       )}
 
       <CategoryFormModal

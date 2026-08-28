@@ -1,0 +1,8 @@
+.home-page {
+  padding: var(--space-lg);
+}
+
+.home-page__loading {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}

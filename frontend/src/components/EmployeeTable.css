@@ -1,9 +1,6 @@
 .employee-table__card {
-  background: var(--color-surface-card);
-  border-radius: var(--radius-md);
   overflow-x: auto;
   overflow-y: visible;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .employee-table__emp-id {
@@ -43,4 +40,35 @@
   padding: var(--space-xl);
   text-align: center;
   color: var(--color-text-secondary);
+}
+
+.employee-table__toolbar {
+  display: flex;
+  justify-content: flex-start;
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.employee-table__sort-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.employee-table__sort-icon--idle {
+  color: var(--color-text-muted);
+}
+
+.employee-table__pagination {
+  padding: var(--space-md);
+  border-top: 1px solid var(--color-border);
 }

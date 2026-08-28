@@ -32,14 +32,6 @@ function Header({
   return (
     <header className="header">
       <div className="header__left">
-        <div className="header__brand">
-          <img src="/nforce-logo.png" alt="NForce logo" className="header__brand-logo" />
-          <div className="header__brand-text">
-            <span className="header__brand-title">NForce RetailOps</span>
-            <span className="header__brand-subtitle">Retail Store Operations Platform</span>
-          </div>
-        </div>
-        <span className="header__divider" aria-hidden="true" />
         <h1 className="header__title">{title}</h1>
       </div>
       <div className="header__right">

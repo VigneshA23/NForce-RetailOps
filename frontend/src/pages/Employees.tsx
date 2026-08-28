@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, Users, UserCheck, UserCog } from 'lucide-react';
 import {
   createEmployee,
   deleteEmployee,
@@ -12,6 +12,7 @@ import EmployeeTable from '../components/EmployeeTable';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
+import StatCard from '../components/StatCard';
 import './Employees.css';
 
 type FormModalState = { mode: 'create' } | { mode: 'edit'; employee: Employee } | null;
@@ -86,29 +87,17 @@ function Employees() {
     }
   }
 
+  const fullTimeCount = useMemo(
+    () => employees.filter((employee) => employee.employeeType === 'Full Time').length,
+    [employees],
+  );
+
   return (
     <div className="employees-page">
-      <div className="employees-page__toolbar">
-        <SpecularButton
-          size="sm"
-          radius={999}
-          tint="var(--color-badge-solid-bg)"
-          tintOpacity={1}
-          textColor="var(--color-badge-solid-text)"
-          lineColor="#e11d33"
-          baseColor="#e4e4e7"
-          followMouse
-          proximity={180}
-          onClick={() => {
-            setFormError(null);
-            setFormModalState({ mode: 'create' });
-          }}
-        >
-          <span className="employees-page__add-label">
-            <Plus size={16} />
-            Add Employee
-          </span>
-        </SpecularButton>
+      <div className="stat-card-row">
+        <StatCard icon={Users} label="Total Employees" value={employees.length} tone="primary" />
+        <StatCard icon={UserCheck} label="Full Time" value={fullTimeCount} tone="success" />
+        <StatCard icon={UserCog} label="Part Time" value={employees.length - fullTimeCount} tone="info" />
       </div>
 
       {loadError ? (
@@ -119,18 +108,45 @@ function Employees() {
           </button>
         </div>
       ) : (
-        <EmployeeTable
-          employees={employees}
-          isLoading={isLoading}
-          onEdit={(employee) => {
-            setFormError(null);
-            setFormModalState({ mode: 'edit', employee });
-          }}
-          onDelete={(employee) => {
-            setDeleteError(null);
-            setDeleteTarget(employee);
-          }}
-        />
+        <div className="card">
+          <div className="card__header">
+            <h2 className="card__title">All Employees</h2>
+            <div className="card__toolbar">
+              <SpecularButton
+                size="sm"
+                radius={999}
+                tint="var(--color-badge-solid-bg)"
+                tintOpacity={1}
+                textColor="var(--color-badge-solid-text)"
+                lineColor="#e11d33"
+                baseColor="#e4e4e7"
+                followMouse
+                proximity={180}
+                onClick={() => {
+                  setFormError(null);
+                  setFormModalState({ mode: 'create' });
+                }}
+              >
+                <span className="employees-page__add-label">
+                  <Plus size={16} />
+                  Add Employee
+                </span>
+              </SpecularButton>
+            </div>
+          </div>
+          <EmployeeTable
+            employees={employees}
+            isLoading={isLoading}
+            onEdit={(employee) => {
+              setFormError(null);
+              setFormModalState({ mode: 'edit', employee });
+            }}
+            onDelete={(employee) => {
+              setDeleteError(null);
+              setDeleteTarget(employee);
+            }}
+          />
+        </div>
       )}
 
       <EmployeeFormModal

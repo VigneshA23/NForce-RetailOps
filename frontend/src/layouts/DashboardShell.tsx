@@ -1,36 +1,37 @@
 import { useMemo, useState } from 'react';
-import { Clock, LayoutDashboard, Store, Tags, Users } from 'lucide-react';
-import type { NavItem, NavTabKey } from '../types/navigation';
+import type { NavTabKey } from '../types/navigation';
+import { OWNER_NAV_ITEMS, PAGE_TITLES } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
-import Header from '../components/Header';
-import Sidebar from '../components/Sidebar';
-import AdminDashboard from '../pages/AdminDashboard';
+import AppShell from './AppShell';
 import Employees from '../pages/Employees';
-import Stores from '../pages/Stores';
 import Categories from '../pages/Categories';
+import Home from '../pages/Home';
+import Stores from '../pages/Stores';
 import History from '../pages/History';
+import Settings from '../pages/Settings';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
-import { useTheme } from '../hooks/useTheme';
-import './DashboardShell.css';
 
-const NAV_ITEMS: NavItem[] = [
-  { key: 'dashboard', label: 'Admin Dashboard', icon: LayoutDashboard },
-  { key: 'store-management', label: 'Stores', icon: Store },
-  { key: 'employees', label: 'Employee Management', icon: Users },
-  { key: 'categories', label: 'Categories', icon: Tags },
-  { key: 'history', label: 'History', icon: Clock },
-];
-
-const PAGE_TITLES: Record<NavTabKey, string> = {
-  dashboard: 'Admin Dashboard',
-  'store-management': 'Stores',
-  employees: 'Employee Management',
-  categories: 'Categories',
-  history: 'History',
-  profile: 'My Profile',
-  help: 'Help & Guidance',
-};
+function renderActivePage(activeTab: NavTabKey) {
+  switch (activeTab) {
+    case 'home':
+      return <Home />;
+    case 'store-management':
+      return <Stores />;
+    case 'employees':
+      return <Employees />;
+    case 'categories':
+      return <Categories />;
+    case 'history':
+      return <History />;
+    case 'settings':
+      return <Settings />;
+    default: {
+      const _exhaustive: never = activeTab;
+      return _exhaustive;
+    }
+  }
+}
 
 function getInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -45,66 +46,39 @@ interface DashboardShellProps {
   loggingOut?: boolean;
 }
 
+type Overlay = 'profile' | 'help' | null;
+
 function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
-  const [activeTab, setActiveTab] = useState<NavTabKey>('dashboard');
-  const [searchValue, setSearchValue] = useState('');
-  const { isDarkTheme, toggleTheme } = useTheme();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [activeTab, setActiveTab] = useState<NavTabKey>('employees');
+  const [overlay, setOverlay] = useState<Overlay>(null);
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
-  function renderActivePage() {
-    switch (activeTab) {
-      case 'dashboard':
-        return (
-          <AdminDashboard fullName={user.fullName} onManageEmployees={() => setActiveTab('employees')} />
-        );
-      case 'store-management':
-        return <Stores />;
-      case 'employees':
-        return <Employees />;
-      case 'categories':
-        return <Categories />;
-      case 'history':
-        return <History />;
-      case 'profile':
-        return <Profile initials={userInitials} />;
-      case 'help':
-        return <Help />;
-      default: {
-        const _exhaustive: never = activeTab;
-        return _exhaustive;
-      }
-    }
-  }
+  const title = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : PAGE_TITLES[activeTab];
 
   return (
-    <div className="dashboard-shell">
-      <div className="dashboard-shell__header">
-        <Header
-          title={PAGE_TITLES[activeTab]}
-          searchValue={searchValue}
-          onSearchChange={setSearchValue}
-          isDarkTheme={isDarkTheme}
-          onToggleTheme={toggleTheme}
-          userName={user.fullName}
-          onProfileClick={() => setActiveTab('profile')}
-          onHelpClick={() => setActiveTab('help')}
-          onLogout={onLogout}
-          loggingOut={loggingOut}
-        />
-      </div>
-      <div className="dashboard-shell__body">
-        <Sidebar
-          items={NAV_ITEMS}
-          activeTab={activeTab}
-          onSelect={setActiveTab}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={() => setIsSidebarCollapsed((current) => !current)}
-        />
-        <main className="dashboard-shell__main">{renderActivePage()}</main>
-      </div>
-    </div>
+    <AppShell
+      navItems={OWNER_NAV_ITEMS}
+      activeTab={activeTab}
+      onSelectTab={(key) => {
+        setOverlay(null);
+        setActiveTab(key);
+      }}
+      title={title}
+      user={user}
+      onLogout={onLogout}
+      loggingOut={loggingOut}
+      onProfileClick={() => setOverlay('profile')}
+      onHelpClick={() => setOverlay('help')}
+    >
+      {overlay === 'profile' ? (
+        <Profile initials={userInitials} />
+      ) : overlay === 'help' ? (
+        <Help />
+      ) : (
+        renderActivePage(activeTab)
+      )}
+    </AppShell>
   );
 }
 
