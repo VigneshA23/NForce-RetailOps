@@ -38,7 +38,6 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
       <div className="login3-bg-overlay" aria-hidden="true" />
       <div className="login3-grid">
         <div className="login3-hero">
-          <div className="login3-hero-glow" aria-hidden="true" />
           <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-hero-logo" />
           <div className="login3-hero-text">
             <h2 className="login3-hero-heading">

@@ -77,25 +77,6 @@
   }
 }
 
-.login3-hero-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 900px;
-  height: 900px;
-  transform: translate(-50%, -55%);
-  /* Wide, gradual falloff (vs. a tight hotspot) so brightness barely changes
-     across the logo's own footprint - a glow that's sharply brighter right
-     behind the badge than just past its edge is what was reading as a
-     visible ring/step in earlier attempts, independent of the badge's edge
-     treatment itself. */
-  /* Diluted well below the earlier version - this should read as ambient
-     warmth in the scene, not a spotlight shining on the badge. */
-  background: radial-gradient(circle, rgba(225, 29, 51, 0.18) 0%, rgba(225, 29, 51, 0.08) 30%, rgba(225, 29, 51, 0) 62%);
-  filter: blur(40px);
-  pointer-events: none;
-}
-
 .login3-hero-logo {
   position: relative;
   z-index: 1;
@@ -103,18 +84,11 @@
   height: 260px;
   margin: 24px auto;
   display: block;
-  /* A deliberate, crisp circular badge - the same treatment the logo gets
-     everywhere else in the app (see .sidebar__brand-logo) - rather than
-     trying to dissolve its own edge into the background. That dissolving
-     act kept failing: the source PNG bakes in a semi-transparent seam
-     right at its circular edge that survives blend-mode erasure, and
-     removing the mask instead exposed a brightness "hole" wherever the
-     badge covers the brightest part of the glow behind it. A clean edge
-     plus a wide, soft, well-matched glow (.login3-hero-glow) reads as an
-     emblem glowing within the scene, not a sticker on top of it. */
+  /* A plain, crisp circular badge - same treatment as the logo everywhere
+     else in the app (see .sidebar__brand-logo) - with no glow/shine. */
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 50px rgba(225, 29, 51, 0.22), 0 0 100px rgba(225, 29, 51, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .login3-hero-text {
@@ -185,7 +159,7 @@
   object-fit: cover;
   /* Same crisp-badge treatment as .login3-hero-logo (see its comment). */
   border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 30px rgba(225, 29, 51, 0.2), 0 0 60px rgba(225, 29, 51, 0.1);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 @media (--tablet-up) {
