@@ -5,7 +5,7 @@
   min-height: 100dvh;
   display: flex;
   font-family: 'Hanken Grotesk', 'Inter', sans-serif;
-  background: #f2f2f4;
+  background: #0d0d0f;
   overflow: hidden;
 }
 
@@ -26,34 +26,23 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  /* Same brand wash as before, now semi-transparent so the photo shows
-     through underneath rather than replacing it outright - darkest (and
-     most opaque) on the left where the hero copy needs to read clearly,
-     resolving toward the app's own page colour on the right so the glass
-     card still sits on a clean, legible backdrop. The form card itself is
-     opaque regardless, so this can stay fairly light without hurting its
-     legibility - on mobile in particular (no hero/gradient context) it's
-     lighter still so the photo actually reads in the margin around the
-     card instead of washing out completely. */
-  background: rgba(242, 242, 244, 0.75);
+  /* Brand wash over the photo, semi-transparent so the aisle shows through
+     underneath rather than being replaced by flat colour. No white/light
+     zone anywhere now - the whole page stays a dark, moody red-black wash
+     with the photo visible through it, and the form card (its own dark
+     glass panel) provides the only real contrast. */
+  background: rgba(13, 13, 15, 0.72);
 }
 
 @media (--tablet-up) {
   .login3-bg-overlay {
-    /* The last two stops are anchored with calc(46% ± Npx) - a fixed pixel
-       offset from the 46% column boundary - rather than plain percentages,
-       so the transition always lands inside both panels' own padding no
-       matter the viewport width. Plain percentages here would compress the
-       whole transition zone at narrower tablet widths until it overlapped
-       the hero copy's own text, washing it out. */
     background: linear-gradient(
       100deg,
       rgba(13, 13, 15, 0.86) 0%,
-      rgba(23, 10, 12, 0.84) 12%,
-      rgba(43, 18, 22, 0.82) 22%,
-      rgba(69, 26, 31, 0.8) calc(46% - 40px),
-      rgba(242, 242, 244, 0.78) calc(46% + 40px),
-      rgba(242, 242, 244, 0.82) 100%
+      rgba(23, 10, 12, 0.84) 20%,
+      rgba(43, 18, 22, 0.8) 45%,
+      rgba(58, 20, 26, 0.74) 70%,
+      rgba(30, 12, 15, 0.8) 100%
     );
   }
 }
@@ -158,16 +147,16 @@
   width: 100%;
   max-width: 400px;
   margin: 0 auto;
-  /* A frosted, elevated card (glassmorphism) rather than the form sitting
-     flush on the page - background-blend + a soft border/shadow gives it
-     presence and depth even over the flat resolved side of the gradient. */
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.8);
+  /* A dark frosted glass card (no white anywhere) rather than a solid
+     white block - the blurred photo shows through it faintly, matching
+     the darker "Admin Login" reference the user pointed to. */
+  background: rgba(20, 12, 14, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 24px;
   padding: 40px 32px;
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
-  box-shadow: 0 24px 60px -20px rgba(13, 13, 15, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
 @media (--mobile) {
@@ -194,7 +183,7 @@
 .login3-heading {
   font-size: 26px;
   font-weight: 800;
-  color: #16161a;
+  color: #ffffff;
   margin: 0 0 10px;
 }
 
@@ -209,7 +198,7 @@
 
 .login3-subheading {
   font-size: 14px;
-  color: #6b6b6f;
+  color: rgba(242, 242, 244, 0.68);
   margin: 0 0 28px;
 }
 
@@ -221,7 +210,7 @@
   display: block;
   font-size: 13px;
   font-weight: 600;
-  color: #26262b;
+  color: rgba(242, 242, 244, 0.9);
   margin-bottom: 6px;
 }
 
@@ -340,7 +329,7 @@
   text-align: center;
   font-size: 12px;
   font-weight: 600;
-  color: #9a9aa0;
+  color: rgba(242, 242, 244, 0.55);
 }
 
 @media (--tablet-up) {
