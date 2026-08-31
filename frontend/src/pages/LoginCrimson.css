@@ -4,7 +4,7 @@
   position: relative;
   min-height: 100dvh;
   display: flex;
-  font-family: 'Hanken Grotesk', 'Inter', sans-serif;
+  font-family: 'Open Sans', 'Inter', sans-serif;
   background: #0d0d0f;
   overflow: hidden;
 }
@@ -65,14 +65,9 @@
   display: none;
   position: relative;
   flex-direction: column;
-  /* Centred as one group (matching .login3-panel's own centring on the
-     other side) rather than space-between, which pushed the tagline all
-     the way to the bottom of the full-height column - well past where the
-     Welcome Back card actually ends, since the card is only as tall as
-     its own content. Centring both sides the same way keeps them roughly
-     aligned and keeps the logo+tagline stack from overflowing past the
-     card's bottom edge. */
-  justify-content: center;
+  /* Logo anchored to the top of the panel rather than centred with the
+     tagline as one vertically-centred group. */
+  justify-content: flex-start;
   padding: 56px 48px;
   overflow: hidden;
   color: #f2f2f4;
@@ -91,31 +86,13 @@
   height: 376px;
   margin: 0 auto;
   display: block;
-  object-fit: contain;
-  /* Brightness/saturation boost before the mask reads its luminance: the
-     red areas otherwise come out fairly dim (red's luminance weighting is
-     low), so this raises the whole image's tonal values first, which the
-     luminance mask below then reveals with more opacity. */
-  filter: brightness(1.5) saturate(1.35);
-  /* mix-blend-mode: screen erases the source file's pure #000000 backdrop
-     by making it show whatever colour is behind it - but that's still
-     visibly dark right here, since the page itself is dark, so it read as
-     "still black" even though the blend was working correctly. What
-     actually removes the black is a luminance mask using the logo as its
-     own mask: black (zero luminance) becomes fully transparent regardless
-     of what's behind it, white stays fully opaque, and the red sits
-     partway between - so the backdrop is genuinely gone, not just
-     colour-matched to a background that happens to be dark too. */
-  mask-image: url('/nforce-logo.png');
-  -webkit-mask-image: url('/nforce-logo.png');
-  mask-mode: luminance;
-  -webkit-mask-mode: luminance;
-  mask-size: contain;
-  -webkit-mask-size: contain;
-  mask-repeat: no-repeat;
-  -webkit-mask-repeat: no-repeat;
-  mask-position: center;
-  -webkit-mask-position: center;
+  /* The true logo, unmodified: no filter, no mask, no blend-mode - every
+     earlier attempt at "immersing" it (blend-mode, luminance masks,
+     brightness/saturation boosts) altered its actual colours, which reads
+     as wrong against the real brand mark. A plain circular crop, same as
+     .sidebar__brand-logo elsewhere in the app. */
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 /* At the narrower end of --tablet-up, the copy below wraps to more lines
@@ -198,18 +175,9 @@
   width: 128px;
   height: 128px;
   margin: 0 auto 16px;
-  object-fit: contain;
-  /* Same treatment as .login3-hero-logo (see its comment there). */
-  mask-image: url('/nforce-logo.png');
-  -webkit-mask-image: url('/nforce-logo.png');
-  mask-mode: luminance;
-  -webkit-mask-mode: luminance;
-  mask-size: contain;
-  -webkit-mask-size: contain;
-  mask-repeat: no-repeat;
-  -webkit-mask-repeat: no-repeat;
-  mask-position: center;
-  -webkit-mask-position: center;
+  /* The true logo, unmodified - see .login3-hero-logo's comment. */
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 @media (--tablet-up) {
