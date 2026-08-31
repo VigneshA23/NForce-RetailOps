@@ -320,6 +320,8 @@
 }
 
 .login3-submit {
+  position: relative;
+  overflow: hidden;
   width: 100%;
   padding: 14px 16px;
   border: none;
@@ -331,6 +333,17 @@
   cursor: pointer;
   box-shadow: 0 12px 24px -8px rgba(225, 29, 51, 0.55);
   transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.15s ease;
+}
+
+.login3-submit-shimmer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 80px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  filter: blur(8px);
+  pointer-events: none;
 }
 
 .login3-submit:hover:not(:disabled) {

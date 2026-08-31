@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
+import { motion } from 'motion/react'
 import { login } from '../api/auth'
 import type { AuthUser } from '../types/auth'
 import './LoginCrimson.css'
@@ -17,6 +18,7 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [submitHovered, setSubmitHovered] = useState(false)
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
@@ -38,8 +40,20 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
       <div className="login3-bg-overlay" aria-hidden="true" />
       <div className="login3-grid">
         <div className="login3-hero">
-          <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-hero-logo" />
-          <div className="login3-hero-text">
+          <motion.img
+            src="/nforce-logo.png"
+            alt="NForce RetailOps logo"
+            className="login3-hero-logo"
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+          />
+          <motion.div
+            className="login3-hero-text"
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.5 }}
+          >
             <h2 className="login3-hero-heading">
               Your stores. <span className="login3-hero-accent">One checklist.</span>
             </h2>
@@ -48,11 +62,16 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
               signed off by the person on shift, and auditable the next morning. No paper, no
               group chats.
             </p>
-          </div>
+          </motion.div>
         </div>
 
         <div className="login3-panel">
-          <div className="login3-panel-inner">
+          <motion.div
+            className="login3-panel-inner"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
             <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
 
             <h1 className="login3-heading">Welcome Back</h1>
@@ -127,15 +146,32 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
 
               {error && <div className="login3-error">{error}</div>}
 
-              <button type="submit" className="login3-submit" disabled={loading}>
+              <motion.button
+                type="submit"
+                className="login3-submit"
+                disabled={loading}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.98 }}
+                onHoverStart={() => setSubmitHovered(true)}
+                onHoverEnd={() => setSubmitHovered(false)}
+              >
                 {loading ? 'Signing in…' : 'Sign In'}
-              </button>
+                {submitHovered && !loading && (
+                  <motion.span
+                    className="login3-submit-shimmer"
+                    initial={{ left: '-20%' }}
+                    animate={{ left: '120%' }}
+                    transition={{ duration: 1, ease: 'easeInOut' }}
+                    aria-hidden="true"
+                  />
+                )}
+              </motion.button>
             </form>
 
             <p className="login3-access-note">
               Need access? <span className="login3-access-link">Contact your admin</span>
             </p>
-          </div>
+          </motion.div>
         </div>
       </div>
     </div>
