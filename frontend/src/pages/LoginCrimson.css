@@ -85,14 +85,25 @@
   margin: 24px auto;
   display: block;
   object-fit: contain;
-  /* The source file's own backdrop is pure #000000, which mix-blend-mode:
-     screen erases exactly (screen(0, x) = x) against whatever's behind it,
-     no mask needed. Earlier attempts at this fought a bright, concentrated
-     glow right behind the badge - the badge covered the glow's brightest
-     point, so its edge still read as a dark ring against the brighter glow
-     just past it. With no glow now, the surrounding background is close to
-     uniformly dark, so there's no hotspot for the badge to visibly block. */
-  mix-blend-mode: screen;
+  /* mix-blend-mode: screen erases the source file's pure #000000 backdrop
+     by making it show whatever colour is behind it - but that's still
+     visibly dark right here, since the page itself is dark, so it read as
+     "still black" even though the blend was working correctly. What
+     actually removes the black is a luminance mask using the logo as its
+     own mask: black (zero luminance) becomes fully transparent regardless
+     of what's behind it, white stays fully opaque, and the red sits
+     partway between - so the backdrop is genuinely gone, not just
+     colour-matched to a background that happens to be dark too. */
+  mask-image: url('/nforce-logo.png');
+  -webkit-mask-image: url('/nforce-logo.png');
+  mask-mode: luminance;
+  -webkit-mask-mode: luminance;
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-position: center;
 }
 
 .login3-hero-text {
@@ -162,7 +173,16 @@
   margin: 0 auto 16px;
   object-fit: contain;
   /* Same treatment as .login3-hero-logo (see its comment there). */
-  mix-blend-mode: screen;
+  mask-image: url('/nforce-logo.png');
+  -webkit-mask-image: url('/nforce-logo.png');
+  mask-mode: luminance;
+  -webkit-mask-mode: luminance;
+  mask-size: contain;
+  -webkit-mask-size: contain;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  mask-position: center;
+  -webkit-mask-position: center;
 }
 
 @media (--tablet-up) {
