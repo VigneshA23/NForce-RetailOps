@@ -84,11 +84,15 @@
   height: 260px;
   margin: 24px auto;
   display: block;
-  /* A plain, crisp circular badge - same treatment as the logo everywhere
-     else in the app (see .sidebar__brand-logo) - with no glow/shine. */
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  object-fit: contain;
+  /* The source file's own backdrop is pure #000000, which mix-blend-mode:
+     screen erases exactly (screen(0, x) = x) against whatever's behind it,
+     no mask needed. Earlier attempts at this fought a bright, concentrated
+     glow right behind the badge - the badge covered the glow's brightest
+     point, so its edge still read as a dark ring against the brighter glow
+     just past it. With no glow now, the surrounding background is close to
+     uniformly dark, so there's no hotspot for the badge to visibly block. */
+  mix-blend-mode: screen;
 }
 
 .login3-hero-text {
@@ -156,10 +160,9 @@
   width: 128px;
   height: 128px;
   margin: 0 auto 16px;
-  object-fit: cover;
-  /* Same crisp-badge treatment as .login3-hero-logo (see its comment). */
-  border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08);
+  object-fit: contain;
+  /* Same treatment as .login3-hero-logo (see its comment there). */
+  mix-blend-mode: screen;
 }
 
 @media (--tablet-up) {
