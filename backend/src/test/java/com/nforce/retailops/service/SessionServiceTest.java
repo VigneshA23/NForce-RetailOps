@@ -84,4 +84,12 @@ class SessionServiceTest {
             "tok-5".equals(session.getTokenId()) && "user@nforce.test".equals(session.getSubjectEmail())
         ));
     }
+
+    @Test
+    void invalidateAllForUserRevokesEverySessionThatUserHolds() {
+        sessionService(10).invalidateAllForUser("employee@nforce.test");
+
+        verify(activeSessionRepository).deleteBySubjectEmail("employee@nforce.test");
+        verify(activeSessionRepository, never()).deleteByTokenId(anyString());
+    }
 }

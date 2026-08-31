@@ -9,6 +9,7 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -55,7 +56,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // server-side source of truth, not just the token's own expiry.
             if (sessionService.validateAndTouch(tokenId)) {
                 String email = jwtService.extractEmail(token);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+                // The account itself is re-read on every request, so an account
+                // deactivated or deleted mid-session stops being able to act here
+                // rather than at token expiry. Leaving the SecurityContext unset
+                // makes this fall through to a clean 401 from the entry point.
+                UserDetails userDetails;
+                try {
+                    userDetails = userDetailsService.loadUserByUsername(email);
+                } catch (UsernameNotFoundException ex) {
+                    sessionService.invalidate(tokenId);
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+
+                if (!userDetails.isEnabled()) {
+                    sessionService.invalidate(tokenId);
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
                 var authToken = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities()

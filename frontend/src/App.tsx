@@ -7,9 +7,20 @@ import DashboardShell from './layouts/DashboardShell'
 import SuperAdminDashboard from './pages/SuperAdminDashboard'
 import type { AuthUser } from './types/auth'
 import type { StoreSummary } from './types/store'
-import { AUTH_TOKEN_STORAGE_KEY, setAuthToken, clearAuthToken } from './utils/authStorage'
+import NoStoreAssigned from './pages/NoStoreAssigned'
+import {
+  AUTH_TOKEN_STORAGE_KEY,
+  setAuthToken,
+  clearAuthToken,
+  getAuthToken,
+  getActiveStoreId,
+  setActiveStoreId,
+  clearActiveStoreId,
+} from './utils/authStorage'
 import { DEFAULT_INACTIVITY_TIMEOUT_MINUTES, onUnauthorizedResponse, startInactivityTimer } from './utils/sessionManager'
 import { getSessionConfig, logout } from './api/auth'
+import { getMe } from './api/me'
+import { useAssignedStores } from './hooks/useAssignedStores'
 
 type View = 'login' | 'forgot-password'
 
@@ -23,6 +34,17 @@ function App() {
   const [activeStore, setActiveStore] = useState<StoreSummary | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
   const [sessionMessage, setSessionMessage] = useState<string | null>(null)
+  // Starts true whenever a token is already in storage: we must not flash the
+  // Login screen while we are still finding out whether that token is good.
+  const [restoringSession, setRestoringSession] = useState(() => getAuthToken() !== null)
+
+  const isEmployee = user?.role === 'EMPLOYEE'
+  const {
+    stores,
+    isLoading: storesLoading,
+    error: storesError,
+    reload: reloadStores,
+  } = useAssignedStores(Boolean(isEmployee))
 
   // The one place that ends an authenticated session, for any reason: manual
   // logout, inactivity timeout, or a 401 from any API call. Every protected
@@ -30,6 +52,7 @@ function App() {
   // to fall back to Login from anywhere in the app.
   const endSession = useCallback((message: string | null) => {
     clearAuthToken()
+    clearActiveStoreId()
     setUser(null)
     setActiveStore(null)
     setView('login')
@@ -54,6 +77,39 @@ function App() {
     setSessionMessage(null)
     setUser(authUser)
   }
+
+  // Rehydrate the session on boot. The token outlives a page load, so ask the
+  // server who it belongs to rather than trusting anything cached locally; a
+  // token that is expired, revoked, or belongs to a deactivated account fails
+  // here and is cleared.
+  useEffect(() => {
+    if (!restoringSession) return
+
+    const token = getAuthToken()
+    if (!token) {
+      setRestoringSession(false)
+      return
+    }
+
+    let active = true
+    getMe()
+      .then((me) => {
+        if (!active) return
+        setUser({ token, role: me.role, fullName: me.fullName })
+      })
+      .catch(() => {
+        if (!active) return
+        clearAuthToken()
+        clearActiveStoreId()
+      })
+      .finally(() => {
+        if (active) setRestoringSession(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [restoringSession])
 
   // Single global session-management mechanism: an inactivity timer plus a
   // 401 watcher, both scoped to the lifetime of an authenticated session.
@@ -89,6 +145,20 @@ function App() {
     }
   }, [user, endSession])
 
+  // Store bootstrap. The server's list is the only source of truth for what an
+  // employee may open: one store selects itself, and a remembered choice is
+  // honoured only if that store is still in the list.
+  useEffect(() => {
+    if (!isEmployee || storesLoading || storesError) return
+
+    setActiveStore((current) => {
+      if (current && stores.some((store) => store.id === current.id)) return current
+      if (stores.length === 1) return stores[0]
+      const rememberedId = getActiveStoreId()
+      return stores.find((store) => store.id === rememberedId) ?? null
+    })
+  }, [isEmployee, stores, storesLoading, storesError])
+
   // Cross-tab sync: another tab clearing the shared auth token (logout or
   // expiration there) ends this tab's session too.
   useEffect(() => {
@@ -101,6 +171,10 @@ function App() {
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [user, endSession])
+
+  if (restoringSession) {
+    return <div className="app-boot">Loading...</div>
+  }
 
   if (!user) {
     return view === 'forgot-password' ? (
@@ -122,11 +196,34 @@ function App() {
     return <DashboardShell user={user} onLogout={handleLogout} loggingOut={loggingOut} />
   }
 
+  if (storesLoading) {
+    return <div className="app-boot">Loading your stores...</div>
+  }
+
+  if (storesError) {
+    return (
+      <div className="app-boot app-boot--error">
+        {storesError}
+        <button type="button" className="btn btn--secondary" onClick={reloadStores}>
+          Retry
+        </button>
+      </div>
+    )
+  }
+
+  if (stores.length === 0) {
+    return <NoStoreAssigned user={user} onLogout={handleLogout} loggingOut={loggingOut} />
+  }
+
   if (!activeStore) {
     return (
       <StorePicker
         user={user}
-        onSelectStore={setActiveStore}
+        stores={stores}
+        onSelectStore={(store) => {
+          setActiveStoreId(store.id)
+          setActiveStore(store)
+        }}
         onLogout={handleLogout}
         loggingOut={loggingOut}
       />
@@ -137,8 +234,12 @@ function App() {
     <EmployeeShell
       user={user}
       store={activeStore}
+      stores={stores}
       onLogout={handleLogout}
-      onSwitchStore={() => setActiveStore(null)}
+      onSwitchStore={() => {
+        clearActiveStoreId()
+        setActiveStore(null)
+      }}
       loggingOut={loggingOut}
     />
   )

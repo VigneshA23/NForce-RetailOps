@@ -18,6 +18,7 @@ export interface Employee {
   shift: ShiftName;
   employeeType: EmployeeType;
   gender: Gender;
+  active: boolean;
   stores: StoreOption[];
 }
 

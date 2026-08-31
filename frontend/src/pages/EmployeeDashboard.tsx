@@ -25,11 +25,11 @@ function todayKey(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-function answersStorageKey(storeId: string): string {
+function answersStorageKey(storeId: number): string {
   return `nforce-retailops-checklist-${storeId}-${todayKey()}`
 }
 
-function loadStoredAnswers(storeId: string): TaskAnswers {
+function loadStoredAnswers(storeId: number): TaskAnswers {
   try {
     const raw = localStorage.getItem(answersStorageKey(storeId))
     return raw ? (JSON.parse(raw) as TaskAnswers) : {}

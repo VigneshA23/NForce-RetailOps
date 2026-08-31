@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.EmployeeCreateRequest;
 import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.StoreOptionResponse;
+import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.EmployeeService;
 import jakarta.validation.Valid;
@@ -54,6 +55,15 @@ public class EmployeeController {
         @Valid @RequestBody EmployeeUpdateRequest request
     ) {
         return ResponseEntity.ok(employeeService.updateEmployee(principal.getUser().getId(), id, request));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<EmployeeResponse> updateStatus(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @PathVariable Long id,
+        @Valid @RequestBody UpdateEmployeeStatusRequest request
+    ) {
+        return ResponseEntity.ok(employeeService.setEmployeeActive(principal.getUser().getId(), id, request));
     }
 
     @DeleteMapping("/{id}")

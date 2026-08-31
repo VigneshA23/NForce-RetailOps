@@ -48,7 +48,7 @@ function Home() {
         setEmployees(employeeList);
         setCategories(categoryList);
 
-        const storeIds = storeList.map((store) => String(store.id));
+        const storeIds = storeList.map((store) => store.id);
 
         const [todayResults, trendResults] = await Promise.all([
           Promise.all(storeIds.map((id) => getShiftHistory(id, isoDateDaysAgo(0)))),

@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.EmployeeCreateRequest;
 import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.StoreOptionResponse;
+import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
@@ -37,19 +38,22 @@ public class EmployeeService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SessionService sessionService;
 
     public EmployeeService(
         StoreEmployeeRepository storeEmployeeRepository,
         StoreOwnerRepository storeOwnerRepository,
         UserRepository userRepository,
         RoleRepository roleRepository,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        SessionService sessionService
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.sessionService = sessionService;
     }
 
     // Store assignment is optional: an employee can be created or edited with no
@@ -190,7 +194,30 @@ public class EmployeeService {
         }
 
         User employee = storeEmployee.getEmployee();
+        sessionService.invalidateAllForUser(employee.getEmail());
         storeEmployeeRepository.delete(storeEmployee);
         userRepository.delete(employee);
+    }
+
+    @Transactional
+    public EmployeeResponse setEmployeeActive(Long ownerId, Long id, UpdateEmployeeStatusRequest request) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        if (!canManageEmployee(storeEmployee, ownerId)) {
+            throw new EmployeeNotFoundException("Employee not found");
+        }
+
+        User employee = storeEmployee.getEmployee();
+        employee.setActive(request.active());
+        userRepository.save(employee);
+
+        // Deactivation has to bite immediately: without this the employee keeps
+        // working off the token they already hold until it expires.
+        if (!request.active()) {
+            sessionService.invalidateAllForUser(employee.getEmail());
+        }
+
+        return EmployeeResponse.from(storeEmployee);
     }
 }
