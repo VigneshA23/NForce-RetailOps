@@ -5,9 +5,10 @@ interface OwnerTableProps {
   owners: OwnerSummary[];
   isLoading?: boolean;
   onToggleStatus: (owner: OwnerSummary) => void;
+  onAddStore: (owner: OwnerSummary) => void;
 }
 
-function OwnerTable({ owners, isLoading = false, onToggleStatus }: OwnerTableProps) {
+function OwnerTable({ owners, isLoading = false, onToggleStatus, onAddStore }: OwnerTableProps) {
   return (
     <div className="owner-table__card">
       <div className="table-scroll">
@@ -39,13 +40,22 @@ function OwnerTable({ owners, isLoading = false, onToggleStatus }: OwnerTablePro
                   </span>
                 </td>
                 <td className="owner-table__actions-cell">
-                  <button
-                    type="button"
-                    className={`btn owner-table__status-btn ${owner.active ? 'btn--danger' : 'btn--primary'}`}
-                    onClick={() => onToggleStatus(owner)}
-                  >
-                    {owner.active ? 'Deactivate' : 'Activate'}
-                  </button>
+                  <div className="owner-table__actions">
+                    <button
+                      type="button"
+                      className="btn btn--secondary owner-table__status-btn"
+                      onClick={() => onAddStore(owner)}
+                    >
+                      Add Store
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn owner-table__status-btn ${owner.active ? 'btn--danger' : 'btn--primary'}`}
+                      onClick={() => onToggleStatus(owner)}
+                    >
+                      {owner.active ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

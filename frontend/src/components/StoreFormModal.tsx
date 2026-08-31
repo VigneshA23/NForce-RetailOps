@@ -5,7 +5,6 @@ import FormField from './FormField';
 
 interface StoreFormModalProps {
   isOpen: boolean;
-  mode: 'create' | 'edit';
   initialValues?: OwnerStoreFormValues;
   errorMessage?: string | null;
   isSubmitting?: boolean;
@@ -17,7 +16,6 @@ const EMPTY_VALUES: OwnerStoreFormValues = { name: '' };
 
 function StoreFormModal({
   isOpen,
-  mode,
   initialValues,
   errorMessage,
   isSubmitting = false,
@@ -47,14 +45,14 @@ function StoreFormModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={mode === 'create' ? 'Add Store' : 'Edit Store'}
+      title="Edit Store"
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
           <button type="submit" form="store-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Add Store' : 'Save Changes'}
+            {isSubmitting ? 'Saving...' : 'Save Changes'}
           </button>
         </>
       }

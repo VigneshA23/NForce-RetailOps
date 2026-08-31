@@ -5,7 +5,7 @@ import './RowActionsMenu.css';
 
 interface RowActionsMenuProps {
   onEdit: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
 }
 
 const MENU_WIDTH = 140;
@@ -93,18 +93,20 @@ function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
               <Pencil size={14} />
               Edit
             </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="row-actions__item row-actions__item--danger"
-              onClick={() => {
-                setIsOpen(false);
-                onDelete();
-              }}
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
+            {onDelete && (
+              <button
+                type="button"
+                role="menuitem"
+                className="row-actions__item row-actions__item--danger"
+                onClick={() => {
+                  setIsOpen(false);
+                  onDelete();
+                }}
+              >
+                <Trash2 size={14} />
+                Delete
+              </button>
+            )}
           </div>,
           document.body,
         )}

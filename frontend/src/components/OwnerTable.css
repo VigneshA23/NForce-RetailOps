@@ -20,6 +20,11 @@
   text-align: right;
 }
 
+.owner-table__actions {
+  display: inline-flex;
+  gap: var(--space-sm);
+}
+
 .owner-table__status-btn {
   padding: 6px 14px;
   font-size: 13px;

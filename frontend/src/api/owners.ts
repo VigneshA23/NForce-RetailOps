@@ -1,4 +1,4 @@
-import type { OwnerFormValues, OwnerSummary } from '../types/owner';
+import type { AssignStoreValues, OwnerFormValues, OwnerSummary } from '../types/owner';
 import { authHeaders } from '../utils/authStorage';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
@@ -25,6 +25,16 @@ export async function addOwner(values: OwnerFormValues): Promise<OwnerSummary> {
     body: JSON.stringify(values),
   });
   if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to add owner'));
+  return response.json();
+}
+
+export async function assignStore(ownerId: number, values: AssignStoreValues): Promise<OwnerSummary> {
+  const response = await fetch(`${API_BASE_URL}/owners/${ownerId}/stores`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(values),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to add store'));
   return response.json();
 }
 
