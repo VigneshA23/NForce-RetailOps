@@ -59,15 +59,21 @@ function SearchableSelect({
       }
     }
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsOpen(false);
+      if (event.key === 'Escape') {
+        // Capture phase + stopPropagation: when this dropdown is rendered
+        // inside a Modal, Modal's own bubble-phase Escape listener on
+        // `document` would otherwise also fire and close the modal underneath us.
+        event.stopPropagation();
+        setIsOpen(false);
+      }
     }
 
     document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true);
     const focusTimer = window.setTimeout(() => searchRef.current?.focus(), 0);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
       window.clearTimeout(focusTimer);
     };
   }, [isOpen]);

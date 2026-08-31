@@ -1,6 +1,6 @@
 .app-shell {
   display: flex;
-  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 .app-shell__content {
