@@ -54,6 +54,7 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
             <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
 
             <h1 className="login3-heading">Welcome Back</h1>
+            <span className="login3-heading-underline" aria-hidden="true" />
             <p className="login3-subheading">Sign in to access RetailOps</p>
 
             {notice && (
