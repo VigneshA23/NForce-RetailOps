@@ -81,11 +81,16 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 620px;
-  height: 620px;
+  width: 900px;
+  height: 900px;
   transform: translate(-50%, -55%);
-  background: radial-gradient(circle, rgba(225, 29, 51, 0.5) 0%, rgba(225, 29, 51, 0) 66%);
-  filter: blur(24px);
+  /* Wide, gradual falloff (vs. a tight hotspot) so brightness barely changes
+     across the logo's own footprint - a glow that's sharply brighter right
+     behind the badge than just past its edge is what was reading as a
+     visible ring/step in earlier attempts, independent of the badge's edge
+     treatment itself. */
+  background: radial-gradient(circle, rgba(225, 29, 51, 0.4) 0%, rgba(225, 29, 51, 0.18) 30%, rgba(225, 29, 51, 0) 62%);
+  filter: blur(40px);
   pointer-events: none;
 }
 
@@ -96,20 +101,18 @@
   height: 260px;
   margin: 24px auto;
   display: block;
-  object-fit: contain;
-  /* Screen blend mode drops the logo artwork's own near-black backdrop out
-     against this equally-dark panel, and the radial mask fades the image's
-     own edge to transparent - together the disc/badge boundary disappears
-     entirely so the mark reads as part of the background glow rather than
-     a sticker sitting on top of it. The mask's inner stop is generous
-     (65%) so most of the actual glyph stays crisp and undistorted; only
-     the outer rim - which is mostly the logo's own dark backdrop anyway -
-     fades out. Size and glow are pushed up to keep it prominent despite
-     the softer edge. */
-  mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(circle, #000 65%, transparent 85%);
-  mask-image: radial-gradient(circle, #000 65%, transparent 85%);
-  filter: drop-shadow(0 0 50px rgba(225, 29, 51, 0.55)) drop-shadow(0 0 110px rgba(225, 29, 51, 0.3));
+  /* A deliberate, crisp circular badge - the same treatment the logo gets
+     everywhere else in the app (see .sidebar__brand-logo) - rather than
+     trying to dissolve its own edge into the background. That dissolving
+     act kept failing: the source PNG bakes in a semi-transparent seam
+     right at its circular edge that survives blend-mode erasure, and
+     removing the mask instead exposed a brightness "hole" wherever the
+     badge covers the brightest part of the glow behind it. A clean edge
+     plus a wide, soft, well-matched glow (.login3-hero-glow) reads as an
+     emblem glowing within the scene, not a sticker on top of it. */
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 70px rgba(225, 29, 51, 0.5), 0 0 140px rgba(225, 29, 51, 0.28);
 }
 
 .login3-hero-text {
@@ -177,15 +180,10 @@
   width: 128px;
   height: 128px;
   margin: 0 auto 16px;
-  object-fit: contain;
-  /* Same immersion treatment as .login3-hero-logo, sized for the card
-     instead of the full hero panel - the logo needs to stay clearly
-     visible whenever the layout collapses to this single-column view,
-     not just on the tablet-up split layout. */
-  mix-blend-mode: screen;
-  -webkit-mask-image: radial-gradient(circle, #000 65%, transparent 85%);
-  mask-image: radial-gradient(circle, #000 65%, transparent 85%);
-  filter: drop-shadow(0 0 30px rgba(225, 29, 51, 0.5)) drop-shadow(0 0 60px rgba(225, 29, 51, 0.25));
+  object-fit: cover;
+  /* Same crisp-badge treatment as .login3-hero-logo (see its comment). */
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 40px rgba(225, 29, 51, 0.5), 0 0 80px rgba(225, 29, 51, 0.25);
 }
 
 @media (--tablet-up) {
