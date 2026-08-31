@@ -87,16 +87,16 @@
 .login3-hero-logo {
   position: relative;
   z-index: 1;
-  width: 320px;
-  height: 320px;
-  margin: 0 auto 16px;
+  width: 376px;
+  height: 376px;
+  margin: 0 auto;
   display: block;
   object-fit: contain;
   /* Brightness/saturation boost before the mask reads its luminance: the
      red areas otherwise come out fairly dim (red's luminance weighting is
      low), so this raises the whole image's tonal values first, which the
      luminance mask below then reveals with more opacity. */
-  filter: brightness(1.3) saturate(1.2);
+  filter: brightness(1.5) saturate(1.35);
   /* mix-blend-mode: screen erases the source file's pure #000000 backdrop
      by making it show whatever colour is behind it - but that's still
      visibly dark right here, since the page itself is dark, so it read as
@@ -124,8 +124,8 @@
    card's own height and spilling past its bottom edge. */
 @media (min-width: 768px) and (max-width: 1024px) {
   .login3-hero-logo {
-    width: 240px;
-    height: 240px;
+    width: 320px;
+    height: 320px;
   }
 }
 
