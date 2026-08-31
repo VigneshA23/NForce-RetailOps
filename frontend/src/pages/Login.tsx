@@ -86,9 +86,14 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
               </div>
 
               <div className="login3-field">
-                <label htmlFor="password" className="login3-label">
-                  Password
-                </label>
+                <div className="login3-label-row">
+                  <label htmlFor="password" className="login3-label">
+                    Password
+                  </label>
+                  <button type="button" className="login3-forgot-link" onClick={onForgotPassword}>
+                    Forgot Password?
+                  </button>
+                </div>
                 <div className="login3-input-wrap">
                   <Lock size={16} className="login3-input-icon" aria-hidden="true" />
                   <input
@@ -111,12 +116,6 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
                 </div>
               </div>
 
-              <div className="login3-meta-row">
-                <button type="button" className="login3-forgot-link" onClick={onForgotPassword}>
-                  Forgot Password?
-                </button>
-              </div>
-
               {error && <div className="login3-error">{error}</div>}
 
               <button type="submit" className="login3-submit" disabled={loading}>
@@ -124,7 +123,9 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
               </button>
             </form>
 
-            <p className="login3-tagline">Your stores. One checklist.</p>
+            <p className="login3-access-note">
+              Need access? <span className="login3-access-link">Contact your admin</span>
+            </p>
           </div>
         </div>
       </div>

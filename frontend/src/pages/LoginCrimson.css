@@ -174,11 +174,18 @@
 
 .login3-mobile-logo {
   display: block;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  object-fit: cover;
-  margin: 0 auto 20px;
+  width: 128px;
+  height: 128px;
+  margin: 0 auto 16px;
+  object-fit: contain;
+  /* Same immersion treatment as .login3-hero-logo, sized for the card
+     instead of the full hero panel - the logo needs to stay clearly
+     visible whenever the layout collapses to this single-column view,
+     not just on the tablet-up split layout. */
+  mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(circle, #000 65%, transparent 85%);
+  mask-image: radial-gradient(circle, #000 65%, transparent 85%);
+  filter: drop-shadow(0 0 30px rgba(225, 29, 51, 0.5)) drop-shadow(0 0 60px rgba(225, 29, 51, 0.25));
 }
 
 @media (--tablet-up) {
@@ -218,6 +225,16 @@
   font-size: 13px;
   font-weight: 600;
   color: rgba(242, 242, 244, 0.9);
+  margin-bottom: 6px;
+}
+
+.login3-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.login3-label-row .login3-label {
   margin-bottom: 6px;
 }
 
@@ -276,12 +293,6 @@
   color: #26262b;
 }
 
-.login3-meta-row {
-  display: flex;
-  justify-content: flex-end;
-  margin: -6px 0 20px;
-}
-
 .login3-forgot-link {
   font-size: 13px;
   font-weight: 600;
@@ -331,16 +342,14 @@
   cursor: not-allowed;
 }
 
-.login3-tagline {
-  margin-top: 24px;
+.login3-access-note {
+  margin: 20px 0 0;
   text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: rgba(242, 242, 244, 0.55);
+  font-size: 13px;
+  color: rgba(242, 242, 244, 0.6);
 }
 
-@media (--tablet-up) {
-  .login3-tagline {
-    display: none;
-  }
+.login3-access-link {
+  font-weight: 700;
+  color: #ff4d5e;
 }
