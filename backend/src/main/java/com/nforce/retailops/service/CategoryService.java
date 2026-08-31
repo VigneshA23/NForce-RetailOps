@@ -65,6 +65,17 @@ public class CategoryService {
     }
 
     @Transactional
+    public CategoryResponse setActive(Long ownerId, Long categoryId, boolean active) {
+        Category category = categoryRepository.findByIdAndOwnerId(categoryId, ownerId)
+            .orElseThrow(() -> new CategoryNotFoundException("Category not found"));
+
+        category.setActive(active);
+        category = categoryRepository.save(category);
+
+        return CategoryResponse.from(category);
+    }
+
+    @Transactional
     public void deleteCategory(Long ownerId, Long categoryId) {
         Category category = categoryRepository.findByIdAndOwnerId(categoryId, ownerId)
             .orElseThrow(() -> new CategoryNotFoundException("Category not found"));

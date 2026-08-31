@@ -7,6 +7,12 @@
   color: var(--color-text-primary);
 }
 
+.category-table__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .category-table__actions-cell {
   text-align: right;
 }

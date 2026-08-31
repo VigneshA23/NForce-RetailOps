@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Tags, CircleCheck, CircleSlash } from 'lucide-react';
-import { getCategories, createCategory, updateCategory, deleteCategory } from '../api/categories';
+import { getCategories, createCategory, updateCategory, updateCategoryStatus, deleteCategory } from '../api/categories';
 import type { Category, CategoryFormValues } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
 import CategoryFormModal from '../components/CategoryFormModal';
@@ -20,6 +20,7 @@ function Categories() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   function loadCategories() {
     setIsLoading(true);
@@ -53,6 +54,20 @@ function Categories() {
     }
   }
 
+  async function handleToggleStatus(category: Category, active: boolean) {
+    setStatusError(null);
+    // Optimistic: the toggle should feel instant, and reverting on failure is
+    // cheap since we still have the prior value in closure.
+    setCategories((current) => current.map((c) => (c.id === category.id ? { ...c, active } : c)));
+    try {
+      const updated = await updateCategoryStatus(category.id, active);
+      setCategories((current) => current.map((c) => (c.id === updated.id ? updated : c)));
+    } catch (error) {
+      setCategories((current) => current.map((c) => (c.id === category.id ? category : c)));
+      setStatusError(error instanceof Error ? error.message : 'Failed to update category status');
+    }
+  }
+
   async function handleConfirmDelete() {
     if (!deleteTarget) return;
     setDeleteError(null);
@@ -77,6 +92,7 @@ function Categories() {
       </div>
 
       {deleteError && <div className="categories-page__error">{deleteError}</div>}
+      {statusError && <div className="categories-page__error">{statusError}</div>}
 
       {loadError ? (
         <div className="categories-page__error">
@@ -123,6 +139,7 @@ function Categories() {
               setDeleteError(null);
               setDeleteTarget(category);
             }}
+            onToggleStatus={handleToggleStatus}
           />
         </div>
       )}

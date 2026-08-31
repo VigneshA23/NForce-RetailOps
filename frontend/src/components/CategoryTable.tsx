@@ -1,5 +1,6 @@
 import type { Category } from '../types/category';
 import RowActionsMenu from './RowActionsMenu';
+import Toggle from './Toggle';
 import './CategoryTable.css';
 
 interface CategoryTableProps {
@@ -7,9 +8,10 @@ interface CategoryTableProps {
   isLoading?: boolean;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
+  onToggleStatus: (category: Category, active: boolean) => void;
 }
 
-function CategoryTable({ categories, isLoading = false, onEdit, onDelete }: CategoryTableProps) {
+function CategoryTable({ categories, isLoading = false, onEdit, onDelete, onToggleStatus }: CategoryTableProps) {
   return (
     <div className="category-table__card">
       <div className="table-scroll">
@@ -26,9 +28,16 @@ function CategoryTable({ categories, isLoading = false, onEdit, onDelete }: Cate
               <tr key={category.id}>
                 <td className="category-table__name">{category.name}</td>
                 <td>
-                  <span className={`badge ${category.active ? 'badge--solid' : 'badge--outline'}`}>
-                    {category.active ? 'Active' : 'Inactive'}
-                  </span>
+                  <div className="category-table__status">
+                    <span className={`badge ${category.active ? 'badge--solid' : 'badge--outline'}`}>
+                      {category.active ? 'Active' : 'Inactive'}
+                    </span>
+                    <Toggle
+                      checked={category.active}
+                      onChange={(checked) => onToggleStatus(category, checked)}
+                      label={`${category.active ? 'Deactivate' : 'Activate'} ${category.name}`}
+                    />
+                  </div>
                 </td>
                 <td className="category-table__actions-cell">
                   <RowActionsMenu onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
