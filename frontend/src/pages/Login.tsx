@@ -33,6 +33,8 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
 
   return (
     <div className="login3-shell">
+      <div className="login3-bg-photo" aria-hidden="true" />
+      <div className="login3-bg-overlay" aria-hidden="true" />
       <div className="login3-grid">
         <div className="login3-hero">
           <div className="login3-hero-glow" aria-hidden="true" />

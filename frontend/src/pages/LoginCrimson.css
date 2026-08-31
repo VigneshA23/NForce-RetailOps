@@ -6,35 +6,61 @@
   display: flex;
   font-family: 'Hanken Grotesk', 'Inter', sans-serif;
   background: #f2f2f4;
+  overflow: hidden;
+}
+
+.login3-bg-photo {
+  position: absolute;
+  inset: -24px;
+  z-index: 0;
+  background-image: url('/login-bg-aisle.png');
+  background-size: cover;
+  background-position: center;
+  /* Blurred and darkened store-aisle photo as the base layer - the -24px
+     inset plus this blur keeps the blur from showing a sharp/clipped edge
+     at the shell's own boundary. */
+  filter: blur(6px) brightness(0.55) saturate(1.05);
+}
+
+.login3-bg-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  /* Same brand wash as before, now semi-transparent so the photo shows
+     through underneath rather than replacing it outright - darkest (and
+     most opaque) on the left where the hero copy needs to read clearly,
+     resolving toward the app's own page colour on the right so the glass
+     card still sits on a clean, legible backdrop. The form card itself is
+     opaque regardless, so this can stay fairly light without hurting its
+     legibility - on mobile in particular (no hero/gradient context) it's
+     lighter still so the photo actually reads in the margin around the
+     card instead of washing out completely. */
+  background: rgba(242, 242, 244, 0.75);
 }
 
 @media (--tablet-up) {
-  .login3-shell {
-    /* The gradient lives on the shell itself (not a floating card) so the
-       dark colour bleeds across the full page - the hero and form panels
-       are transparent and just sit on top of this one continuous wash. It
-       resolves to the app's own page background (#f2f2f4), not pure white,
-       so the form side matches the rest of the app instead of introducing
-       a colour the app doesn't otherwise use. The last two stops are
-       anchored with calc(46% ± Npx) - a fixed pixel offset from the 46%
-       column boundary - rather than plain percentages, so the transition
-       always lands inside both panels' own padding no matter the viewport
-       width. Plain percentages here would compress the whole transition
-       zone at narrower tablet widths until it overlapped the hero copy's
-       own text, washing it out. */
+  .login3-bg-overlay {
+    /* The last two stops are anchored with calc(46% ± Npx) - a fixed pixel
+       offset from the 46% column boundary - rather than plain percentages,
+       so the transition always lands inside both panels' own padding no
+       matter the viewport width. Plain percentages here would compress the
+       whole transition zone at narrower tablet widths until it overlapped
+       the hero copy's own text, washing it out. */
     background: linear-gradient(
       100deg,
-      #0d0d0f 0%,
-      #170a0c 12%,
-      #2b1216 22%,
-      #451a1f calc(46% - 40px),
-      #f2f2f4 calc(46% + 40px),
-      #f2f2f4 100%
+      rgba(13, 13, 15, 0.86) 0%,
+      rgba(23, 10, 12, 0.84) 12%,
+      rgba(43, 18, 22, 0.82) 22%,
+      rgba(69, 26, 31, 0.8) calc(46% - 40px),
+      rgba(242, 242, 244, 0.78) calc(46% + 40px),
+      rgba(242, 242, 244, 0.82) 100%
     );
   }
 }
 
 .login3-grid {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: 1fr;
   width: 100%;
