@@ -3,8 +3,12 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as authApi from './api/auth'
+import * as storesApi from './api/stores'
+import * as meApi from './api/me'
+import type { StoreSummary } from './types/store'
 
 const TOKEN_KEY = 'nforce-retailops-auth-token'
+const ACTIVE_STORE_KEY = 'nforce-retailops-active-store'
 
 vi.mock('./api/auth', () => ({
   login: vi.fn(),
@@ -13,9 +17,22 @@ vi.mock('./api/auth', () => ({
   getSessionConfig: vi.fn(),
 }))
 
+vi.mock('./api/stores', () => ({
+  getAuthorizedStores: vi.fn(),
+}))
+
+vi.mock('./api/me', () => ({
+  getMe: vi.fn(),
+}))
+
 const mockLogin = vi.mocked(authApi.login)
 const mockLogout = vi.mocked(authApi.logout)
 const mockGetSessionConfig = vi.mocked(authApi.getSessionConfig)
+const mockGetAuthorizedStores = vi.mocked(storesApi.getAuthorizedStores)
+const mockGetMe = vi.mocked(meApi.getMe)
+
+const STORE_1: StoreSummary = { id: 1, name: 'Store 1', location: 'Main St', status: 'Open' }
+const STORE_2: StoreSummary = { id: 2, name: 'Store 2', location: 'Oak Ave', status: 'Open' }
 
 async function loginAsEmployee(user: ReturnType<typeof userEvent.setup>) {
   mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe' })
@@ -38,6 +55,10 @@ beforeEach(() => {
   mockLogout.mockResolvedValue(undefined)
   mockGetSessionConfig.mockReset()
   mockGetSessionConfig.mockResolvedValue({ inactivityTimeoutMinutes: 10 })
+  mockGetAuthorizedStores.mockReset()
+  // Two stores by default, so the picker is shown and has something to choose.
+  mockGetAuthorizedStores.mockResolvedValue([STORE_1, STORE_2])
+  mockGetMe.mockReset()
 })
 
 describe('sign-out', () => {
@@ -134,14 +155,89 @@ describe('sign-out', () => {
     expect(mockLogout).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the user logged out after a simulated refresh, even with a stale token in storage', async () => {
+  it('clears a stale token and returns to login when the stored session is rejected', async () => {
     localStorage.setItem(TOKEN_KEY, 'stale-token-from-before-logout')
+    mockGetMe.mockRejectedValue(new Error('Unauthorized'))
 
-    const { unmount } = render(<App />)
-    unmount()
     render(<App />)
 
     await screen.findByText(/welcome to retailops/i)
     expect(screen.queryByLabelText(/signed in as/i)).not.toBeInTheDocument()
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+})
+
+describe('session restore', () => {
+  it('restores an employee session from a stored token on refresh', async () => {
+    localStorage.setItem(TOKEN_KEY, 'valid-token')
+    localStorage.setItem(ACTIVE_STORE_KEY, String(STORE_2.id))
+    mockGetMe.mockResolvedValue({
+      id: 7,
+      fullName: 'Jane Doe',
+      email: 'jane@nforceone.com',
+      role: 'EMPLOYEE',
+      storeNames: ['Store 1', 'Store 2'],
+    })
+
+    render(<App />)
+
+    // Straight back into the remembered store, no picker.
+    await screen.findByRole('heading', { name: /today's tasks/i })
+    expect(screen.queryByText(/select your store/i)).not.toBeInTheDocument()
+  })
+
+  it('falls back to the picker when the remembered store is no longer assigned', async () => {
+    localStorage.setItem(TOKEN_KEY, 'valid-token')
+    localStorage.setItem(ACTIVE_STORE_KEY, '999')
+    mockGetMe.mockResolvedValue({
+      id: 7,
+      fullName: 'Jane Doe',
+      email: 'jane@nforceone.com',
+      role: 'EMPLOYEE',
+      storeNames: ['Store 1', 'Store 2'],
+    })
+
+    render(<App />)
+
+    await screen.findByText(/select your store/i)
+  })
+})
+
+describe('store selection', () => {
+  it('auto-selects the only assigned store and hides the switch-store control', async () => {
+    const user = userEvent.setup()
+    mockGetAuthorizedStores.mockResolvedValue([STORE_1])
+    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe' })
+
+    render(<App />)
+    await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'password123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await screen.findByRole('heading', { name: /today's tasks/i })
+    expect(screen.queryByText(/select your store/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /switch store/i })).not.toBeInTheDocument()
+  })
+
+  it('shows an empty state when the employee has no assigned store', async () => {
+    const user = userEvent.setup()
+    mockGetAuthorizedStores.mockResolvedValue([])
+    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe' })
+
+    render(<App />)
+    await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'password123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    await screen.findByText(/no store assigned yet/i)
+  })
+
+  it('remembers the picked store so a multi-store employee is not asked again', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await loginAsEmployee(user)
+    await selectFirstOpenStore(user)
+
+    expect(localStorage.getItem(ACTIVE_STORE_KEY)).toBe(String(STORE_1.id))
   })
 })

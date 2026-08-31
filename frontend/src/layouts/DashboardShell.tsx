@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { NavTabKey } from '../types/navigation';
 import { OWNER_NAV_ITEMS, PAGE_TITLES } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
@@ -10,6 +10,8 @@ import Stores from '../pages/Stores';
 import Tasks from '../pages/Tasks';
 import History from '../pages/History';
 import Settings from '../pages/Settings';
+import Profile from '../pages/Profile';
+import Help from '../pages/Help';
 
 function renderActivePage(activeTab: NavTabKey, onNavigateToCategories: () => void) {
   switch (activeTab) {
@@ -34,26 +36,51 @@ function renderActivePage(activeTab: NavTabKey, onNavigateToCategories: () => vo
   }
 }
 
+function getInitials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 interface DashboardShellProps {
   user: AuthUser;
   onLogout: () => void;
   loggingOut?: boolean;
 }
 
+type Overlay = 'profile' | 'help' | null;
+
 function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
-  const [activeTab, setActiveTab] = useState<NavTabKey>('employees');
+  const [activeTab, setActiveTab] = useState<NavTabKey>('home');
+  const [overlay, setOverlay] = useState<Overlay>(null);
+
+  const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
+
+  const title = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : PAGE_TITLES[activeTab];
 
   return (
     <AppShell
       navItems={OWNER_NAV_ITEMS}
       activeTab={activeTab}
-      onSelectTab={setActiveTab}
-      title={PAGE_TITLES[activeTab]}
+      onSelectTab={(key) => {
+        setOverlay(null);
+        setActiveTab(key);
+      }}
+      title={title}
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
+      onProfileClick={() => setOverlay('profile')}
+      onHelpClick={() => setOverlay('help')}
     >
-      {renderActivePage(activeTab, () => setActiveTab('categories'))}
+      {overlay === 'profile' ? (
+        <Profile initials={userInitials} />
+      ) : overlay === 'help' ? (
+        <Help />
+      ) : (
+        renderActivePage(activeTab, () => setActiveTab('categories'))
+      )}
     </AppShell>
   );
 }

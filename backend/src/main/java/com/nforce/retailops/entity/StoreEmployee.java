@@ -26,6 +26,10 @@ public class StoreEmployee {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User employee;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_owner_id")
+    private User createdByOwner;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -69,6 +73,14 @@ public class StoreEmployee {
 
     public void setEmployee(User employee) {
         this.employee = employee;
+    }
+
+    public User getCreatedByOwner() {
+        return createdByOwner;
+    }
+
+    public void setCreatedByOwner(User createdByOwner) {
+        this.createdByOwner = createdByOwner;
     }
 
     public OffsetDateTime getCreatedAt() {

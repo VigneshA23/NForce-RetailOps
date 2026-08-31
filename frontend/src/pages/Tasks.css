@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .tasks-page {
   padding: var(--space-lg);
 }
@@ -79,7 +81,7 @@
   font-weight: 600;
 }
 
-@media (max-width: 900px) {
+@media (--tablet-down) {
   .tasks-page__filter-bar {
     flex-wrap: wrap;
   }
@@ -95,7 +97,7 @@
   }
 }
 
-@media (max-width: 480px) {
+@media (--mobile) {
   .tasks-page__header {
     flex-wrap: wrap;
   }

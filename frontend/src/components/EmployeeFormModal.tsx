@@ -2,12 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
 import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import { validateEmployeeForm } from '../utils/employeeUtils';
+import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import Modal from './Modal';
 import FormField from './FormField';
 import MultiSelect from './MultiSelect';
 import './EmployeeFormModal.css';
 
-type FormValues = EmployeeUpdateValues & { password: string };
+type FormValues = EmployeeUpdateValues & { password: string; countryCode: string };
 
 interface EmployeeFormModalProps {
   isOpen: boolean;
@@ -26,11 +27,17 @@ function emptyValues(): FormValues {
     storeIds: [],
     shift: SHIFT_OPTIONS[0].name,
     phone: '',
+    countryCode: COUNTRY_CODE_OPTIONS[0].code,
     employeeType: EMPLOYEE_TYPE_OPTIONS[0],
     email: '',
     gender: GENDER_OPTIONS[0],
     password: '',
   };
+}
+
+function valuesFromInitial(initialValues: EmployeeUpdateValues): FormValues {
+  const { countryCode, phone } = parsePhoneForForm(initialValues.phone);
+  return { ...initialValues, phone, countryCode, password: '' };
 }
 
 function EmployeeFormModal({
@@ -44,13 +51,13 @@ function EmployeeFormModal({
   onSubmit,
 }: EmployeeFormModalProps) {
   const [values, setValues] = useState<FormValues>(
-    initialValues ? { ...initialValues, password: '' } : emptyValues(),
+    initialValues ? valuesFromInitial(initialValues) : emptyValues(),
   );
   const [errors, setErrors] = useState<Partial<Record<keyof EmployeeCreateValues, string>>>({});
 
   useEffect(() => {
     if (isOpen) {
-      setValues(initialValues ? { ...initialValues, password: '' } : emptyValues());
+      setValues(initialValues ? valuesFromInitial(initialValues) : emptyValues());
       setErrors({});
     }
   }, [isOpen, initialValues]);
@@ -68,11 +75,12 @@ function EmployeeFormModal({
       return;
     }
 
-    const { password, ...rest } = values;
+    const { password, countryCode, phone, ...rest } = values;
+    const combinedPhone = `${countryCode} ${phone}`.trim();
     if (mode === 'create') {
-      onSubmit({ ...rest, password: password.trim() } satisfies EmployeeCreateValues);
+      onSubmit({ ...rest, phone: combinedPhone, password: password.trim() } satisfies EmployeeCreateValues);
     } else {
-      onSubmit(rest satisfies EmployeeUpdateValues);
+      onSubmit({ ...rest, phone: combinedPhone } satisfies EmployeeUpdateValues);
     }
   }
 
@@ -94,14 +102,16 @@ function EmployeeFormModal({
     >
       <form id="employee-form" onSubmit={handleSubmit} noValidate>
         <div className="employee-form__grid">
-          <FormField label="Name" htmlFor="employee-name" error={errors.name}>
-            <input
-              id="employee-name"
-              className="input"
-              value={values.name}
-              onChange={(event) => updateField('name', event.target.value)}
-            />
-          </FormField>
+          <div className="form-field--full">
+            <FormField label="Name" htmlFor="employee-name" required error={errors.name}>
+              <input
+                id="employee-name"
+                className="input"
+                value={values.name}
+                onChange={(event) => updateField('name', event.target.value)}
+              />
+            </FormField>
+          </div>
 
           <div className="form-field--full">
             <FormField label="Assigned Stores" htmlFor="employee-stores" error={errors.storeIds}>
@@ -116,7 +126,7 @@ function EmployeeFormModal({
             </FormField>
           </div>
 
-          <FormField label="Shift" htmlFor="employee-shift" error={errors.shift}>
+          <FormField label="Shift" htmlFor="employee-shift" required error={errors.shift}>
             <select
               id="employee-shift"
               className="select"
@@ -131,7 +141,7 @@ function EmployeeFormModal({
             </select>
           </FormField>
 
-          <FormField label="Type" htmlFor="employee-type" error={errors.employeeType}>
+          <FormField label="Type" htmlFor="employee-type" required error={errors.employeeType}>
             <select
               id="employee-type"
               className="select"
@@ -146,14 +156,30 @@ function EmployeeFormModal({
             </select>
           </FormField>
 
-          <FormField label="Contact" htmlFor="employee-phone" error={errors.phone}>
-            <input
-              id="employee-phone"
-              className="input"
-              value={values.phone}
-              onChange={(event) => updateField('phone', event.target.value)}
-              placeholder="(555) 201-0000"
-            />
+          <FormField label="Contact" htmlFor="employee-phone" required error={errors.phone}>
+            <div className="employee-form__phone-row">
+              <select
+                id="employee-country-code"
+                className="select employee-form__country-code"
+                value={values.countryCode}
+                onChange={(event) => updateField('countryCode', event.target.value)}
+                aria-label="Country code"
+              >
+                {COUNTRY_CODE_OPTIONS.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                id="employee-phone"
+                className="input"
+                inputMode="numeric"
+                value={values.phone}
+                onChange={(event) => updateField('phone', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="10-digit number"
+              />
+            </div>
           </FormField>
 
           <FormField label="Gender" htmlFor="employee-gender" error={errors.gender}>
@@ -172,7 +198,7 @@ function EmployeeFormModal({
           </FormField>
 
           <div className="form-field--full">
-            <FormField label="Email" htmlFor="employee-email" error={errors.email}>
+            <FormField label="Email" htmlFor="employee-email" required error={errors.email}>
               <input
                 id="employee-email"
                 type="email"
@@ -185,7 +211,7 @@ function EmployeeFormModal({
 
           {mode === 'create' && (
             <div className="form-field--full">
-              <FormField label="Temporary Password" htmlFor="employee-password" error={errors.password}>
+              <FormField label="Temporary Password" htmlFor="employee-password" required error={errors.password}>
                 <input
                   id="employee-password"
                   type="password"

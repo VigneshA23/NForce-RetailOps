@@ -112,7 +112,7 @@ function buildCategory(def: CategoryDef, categoryIndex: number, seed: number, is
   };
 }
 
-function buildMockHistory(storeId: string, date: string): ShiftHistory {
+function buildMockHistory(storeId: number, date: string): ShiftHistory {
   const seed = hashSeed(`${storeId}-${date}`);
   const isToday = date === todayDate();
   const categories = CATEGORY_DEFS.map((def, index) => {
@@ -136,7 +136,7 @@ function buildMockHistory(storeId: string, date: string): ShiftHistory {
 // `${VITE_API_BASE_URL}/api/stores/${storeId}/history?date=${date}`, replace this
 // mock and drop buildMockHistory entirely. The mock is deterministic per
 // (storeId, date) so the store/date filters behave consistently.
-export async function getShiftHistory(storeId: string, date: string): Promise<ShiftHistory> {
+export async function getShiftHistory(storeId: number, date: string): Promise<ShiftHistory> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(buildMockHistory(storeId, date)), SIMULATED_LATENCY_MS);
   });

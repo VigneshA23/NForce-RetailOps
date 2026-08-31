@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .header {
   display: flex;
   align-items: center;
@@ -29,7 +31,7 @@
   gap: var(--space-md);
 }
 
-@media (max-width: 640px) {
+@media (--mobile) {
   .search-input {
     min-width: 0;
     display: none;

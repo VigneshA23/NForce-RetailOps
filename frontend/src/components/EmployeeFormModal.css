@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .employee-form__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -8,8 +10,23 @@
   grid-column: 1 / -1;
 }
 
-@media (max-width: 480px) {
+@media (--mobile) {
   .employee-form__grid {
     grid-template-columns: 1fr;
   }
+}
+
+.employee-form__phone-row {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.employee-form__country-code {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: 40%;
+}
+
+.employee-form__phone-row .input {
+  flex: 1;
 }

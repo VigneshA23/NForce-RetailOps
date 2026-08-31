@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .row-actions {
   position: relative;
   display: inline-block;
@@ -54,4 +56,15 @@
 
 .row-actions__item--danger {
   color: var(--color-accent);
+}
+
+@media (--mobile) {
+  .row-actions__trigger {
+    width: 44px;
+    height: 44px;
+  }
+
+  .row-actions__item {
+    min-height: 44px;
+  }
 }

@@ -12,6 +12,8 @@ function renderHeader(onLogout: () => void, loggingOut = false) {
       isDarkTheme={false}
       onToggleTheme={() => {}}
       userName="Alex Owner"
+      onProfileClick={() => {}}
+      onHelpClick={() => {}}
       onLogout={onLogout}
       loggingOut={loggingOut}
     />,

@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .employee-history {
   width: 100%;
   max-width: 1200px;
@@ -427,7 +429,7 @@
   flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
+@media (--tablet-down) {
   .employee-history-grid {
     grid-template-columns: 1fr;
   }

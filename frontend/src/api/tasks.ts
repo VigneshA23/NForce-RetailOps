@@ -35,7 +35,7 @@ const SIMULATED_LATENCY_MS = 200;
 // categories + tasks for the authenticated employee, replace MOCK_CHECKLIST with a fetch
 // against `${VITE_API_BASE_URL}/api/stores/${storeId}/checklist` (or similar) and drop
 // this mock entirely.
-export async function getDailyChecklist(_storeId: string): Promise<ChecklistCategory[]> {
+export async function getDailyChecklist(_storeId: number): Promise<ChecklistCategory[]> {
   return new Promise((resolve) => {
     setTimeout(
       () => resolve(MOCK_CHECKLIST.map((category) => ({ ...category, tasks: category.tasks.map((task) => ({ ...task })) }))),
@@ -45,7 +45,7 @@ export async function getDailyChecklist(_storeId: string): Promise<ChecklistCate
 }
 
 // TODO: replace with a real "raise issue with owner" endpoint once one exists on the backend.
-export async function raiseIssue(_storeId: string, _note: string): Promise<void> {
+export async function raiseIssue(_storeId: number, _note: string): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, SIMULATED_LATENCY_MS);
   });

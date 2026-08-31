@@ -1,19 +1,24 @@
+import { apiRequest } from './client';
 import type { StoreSummary } from '../types/store';
 
-const MOCK_STORES: StoreSummary[] = [
-  { id: 'store-1', name: 'Store 1', status: 'Open' },
-  { id: 'store-2', name: 'Store 2', status: 'Open' },
-  { id: 'store-3', name: 'Store 3', status: 'Closed' },
-];
-
-const SIMULATED_LATENCY_MS = 200;
-
-export async function getAuthorizedStores(): Promise<StoreSummary[]> {
-  return new Promise((resolve) => {
-    setTimeout(() => resolve(MOCK_STORES.map((store) => ({ ...store }))), SIMULATED_LATENCY_MS);
-  });
+interface AssignedStoreResponse {
+  id: number;
+  name: string;
+  location: string | null;
+  active: boolean;
 }
 
-// TODO: once the backend exposes authorized stores per employee (see user_stores model),
-// replace MOCK_STORES with a fetch against `${VITE_API_BASE_URL}/api/me/stores` (or embed
-// authorizedStores in the login response) and drop this mock entirely.
+/**
+ * The stores the signed-in user may work in: an employee's assigned stores, or
+ * an owner's own stores. Scoped server-side from the bearer token, so this is
+ * the authoritative list -- never widen it on the client.
+ */
+export async function getAuthorizedStores(): Promise<StoreSummary[]> {
+  const stores = await apiRequest<AssignedStoreResponse[]>('/me/stores');
+  return stores.map((store) => ({
+    id: store.id,
+    name: store.name,
+    location: store.location,
+    status: store.active ? 'Open' : 'Closed',
+  }));
+}

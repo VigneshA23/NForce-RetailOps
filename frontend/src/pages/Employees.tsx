@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Users, UserCheck, UserCog } from 'lucide-react';
+import { Plus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
 import {
   createEmployee,
   deleteEmployee,
   getAssignableStores,
   getEmployees,
+  setEmployeeStatus,
   updateEmployee,
 } from '../api/employees';
 import type { Employee, EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
@@ -39,6 +40,8 @@ function Employees() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [statusTarget, setStatusTarget] = useState<Employee | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   function loadEmployees() {
     setIsLoading(true);
@@ -87,8 +90,26 @@ function Employees() {
     }
   }
 
+  async function handleConfirmStatusChange() {
+    if (!statusTarget) return;
+    setStatusError(null);
+    try {
+      const updated = await setEmployeeStatus(statusTarget.id, !statusTarget.active);
+      setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
+      setStatusTarget(null);
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
+      setStatusTarget(null);
+    }
+  }
+
   const fullTimeCount = useMemo(
     () => employees.filter((employee) => employee.employeeType === 'Full Time').length,
+    [employees],
+  );
+
+  const inactiveCount = useMemo(
+    () => employees.filter((employee) => !employee.active).length,
     [employees],
   );
 
@@ -98,7 +119,10 @@ function Employees() {
         <StatCard icon={Users} label="Total Employees" value={employees.length} tone="primary" />
         <StatCard icon={UserCheck} label="Full Time" value={fullTimeCount} tone="success" />
         <StatCard icon={UserCog} label="Part Time" value={employees.length - fullTimeCount} tone="info" />
+        <StatCard icon={UserX} label="Inactive" value={inactiveCount} tone="warning" />
       </div>
+
+      {statusError && <div className="employees-page__error">{statusError}</div>}
 
       {loadError ? (
         <div className="employees-page__error">
@@ -145,6 +169,10 @@ function Employees() {
               setDeleteError(null);
               setDeleteTarget(employee);
             }}
+            onToggleStatus={(employee) => {
+              setStatusError(null);
+              setStatusTarget(employee);
+            }}
           />
         </div>
       )}
@@ -175,6 +203,22 @@ function Employees() {
           setDeleteError(null);
           setDeleteTarget(null);
         }}
+      />
+
+      <ConfirmDialog
+        isOpen={statusTarget !== null}
+        title={statusTarget?.active ? 'Deactivate Employee' : 'Activate Employee'}
+        message={
+          statusTarget
+            ? statusTarget.active
+              ? `Deactivate ${statusTarget.name} (${statusTarget.empId})? They will be signed out immediately and will not be able to sign in again until reactivated.`
+              : `Reactivate ${statusTarget.name} (${statusTarget.empId})? They will be able to sign in again.`
+            : ''
+        }
+        confirmLabel={statusTarget?.active ? 'Deactivate' : 'Activate'}
+        danger={statusTarget?.active ?? true}
+        onConfirm={handleConfirmStatusChange}
+        onCancel={() => setStatusTarget(null)}
       />
     </div>
   );

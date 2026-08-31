@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
-import { LogOut } from 'lucide-react';
+import { HelpCircle, LogOut, User as UserIcon } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import ConfirmDialog from './ConfirmDialog';
 import './ProfileMenu.css';
 
 interface ProfileMenuProps {
   fullName: string;
+  onProfileClick?: () => void;
+  onHelpClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
 }
@@ -14,7 +16,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, onLogout, loggingOut = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, onProfileClick, onHelpClick, onLogout, loggingOut = false }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -57,6 +59,34 @@ function ProfileMenu({ fullName, onLogout, loggingOut = false }: ProfileMenuProp
       {isOpen && (
         <div className="profile-menu__dropdown" role="menu">
           <div className="profile-menu__name">{fullName}</div>
+          {onProfileClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onProfileClick();
+              }}
+            >
+              <UserIcon size={14} />
+              My Profile
+            </button>
+          )}
+          {onHelpClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onHelpClick();
+              }}
+            >
+              <HelpCircle size={14} />
+              Help &amp; Guidance
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"

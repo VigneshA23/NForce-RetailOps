@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.EmployeeCreateRequest;
 import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.StoreOptionResponse;
+import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
@@ -20,8 +21,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -34,26 +38,30 @@ public class EmployeeService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SessionService sessionService;
 
     public EmployeeService(
         StoreEmployeeRepository storeEmployeeRepository,
         StoreOwnerRepository storeOwnerRepository,
         UserRepository userRepository,
         RoleRepository roleRepository,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        SessionService sessionService
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.sessionService = sessionService;
     }
 
-    // An employee can now be assigned to multiple stores, so every store id in
-    // the request must individually be one the caller owns.
+    // Store assignment is optional: an employee can be created or edited with no
+    // stores at all. Every store id that IS provided must individually be one the
+    // caller owns.
     private Set<Store> resolveOwnerStores(Long ownerId, List<Long> storeIds) {
         if (storeIds == null || storeIds.isEmpty()) {
-            throw new AccessDeniedException("At least one store must be assigned");
+            return new LinkedHashSet<>();
         }
         Set<Store> stores = new LinkedHashSet<>();
         for (Long storeId : storeIds) {
@@ -70,16 +78,36 @@ public class EmployeeService {
             .anyMatch(store -> storeOwnerRepository.findByStoreIdAndOwnerId(store.getId(), ownerId).isPresent());
     }
 
+    // An owner can manage an employee either through shared store assignment, or
+    // because they were the one who created the employee (which matters once an
+    // employee has no stores assigned at all).
+    private boolean canManageEmployee(StoreEmployee storeEmployee, Long ownerId) {
+        User createdByOwner = storeEmployee.getCreatedByOwner();
+        if (createdByOwner != null && createdByOwner.getId().equals(ownerId)) {
+            return true;
+        }
+        return ownsAnyStore(storeEmployee, ownerId);
+    }
+
     @Transactional(readOnly = true)
     public List<EmployeeResponse> listEmployees(Long ownerId) {
         List<Long> storeIds = storeOwnerRepository.findByOwnerId(ownerId).stream()
             .map(StoreOwner::getStore)
             .map(Store::getId)
             .toList();
-        if (storeIds.isEmpty()) {
-            return List.of();
+
+        Map<Long, StoreEmployee> employeesById = new LinkedHashMap<>();
+        if (!storeIds.isEmpty()) {
+            for (StoreEmployee storeEmployee : storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAsc(storeIds)) {
+                employeesById.put(storeEmployee.getId(), storeEmployee);
+            }
         }
-        return storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAsc(storeIds).stream()
+        for (StoreEmployee storeEmployee : storeEmployeeRepository.findByCreatedByOwnerId(ownerId)) {
+            employeesById.putIfAbsent(storeEmployee.getId(), storeEmployee);
+        }
+
+        return employeesById.values().stream()
+            .sorted(Comparator.comparing(StoreEmployee::getId))
             .map(EmployeeResponse::from)
             .toList();
     }
@@ -114,6 +142,7 @@ public class EmployeeService {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setStores(stores);
         storeEmployee.setEmployee(employee);
+        storeEmployee.setCreatedByOwner(userRepository.getReferenceById(ownerId));
         storeEmployee.setPhone(request.phone().trim());
         storeEmployee.setShift(request.shift());
         storeEmployee.setEmployeeType(request.employeeType());
@@ -128,7 +157,7 @@ public class EmployeeService {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
-        if (!ownsAnyStore(storeEmployee, ownerId)) {
+        if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
         }
 
@@ -160,12 +189,35 @@ public class EmployeeService {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
-        if (!ownsAnyStore(storeEmployee, ownerId)) {
+        if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
         }
 
         User employee = storeEmployee.getEmployee();
+        sessionService.invalidateAllForUser(employee.getEmail());
         storeEmployeeRepository.delete(storeEmployee);
         userRepository.delete(employee);
+    }
+
+    @Transactional
+    public EmployeeResponse setEmployeeActive(Long ownerId, Long id, UpdateEmployeeStatusRequest request) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        if (!canManageEmployee(storeEmployee, ownerId)) {
+            throw new EmployeeNotFoundException("Employee not found");
+        }
+
+        User employee = storeEmployee.getEmployee();
+        employee.setActive(request.active());
+        userRepository.save(employee);
+
+        // Deactivation has to bite immediately: without this the employee keeps
+        // working off the token they already hold until it expires.
+        if (!request.active()) {
+            sessionService.invalidateAllForUser(employee.getEmail());
+        }
+
+        return EmployeeResponse.from(storeEmployee);
     }
 }

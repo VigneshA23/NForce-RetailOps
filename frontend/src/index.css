@@ -1,3 +1,4 @@
+@import './styles/breakpoints.css';
 @import './styles/tokens.css';
 @import './styles/base.css';
 @import './styles/buttons.css';
@@ -5,3 +6,22 @@
 @import './styles/pills.css';
 @import './styles/table.css';
 @import './styles/cards.css';
+
+/* Boot state shown while the stored session is being revalidated, and while an
+   employee's assigned stores are loading. Keeps the login screen from flashing
+   on refresh. */
+.app-boot {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  background: var(--color-bg-page);
+}
+
+.app-boot--error {
+  color: #e11d33;
+}

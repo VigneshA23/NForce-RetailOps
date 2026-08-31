@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .task-detail__description {
   margin: var(--space-md) 0 0;
   font-size: 13px;
@@ -26,7 +28,7 @@
   font-weight: 600;
 }
 
-@media (max-width: 480px) {
+@media (--mobile) {
   .task-detail__grid {
     grid-template-columns: 1fr;
   }

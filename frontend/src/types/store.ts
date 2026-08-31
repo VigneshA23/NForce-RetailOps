@@ -1,7 +1,8 @@
 export type StoreStatus = 'Open' | 'Closed';
 
 export interface StoreSummary {
-  id: string;
+  id: number;
   name: string;
+  location: string | null;
   status: StoreStatus;
 }

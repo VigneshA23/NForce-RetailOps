@@ -14,6 +14,7 @@ public record EmployeeResponse(
     String shift,
     String employeeType,
     String gender,
+    boolean active,
     List<StoreOptionResponse> stores
 ) {
     public static EmployeeResponse from(StoreEmployee storeEmployee) {
@@ -31,6 +32,7 @@ public record EmployeeResponse(
             storeEmployee.getShift(),
             storeEmployee.getEmployeeType(),
             storeEmployee.getGender(),
+            storeEmployee.getEmployee().isActive(),
             stores
         );
     }

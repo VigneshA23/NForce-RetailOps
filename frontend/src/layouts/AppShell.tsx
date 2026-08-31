@@ -5,6 +5,7 @@ import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import { useTheme } from '../hooks/useTheme';
 import { useSidebarCollapsed } from '../hooks/useSidebarCollapsed';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import './AppShell.css';
 
 interface AppShellProps<Key extends string = NavTabKey> {
@@ -15,6 +16,8 @@ interface AppShellProps<Key extends string = NavTabKey> {
   user: AuthUser;
   onLogout: () => void;
   loggingOut?: boolean;
+  onProfileClick?: () => void;
+  onHelpClick?: () => void;
   children: ReactNode;
 }
 
@@ -26,11 +29,15 @@ function AppShell<Key extends string = NavTabKey>({
   user,
   onLogout,
   loggingOut,
+  onProfileClick,
+  onHelpClick,
   children,
 }: AppShellProps<Key>) {
   const { isDarkTheme, toggleTheme } = useTheme();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [searchValue, setSearchValue] = useState('');
+  const isMobile = useIsMobile();
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
   return (
     <div className="app-shell">
@@ -40,6 +47,8 @@ function AppShell<Key extends string = NavTabKey>({
         onSelect={onSelectTab}
         collapsed={collapsed}
         onToggleCollapsed={() => setCollapsed((current) => !current)}
+        mobileOpen={isMobile && mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
       />
       <div className="app-shell__content">
         <div className="app-shell__header">
@@ -50,8 +59,11 @@ function AppShell<Key extends string = NavTabKey>({
             isDarkTheme={isDarkTheme}
             onToggleTheme={toggleTheme}
             userName={user.fullName}
+            onProfileClick={onProfileClick}
+            onHelpClick={onHelpClick}
             onLogout={onLogout}
             loggingOut={loggingOut}
+            onMenuClick={isMobile ? () => setMobileDrawerOpen(true) : undefined}
           />
         </div>
         <main className="app-shell__main">{children}</main>

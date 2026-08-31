@@ -1,6 +1,5 @@
 .category-table__card {
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: visible;
 }
 
 .category-table__name {

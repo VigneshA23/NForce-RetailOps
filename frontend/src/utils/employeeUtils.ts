@@ -6,7 +6,8 @@ export function getShiftTimeRange(shift: ShiftName): string {
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_DIGIT_MIN = 7;
+const NAME_PATTERN = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
+const PHONE_PATTERN = /^\d{10}$/;
 const PASSWORD_MIN_LENGTH = 8;
 
 type EmployeeFormValues = EmployeeUpdateValues & { password?: string };
@@ -19,10 +20,8 @@ export function validateEmployeeForm(
 
   if (!values.name.trim()) {
     errors.name = 'Name is required';
-  }
-
-  if (!values.storeIds || values.storeIds.length === 0) {
-    errors.storeIds = 'At least one store must be assigned';
+  } else if (!NAME_PATTERN.test(values.name.trim())) {
+    errors.name = 'Name can only contain letters, with a single space between words';
   }
 
   if (!values.shift) {
@@ -31,8 +30,8 @@ export function validateEmployeeForm(
 
   if (!values.phone.trim()) {
     errors.phone = 'Contact number is required';
-  } else if (values.phone.replace(/\D/g, '').length < PHONE_DIGIT_MIN) {
-    errors.phone = 'Enter a valid contact number';
+  } else if (!PHONE_PATTERN.test(values.phone.trim())) {
+    errors.phone = 'Contact number must be exactly 10 digits';
   }
 
   if (!values.employeeType) {

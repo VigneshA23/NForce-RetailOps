@@ -1,3 +1,5 @@
+@import './breakpoints.css';
+
 :root {
   --color-bg-page: #f2f2f4;
   --color-surface-card: #ffffff;
@@ -59,6 +61,13 @@
   --color-badge-icon-warning-fg: #c8790a;
   --color-badge-icon-info-bg: #e5f1fd;
   --color-badge-icon-info-fg: #1d6fd6;
+}
+
+@media (--mobile) {
+  :root {
+    --space-lg: 16px;
+    --space-xl: 20px;
+  }
 }
 
 :root[data-theme='dark'] {

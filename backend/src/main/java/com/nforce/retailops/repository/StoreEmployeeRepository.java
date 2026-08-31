@@ -13,5 +13,11 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
 
     List<StoreEmployee> findDistinctByStoresIdInOrderByIdAsc(Collection<Long> storeIds);
 
-    Optional<StoreEmployee> findByIdAndStoresId(Long id, Long storeId);
+    List<StoreEmployee> findByCreatedByOwnerId(Long ownerId);
+
+    // Keyed on the User id, which is what the authenticated principal yields --
+    // not the StoreEmployee PK.
+    Optional<StoreEmployee> findByEmployeeId(Long userId);
+
+    boolean existsByEmployeeIdAndStoresId(Long userId, Long storeId);
 }

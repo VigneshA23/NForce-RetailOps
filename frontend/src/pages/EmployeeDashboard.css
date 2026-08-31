@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .employee-dashboard {
   min-height: 100dvh;
   background: var(--color-bg-page);
@@ -290,7 +292,7 @@
   border-color: var(--color-accent);
 }
 
-@media (max-width: 640px) {
+@media (--mobile) {
   .raise-with-owner-fab {
     right: var(--space-md);
     bottom: var(--space-md);
