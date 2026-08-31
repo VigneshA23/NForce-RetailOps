@@ -72,8 +72,8 @@ function App() {
     }
   }
 
-  function handleLoginSuccess(authUser: AuthUser) {
-    setAuthToken(authUser.token)
+  function handleLoginSuccess(authUser: AuthUser, remember: boolean) {
+    setAuthToken(authUser.token, remember)
     setSessionMessage(null)
     setUser(authUser)
   }

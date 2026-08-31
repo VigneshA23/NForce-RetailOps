@@ -5,7 +5,7 @@ import type { AuthUser } from '../types/auth'
 import './LoginCrimson.css'
 
 interface LoginProps {
-  onLoginSuccess: (user: AuthUser) => void
+  onLoginSuccess: (user: AuthUser, remember: boolean) => void
   onForgotPassword: () => void
   notice?: string | null
 }
@@ -14,6 +14,7 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -23,7 +24,7 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
     setLoading(true)
     try {
       const user = await login(email, password)
-      onLoginSuccess(user)
+      onLoginSuccess(user, rememberMe)
     } catch {
       setError('Invalid email or password')
     } finally {
@@ -44,7 +45,7 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
               Your stores. <span className="login3-hero-accent">One checklist.</span>
             </h2>
             <p className="login3-hero-copy">
-              Opening, prep, cleaning and closing across every location — recorded in order,
+              Opening, prep, cleaning and closing across every location, recorded in order,
               signed off by the person on shift, and auditable the next morning. No paper, no
               group chats.
             </p>
@@ -86,14 +87,9 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
               </div>
 
               <div className="login3-field">
-                <div className="login3-label-row">
-                  <label htmlFor="password" className="login3-label">
-                    Password
-                  </label>
-                  <button type="button" className="login3-forgot-link" onClick={onForgotPassword}>
-                    Forgot Password?
-                  </button>
-                </div>
+                <label htmlFor="password" className="login3-label">
+                  Password
+                </label>
                 <div className="login3-input-wrap">
                   <Lock size={16} className="login3-input-icon" aria-hidden="true" />
                   <input
@@ -114,6 +110,20 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+              </div>
+
+              <div className="login3-meta-row">
+                <label className="login3-remember">
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                  />
+                  Remember me
+                </label>
+                <button type="button" className="login3-forgot-link" onClick={onForgotPassword}>
+                  Forgot Password?
+                </button>
               </div>
 
               {error && <div className="login3-error">{error}</div>}

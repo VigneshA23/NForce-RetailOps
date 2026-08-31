@@ -89,7 +89,9 @@
      behind the badge than just past its edge is what was reading as a
      visible ring/step in earlier attempts, independent of the badge's edge
      treatment itself. */
-  background: radial-gradient(circle, rgba(225, 29, 51, 0.4) 0%, rgba(225, 29, 51, 0.18) 30%, rgba(225, 29, 51, 0) 62%);
+  /* Diluted well below the earlier version - this should read as ambient
+     warmth in the scene, not a spotlight shining on the badge. */
+  background: radial-gradient(circle, rgba(225, 29, 51, 0.18) 0%, rgba(225, 29, 51, 0.08) 30%, rgba(225, 29, 51, 0) 62%);
   filter: blur(40px);
   pointer-events: none;
 }
@@ -112,7 +114,7 @@
      emblem glowing within the scene, not a sticker on top of it. */
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 70px rgba(225, 29, 51, 0.5), 0 0 140px rgba(225, 29, 51, 0.28);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 50px rgba(225, 29, 51, 0.22), 0 0 100px rgba(225, 29, 51, 0.12);
 }
 
 .login3-hero-text {
@@ -183,7 +185,7 @@
   object-fit: cover;
   /* Same crisp-badge treatment as .login3-hero-logo (see its comment). */
   border-radius: 50%;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 0 40px rgba(225, 29, 51, 0.5), 0 0 80px rgba(225, 29, 51, 0.25);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 0 30px rgba(225, 29, 51, 0.2), 0 0 60px rgba(225, 29, 51, 0.1);
 }
 
 @media (--tablet-up) {
@@ -226,14 +228,27 @@
   margin-bottom: 6px;
 }
 
-.login3-label-row {
+.login3-meta-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin: 4px 0 20px;
 }
 
-.login3-label-row .login3-label {
-  margin-bottom: 6px;
+.login3-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(242, 242, 244, 0.75);
+  cursor: pointer;
+}
+
+.login3-remember input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #e11d33;
+  cursor: pointer;
 }
 
 .login3-input-wrap {

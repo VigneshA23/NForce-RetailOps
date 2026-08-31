@@ -38,6 +38,10 @@ async function loginAsEmployee(user: ReturnType<typeof userEvent.setup>) {
   mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe' })
   await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
   await user.type(screen.getByLabelText(/^password$/i), 'password123')
+  // "Remember me" defaults to unchecked, which stores the token in
+  // sessionStorage instead of localStorage - check it so these tests keep
+  // exercising (and asserting against) the persistent-session path.
+  await user.click(screen.getByLabelText(/remember me/i))
   await user.click(screen.getByRole('button', { name: /sign in/i }))
   await screen.findByText(/select your store/i)
 }
@@ -50,6 +54,7 @@ async function selectFirstOpenStore(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
   mockLogin.mockReset()
   mockLogout.mockReset()
   mockLogout.mockResolvedValue(undefined)
