@@ -2,9 +2,9 @@ import type { CompletionType, DayCode, ResponseType, ScheduleType } from '../typ
 
 export const RESPONSE_TYPE_OPTIONS: { value: ResponseType; label: string; helper: string }[] = [
   { value: 'YES_NO', label: 'Yes / No', helper: 'e.g. "Is the refrigerator temperature within range?"' },
-  { value: 'DONE_NOT_DONE', label: 'Done / Not Done', helper: 'e.g. "Clean the front counter."' },
-  { value: 'NUMERIC', label: 'Numeric Value', helper: 'e.g. "Record refrigerator temperature."' },
-  { value: 'TEXT', label: 'Text Response', helper: 'e.g. "Enter any observations."' },
+  { value: 'DONE_NOT_DONE', label: 'Done / Checkbox', helper: 'e.g. "Clean the front counter."' },
+  { value: 'NUMERIC', label: 'Number', helper: 'e.g. "Record refrigerator temperature."' },
+  { value: 'TEXT', label: 'Short Text', helper: 'Optional short note from the employee, e.g. "Temperature OK."' },
 ];
 
 export const COMPLETION_TYPE_OPTIONS: { value: CompletionType; label: string; helper: string }[] = [

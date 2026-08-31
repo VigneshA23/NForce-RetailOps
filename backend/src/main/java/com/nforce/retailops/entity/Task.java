@@ -30,6 +30,9 @@ public class Task {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "display_order", nullable = false)
+    private int displayOrder;
+
     @Column(name = "applies_to_all_stores", nullable = false)
     private boolean appliesToAllStores;
 
@@ -151,6 +154,14 @@ public class Task {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public void setDisplayOrder(int displayOrder) {
+        this.displayOrder = displayOrder;
     }
 
     public boolean isAppliesToAllStores() {

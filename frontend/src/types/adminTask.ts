@@ -19,6 +19,7 @@ export interface AdminTask {
   description: string | null;
   categoryId: number;
   categoryName: string;
+  displayOrder: number;
   appliesToAllStores: boolean;
   stores: TaskStoreOption[];
   responseType: ResponseType;
@@ -44,6 +45,7 @@ export interface AdminTask {
 export interface AdminTaskFormValues {
   name: string;
   categoryId: number | null;
+  displayOrder: string;
   appliesToAllStores: boolean;
   storeIds: number[];
   responseType: ResponseType | null;

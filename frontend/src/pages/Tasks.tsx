@@ -133,12 +133,14 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
     setIsSubmitting(true);
     try {
       if (formModalState?.mode === 'edit') {
-        const updated = await updateTask(formModalState.task.id, values);
-        setTasks((current) => current.map((task) => (task.id === updated.id ? updated : task)));
+        await updateTask(formModalState.task.id, values);
       } else {
-        const created = await createTask(values);
-        setTasks((current) => [created, ...current]);
+        await createTask(values);
       }
+      // Re-fetch from the backend rather than splicing the response into local state --
+      // the list must reflect the backend's category + Display Order sort, not insertion
+      // order or in-place position.
+      loadTasks();
       setFormModalState(null);
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Something went wrong');

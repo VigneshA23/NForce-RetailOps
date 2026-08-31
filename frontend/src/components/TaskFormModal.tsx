@@ -32,6 +32,7 @@ function toFormValues(task: AdminTask): AdminTaskFormValues {
   return {
     name: task.name,
     categoryId: task.categoryId,
+    displayOrder: String(task.displayOrder),
     appliesToAllStores: task.appliesToAllStores,
     storeIds: task.stores.map((store) => store.id),
     responseType: task.responseType,
@@ -178,6 +179,22 @@ function TaskFormModal({
               />
             )}
           </FormField>
+
+          <FormField
+            label="Display Order (optional)"
+            htmlFor="task-display-order"
+            error={errors.displayOrder}
+          >
+            <input
+              id="task-display-order"
+              type="number"
+              className="input"
+              value={values.displayOrder}
+              onChange={(event) => updateField('displayOrder', event.target.value)}
+              placeholder="Auto (added to end of category)"
+            />
+          </FormField>
+          <p className="task-form__hint">Controls the order this task appears in within its category on the Employee Checklist.</p>
         </section>
 
         <section className="task-form__section">
@@ -263,17 +280,17 @@ function TaskFormModal({
 
           {values.responseType === 'TEXT' && (
             <div className="task-form__conditional">
-              <FormField label="Text Response *" htmlFor="task-response-note-text" error={errors.responseNote}>
+              <FormField label="Short Text (optional)" htmlFor="task-response-note-text" error={errors.responseNote}>
                 <input
                   id="task-response-note-text"
                   className="input"
                   value={values.responseNote}
-                  maxLength={100}
-                  onChange={(event) => updateField('responseNote', event.target.value.slice(0, 100))}
-                  placeholder="Enter response text"
+                  maxLength={25}
+                  onChange={(event) => updateField('responseNote', event.target.value.slice(0, 25))}
+                  placeholder="e.g. Temperature OK"
                 />
               </FormField>
-              <p className="task-form__hint task-form__char-count">{responseNoteLength} / 100</p>
+              <p className="task-form__hint task-form__char-count">{Math.min(responseNoteLength, 25)} / 25</p>
             </div>
           )}
         </section>

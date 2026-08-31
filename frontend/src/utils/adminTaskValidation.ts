@@ -8,9 +8,10 @@ export function emptyTaskFormValues(): AdminTaskFormValues {
   return {
     name: '',
     categoryId: null,
+    displayOrder: '',
     appliesToAllStores: false,
     storeIds: [],
-    responseType: null,
+    responseType: 'YES_NO',
     responseNote: '',
     numericUnit: '',
     numericMin: '',
@@ -35,6 +36,13 @@ export function validateTaskForm(values: AdminTaskFormValues): AdminTaskFormErro
     errors.categoryId = 'Category is required';
   }
 
+  const displayOrder = values.displayOrder.trim();
+  if (displayOrder !== '' && !Number.isInteger(Number(displayOrder))) {
+    errors.displayOrder = 'Display Order must be a whole number';
+  } else if (displayOrder !== '' && Number(displayOrder) < 0) {
+    errors.displayOrder = 'Display Order cannot be negative';
+  }
+
   if (!values.appliesToAllStores && values.storeIds.length === 0) {
     errors.storeIds = 'Select at least one store, or choose All Stores';
   }
@@ -54,13 +62,12 @@ export function validateTaskForm(values: AdminTaskFormValues): AdminTaskFormErro
       errors.numericMax = 'Minimum Value cannot be greater than Maximum Value';
     }
   } else if (values.responseType === 'TEXT') {
+    // Short Text is the employee's response and is optional -- empty is valid.
     const note = values.responseNote.trim();
-    if (!note) {
-      errors.responseNote = 'Text Response is required';
-    } else if (note.length > 100) {
-      errors.responseNote = 'Text Response must be 100 characters or fewer';
-    } else if (!ALPHANUMERIC_WITH_SPACES.test(note)) {
-      errors.responseNote = 'Text Response can only contain letters, numbers, and spaces';
+    if (note.length > 25) {
+      errors.responseNote = 'Short Text must be 25 characters or fewer';
+    } else if (note && !ALPHANUMERIC_WITH_SPACES.test(note)) {
+      errors.responseNote = 'Short Text can only contain letters, numbers, and spaces';
     }
   }
 

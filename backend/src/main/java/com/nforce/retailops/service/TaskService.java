@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 public class TaskService {
 
     private static final Pattern ALPHANUMERIC_WITH_SPACES = Pattern.compile("^[A-Za-z0-9 ]*$");
+    private static final int SHORT_TEXT_MAX_LENGTH = 25;
 
     private final TaskRepository taskRepository;
     private final CategoryRepository categoryRepository;
@@ -52,7 +53,7 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> listTasks(Long ownerId) {
-        return taskRepository.findByOwnerIdOrderByCreatedAtDesc(ownerId).stream()
+        return taskRepository.findByOwnerIdOrderByCategoryAndDisplayOrder(ownerId).stream()
             .map(TaskResponse::from)
             .toList();
     }
@@ -109,6 +110,14 @@ public class TaskService {
         task.setDescription(blankToNull(request.description()));
         task.setCategory(category);
 
+        if (request.displayOrder() != null) {
+            task.setDisplayOrder(request.displayOrder());
+        } else if (task.getId() == null) {
+            // New task with no explicit order: append to the end of its category,
+            // mirroring how Category itself auto-assigns display order.
+            task.setDisplayOrder(taskRepository.countByCategoryId(category.getId()));
+        }
+
         task.setAppliesToAllStores(request.appliesToAllStores());
         task.setStores(resolveStores(ownerId, request));
 
@@ -123,15 +132,17 @@ public class TaskService {
             task.setTextMaxLength(null);
             task.setResponseNote(null);
         } else if (request.responseType() == ResponseType.TEXT) {
+            // Short Text is the employee's response and is optional: empty is valid, and the
+            // employee must be able to complete the task without entering anything.
             String employeeResponse = blankToNull(request.responseNote());
-            if (employeeResponse == null) {
-                throw new InvalidTaskConfigurationException("Employee Response is required for Text Response tasks");
-            }
-            if (employeeResponse.length() > 100 || !ALPHANUMERIC_WITH_SPACES.matcher(employeeResponse).matches()) {
-                throw new InvalidTaskConfigurationException("Employee Response must be 100 alphanumeric characters or fewer");
+            if (employeeResponse != null) {
+                if (employeeResponse.length() > SHORT_TEXT_MAX_LENGTH || !ALPHANUMERIC_WITH_SPACES.matcher(employeeResponse).matches()) {
+                    throw new InvalidTaskConfigurationException(
+                        "Short Text response must be " + SHORT_TEXT_MAX_LENGTH + " alphanumeric characters or fewer");
+                }
             }
             task.setResponseNote(employeeResponse);
-            task.setTextMaxLength(100);
+            task.setTextMaxLength(SHORT_TEXT_MAX_LENGTH);
             task.setNumericUnit(null);
             task.setNumericMin(null);
             task.setNumericMax(null);

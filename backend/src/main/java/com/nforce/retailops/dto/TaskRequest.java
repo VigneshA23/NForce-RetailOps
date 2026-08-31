@@ -7,6 +7,7 @@ import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.TimeMode;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -24,6 +25,11 @@ public record TaskRequest(
     @NotNull(message = "Category is required")
     Long categoryId,
 
+    // Null means "auto-assign to the end of this category's list" (mirrors Category's
+    // own auto-increment behavior); a value lets the admin explicitly set/change order.
+    @PositiveOrZero(message = "Display Order cannot be negative")
+    Integer displayOrder,
+
     boolean appliesToAllStores,
 
     List<Long> storeIds,
@@ -31,7 +37,7 @@ public record TaskRequest(
     @NotNull(message = "Response type is required")
     ResponseType responseType,
 
-    @Size(max = 100, message = "Response note must be 100 characters or fewer")
+    @Size(max = 25, message = "Short Text response must be 25 characters or fewer")
     String responseNote,
 
     String numericUnit,
