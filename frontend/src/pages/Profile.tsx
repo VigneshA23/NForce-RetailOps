@@ -11,6 +11,7 @@ interface ProfileProps {
 const ROLE_LABELS: Record<MeResponse['role'], string> = {
   OWNER_ADMIN: 'Owner / Admin',
   EMPLOYEE: 'Employee',
+  SUPER_ADMIN: 'Super Admin',
 };
 
 function Profile({ initials }: ProfileProps) {

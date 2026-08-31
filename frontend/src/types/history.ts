@@ -38,7 +38,7 @@ export interface DailySummary {
 
 export interface ShiftHistory {
   date: string;
-  storeId: string;
+  storeId: number;
   categories: HistoryCategoryEntry[];
   summary: DailySummary;
 }

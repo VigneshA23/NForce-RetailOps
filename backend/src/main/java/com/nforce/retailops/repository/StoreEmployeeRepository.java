@@ -15,5 +15,9 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
 
     List<StoreEmployee> findByCreatedByOwnerId(Long ownerId);
 
-    Optional<StoreEmployee> findByIdAndStoresId(Long id, Long storeId);
+    // Keyed on the User id, which is what the authenticated principal yields --
+    // not the StoreEmployee PK.
+    Optional<StoreEmployee> findByEmployeeId(Long userId);
+
+    boolean existsByEmployeeIdAndStoresId(Long userId, Long storeId);
 }

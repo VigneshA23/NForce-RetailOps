@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowRight, Blend, CheckCircle2, ChevronDown, Clock, Lock, ShieldCheck, Sparkles, Store as StoreIcon } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getShiftHistory } from '../api/history'
-import { getAuthorizedStores } from '../api/stores'
 import type { StoreSummary } from '../types/store'
 import type { AuditStatus, ShiftHistory, TaskStatus } from '../types/history'
 import Modal from '../components/Modal'
@@ -11,6 +10,9 @@ import './EmployeeHistory.css'
 
 interface EmployeeHistoryProps {
   store: StoreSummary
+  // The same server-scoped list the shell was given, so history can only ever
+  // be viewed for a store the employee is assigned to.
+  stores: StoreSummary[]
 }
 
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
@@ -40,25 +42,13 @@ function formatDateLabel(date: string): string {
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function EmployeeHistory({ store }: EmployeeHistoryProps) {
-  const [availableStores, setAvailableStores] = useState<StoreSummary[]>([store])
+function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
+  const availableStores = stores.length > 0 ? stores : [store]
   const [selectedStoreId, setSelectedStoreId] = useState(store.id)
   const [selectedDate, setSelectedDate] = useState(todayDate)
   const [history, setHistory] = useState<ShiftHistory | null>(null)
   const [loading, setLoading] = useState(true)
   const [isReportOpen, setIsReportOpen] = useState(false)
-
-  useEffect(() => {
-    let active = true
-    getAuthorizedStores().then((result) => {
-      if (active && result.length > 0) {
-        setAvailableStores(result)
-      }
-    })
-    return () => {
-      active = false
-    }
-  }, [])
 
   useEffect(() => {
     let active = true
@@ -98,7 +88,7 @@ function EmployeeHistory({ store }: EmployeeHistoryProps) {
         <div className="employee-history-filters">
           <label className="employee-history-filter-select">
             <StoreIcon size={16} />
-            <select value={selectedStoreId} onChange={(event) => setSelectedStoreId(event.target.value)}>
+            <select value={selectedStoreId} onChange={(event) => setSelectedStoreId(Number(event.target.value))}>
               {availableStores.map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.name}

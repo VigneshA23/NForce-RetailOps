@@ -14,6 +14,7 @@ import './EmployeeShell.css'
 interface EmployeeShellProps {
   user: AuthUser
   store: StoreSummary
+  stores: StoreSummary[]
   onLogout: () => void
   onSwitchStore: () => void
   loggingOut?: boolean
@@ -32,16 +33,19 @@ const FOOTER_NAV_ITEMS: EmployeeNavItem[] = [
 
 const ALL_NAV_ITEMS: EmployeeNavItem[] = [...NAV_ITEMS, ...FOOTER_NAV_ITEMS]
 
-function EmployeeShell({ user, store, onLogout, onSwitchStore, loggingOut }: EmployeeShellProps) {
+function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const isMobile = useIsMobile()
+  // With a single assigned store there is nothing to switch to -- the control
+  // would only lead to a one-option picker and straight back here.
+  const canSwitchStore = stores.length > 1
 
   function renderActivePage() {
     switch (activeTab) {
       case 'today':
         return <EmployeeDashboard store={store} onLogout={onLogout} loggingOut={false} />
       case 'history':
-        return <EmployeeHistory store={store} />
+        return <EmployeeHistory store={store} stores={stores} />
       case 'audits':
         return <PlaceholderPage title="Audits & Inbox" icon={Inbox} />
       case 'settings':
@@ -105,10 +109,12 @@ function EmployeeShell({ user, store, onLogout, onSwitchStore, loggingOut }: Emp
         <div className="employee-shell-topbar">
           <div className="employee-shell-topbar-store">{store.name}</div>
           <div className="employee-shell-topbar-actions">
-            <button type="button" className="btn btn--secondary" onClick={onSwitchStore}>
-              <StoreIcon size={16} />
-              Switch Store
-            </button>
+            {canSwitchStore && (
+              <button type="button" className="btn btn--secondary" onClick={onSwitchStore}>
+                <StoreIcon size={16} />
+                Switch Store
+              </button>
+            )}
             <ProfileMenu fullName={user.fullName} onLogout={onLogout} loggingOut={loggingOut} />
           </div>
         </div>

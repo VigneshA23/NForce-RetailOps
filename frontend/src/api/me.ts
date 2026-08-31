@@ -1,10 +1,11 @@
 import { apiRequest } from './client';
+import type { Role } from '../types/auth';
 
 export interface MeResponse {
   id: number;
   fullName: string;
   email: string;
-  role: 'OWNER_ADMIN' | 'EMPLOYEE';
+  role: Role;
   storeNames: string[];
 }
 
