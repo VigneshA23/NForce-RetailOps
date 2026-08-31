@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
 import './SearchableSelect.css';
+
+const VIEWPORT_MARGIN = 8;
 
 export interface SearchableSelectOption {
   id: number;
@@ -47,14 +50,53 @@ function SearchableSelect({
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  function openPanel() {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) {
+      setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+    }
+    setIsOpen(true);
+  }
+
+  // Same fix as MultiSelect/RowActionsMenu: this panel used to render inline
+  // via `position: absolute`, so a modal's `overflow-y: auto` body clipped it
+  // whenever the trigger sat anywhere but the very top of the form. Portal it
+  // to <body> and measure it post-render, flipping above the trigger if
+  // opening below would push it past the bottom of the viewport.
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const trigger = triggerRef.current;
+    const panel = panelRef.current;
+    if (!trigger || !panel) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+
+    let top = triggerRect.bottom + 4;
+    if (top + panelRect.height > window.innerHeight - VIEWPORT_MARGIN) {
+      top = triggerRect.top - panelRect.height - 4;
+    }
+    top = Math.max(VIEWPORT_MARGIN, top);
+
+    if (top !== position.top) {
+      setPosition((current) => ({ ...current, top }));
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
 
     function handlePointerDown(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedWrapper = wrapperRef.current?.contains(target);
+      const clickedPanel = panelRef.current?.contains(target);
+      if (!clickedWrapper && !clickedPanel) {
         setIsOpen(false);
       }
     }
@@ -67,13 +109,23 @@ function SearchableSelect({
         setIsOpen(false);
       }
     }
+    // Simplest robust fix for a portal-rendered panel: close on scroll rather
+    // than tracking the trigger's position continuously (relevant here since
+    // the trigger typically lives inside a scrollable modal body).
+    function handleScrollOrResize() {
+      setIsOpen(false);
+    }
 
     document.addEventListener('mousedown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
     const focusTimer = window.setTimeout(() => searchRef.current?.focus(), 0);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
       window.clearTimeout(focusTimer);
     };
   }, [isOpen]);
@@ -127,10 +179,14 @@ function SearchableSelect({
   return (
     <div className="searchable-select" ref={wrapperRef}>
       <button
+        ref={triggerRef}
         type="button"
         id={id}
         className={`searchable-select__trigger${isOpen ? ' searchable-select__trigger--open' : ''}`}
-        onClick={() => !disabled && setIsOpen((open) => !open)}
+        onClick={() => {
+          if (disabled) return;
+          isOpen ? setIsOpen(false) : openPanel();
+        }}
         disabled={disabled || isLoading}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -154,87 +210,95 @@ function SearchableSelect({
         </div>
       )}
 
-      {isOpen && !disabled && (
-        <div className="searchable-select__panel" role="listbox">
-          <label className="searchable-select__search">
-            <Search size={14} />
-            <input
-              ref={searchRef}
-              type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search..."
-            />
-          </label>
+      {isOpen &&
+        !disabled &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className="searchable-select__panel"
+            role="listbox"
+            style={{ top: position.top, left: position.left, width: position.width }}
+          >
+            <label className="searchable-select__search">
+              <Search size={14} />
+              <input
+                ref={searchRef}
+                type="text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search..."
+              />
+            </label>
 
-          <div className="searchable-select__options">
-            {error ? (
-              <div className="searchable-select__state searchable-select__state--error">
-                {error}
-                {onRetry && (
-                  <button type="button" className="btn btn--secondary" onClick={onRetry}>
-                    Retry
-                  </button>
-                )}
-              </div>
-            ) : options.length === 0 ? (
-              <div className="searchable-select__state">
-                {emptyMessage}
-                {emptyAction && (
-                  <button type="button" className="btn btn--secondary" onClick={emptyAction.onClick}>
-                    {emptyAction.label}
-                  </button>
-                )}
-              </div>
-            ) : (
-              <>
-                {allOption && (
-                  <>
-                    <button
-                      type="button"
-                      className="searchable-select__option"
-                      onClick={() => {
-                        allOption.onToggle();
-                        setIsOpen(false);
-                      }}
-                    >
-                      <span className={`searchable-select__box${allActive ? ' searchable-select__box--checked' : ''}`}>
-                        {allActive && <Check size={12} />}
-                      </span>
-                      {allOption.label}
+            <div className="searchable-select__options">
+              {error ? (
+                <div className="searchable-select__state searchable-select__state--error">
+                  {error}
+                  {onRetry && (
+                    <button type="button" className="btn btn--secondary" onClick={onRetry}>
+                      Retry
                     </button>
-                    <div className="searchable-select__divider" />
-                  </>
-                )}
-                {filteredOptions.length === 0 ? (
-                  <div className="searchable-select__state">No matches</div>
-                ) : (
-                  filteredOptions.map((option) => {
-                    const checked = allActive || selectedSet.has(option.id);
-                    return (
+                  )}
+                </div>
+              ) : options.length === 0 ? (
+                <div className="searchable-select__state">
+                  {emptyMessage}
+                  {emptyAction && (
+                    <button type="button" className="btn btn--secondary" onClick={emptyAction.onClick}>
+                      {emptyAction.label}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {allOption && (
+                    <>
                       <button
                         type="button"
-                        key={option.id}
                         className="searchable-select__option"
-                        disabled={allActive}
-                        onClick={() => toggleOption(option.id)}
+                        onClick={() => {
+                          allOption.onToggle();
+                          setIsOpen(false);
+                        }}
                       >
-                        <span className={`searchable-select__box${checked ? ' searchable-select__box--checked' : ''}${multiple ? '' : ' searchable-select__box--round'}`}>
-                          {checked && <Check size={12} />}
+                        <span className={`searchable-select__box${allActive ? ' searchable-select__box--checked' : ''}`}>
+                          {allActive && <Check size={12} />}
                         </span>
-                        <span>
-                          {option.label}
-                          {option.sublabel && <span className="searchable-select__sublabel"> · {option.sublabel}</span>}
-                        </span>
+                        {allOption.label}
                       </button>
-                    );
-                  })
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
+                      <div className="searchable-select__divider" />
+                    </>
+                  )}
+                  {filteredOptions.length === 0 ? (
+                    <div className="searchable-select__state">No matches</div>
+                  ) : (
+                    filteredOptions.map((option) => {
+                      const checked = allActive || selectedSet.has(option.id);
+                      return (
+                        <button
+                          type="button"
+                          key={option.id}
+                          className="searchable-select__option"
+                          disabled={allActive}
+                          onClick={() => toggleOption(option.id)}
+                        >
+                          <span className={`searchable-select__box${checked ? ' searchable-select__box--checked' : ''}${multiple ? '' : ' searchable-select__box--round'}`}>
+                            {checked && <Check size={12} />}
+                          </span>
+                          <span>
+                            {option.label}
+                            {option.sublabel && <span className="searchable-select__sublabel"> · {option.sublabel}</span>}
+                          </span>
+                        </button>
+                      );
+                    })
+                  )}
+                </>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
