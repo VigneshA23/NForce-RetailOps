@@ -83,7 +83,7 @@ describe('sign-out', () => {
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /^log out$/i }))
 
-    await screen.findByText(/welcome to retailops/i)
+    await screen.findByText(/login here/i)
     expect(mockLogout).toHaveBeenCalledTimes(1)
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
   })
@@ -124,7 +124,7 @@ describe('sign-out', () => {
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /^log out$/i }))
 
-    await screen.findByText(/welcome to retailops/i)
+    await screen.findByText(/login here/i)
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
   })
 
@@ -151,7 +151,7 @@ describe('sign-out', () => {
     expect(screen.getByRole('menuitem', { name: /log out/i })).toBeDisabled()
 
     resolveLogout()
-    await screen.findByText(/welcome to retailops/i)
+    await screen.findByText(/login here/i)
     expect(mockLogout).toHaveBeenCalledTimes(1)
   })
 
@@ -161,7 +161,7 @@ describe('sign-out', () => {
 
     render(<App />)
 
-    await screen.findByText(/welcome to retailops/i)
+    await screen.findByText(/login here/i)
     expect(screen.queryByLabelText(/signed in as/i)).not.toBeInTheDocument()
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
   })
