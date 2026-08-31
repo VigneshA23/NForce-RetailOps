@@ -33,28 +33,25 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
 
   return (
     <div className="login3-shell">
-      <div className="login3-frame">
-        <div className="login3-grid">
-          <div className="login3-hero">
-            <div className="login3-hero-glow" aria-hidden="true" />
-            <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-hero-logo" />
-            <div className="login3-hero-text">
-              <h2 className="login3-hero-heading">
-                Your stores. <span className="login3-hero-accent">One checklist.</span>
-              </h2>
-              <p className="login3-hero-copy">
-                Opening, prep, cleaning and closing across every location — recorded in order,
-                signed off by the person on shift, and auditable the next morning. No paper, no
-                group chats.
-              </p>
-            </div>
+      <div className="login3-grid">
+        <div className="login3-hero">
+          <div className="login3-hero-glow" aria-hidden="true" />
+          <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-hero-logo" />
+          <div className="login3-hero-text">
+            <h2 className="login3-hero-heading">
+              Your stores. <span className="login3-hero-accent">One checklist.</span>
+            </h2>
+            <p className="login3-hero-copy">
+              Opening, prep, cleaning and closing across every location — recorded in order,
+              signed off by the person on shift, and auditable the next morning. No paper, no
+              group chats.
+            </p>
           </div>
+        </div>
 
-          <div className="login3-panel">
+        <div className="login3-panel">
+          <div className="login3-panel-inner">
             <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
-            <div className="login3-badge" aria-hidden="true">
-              <img src="/nforce-logo.png" alt="" />
-            </div>
 
             <h1 className="login3-heading">Welcome Back</h1>
             <p className="login3-subheading">Sign in to access RetailOps</p>
