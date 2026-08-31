@@ -109,6 +109,10 @@
 .login3-hero-text {
   position: relative;
   z-index: 1;
+  /* Centered to match the logo above it (which is itself centred via
+     margin: 24px auto) rather than sitting flush against the panel's own
+     left padding - the whole hero column now reads as one centred stack. */
+  text-align: center;
 }
 
 .login3-hero-heading {
@@ -128,7 +132,7 @@
   line-height: 1.6;
   color: rgba(242, 242, 244, 0.72);
   max-width: 380px;
-  margin: 0;
+  margin: 0 auto;
 }
 
 .login3-panel {
