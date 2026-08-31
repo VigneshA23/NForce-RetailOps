@@ -15,3 +15,8 @@ export type OwnerFormValues = {
   storeName: string;
   storeLocation: string;
 };
+
+export type AssignStoreValues = {
+  storeName: string;
+  storeLocation: string;
+};

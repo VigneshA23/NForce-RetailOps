@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
-import { addOwner, getOwners, setOwnerStatus } from '../api/owners';
-import type { OwnerFormValues, OwnerSummary } from '../types/owner';
+import { addOwner, assignStore, getOwners, setOwnerStatus } from '../api/owners';
+import type { AssignStoreValues, OwnerFormValues, OwnerSummary } from '../types/owner';
 import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
 import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
 import OwnerTable from '../components/OwnerTable';
 import OwnerFormModal from '../components/OwnerFormModal';
+import AssignStoreModal from '../components/AssignStoreModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
 import SearchInput from '../components/SearchInput';
@@ -29,6 +30,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusTarget, setStatusTarget] = useState<OwnerSummary | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [assignStoreTarget, setAssignStoreTarget] = useState<OwnerSummary | null>(null);
+  const [assignStoreError, setAssignStoreError] = useState<string | null>(null);
+  const [isAssigningStore, setIsAssigningStore] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [activeTab] = useState<SuperAdminNavTabKey>('owners');
 
@@ -56,6 +60,21 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       setFormError(error instanceof Error ? error.message : 'Something went wrong');
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleAssignStoreSubmit(values: AssignStoreValues) {
+    if (!assignStoreTarget) return;
+    setAssignStoreError(null);
+    setIsAssigningStore(true);
+    try {
+      const created = await assignStore(assignStoreTarget.ownerId, values);
+      setOwners((current) => [...current, created]);
+      setAssignStoreTarget(null);
+    } catch (error) {
+      setAssignStoreError(error instanceof Error ? error.message : 'Something went wrong');
+    } finally {
+      setIsAssigningStore(false);
     }
   }
 
@@ -148,7 +167,15 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
                 </SpecularButton>
               </div>
             </div>
-            <OwnerTable owners={filteredOwners} isLoading={isLoading} onToggleStatus={setStatusTarget} />
+            <OwnerTable
+              owners={filteredOwners}
+              isLoading={isLoading}
+              onToggleStatus={setStatusTarget}
+              onAddStore={(owner) => {
+                setAssignStoreError(null);
+                setAssignStoreTarget(owner);
+              }}
+            />
           </div>
         )}
       </div>
@@ -159,6 +186,15 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         isSubmitting={isSubmitting}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
+      />
+
+      <AssignStoreModal
+        isOpen={assignStoreTarget !== null}
+        ownerName={assignStoreTarget?.ownerName}
+        errorMessage={assignStoreError}
+        isSubmitting={isAssigningStore}
+        onClose={() => setAssignStoreTarget(null)}
+        onSubmit={handleAssignStoreSubmit}
       />
 
       <ConfirmDialog

@@ -2,12 +2,6 @@
   padding: var(--space-lg);
 }
 
-.stores-page__add-label {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-}
-
 .stores-page__error {
   display: flex;
   align-items: center;

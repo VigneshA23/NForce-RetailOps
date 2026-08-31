@@ -5,7 +5,6 @@ import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.StoreService;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -27,15 +26,6 @@ public class StoreController {
     @GetMapping
     public ResponseEntity<List<StoreResponse>> list(@AuthenticationPrincipal AppUserDetails principal) {
         return ResponseEntity.ok(storeService.listStores(principal.getUser().getId()));
-    }
-
-    @PostMapping
-    public ResponseEntity<StoreResponse> create(
-        @AuthenticationPrincipal AppUserDetails principal,
-        @Valid @RequestBody StoreRequest request
-    ) {
-        StoreResponse created = storeService.createStore(principal.getUser().getId(), request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
