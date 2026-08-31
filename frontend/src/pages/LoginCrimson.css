@@ -81,28 +81,35 @@
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 480px;
-  height: 480px;
+  width: 620px;
+  height: 620px;
   transform: translate(-50%, -55%);
-  background: radial-gradient(circle, rgba(225, 29, 51, 0.4) 0%, rgba(225, 29, 51, 0) 68%);
-  filter: blur(20px);
+  background: radial-gradient(circle, rgba(225, 29, 51, 0.5) 0%, rgba(225, 29, 51, 0) 66%);
+  filter: blur(24px);
   pointer-events: none;
 }
 
 .login3-hero-logo {
   position: relative;
   z-index: 1;
-  width: 160px;
-  height: 160px;
-  margin: 40px auto;
+  width: 260px;
+  height: 260px;
+  margin: 24px auto;
   display: block;
-  /* Same treatment as the logo everywhere else in the app (see
-     .sidebar__brand-logo) - a plain circular crop, no blend/mask effects
-     that would shift its actual colours. The glow behind it comes from
-     .login3-hero-glow, not from distorting the mark itself. */
-  border-radius: 50%;
-  object-fit: cover;
-  filter: drop-shadow(0 0 40px rgba(225, 29, 51, 0.35));
+  object-fit: contain;
+  /* Screen blend mode drops the logo artwork's own near-black backdrop out
+     against this equally-dark panel, and the radial mask fades the image's
+     own edge to transparent - together the disc/badge boundary disappears
+     entirely so the mark reads as part of the background glow rather than
+     a sticker sitting on top of it. The mask's inner stop is generous
+     (65%) so most of the actual glyph stays crisp and undistorted; only
+     the outer rim - which is mostly the logo's own dark backdrop anyway -
+     fades out. Size and glow are pushed up to keep it prominent despite
+     the softer edge. */
+  mix-blend-mode: screen;
+  -webkit-mask-image: radial-gradient(circle, #000 65%, transparent 85%);
+  mask-image: radial-gradient(circle, #000 65%, transparent 85%);
+  filter: drop-shadow(0 0 50px rgba(225, 29, 51, 0.55)) drop-shadow(0 0 110px rgba(225, 29, 51, 0.3));
 }
 
 .login3-hero-text {
