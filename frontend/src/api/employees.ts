@@ -51,3 +51,13 @@ export async function deleteEmployee(id: number): Promise<void> {
   });
   if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to delete employee'));
 }
+
+export async function setEmployeeStatus(id: number, active: boolean): Promise<Employee> {
+  const response = await fetch(`${API_BASE_URL}/employees/${id}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ active }),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to update employee status'));
+  return response.json();
+}

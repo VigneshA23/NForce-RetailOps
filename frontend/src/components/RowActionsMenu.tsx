@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2, UserCheck, UserX } from 'lucide-react';
 import './RowActionsMenu.css';
 
 interface RowActionsMenuProps {
   onEdit: () => void;
   onDelete: () => void;
+  // Optional: tables whose rows can be activated/deactivated pass both of these.
+  // Omitting them keeps the plain Edit/Delete menu.
+  onToggleStatus?: () => void;
+  isActive?: boolean;
 }
 
-const MENU_WIDTH = 140;
+const MENU_WIDTH = 168;
 
-function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
+function RowActionsMenu({ onEdit, onDelete, onToggleStatus, isActive }: RowActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -93,6 +97,20 @@ function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
               <Pencil size={14} />
               Edit
             </button>
+            {onToggleStatus && (
+              <button
+                type="button"
+                role="menuitem"
+                className="row-actions__item"
+                onClick={() => {
+                  setIsOpen(false);
+                  onToggleStatus();
+                }}
+              >
+                {isActive ? <UserX size={14} /> : <UserCheck size={14} />}
+                {isActive ? 'Deactivate' : 'Activate'}
+              </button>
+            )}
             <button
               type="button"
               role="menuitem"

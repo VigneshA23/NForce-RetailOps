@@ -12,9 +12,19 @@ interface EmployeeTableProps {
   isLoading?: boolean;
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
+  onToggleStatus: (employee: Employee) => void;
 }
 
-type SortKey = 'empId' | 'name' | 'stores' | 'shift' | 'phone' | 'employeeType' | 'email' | 'gender';
+type SortKey =
+  | 'empId'
+  | 'name'
+  | 'stores'
+  | 'shift'
+  | 'phone'
+  | 'employeeType'
+  | 'email'
+  | 'gender'
+  | 'active';
 type SortDirection = 'asc' | 'desc';
 
 const PAGE_SIZE = 10;
@@ -28,24 +38,48 @@ const COLUMNS: { key: SortKey; label: string }[] = [
   { key: 'employeeType', label: 'Type' },
   { key: 'email', label: 'Email' },
   { key: 'gender', label: 'Gender' },
+  { key: 'active', label: 'Status' },
 ];
 
-const SEARCHABLE_FIELDS: SortKey[] = ['name', 'email', 'stores', 'phone', 'shift', 'employeeType', 'gender'];
+const SEARCHABLE_FIELDS: SortKey[] = [
+  'name',
+  'email',
+  'stores',
+  'phone',
+  'shift',
+  'employeeType',
+  'gender',
+  'active',
+];
 
 function TypeBadge({ type }: { type: EmployeeType }) {
   const className = type === 'Full Time' ? 'badge badge--solid' : 'badge badge--outline';
   return <span className={className}>{type}</span>;
 }
 
+function statusLabel(employee: Employee): string {
+  return employee.active ? 'Active' : 'Inactive';
+}
+
 function storeNames(employee: Employee): string {
   return employee.stores.map((store) => store.name).join(', ');
 }
 
+// Status sorts and searches on its rendered label rather than the raw boolean,
+// so "inactive" matches in the search box and sorting reads alphabetically.
 function fieldValue(employee: Employee, key: SortKey): string {
-  return key === 'stores' ? storeNames(employee) : String(employee[key]);
+  if (key === 'stores') return storeNames(employee);
+  if (key === 'active') return statusLabel(employee);
+  return String(employee[key]);
 }
 
-function EmployeeTable({ employees, isLoading = false, onEdit, onDelete }: EmployeeTableProps) {
+function EmployeeTable({
+  employees,
+  isLoading = false,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+}: EmployeeTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
@@ -171,8 +205,18 @@ function EmployeeTable({ employees, isLoading = false, onEdit, onDelete }: Emplo
                   </a>
                 </td>
                 <td data-label="Gender">{employee.gender}</td>
+                <td data-label="Status">
+                  <span className={`badge ${employee.active ? 'badge--solid' : 'badge--outline'}`}>
+                    {statusLabel(employee)}
+                  </span>
+                </td>
                 <td className="employee-table__actions-cell" data-label="Actions">
-                  <RowActionsMenu onEdit={() => onEdit(employee)} onDelete={() => onDelete(employee)} />
+                  <RowActionsMenu
+                    onEdit={() => onEdit(employee)}
+                    onDelete={() => onDelete(employee)}
+                    onToggleStatus={() => onToggleStatus(employee)}
+                    isActive={employee.active}
+                  />
                 </td>
               </tr>
             ))}

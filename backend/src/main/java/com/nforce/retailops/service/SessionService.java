@@ -78,4 +78,15 @@ public class SessionService {
     public void invalidate(String tokenId) {
         activeSessionRepository.deleteByTokenId(tokenId);
     }
+
+    /**
+     * Revokes every session belonging to one user, across however many devices
+     * they are signed in on. Used when an account is deactivated or deleted --
+     * that has to take effect on their next request, not whenever each of their
+     * tokens happens to expire.
+     */
+    @Transactional
+    public void invalidateAllForUser(String email) {
+        activeSessionRepository.deleteBySubjectEmail(email);
+    }
 }
