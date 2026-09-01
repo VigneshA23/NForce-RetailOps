@@ -1,52 +1,54 @@
-import type { ChecklistCategory } from '../types/task';
+import type { ChecklistCategory, CompletionType, TaskResponseType } from '../types/task';
+import { authHeaders } from '../utils/authStorage';
 
-const MOCK_CHECKLIST: ChecklistCategory[] = [
-  {
-    id: 'preparation',
-    name: 'Preparation',
-    tasks: [
-      { id: 'prep-1', name: 'Prepare Boba' },
-      { id: 'prep-2', name: 'Refill Falooda Station' },
-      { id: 'prep-3', name: 'Prepare Waffle Cones' },
-    ],
-  },
-  {
-    id: 'cleaning',
-    name: 'Cleaning',
-    tasks: [
-      { id: 'clean-1', name: 'Clean Front Door' },
-      { id: 'clean-2', name: 'Clean Tables' },
-    ],
-  },
-  {
-    id: 'closing',
-    name: 'Closing',
-    tasks: [
-      { id: 'close-1', name: 'Verify Freezer Doors' },
-      { id: 'close-2', name: 'Turn Off Equipment' },
-    ],
-  },
-];
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
-const SIMULATED_LATENCY_MS = 200;
+async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const body = await response.json();
+    return body.message ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
 
-// TODO: the backend Category API (/api/categories) is owner-scoped and OWNER_ADMIN-only,
-// and there is no Task/Checklist entity yet. Once the backend exposes store-scoped
-// categories + tasks for the authenticated employee, replace MOCK_CHECKLIST with a fetch
-// against `${VITE_API_BASE_URL}/api/stores/${storeId}/checklist` (or similar) and drop
-// this mock entirely.
-export async function getDailyChecklist(_storeId: number): Promise<ChecklistCategory[]> {
-  return new Promise((resolve) => {
-    setTimeout(
-      () => resolve(MOCK_CHECKLIST.map((category) => ({ ...category, tasks: category.tasks.map((task) => ({ ...task })) }))),
-      SIMULATED_LATENCY_MS,
-    );
+export async function getDailyChecklist(storeId: number): Promise<ChecklistCategory[]> {
+  const response = await fetch(`${API_BASE_URL}/stores/${storeId}/checklist`, {
+    headers: authHeaders(),
   });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to load checklist'));
+  }
+
+  const categories: Array<{
+    id: number;
+    name: string;
+    tasks: Array<{
+      id: number;
+      name: string;
+      description: string | null;
+      responseType: TaskResponseType;
+      responseNote: string | null;
+      numericUnit: string | null;
+      numericMin: number | null;
+      numericMax: number | null;
+      textMaxLength: number | null;
+      completionType: CompletionType;
+      maxCompletions: number | null;
+    }>;
+  }> = await response.json();
+
+  return categories.map((category) => ({
+    id: String(category.id),
+    name: category.name,
+    tasks: category.tasks.map((task) => ({ ...task, id: String(task.id) })),
+  }));
 }
 
 // TODO: replace with a real "raise issue with owner" endpoint once one exists on the backend.
 export async function raiseIssue(_storeId: number, _note: string): Promise<void> {
   return new Promise((resolve) => {
-    setTimeout(resolve, SIMULATED_LATENCY_MS);
+    setTimeout(resolve, 200);
   });
 }

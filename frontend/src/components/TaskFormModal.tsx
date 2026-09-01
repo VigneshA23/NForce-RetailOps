@@ -31,6 +31,7 @@ interface TaskFormModalProps {
 function toFormValues(task: AdminTask): AdminTaskFormValues {
   return {
     name: task.name,
+    description: task.description ?? '',
     categoryId: task.categoryId,
     displayOrder: String(task.displayOrder),
     appliesToAllStores: task.appliesToAllStores,
@@ -152,6 +153,16 @@ function TaskFormModal({
               onChange={(event) => updateField('name', event.target.value)}
               placeholder="Enter task name"
               autoFocus
+            />
+          </FormField>
+
+          <FormField label="Description / Instructions" htmlFor="task-description">
+            <textarea
+              id="task-description"
+              className="input task-form__textarea"
+              value={values.description}
+              onChange={(event) => updateField('description', event.target.value)}
+              rows={4}
             />
           </FormField>
         </section>

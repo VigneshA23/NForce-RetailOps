@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Blend, CheckCircle2, ChevronDown, ClipboardList, Flag, ListTodo, Lock, Percent, Sparkles } from 'lucide-react'
+import { Blend, CheckCircle2, ChevronDown, Circle, ClipboardList, Flag, ListTodo, Lock, Percent, Sparkles } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getDailyChecklist, raiseIssue } from '../api/tasks'
 import type { StoreSummary } from '../types/store'
-import type { ChecklistCategory, TaskAnswer, TaskAnswers } from '../types/task'
+import type { ChecklistCategory, ChecklistTask, TaskAnswer, TaskAnswers } from '../types/task'
+import { isAnswerComplete } from '../types/task'
 import Modal from '../components/Modal'
 import FormField from '../components/FormField'
 import StatCard from '../components/StatCard'
@@ -19,6 +20,17 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   preparation: Blend,
   cleaning: Sparkles,
   closing: Lock,
+}
+
+function answerStatusLabel(task: ChecklistTask, answer: TaskAnswer | undefined): string {
+  if (!answer) return 'Not answered'
+  if (answer.responseType === 'YES_NO') return answer.value === 'YES' ? '✓ Completed' : 'Not completed'
+  if (answer.responseType === 'DONE_NOT_DONE') return '✓ Completed'
+  if (answer.responseType === 'TEXT') return answer.value.trim() ? `✓ ${answer.value.trim()}` : 'Not answered'
+  if (answer.responseType === 'NUMERIC') {
+    return Number.isFinite(answer.value) ? `✓ ${answer.value}${task.numericUnit ? ` ${task.numericUnit}` : ''}` : 'Not answered'
+  }
+  return 'Not answered'
 }
 
 function todayKey(): string {
@@ -41,6 +53,8 @@ function loadStoredAnswers(storeId: number): TaskAnswers {
 function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [reloadToken, setReloadToken] = useState(0)
   const [answers, setAnswers] = useState<TaskAnswers>(() => loadStoredAnswers(store.id))
   const [onDuty, setOnDuty] = useState(true)
   const [flagCount, setFlagCount] = useState(0)
@@ -51,36 +65,55 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   useEffect(() => {
     let active = true
     setLoading(true)
-    getDailyChecklist(store.id).then((result) => {
-      if (active) {
-        setCategories(result)
-        setLoading(false)
-      }
-    })
+    setLoadError(null)
+    getDailyChecklist(store.id)
+      .then((result) => {
+        if (active) {
+          setCategories(result)
+          setLoading(false)
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setLoadError(error instanceof Error ? error.message : 'Failed to load today\'s checklist')
+          setLoading(false)
+        }
+      })
     return () => {
       active = false
     }
-  }, [store.id])
+  }, [store.id, reloadToken])
 
   useEffect(() => {
     localStorage.setItem(answersStorageKey(store.id), JSON.stringify(answers))
   }, [answers, store.id])
 
+  useEffect(() => {
+    const knownTypes = new Set(['YES_NO', 'DONE_NOT_DONE', 'TEXT', 'NUMERIC'])
+    categories.forEach((category) => {
+      category.tasks.forEach((task) => {
+        if (!knownTypes.has(task.responseType)) {
+          console.warn(`Unsupported task response type "${task.responseType}" for task ${task.id}`)
+        }
+      })
+    })
+  }, [categories])
+
   const totalTasks = useMemo(() => categories.reduce((sum, category) => sum + category.tasks.length, 0), [categories])
   const completedTasks = useMemo(
-    () => Object.values(answers).filter((answer) => answer === 'YES').length,
+    () => Object.values(answers).filter((answer) => isAnswerComplete(answer)).length,
     [answers],
   )
   const completionPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100)
   const remainingTasks = totalTasks - completedTasks
 
-  function handleAnswer(taskId: string, value: TaskAnswer) {
+  function setAnswer(taskId: string, answer: TaskAnswer) {
     if (!onDuty) return
-    setAnswers((previous) => ({ ...previous, [taskId]: value }))
+    setAnswers((previous) => ({ ...previous, [taskId]: answer }))
   }
 
   function categoryProgress(category: ChecklistCategory): { done: number; total: number } {
-    const done = category.tasks.filter((task) => answers[task.id] === 'YES').length
+    const done = category.tasks.filter((task) => isAnswerComplete(answers[task.id])).length
     return { done, total: category.tasks.length }
   }
 
@@ -130,7 +163,18 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
 
         {loading && <p className="employee-dashboard-loading">Loading today's checklist…</p>}
 
-        {!loading && categories.length === 0 && (
+        {!loading && loadError && (
+          <div className="employee-dashboard-empty">
+            <ClipboardList size={32} />
+            <h2>Couldn't load today's checklist</h2>
+            <p>{loadError}</p>
+            <button type="button" className="btn btn--secondary" onClick={() => setReloadToken((token) => token + 1)}>
+              Retry
+            </button>
+          </div>
+        )}
+
+        {!loading && !loadError && categories.length === 0 && (
           <div className="employee-dashboard-empty">
             <ClipboardList size={32} />
             <h2>No checklist tasks yet</h2>
@@ -138,7 +182,7 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
           </div>
         )}
 
-        {!loading && categories.length > 0 && (
+        {!loading && !loadError && categories.length > 0 && (
           <div className="checklist-categories">
             {categories.map((category) => {
               const progress = categoryProgress(category)
@@ -168,28 +212,80 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
                         <div key={task.id} className={`checklist-task${!onDuty ? ' checklist-task--disabled' : ''}`}>
                           <div>
                             <p className="checklist-task-name">{task.name}</p>
-                            <p className="checklist-task-status">
-                              {answer === 'YES' ? '✓ Completed' : answer === 'NO' ? 'Not completed' : 'Not answered'}
-                            </p>
+                            <p className="checklist-task-status">{answerStatusLabel(task, answer)}</p>
                           </div>
-                          <div className="checklist-task-actions">
-                            <button
-                              type="button"
-                              className={`checklist-task-btn${answer === 'NO' ? ' checklist-task-btn--no-active' : ''}`}
+
+                          {task.responseType === 'YES_NO' && (
+                            <div className="checklist-task-actions">
+                              <button
+                                type="button"
+                                className={`checklist-task-btn${answer?.responseType === 'YES_NO' && answer.value === 'NO' ? ' checklist-task-btn--no-active' : ''}`}
+                                disabled={!onDuty}
+                                onClick={() => setAnswer(task.id, { responseType: 'YES_NO', value: 'NO' })}
+                              >
+                                No
+                              </button>
+                              <button
+                                type="button"
+                                className={`checklist-task-btn${answer?.responseType === 'YES_NO' && answer.value === 'YES' ? ' checklist-task-btn--yes-active' : ''}`}
+                                disabled={!onDuty}
+                                onClick={() => setAnswer(task.id, { responseType: 'YES_NO', value: 'YES' })}
+                              >
+                                Yes
+                              </button>
+                            </div>
+                          )}
+
+                          {task.responseType === 'DONE_NOT_DONE' && (
+                            <div className="checklist-task-actions">
+                              <button
+                                type="button"
+                                className={`checklist-task-btn${answer?.responseType === 'DONE_NOT_DONE' ? ' checklist-task-btn--yes-active' : ''}`}
+                                disabled={!onDuty}
+                                onClick={() => setAnswer(task.id, { responseType: 'DONE_NOT_DONE', value: true })}
+                              >
+                                {answer?.responseType === 'DONE_NOT_DONE' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+                                Done
+                              </button>
+                            </div>
+                          )}
+
+                          {task.responseType === 'TEXT' && (
+                            <input
+                              type="text"
+                              className="input checklist-task-text-input"
                               disabled={!onDuty}
-                              onClick={() => handleAnswer(task.id, 'NO')}
-                            >
-                              No
-                            </button>
-                            <button
-                              type="button"
-                              className={`checklist-task-btn${answer === 'YES' ? ' checklist-task-btn--yes-active' : ''}`}
-                              disabled={!onDuty}
-                              onClick={() => handleAnswer(task.id, 'YES')}
-                            >
-                              Yes
-                            </button>
-                          </div>
+                              maxLength={task.textMaxLength ?? undefined}
+                              placeholder={task.responseNote ?? ''}
+                              value={answer?.responseType === 'TEXT' ? answer.value : ''}
+                              onChange={(event) => setAnswer(task.id, { responseType: 'TEXT', value: event.target.value })}
+                            />
+                          )}
+
+                          {task.responseType === 'NUMERIC' && (
+                            <div className="checklist-task-numeric">
+                              <input
+                                type="number"
+                                className="input checklist-task-numeric-input"
+                                disabled={!onDuty}
+                                min={task.numericMin ?? undefined}
+                                max={task.numericMax ?? undefined}
+                                value={answer?.responseType === 'NUMERIC' ? answer.value : ''}
+                                onChange={(event) => {
+                                  const value = event.target.value === '' ? NaN : Number(event.target.value)
+                                  setAnswer(task.id, { responseType: 'NUMERIC', value })
+                                }}
+                              />
+                              {task.numericUnit && <span className="checklist-task-unit">{task.numericUnit}</span>}
+                            </div>
+                          )}
+
+                          {task.responseType !== 'YES_NO' &&
+                            task.responseType !== 'DONE_NOT_DONE' &&
+                            task.responseType !== 'TEXT' &&
+                            task.responseType !== 'NUMERIC' && (
+                              <p className="checklist-task-status">Unsupported response type</p>
+                            )}
                         </div>
                       )
                     })}

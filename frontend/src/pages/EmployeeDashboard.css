@@ -265,6 +265,33 @@
   color: var(--color-badge-solid-text);
 }
 
+.checklist-task-btn svg {
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.checklist-task-text-input {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 220px;
+}
+
+.checklist-task-numeric {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.checklist-task-numeric-input {
+  width: 100px;
+}
+
+.checklist-task-unit {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
 .raise-with-owner-fab {
   position: fixed;
   bottom: var(--space-xl);

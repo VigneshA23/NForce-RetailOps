@@ -1,5 +1,7 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.EmployeeChecklistCategoryResponse;
+import com.nforce.retailops.dto.EmployeeTaskResponse;
 import com.nforce.retailops.dto.TaskRequest;
 import com.nforce.retailops.dto.TaskResponse;
 import com.nforce.retailops.entity.Category;
@@ -22,8 +24,11 @@ import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -95,6 +100,27 @@ public class TaskService {
         // check for existing completion records here and refuse deletion (or require an
         // extra confirmation) the same way the frontend already warns about it.
         taskRepository.delete(task);
+    }
+
+    // Employee checklist: active tasks applicable to the given store, grouped by
+    // category in the same order as Task Management. Reuses the same Task entity
+    // and repository query the admin list uses -- only the response shape differs,
+    // to avoid exposing admin-only fields (owner, stores, schedule, dates).
+    @Transactional(readOnly = true)
+    public List<EmployeeChecklistCategoryResponse> getEmployeeChecklist(Long ownerId, Long storeId) {
+        List<Task> tasks = taskRepository.findActiveForOwnerApplicableToStore(ownerId, storeId);
+
+        Map<Long, String> categoryNames = new LinkedHashMap<>();
+        Map<Long, List<EmployeeTaskResponse>> tasksByCategory = new LinkedHashMap<>();
+        for (Task task : tasks) {
+            Long categoryId = task.getCategory().getId();
+            categoryNames.putIfAbsent(categoryId, task.getCategory().getName());
+            tasksByCategory.computeIfAbsent(categoryId, key -> new ArrayList<>()).add(EmployeeTaskResponse.from(task));
+        }
+
+        return categoryNames.entrySet().stream()
+            .map(entry -> new EmployeeChecklistCategoryResponse(entry.getKey(), entry.getValue(), tasksByCategory.get(entry.getKey())))
+            .toList();
     }
 
     private Task requireOwnedTask(Long ownerId, Long taskId) {

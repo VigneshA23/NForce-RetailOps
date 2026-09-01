@@ -30,4 +30,17 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         "select count(distinct t) from Task t join t.stores s where s.id = :storeId"
     )
     long countByStoreId(Long storeId);
+
+    // Employee checklist: only active tasks belonging to the store's owner and applicable
+    // to this specific store (either explicitly assigned or "all stores"), grouped in the
+    // same category/display order as Task Management.
+    @org.springframework.data.jpa.repository.Query(
+        "select t from Task t where t.owner.id = :ownerId and t.active = true "
+            + "and (t.appliesToAllStores = true or :storeId in (select s.id from t.stores s)) "
+            + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"
+    )
+    List<Task> findActiveForOwnerApplicableToStore(
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId,
+        @org.springframework.data.repository.query.Param("storeId") Long storeId
+    );
 }
