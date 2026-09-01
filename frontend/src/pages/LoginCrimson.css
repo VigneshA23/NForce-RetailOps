@@ -105,13 +105,13 @@
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 48px;
+  gap: 24px;
+  margin-bottom: 56px;
 }
 
 .login3-hero-logo {
-  width: 48px;
-  height: 48px;
+  width: 140px;
+  height: 140px;
   flex-shrink: 0;
   /* The true logo, unmodified: no filter, no mask, no blend-mode - every
      earlier attempt at "immersing" it (blend-mode, luminance masks,
@@ -123,7 +123,7 @@
 }
 
 .login3-hero-wordmark {
-  font-size: 22px;
+  font-size: 32px;
   font-weight: 800;
   color: #ffffff;
 }
