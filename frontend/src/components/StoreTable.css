@@ -2,6 +2,11 @@
   overflow: visible;
 }
 
+.store-table__code {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .store-table__name {
   font-weight: 600;
   color: var(--color-text-primary);

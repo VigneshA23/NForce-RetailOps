@@ -15,10 +15,6 @@ public record EmployeeCreateRequest(
     @Email(message = "Enter a valid email address")
     String email,
 
-    @NotBlank(message = "Temporary password is required")
-    @Size(min = 8, message = "Password must be at least 8 characters")
-    String password,
-
     @NotBlank(message = "Contact number is required")
     String phone,
 

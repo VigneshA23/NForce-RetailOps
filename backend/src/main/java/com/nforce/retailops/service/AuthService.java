@@ -63,7 +63,7 @@ public class AuthService {
         String token = jwtService.generateToken(user.getEmail(), roleNames);
         sessionService.createSession(jwtService.extractTokenId(token), user.getEmail());
 
-        return new LoginResponse(token, primaryRole, user.getFullName());
+        return new LoginResponse(token, primaryRole, user.getFullName(), user.isMustResetPassword());
     }
 
     private LoginResponse loginAsSuperAdmin(SuperAdmin superAdmin, String password) {
@@ -74,6 +74,15 @@ public class AuthService {
         String token = jwtService.generateToken(superAdmin.getEmail(), List.of("SUPER_ADMIN"));
         sessionService.createSession(jwtService.extractTokenId(token), superAdmin.getEmail());
 
-        return new LoginResponse(token, "SUPER_ADMIN", superAdmin.getName());
+        return new LoginResponse(token, "SUPER_ADMIN", superAdmin.getName(), false);
+    }
+
+    @Transactional
+    public void resetPassword(String email, String newPassword) {
+        User user = userRepository.findByEmailWithRoles(email)
+            .orElseThrow(() -> new BadCredentialsException("Invalid session"));
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        user.setMustResetPassword(false);
+        userRepository.save(user);
     }
 }

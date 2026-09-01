@@ -145,10 +145,23 @@
   min-width: 0;
 }
 
+.store-row__name-line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .store-row__name {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.store-row__code {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
 }
 
 .store-row__location {

@@ -4,6 +4,7 @@ export interface OwnerSummary {
   ownerEmail: string;
   ownerActive: boolean;
   storeId: number;
+  storeCode: number;
   storeName: string;
   storeLocation: string;
   storeActive: boolean;
@@ -12,7 +13,6 @@ export interface OwnerSummary {
 export type OwnerFormValues = {
   ownerName: string;
   ownerEmail: string;
-  password: string;
   storeName: string;
   storeLocation: string;
 };

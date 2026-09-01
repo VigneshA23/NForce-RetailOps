@@ -10,6 +10,12 @@
   grid-column: 1 / -1;
 }
 
+.owner-form__hint {
+  margin: -8px 0 var(--space-md);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
 @media (--mobile) {
   .owner-form__grid {
     grid-template-columns: 1fr;

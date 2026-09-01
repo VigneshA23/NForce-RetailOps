@@ -34,6 +34,9 @@ public class User {
     @Column(nullable = false)
     private boolean active = true;
 
+    @Column(name = "must_reset_password", nullable = false)
+    private boolean mustResetPassword = false;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -89,6 +92,14 @@ public class User {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isMustResetPassword() {
+        return mustResetPassword;
+    }
+
+    public void setMustResetPassword(boolean mustResetPassword) {
+        this.mustResetPassword = mustResetPassword;
     }
 
     public OffsetDateTime getCreatedAt() {

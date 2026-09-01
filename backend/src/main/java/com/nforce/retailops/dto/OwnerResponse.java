@@ -8,6 +8,7 @@ public record OwnerResponse(
     String ownerEmail,
     boolean ownerActive,
     Long storeId,
+    Long storeCode,
     String storeName,
     String storeLocation,
     boolean storeActive
@@ -19,6 +20,7 @@ public record OwnerResponse(
             storeOwner.getOwner().getEmail(),
             storeOwner.getOwner().isActive(),
             storeOwner.getStore().getId(),
+            storeOwner.getStore().getStoreCode(),
             storeOwner.getStore().getName(),
             storeOwner.getStore().getLocation(),
             storeOwner.getStore().isActive()

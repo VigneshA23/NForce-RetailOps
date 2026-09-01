@@ -5,8 +5,17 @@ import TaskFormModal from './TaskFormModal';
 import type { Category } from '../types/category';
 import type { OwnerStore } from '../types/ownerStore';
 
+<<<<<<< HEAD
 const categories: Category[] = [{ id: 1, name: 'Cleaning', displayOrder: 0, active: true, taskCount: 0 }];
+=======
+<<<<<<< Updated upstream
+const categories: Category[] = [{ id: 1, name: 'Cleaning', displayOrder: 0, active: true }];
+>>>>>>> Maheshwar/dev-work
 const stores: OwnerStore[] = [{ id: 1, name: 'Store 1', active: true, employeeCount: 0, taskCount: 0 }];
+=======
+const categories: Category[] = [{ id: 1, name: 'Cleaning', displayOrder: 0, active: true, taskCount: 0 }];
+const stores: OwnerStore[] = [{ id: 1, storeCode: 10001, name: 'Store 1', active: true, employeeCount: 0, taskCount: 0 }];
+>>>>>>> Stashed changes
 
 function renderModal() {
   return render(
