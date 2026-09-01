@@ -12,7 +12,9 @@ import com.nforce.retailops.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class StoreService {
@@ -41,11 +43,40 @@ public class StoreService {
         return new StoreResponse(store.getId(), store.getName(), store.isActive(), employeeCount, (int) taskCount);
     }
 
+    private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
+        Map<Long, Integer> counts = new HashMap<>();
+        for (Object[] row : rows) {
+            counts.put((Long) row[0], ((Long) row[1]).intValue());
+        }
+        return counts;
+    }
+
     @Transactional(readOnly = true)
     public List<StoreResponse> listStores(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+        List<Store> stores = storeOwnerRepository.findByOwnerId(ownerId).stream()
             .map(StoreOwner::getStore)
-            .map(store -> toResponse(store, ownerId))
+            .toList();
+
+        if (stores.isEmpty()) {
+            return List.of();
+        }
+
+        // Batched instead of one employee-count + one task-count query per store
+        // (N+1), and the "applies to all stores" count no longer gets recomputed
+        // redundantly for every store -- it's the same owner-wide number each time.
+        List<Long> storeIds = stores.stream().map(Store::getId).toList();
+        Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countGroupedByStoreIds(storeIds));
+        Map<Long, Integer> storeTaskCounts = toCountMap(taskRepository.countGroupedByStoreIds(storeIds));
+        long appliesToAllCount = taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
+
+        return stores.stream()
+            .map(store -> new StoreResponse(
+                store.getId(),
+                store.getName(),
+                store.isActive(),
+                employeeCounts.getOrDefault(store.getId(), 0),
+                (int) (storeTaskCounts.getOrDefault(store.getId(), 0) + appliesToAllCount)
+            ))
             .toList();
     }
 

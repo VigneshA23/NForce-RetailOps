@@ -11,7 +11,9 @@ import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class CategoryService {
@@ -36,8 +38,20 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> listCategories(Long ownerId) {
-        return categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(ownerId).stream()
-            .map(this::toResponse)
+        List<Category> categories = categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(ownerId);
+
+        // One grouped count query for the whole list, instead of one
+        // countByCategoryId query per category (N+1).
+        List<Long> categoryIds = categories.stream().map(Category::getId).toList();
+        Map<Long, Integer> taskCounts = new HashMap<>();
+        if (!categoryIds.isEmpty()) {
+            for (Object[] row : taskRepository.countGroupedByCategoryIds(categoryIds)) {
+                taskCounts.put((Long) row[0], ((Long) row[1]).intValue());
+            }
+        }
+
+        return categories.stream()
+            .map(category -> CategoryResponse.from(category, taskCounts.getOrDefault(category.getId(), 0)))
             .toList();
     }
 

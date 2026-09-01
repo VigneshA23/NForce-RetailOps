@@ -3,6 +3,7 @@ package com.nforce.retailops.repository;
 import com.nforce.retailops.entity.Task;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,4 +31,22 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         "select count(distinct t) from Task t join t.stores s where s.id = :storeId"
     )
     long countByStoreId(Long storeId);
+
+    // Batched form of countByCategoryId, for listing many categories at once
+    // without one count query per category.
+    @org.springframework.data.jpa.repository.Query(
+        "select t.category.id, count(t) from Task t where t.category.id in :categoryIds group by t.category.id"
+    )
+    List<Object[]> countGroupedByCategoryIds(
+        @org.springframework.data.repository.query.Param("categoryIds") Collection<Long> categoryIds
+    );
+
+    // Batched form of countByStoreId, for listing many stores at once without
+    // one count query per store.
+    @org.springframework.data.jpa.repository.Query(
+        "select s.id, count(distinct t) from Task t join t.stores s where s.id in :storeIds group by s.id"
+    )
+    List<Object[]> countGroupedByStoreIds(
+        @org.springframework.data.repository.query.Param("storeIds") Collection<Long> storeIds
+    );
 }
