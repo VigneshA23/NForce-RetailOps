@@ -9,6 +9,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
+import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -114,5 +115,19 @@ public class OwnerManagementService {
         userRepository.save(owner);
 
         return storeOwners.stream().map(OwnerResponse::from).toList();
+    }
+
+    @Transactional
+    public List<OwnerResponse> setStoreActive(Long ownerId, Long storeId, boolean active) {
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+
+        Store store = storeOwner.getStore();
+        store.setActive(active);
+        storeRepository.save(store);
+
+        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+            .map(OwnerResponse::from)
+            .toList();
     }
 }

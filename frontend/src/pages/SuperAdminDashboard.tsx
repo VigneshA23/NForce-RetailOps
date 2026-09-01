@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
-import { addOwner, assignStore, getOwners, setOwnerStatus } from '../api/owners';
+import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
+import { addOwner, assignStore, getOwners, setOwnerStatus, setStoreStatus } from '../api/owners';
 import type { AssignStoreValues, OwnerFormValues, OwnerSummary } from '../types/owner';
 import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
 import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
-import OwnerTable from '../components/OwnerTable';
+import OwnerList from '../components/OwnerList';
 import OwnerFormModal from '../components/OwnerFormModal';
 import AssignStoreModal from '../components/AssignStoreModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -30,6 +30,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusTarget, setStatusTarget] = useState<OwnerSummary | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [storeStatusTarget, setStoreStatusTarget] = useState<OwnerSummary | null>(null);
+  const [storeStatusError, setStoreStatusError] = useState<string | null>(null);
   const [assignStoreTarget, setAssignStoreTarget] = useState<OwnerSummary | null>(null);
   const [assignStoreError, setAssignStoreError] = useState<string | null>(null);
   const [isAssigningStore, setIsAssigningStore] = useState(false);
@@ -82,13 +84,31 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     if (!statusTarget) return;
     setStatusError(null);
     try {
-      const updated = await setOwnerStatus(statusTarget.ownerId, !statusTarget.active);
+      const updated = await setOwnerStatus(statusTarget.ownerId, !statusTarget.ownerActive);
       const updatedByStoreId = new Map(updated.map((owner) => [owner.storeId, owner]));
       setOwners((current) => current.map((owner) => updatedByStoreId.get(owner.storeId) ?? owner));
       setStatusTarget(null);
     } catch (error) {
       setStatusTarget(null);
       setStatusError(error instanceof Error ? error.message : 'Failed to update owner status');
+    }
+  }
+
+  async function handleConfirmStoreStatusChange() {
+    if (!storeStatusTarget) return;
+    setStoreStatusError(null);
+    try {
+      const updated = await setStoreStatus(
+        storeStatusTarget.ownerId,
+        storeStatusTarget.storeId,
+        !storeStatusTarget.storeActive,
+      );
+      const updatedByStoreId = new Map(updated.map((owner) => [owner.storeId, owner]));
+      setOwners((current) => current.map((owner) => updatedByStoreId.get(owner.storeId) ?? owner));
+      setStoreStatusTarget(null);
+    } catch (error) {
+      setStoreStatusTarget(null);
+      setStoreStatusError(error instanceof Error ? error.message : 'Failed to update store status');
     }
   }
 
@@ -104,7 +124,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
 
   const uniqueOwnerCount = useMemo(() => new Set(owners.map((owner) => owner.ownerId)).size, [owners]);
   const activeOwnerCount = useMemo(
-    () => new Set(owners.filter((owner) => owner.active).map((owner) => owner.ownerId)).size,
+    () => new Set(owners.filter((owner) => owner.ownerActive).map((owner) => owner.ownerId)).size,
     [owners],
   );
 
@@ -125,11 +145,24 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
           <StatCard icon={StoreIcon} label="Total Stores" value={owners.length} tone="info" />
         </div>
 
-        {statusError && <div className="owners-page__error">{statusError}</div>}
+        {statusError && (
+          <div className="owners-page__error">
+            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+            <span className="owners-page__error-message">{statusError}</span>
+          </div>
+        )}
+
+        {storeStatusError && (
+          <div className="owners-page__error">
+            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+            <span className="owners-page__error-message">{storeStatusError}</span>
+          </div>
+        )}
 
         {loadError ? (
           <div className="owners-page__error">
-            {loadError}
+            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+            <span className="owners-page__error-message">{loadError}</span>
             <button type="button" className="btn btn--secondary" onClick={loadOwners}>
               Retry
             </button>
@@ -167,13 +200,17 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
                 </SpecularButton>
               </div>
             </div>
-            <OwnerTable
+            <OwnerList
               owners={filteredOwners}
               isLoading={isLoading}
               onToggleStatus={setStatusTarget}
               onAddStore={(owner) => {
                 setAssignStoreError(null);
                 setAssignStoreTarget(owner);
+              }}
+              onToggleStoreStatus={(store) => {
+                setStoreStatusError(null);
+                setStoreStatusTarget(store);
               }}
             />
           </div>
@@ -199,18 +236,34 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
 
       <ConfirmDialog
         isOpen={statusTarget !== null}
-        title={statusTarget?.active ? 'Deactivate Owner' : 'Activate Owner'}
+        title={statusTarget?.ownerActive ? 'Deactivate Owner' : 'Activate Owner'}
         message={
           statusTarget
-            ? statusTarget.active
+            ? statusTarget.ownerActive
               ? `Are you sure you want to deactivate ${statusTarget.ownerName}? They will no longer be able to sign in.`
               : `Reactivate ${statusTarget.ownerName}? They will be able to sign in again.`
             : ''
         }
-        confirmLabel={statusTarget?.active ? 'Deactivate' : 'Activate'}
-        danger={statusTarget?.active ?? true}
+        confirmLabel={statusTarget?.ownerActive ? 'Deactivate' : 'Activate'}
+        danger={statusTarget?.ownerActive ?? true}
         onConfirm={handleConfirmStatusChange}
         onCancel={() => setStatusTarget(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={storeStatusTarget !== null}
+        title={storeStatusTarget?.storeActive ? 'Deactivate Store' : 'Activate Store'}
+        message={
+          storeStatusTarget
+            ? storeStatusTarget.storeActive
+              ? `Are you sure you want to deactivate ${storeStatusTarget.storeName}? ${storeStatusTarget.ownerName} will no longer be able to manage this store, its employees, or its tasks.`
+              : `Reactivate ${storeStatusTarget.storeName}? ${storeStatusTarget.ownerName} will be able to manage it again.`
+            : ''
+        }
+        confirmLabel={storeStatusTarget?.storeActive ? 'Deactivate' : 'Activate'}
+        danger={storeStatusTarget?.storeActive ?? true}
+        onConfirm={handleConfirmStoreStatusChange}
+        onCancel={() => setStoreStatusTarget(null)}
       />
     </AppShell>
   );

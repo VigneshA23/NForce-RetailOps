@@ -1,0 +1,11 @@
+.owner-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.owner-list__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
