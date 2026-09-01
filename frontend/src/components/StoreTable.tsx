@@ -6,10 +6,9 @@ interface StoreTableProps {
   stores: OwnerStore[];
   isLoading?: boolean;
   onEdit: (store: OwnerStore) => void;
-  onDelete: (store: OwnerStore) => void;
 }
 
-function StoreTable({ stores, isLoading = false, onEdit, onDelete }: StoreTableProps) {
+function StoreTable({ stores, isLoading = false, onEdit }: StoreTableProps) {
   return (
     <div className="store-table__card">
       <div className="table-scroll">
@@ -35,7 +34,7 @@ function StoreTable({ stores, isLoading = false, onEdit, onDelete }: StoreTableP
                   </span>
                 </td>
                 <td className="store-table__actions-cell">
-                  <RowActionsMenu onEdit={() => onEdit(store)} onDelete={() => onDelete(store)} />
+                  <RowActionsMenu onEdit={() => onEdit(store)} />
                 </td>
               </tr>
             ))}

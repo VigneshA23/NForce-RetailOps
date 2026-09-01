@@ -1,6 +1,7 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.AddOwnerRequest;
+import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
@@ -65,6 +66,28 @@ public class OwnerManagementService {
         owner.setPasswordHash(passwordEncoder.encode(request.password()));
         owner.getRoles().add(ownerRole);
         owner = userRepository.save(owner);
+
+        Store store = new Store();
+        store.setName(request.storeName());
+        store.setLocation(request.storeLocation());
+        store = storeRepository.save(store);
+
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setStore(store);
+        storeOwner.setOwner(owner);
+        storeOwner = storeOwnerRepository.save(storeOwner);
+
+        return OwnerResponse.from(storeOwner);
+    }
+
+    @Transactional
+    public OwnerResponse assignStore(Long ownerId, AssignStoreRequest request) {
+        List<StoreOwner> existingStores = storeOwnerRepository.findByOwnerId(ownerId);
+        if (existingStores.isEmpty()) {
+            throw new OwnerNotFoundException("Owner not found");
+        }
+
+        User owner = existingStores.get(0).getOwner();
 
         Store store = new Store();
         store.setName(request.storeName());

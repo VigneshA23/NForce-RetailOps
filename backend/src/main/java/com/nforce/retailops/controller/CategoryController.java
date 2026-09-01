@@ -2,6 +2,7 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.CategoryRequest;
 import com.nforce.retailops.dto.CategoryResponse;
+import com.nforce.retailops.dto.CategoryStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.CategoryService;
 import jakarta.validation.Valid;
@@ -45,6 +46,15 @@ public class CategoryController {
         @Valid @RequestBody CategoryRequest request
     ) {
         return ResponseEntity.ok(categoryService.updateCategory(principal.getUser().getId(), id, request));
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<CategoryResponse> updateStatus(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @PathVariable Long id,
+        @Valid @RequestBody CategoryStatusRequest request
+    ) {
+        return ResponseEntity.ok(categoryService.setActive(principal.getUser().getId(), id, request.active()));
     }
 
     @DeleteMapping("/{id}")

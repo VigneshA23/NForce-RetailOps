@@ -92,7 +92,7 @@ function TaskDetailModal({ task, onClose, onEdit }: TaskDetailModalProps) {
           )}
           {task.responseType === 'TEXT' && task.responseNote && (
             <div>
-              <dt>Text Response</dt>
+              <dt>Short Text</dt>
               <dd>{task.responseNote}</dd>
             </div>
           )}

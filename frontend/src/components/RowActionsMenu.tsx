@@ -1,21 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { MoreVertical, Pencil, Trash2, UserCheck, UserX } from 'lucide-react';
+import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import './RowActionsMenu.css';
 
 interface RowActionsMenuProps {
   onEdit: () => void;
-  onDelete: () => void;
-  // Optional: tables whose rows can be activated/deactivated pass both of these.
-  // Omitting them keeps the plain Edit/Delete menu.
-  onToggleStatus?: () => void;
-  isActive?: boolean;
+  onDelete?: () => void;
 }
 
 const MENU_WIDTH = 168;
 const VIEWPORT_MARGIN = 8;
 
-function RowActionsMenu({ onEdit, onDelete, onToggleStatus, isActive }: RowActionsMenuProps) {
+function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -127,32 +123,20 @@ function RowActionsMenu({ onEdit, onDelete, onToggleStatus, isActive }: RowActio
               <Pencil size={14} />
               Edit
             </button>
-            {onToggleStatus && (
+            {onDelete && (
               <button
                 type="button"
                 role="menuitem"
-                className="row-actions__item"
+                className="row-actions__item row-actions__item--danger"
                 onClick={() => {
                   setIsOpen(false);
-                  onToggleStatus();
+                  onDelete();
                 }}
               >
-                {isActive ? <UserX size={14} /> : <UserCheck size={14} />}
-                {isActive ? 'Deactivate' : 'Activate'}
+                <Trash2 size={14} />
+                Delete
               </button>
             )}
-            <button
-              type="button"
-              role="menuitem"
-              className="row-actions__item row-actions__item--danger"
-              onClick={() => {
-                setIsOpen(false);
-                onDelete();
-              }}
-            >
-              <Trash2 size={14} />
-              Delete
-            </button>
           </div>,
           document.body,
         )}

@@ -24,20 +24,6 @@ export async function getStores(): Promise<OwnerStore[]> {
   return response.json();
 }
 
-export async function createStore(values: OwnerStoreFormValues): Promise<OwnerStore> {
-  const response = await fetch(`${API_BASE_URL}/stores`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify(values),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, 'Failed to create store'));
-  }
-
-  return response.json();
-}
-
 export async function renameStore(id: number, values: OwnerStoreFormValues): Promise<OwnerStore> {
   const response = await fetch(`${API_BASE_URL}/stores/${id}`, {
     method: 'PUT',
@@ -50,15 +36,4 @@ export async function renameStore(id: number, values: OwnerStoreFormValues): Pro
   }
 
   return response.json();
-}
-
-export async function deleteStore(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/stores/${id}`, {
-    method: 'DELETE',
-    headers: authHeaders(),
-  });
-
-  if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, 'Failed to delete store'));
-  }
 }

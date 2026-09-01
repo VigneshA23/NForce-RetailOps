@@ -22,6 +22,34 @@
   white-space: nowrap;
 }
 
+.task-table__store-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 260px;
+}
+
+.task-table__store-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 160px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge-outline-bg);
+  border: 1px solid var(--color-badge-outline-border);
+  color: var(--color-badge-outline-text);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-table__store-chip--overflow {
+  max-width: none;
+  cursor: default;
+}
+
 .task-table__status-badge {
   display: inline-flex;
   align-items: center;
@@ -89,5 +117,16 @@
   .task-table__name {
     min-width: 0;
     white-space: normal;
+  }
+
+  .task-table__store-chips {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+    justify-content: flex-end;
+  }
+
+  .task-table__store-chip {
+    max-width: 140px;
   }
 }

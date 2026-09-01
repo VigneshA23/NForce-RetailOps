@@ -5,6 +5,7 @@ import { getShiftTimeRange } from '../utils/employeeUtils';
 import RowActionsMenu from './RowActionsMenu';
 import SearchInput from './SearchInput';
 import PaginationBar from './PaginationBar';
+import Toggle from './Toggle';
 import './EmployeeTable.css';
 
 interface EmployeeTableProps {
@@ -206,17 +207,19 @@ function EmployeeTable({
                 </td>
                 <td data-label="Gender">{employee.gender}</td>
                 <td data-label="Status">
-                  <span className={`badge ${employee.active ? 'badge--solid' : 'badge--outline'}`}>
-                    {statusLabel(employee)}
-                  </span>
+                  <div className="employee-table__status">
+                    <span className={`badge ${employee.active ? 'badge--solid' : 'badge--outline'}`}>
+                      {statusLabel(employee)}
+                    </span>
+                    <Toggle
+                      checked={employee.active}
+                      onChange={() => onToggleStatus(employee)}
+                      label={`${employee.active ? 'Deactivate' : 'Activate'} ${employee.name}`}
+                    />
+                  </div>
                 </td>
                 <td className="employee-table__actions-cell" data-label="Actions">
-                  <RowActionsMenu
-                    onEdit={() => onEdit(employee)}
-                    onDelete={() => onDelete(employee)}
-                    onToggleStatus={() => onToggleStatus(employee)}
-                    isActive={employee.active}
-                  />
+                  <RowActionsMenu onEdit={() => onEdit(employee)} onDelete={() => onDelete(employee)} />
                 </td>
               </tr>
             ))}

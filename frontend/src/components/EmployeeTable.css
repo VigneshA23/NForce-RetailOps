@@ -79,6 +79,12 @@
   text-decoration: underline;
 }
 
+.employee-table__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
 .employee-table__actions-cell {
   text-align: right;
 }
