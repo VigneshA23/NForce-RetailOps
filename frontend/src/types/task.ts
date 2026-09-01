@@ -2,6 +2,18 @@ export type TaskResponseType = 'YES_NO' | 'DONE_NOT_DONE' | 'NUMERIC' | 'TEXT';
 
 export type CompletionType = 'SINGLE' | 'MULTIPLE';
 
+// One recorded (still-active) answer to a task, as returned by the backend --
+// see TaskResponseSummary on the backend.
+export interface TaskResponseSummary {
+  id: number;
+  employeeUserId: number;
+  employeeFullName: string;
+  booleanValue: boolean | null;
+  numericValue: number | null;
+  textValue: string | null;
+  respondedAt: string;
+}
+
 export interface ChecklistTask {
   id: number;
   name: string;
@@ -14,6 +26,10 @@ export interface ChecklistTask {
   textMaxLength: number | null;
   completionType: CompletionType;
   maxCompletions: number | null;
+  // Active responses for this task/store/day, and whether the calling employee
+  // may undo one of their own -- both come straight from the backend.
+  responses: TaskResponseSummary[];
+  canUndo: boolean;
 }
 
 export interface ChecklistCategory {
@@ -22,28 +38,6 @@ export interface ChecklistCategory {
   tasks: ChecklistTask[];
 }
 
-// A recorded employee response, shaped per the task's configured responseType --
-// the actual value is kept in its native type instead of being flattened to Yes/No.
-export type TaskAnswer =
-  | { responseType: 'YES_NO'; value: 'YES' | 'NO' }
-  | { responseType: 'DONE_NOT_DONE'; value: true }
-  | { responseType: 'NUMERIC'; value: number }
-  | { responseType: 'TEXT'; value: string };
-
-export type TaskAnswers = Record<string, TaskAnswer>;
-
-export function isAnswerComplete(answer: TaskAnswer | undefined): boolean {
-  if (!answer) return false;
-  switch (answer.responseType) {
-    case 'YES_NO':
-      return answer.value === 'YES';
-    case 'DONE_NOT_DONE':
-      return answer.value === true;
-    case 'NUMERIC':
-      return Number.isFinite(answer.value);
-    case 'TEXT':
-      return answer.value.trim().length > 0;
-    default:
-      return false;
-  }
+export function isTaskComplete(task: ChecklistTask): boolean {
+  return task.responses.length > 0;
 }

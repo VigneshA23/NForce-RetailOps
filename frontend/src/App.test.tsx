@@ -29,6 +29,8 @@ vi.mock('./api/me', () => ({
 vi.mock('./api/tasks', () => ({
   getDailyChecklist: vi.fn(),
   raiseIssue: vi.fn(),
+  submitTaskResponse: vi.fn(),
+  undoTaskResponse: vi.fn(),
 }))
 
 const mockLogin = vi.mocked(authApi.login)
@@ -71,6 +73,17 @@ beforeEach(() => {
   // Two stores by default, so the picker is shown and has something to choose.
   mockGetAuthorizedStores.mockResolvedValue([STORE_1, STORE_2])
   mockGetMe.mockReset()
+  // EmployeeDashboard also resolves the current employee via getMe() (for Undo
+  // eligibility) independently of App's own session-restore call -- these tests
+  // exercise auth/navigation, not that, so give it a harmless default.
+  mockGetMe.mockResolvedValue({
+    id: 1,
+    fullName: 'Jane Doe',
+    email: 'jane@nforceone.com',
+    role: 'EMPLOYEE',
+    storeNames: [],
+    mustResetPassword: false,
+  })
   mockGetDailyChecklist.mockReset()
   // These tests exercise auth/navigation, not checklist content.
   mockGetDailyChecklist.mockResolvedValue([])

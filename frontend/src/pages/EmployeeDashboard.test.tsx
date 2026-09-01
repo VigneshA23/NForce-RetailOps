@@ -3,15 +3,24 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EmployeeDashboard from './EmployeeDashboard'
 import * as tasksApi from '../api/tasks'
+import * as meApi from '../api/me'
 import type { ChecklistCategory } from '../types/task'
 import type { StoreSummary } from '../types/store'
 
 vi.mock('../api/tasks', () => ({
   getDailyChecklist: vi.fn(),
   raiseIssue: vi.fn(),
+  submitTaskResponse: vi.fn(),
+  undoTaskResponse: vi.fn(),
+}))
+
+vi.mock('../api/me', () => ({
+  getMe: vi.fn(),
 }))
 
 const mockGetDailyChecklist = vi.mocked(tasksApi.getDailyChecklist)
+const mockSubmitTaskResponse = vi.mocked(tasksApi.submitTaskResponse)
+const mockGetMe = vi.mocked(meApi.getMe)
 
 const STORE: StoreSummary = { id: 1, name: 'Store 1', location: 'Main St', status: 'Open' }
 
@@ -20,8 +29,17 @@ function checklistWith(task: ChecklistCategory['tasks'][number]): ChecklistCateg
 }
 
 beforeEach(() => {
-  localStorage.clear()
   mockGetDailyChecklist.mockReset()
+  mockSubmitTaskResponse.mockReset()
+  mockGetMe.mockReset()
+  mockGetMe.mockResolvedValue({
+    id: 99,
+    fullName: 'Test Employee',
+    email: 'test@example.com',
+    role: 'EMPLOYEE',
+    storeNames: ['Store 1'],
+    mustResetPassword: false,
+  })
 })
 
 describe('Employee Checklist response type rendering', () => {
@@ -39,6 +57,8 @@ describe('Employee Checklist response type rendering', () => {
         textMaxLength: null,
         completionType: 'SINGLE',
         maxCompletions: null,
+        responses: [],
+        canUndo: false,
       }),
     )
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
@@ -61,6 +81,8 @@ describe('Employee Checklist response type rendering', () => {
         textMaxLength: null,
         completionType: 'SINGLE',
         maxCompletions: null,
+        responses: [],
+        canUndo: false,
       }),
     )
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
@@ -84,6 +106,8 @@ describe('Employee Checklist response type rendering', () => {
         textMaxLength: 25,
         completionType: 'SINGLE',
         maxCompletions: null,
+        responses: [],
+        canUndo: false,
       }),
     )
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
@@ -107,6 +131,8 @@ describe('Employee Checklist response type rendering', () => {
         textMaxLength: null,
         completionType: 'SINGLE',
         maxCompletions: null,
+        responses: [],
+        canUndo: false,
       }),
     )
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
@@ -118,28 +144,47 @@ describe('Employee Checklist response type rendering', () => {
     expect(screen.queryByRole('button', { name: 'Yes' })).not.toBeInTheDocument()
   })
 
-  it('saves the entered value with the correct response type when completing a Short Text task', async () => {
-    mockGetDailyChecklist.mockResolvedValue(
-      checklistWith({
-        id: 5,
-        name: 'Log an issue',
-        description: null,
-        responseType: 'TEXT',
-        responseNote: null,
-        numericUnit: null,
-        numericMin: null,
-        numericMax: null,
-        textMaxLength: 25,
-        completionType: 'SINGLE',
-        maxCompletions: null,
-      }),
-    )
+  it('submits the entered value with the correct response type when completing a Short Text task', async () => {
+    const task: ChecklistCategory['tasks'][number] = {
+      id: 5,
+      name: 'Log an issue',
+      description: null,
+      responseType: 'TEXT',
+      responseNote: null,
+      numericUnit: null,
+      numericMin: null,
+      numericMax: null,
+      textMaxLength: 25,
+      completionType: 'SINGLE',
+      maxCompletions: null,
+      responses: [],
+      canUndo: false,
+    }
+    mockGetDailyChecklist.mockResolvedValue(checklistWith(task))
+    mockSubmitTaskResponse.mockResolvedValue({
+      taskId: 5,
+      canUndo: true,
+      responses: [
+        {
+          id: 1,
+          employeeUserId: 99,
+          employeeFullName: 'Test Employee',
+          booleanValue: null,
+          numericValue: null,
+          textValue: 'All clear',
+          respondedAt: new Date().toISOString(),
+        },
+      ],
+    })
+
     const user = userEvent.setup()
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
 
     const input = await screen.findByRole('textbox')
     await user.type(input, 'All clear')
+    await user.tab()
 
-    expect(screen.getByText('✓ All clear')).toBeInTheDocument()
+    expect(mockSubmitTaskResponse).toHaveBeenCalledWith(5, { storeId: 1, textValue: 'All clear' })
+    expect(await screen.findByText('✓ All clear — You')).toBeInTheDocument()
   })
 })

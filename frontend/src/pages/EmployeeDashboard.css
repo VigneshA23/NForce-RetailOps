@@ -231,10 +231,66 @@
   margin: 4px 0 0;
 }
 
+.checklist-task-error {
+  font-size: 12px;
+  color: var(--color-danger, #d92d20);
+  margin: 4px 0 0;
+}
+
+.checklist-task-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
 .checklist-task-actions {
   display: flex;
   gap: var(--space-sm);
   flex-shrink: 0;
+}
+
+.checklist-task-undo-link {
+  display: inline-block;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.checklist-task-undo-link:disabled {
+  cursor: not-allowed;
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.checklist-task-done-badge {
+  padding: 8px 20px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-page);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.checklist-task-responses {
+  list-style: none;
+  margin: var(--space-sm) 0 0;
+  padding: 0;
+  width: 100%;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .checklist-task-btn {
