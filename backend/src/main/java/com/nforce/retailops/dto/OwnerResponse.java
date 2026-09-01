@@ -6,10 +6,11 @@ public record OwnerResponse(
     Long ownerId,
     String ownerName,
     String ownerEmail,
-    boolean active,
+    boolean ownerActive,
     Long storeId,
     String storeName,
-    String storeLocation
+    String storeLocation,
+    boolean storeActive
 ) {
     public static OwnerResponse from(StoreOwner storeOwner) {
         return new OwnerResponse(
@@ -19,7 +20,8 @@ public record OwnerResponse(
             storeOwner.getOwner().isActive(),
             storeOwner.getStore().getId(),
             storeOwner.getStore().getName(),
-            storeOwner.getStore().getLocation()
+            storeOwner.getStore().getLocation(),
+            storeOwner.getStore().isActive()
         );
     }
 }

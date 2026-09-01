@@ -19,14 +19,18 @@ function CategoryTable({ categories, isLoading = false, onEdit, onDelete, onTogg
           <thead>
             <tr>
               <th scope="col">Category Name</th>
+              <th scope="col">Tasks</th>
               <th scope="col">Status</th>
-              <th scope="col">Actions</th>
+              <th scope="col" className="category-table__actions-cell">Actions</th>
             </tr>
           </thead>
           <tbody>
             {categories.map((category) => (
               <tr key={category.id}>
                 <td className="category-table__name">{category.name}</td>
+                <td className="category-table__task-count">
+                  {category.taskCount} {category.taskCount === 1 ? 'task' : 'tasks'}
+                </td>
                 <td>
                   <div className="category-table__status">
                     <span className={`badge ${category.active ? 'badge--solid' : 'badge--outline'}`}>
@@ -48,7 +52,7 @@ function CategoryTable({ categories, isLoading = false, onEdit, onDelete, onTogg
         </table>
       </div>
       {!isLoading && categories.length === 0 && (
-        <div className="category-table__empty">No categories yet. Add one to get started.</div>
+        <div className="category-table__empty">No categories match your filters.</div>
       )}
       {isLoading && <div className="category-table__empty">Loading categories...</div>}
     </div>

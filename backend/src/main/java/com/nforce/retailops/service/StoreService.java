@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.exception.StoreInactiveException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -12,7 +13,9 @@ import com.nforce.retailops.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class StoreService {
@@ -41,11 +44,40 @@ public class StoreService {
         return new StoreResponse(store.getId(), store.getName(), store.isActive(), employeeCount, (int) taskCount);
     }
 
+    private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
+        Map<Long, Integer> counts = new HashMap<>();
+        for (Object[] row : rows) {
+            counts.put((Long) row[0], ((Long) row[1]).intValue());
+        }
+        return counts;
+    }
+
     @Transactional(readOnly = true)
     public List<StoreResponse> listStores(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+        List<Store> stores = storeOwnerRepository.findByOwnerId(ownerId).stream()
             .map(StoreOwner::getStore)
-            .map(store -> toResponse(store, ownerId))
+            .toList();
+
+        if (stores.isEmpty()) {
+            return List.of();
+        }
+
+        // Batched instead of one employee-count + one task-count query per store
+        // (N+1), and the "applies to all stores" count no longer gets recomputed
+        // redundantly for every store -- it's the same owner-wide number each time.
+        List<Long> storeIds = stores.stream().map(Store::getId).toList();
+        Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countGroupedByStoreIds(storeIds));
+        Map<Long, Integer> storeTaskCounts = toCountMap(taskRepository.countGroupedByStoreIds(storeIds));
+        long appliesToAllCount = taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
+
+        return stores.stream()
+            .map(store -> new StoreResponse(
+                store.getId(),
+                store.getName(),
+                store.isActive(),
+                employeeCounts.getOrDefault(store.getId(), 0),
+                (int) (storeTaskCounts.getOrDefault(store.getId(), 0) + appliesToAllCount)
+            ))
             .toList();
     }
 
@@ -55,6 +87,9 @@ public class StoreService {
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
         Store store = storeOwner.getStore();
+        if (!store.isActive()) {
+            throw new StoreInactiveException("This store has been deactivated and cannot be edited");
+        }
         store.setName(request.name().trim());
         store = storeRepository.save(store);
 
@@ -65,6 +100,10 @@ public class StoreService {
     public void deleteStore(Long ownerId, Long storeId) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+
+        if (!storeOwner.getStore().isActive()) {
+            throw new StoreInactiveException("This store has been deactivated and cannot be removed");
+        }
 
         storeOwnerRepository.delete(storeOwner);
         storeRepository.delete(storeOwner.getStore());

@@ -49,6 +49,7 @@ function AppShell<Key extends string = NavTabKey>({
         onToggleCollapsed={() => setCollapsed((current) => !current)}
         mobileOpen={isMobile && mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
+        user={user}
       />
       <div className="app-shell__content">
         <div className="app-shell__header">

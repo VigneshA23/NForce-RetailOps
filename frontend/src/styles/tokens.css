@@ -39,7 +39,7 @@
   --z-modal: 1000;
 
   --sidebar-width-expanded: 240px;
-  --sidebar-width-collapsed: 72px;
+  --sidebar-width-collapsed: 96px;
 
   --sidebar-item-padding-y: 12px;
   --sidebar-item-padding-x: var(--space-md);

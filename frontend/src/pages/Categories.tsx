@@ -5,10 +5,12 @@ import type { Category, CategoryFormValues } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
 import CategoryFormModal from '../components/CategoryFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import SearchInput from '../components/SearchInput';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Categories.css';
 
+type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
 
 function Categories() {
@@ -21,6 +23,8 @@ function Categories() {
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
   function loadCategories() {
     setIsLoading(true);
@@ -83,6 +87,16 @@ function Categories() {
 
   const activeCount = useMemo(() => categories.filter((category) => category.active).length, [categories]);
 
+  const filteredCategories = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return categories.filter((category) => {
+      if (normalizedSearch && !category.name.toLowerCase().includes(normalizedSearch)) return false;
+      if (statusFilter === 'ACTIVE' && !category.active) return false;
+      if (statusFilter === 'INACTIVE' && category.active) return false;
+      return true;
+    });
+  }, [categories, search, statusFilter]);
+
   return (
     <div className="categories-page">
       <div className="stat-card-row">
@@ -128,8 +142,25 @@ function Categories() {
               </SpecularButton>
             </div>
           </div>
+
+          <div className="categories-page__filter-bar">
+            <div className="categories-page__filter categories-page__filter--search">
+              <SearchInput value={search} onChange={setSearch} placeholder="Search categories" variant="card" />
+            </div>
+
+            <select
+              className="select categories-page__filter categories-page__filter--status"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+            >
+              <option value="ALL">All Status</option>
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+
           <CategoryTable
-            categories={categories}
+            categories={filteredCategories}
             isLoading={isLoading}
             onEdit={(category) => {
               setFormError(null);

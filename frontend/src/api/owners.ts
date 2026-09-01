@@ -47,3 +47,13 @@ export async function setOwnerStatus(ownerId: number, active: boolean): Promise<
   if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to update owner status'));
   return response.json();
 }
+
+export async function setStoreStatus(ownerId: number, storeId: number, active: boolean): Promise<OwnerSummary[]> {
+  const response = await fetch(`${API_BASE_URL}/owners/${ownerId}/stores/${storeId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ active }),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to update store status'));
+  return response.json();
+}

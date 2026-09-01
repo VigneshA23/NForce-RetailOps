@@ -15,6 +15,8 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     Optional<StoreOwner> findByStoreIdAndOwnerId(Long storeId, Long ownerId);
 
+    Optional<StoreOwner> findByStoreId(Long storeId);
+
     void deleteByStoreId(Long storeId);
 
     @Query("select so from StoreOwner so join fetch so.store join fetch so.owner")
