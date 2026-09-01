@@ -5,7 +5,7 @@ import type { AuthUser } from '../types/auth'
 import './LoginCrimson.css'
 
 interface LoginProps {
-  onLoginSuccess: (user: AuthUser) => void
+  onLoginSuccess: (user: AuthUser, remember: boolean, mustResetPassword: boolean) => void
   onForgotPassword: () => void
   notice?: string | null
 }
@@ -34,8 +34,8 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
     setError(null)
     setLoading(true)
     try {
-      const user = await login(email, password)
-      onLoginSuccess(user)
+      const result = await login(email, password)
+      onLoginSuccess(result, false, result.mustResetPassword)
     } catch {
       setError('Invalid email or password')
     } finally {

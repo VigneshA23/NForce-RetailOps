@@ -13,6 +13,9 @@ public class Store {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String name;
 
+    @Column(name = "store_code", nullable = false, unique = true)
+    private Long storeCode;
+
     @Column(columnDefinition = "TEXT")
     private String location;
 
@@ -32,6 +35,14 @@ public class Store {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public Long getStoreCode() {
+        return storeCode;
+    }
+
+    public void setStoreCode(Long storeCode) {
+        this.storeCode = storeCode;
     }
 
     public String getLocation() {

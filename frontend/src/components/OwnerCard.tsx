@@ -75,7 +75,10 @@ function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: O
               <div className="store-row__info">
                 <Store size={16} className="store-row__icon" aria-hidden="true" />
                 <div className="store-row__text">
-                  <span className="store-row__name">{store.storeName}</span>
+                  <span className="store-row__name-line">
+                    <span className="store-row__name">{store.storeName}</span>
+                    <span className="store-row__code">#{store.storeCode}</span>
+                  </span>
                   <span className="store-row__location">{store.storeLocation}</span>
                 </div>
               </div>

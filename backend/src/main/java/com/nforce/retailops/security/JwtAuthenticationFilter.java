@@ -76,6 +76,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
+                if (requiresPasswordReset(userDetails) && !isPasswordResetExempt(request)) {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"message\":\"Password reset required\"}");
+                    return;
+                }
+
                 var authToken = new UsernamePasswordAuthenticationToken(
                     userDetails, null, userDetails.getAuthorities()
                 );
@@ -85,5 +92,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    // Only a plain owner/employee account (AppUserDetails) can carry a temp
+    // password -- super admins never go through that flow.
+    private boolean requiresPasswordReset(UserDetails userDetails) {
+        return userDetails instanceof AppUserDetails appUserDetails && appUserDetails.getUser().isMustResetPassword();
+    }
+
+    // Kept minimal on purpose: the reset endpoint itself, logout (so a user
+    // stuck on a temp password can still sign out), and /api/me (so the
+    // frontend can re-identify "still needs to reset" after a page reload).
+    private boolean isPasswordResetExempt(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return path.equals("/api/auth/reset-password")
+            || path.equals("/api/auth/logout")
+            || path.equals("/api/me");
     }
 }

@@ -8,7 +8,7 @@ import FormField from './FormField';
 import MultiSelect from './MultiSelect';
 import './EmployeeFormModal.css';
 
-type FormValues = EmployeeUpdateValues & { password: string; countryCode: string };
+type FormValues = EmployeeUpdateValues & { countryCode: string };
 
 interface EmployeeFormModalProps {
   isOpen: boolean;
@@ -31,13 +31,12 @@ function emptyValues(): FormValues {
     employeeType: EMPLOYEE_TYPE_OPTIONS[0],
     email: '',
     gender: GENDER_OPTIONS[0],
-    password: '',
   };
 }
 
 function valuesFromInitial(initialValues: EmployeeUpdateValues): FormValues {
   const { countryCode, phone } = parsePhoneForForm(initialValues.phone);
-  return { ...initialValues, phone, countryCode, password: '' };
+  return { ...initialValues, phone, countryCode };
 }
 
 function EmployeeFormModal({
@@ -68,17 +67,16 @@ function EmployeeFormModal({
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const requirePassword = mode === 'create';
-    const validationErrors = validateEmployeeForm(values, requirePassword);
+    const validationErrors = validateEmployeeForm(values);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
     }
 
-    const { password, countryCode, phone, ...rest } = values;
+    const { countryCode, phone, ...rest } = values;
     const combinedPhone = `${countryCode} ${phone}`.trim();
     if (mode === 'create') {
-      onSubmit({ ...rest, phone: combinedPhone, password: password.trim() } satisfies EmployeeCreateValues);
+      onSubmit({ ...rest, phone: combinedPhone } satisfies EmployeeCreateValues);
     } else {
       onSubmit({ ...rest, phone: combinedPhone } satisfies EmployeeUpdateValues);
     }
@@ -211,17 +209,7 @@ function EmployeeFormModal({
 
           {mode === 'create' && (
             <div className="form-field--full">
-              <FormField label="Temporary Password" htmlFor="employee-password" required error={errors.password}>
-                <input
-                  id="employee-password"
-                  type="password"
-                  className="input"
-                  value={values.password}
-                  onChange={(event) => updateField('password', event.target.value)}
-                  placeholder="At least 8 characters"
-                  autoComplete="new-password"
-                />
-              </FormField>
+              <p className="employee-form__hint">A temporary password will be emailed to this address.</p>
             </div>
           )}
         </div>

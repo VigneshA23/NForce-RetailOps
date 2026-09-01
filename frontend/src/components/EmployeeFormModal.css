@@ -30,3 +30,9 @@
 .employee-form__phone-row .input {
   flex: 1;
 }
+
+.employee-form__hint {
+  margin: -8px 0 var(--space-md);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}

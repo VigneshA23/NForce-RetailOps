@@ -3,7 +3,11 @@ import { authHeaders } from '../utils/authStorage'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api'
 
-export async function login(email: string, password: string): Promise<AuthUser> {
+export interface LoginResult extends AuthUser {
+  mustResetPassword: boolean
+}
+
+export async function login(email: string, password: string): Promise<LoginResult> {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -15,6 +19,22 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   }
 
   return response.json()
+}
+
+export async function completePasswordReset(newPassword: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ newPassword }),
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const message =
+      (payload && typeof payload === 'object' && 'message' in payload && String(payload.message)) ||
+      'Unable to reset password. Please try again.'
+    throw new Error(message)
+  }
 }
 
 export async function logout(): Promise<void> {

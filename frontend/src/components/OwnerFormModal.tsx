@@ -15,7 +15,6 @@ interface OwnerFormModalProps {
 const EMPTY_VALUES: OwnerFormValues = {
   ownerName: '',
   ownerEmail: '',
-  password: '',
   storeName: '',
   storeLocation: '',
 };
@@ -39,7 +38,6 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
     const nextErrors: Partial<Record<keyof OwnerFormValues, string>> = {};
     if (!values.ownerName.trim()) nextErrors.ownerName = 'Owner name is required';
     if (!values.ownerEmail.trim()) nextErrors.ownerEmail = 'Owner email is required';
-    if (values.password.trim().length < 8) nextErrors.password = 'At least 8 characters';
     if (!values.storeName.trim()) nextErrors.storeName = 'Store name is required';
     if (!values.storeLocation.trim()) nextErrors.storeLocation = 'Store location is required';
     return nextErrors;
@@ -56,7 +54,6 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
     onSubmit({
       ownerName: values.ownerName.trim(),
       ownerEmail: values.ownerEmail.trim(),
-      password: values.password.trim(),
       storeName: values.storeName.trim(),
       storeLocation: values.storeLocation.trim(),
     });
@@ -101,17 +98,7 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
           </FormField>
 
           <div className="form-field--full">
-            <FormField label="Temporary Password" htmlFor="owner-password" error={errors.password}>
-              <input
-                id="owner-password"
-                type="password"
-                className="input"
-                value={values.password}
-                onChange={(event) => updateField('password', event.target.value)}
-                placeholder="At least 8 characters"
-                autoComplete="new-password"
-              />
-            </FormField>
+            <p className="owner-form__hint">A temporary password will be emailed to this address.</p>
           </div>
 
           <FormField label="Store Name" htmlFor="owner-store-name" error={errors.storeName}>

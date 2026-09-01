@@ -15,6 +15,7 @@ import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
 import com.nforce.retailops.exception.StoreInactiveException;
+import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.TaskNotFoundException;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;

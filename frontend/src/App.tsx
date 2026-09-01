@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
+import ResetPasswordRequired from './pages/ResetPasswordRequired'
 import StorePicker from './pages/StorePicker'
 import EmployeeShell from './layouts/EmployeeShell'
 import DashboardShell from './layouts/DashboardShell'
@@ -30,6 +31,7 @@ const SIGNED_OUT_ELSEWHERE_MESSAGE = 'You have been logged out.'
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
+  const [needsPasswordReset, setNeedsPasswordReset] = useState(false)
   const [view, setView] = useState<View>('login')
   const [activeStore, setActiveStore] = useState<StoreSummary | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -54,6 +56,7 @@ function App() {
     clearAuthToken()
     clearActiveStoreId()
     setUser(null)
+    setNeedsPasswordReset(false)
     setActiveStore(null)
     setView('login')
     setSessionMessage(message)
@@ -72,10 +75,16 @@ function App() {
     }
   }
 
+<<<<<<< Updated upstream
   function handleLoginSuccess(authUser: AuthUser) {
     setAuthToken(authUser.token)
+=======
+  function handleLoginSuccess(authUser: AuthUser, remember: boolean, mustResetPassword: boolean) {
+    setAuthToken(authUser.token, remember)
+>>>>>>> Stashed changes
     setSessionMessage(null)
     setUser(authUser)
+    setNeedsPasswordReset(mustResetPassword)
   }
 
   // Rehydrate the session on boot. The token outlives a page load, so ask the
@@ -96,6 +105,7 @@ function App() {
       .then((me) => {
         if (!active) return
         setUser({ token, role: me.role, fullName: me.fullName })
+        setNeedsPasswordReset(me.mustResetPassword)
       })
       .catch(() => {
         if (!active) return
@@ -184,6 +194,16 @@ function App() {
         onLoginSuccess={handleLoginSuccess}
         onForgotPassword={() => setView('forgot-password')}
         notice={sessionMessage}
+      />
+    )
+  }
+
+  if (needsPasswordReset) {
+    return (
+      <ResetPasswordRequired
+        onSuccess={() => setNeedsPasswordReset(false)}
+        onLogout={handleLogout}
+        loggingOut={loggingOut}
       />
     )
   }

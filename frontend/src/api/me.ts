@@ -7,6 +7,7 @@ export interface MeResponse {
   email: string;
   role: Role;
   storeNames: string[];
+  mustResetPassword: boolean;
 }
 
 export async function getMe(): Promise<MeResponse> {

@@ -7,6 +7,7 @@ public record MeResponse(
     String fullName,
     String email,
     String role,
-    List<String> storeNames
+    List<String> storeNames,
+    boolean mustResetPassword
 ) {
 }

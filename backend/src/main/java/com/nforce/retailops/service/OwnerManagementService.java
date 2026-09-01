@@ -30,19 +30,28 @@ public class OwnerManagementService {
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final PasswordEncoder passwordEncoder;
+    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
+    private final MailService mailService;
+    private final StoreCodeGenerator storeCodeGenerator;
 
     public OwnerManagementService(
         UserRepository userRepository,
         RoleRepository roleRepository,
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        TemporaryPasswordGenerator temporaryPasswordGenerator,
+        MailService mailService,
+        StoreCodeGenerator storeCodeGenerator
     ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.passwordEncoder = passwordEncoder;
+        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
+        this.mailService = mailService;
+        this.storeCodeGenerator = storeCodeGenerator;
     }
 
     @Transactional(readOnly = true)
@@ -61,22 +70,30 @@ public class OwnerManagementService {
         Role ownerRole = roleRepository.findByName(OWNER_ROLE_NAME)
             .orElseThrow(() -> new IllegalStateException(OWNER_ROLE_NAME + " role is not seeded"));
 
+        String temporaryPassword = temporaryPasswordGenerator.generate();
+
         User owner = new User();
         owner.setFullName(request.ownerName());
         owner.setEmail(request.ownerEmail());
-        owner.setPasswordHash(passwordEncoder.encode(request.password()));
+        owner.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        owner.setMustResetPassword(true);
         owner.getRoles().add(ownerRole);
         owner = userRepository.save(owner);
 
         Store store = new Store();
         store.setName(request.storeName());
         store.setLocation(request.storeLocation());
+        store.setStoreCode(storeCodeGenerator.next());
         store = storeRepository.save(store);
 
         StoreOwner storeOwner = new StoreOwner();
         storeOwner.setStore(store);
         storeOwner.setOwner(owner);
         storeOwner = storeOwnerRepository.save(storeOwner);
+
+        // Thrown on failure, which rolls back the account and store created above --
+        // an owner must not be left unable to ever learn their own password.
+        mailService.sendTemporaryPassword(owner.getEmail(), owner.getFullName(), temporaryPassword);
 
         return OwnerResponse.from(storeOwner);
     }
@@ -93,6 +110,7 @@ public class OwnerManagementService {
         Store store = new Store();
         store.setName(request.storeName());
         store.setLocation(request.storeLocation());
+        store.setStoreCode(storeCodeGenerator.next());
         store = storeRepository.save(store);
 
         StoreOwner storeOwner = new StoreOwner();
