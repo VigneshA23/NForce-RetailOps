@@ -83,13 +83,14 @@
 }
 
 .login3-hero {
+  --hero-logo-size: 260px;
   display: none;
   position: relative;
   flex-direction: column;
   /* Brand lockup + tagline read as one vertically-centred group within the
      column, left-aligned within that group rather than anchored to the top. */
   justify-content: center;
-  padding: 56px 48px;
+  padding: 56px 48px 56px 96px;
   overflow: hidden;
   color: #f2f2f4;
 }
@@ -110,8 +111,8 @@
 }
 
 .login3-hero-logo {
-  width: 260px;
-  height: 260px;
+  width: var(--hero-logo-size);
+  height: var(--hero-logo-size);
   flex-shrink: 0;
   /* The true logo, unmodified: no filter, no mask, no blend-mode - every
      earlier attempt at "immersing" it (blend-mode, luminance masks,
@@ -133,6 +134,8 @@
   position: relative;
   z-index: 1;
   text-align: left;
+  /* Starts at the logo's horizontal centre, not its left edge. */
+  margin-left: calc(var(--hero-logo-size) / 2);
 }
 
 .login3-hero-heading {
@@ -339,6 +342,9 @@
 }
 
 .login3-forgot-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
   font-weight: 600;
   color: #e11d33;
@@ -356,6 +362,12 @@
 .login3-error {
   font-size: 13px;
   color: #e11d33;
+  margin-bottom: 14px;
+}
+
+.login3-success {
+  font-size: 13px;
+  color: #3ddc8b;
   margin-bottom: 14px;
 }
 
@@ -454,6 +466,10 @@
 
   .login3-access-link {
     color: #e11d33;
+  }
+
+  .login3-success {
+    color: #1a9c5c;
   }
 
   .login3-submit {
