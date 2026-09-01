@@ -58,11 +58,6 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
             <h2 className="login3-hero-heading">
               Your stores. <span className="login3-hero-accent">One checklist.</span>
             </h2>
-            <p className="login3-hero-copy">
-              Opening, prep, cleaning and closing across every location, recorded in order,
-              signed off by the person on shift, and auditable the next morning. No paper, no
-              group chats.
-            </p>
           </motion.div>
         </div>
 
