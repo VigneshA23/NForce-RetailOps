@@ -8,15 +8,28 @@ import {
   setEmployeeStatus,
   updateEmployee,
 } from '../api/employees';
-import type { Employee, EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
+import type {
+  Employee,
+  EmployeeCreateValues,
+  EmployeeType,
+  EmployeeUpdateValues,
+  ShiftName,
+  StoreOption,
+} from '../types/employee';
+import { EMPLOYEE_TYPE_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import EmployeeTable from '../components/EmployeeTable';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import SearchInput from '../components/SearchInput';
+import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Employees.css';
 
+type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; employee: Employee } | null;
+
+const PAGE_SIZE = 10;
 
 function toUpdateValues(employee: Employee): EmployeeUpdateValues {
   return {
@@ -35,6 +48,14 @@ function Employees() {
   const [storeOptions, setStoreOptions] = useState<StoreOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [search, setSearch] = useState('');
+  const [storeFilter, setStoreFilter] = useState<number | 'ALL'>('ALL');
+  const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
+  const [typeFilter, setTypeFilter] = useState<EmployeeType | 'ALL'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [page, setPage] = useState(1);
+
   const [formModalState, setFormModalState] = useState<FormModalState>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,6 +63,13 @@ function Employees() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<Employee | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
 
   function loadEmployees() {
     setIsLoading(true);
@@ -58,6 +86,38 @@ function Employees() {
   useEffect(() => {
     loadEmployees();
   }, []);
+
+  const filteredEmployees = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return employees.filter((employee) => {
+      // Store, shift, type and status each have their own dropdown now, so the
+      // search box covers only the free-text identity fields.
+      if (
+        normalizedSearch &&
+        ![employee.name, employee.empId, employee.email, employee.phone].some((field) =>
+          field.toLowerCase().includes(normalizedSearch),
+        )
+      ) {
+        return false;
+      }
+      if (storeFilter !== 'ALL' && !employee.stores.some((store) => store.id === storeFilter)) return false;
+      if (shiftFilter !== 'ALL' && employee.shift !== shiftFilter) return false;
+      if (typeFilter !== 'ALL' && employee.employeeType !== typeFilter) return false;
+      if (statusFilter === 'ACTIVE' && !employee.active) return false;
+      if (statusFilter === 'INACTIVE' && employee.active) return false;
+      return true;
+    });
+  }, [employees, search, storeFilter, shiftFilter, typeFilter, statusFilter]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, storeFilter, shiftFilter, typeFilter, statusFilter]);
+
+  // Derived rather than clamped in an effect, so a filter that shrinks the list
+  // below the current page still renders correctly on the same pass.
+  const pageCount = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pagedEmployees = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   async function handleFormSubmit(values: EmployeeCreateValues | EmployeeUpdateValues) {
     setFormError(null);
@@ -85,6 +145,7 @@ function Employees() {
       await deleteEmployee(deleteTarget.id);
       setEmployees((current) => current.filter((employee) => employee.id !== deleteTarget.id));
       setDeleteTarget(null);
+      setSuccessMessage('Employee deleted successfully.');
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Failed to delete employee');
     }
@@ -97,6 +158,7 @@ function Employees() {
       const updated = await setEmployeeStatus(statusTarget.id, !statusTarget.active);
       setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
       setStatusTarget(null);
+      setSuccessMessage(`${updated.name} is now ${updated.active ? 'active' : 'inactive'}.`);
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
       setStatusTarget(null);
@@ -113,6 +175,23 @@ function Employees() {
     [employees],
   );
 
+  const storeCoverageCount = useMemo(() => {
+    const storeIds = new Set<number>();
+    employees.forEach((employee) => employee.stores.forEach((store) => storeIds.add(store.id)));
+    return storeIds.size;
+  }, [employees]);
+
+  const activeCount = employees.length - inactiveCount;
+
+  const summaryText = isLoading
+    ? 'Loading employees...'
+    : `${activeCount} active employee${activeCount === 1 ? '' : 's'} across ${storeCoverageCount} store${storeCoverageCount === 1 ? '' : 's'}`;
+
+  const emptyMessage =
+    employees.length === 0
+      ? 'No employees yet. Add one to get started.'
+      : 'No employees match your filters.';
+
   return (
     <div className="employees-page">
       <div className="stat-card-row">
@@ -122,6 +201,87 @@ function Employees() {
         <StatCard icon={UserX} label="Inactive" value={inactiveCount} tone="warning" />
       </div>
 
+      <div className="employees-page__header">
+        <p className="employees-page__summary">{summaryText}</p>
+
+        <SpecularButton
+          size="sm"
+          radius={999}
+          tint="var(--color-badge-solid-bg)"
+          tintOpacity={1}
+          textColor="var(--color-badge-solid-text)"
+          lineColor="#e11d33"
+          baseColor="#e4e4e7"
+          followMouse
+          proximity={180}
+          onClick={() => {
+            setFormError(null);
+            setFormModalState({ mode: 'create' });
+          }}
+        >
+          <span className="employees-page__add-label">
+            <Plus size={16} />
+            Add Employee
+          </span>
+        </SpecularButton>
+      </div>
+
+      <div className="filter-bar">
+        <div className="filter filter--search">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search employees" />
+        </div>
+
+        <select
+          className="select filter"
+          value={storeFilter}
+          onChange={(event) => setStoreFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
+        >
+          <option value="ALL">All Stores</option>
+          {storeOptions.map((store) => (
+            <option key={store.id} value={store.id}>
+              {store.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="select filter"
+          value={shiftFilter}
+          onChange={(event) => setShiftFilter(event.target.value as ShiftName | 'ALL')}
+        >
+          <option value="ALL">All Shifts</option>
+          {SHIFT_OPTIONS.map((option) => (
+            <option key={option.name} value={option.name}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="select filter"
+          value={typeFilter}
+          onChange={(event) => setTypeFilter(event.target.value as EmployeeType | 'ALL')}
+        >
+          <option value="ALL">All Types</option>
+          {EMPLOYEE_TYPE_OPTIONS.map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
+        </select>
+
+        <select
+          className="select filter filter--narrow"
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+        >
+          <option value="ALL">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="INACTIVE">Inactive</option>
+        </select>
+      </div>
+
+      {successMessage && <div className="employees-page__success">{successMessage}</div>}
       {statusError && <div className="employees-page__error">{statusError}</div>}
 
       {loadError ? (
@@ -132,35 +292,11 @@ function Employees() {
           </button>
         </div>
       ) : (
-        <div className="card">
-          <div className="card__header">
-            <h2 className="card__title">All Employees</h2>
-            <div className="card__toolbar">
-              <SpecularButton
-                size="sm"
-                radius={999}
-                tint="var(--color-badge-solid-bg)"
-                tintOpacity={1}
-                textColor="var(--color-badge-solid-text)"
-                lineColor="#e11d33"
-                baseColor="#e4e4e7"
-                followMouse
-                proximity={180}
-                onClick={() => {
-                  setFormError(null);
-                  setFormModalState({ mode: 'create' });
-                }}
-              >
-                <span className="employees-page__add-label">
-                  <Plus size={16} />
-                  Add Employee
-                </span>
-              </SpecularButton>
-            </div>
-          </div>
+        <>
           <EmployeeTable
-            employees={employees}
+            employees={pagedEmployees}
             isLoading={isLoading}
+            emptyMessage={emptyMessage}
             onEdit={(employee) => {
               setFormError(null);
               setFormModalState({ mode: 'edit', employee });
@@ -174,7 +310,14 @@ function Employees() {
               setStatusTarget(employee);
             }}
           />
-        </div>
+          <Pagination
+            page={currentPage}
+            pageCount={pageCount}
+            totalItems={filteredEmployees.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+          />
+        </>
       )}
 
       <EmployeeFormModal

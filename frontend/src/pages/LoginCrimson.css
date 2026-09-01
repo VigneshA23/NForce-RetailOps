@@ -34,10 +34,13 @@
   background: rgba(13, 13, 15, 0.72);
 }
 
-/* Mobile (below the --tablet-up split-layout breakpoint): no photo, just a
-   flat black page - the aisle photo doesn't add much at this size (mostly
-   hidden behind the card anyway) and a plain black background is what was
-   asked for here specifically. */
+/* Mobile (below the --tablet-up split-layout breakpoint): flat black page
+   background, no aisle photo at this size. The rest of the mobile
+   light-theme override (card, text colours, button) lives in a second
+   @media block at the end of this file, after the base rules it overrides
+   - an override declared earlier in the file than the rule it's overriding
+   loses the cascade even when its own media query matches, since source
+   order (not media-query specificity) decides ties. */
 @media (max-width: 767px) {
   .login3-shell {
     background: #000000;
@@ -204,6 +207,20 @@
   }
 }
 
+.login3-mobile-wordmark {
+  margin: 0 0 20px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: #e11d33;
+}
+
+@media (--tablet-up) {
+  .login3-mobile-wordmark {
+    display: none;
+  }
+}
+
 .login3-heading {
   font-size: 26px;
   font-weight: 800;
@@ -230,12 +247,26 @@
   margin-bottom: 16px;
 }
 
-.login3-label {
+.login3-label-row {
   display: block;
+  margin-bottom: 6px;
+}
+
+/* The asterisk lives as a sibling of the <label>, not a descendant of it -
+   nesting it inside the label (even with aria-hidden) still ended up in the
+   label's computed accessible name in testing, breaking an exact-match
+   test ("Password" vs. "Password*"). As a sibling it can't affect that at
+   all, regardless of aria-hidden support. */
+.login3-label {
+  display: inline;
   font-size: 13px;
   font-weight: 600;
   color: rgba(242, 242, 244, 0.9);
-  margin-bottom: 6px;
+}
+
+.login3-label-required {
+  color: #e11d33;
+  margin-left: 2px;
 }
 
 .login3-meta-row {
@@ -388,4 +419,58 @@
 .login3-access-link {
   font-weight: 700;
   color: #ff4d5e;
+}
+
+/* Mobile light-theme override, continued from the @media block near the top
+   of this file (which handles the shell/photo/overlay) - placed down here,
+   after every base rule it touches, so it actually wins the cascade. Per a
+   reference screenshot: a white card, dark text, uppercase field labels,
+   and a solid black Sign In button instead of the red gradient used
+   everywhere else. Brand red is kept for the wordmark/links/required-marks
+   rather than the reference's teal/amber, to match the rest of the app's
+   actual palette. */
+@media (max-width: 767px) {
+  .login3-panel-inner {
+    background: #ffffff;
+    border: 1px solid #e4e4e7;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.35);
+  }
+
+  .login3-heading {
+    color: #16161a;
+  }
+
+  .login3-subheading {
+    color: #6b6b6f;
+  }
+
+  .login3-label {
+    color: #26262b;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+  }
+
+  .login3-remember {
+    color: #4b4b52;
+  }
+
+  .login3-access-note {
+    color: #6b6b6f;
+  }
+
+  .login3-access-link {
+    color: #e11d33;
+  }
+
+  .login3-submit {
+    background: #16161a;
+    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5);
+  }
+
+  .login3-submit:hover:not(:disabled) {
+    box-shadow: 0 16px 28px -10px rgba(0, 0, 0, 0.55);
+  }
 }

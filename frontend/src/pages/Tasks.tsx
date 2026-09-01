@@ -209,13 +209,13 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         </SpecularButton>
       </div>
 
-      <div className="tasks-page__filter-bar">
-        <div className="tasks-page__filter tasks-page__filter--search">
+      <div className="filter-bar">
+        <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search tasks" />
         </div>
 
         <select
-          className="select tasks-page__filter tasks-page__filter--category"
+          className="select filter"
           value={categoryFilter}
           onChange={(event) => setCategoryFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
         >
@@ -228,7 +228,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         </select>
 
         <select
-          className="select tasks-page__filter tasks-page__filter--store"
+          className="select filter"
           value={storeFilter}
           onChange={(event) => setStoreFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
         >
@@ -241,7 +241,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         </select>
 
         <select
-          className="select tasks-page__filter tasks-page__filter--status"
+          className="select filter filter--narrow"
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
         >
@@ -251,7 +251,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         </select>
 
         <select
-          className="select tasks-page__filter tasks-page__filter--schedule"
+          className="select filter"
           value={scheduleFilter}
           onChange={(event) => setScheduleFilter(event.target.value as ScheduleType | 'ALL')}
         >
