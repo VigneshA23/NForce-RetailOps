@@ -126,14 +126,15 @@
 .sidebar-tooltip-portal {
   position: fixed;
   transform: translateY(-50%);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
+  padding: 3px 9px;
+  border-radius: 4px;
   background: var(--color-accent);
   color: #ffffff;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+  line-height: 1.4;
   white-space: nowrap;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   pointer-events: none;
   z-index: var(--z-modal);
 }

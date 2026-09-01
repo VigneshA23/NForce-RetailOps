@@ -100,13 +100,19 @@
   }
 }
 
-.login3-hero-logo {
+.login3-hero-brand {
   position: relative;
   z-index: 1;
-  width: 376px;
-  height: 376px;
-  margin: 0 auto;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 48px;
+}
+
+.login3-hero-logo {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
   /* The true logo, unmodified: no filter, no mask, no blend-mode - every
      earlier attempt at "immersing" it (blend-mode, luminance masks,
      brightness/saturation boosts) altered its actual colours, which reads
@@ -116,24 +122,16 @@
   border-radius: 50%;
 }
 
-/* At the narrower end of --tablet-up, the copy below wraps to more lines
-   than it does on a wide desktop - a smaller logo here keeps the whole
-   centred stack (logo + heading + copy) from outgrowing the Welcome Back
-   card's own height and spilling past its bottom edge. */
-@media (min-width: 768px) and (max-width: 1024px) {
-  .login3-hero-logo {
-    width: 320px;
-    height: 320px;
-  }
+.login3-hero-wordmark {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
 }
 
 .login3-hero-text {
   position: relative;
   z-index: 1;
-  /* Centered to match the logo above it (which is itself centred via
-     margin: 24px auto) rather than sitting flush against the panel's own
-     left padding - the whole hero column now reads as one centred stack. */
-  text-align: center;
+  text-align: left;
 }
 
 .login3-hero-heading {
@@ -153,7 +151,7 @@
   line-height: 1.6;
   color: rgba(242, 242, 244, 0.88);
   max-width: 380px;
-  margin: 0 auto;
+  margin: 0;
 }
 
 .login3-panel {

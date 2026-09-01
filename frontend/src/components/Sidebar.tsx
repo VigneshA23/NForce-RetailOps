@@ -70,7 +70,7 @@ function Sidebar<Key extends string = NavTabKey>({
   function showTooltip(label: string, target: HTMLElement) {
     if (!isIconOnly) return;
     const rect = target.getBoundingClientRect();
-    setHoveredTooltip({ label, top: rect.top + rect.height / 2, left: rect.right + 12 });
+    setHoveredTooltip({ label, top: rect.top + rect.height / 2, left: rect.right + 8 });
   }
 
   function hideTooltip() {

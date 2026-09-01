@@ -40,14 +40,15 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
       <div className="login3-bg-overlay" aria-hidden="true" />
       <div className="login3-grid">
         <div className="login3-hero">
-          <motion.img
-            src="/nforce-logo.png"
-            alt="NForce RetailOps logo"
-            className="login3-hero-logo"
+          <motion.div
+            className="login3-hero-brand"
             initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.5 }}
-          />
+          >
+            <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-hero-logo" />
+            <span className="login3-hero-wordmark">NForce RetailOps</span>
+          </motion.div>
           <motion.div
             className="login3-hero-text"
             initial={{ opacity: 0, y: -16 }}
