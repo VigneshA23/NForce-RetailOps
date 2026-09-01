@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .stat-card {
   display: flex;
   align-items: flex-start;
@@ -79,4 +81,29 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-lg);
   margin-bottom: var(--space-lg);
+}
+
+@media (--mobile) {
+  /* A tighter 2-column grid (vs. the default auto-fit, which collapses to a
+     single column once two 200px-min cards no longer fit side by side at
+     this width) so stat cards read as a compact overview rather than a
+     long scroll of full-width rows, on every page that uses this row. */
+  .stat-card-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .stat-card-row .stat-card {
+    padding: var(--space-md);
+    gap: var(--space-xs);
+  }
+
+  .stat-card-row .stat-card__icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .stat-card-row .stat-card__value {
+    font-size: 20px;
+  }
 }
