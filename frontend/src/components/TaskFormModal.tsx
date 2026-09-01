@@ -392,21 +392,6 @@ function TaskFormModal({
           <p className="task-form__hint">Leave End Date empty for an ongoing task until it's deactivated.</p>
         </section>
 
-        <section className="task-form__section">
-          <h3 className="task-form__heading">Status</h3>
-          <FormField label="Status" htmlFor="task-status">
-            <select
-              id="task-status"
-              className="select"
-              value={values.active ? 'ACTIVE' : 'INACTIVE'}
-              onChange={(event) => updateField('active', event.target.value === 'ACTIVE')}
-            >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-          </FormField>
-        </section>
-
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>
     </Modal>
