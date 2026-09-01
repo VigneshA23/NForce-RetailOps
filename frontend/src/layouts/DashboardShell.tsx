@@ -13,10 +13,10 @@ import Settings from '../pages/Settings';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 
-function renderActivePage(activeTab: NavTabKey, onNavigateToCategories: () => void) {
+function renderActivePage(activeTab: NavTabKey, onNavigateToCategories: () => void, userName: string) {
   switch (activeTab) {
     case 'home':
-      return <Home />;
+      return <Home userName={userName} />;
     case 'store-management':
       return <Stores />;
     case 'employees':
@@ -79,7 +79,7 @@ function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
       ) : overlay === 'help' ? (
         <Help />
       ) : (
-        renderActivePage(activeTab, () => setActiveTab('categories'))
+        renderActivePage(activeTab, () => setActiveTab('categories'), user.fullName)
       )}
     </AppShell>
   );

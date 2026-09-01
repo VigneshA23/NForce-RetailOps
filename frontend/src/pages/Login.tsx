@@ -73,6 +73,7 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
             transition={{ duration: 0.5 }}
           >
             <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
+            <p className="login3-mobile-wordmark">RetailOps</p>
 
             <h1 className="login3-heading">Welcome Back</h1>
             <span className="login3-heading-underline" aria-hidden="true" />
@@ -86,9 +87,14 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
 
             <form onSubmit={handleSubmit} noValidate>
               <div className="login3-field">
-                <label htmlFor="email" className="login3-label">
-                  Email
-                </label>
+                <span className="login3-label-row">
+                  <label htmlFor="email" className="login3-label">
+                    Email
+                  </label>
+                  <span className="login3-label-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
                 <div className="login3-input-wrap">
                   <Mail size={16} className="login3-input-icon" aria-hidden="true" />
                   <input
@@ -105,9 +111,14 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
               </div>
 
               <div className="login3-field">
-                <label htmlFor="password" className="login3-label">
-                  Password
-                </label>
+                <span className="login3-label-row">
+                  <label htmlFor="password" className="login3-label">
+                    Password
+                  </label>
+                  <span className="login3-label-required" aria-hidden="true">
+                    *
+                  </span>
+                </span>
                 <div className="login3-input-wrap">
                   <Lock size={16} className="login3-input-icon" aria-hidden="true" />
                   <input
