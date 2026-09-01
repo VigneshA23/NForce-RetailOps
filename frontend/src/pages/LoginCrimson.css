@@ -86,9 +86,9 @@
   display: none;
   position: relative;
   flex-direction: column;
-  /* Logo anchored to the top of the panel rather than centred with the
-     tagline as one vertically-centred group. */
-  justify-content: flex-start;
+  /* Brand lockup + tagline read as one vertically-centred group within the
+     column, left-aligned within that group rather than anchored to the top. */
+  justify-content: center;
   padding: 56px 48px;
   overflow: hidden;
   color: #f2f2f4;
