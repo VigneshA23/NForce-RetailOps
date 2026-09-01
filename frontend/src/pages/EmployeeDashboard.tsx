@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Blend, CheckCircle2, ChevronDown, ClipboardList, Flag, ListTodo, Lock, Percent, Sparkles } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, ClipboardList, Flag, ListTodo, Percent } from 'lucide-react'
+import { ApiError } from '../api/client'
 import { getDailyChecklist, raiseIssue } from '../api/tasks'
 import type { StoreSummary } from '../types/store'
 import type { ChecklistCategory, TaskAnswer, TaskAnswers } from '../types/task'
@@ -13,12 +13,6 @@ interface EmployeeDashboardProps {
   store: StoreSummary
   onLogout: () => void
   loggingOut?: boolean
-}
-
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  preparation: Blend,
-  cleaning: Sparkles,
-  closing: Lock,
 }
 
 function todayKey(): string {
@@ -41,6 +35,7 @@ function loadStoredAnswers(storeId: number): TaskAnswers {
 function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [answers, setAnswers] = useState<TaskAnswers>(() => loadStoredAnswers(store.id))
   const [onDuty, setOnDuty] = useState(true)
   const [flagCount, setFlagCount] = useState(0)
@@ -51,12 +46,24 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   useEffect(() => {
     let active = true
     setLoading(true)
-    getDailyChecklist(store.id).then((result) => {
-      if (active) {
-        setCategories(result)
+    setError(null)
+    getDailyChecklist(store.id)
+      .then((result) => {
+        if (active) {
+          setCategories(result)
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (!active) return
+        const message =
+          err instanceof ApiError && err.status === 404
+            ? "You're not assigned to this store, so no checklist is available."
+            : "Couldn't load today's checklist. Please try again."
+        setError(message)
+        setCategories([])
         setLoading(false)
-      }
-    })
+      })
     return () => {
       active = false
     }
@@ -74,7 +81,7 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   const completionPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100)
   const remainingTasks = totalTasks - completedTasks
 
-  function handleAnswer(taskId: string, value: TaskAnswer) {
+  function handleAnswer(taskId: number, value: TaskAnswer) {
     if (!onDuty) return
     setAnswers((previous) => ({ ...previous, [taskId]: value }))
   }
@@ -130,7 +137,15 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
 
         {loading && <p className="employee-dashboard-loading">Loading today's checklist…</p>}
 
-        {!loading && categories.length === 0 && (
+        {!loading && error && (
+          <div className="employee-dashboard-empty">
+            <AlertTriangle size={32} />
+            <h2>Couldn't load checklist</h2>
+            <p>{error}</p>
+          </div>
+        )}
+
+        {!loading && !error && categories.length === 0 && (
           <div className="employee-dashboard-empty">
             <ClipboardList size={32} />
             <h2>No checklist tasks yet</h2>
@@ -138,18 +153,17 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
           </div>
         )}
 
-        {!loading && categories.length > 0 && (
+        {!loading && !error && categories.length > 0 && (
           <div className="checklist-categories">
             {categories.map((category) => {
               const progress = categoryProgress(category)
-              const Icon = CATEGORY_ICONS[category.id] ?? ClipboardList
               const isComplete = progress.total > 0 && progress.done === progress.total
               return (
                 <details key={category.id} className="checklist-category" open>
                   <summary className="checklist-category-summary">
                     <div className="checklist-category-title">
                       <span className="checklist-category-icon">
-                        <Icon size={18} />
+                        <ClipboardList size={18} />
                       </span>
                       <h3>{category.name}</h3>
                     </div>

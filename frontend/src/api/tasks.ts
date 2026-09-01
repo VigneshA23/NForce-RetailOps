@@ -1,50 +1,37 @@
-import type { ChecklistCategory } from '../types/task';
+import { apiRequest } from './client';
+import type { ChecklistCategory, TaskResponseType } from '../types/task';
 
-const MOCK_CHECKLIST: ChecklistCategory[] = [
-  {
-    id: 'preparation',
-    name: 'Preparation',
-    tasks: [
-      { id: 'prep-1', name: 'Prepare Boba' },
-      { id: 'prep-2', name: 'Refill Falooda Station' },
-      { id: 'prep-3', name: 'Prepare Waffle Cones' },
-    ],
-  },
-  {
-    id: 'cleaning',
-    name: 'Cleaning',
-    tasks: [
-      { id: 'clean-1', name: 'Clean Front Door' },
-      { id: 'clean-2', name: 'Clean Tables' },
-    ],
-  },
-  {
-    id: 'closing',
-    name: 'Closing',
-    tasks: [
-      { id: 'close-1', name: 'Verify Freezer Doors' },
-      { id: 'close-2', name: 'Turn Off Equipment' },
-    ],
-  },
-];
+interface TaskChecklistItemResponse {
+  id: number;
+  name: string;
+  responseType: TaskResponseType;
+}
 
-const SIMULATED_LATENCY_MS = 200;
+interface CategoryChecklistResponse {
+  id: number;
+  name: string;
+  tasks: TaskChecklistItemResponse[];
+}
 
-// TODO: the backend Category API (/api/categories) is owner-scoped and OWNER_ADMIN-only,
-// and there is no Task/Checklist entity yet. Once the backend exposes store-scoped
-// categories + tasks for the authenticated employee, replace MOCK_CHECKLIST with a fetch
-// against `${VITE_API_BASE_URL}/api/stores/${storeId}/checklist` (or similar) and drop
-// this mock entirely.
-export async function getDailyChecklist(_storeId: number): Promise<ChecklistCategory[]> {
-  return new Promise((resolve) => {
-    setTimeout(
-      () => resolve(MOCK_CHECKLIST.map((category) => ({ ...category, tasks: category.tasks.map((task) => ({ ...task })) }))),
-      SIMULATED_LATENCY_MS,
-    );
-  });
+interface TodayChecklistResponse {
+  storeId: number;
+  date: string;
+  categories: CategoryChecklistResponse[];
+}
+
+/**
+ * Today's checklist for the given store, scoped server-side to the categories
+ * and tasks the owner has configured for it -- see GET /api/me/tasks/today.
+ * A store the caller isn't assigned to comes back as a 404 (ApiError).
+ */
+export async function getDailyChecklist(storeId: number): Promise<ChecklistCategory[]> {
+  const result = await apiRequest<TodayChecklistResponse>(`/me/tasks/today?storeId=${storeId}`);
+  return result.categories;
 }
 
 // TODO: replace with a real "raise issue with owner" endpoint once one exists on the backend.
+const SIMULATED_LATENCY_MS = 200;
+
 export async function raiseIssue(_storeId: number, _note: string): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, SIMULATED_LATENCY_MS);
