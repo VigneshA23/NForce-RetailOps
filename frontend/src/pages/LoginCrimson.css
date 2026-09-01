@@ -34,6 +34,24 @@
   background: rgba(13, 13, 15, 0.72);
 }
 
+/* Mobile (below the --tablet-up split-layout breakpoint): no photo, just a
+   flat black page - the aisle photo doesn't add much at this size (mostly
+   hidden behind the card anyway) and a plain black background is what was
+   asked for here specifically. */
+@media (max-width: 767px) {
+  .login3-shell {
+    background: #000000;
+  }
+
+  .login3-bg-photo {
+    display: none;
+  }
+
+  .login3-bg-overlay {
+    background: transparent;
+  }
+}
+
 @media (--tablet-up) {
   .login3-bg-overlay {
     background: linear-gradient(
