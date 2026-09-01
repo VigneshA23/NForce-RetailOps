@@ -75,18 +75,8 @@ function App() {
     }
   }
 
-<<<<<<< HEAD
-  function handleLoginSuccess(authUser: AuthUser, remember: boolean) {
-    setAuthToken(authUser.token, remember)
-=======
-<<<<<<< Updated upstream
-  function handleLoginSuccess(authUser: AuthUser) {
-    setAuthToken(authUser.token)
-=======
   function handleLoginSuccess(authUser: AuthUser, remember: boolean, mustResetPassword: boolean) {
     setAuthToken(authUser.token, remember)
->>>>>>> Stashed changes
->>>>>>> Maheshwar/dev-work
     setSessionMessage(null)
     setUser(authUser)
     setNeedsPasswordReset(mustResetPassword)
