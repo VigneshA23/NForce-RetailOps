@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
+import type { AuthUser, Role } from '../types/auth';
+import UserAvatar from './UserAvatar';
 import './Sidebar.css';
 
 interface SidebarProps<Key extends string = NavTabKey> {
@@ -11,6 +13,17 @@ interface SidebarProps<Key extends string = NavTabKey> {
   onToggleCollapsed: () => void;
   mobileOpen?: boolean;
   onClose?: () => void;
+  user: AuthUser;
+}
+
+const ROLE_LABELS: Record<Role, string> = {
+  OWNER_ADMIN: 'Admin',
+  EMPLOYEE: 'Employee',
+  SUPER_ADMIN: 'Super Admin',
+};
+
+function getInitials(fullName: string): string {
+  return fullName.charAt(0).toUpperCase() || '?';
 }
 
 function Sidebar<Key extends string = NavTabKey>({
@@ -21,6 +34,7 @@ function Sidebar<Key extends string = NavTabKey>({
   onToggleCollapsed,
   mobileOpen = false,
   onClose,
+  user,
 }: SidebarProps<Key>) {
   useEffect(() => {
     if (!mobileOpen) return;
@@ -46,6 +60,15 @@ function Sidebar<Key extends string = NavTabKey>({
               <span className="sidebar__brand-title">NForce RetailOps</span>
               <span className="sidebar__brand-subtitle">Retail Store Operations Platform</span>
             </div>
+            <button
+              type="button"
+              className="sidebar__collapse-toggle"
+              onClick={onToggleCollapsed}
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-expanded={!collapsed}
+            >
+              <ChevronLeft size={18} className={collapsed ? 'sidebar__collapse-icon--rotated' : ''} />
+            </button>
           </div>
           <nav className="sidebar__nav" aria-label="Primary">
             <ul className="sidebar__list">
@@ -75,18 +98,13 @@ function Sidebar<Key extends string = NavTabKey>({
           </nav>
         </div>
         <div className="sidebar__footer">
-          <button
-            type="button"
-            className="sidebar__toggle"
-            onClick={onToggleCollapsed}
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-expanded={!collapsed}
-          >
-            <span className="sidebar__icon">
-              {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
-            </span>
-            <span className="sidebar__label">Collapse</span>
-          </button>
+          <div className="sidebar__profile">
+            <UserAvatar initials={getInitials(user.fullName)} size={32} />
+            <div className="sidebar__profile-text sidebar__label">
+              <span className="sidebar__profile-name">{user.fullName}</span>
+              <span className="sidebar__profile-role">{ROLE_LABELS[user.role]}</span>
+            </div>
+          </div>
         </div>
       </aside>
     </>

@@ -7,13 +7,20 @@
   color: var(--color-text-primary);
 }
 
+.category-table__task-count {
+  color: var(--color-text-secondary);
+}
+
 .category-table__status {
   display: inline-flex;
   align-items: center;
   gap: var(--space-sm);
 }
 
-.category-table__actions-cell {
+.category-table__actions-cell,
+/* Beats the higher-specificity `.data-table thead th { text-align: left }`
+   base rule in table.css, so the header lines up with the right-aligned cell. */
+.data-table thead th.category-table__actions-cell {
   text-align: right;
 }
 
