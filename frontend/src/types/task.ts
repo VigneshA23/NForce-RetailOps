@@ -1,12 +1,15 @@
 export type TaskAnswer = 'YES' | 'NO';
 
+export type TaskResponseType = 'YES_NO' | 'DONE_NOT_DONE' | 'NUMERIC' | 'TEXT';
+
 export interface ChecklistTask {
-  id: string;
+  id: number;
   name: string;
+  responseType: TaskResponseType;
 }
 
 export interface ChecklistCategory {
-  id: string;
+  id: number;
   name: string;
   tasks: ChecklistTask[];
 }

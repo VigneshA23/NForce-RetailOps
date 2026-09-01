@@ -5,6 +5,7 @@ import App from './App'
 import * as authApi from './api/auth'
 import * as storesApi from './api/stores'
 import * as meApi from './api/me'
+import * as tasksApi from './api/tasks'
 import type { StoreSummary } from './types/store'
 
 const TOKEN_KEY = 'nforce-retailops-auth-token'
@@ -25,11 +26,17 @@ vi.mock('./api/me', () => ({
   getMe: vi.fn(),
 }))
 
+vi.mock('./api/tasks', () => ({
+  getDailyChecklist: vi.fn(),
+  raiseIssue: vi.fn(),
+}))
+
 const mockLogin = vi.mocked(authApi.login)
 const mockLogout = vi.mocked(authApi.logout)
 const mockGetSessionConfig = vi.mocked(authApi.getSessionConfig)
 const mockGetAuthorizedStores = vi.mocked(storesApi.getAuthorizedStores)
 const mockGetMe = vi.mocked(meApi.getMe)
+const mockGetDailyChecklist = vi.mocked(tasksApi.getDailyChecklist)
 
 const STORE_1: StoreSummary = { id: 1, name: 'Store 1', location: 'Main St', status: 'Open' }
 const STORE_2: StoreSummary = { id: 2, name: 'Store 2', location: 'Oak Ave', status: 'Open' }
@@ -59,6 +66,9 @@ beforeEach(() => {
   // Two stores by default, so the picker is shown and has something to choose.
   mockGetAuthorizedStores.mockResolvedValue([STORE_1, STORE_2])
   mockGetMe.mockReset()
+  mockGetDailyChecklist.mockReset()
+  // These tests exercise auth/navigation, not checklist content.
+  mockGetDailyChecklist.mockResolvedValue([])
 })
 
 describe('sign-out', () => {
