@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.exception.StoreInactiveException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -55,6 +56,9 @@ public class StoreService {
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
         Store store = storeOwner.getStore();
+        if (!store.isActive()) {
+            throw new StoreInactiveException("This store has been deactivated and cannot be edited");
+        }
         store.setName(request.name().trim());
         store = storeRepository.save(store);
 
@@ -65,6 +69,10 @@ public class StoreService {
     public void deleteStore(Long ownerId, Long storeId) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+
+        if (!storeOwner.getStore().isActive()) {
+            throw new StoreInactiveException("This store has been deactivated and cannot be removed");
+        }
 
         storeOwnerRepository.delete(storeOwner);
         storeRepository.delete(storeOwner.getStore());

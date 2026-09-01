@@ -2,10 +2,11 @@ export interface OwnerSummary {
   ownerId: number;
   ownerName: string;
   ownerEmail: string;
-  active: boolean;
+  ownerActive: boolean;
   storeId: number;
   storeName: string;
   storeLocation: string;
+  storeActive: boolean;
 }
 
 export type OwnerFormValues = {

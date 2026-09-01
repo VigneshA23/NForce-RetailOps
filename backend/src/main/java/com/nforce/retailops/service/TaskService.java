@@ -17,7 +17,7 @@ import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
-import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.exception.StoreInactiveException;
 import com.nforce.retailops.exception.TaskNotFoundException;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -255,6 +255,9 @@ public class TaskService {
         List<StoreOwner> owned = storeOwnerRepository.findByOwnerIdAndStoreIdIn(ownerId, storeIds);
         if (owned.size() != Set.copyOf(storeIds).size()) {
             throw new InvalidStoreSelectionException("One or more selected stores could not be found");
+        }
+        if (owned.stream().map(StoreOwner::getStore).anyMatch(store -> !store.isActive())) {
+            throw new StoreInactiveException("One or more selected stores have been deactivated");
         }
 
         return owned.stream().map(StoreOwner::getStore).collect(Collectors.toSet());

@@ -70,6 +70,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(StoreInactiveException.class)
+    public ResponseEntity<Map<String, String>> handleStoreInactive(StoreInactiveException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidTaskConfigurationException.class)
     public ResponseEntity<Map<String, String>> handleInvalidTaskConfiguration(InvalidTaskConfigurationException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
