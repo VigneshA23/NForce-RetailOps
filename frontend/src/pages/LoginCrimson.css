@@ -83,13 +83,14 @@
 }
 
 .login3-hero {
+  --hero-logo-size: 260px;
   display: none;
   position: relative;
   flex-direction: column;
-  /* Logo anchored to the top of the panel rather than centred with the
-     tagline as one vertically-centred group. */
-  justify-content: flex-start;
-  padding: 56px 48px;
+  /* Brand lockup + tagline read as one vertically-centred group within the
+     column, left-aligned within that group rather than anchored to the top. */
+  justify-content: center;
+  padding: 56px 48px 56px 96px;
   overflow: hidden;
   color: #f2f2f4;
 }
@@ -100,13 +101,19 @@
   }
 }
 
-.login3-hero-logo {
+.login3-hero-brand {
   position: relative;
   z-index: 1;
-  width: 376px;
-  height: 376px;
-  margin: 0 auto;
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 56px;
+}
+
+.login3-hero-logo {
+  width: var(--hero-logo-size);
+  height: var(--hero-logo-size);
+  flex-shrink: 0;
   /* The true logo, unmodified: no filter, no mask, no blend-mode - every
      earlier attempt at "immersing" it (blend-mode, luminance masks,
      brightness/saturation boosts) altered its actual colours, which reads
@@ -116,44 +123,31 @@
   border-radius: 50%;
 }
 
-/* At the narrower end of --tablet-up, the copy below wraps to more lines
-   than it does on a wide desktop - a smaller logo here keeps the whole
-   centred stack (logo + heading + copy) from outgrowing the Welcome Back
-   card's own height and spilling past its bottom edge. */
-@media (min-width: 768px) and (max-width: 1024px) {
-  .login3-hero-logo {
-    width: 320px;
-    height: 320px;
-  }
+.login3-hero-wordmark {
+  font-size: 32px;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
 }
 
 .login3-hero-text {
   position: relative;
   z-index: 1;
-  /* Centered to match the logo above it (which is itself centred via
-     margin: 24px auto) rather than sitting flush against the panel's own
-     left padding - the whole hero column now reads as one centred stack. */
-  text-align: center;
+  text-align: left;
+  /* Starts at the logo's horizontal centre, not its left edge. */
+  margin-left: calc(var(--hero-logo-size) / 2);
 }
 
 .login3-hero-heading {
   font-size: 26px;
   font-weight: 700;
   line-height: 1.3;
-  margin: 0 0 12px;
+  margin: 0;
   color: #ffffff;
 }
 
 .login3-hero-accent {
   color: #ff4d5e;
-}
-
-.login3-hero-copy {
-  font-size: 14px;
-  line-height: 1.6;
-  color: rgba(242, 242, 244, 0.88);
-  max-width: 380px;
-  margin: 0 auto;
 }
 
 .login3-panel {
@@ -191,34 +185,34 @@
   }
 }
 
+.login3-mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+}
+
+@media (--tablet-up) {
+  .login3-mobile-brand {
+    display: none;
+  }
+}
+
 .login3-mobile-logo {
   display: block;
-  width: 128px;
-  height: 128px;
-  margin: 0 auto 16px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   /* The true logo, unmodified - see .login3-hero-logo's comment. */
   object-fit: cover;
   border-radius: 50%;
 }
 
-@media (--tablet-up) {
-  .login3-mobile-logo {
-    display: none;
-  }
-}
-
 .login3-mobile-wordmark {
-  margin: 0 0 20px;
-  text-align: center;
-  font-size: 22px;
+  margin: 0;
+  font-size: 17px;
   font-weight: 800;
   color: #e11d33;
-}
-
-@media (--tablet-up) {
-  .login3-mobile-wordmark {
-    display: none;
-  }
 }
 
 .login3-heading {
@@ -348,6 +342,9 @@
 }
 
 .login3-forgot-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 13px;
   font-weight: 600;
   color: #e11d33;
@@ -365,6 +362,12 @@
 .login3-error {
   font-size: 13px;
   color: #e11d33;
+  margin-bottom: 14px;
+}
+
+.login3-success {
+  font-size: 13px;
+  color: #3ddc8b;
   margin-bottom: 14px;
 }
 
@@ -463,6 +466,10 @@
 
   .login3-access-link {
     color: #e11d33;
+  }
+
+  .login3-success {
+    color: #1a9c5c;
   }
 
   .login3-submit {
