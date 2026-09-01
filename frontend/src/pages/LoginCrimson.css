@@ -191,34 +191,34 @@
   }
 }
 
+.login3-mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+}
+
+@media (--tablet-up) {
+  .login3-mobile-brand {
+    display: none;
+  }
+}
+
 .login3-mobile-logo {
   display: block;
-  width: 128px;
-  height: 128px;
-  margin: 0 auto 16px;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
   /* The true logo, unmodified - see .login3-hero-logo's comment. */
   object-fit: cover;
   border-radius: 50%;
 }
 
-@media (--tablet-up) {
-  .login3-mobile-logo {
-    display: none;
-  }
-}
-
 .login3-mobile-wordmark {
-  margin: 0 0 20px;
-  text-align: center;
-  font-size: 22px;
+  margin: 0;
+  font-size: 17px;
   font-weight: 800;
   color: #e11d33;
-}
-
-@media (--tablet-up) {
-  .login3-mobile-wordmark {
-    display: none;
-  }
 }
 
 .login3-heading {

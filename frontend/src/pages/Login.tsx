@@ -72,8 +72,10 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
-            <p className="login3-mobile-wordmark">RetailOps</p>
+            <div className="login3-mobile-brand">
+              <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
+              <p className="login3-mobile-wordmark">NForce RetailOps</p>
+            </div>
 
             <h1 className="login3-heading">Welcome Back</h1>
             <span className="login3-heading-underline" aria-hidden="true" />

@@ -1,9 +1,17 @@
-import { useEffect } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { PanelLeft } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser, Role } from '../types/auth';
+import { useIsMobile, useIsTabletDown } from '../hooks/useMediaQuery';
 import UserAvatar from './UserAvatar';
 import './Sidebar.css';
+
+interface HoveredTooltip {
+  label: string;
+  top: number;
+  left: number;
+}
 
 interface SidebarProps<Key extends string = NavTabKey> {
   items: NavItem<Key>[];
@@ -36,6 +44,14 @@ function Sidebar<Key extends string = NavTabKey>({
   onClose,
   user,
 }: SidebarProps<Key>) {
+  const isMobile = useIsMobile();
+  const isTabletDown = useIsTabletDown();
+  // Mirrors the CSS: collapsed explicitly, or forced narrow at tablet-down
+  // widths -- except on mobile, where the drawer is always full width
+  // regardless of the collapsed toggle (see Sidebar.css's --mobile block).
+  const isIconOnly = !isMobile && (collapsed || isTabletDown);
+  const [hoveredTooltip, setHoveredTooltip] = useState<HoveredTooltip | null>(null);
+
   useEffect(() => {
     if (!mobileOpen) return;
 
@@ -46,6 +62,20 @@ function Sidebar<Key extends string = NavTabKey>({
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [mobileOpen, onClose]);
+
+  // Tooltips are portalled to <body> instead of living inside the sidebar
+  // markup, because .sidebar needs overflow-x: hidden for its collapse
+  // animation, which would otherwise clip a tooltip escaping to the right
+  // of an icon-only rail.
+  function showTooltip(label: string, target: HTMLElement) {
+    if (!isIconOnly) return;
+    const rect = target.getBoundingClientRect();
+    setHoveredTooltip({ label, top: rect.top + rect.height / 2, left: rect.right + 12 });
+  }
+
+  function hideTooltip() {
+    setHoveredTooltip(null);
+  }
 
   return (
     <>
@@ -66,8 +96,9 @@ function Sidebar<Key extends string = NavTabKey>({
               onClick={onToggleCollapsed}
               aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
               aria-expanded={!collapsed}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
-              <ChevronLeft size={18} className={collapsed ? 'sidebar__collapse-icon--rotated' : ''} />
+              <PanelLeft size={18} />
             </button>
           </div>
           <nav className="sidebar__nav" aria-label="Primary">
@@ -84,6 +115,10 @@ function Sidebar<Key extends string = NavTabKey>({
                         onSelect(item.key);
                         onClose?.();
                       }}
+                      onMouseEnter={(event) => showTooltip(item.label, event.currentTarget)}
+                      onMouseLeave={hideTooltip}
+                      onFocus={(event) => showTooltip(item.label, event.currentTarget)}
+                      onBlur={hideTooltip}
                       aria-current={isActive ? 'page' : undefined}
                     >
                       <span className="sidebar__icon">
@@ -107,6 +142,17 @@ function Sidebar<Key extends string = NavTabKey>({
           </div>
         </div>
       </aside>
+      {hoveredTooltip &&
+        createPortal(
+          <div
+            className="sidebar-tooltip-portal"
+            role="tooltip"
+            style={{ top: hoveredTooltip.top, left: hoveredTooltip.left }}
+          >
+            {hoveredTooltip.label}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
