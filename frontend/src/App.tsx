@@ -75,13 +75,10 @@ function App() {
     }
   }
 
-<<<<<<< Updated upstream
-  function handleLoginSuccess(authUser: AuthUser) {
+  // "remember" is unused: this login screen has no "remember me" storage split,
+  // but the parameter stays to match Login's call-site signature.
+  function handleLoginSuccess(authUser: AuthUser, _remember: boolean, mustResetPassword: boolean) {
     setAuthToken(authUser.token)
-=======
-  function handleLoginSuccess(authUser: AuthUser, remember: boolean, mustResetPassword: boolean) {
-    setAuthToken(authUser.token, remember)
->>>>>>> Stashed changes
     setSessionMessage(null)
     setUser(authUser)
     setNeedsPasswordReset(mustResetPassword)
