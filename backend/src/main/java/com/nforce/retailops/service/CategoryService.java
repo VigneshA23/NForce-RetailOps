@@ -6,6 +6,7 @@ import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.exception.CategoryNameExistsException;
 import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,16 +18,26 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
 
-    public CategoryService(CategoryRepository categoryRepository, UserRepository userRepository) {
+    public CategoryService(
+        CategoryRepository categoryRepository,
+        UserRepository userRepository,
+        TaskRepository taskRepository
+    ) {
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
+        this.taskRepository = taskRepository;
+    }
+
+    private CategoryResponse toResponse(Category category) {
+        return CategoryResponse.from(category, taskRepository.countByCategoryId(category.getId()));
     }
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> listCategories(Long ownerId) {
         return categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(ownerId).stream()
-            .map(CategoryResponse::from)
+            .map(this::toResponse)
             .toList();
     }
 
@@ -44,7 +55,7 @@ public class CategoryService {
         category.setDisplayOrder(categoryRepository.countByOwnerId(ownerId));
         category = categoryRepository.save(category);
 
-        return CategoryResponse.from(category);
+        return toResponse(category);
     }
 
     @Transactional
@@ -61,7 +72,7 @@ public class CategoryService {
         category.setName(name);
         category = categoryRepository.save(category);
 
-        return CategoryResponse.from(category);
+        return toResponse(category);
     }
 
     @Transactional
@@ -72,7 +83,7 @@ public class CategoryService {
         category.setActive(active);
         category = categoryRepository.save(category);
 
-        return CategoryResponse.from(category);
+        return toResponse(category);
     }
 
     @Transactional
