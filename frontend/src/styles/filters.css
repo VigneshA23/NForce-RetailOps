@@ -1,0 +1,63 @@
+@import './breakpoints.css';
+
+/* Page-level filter bar: a search field plus a row of <select class="select">
+   controls, sitting above a .table-card. Shared by Tasks and Employees so the
+   two pages can't drift apart again. */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.filter {
+  flex: 0 0 15%;
+  min-width: 0;
+}
+
+.filter--search {
+  flex: 1 1 45%;
+}
+
+/* Narrow controls whose options are all short, e.g. Status. */
+.filter--narrow {
+  flex-basis: 12%;
+}
+
+/* SearchInput defaults to the dark app-header variant; inside a filter bar it
+   needs to read as a card-surface rectangle matching the .select height. The
+   two-class specificity here also beats .search-input's own min-width: 220px,
+   which would otherwise stop the field shrinking on tablet. */
+.filter--search .search-input {
+  width: 100%;
+  min-width: 0;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  color: var(--color-text-secondary);
+}
+
+.filter--search .search-input__field {
+  color: var(--color-text-primary);
+}
+
+.filter--search .search-input__field::placeholder {
+  color: var(--color-text-muted);
+}
+
+@media (--tablet-down) {
+  .filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .filter,
+  .filter--search,
+  .filter--narrow {
+    flex: 1 1 calc(50% - var(--space-sm));
+  }
+
+  .filter--search {
+    flex-basis: 100%;
+  }
+}

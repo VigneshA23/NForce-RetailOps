@@ -1,5 +1,21 @@
+@import '../styles/breakpoints.css';
+
 .employees-page {
   padding: var(--space-lg);
+}
+
+.employees-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-sm);
+}
+
+.employees-page__summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
 }
 
 .employees-page__add-label {
@@ -14,4 +30,21 @@
   gap: var(--space-md);
   padding: var(--space-lg);
   color: var(--color-text-secondary);
+}
+
+.employees-page__success {
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+@media (--mobile) {
+  .employees-page__header {
+    flex-wrap: wrap;
+  }
 }

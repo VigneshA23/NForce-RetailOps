@@ -5,6 +5,7 @@
 @import './styles/forms.css';
 @import './styles/pills.css';
 @import './styles/table.css';
+@import './styles/filters.css';
 @import './styles/cards.css';
 
 /* Boot state shown while the stored session is being revalidated, and while an
