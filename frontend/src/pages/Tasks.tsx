@@ -180,6 +180,20 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
     }
   }
 
+  async function handleToggleStatus(task: AdminTask) {
+    setActionError(null);
+    const nextActive = !task.active;
+    // Optimistic update so the toggle responds immediately; reverted below on failure.
+    setTasks((current) => current.map((t) => (t.id === task.id ? { ...t, active: nextActive } : t)));
+    try {
+      const updated = await setTaskActive(task.id, nextActive);
+      setTasks((current) => current.map((t) => (t.id === updated.id ? updated : t)));
+    } catch (error) {
+      setTasks((current) => current.map((t) => (t.id === task.id ? { ...t, active: task.active } : t)));
+      setActionError(error instanceof Error ? error.message : 'Failed to update task status');
+    }
+  }
+
   async function handleDeactivateInsteadOfDelete() {
     if (!historyConflictTask) return;
     setActionError(null);
@@ -305,6 +319,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
               setActionError(null);
               setDeleteTarget(task);
             }}
+            onToggleStatus={handleToggleStatus}
           />
           <Pagination
             page={currentPage}

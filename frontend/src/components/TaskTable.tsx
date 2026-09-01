@@ -1,7 +1,7 @@
+import { Pencil, Trash2 } from 'lucide-react';
 import type { AdminTask } from '../types/adminTask';
-import { completionTypeLabel, responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions';
+import { completionTypeLabel, responseTypeBadgeClass, responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions';
 import StoreChips from './StoreChips';
-import TaskRowActions from './TaskRowActions';
 import './TaskTable.css';
 
 interface TaskTableProps {
@@ -9,6 +9,7 @@ interface TaskTableProps {
   isLoading?: boolean;
   onEdit: (task: AdminTask) => void;
   onDelete: (task: AdminTask) => void;
+  onToggleStatus: (task: AdminTask) => void;
 }
 
 function TaskStoreCell({ task }: { task: AdminTask }) {
@@ -23,7 +24,7 @@ function TaskStoreCell({ task }: { task: AdminTask }) {
   return <StoreChips stores={task.stores} emptyLabel="No stores" emptyTitle="No stores selected" />;
 }
 
-function TaskTable({ tasks, isLoading = false, onEdit, onDelete }: TaskTableProps) {
+function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus }: TaskTableProps) {
   return (
     <div className="table-card">
       <div className="table-scroll">
@@ -49,15 +50,49 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete }: TaskTableProp
                   <TaskStoreCell task={task} />
                 </td>
                 <td data-label="Schedule">{scheduleSummary(task.scheduleType, task.selectedDays)}</td>
-                <td data-label="Response">{responseTypeLabel(task.responseType)}</td>
-                <td data-label="Completion">{completionTypeLabel(task.completionType)}</td>
-                <td data-label="Status">
-                  <span className={`badge badge--dot ${task.active ? 'badge--solid' : 'badge--outline'}`}>
-                    {task.active ? 'Active' : 'Inactive'}
+                <td data-label="Response">
+                  <span className={`badge ${responseTypeBadgeClass(task.responseType)}`}>
+                    {responseTypeLabel(task.responseType)}
                   </span>
                 </td>
+                <td data-label="Completion">{completionTypeLabel(task.completionType)}</td>
+                <td data-label="Status">
+                  <label
+                    className="task-status-toggle"
+                    title={task.active ? 'Deactivate task' : 'Activate task'}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={task.active}
+                      onChange={() => onToggleStatus(task)}
+                      aria-label={task.active ? 'Deactivate task' : 'Activate task'}
+                    />
+                    <span className="task-status-toggle__track" aria-hidden="true">
+                      <span className="task-status-toggle__thumb" />
+                    </span>
+                  </label>
+                </td>
                 <td className="task-table__actions-cell" data-label="Actions">
-                  <TaskRowActions onEdit={() => onEdit(task)} onDelete={() => onDelete(task)} />
+                  <div className="task-table__actions">
+                    <button
+                      type="button"
+                      className="task-table__icon-btn"
+                      aria-label={`Edit ${task.name}`}
+                      title="Edit"
+                      onClick={() => onEdit(task)}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="task-table__icon-btn task-table__icon-btn--danger"
+                      aria-label={`Delete ${task.name}`}
+                      title="Delete"
+                      onClick={() => onDelete(task)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
