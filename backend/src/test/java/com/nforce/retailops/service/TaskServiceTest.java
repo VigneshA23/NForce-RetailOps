@@ -2,15 +2,20 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.TaskRequest;
 import com.nforce.retailops.dto.TaskResponse;
+import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.ScheduleType;
+import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
+import com.nforce.retailops.exception.TaskAlreadyCompletedException;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.TaskRepository;
+import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,9 +23,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,7 +49,13 @@ class TaskServiceTest {
     @Mock
     private StoreOwnerRepository storeOwnerRepository;
     @Mock
+    private StoreRepository storeRepository;
+    @Mock
     private UserRepository userRepository;
+    @Mock
+    private UserProfileService userProfileService;
+    @Mock
+    private TaskResponseEntryRepository taskResponseEntryRepository;
 
     @InjectMocks
     private TaskService taskService;
@@ -208,5 +221,34 @@ class TaskServiceTest {
         TaskResponse response = taskService.updateTask(OWNER_ID, 9L, requestWithResponseType(ResponseType.YES_NO, null));
 
         assertThat(response.displayOrder()).isEqualTo(4);
+    }
+
+    // Proves the fix from the concurrency review: the in-memory pre-check in
+    // submitResponse cannot stop two concurrent transactions from both passing it before
+    // either commits, so the actual guarantee is the partial unique index (V19) -- a
+    // violation surfaces here as DataIntegrityViolationException, which must be
+    // translated to the same TaskAlreadyCompletedException the pre-check throws.
+    @Test
+    void submitResponseTranslatesADatabaseConstraintViolationIntoTaskAlreadyCompleted() {
+        Long taskId = 11L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.setActive(true);
+        task.setAppliesToAllStores(true);
+        task.setResponseType(ResponseType.YES_NO);
+        task.setCompletionType(CompletionType.SINGLE);
+
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        // The pre-check itself sees no active response yet -- this is exactly the race:
+        // another transaction's row is about to (or just did) commit past this same check.
+        when(taskResponseEntryRepository.findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(anyLong(), anyLong(), any()))
+            .thenReturn(List.of());
+        when(taskResponseEntryRepository.save(any()))
+            .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
+
+        TaskResponseSubmitRequest request = new TaskResponseSubmitRequest(1L, true, null, null);
+
+        assertThatThrownBy(() -> taskService.submitResponse(42L, taskId, request))
+            .isInstanceOf(TaskAlreadyCompletedException.class);
     }
 }
