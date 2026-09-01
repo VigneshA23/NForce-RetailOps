@@ -73,6 +73,7 @@ public class StoreService {
         return stores.stream()
             .map(store -> new StoreResponse(
                 store.getId(),
+                store.getStoreCode(),
                 store.getName(),
                 store.isActive(),
                 employeeCounts.getOrDefault(store.getId(), 0),
