@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.AddOwnerRequest;
 import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.dto.UpdateOwnerStatusRequest;
+import com.nforce.retailops.dto.UpdateStoreStatusRequest;
 import com.nforce.retailops.service.OwnerManagementService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -48,5 +49,14 @@ public class SuperAdminController {
         @Valid @RequestBody UpdateOwnerStatusRequest request
     ) {
         return ResponseEntity.ok(ownerManagementService.setOwnerActive(ownerId, request.active()));
+    }
+
+    @PatchMapping("/owners/{ownerId}/stores/{storeId}/status")
+    public ResponseEntity<List<OwnerResponse>> updateStoreStatus(
+        @PathVariable Long ownerId,
+        @PathVariable Long storeId,
+        @Valid @RequestBody UpdateStoreStatusRequest request
+    ) {
+        return ResponseEntity.ok(ownerManagementService.setStoreActive(ownerId, storeId, request.active()));
     }
 }

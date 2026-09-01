@@ -1,7 +1,10 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.CategoryChecklistResponse;
+import com.nforce.retailops.dto.TaskChecklistItemResponse;
 import com.nforce.retailops.dto.TaskRequest;
 import com.nforce.retailops.dto.TaskResponse;
+import com.nforce.retailops.dto.TodayChecklistResponse;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.DayOfWeekCode;
@@ -14,6 +17,8 @@ import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
+import com.nforce.retailops.exception.StoreInactiveException;
+import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.TaskNotFoundException;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -22,7 +27,10 @@ import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -38,17 +46,20 @@ public class TaskService {
     private final CategoryRepository categoryRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final UserRepository userRepository;
+    private final UserProfileService userProfileService;
 
     public TaskService(
         TaskRepository taskRepository,
         CategoryRepository categoryRepository,
         StoreOwnerRepository storeOwnerRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        UserProfileService userProfileService
     ) {
         this.taskRepository = taskRepository;
         this.categoryRepository = categoryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.userRepository = userRepository;
+        this.userProfileService = userProfileService;
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +106,53 @@ public class TaskService {
         // check for existing completion records here and refuse deletion (or require an
         // extra confirmation) the same way the frontend already warns about it.
         taskRepository.delete(task);
+    }
+
+    /**
+     * The checklist an employee sees "today" for one of their assigned stores:
+     * active tasks belonging to that store's owner, scoped to the store (either
+     * applies-to-all-stores or a specific task_stores entry), whose schedule
+     * matches today's day of week and whose active date range covers today --
+     * grouped by category in the owner's configured category and task order.
+     */
+    @Transactional(readOnly = true)
+    public TodayChecklistResponse getTodayChecklistForEmployee(Long employeeUserId, Long storeId) {
+        userProfileService.requireAssignedStore(employeeUserId, storeId);
+
+        Long ownerId = storeOwnerRepository.findByStoreId(storeId)
+            .map(storeOwner -> storeOwner.getOwner().getId())
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+
+        LocalDate today = LocalDate.now();
+        DayOfWeekCode todayCode = DayOfWeekCode.valueOf(today.getDayOfWeek().name().substring(0, 3));
+
+        List<Task> applicableTasks = taskRepository.findActiveForStoreAndDate(ownerId, storeId, today).stream()
+            .filter(task -> matchesSchedule(task, today, todayCode))
+            .toList();
+
+        LinkedHashMap<Long, List<Task>> tasksByCategory = new LinkedHashMap<>();
+        for (Task task : applicableTasks) {
+            tasksByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(task);
+        }
+
+        List<CategoryChecklistResponse> categories = tasksByCategory.values().stream()
+            .map(tasks -> new CategoryChecklistResponse(
+                tasks.get(0).getCategory().getId(),
+                tasks.get(0).getCategory().getName(),
+                tasks.stream().map(TaskChecklistItemResponse::from).toList()
+            ))
+            .toList();
+
+        return new TodayChecklistResponse(storeId, today, categories);
+    }
+
+    private boolean matchesSchedule(Task task, LocalDate date, DayOfWeekCode todayCode) {
+        return switch (task.getScheduleType()) {
+            case EVERY_DAY -> true;
+            case WEEKDAYS -> date.getDayOfWeek().getValue() <= 5;
+            case WEEKENDS -> date.getDayOfWeek().getValue() >= 6;
+            case SELECTED_DAYS -> task.getSelectedDays().contains(todayCode);
+        };
     }
 
     private Task requireOwnedTask(Long ownerId, Long taskId) {
@@ -198,6 +256,9 @@ public class TaskService {
         List<StoreOwner> owned = storeOwnerRepository.findByOwnerIdAndStoreIdIn(ownerId, storeIds);
         if (owned.size() != Set.copyOf(storeIds).size()) {
             throw new InvalidStoreSelectionException("One or more selected stores could not be found");
+        }
+        if (owned.stream().map(StoreOwner::getStore).anyMatch(store -> !store.isActive())) {
+            throw new StoreInactiveException("One or more selected stores have been deactivated");
         }
 
         return owned.stream().map(StoreOwner::getStore).collect(Collectors.toSet());

@@ -12,6 +12,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.EmployeeNotFoundException;
+import com.nforce.retailops.exception.StoreInactiveException;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -68,6 +69,9 @@ public class EmployeeService {
             Store store = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
                 .map(StoreOwner::getStore)
                 .orElseThrow(() -> new AccessDeniedException("You cannot assign employees to another store"));
+            if (!store.isActive()) {
+                throw new StoreInactiveException("\"" + store.getName() + "\" has been deactivated and cannot be assigned employees");
+            }
             stores.add(store);
         }
         return stores;
