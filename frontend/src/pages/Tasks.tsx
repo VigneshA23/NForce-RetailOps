@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { ClipboardList, CheckCircle2, CircleDot, Repeat2, Plus } from 'lucide-react';
 import { getCategories } from '../api/categories';
 import { getStores } from '../api/ownerStores';
 import { createTask, deleteTask, getTasks, setTaskActive, TaskHasHistoryError, updateTask } from '../api/ownerTasks';
@@ -13,6 +13,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
+import StatCard from '../components/StatCard';
 import './Tasks.css';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -117,6 +118,16 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
 
   const activeTaskCount = useMemo(() => tasks.filter((task) => task.active).length, [tasks]);
 
+  const singleCompletionCount = useMemo(
+    () => tasks.filter((task) => task.active && task.completionType === 'SINGLE').length,
+    [tasks],
+  );
+
+  const multipleCompletionCount = useMemo(
+    () => tasks.filter((task) => task.active && task.completionType === 'MULTIPLE').length,
+    [tasks],
+  );
+
   const storeCoverageCount = useMemo(() => {
     if (tasks.some((task) => task.appliesToAllStores)) return stores.length;
     const storeIds = new Set<number>();
@@ -184,6 +195,13 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
 
   return (
     <div className="tasks-page">
+      <div className="stat-card-row">
+        <StatCard icon={ClipboardList} label="Total Tasks" value={tasks.length} tone="primary" />
+        <StatCard icon={CheckCircle2} label="Active Tasks" value={activeTaskCount} tone="success" />
+        <StatCard icon={CircleDot} label="Single Completion" value={singleCompletionCount} tone="info" />
+        <StatCard icon={Repeat2} label="Multiple Completions" value={multipleCompletionCount} tone="warning" />
+      </div>
+
       <div className="tasks-page__header">
         <p className="tasks-page__summary">{summaryText}</p>
 

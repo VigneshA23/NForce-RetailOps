@@ -7,6 +7,7 @@ const ALPHANUMERIC_WITH_SPACES = /^[A-Za-z0-9 ]*$/;
 export function emptyTaskFormValues(): AdminTaskFormValues {
   return {
     name: '',
+    description: '',
     categoryId: null,
     displayOrder: '',
     appliesToAllStores: false,

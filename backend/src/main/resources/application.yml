@@ -26,6 +26,10 @@ jwt:
 session:
   inactivity-timeout-minutes: ${SESSION_INACTIVITY_TIMEOUT_MINUTES:10}
 
+resend:
+  api-key: ${RESEND_API_KEY:}
+  from-email: ${RESEND_FROM_EMAIL:RetailOps <onboarding@resend.dev>}
+
 app:
   cors:
     allowed-origins: ${FRONTEND_URL:http://localhost:5173}

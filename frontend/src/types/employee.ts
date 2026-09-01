@@ -34,4 +34,4 @@ export interface EmployeeFormValues {
 
 export type EmployeeUpdateValues = EmployeeFormValues;
 
-export type EmployeeCreateValues = EmployeeFormValues & { password: string };
+export type EmployeeCreateValues = EmployeeFormValues;

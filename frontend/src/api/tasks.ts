@@ -1,10 +1,18 @@
 import { apiRequest } from './client';
-import type { ChecklistCategory, TaskResponseType } from '../types/task';
+import type { ChecklistCategory, CompletionType, TaskResponseType } from '../types/task';
 
 interface TaskChecklistItemResponse {
   id: number;
   name: string;
+  description: string | null;
   responseType: TaskResponseType;
+  responseNote: string | null;
+  numericUnit: string | null;
+  numericMin: number | null;
+  numericMax: number | null;
+  textMaxLength: number | null;
+  completionType: CompletionType;
+  maxCompletions: number | null;
 }
 
 interface CategoryChecklistResponse {

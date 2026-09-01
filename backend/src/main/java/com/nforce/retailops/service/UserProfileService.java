@@ -39,7 +39,7 @@ public class UserProfileService {
             .map(Store::getName)
             .toList();
 
-        return new MeResponse(user.getId(), user.getFullName(), user.getEmail(), role, storeNames);
+        return new MeResponse(user.getId(), user.getFullName(), user.getEmail(), role, storeNames, user.isMustResetPassword());
     }
 
     /**

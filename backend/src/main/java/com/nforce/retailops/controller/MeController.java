@@ -43,7 +43,8 @@ public class MeController {
                 superAdmin.getName(),
                 superAdmin.getEmail(),
                 "SUPER_ADMIN",
-                List.of()
+                List.of(),
+                false
             ));
         }
 

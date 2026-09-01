@@ -40,6 +40,8 @@ public class EmployeeService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final SessionService sessionService;
+    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
+    private final MailService mailService;
 
     public EmployeeService(
         StoreEmployeeRepository storeEmployeeRepository,
@@ -47,7 +49,9 @@ public class EmployeeService {
         UserRepository userRepository,
         RoleRepository roleRepository,
         PasswordEncoder passwordEncoder,
-        SessionService sessionService
+        SessionService sessionService,
+        TemporaryPasswordGenerator temporaryPasswordGenerator,
+        MailService mailService
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -55,6 +59,8 @@ public class EmployeeService {
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.sessionService = sessionService;
+        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
+        this.mailService = mailService;
     }
 
     // Store assignment is optional: an employee can be created or edited with no
@@ -136,10 +142,13 @@ public class EmployeeService {
         Role employeeRole = roleRepository.findByName(EMPLOYEE_ROLE_NAME)
             .orElseThrow(() -> new IllegalStateException(EMPLOYEE_ROLE_NAME + " role is not seeded"));
 
+        String temporaryPassword = temporaryPasswordGenerator.generate();
+
         User employee = new User();
         employee.setFullName(request.name().trim());
         employee.setEmail(email);
-        employee.setPasswordHash(passwordEncoder.encode(request.password()));
+        employee.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        employee.setMustResetPassword(true);
         employee.getRoles().add(employeeRole);
         employee = userRepository.save(employee);
 
@@ -152,6 +161,10 @@ public class EmployeeService {
         storeEmployee.setEmployeeType(request.employeeType());
         storeEmployee.setGender(request.gender());
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        // Thrown on failure, which rolls back the account created above -- an
+        // employee must not be left unable to ever learn their own password.
+        mailService.sendTemporaryPassword(employee.getEmail(), employee.getFullName(), temporaryPassword);
 
         return EmployeeResponse.from(storeEmployee);
     }
