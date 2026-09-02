@@ -113,8 +113,24 @@ describe('EmployeeTable', () => {
     const employee = baseEmployee({ active: true });
     renderTable([employee], { onToggleStatus });
 
-    await userEvent.click(screen.getByRole('switch', { name: 'Deactivate Asha Rao' }));
+    const toggle = screen.getByLabelText('Deactivate Asha Rao');
+    expect(toggle).toBeChecked();
+
+    await userEvent.click(toggle);
 
     expect(onToggleStatus).toHaveBeenCalledWith(employee);
+  });
+
+  it('renders direct Edit and Delete icon buttons instead of a menu', async () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    const employee = baseEmployee();
+    renderTable([employee], { onEdit, onDelete });
+
+    await userEvent.click(screen.getByRole('button', { name: /edit asha rao/i }));
+    expect(onEdit).toHaveBeenCalledWith(employee);
+
+    await userEvent.click(screen.getByRole('button', { name: /delete asha rao/i }));
+    expect(onDelete).toHaveBeenCalledWith(employee);
   });
 });

@@ -64,6 +64,91 @@
   color: var(--color-text-secondary);
 }
 
+.table-actions-cell {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.table-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  justify-content: flex-end;
+}
+
+.table-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.table-icon-btn:hover {
+  background: var(--color-badge-outline-bg);
+  color: var(--color-text-primary);
+}
+
+.table-icon-btn--danger:hover {
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* Compact status toggle: green when active, red when inactive. Position of
+   the thumb (not just color) communicates state for accessibility. */
+.status-toggle {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.status-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.status-toggle__track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--color-toggle-off-bg);
+  border-radius: var(--radius-pill);
+  transition: background 0.15s ease;
+}
+
+.status-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.status-toggle input:checked + .status-toggle__track {
+  background: var(--color-toggle-on-bg);
+}
+
+.status-toggle input:checked + .status-toggle__track .status-toggle__thumb {
+  transform: translateX(16px);
+}
+
+.status-toggle input:focus-visible + .status-toggle__track {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
 /* Below --mobile a real table can't fit, so each row becomes a stacked card and
    each cell grows a caption from its data-label. Every <td> must carry a
    data-label matching its <th> or the captions come out blank. */

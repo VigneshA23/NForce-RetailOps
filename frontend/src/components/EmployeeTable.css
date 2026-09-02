@@ -1,11 +1,5 @@
 @import '../styles/breakpoints.css';
 
-/* RowActionsMenu portals its panel to <body>, but keep the card unclipped so a
-   focus ring on an edge cell isn't cut off. */
-.employee-table__card {
-  overflow: visible;
-}
-
 .employee-table__emp-id {
   color: var(--color-accent);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
@@ -32,17 +26,6 @@
 
 .employee-table__link:hover {
   text-decoration: underline;
-}
-
-.employee-table__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.employee-table__actions-cell {
-  text-align: right;
-  white-space: nowrap;
 }
 
 @media (--mobile) {
