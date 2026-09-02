@@ -2,23 +2,15 @@
 
 .employee-history {
   width: 100%;
-  max-width: 1200px;
+  max-width: 720px;
   margin: 0 auto;
-  padding: var(--space-xl) var(--space-lg) 80px;
-}
-
-.employee-history-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-md);
-  margin-bottom: var(--space-xl);
+  padding: var(--space-lg) var(--space-lg) 80px;
 }
 
 .employee-history-heading {
-  font-size: 32px;
-  font-weight: 700;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   color: var(--color-text-primary);
   margin: 0 0 4px;
 }
@@ -26,416 +18,377 @@
 .employee-history-subheading {
   font-size: 14px;
   color: var(--color-text-secondary);
-  margin: 0;
+  margin: 0 0 var(--space-lg);
 }
 
+/* Sticks just below the app header so store/date switching never requires
+   scrolling back up, without fighting the header's own sticky z-index. */
 .employee-history-filters {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-sm);
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-page);
+  padding: var(--space-sm) 0 var(--space-md);
+  margin-bottom: var(--space-sm);
 }
 
-.employee-history-filter-select {
+.employee-history-store-select {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  gap: var(--space-sm);
+  min-height: 48px;
+  padding: 0 var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   color: var(--color-text-secondary);
+  box-shadow: var(--shadow-card);
 }
 
-.employee-history-filter-select select {
+.employee-history-store-select select {
+  flex: 1;
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   border: none;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary);
-  padding-right: var(--space-md);
+  padding-right: var(--space-lg);
   cursor: pointer;
 }
 
-.employee-history-filter-select select:focus-visible {
+.employee-history-store-select select:focus-visible {
   outline: 2px solid var(--color-focus-ring);
   outline-offset: 2px;
   border-radius: var(--radius-sm);
 }
 
-.employee-history-filter-chevron {
+.employee-history-store-select-chevron {
   position: absolute;
-  right: 0;
+  right: var(--space-md);
   pointer-events: none;
   color: var(--color-text-muted);
 }
 
-.employee-history-filter-divider {
-  width: 1px;
-  height: 20px;
-  background: var(--color-border);
+.employee-history-date-chips {
+  display: flex;
+  gap: var(--space-sm);
 }
 
-.employee-history-filter-date {
+.employee-history-date-chip {
   position: relative;
+  flex: 1;
+  min-height: 48px;
   display: flex;
   align-items: center;
-  gap: var(--space-xs);
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
   font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-primary);
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+  overflow: hidden;
 }
 
-.employee-history-filter-date input {
+.employee-history-date-chip--icon {
+  flex: 0 0 48px;
+}
+
+.employee-history-date-chip--icon span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.employee-history-date-chip--active {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: var(--color-badge-icon-primary-bg);
+}
+
+.employee-history-date-chip:hover {
+  border-color: var(--color-accent);
+}
+
+.employee-history-date-input {
   position: absolute;
   inset: 0;
   opacity: 0;
-  cursor: pointer;
+  pointer-events: none;
 }
 
-.employee-history-loading {
-  color: var(--color-text-secondary);
-  padding: var(--space-xl) 0;
-}
+/* Skeleton loading state */
 
-.employee-history-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: var(--space-lg);
-  align-items: start;
-}
-
-.employee-history-timeline {
+.employee-history-skeleton {
   display: flex;
   flex-direction: column;
+  gap: var(--space-md);
 }
 
-.employee-history-timeline-item {
-  position: relative;
-  padding-left: 48px;
-  padding-bottom: var(--space-lg);
+.employee-history-skeleton-card {
+  height: 76px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    100deg,
+    var(--color-surface-card) 30%,
+    var(--color-border) 50%,
+    var(--color-surface-card) 70%
+  );
+  background-size: 200% 100%;
+  animation: employee-history-shimmer 1.4s ease-in-out infinite;
 }
 
-.employee-history-timeline-line {
-  position: absolute;
-  left: 15px;
-  top: 32px;
-  bottom: 0;
-  width: 2px;
-  background: var(--color-border);
+@keyframes employee-history-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
-.employee-history-timeline-dot {
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-surface-card);
-  border: 2px solid var(--color-border);
+/* Error state */
+
+.employee-history-error {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-card);
   color: var(--color-text-secondary);
-  z-index: 1;
 }
 
-.employee-history-timeline-dot--complete {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
+.employee-history-error svg {
+  flex-shrink: 0;
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.employee-history-error span {
+  flex: 1;
+  font-size: 13px;
+}
+
+/* Empty state */
+
+.employee-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-xs);
+  padding: var(--space-xl) var(--space-lg);
+  border-radius: var(--radius-lg);
+  border: 1px dashed var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.employee-history-empty svg {
+  color: var(--color-text-muted);
+  margin-bottom: var(--space-xs);
+}
+
+.employee-history-empty h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.employee-history-empty p {
+  font-size: 13px;
+  margin: 0;
+  max-width: 40ch;
+}
+
+/* Accordion cards */
+
+.employee-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+/* One per store when "All Stores" is selected -- a plain flex column so each
+   group's own cards keep the same spacing/appearance as the single-store view. */
+.employee-history-store-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.employee-history-store-group-heading {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin: 0;
 }
 
 .employee-history-card {
-  background: var(--color-surface-card);
   border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
   box-shadow: var(--shadow-card);
-  padding: var(--space-lg);
+  border-left: 4px solid var(--color-border);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
 }
 
-.employee-history-card--highlight {
-  border-color: var(--color-accent);
+.employee-history-card--complete {
+  border-left-color: var(--color-accent);
 }
 
 .employee-history-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-md);
-}
-
-.employee-history-card-header h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
-.employee-history-card-time {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-  margin: 4px 0 0;
-}
-
-.employee-history-audit-badge {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
-  background: var(--color-badge-outline-bg);
-  color: var(--color-badge-outline-text);
-  border: 1px solid var(--color-badge-outline-border);
-}
-
-.employee-history-audit-badge--audited {
-  background: var(--color-accent);
-  color: var(--color-accent-contrast);
-  border-color: var(--color-accent);
-}
-
-.employee-history-card-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: var(--space-md);
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--color-border);
-}
-
-.employee-history-staff {
-  display: flex;
-  align-items: center;
-}
-
-.employee-history-staff-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-badge-solid-bg);
-  color: var(--color-badge-solid-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  border: 2px solid var(--color-surface-card);
-  margin-left: -8px;
-}
-
-.employee-history-staff-avatar:first-child {
-  margin-left: 0;
-}
-
-.employee-history-staff-empty {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.employee-history-card-count {
-  text-align: right;
-}
-
-.employee-history-card-count-value {
-  display: block;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
-.employee-history-card-count-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.employee-history-summary {
-  position: sticky;
-  top: var(--space-lg);
-  background: var(--color-surface-card);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-lg);
-}
-
-.employee-history-summary h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-lg);
-}
-
-.employee-history-progress-ring {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  margin: 0 auto var(--space-lg);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.employee-history-progress-ring-inner {
-  width: 128px;
-  height: 128px;
-  border-radius: 50%;
-  background: var(--color-surface-card);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-}
-
-.employee-history-progress-value {
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--color-accent);
-  line-height: 1;
-}
-
-.employee-history-progress-label {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-  margin-top: 6px;
-}
-
-.employee-history-stats {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
-}
-
-.employee-history-stats .stat-card {
-  box-shadow: none;
-  background: var(--color-bg-page);
-  padding: var(--space-md);
-}
-
-.employee-history-report-btn {
   width: 100%;
-  height: 44px;
-  margin-top: var(--space-lg);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-height: 56px;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
   background: transparent;
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.employee-history-card-header:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 3%, transparent);
+}
+
+.employee-history-card-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-xs);
-  cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease;
+  background: var(--color-badge-outline-bg);
+  color: var(--color-text-secondary);
 }
 
-.employee-history-report-btn:hover {
-  border-color: var(--color-accent);
+.employee-history-card--complete .employee-history-card-icon {
+  background: var(--color-badge-icon-primary-bg);
   color: var(--color-accent);
 }
 
-.employee-history-report-subtitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  margin: 0 0 var(--space-md);
-}
-
-.employee-history-report-category {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: var(--space-md);
-  margin-bottom: var(--space-md);
-}
-
-.employee-history-report-category:last-child {
-  margin-bottom: 0;
-}
-
-.employee-history-report-category-header {
+.employee-history-card-heading {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-sm);
+  flex-direction: column;
 }
 
-.employee-history-report-category-header h4 {
+.employee-history-card-name {
   font-size: 15px;
   font-weight: 700;
   color: var(--color-text-primary);
-  margin: 0;
 }
 
-.employee-history-report-audit-note {
+.employee-history-card-meta {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.employee-history-card-count {
   font-size: 12px;
+  font-weight: 700;
   color: var(--color-text-secondary);
-  margin: var(--space-xs) 0 0;
+  white-space: nowrap;
 }
 
-.employee-history-report-tasks {
+.employee-history-card-chevron {
+  color: var(--color-text-muted);
+  transition: transform 0.2s ease;
+}
+
+.employee-history-card--expanded .employee-history-card-chevron {
+  transform: rotate(180deg);
+}
+
+/* Height-animated collapse via max-height -- a fixed generous cap rather than
+   a JS-measured value, since real category lists stay well under it. */
+.employee-history-card-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.employee-history-card--expanded .employee-history-card-body {
+  max-height: 2000px;
+}
+
+.employee-history-card-body-inner {
   display: flex;
   flex-direction: column;
   gap: var(--space-sm);
-  margin-top: var(--space-md);
+  padding: 0 var(--space-md) var(--space-md);
 }
 
-.employee-history-report-task {
+.employee-history-task {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
-  padding: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
   background: var(--color-bg-page);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
 }
 
-.employee-history-report-task-name {
+.employee-history-task-info {
+  min-width: 0;
+}
+
+.employee-history-task-name {
   font-size: 13px;
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
 }
 
-.employee-history-report-task-status {
+.employee-history-task-detail {
   font-size: 12px;
-  margin: 2px 0 0;
   color: var(--color-text-muted);
+  margin: 2px 0 0;
 }
 
-.employee-history-report-task-status--yes {
-  color: var(--color-accent);
-}
-
-.employee-history-report-task-staff {
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
+.employee-history-task-status {
   flex-shrink: 0;
+  gap: 4px;
 }
 
-@media (--tablet-down) {
-  .employee-history-grid {
-    grid-template-columns: 1fr;
+@media (--tablet-up) {
+  .employee-history {
+    max-width: 880px;
   }
 
-  .employee-history-summary {
-    position: static;
+  .employee-history-filters {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .employee-history-store-select {
+    flex: 0 0 260px;
+  }
+
+  .employee-history-date-chips {
+    flex: 1;
+    max-width: 320px;
   }
 }

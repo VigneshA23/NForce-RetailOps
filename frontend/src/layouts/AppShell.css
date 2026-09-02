@@ -20,3 +20,7 @@
   flex: 1;
   overflow-y: auto;
 }
+
+.app-shell__main--bottom-nav {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom));
+}

@@ -17,11 +17,11 @@ import {
 import { getStores } from '../api/ownerStores';
 import { getEmployees } from '../api/employees';
 import { getCategories } from '../api/categories';
-import { getShiftHistory } from '../api/history';
+import { getMockShiftHistory } from '../api/homeDashboardMock';
 import type { OwnerStore } from '../types/ownerStore';
 import type { Employee } from '../types/employee';
 import type { Category } from '../types/category';
-import type { ShiftHistory } from '../types/history';
+import type { HomeMockShiftHistory } from '../api/homeDashboardMock';
 import StatCard from '../components/StatCard';
 import ChartCard from '../components/ChartCard';
 import './Home.css';
@@ -46,7 +46,7 @@ function formatDayLabel(isoDate: string): string {
   return new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
 }
 
-function averageOnTimePercent(histories: ShiftHistory[]): number {
+function averageOnTimePercent(histories: HomeMockShiftHistory[]): number {
   if (histories.length === 0) return 0;
   return Math.round(histories.reduce((sum, history) => sum + history.summary.onTimePercent, 0) / histories.length);
 }
@@ -55,7 +55,7 @@ function Home({ userName }: HomeProps) {
   const [stores, setStores] = useState<OwnerStore[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [todayHistories, setTodayHistories] = useState<ShiftHistory[]>([]);
+  const [todayHistories, setTodayHistories] = useState<HomeMockShiftHistory[]>([]);
   const [trend, setTrend] = useState<{ day: string; completion: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -72,11 +72,11 @@ function Home({ userName }: HomeProps) {
         const storeIds = storeList.map((store) => store.id);
 
         const [todayResults, trendResults] = await Promise.all([
-          Promise.all(storeIds.map((id) => getShiftHistory(id, isoDateDaysAgo(0)))),
+          Promise.all(storeIds.map((id) => getMockShiftHistory(id, isoDateDaysAgo(0)))),
           Promise.all(
             Array.from({ length: TREND_DAYS }, (_, index) => TREND_DAYS - 1 - index).map(async (daysAgo) => {
               const date = isoDateDaysAgo(daysAgo);
-              const histories = await Promise.all(storeIds.map((id) => getShiftHistory(id, date)));
+              const histories = await Promise.all(storeIds.map((id) => getMockShiftHistory(id, date)));
               return { day: formatDayLabel(date), completion: averageOnTimePercent(histories) };
             }),
           ),

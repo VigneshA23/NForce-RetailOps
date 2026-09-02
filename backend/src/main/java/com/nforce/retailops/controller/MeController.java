@@ -1,6 +1,7 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.AssignedStoreResponse;
+import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
 import com.nforce.retailops.dto.MeResponse;
 import com.nforce.retailops.dto.TaskResponseStateResponse;
 import com.nforce.retailops.dto.TaskResponseSubmitRequest;
@@ -10,6 +11,7 @@ import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.security.SuperAdminUserDetails;
+import com.nforce.retailops.service.MeHistoryService;
 import com.nforce.retailops.service.TaskService;
 import com.nforce.retailops.service.UserProfileService;
 import jakarta.validation.Valid;
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -34,10 +37,12 @@ public class MeController {
 
     private final UserProfileService userProfileService;
     private final TaskService taskService;
+    private final MeHistoryService meHistoryService;
 
-    public MeController(UserProfileService userProfileService, TaskService taskService) {
+    public MeController(UserProfileService userProfileService, TaskService taskService, MeHistoryService meHistoryService) {
         this.userProfileService = userProfileService;
         this.taskService = taskService;
+        this.meHistoryService = meHistoryService;
     }
 
     // Not role-gated, so the principal here can be either an AppUserDetails
@@ -140,5 +145,23 @@ public class MeController {
 
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(taskService.undoResponse(userDetails.getUser().getId(), taskId, storeId, responseId));
+    }
+
+    // Employee-facing: a single day's checklist history (categories -> tasks ->
+    // responses) for one of the caller's assigned stores. requireAssignedStore
+    // (called inside MeHistoryService) enforces the store belongs to this employee,
+    // the same masked-as-"not found" pattern the other /me/tasks endpoints use.
+    @GetMapping("/history/detail")
+    public ResponseEntity<ChecklistHistoryDetailResponse> historyDetail(
+        @AuthenticationPrincipal UserDetails principal,
+        @RequestParam Long storeId,
+        @RequestParam LocalDate date
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(meHistoryService.getDetail(userDetails.getUser().getId(), storeId, date));
     }
 }
