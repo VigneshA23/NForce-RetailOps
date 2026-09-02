@@ -22,7 +22,7 @@ function NoStoreAssigned({ user, onLogout, loggingOut }: NoStoreAssignedProps) {
           <img src="/nforce-logo.png" alt="NForce logo" className="store-picker-brand-logo" />
           <div>
             <div className="store-picker-brand-title">NForce RetailOps</div>
-            <div className="store-picker-brand-subtitle">Retail Store Operations Platform</div>
+            <div className="store-picker-brand-subtitle">Store Ops Platform</div>
           </div>
         </div>
         <ProfileMenu fullName={user.fullName} onLogout={onLogout} loggingOut={loggingOut} />

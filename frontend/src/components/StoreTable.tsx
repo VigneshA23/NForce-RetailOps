@@ -1,5 +1,5 @@
+import { Pencil } from 'lucide-react';
 import type { OwnerStore } from '../types/ownerStore';
-import RowActionsMenu from './RowActionsMenu';
 import './StoreTable.css';
 
 interface StoreTableProps {
@@ -20,7 +20,7 @@ function StoreTable({ stores, isLoading = false, onEdit }: StoreTableProps) {
               <th scope="col">Employees</th>
               <th scope="col">Tasks</th>
               <th scope="col">Status</th>
-              <th scope="col">Actions</th>
+              <th scope="col" className="store-table__actions-cell">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -36,7 +36,14 @@ function StoreTable({ stores, isLoading = false, onEdit }: StoreTableProps) {
                   </span>
                 </td>
                 <td className="store-table__actions-cell">
-                  <RowActionsMenu onEdit={() => onEdit(store)} />
+                  <button
+                    type="button"
+                    className="store-table__edit-button"
+                    aria-label={`Edit ${store.name}`}
+                    onClick={() => onEdit(store)}
+                  >
+                    <Pencil size={16} />
+                  </button>
                 </td>
               </tr>
             ))}
