@@ -1,0 +1,26 @@
+.checklist-history-table__empty-cell {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.checklist-history-table__actions-cell {
+  white-space: nowrap;
+}
+
+.checklist-history-table__view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.checklist-history-table__view-btn:hover {
+  background: color-mix(in srgb, var(--color-text-primary) 5%, transparent);
+}

@@ -67,4 +67,22 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("storeId") Long storeId,
         @org.springframework.data.repository.query.Param("date") LocalDate date
     );
+
+    // Range-overlap variant of findActiveForStoreAndDate, for the admin checklist-history
+    // summary view: fetches the superset of tasks that could apply on ANY day in
+    // [startDate, endDate] in one query per store, so per-day eligibility (which still
+    // depends on each task's own startDate/endDate and schedule type) can be evaluated
+    // in memory without re-querying the DB once per day.
+    @org.springframework.data.jpa.repository.Query(
+        "select t from Task t where t.owner.id = :ownerId and t.active = true and t.category.active = true "
+            + "and (t.appliesToAllStores = true or :storeId in (select s.id from t.stores s)) "
+            + "and t.startDate <= :endDate and (t.endDate is null or t.endDate >= :startDate) "
+            + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"
+    )
+    List<Task> findActiveForStoreAndDateRange(
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId,
+        @org.springframework.data.repository.query.Param("storeId") Long storeId,
+        @org.springframework.data.repository.query.Param("startDate") LocalDate startDate,
+        @org.springframework.data.repository.query.Param("endDate") LocalDate endDate
+    );
 }
