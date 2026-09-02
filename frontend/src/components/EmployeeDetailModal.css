@@ -1,0 +1,29 @@
+@import '../styles/breakpoints.css';
+
+.employee-detail__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  margin: var(--space-lg) 0 0;
+}
+
+.employee-detail__grid dt {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.employee-detail__grid dd {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+@media (--mobile) {
+  .employee-detail__grid {
+    grid-template-columns: 1fr;
+  }
+}

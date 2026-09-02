@@ -18,6 +18,15 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
   const modalRef = useRef<HTMLDivElement>(null);
   const triggerElementRef = useRef<Element | null>(null);
 
+  // Callers (e.g. an inline onClose={() => ...}) rarely memoize this, so it's
+  // a fresh function on every render. Reading it via a ref keeps the effect
+  // below keyed only on isOpen, instead of re-running (and re-stealing focus)
+  // on every parent re-render while the modal stays open.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -30,7 +39,7 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
-        onClose();
+        onCloseRef.current();
       }
     }
 
@@ -41,7 +50,7 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
         triggerElementRef.current.focus();
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
