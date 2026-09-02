@@ -73,6 +73,13 @@
   display: flex;
   flex-direction: column;
   line-height: 1.25;
+  min-width: 0;
+  flex: 1 1 auto;
+  /* Overrides the generic 160px cap from .sidebar__label below -- the brand
+     row has its own available width (varies by breakpoint, since the
+     collapse toggle isn't always present), so it shouldn't share a fixed
+     cap with nav-item/profile labels. */
+  --sidebar-label-max-width: none;
 }
 
 .sidebar__brand-title {
@@ -80,6 +87,8 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--color-header-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar__brand-subtitle {
@@ -88,6 +97,10 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
+  /* The full subtitle doesn't fit the brand row on one line at any
+     breakpoint -- wrap it instead of the parent's inherited nowrap, so the
+     whole thing stays visible (in expanded mode) rather than being clipped. */
+  white-space: normal;
 }
 
 .sidebar__nav {
@@ -167,7 +180,7 @@
   white-space: nowrap;
   overflow: hidden;
   opacity: 1;
-  max-width: 160px;
+  max-width: var(--sidebar-label-max-width, 160px);
   transition: opacity var(--transition-fast), max-width var(--transition-fast);
 }
 
@@ -262,14 +275,10 @@
   .sidebar.sidebar .sidebar__label,
   .sidebar.sidebar--collapsed .sidebar__label {
     opacity: 1;
-    max-width: 160px;
+    max-width: var(--sidebar-label-max-width, 160px);
   }
 
   .sidebar.sidebar--mobile-open {
     transform: translateX(0);
-  }
-
-  .sidebar__footer {
-    display: none;
   }
 }

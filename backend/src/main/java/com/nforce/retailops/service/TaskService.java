@@ -25,6 +25,7 @@ import com.nforce.retailops.exception.InvalidTaskResponseException;
 import com.nforce.retailops.exception.StoreInactiveException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.TaskAlreadyCompletedException;
+import com.nforce.retailops.exception.TaskHasHistoryException;
 import com.nforce.retailops.exception.TaskNotFoundException;
 import com.nforce.retailops.exception.TaskResponseNotFoundException;
 import com.nforce.retailops.exception.UnauthorizedTaskResponseActionException;
@@ -121,9 +122,14 @@ public class TaskService {
     @Transactional
     public void deleteTask(Long ownerId, Long taskId) {
         Task task = requireOwnedTask(ownerId, taskId);
-        // NOTE: no employee task-completion/history entity exists yet. Once one does,
-        // check for existing completion records here and refuse deletion (or require an
-        // extra confirmation) the same way the frontend already warns about it.
+        // Never hard-delete a task with checklist history: task_responses has an
+        // on-delete-restrict FK back to tasks (V21), so this check exists to turn that
+        // into a clean 409 instead of a raw constraint-violation error, and to give the
+        // owner the "deactivate instead" alternative the frontend already offers.
+        if (taskResponseEntryRepository.existsByTaskId(taskId)) {
+            throw new TaskHasHistoryException(
+                "This task has checklist history and cannot be deleted. Deactivate it instead.");
+        }
         taskRepository.delete(task);
     }
 
@@ -143,10 +149,9 @@ public class TaskService {
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
         LocalDate today = LocalDate.now();
-        DayOfWeekCode todayCode = DayOfWeekCode.valueOf(today.getDayOfWeek().name().substring(0, 3));
 
         List<Task> applicableTasks = taskRepository.findActiveForStoreAndDate(ownerId, storeId, today).stream()
-            .filter(task -> matchesSchedule(task, today, todayCode))
+            .filter(task -> TaskScheduleMatcher.matches(task, today))
             .toList();
 
         // Batched instead of one active-responses query per task, so the checklist read
@@ -288,15 +293,6 @@ public class TaskService {
                 entry.setValueText(request.textValue());
             }
         }
-    }
-
-    private boolean matchesSchedule(Task task, LocalDate date, DayOfWeekCode todayCode) {
-        return switch (task.getScheduleType()) {
-            case EVERY_DAY -> true;
-            case WEEKDAYS -> date.getDayOfWeek().getValue() <= 5;
-            case WEEKENDS -> date.getDayOfWeek().getValue() >= 6;
-            case SELECTED_DAYS -> task.getSelectedDays().contains(todayCode);
-        };
     }
 
     private Task requireOwnedTask(Long ownerId, Long taskId) {

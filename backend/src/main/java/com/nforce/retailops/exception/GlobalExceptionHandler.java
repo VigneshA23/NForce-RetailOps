@@ -115,4 +115,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleUnauthorizedTaskResponseAction(UnauthorizedTaskResponseActionException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler(InvalidDateRangeException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidDateRange(InvalidDateRangeException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(TaskHasHistoryException.class)
+    public ResponseEntity<Map<String, String>> handleTaskHasHistory(TaskHasHistoryException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
 }

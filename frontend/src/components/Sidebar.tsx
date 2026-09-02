@@ -88,7 +88,7 @@ function Sidebar<Key extends string = NavTabKey>({
             <img src="/nforce-logo.png" alt="NForce logo" className="sidebar__brand-logo" />
             <div className="sidebar__brand-text sidebar__label">
               <span className="sidebar__brand-title">NForce RetailOps</span>
-              <span className="sidebar__brand-subtitle">Retail Store Operations Platform</span>
+              <span className="sidebar__brand-subtitle">Store Ops Platform</span>
             </div>
             <button
               type="button"
