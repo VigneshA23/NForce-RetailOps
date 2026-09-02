@@ -26,5 +26,9 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
     // not the StoreEmployee PK.
     Optional<StoreEmployee> findByEmployeeId(Long userId);
 
+    // Batched form of findByEmployeeId, for enriching many distinct responders at once
+    // (e.g. admin checklist history) without one query per employee.
+    List<StoreEmployee> findByEmployeeIdIn(Collection<Long> userIds);
+
     boolean existsByEmployeeIdAndStoresId(Long userId, Long storeId);
 }

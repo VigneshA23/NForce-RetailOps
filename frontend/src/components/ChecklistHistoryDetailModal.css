@@ -1,0 +1,75 @@
+.checklist-history-detail__status {
+  padding: var(--space-lg) 0;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.checklist-history-detail__status--error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.checklist-history-detail__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xl) 0;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.checklist-history-detail__empty h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.checklist-history-detail__categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.checklist-history-detail__category h4 {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text-primary);
+}
+
+.checklist-history-detail__no-tasks {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.checklist-history-detail__tasks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.checklist-history-detail__task {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+}
+
+.checklist-history-detail__task-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.checklist-history-detail__task-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.checklist-history-detail__response {
+  margin: var(--space-xs) 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
