@@ -36,60 +36,78 @@ function baseTask(overrides: Partial<AdminTask>): AdminTask {
   };
 }
 
-function renderTable(tasks: AdminTask[]) {
-  return render(<TaskTable tasks={tasks} onEdit={vi.fn()} onDelete={vi.fn()} onToggleStatus={vi.fn()} />);
+function renderTable(tasks: AdminTask[], overrides: Partial<Parameters<typeof TaskTable>[0]> = {}) {
+  return render(
+    <TaskTable
+      tasks={tasks}
+      onRowClick={vi.fn()}
+      onEdit={vi.fn()}
+      onDelete={vi.fn()}
+      onToggleStatus={vi.fn()}
+      {...overrides}
+    />,
+  );
 }
 
-describe('TaskTable Store column', () => {
-  it('shows "All Stores" for a task configured with All Stores', () => {
-    renderTable([baseTask({ appliesToAllStores: true, stores: [] })]);
+describe('TaskTable row click', () => {
+  it('opens Task Details when a normal cell (task name) is clicked', async () => {
+    const onRowClick = vi.fn();
+    const task = baseTask({});
+    renderTable([task], { onRowClick });
 
-    expect(screen.getByText('All Stores')).toBeInTheDocument();
-    expect(screen.queryByText(/^\d+ stores?$/i)).not.toBeInTheDocument();
+    await userEvent.click(screen.getByText('Wipe counters'));
+    expect(onRowClick).toHaveBeenCalledWith(task);
   });
 
-  it('shows the actual store name for a single-store task', () => {
-    renderTable([baseTask({ stores: [{ id: 1, name: 'River way - Store 2' }] })]);
+  it('opens Task Details when clicking the category cell', async () => {
+    const onRowClick = vi.fn();
+    const task = baseTask({});
+    renderTable([task], { onRowClick });
 
-    expect(screen.getByText('River way - Store 2')).toBeInTheDocument();
+    await userEvent.click(screen.getByText('Cleaning'));
+    expect(onRowClick).toHaveBeenCalledWith(task);
   });
 
-  it('shows both actual store names for a two-store task', () => {
-    renderTable([
-      baseTask({
-        stores: [
-          { id: 1, name: 'Downtown - Store 1' },
-          { id: 2, name: 'River way - Store 2' },
-        ],
-      }),
-    ]);
+  it('does NOT open Task Details when clicking the status toggle', async () => {
+    const onRowClick = vi.fn();
+    const onToggleStatus = vi.fn();
+    const task = baseTask({ active: true });
+    renderTable([task], { onRowClick, onToggleStatus });
 
-    expect(screen.getByText('Downtown - Store 1')).toBeInTheDocument();
-    expect(screen.getByText('River way - Store 2')).toBeInTheDocument();
+    await userEvent.click(screen.getByLabelText('Deactivate task'));
+    expect(onToggleStatus).toHaveBeenCalledWith(task);
+    expect(onRowClick).not.toHaveBeenCalled();
   });
 
-  it('shows a compact +N overflow chip for more than two stores', () => {
-    renderTable([
-      baseTask({
-        stores: [
-          { id: 1, name: 'Downtown - Store 1' },
-          { id: 2, name: 'River way - Store 2' },
-          { id: 3, name: 'Uptown - Store 3' },
-        ],
-      }),
-    ]);
+  it('does NOT open Task Details when clicking Edit', async () => {
+    const onRowClick = vi.fn();
+    const onEdit = vi.fn();
+    const task = baseTask({});
+    renderTable([task], { onRowClick, onEdit });
 
-    expect(screen.getByText('Downtown - Store 1')).toBeInTheDocument();
-    expect(screen.getByText('River way - Store 2')).toBeInTheDocument();
-    expect(screen.queryByText('Uptown - Store 3')).not.toBeInTheDocument();
-    const overflow = screen.getByText('+1');
-    expect(overflow).toHaveAttribute('title', 'Uptown - Store 3');
+    await userEvent.click(screen.getByRole('button', { name: /edit wipe counters/i }));
+    expect(onEdit).toHaveBeenCalledWith(task);
+    expect(onRowClick).not.toHaveBeenCalled();
   });
 
-  it('falls back to a safe label instead of crashing when a store has no name', () => {
-    renderTable([baseTask({ stores: [{ id: 1, name: '' }] })]);
+  it('does NOT open Task Details when clicking Delete', async () => {
+    const onRowClick = vi.fn();
+    const onDelete = vi.fn();
+    const task = baseTask({});
+    renderTable([task], { onRowClick, onDelete });
 
-    expect(screen.getByText('Unknown Store')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /delete wipe counters/i }));
+    expect(onDelete).toHaveBeenCalledWith(task);
+    expect(onRowClick).not.toHaveBeenCalled();
+  });
+});
+
+describe('TaskTable columns', () => {
+  it('does not render a Store column in the main table', () => {
+    renderTable([baseTask({ stores: [{ id: 1, name: 'Downtown - Store 1' }] })]);
+
+    expect(screen.queryByRole('columnheader', { name: 'Store' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Downtown - Store 1')).not.toBeInTheDocument();
   });
 });
 
@@ -97,7 +115,7 @@ describe('TaskTable status toggle', () => {
   it('shows an ON toggle for an active task and calls onToggleStatus when clicked', async () => {
     const onToggleStatus = vi.fn();
     const task = baseTask({ active: true });
-    render(<TaskTable tasks={[task]} onEdit={vi.fn()} onDelete={vi.fn()} onToggleStatus={onToggleStatus} />);
+    renderTable([task], { onToggleStatus });
 
     const toggle = screen.getByLabelText('Deactivate task');
     expect(toggle).toBeChecked();
@@ -109,7 +127,7 @@ describe('TaskTable status toggle', () => {
   it('shows an OFF toggle for an inactive task and calls onToggleStatus when clicked', async () => {
     const onToggleStatus = vi.fn();
     const task = baseTask({ active: false });
-    render(<TaskTable tasks={[task]} onEdit={vi.fn()} onDelete={vi.fn()} onToggleStatus={onToggleStatus} />);
+    renderTable([task], { onToggleStatus });
 
     const toggle = screen.getByLabelText('Activate task');
     expect(toggle).not.toBeChecked();
@@ -124,7 +142,7 @@ describe('TaskTable actions', () => {
     const onEdit = vi.fn();
     const onDelete = vi.fn();
     const task = baseTask({});
-    render(<TaskTable tasks={[task]} onEdit={onEdit} onDelete={onDelete} onToggleStatus={vi.fn()} />);
+    renderTable([task], { onEdit, onDelete });
 
     expect(screen.queryByRole('button', { name: /task actions/i })).not.toBeInTheDocument();
 
