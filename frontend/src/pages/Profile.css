@@ -50,3 +50,26 @@
   color: var(--color-accent);
   flex-shrink: 0;
 }
+
+.profile-card__edit-btn {
+  margin-left: auto;
+  align-self: flex-start;
+  flex-shrink: 0;
+}
+
+.profile-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.profile-card__actions-end {
+  display: flex;
+  gap: var(--space-sm);
+  margin-left: auto;
+}

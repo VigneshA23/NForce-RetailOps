@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.MeResponse;
 import com.nforce.retailops.dto.TaskResponseStateResponse;
 import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.dto.TodayChecklistResponse;
+import com.nforce.retailops.dto.UpdateMeRequest;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.security.AppUserDetails;
@@ -13,11 +14,13 @@ import com.nforce.retailops.service.TaskService;
 import com.nforce.retailops.service.UserProfileService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -50,12 +53,30 @@ public class MeController {
                 superAdmin.getEmail(),
                 "SUPER_ADMIN",
                 List.of(),
-                false
+                false,
+                null,
+                null,
+                null
             ));
         }
 
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(userProfileService.getMe(userDetails.getUser()));
+    }
+
+    // Self-service profile edit (name/email/phone) -- not available to super
+    // admins, who have no User/StoreEmployee record for this service to update.
+    @PutMapping
+    public ResponseEntity<MeResponse> updateMe(
+        @AuthenticationPrincipal UserDetails principal,
+        @Valid @RequestBody UpdateMeRequest request
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new AccessDeniedException("Not supported for this account type");
+        }
+
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(userProfileService.updateMe(userDetails.getUser(), request));
     }
 
     @GetMapping("/stores")

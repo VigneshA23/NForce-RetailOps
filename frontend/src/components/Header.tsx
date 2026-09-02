@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Bell, Menu, Moon, Sun } from 'lucide-react';
 import SearchInput from './SearchInput';
 import IconButton from './IconButton';
@@ -16,6 +17,10 @@ interface HeaderProps {
   onLogout: () => void;
   loggingOut?: boolean;
   onMenuClick?: () => void;
+  // Extra page-specific action(s) rendered before the search box (e.g. the
+  // Employee shell's "Switch Store" button) -- optional, so Admin's Header
+  // stays exactly as-is when nothing is passed.
+  actions?: ReactNode;
 }
 
 function Header({
@@ -30,6 +35,7 @@ function Header({
   onLogout,
   loggingOut,
   onMenuClick,
+  actions,
 }: HeaderProps) {
   return (
     <header className="header">
@@ -40,6 +46,7 @@ function Header({
         <h1 className="header__title">{title}</h1>
       </div>
       <div className="header__right">
+        {actions}
         <SearchInput value={searchValue} onChange={onSearchChange} />
         <IconButton
           icon={isDarkTheme ? Sun : Moon}

@@ -6,11 +6,11 @@ import com.nforce.retailops.security.RestAuthenticationEntryPoint;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -57,6 +57,14 @@ public class SecurityConfig {
                 .accessDeniedHandler(restAccessDeniedHandler)
             )
             .authorizeHttpRequests(auth -> auth
+                // Explicit rather than relying solely on CorsFilter's implicit
+                // preflight short-circuit: a browser's CORS preflight for a
+                // non-simple method (PUT, DELETE, ...) or a non-safelisted header
+                // (Authorization, Content-Type: application/json) never carries
+                // credentials, so under .anonymous().disable() it would otherwise
+                // be evaluated as an unauthenticated request and 401 rather than
+                // being allowed through to get real CORS headers back.
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/login", "/api/auth/session-config", "/actuator/health").permitAll()
                 .anyRequest().authenticated()
             )

@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.ChangePasswordRequest;
 import com.nforce.retailops.dto.LoginRequest;
 import com.nforce.retailops.dto.LoginResponse;
 import com.nforce.retailops.dto.ResetPasswordRequest;
@@ -48,6 +49,21 @@ public class AuthController {
             throw new BadCredentialsException("Invalid session");
         }
         authService.resetPassword(appUserDetails.getUser().getEmail(), request.newPassword());
+        return ResponseEntity.ok().build();
+    }
+
+    // Voluntary in-app password change (Employee/Owner "Reset Password" from
+    // their profile) -- unlike /reset-password above, this verifies the current
+    // password before allowing a new one.
+    @PostMapping("/change-password")
+    public ResponseEntity<Void> changePassword(
+        @AuthenticationPrincipal UserDetails principal,
+        @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        if (!(principal instanceof AppUserDetails appUserDetails)) {
+            throw new BadCredentialsException("Invalid session");
+        }
+        authService.changePassword(appUserDetails.getUser().getEmail(), request.currentPassword(), request.newPassword());
         return ResponseEntity.ok().build();
     }
 

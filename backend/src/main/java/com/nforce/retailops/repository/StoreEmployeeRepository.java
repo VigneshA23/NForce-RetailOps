@@ -13,6 +13,10 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
 
     int countByStoresId(Long storeId);
 
+    // Y in the "X/Y Completed By" checklist status: only employees whose User
+    // account is still active count toward the store's headcount.
+    int countByStoresIdAndEmployeeActiveTrue(Long storeId);
+
     // Batched form of countByStoresId, for listing many stores at once without
     // one count query per store.
     @Query("select s.id, count(se) from StoreEmployee se join se.stores s where s.id in :storeIds group by s.id")

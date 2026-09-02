@@ -1,19 +1,15 @@
-import { useState } from 'react'
-import { CalendarCheck, History as HistoryIcon, Inbox, Moon, Store as StoreIcon, Sun } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { CalendarCheck, History as HistoryIcon, Inbox, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
-import { useIsMobile } from '../hooks/useMediaQuery'
-import { useTheme } from '../hooks/useTheme'
-import { useSidebarCollapsed } from '../hooks/useSidebarCollapsed'
-import Sidebar from '../components/Sidebar'
-import IconButton from '../components/IconButton'
-import PlaceholderPage from '../components/PlaceholderPage'
-import ProfileMenu from '../components/ProfileMenu'
-import BottomNav from '../components/BottomNav'
+import { getInitials } from '../utils/initials'
+import AppShell from './AppShell'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
-import './EmployeeShell.css'
+import PlaceholderPage from '../components/PlaceholderPage'
+import Profile from '../pages/Profile'
+import Help from '../pages/Help'
 
 interface EmployeeShellProps {
   user: AuthUser
@@ -30,14 +26,16 @@ const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'audits', label: 'Audits & Inbox', icon: Inbox },
 ]
 
+type Overlay = 'profile' | 'help' | null
+
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
-  const isMobile = useIsMobile()
-  const { isDarkTheme, toggleTheme } = useTheme()
-  const [collapsed, setCollapsed] = useSidebarCollapsed()
+  const [overlay, setOverlay] = useState<Overlay>(null)
   // With a single assigned store there is nothing to switch to -- the control
   // would only lead to a one-option picker and straight back here.
   const canSwitchStore = stores.length > 1
+
+  const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName])
 
   function renderActivePage() {
     switch (activeTab) {
@@ -54,44 +52,38 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     }
   }
 
+  const title = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : store.name
+
   return (
-    <div className="employee-shell">
-      {!isMobile && (
-        <Sidebar<EmployeeNavTabKey>
-          items={NAV_ITEMS}
-          activeKey={activeTab}
-          onSelect={setActiveTab}
-          collapsed={collapsed}
-          onToggleCollapsed={() => setCollapsed((current) => !current)}
-          user={user}
-        />
-      )}
-
-      <div className="employee-shell-content">
-        <div className="employee-shell-topbar">
-          <div className="employee-shell-topbar-store">{store.name}</div>
-          <div className="employee-shell-topbar-actions">
-            {canSwitchStore && (
-              <button type="button" className="btn btn--secondary" onClick={onSwitchStore}>
-                <StoreIcon size={16} />
-                Switch Store
-              </button>
-            )}
-            <IconButton
-              icon={isDarkTheme ? Sun : Moon}
-              ariaLabel={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
-              onClick={toggleTheme}
-              variant="accent"
-            />
-            <ProfileMenu fullName={user.fullName} onLogout={onLogout} loggingOut={loggingOut} />
-          </div>
-        </div>
-
-        <main className="employee-shell-main">{renderActivePage()}</main>
-      </div>
-
-      {isMobile && <BottomNav items={NAV_ITEMS} activeKey={activeTab} onSelect={setActiveTab} />}
-    </div>
+    <AppShell<EmployeeNavTabKey>
+      navItems={NAV_ITEMS}
+      activeTab={activeTab}
+      onSelectTab={(key) => {
+        setOverlay(null)
+        setActiveTab(key)
+      }}
+      title={title}
+      user={user}
+      onLogout={onLogout}
+      loggingOut={loggingOut}
+      onProfileClick={() => setOverlay('profile')}
+      onHelpClick={() => setOverlay('help')}
+      headerActions={
+        canSwitchStore && (
+          <button
+            type="button"
+            className="btn btn--secondary switch-store-btn"
+            onClick={onSwitchStore}
+            aria-label="Switch Store"
+          >
+            <StoreIcon size={16} />
+            <span className="switch-store-btn__label">Switch Store</span>
+          </button>
+        )
+      }
+    >
+      {overlay === 'profile' ? <Profile initials={userInitials} /> : overlay === 'help' ? <Help /> : renderActivePage()}
+    </AppShell>
   )
 }
 

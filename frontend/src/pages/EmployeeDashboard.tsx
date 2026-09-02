@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronDown, Circle, ClipboardList, Flag, ListTodo, Percent } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, Circle, ClipboardList, Flag, Info, ListTodo, Percent } from 'lucide-react'
 import { ApiError } from '../api/client'
 import { getDailyChecklist, raiseIssue, submitTaskResponse, undoTaskResponse } from '../api/tasks'
 import type { TaskResponseStateResponse } from '../api/tasks'
@@ -27,22 +27,6 @@ function ownResponse(task: ChecklistTask, employeeId: number | null): TaskRespon
   return mine[mine.length - 1]
 }
 
-function displayResponse(task: ChecklistTask, employeeId: number | null): TaskResponseSummary | undefined {
-  return ownResponse(task, employeeId) ?? task.responses[task.responses.length - 1]
-}
-
-function responderLabel(response: TaskResponseSummary, employeeId: number | null): string {
-  return response.employeeUserId === employeeId ? 'You' : response.employeeFullName
-}
-
-function formatTime(isoTimestamp: string): string {
-  try {
-    return new Date(isoTimestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-  } catch {
-    return ''
-  }
-}
-
 // Tooltip for the completed/DONE status: who answered this task. SINGLE has at
 // most one active response; MULTIPLE can have several, so all responders are
 // listed. Safe against an empty or (defensively) missing responses array.
@@ -52,27 +36,19 @@ function responderTooltip(task: ChecklistTask): string | undefined {
   return task.completionType === 'MULTIPLE' ? `Completed by ${names.join(', ')}` : `Completed by ${names[0]}`
 }
 
-function answerStatusLabel(task: ChecklistTask, employeeId: number | null): string {
-  const response = displayResponse(task, employeeId)
-  if (!response) return 'Not answered'
+// Names shown in the "X/Y Completed By" info tooltip: the active employees who
+// responded today, straight from the backend -- never hardcoded. Falls back to
+// a single explanatory line if that list is (defensively) empty.
+function completedByNamesForTooltip(task: ChecklistTask): string[] {
+  const names = task.completedByNames ?? []
+  return names.length > 0 ? names : ['No active employee has completed this yet']
+}
 
-  const who = responderLabel(response, employeeId)
-  switch (task.responseType) {
-    case 'YES_NO':
-      return response.booleanValue ? `✓ Completed — ${who}` : `Not completed — ${who}`
-    case 'DONE_NOT_DONE':
-      return `✓ Completed — ${who}`
-    case 'TEXT':
-      return response.textValue && response.textValue.trim()
-        ? `✓ ${response.textValue.trim()} — ${who}`
-        : `✓ Completed — ${who}`
-    case 'NUMERIC':
-      return response.numericValue != null
-        ? `✓ ${response.numericValue}${task.numericUnit ? ` ${task.numericUnit}` : ''} — ${who}`
-        : 'Not answered'
-    default:
-      return 'Not answered'
-  }
+// The "X/Y Completed By" count only ever applies to MULTIPLE tasks that have at
+// least one active response from a still-active employee -- SINGLE tasks show a
+// plain Not Answered/Completed status instead, and never the X/Y count.
+function showsCompletedByCount(task: ChecklistTask): boolean {
+  return task.completionType === 'MULTIPLE' && task.completedByCount > 0
 }
 
 function EmployeeDashboard({ store }: EmployeeDashboardProps) {
@@ -80,7 +56,6 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [employeeId, setEmployeeId] = useState<number | null>(null)
-  const [onDuty, setOnDuty] = useState(true)
   const [flagCount, setFlagCount] = useState(0)
   const [isRaiseModalOpen, setIsRaiseModalOpen] = useState(false)
   const [issueNote, setIssueNote] = useState('')
@@ -88,6 +63,9 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   const [pendingTaskId, setPendingTaskId] = useState<number | null>(null)
   const [taskErrors, setTaskErrors] = useState<Record<number, string>>({})
   const [drafts, setDrafts] = useState<Record<number, string>>({})
+  // Which task's "X/Y Completed By" info tooltip is currently open -- at most one
+  // at a time, shown on hover, keyboard focus, or click/tap (for touch devices).
+  const [openCompletedByTaskId, setOpenCompletedByTaskId] = useState<number | null>(null)
 
   function loadChecklist() {
     let active = true
@@ -149,7 +127,16 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
       previous.map((category) => ({
         ...category,
         tasks: category.tasks.map((task) =>
-          task.id === state.taskId ? { ...task, responses: state.responses, canUndo: state.canUndo } : task,
+          task.id === state.taskId
+            ? {
+                ...task,
+                responses: state.responses,
+                canUndo: state.canUndo,
+                completedByCount: state.completedByCount,
+                totalActiveEmployees: state.totalActiveEmployees,
+                completedByNames: state.completedByNames,
+              }
+            : task,
         ),
       })),
     )
@@ -159,7 +146,7 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
     task: ChecklistTask,
     value: { booleanValue?: boolean; numericValue?: number; textValue?: string },
   ) {
-    if (!onDuty || pendingTaskId != null) return
+    if (pendingTaskId != null) return
     setPendingTaskId(task.id)
     setTaskErrors((previous) => ({ ...previous, [task.id]: '' }))
     try {
@@ -242,17 +229,6 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
               Overall: {completedTasks}/{totalTasks}
             </p>
           </div>
-          <label className="on-duty-toggle">
-            <span className="on-duty-toggle-label">On Duty</span>
-            <input
-              type="checkbox"
-              checked={onDuty}
-              onChange={(event) => setOnDuty(event.target.checked)}
-            />
-            <span className="on-duty-toggle-track" aria-hidden="true">
-              <span className="on-duty-toggle-thumb" />
-            </span>
-          </label>
         </div>
 
         <div className="stat-card-row employee-dashboard-summary">
@@ -310,18 +286,69 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
                       // interactive control is rendered at all -- only Undo (gated on
                       // canUndo) can ever reopen it, and only for whoever owns it.
                       const isLockedByOther = isSingleLocked && !task.canUndo
-                      const controlsDisabled = !onDuty || isPending || isSingleLocked
+                      const controlsDisabled = isPending || isSingleLocked
                       const mine = ownResponse(task, employeeId)
                       const draft = drafts[task.id]
                       const taskError = taskErrors[task.id]
 
                       return (
-                        <div key={task.id} className={`checklist-task${!onDuty ? ' checklist-task--disabled' : ''}`}>
+                        <div key={task.id} className="checklist-task">
                           <div>
                             <p className="checklist-task-name">{task.name}</p>
-                            <p className="checklist-task-status" title={responderTooltip(task)}>
-                              {answerStatusLabel(task, employeeId)}
-                            </p>
+                            {task.completionType === 'MULTIPLE' ? (
+                              showsCompletedByCount(task) ? (
+                                <p className="checklist-task-completed-by">
+                                  {task.completedByCount}/{task.totalActiveEmployees} Completed By
+                                  <span
+                                    className="checklist-task-completed-by-info"
+                                    onMouseEnter={() => setOpenCompletedByTaskId(task.id)}
+                                    onMouseLeave={() =>
+                                      setOpenCompletedByTaskId((current) => (current === task.id ? null : current))
+                                    }
+                                  >
+                                    <button
+                                      type="button"
+                                      className="checklist-task-completed-by-icon"
+                                      aria-label={`Who completed ${task.name} today`}
+                                      aria-expanded={openCompletedByTaskId === task.id}
+                                      aria-describedby={
+                                        openCompletedByTaskId === task.id ? `completed-by-tooltip-${task.id}` : undefined
+                                      }
+                                      onClick={() =>
+                                        setOpenCompletedByTaskId((current) => (current === task.id ? null : task.id))
+                                      }
+                                      onFocus={() => setOpenCompletedByTaskId(task.id)}
+                                      onBlur={() =>
+                                        setOpenCompletedByTaskId((current) => (current === task.id ? null : current))
+                                      }
+                                    >
+                                      <Info size={14} />
+                                    </button>
+                                    {openCompletedByTaskId === task.id && (
+                                      <div
+                                        className="checklist-task-completed-by-tooltip"
+                                        role="tooltip"
+                                        id={`completed-by-tooltip-${task.id}`}
+                                      >
+                                        {completedByNamesForTooltip(task).map((name) => (
+                                          <div key={name} className="checklist-task-completed-by-tooltip-name">
+                                            {name}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </span>
+                                </p>
+                              ) : (
+                                <p className="checklist-task-status">Not Answered</p>
+                              )
+                            ) : (
+                              <p className="checklist-task-status">
+                                {task.responses.length > 0
+                                  ? `Completed by ${task.responses[task.responses.length - 1].employeeFullName}`
+                                  : 'Not Answered'}
+                              </p>
+                            )}
                             {taskError && <p className="checklist-task-error">{taskError}</p>}
                           </div>
 
@@ -415,23 +442,13 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
                               <button
                                 type="button"
                                 className="checklist-task-undo-link"
-                                disabled={!onDuty || isPending}
+                                disabled={isPending}
                                 onClick={() => undoAnswer(task)}
                               >
                                 Undo
                               </button>
                             )}
                           </div>
-
-                          {task.completionType === 'MULTIPLE' && task.responses.length > 1 && (
-                            <ul className="checklist-task-responses">
-                              {task.responses.map((response) => (
-                                <li key={response.id}>
-                                  {responderLabel(response, employeeId)} · {formatTime(response.respondedAt)}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
                         </div>
                       )
                     })}

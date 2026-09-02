@@ -12,6 +12,7 @@ import History from '../pages/History';
 import Settings from '../pages/Settings';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
+import { getInitials } from '../utils/initials';
 
 function renderActivePage(activeTab: NavTabKey, onNavigateToCategories: () => void, userName: string) {
   switch (activeTab) {
@@ -34,13 +35,6 @@ function renderActivePage(activeTab: NavTabKey, onNavigateToCategories: () => vo
       return _exhaustive;
     }
   }
-}
-
-function getInitials(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '';
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
 interface DashboardShellProps {

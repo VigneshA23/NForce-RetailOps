@@ -31,9 +31,33 @@
   gap: var(--space-md);
 }
 
+/* An action button (e.g. Employee's "Switch Store") sits on the header's
+   always-dark background, so it needs header-scoped contrast rather than the
+   page-toned --color-text-primary/--color-border .btn--secondary normally uses. */
+.header__right .btn--secondary {
+  color: var(--color-header-text);
+  border-color: rgba(255, 255, 255, 0.3);
+  white-space: nowrap;
+}
+
+.header__right .btn--secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 @media (--mobile) {
   .search-input {
     min-width: 0;
+    display: none;
+  }
+
+  /* Icon-only on mobile: keep the button tappable but drop its label and the
+     extra horizontal padding that was sized for the text. */
+  .switch-store-btn {
+    padding: 10px;
+    min-width: 44px;
+  }
+
+  .switch-store-btn__label {
     display: none;
   }
 }

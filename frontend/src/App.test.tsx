@@ -83,6 +83,9 @@ beforeEach(() => {
     role: 'EMPLOYEE',
     storeNames: [],
     mustResetPassword: false,
+    shift: null,
+    employeeType: null,
+    phone: null,
   })
   mockGetDailyChecklist.mockReset()
   // These tests exercise auth/navigation, not checklist content.
@@ -206,6 +209,9 @@ describe('session restore', () => {
       role: 'EMPLOYEE',
       storeNames: ['Store 1', 'Store 2'],
       mustResetPassword: false,
+      shift: null,
+      employeeType: null,
+      phone: null,
     })
 
     render(<App />)
@@ -225,6 +231,9 @@ describe('session restore', () => {
       role: 'EMPLOYEE',
       storeNames: ['Store 1', 'Store 2'],
       mustResetPassword: false,
+      shift: null,
+      employeeType: null,
+      phone: null,
     })
 
     render(<App />)
