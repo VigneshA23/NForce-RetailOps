@@ -1,50 +1,60 @@
-import type { ChecklistCategory } from '../types/task';
+import { apiRequest } from './client';
+import type { ChecklistCategory, TaskResponseSummary } from '../types/task';
 
-const MOCK_CHECKLIST: ChecklistCategory[] = [
-  {
-    id: 'preparation',
-    name: 'Preparation',
-    tasks: [
-      { id: 'prep-1', name: 'Prepare Boba' },
-      { id: 'prep-2', name: 'Refill Falooda Station' },
-      { id: 'prep-3', name: 'Prepare Waffle Cones' },
-    ],
-  },
-  {
-    id: 'cleaning',
-    name: 'Cleaning',
-    tasks: [
-      { id: 'clean-1', name: 'Clean Front Door' },
-      { id: 'clean-2', name: 'Clean Tables' },
-    ],
-  },
-  {
-    id: 'closing',
-    name: 'Closing',
-    tasks: [
-      { id: 'close-1', name: 'Verify Freezer Doors' },
-      { id: 'close-2', name: 'Turn Off Equipment' },
-    ],
-  },
-];
+/**
+ * Today's checklist for the given store, scoped server-side to the categories
+ * and tasks the owner has configured for it -- see GET /api/me/tasks/today.
+ * A store the caller isn't assigned to comes back as a 404 (ApiError).
+ */
+export async function getDailyChecklist(storeId: number): Promise<ChecklistCategory[]> {
+  const result = await apiRequest<{ storeId: number; date: string; categories: ChecklistCategory[] }>(
+    `/me/tasks/today?storeId=${storeId}`,
+  );
+  return result.categories;
+}
 
-const SIMULATED_LATENCY_MS = 200;
+// Exactly one of the three value fields is sent, chosen by the task's
+// configured responseType -- mirrors TaskResponseSubmitRequest on the backend.
+export interface TaskResponseSubmitPayload {
+  storeId: number;
+  booleanValue?: boolean;
+  numericValue?: number;
+  textValue?: string;
+}
 
-// TODO: the backend Category API (/api/categories) is owner-scoped and OWNER_ADMIN-only,
-// and there is no Task/Checklist entity yet. Once the backend exposes store-scoped
-// categories + tasks for the authenticated employee, replace MOCK_CHECKLIST with a fetch
-// against `${VITE_API_BASE_URL}/api/stores/${storeId}/checklist` (or similar) and drop
-// this mock entirely.
-export async function getDailyChecklist(_storeId: number): Promise<ChecklistCategory[]> {
-  return new Promise((resolve) => {
-    setTimeout(
-      () => resolve(MOCK_CHECKLIST.map((category) => ({ ...category, tasks: category.tasks.map((task) => ({ ...task })) }))),
-      SIMULATED_LATENCY_MS,
-    );
+// Returned by both submit and undo: the resulting current state for that
+// task/store/day, so the caller doesn't need a second round trip to know
+// whether it can still undo -- mirrors TaskResponseStateResponse.
+export interface TaskResponseStateResponse {
+  taskId: number;
+  responses: TaskResponseSummary[];
+  canUndo: boolean;
+}
+
+export async function submitTaskResponse(
+  taskId: number,
+  payload: TaskResponseSubmitPayload,
+): Promise<TaskResponseStateResponse> {
+  return apiRequest<TaskResponseStateResponse>(`/me/tasks/${taskId}/responses`, {
+    method: 'POST',
+    body: payload,
   });
 }
 
+export async function undoTaskResponse(
+  taskId: number,
+  responseId: number,
+  storeId: number,
+): Promise<TaskResponseStateResponse> {
+  return apiRequest<TaskResponseStateResponse>(
+    `/me/tasks/${taskId}/responses/${responseId}/undo?storeId=${storeId}`,
+    { method: 'POST' },
+  );
+}
+
 // TODO: replace with a real "raise issue with owner" endpoint once one exists on the backend.
+const SIMULATED_LATENCY_MS = 200;
+
 export async function raiseIssue(_storeId: number, _note: string): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, SIMULATED_LATENCY_MS);

@@ -10,7 +10,7 @@ function UserAvatar({ initials, size = 36 }: UserAvatarProps) {
     <div
       className="user-avatar"
       style={{ width: size, height: size, fontSize: size * 0.4 }}
-      aria-label={`Signed in as ${initials}`}
+      aria-hidden="true"
     >
       {initials}
     </div>

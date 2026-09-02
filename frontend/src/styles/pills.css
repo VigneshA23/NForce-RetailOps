@@ -18,3 +18,37 @@
   color: var(--color-badge-outline-text);
   border: 1px solid var(--color-badge-outline-border);
 }
+
+.badge--success {
+  background: var(--color-badge-icon-success-bg);
+  color: var(--color-badge-icon-success-fg);
+}
+
+.badge--info {
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+}
+
+.badge--warning {
+  background: var(--color-badge-icon-warning-bg);
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.badge--purple {
+  background: var(--color-badge-icon-purple-bg);
+  color: var(--color-badge-icon-purple-fg);
+}
+
+/* Status pill with a leading dot in the pill's own text colour. */
+.badge--dot {
+  gap: 6px;
+}
+
+.badge--dot::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}

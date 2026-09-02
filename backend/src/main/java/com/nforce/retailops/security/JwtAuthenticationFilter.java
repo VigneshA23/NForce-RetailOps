@@ -48,7 +48,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
 
-        if (jwtService.isTokenValid(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
+        if (jwtService.isTokenValid(token)) {
             String tokenId = jwtService.extractTokenId(token);
 
             // The JWT signature/expiry is valid, but the session behind it may have

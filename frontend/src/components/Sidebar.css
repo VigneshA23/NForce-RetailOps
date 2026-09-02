@@ -6,7 +6,7 @@
   position: sticky;
   top: 0;
   align-self: flex-start;
-  height: 100vh;
+  height: 100dvh;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
@@ -30,6 +30,7 @@
 .sidebar__brand {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--header-brand-gap);
   height: var(--header-height);
   padding: 0 var(--sidebar-item-padding-x);
@@ -37,6 +38,28 @@
   border-bottom: 1px solid var(--color-nav-divider);
   flex-shrink: 0;
 }
+
+.sidebar__collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
+  cursor: pointer;
+}
+
+.sidebar__collapse-toggle:hover,
+.sidebar__collapse-toggle:focus-visible {
+  background: color-mix(in srgb, var(--color-header-text) 8%, transparent);
+  color: var(--color-header-text);
+}
+
 
 .sidebar__brand-logo {
   width: 34px;
@@ -81,6 +104,7 @@
 }
 
 .sidebar__item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--sidebar-item-gap);
@@ -97,6 +121,22 @@
   line-height: 1.2;
   text-align: left;
   box-sizing: border-box;
+}
+
+.sidebar-tooltip-portal {
+  position: fixed;
+  transform: translateY(-50%);
+  padding: 3px 9px;
+  border-radius: 4px;
+  background: var(--color-accent);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  z-index: var(--z-modal);
 }
 
 .sidebar__item:hover,
@@ -136,35 +176,49 @@
   border-top: 1px solid var(--color-nav-divider);
 }
 
-.sidebar__toggle {
+.sidebar__profile {
   display: flex;
   align-items: center;
   gap: var(--sidebar-item-gap);
-  width: 100%;
   min-height: 44px;
-  margin: 0;
   padding: var(--sidebar-item-padding-y) var(--sidebar-item-padding-x);
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-align: left;
   box-sizing: border-box;
 }
 
-.sidebar__toggle:hover,
-.sidebar__toggle:focus-visible {
-  background: color-mix(in srgb, var(--color-header-text) 8%, transparent);
+.sidebar__profile-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.sidebar__profile-name {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--color-header-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__profile-role {
+  font-size: 11px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
 }
 
 .sidebar--collapsed .sidebar__label {
   opacity: 0;
   max-width: 0;
+}
+
+/* The collapsed rail is sized (see --sidebar-width-collapsed) for the logo
+   and toggle to sit snugly together on the left, matching how nav icons
+   below are also left-aligned rather than centered. */
+.sidebar--collapsed .sidebar__brand {
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 0 8px;
 }
 
 @media (--tablet-down) {
@@ -176,6 +230,10 @@
     opacity: 0;
     max-width: 0;
   }
+
+  .sidebar__collapse-toggle {
+    display: none;
+  }
 }
 
 .sidebar-scrim {
@@ -186,8 +244,12 @@
 }
 
 @media (--mobile) {
-  .sidebar,
-  .sidebar--collapsed {
+  /* Specificity must match or beat the --tablet-down rule above
+     (.sidebar:not(.sidebar--collapsed), two classes' worth) so phone-width
+     screens -- which also fall inside the tablet-down range -- always get
+     the full-width slide-in drawer instead of the icon-only tablet rail. */
+  .sidebar.sidebar,
+  .sidebar.sidebar--collapsed {
     position: fixed;
     top: 0;
     left: 0;
@@ -197,13 +259,13 @@
     z-index: var(--z-modal);
   }
 
-  .sidebar__label,
-  .sidebar--collapsed .sidebar__label {
+  .sidebar.sidebar .sidebar__label,
+  .sidebar.sidebar--collapsed .sidebar__label {
     opacity: 1;
     max-width: 160px;
   }
 
-  .sidebar--mobile-open {
+  .sidebar.sidebar--mobile-open {
     transform: translateX(0);
   }
 

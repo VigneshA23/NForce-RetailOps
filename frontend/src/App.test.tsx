@@ -5,6 +5,7 @@ import App from './App'
 import * as authApi from './api/auth'
 import * as storesApi from './api/stores'
 import * as meApi from './api/me'
+import * as tasksApi from './api/tasks'
 import type { StoreSummary } from './types/store'
 
 const TOKEN_KEY = 'nforce-retailops-auth-token'
@@ -25,11 +26,19 @@ vi.mock('./api/me', () => ({
   getMe: vi.fn(),
 }))
 
+vi.mock('./api/tasks', () => ({
+  getDailyChecklist: vi.fn(),
+  raiseIssue: vi.fn(),
+  submitTaskResponse: vi.fn(),
+  undoTaskResponse: vi.fn(),
+}))
+
 const mockLogin = vi.mocked(authApi.login)
 const mockLogout = vi.mocked(authApi.logout)
 const mockGetSessionConfig = vi.mocked(authApi.getSessionConfig)
 const mockGetAuthorizedStores = vi.mocked(storesApi.getAuthorizedStores)
 const mockGetMe = vi.mocked(meApi.getMe)
+const mockGetDailyChecklist = vi.mocked(tasksApi.getDailyChecklist)
 
 const STORE_1: StoreSummary = { id: 1, name: 'Store 1', location: 'Main St', status: 'Open' }
 const STORE_2: StoreSummary = { id: 2, name: 'Store 2', location: 'Oak Ave', status: 'Open' }
@@ -38,6 +47,10 @@ async function loginAsEmployee(user: ReturnType<typeof userEvent.setup>) {
   mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false })
   await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
   await user.type(screen.getByLabelText(/^password$/i), 'password123')
+  // "Remember me" defaults to unchecked, which stores the token in
+  // sessionStorage instead of localStorage - check it so these tests keep
+  // exercising (and asserting against) the persistent-session path.
+  await user.click(screen.getByLabelText(/remember me/i))
   await user.click(screen.getByRole('button', { name: /sign in/i }))
   await screen.findByText(/select your store/i)
 }
@@ -50,6 +63,7 @@ async function selectFirstOpenStore(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
   localStorage.clear()
+  sessionStorage.clear()
   mockLogin.mockReset()
   mockLogout.mockReset()
   mockLogout.mockResolvedValue(undefined)
@@ -59,6 +73,20 @@ beforeEach(() => {
   // Two stores by default, so the picker is shown and has something to choose.
   mockGetAuthorizedStores.mockResolvedValue([STORE_1, STORE_2])
   mockGetMe.mockReset()
+  // EmployeeDashboard also resolves the current employee via getMe() (for Undo
+  // eligibility) independently of App's own session-restore call -- these tests
+  // exercise auth/navigation, not that, so give it a harmless default.
+  mockGetMe.mockResolvedValue({
+    id: 1,
+    fullName: 'Jane Doe',
+    email: 'jane@nforceone.com',
+    role: 'EMPLOYEE',
+    storeNames: [],
+    mustResetPassword: false,
+  })
+  mockGetDailyChecklist.mockReset()
+  // These tests exercise auth/navigation, not checklist content.
+  mockGetDailyChecklist.mockResolvedValue([])
 })
 
 describe('sign-out', () => {
@@ -83,7 +111,7 @@ describe('sign-out', () => {
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /^log out$/i }))
 
-    await screen.findByText(/welcome to retailops/i)
+    await screen.findByText(/welcome back/i)
     expect(mockLogout).toHaveBeenCalledTimes(1)
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
   })
@@ -124,7 +152,7 @@ describe('sign-out', () => {
     const dialog = await screen.findByRole('dialog')
     await user.click(within(dialog).getByRole('button', { name: /^log out$/i }))
 
-    await screen.findByText(/welcome to retailops/i)
+    await screen.findByText(/welcome back/i)
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
   })
 
@@ -151,7 +179,7 @@ describe('sign-out', () => {
     expect(screen.getByRole('menuitem', { name: /log out/i })).toBeDisabled()
 
     resolveLogout()
-    await screen.findByText(/welcome to retailops/i)
+    await screen.findByText(/welcome back/i)
     expect(mockLogout).toHaveBeenCalledTimes(1)
   })
 
@@ -161,7 +189,7 @@ describe('sign-out', () => {
 
     render(<App />)
 
-    await screen.findByText(/welcome to retailops/i)
+    await screen.findByText(/welcome back/i)
     expect(screen.queryByLabelText(/signed in as/i)).not.toBeInTheDocument()
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
   })

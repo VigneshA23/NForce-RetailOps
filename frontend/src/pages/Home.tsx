@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Store as StoreIcon, Users, Tags, CircleCheck, Percent } from 'lucide-react';
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { getStores } from '../api/ownerStores';
 import { getEmployees } from '../api/employees';
 import { getCategories } from '../api/categories';
@@ -12,6 +25,14 @@ import type { ShiftHistory } from '../types/history';
 import StatCard from '../components/StatCard';
 import ChartCard from '../components/ChartCard';
 import './Home.css';
+
+interface HomeProps {
+  userName: string;
+}
+
+function firstName(fullName: string): string {
+  return fullName.trim().split(/\s+/)[0] ?? fullName;
+}
 
 const TREND_DAYS = 7;
 
@@ -30,7 +51,7 @@ function averageOnTimePercent(histories: ShiftHistory[]): number {
   return Math.round(histories.reduce((sum, history) => sum + history.summary.onTimePercent, 0) / histories.length);
 }
 
-function Home() {
+function Home({ userName }: HomeProps) {
   const [stores, setStores] = useState<OwnerStore[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -90,8 +111,28 @@ function Home() {
     return Array.from(totals.values());
   }, [todayHistories]);
 
+  const completionByStore = useMemo(() => {
+    const storeNameById = new Map(stores.map((store) => [store.id, store.name]));
+    return todayHistories
+      .map((history) => ({
+        name: storeNameById.get(history.storeId) ?? `Store ${history.storeId}`,
+        completion: history.summary.onTimePercent,
+      }))
+      .sort((a, b) => b.completion - a.completion);
+  }, [stores, todayHistories]);
+
+  const completionDonutData = useMemo(
+    () => [
+      { name: 'Completed', value: todayCompletion },
+      { name: 'Remaining', value: Math.max(0, 100 - todayCompletion) },
+    ],
+    [todayCompletion],
+  );
+
   return (
     <div className="home-page">
+      <h1 className="home-page__greeting">Welcome, {firstName(userName)}!</h1>
+
       <div className="stat-card-row">
         <StatCard icon={StoreIcon} label="Total Stores" value={stores.length} tone="primary" />
         <StatCard icon={CircleCheck} label="Active Stores" value={activeStoreCount} tone="success" />
@@ -150,6 +191,52 @@ function Home() {
               <Bar dataKey="total" name="Total" fill="var(--color-border)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Today's Completion" subtitle="Share of tasks completed on time, today">
+          <div className="home-page__donut">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={completionDonutData}
+                  dataKey="value"
+                  innerRadius="70%"
+                  outerRadius="100%"
+                  startAngle={90}
+                  endAngle={-270}
+                  stroke="none"
+                >
+                  <Cell fill="var(--color-accent)" />
+                  <Cell fill="var(--color-border)" />
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="home-page__donut-label">
+              <span className="home-page__donut-value">{todayCompletion}%</span>
+              <span className="home-page__donut-caption">on time</span>
+            </div>
+          </div>
+        </ChartCard>
+
+        <ChartCard title="Stores by Completion" subtitle="Ranked by today's on-time completion">
+          {completionByStore.length === 0 ? (
+            <p className="home-page__empty">No store activity recorded yet today.</p>
+          ) : (
+            <ul className="home-page__store-rank">
+              {completionByStore.map((store) => (
+                <li key={store.name} className="home-page__store-rank-row">
+                  <span className="home-page__store-rank-name">{store.name}</span>
+                  <div className="home-page__store-rank-bar-track">
+                    <div
+                      className="home-page__store-rank-bar-fill"
+                      style={{ width: `${store.completion}%` }}
+                    />
+                  </div>
+                  <span className="home-page__store-rank-value">{store.completion}%</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </ChartCard>
       </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
 import './RowActionsMenu.css';
@@ -9,6 +9,7 @@ interface RowActionsMenuProps {
 }
 
 const MENU_WIDTH = 168;
+const VIEWPORT_MARGIN = 8;
 
 function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,6 +24,35 @@ function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
     }
     setIsOpen(true);
   }
+
+  // The menu's height isn't known until it renders, so the initial position
+  // above is a guess (below + right-aligned). Once mounted, measure it and
+  // flip/clamp against the actual viewport - otherwise a row near the bottom
+  // (or edge) of the screen opens a menu that's partly or fully unreachable,
+  // in every browser equally.
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const trigger = triggerRef.current;
+    const menu = menuRef.current;
+    if (!trigger || !menu) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const menuRect = menu.getBoundingClientRect();
+
+    let top = triggerRect.bottom + 4;
+    if (top + menuRect.height > window.innerHeight - VIEWPORT_MARGIN) {
+      top = triggerRect.top - menuRect.height - 4;
+    }
+    top = Math.max(VIEWPORT_MARGIN, top);
+
+    let left = triggerRect.right - MENU_WIDTH;
+    left = Math.min(left, window.innerWidth - MENU_WIDTH - VIEWPORT_MARGIN);
+    left = Math.max(VIEWPORT_MARGIN, left);
+
+    if (top !== position.top || left !== position.left) {
+      setPosition({ top, left });
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;

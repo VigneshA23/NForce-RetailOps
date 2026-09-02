@@ -6,27 +6,52 @@ import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.exception.CategoryNameExistsException;
 import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
+    private final TaskRepository taskRepository;
 
-    public CategoryService(CategoryRepository categoryRepository, UserRepository userRepository) {
+    public CategoryService(
+        CategoryRepository categoryRepository,
+        UserRepository userRepository,
+        TaskRepository taskRepository
+    ) {
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
+        this.taskRepository = taskRepository;
+    }
+
+    private CategoryResponse toResponse(Category category) {
+        return CategoryResponse.from(category, taskRepository.countByCategoryId(category.getId()));
     }
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> listCategories(Long ownerId) {
-        return categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(ownerId).stream()
-            .map(CategoryResponse::from)
+        List<Category> categories = categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(ownerId);
+
+        // One grouped count query for the whole list, instead of one
+        // countByCategoryId query per category (N+1).
+        List<Long> categoryIds = categories.stream().map(Category::getId).toList();
+        Map<Long, Integer> taskCounts = new HashMap<>();
+        if (!categoryIds.isEmpty()) {
+            for (Object[] row : taskRepository.countGroupedByCategoryIds(categoryIds)) {
+                taskCounts.put((Long) row[0], ((Long) row[1]).intValue());
+            }
+        }
+
+        return categories.stream()
+            .map(category -> CategoryResponse.from(category, taskCounts.getOrDefault(category.getId(), 0)))
             .toList();
     }
 
@@ -44,7 +69,7 @@ public class CategoryService {
         category.setDisplayOrder(categoryRepository.countByOwnerId(ownerId));
         category = categoryRepository.save(category);
 
-        return CategoryResponse.from(category);
+        return toResponse(category);
     }
 
     @Transactional
@@ -61,7 +86,7 @@ public class CategoryService {
         category.setName(name);
         category = categoryRepository.save(category);
 
-        return CategoryResponse.from(category);
+        return toResponse(category);
     }
 
     @Transactional
@@ -72,7 +97,7 @@ public class CategoryService {
         category.setActive(active);
         category = categoryRepository.save(category);
 
-        return CategoryResponse.from(category);
+        return toResponse(category);
     }
 
     @Transactional

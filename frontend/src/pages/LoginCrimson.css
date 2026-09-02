@@ -1,299 +1,329 @@
 @import '../styles/breakpoints.css';
 
-.login2-shell {
-  --l2-bg: #101319;
-  --l2-bg-deep: #0b0e14;
-  --l2-card-bg: rgba(69, 18, 18, 0.9);
-  --l2-primary: #f8b6b2;
-  --l2-primary-bright: #ffdad7;
-  --l2-on-primary: #4e2423;
-  --l2-on-surface: #e1e2ea;
-  --l2-on-surface-variant: #d6c2c0;
-  --l2-outline-variant: #514342;
-  --l2-accent-red: #eb3e39;
-  --l2-input-bg: #0b0e14;
-  --l2-line: rgba(255, 255, 255, 0.08);
-
+.login3-shell {
   position: relative;
-  overflow: hidden;
   min-height: 100dvh;
   display: flex;
-  flex-direction: column;
-  background: var(--l2-bg);
-  color: var(--l2-on-surface);
-  font-family: 'Hanken Grotesk', 'Inter', sans-serif;
-}
-
-.login2-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
+  font-family: 'Open Sans', 'Inter', sans-serif;
+  background: #0d0d0f;
   overflow: hidden;
 }
 
-.login2-bg-layer {
+.login3-bg-photo {
+  position: absolute;
+  inset: -24px;
+  z-index: 0;
+  background-image: url('/login-bg-aisle.png');
+  background-size: cover;
+  background-position: center;
+  /* Blurred and darkened store-aisle photo as the base layer - the -24px
+     inset plus this blur keeps the blur from showing a sharp/clipped edge
+     at the shell's own boundary. */
+  filter: blur(6px) brightness(0.55) saturate(1.05);
+}
+
+.login3-bg-overlay {
   position: absolute;
   inset: 0;
-  transition: opacity 500ms ease-in-out;
+  z-index: 1;
+  /* Brand wash over the photo, semi-transparent so the aisle shows through
+     underneath rather than being replaced by flat colour. No white/light
+     zone anywhere now - the whole page stays a dark, moody red-black wash
+     with the photo visible through it, and the form card (its own dark
+     glass panel) provides the only real contrast. */
+  background: rgba(13, 13, 15, 0.72);
 }
 
-.login2-bg-layer--primary {
-  background-image:
-    linear-gradient(115deg, rgba(11, 14, 20, 0.55) 0%, rgba(16, 19, 25, 0.85) 55%, rgba(23, 9, 10, 0.9) 100%),
-    url('/login-bg-nonfocused.png');
-  background-size: cover;
-  background-position: center;
-  opacity: 1;
+/* Mobile (below the --tablet-up split-layout breakpoint): flat black page
+   background, no aisle photo at this size. The rest of the mobile
+   light-theme override (card, text colours, button) lives in a second
+   @media block at the end of this file, after the base rules it overrides
+   - an override declared earlier in the file than the rule it's overriding
+   loses the cascade even when its own media query matches, since source
+   order (not media-query specificity) decides ties. */
+@media (max-width: 767px) {
+  .login3-shell {
+    background: #000000;
+  }
+
+  .login3-bg-photo {
+    display: none;
+  }
+
+  .login3-bg-overlay {
+    background: transparent;
+  }
 }
 
-.login2-bg-layer--secondary {
-  background-image:
-    linear-gradient(115deg, rgba(23, 9, 10, 0.78) 0%, rgba(16, 19, 25, 0.82) 55%, rgba(11, 14, 20, 0.85) 100%),
-    url('/login-bg-focused.png');
-  background-size: cover;
-  background-position: center;
-  filter: blur(2px);
-  opacity: 0;
+@media (--tablet-up) {
+  .login3-bg-overlay {
+    background: linear-gradient(
+      100deg,
+      rgba(13, 13, 15, 0.86) 0%,
+      rgba(23, 10, 12, 0.84) 20%,
+      rgba(43, 18, 22, 0.8) 45%,
+      rgba(58, 20, 26, 0.74) 70%,
+      rgba(30, 12, 15, 0.8) 100%
+    );
+  }
 }
 
-.login2-shell--focused .login2-bg-layer--primary {
-  opacity: 0;
+.login3-grid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
 }
 
-.login2-shell--focused .login2-bg-layer--secondary {
-  opacity: 1;
+@media (--tablet-up) {
+  .login3-grid {
+    grid-template-columns: 46% 54%;
+  }
 }
 
-.login2-left {
+.login3-hero {
+  --hero-logo-size: 260px;
   display: none;
   position: relative;
-  z-index: 10;
   flex-direction: column;
-  justify-content: space-between;
-  width: 55%;
-  padding: 48px;
-}
-
-.login2-brand {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.login2-brandmark {
-  display: inline-flex;
-  width: 64px;
-  height: 64px;
-  flex-shrink: 0;
-  filter: drop-shadow(0 0 15px rgba(248, 182, 178, 0.35));
-}
-
-.login2-brandmark-img {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.login2-brand-title {
-  font-weight: 700;
-  font-size: 20px;
-  color: var(--l2-on-surface);
-}
-
-.login2-brand-subtitle {
-  font-size: 12px;
-  color: var(--l2-on-surface-variant);
-  opacity: 0.8;
-  margin-top: 4px;
-}
-
-.login2-hero {
-  max-width: 640px;
-  transition: opacity 500ms ease-in-out;
-}
-
-.login2-shell--focused .login2-hero {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.login2-hero h1 {
-  font-size: 40px;
-  font-weight: 700;
-  line-height: 48px;
-  letter-spacing: -0.02em;
-  color: var(--l2-on-surface);
-  margin: 0 0 8px;
-}
-
-.login2-hero-accent {
-  color: var(--l2-accent-red);
-}
-
-.login2-hero p {
-  font-size: 18px;
-  line-height: 28px;
-  color: var(--l2-on-surface-variant);
-  max-width: 540px;
-  margin: 0;
-}
-
-.login2-divider {
-  width: 100%;
-  height: 1px;
-  background: var(--l2-line);
-  margin: 24px 0;
-}
-
-.login2-features {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-}
-
-.login2-feature-dot {
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--l2-accent-red);
-  margin-bottom: 12px;
-}
-
-.login2-feature h3 {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--l2-on-surface);
-  margin: 0 0 4px;
-}
-
-.login2-feature p {
-  font-size: 14px;
-  line-height: 20px;
-  color: var(--l2-on-surface-variant);
-  margin: 0;
-}
-
-.login2-right {
-  position: relative;
-  z-index: 10;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  /* Brand lockup + tagline read as one vertically-centred group within the
+     column, left-aligned within that group rather than anchored to the top. */
   justify-content: center;
-  padding: 24px;
-  transition: transform 500ms ease-in-out;
-}
-
-.login2-card {
-  width: 100%;
-  max-width: 420px;
-  position: relative;
+  padding: 56px 48px 56px 96px;
   overflow: hidden;
-  background: var(--l2-card-bg);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 32px;
-  padding: 24px;
-  backdrop-filter: blur(20px);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+  color: #f2f2f4;
 }
 
-.login2-card-glow {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, transparent, rgba(248, 182, 178, 0.3), transparent);
+@media (--tablet-up) {
+  .login3-hero {
+    display: flex;
+  }
 }
 
-.login2-mobile-logo {
-  display: block;
-  height: 40px;
-  margin: 0 auto 24px;
+.login3-hero-brand {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 56px;
 }
 
-.login2-card-heading {
+.login3-hero-logo {
+  width: var(--hero-logo-size);
+  height: var(--hero-logo-size);
+  flex-shrink: 0;
+  /* The true logo, unmodified: no filter, no mask, no blend-mode - every
+     earlier attempt at "immersing" it (blend-mode, luminance masks,
+     brightness/saturation boosts) altered its actual colours, which reads
+     as wrong against the real brand mark. A plain circular crop, same as
+     .sidebar__brand-logo elsewhere in the app. */
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.login3-hero-wordmark {
   font-size: 32px;
+  font-weight: 800;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.login3-hero-text {
+  position: relative;
+  z-index: 1;
+  text-align: left;
+  /* Starts at the logo's horizontal centre, not its left edge. */
+  margin-left: calc(var(--hero-logo-size) / 2);
+}
+
+.login3-hero-heading {
+  font-size: 26px;
   font-weight: 700;
-  line-height: 40px;
-  color: var(--l2-on-surface);
-  margin: 0 0 4px;
-  text-align: center;
+  line-height: 1.3;
+  margin: 0;
+  color: #ffffff;
 }
 
-.login2-card-subheading {
-  font-size: 16px;
-  color: var(--l2-on-surface-variant);
-  margin: 0 0 24px;
-  text-align: center;
+.login3-hero-accent {
+  color: #ff4d5e;
 }
 
-.login2-field {
+.login3-panel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+@media (--tablet-up) {
+  .login3-panel {
+    padding: 56px 48px;
+  }
+}
+
+.login3-panel-inner {
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  /* A dark frosted glass card (no white anywhere) rather than a solid
+     white block - the blurred photo shows through it faintly, matching
+     the darker "Admin Login" reference the user pointed to. */
+  background: rgba(20, 12, 14, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 24px;
+  padding: 40px 32px;
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+@media (--mobile) {
+  .login3-panel-inner {
+    padding: 32px 24px;
+  }
+}
+
+.login3-mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+}
+
+@media (--tablet-up) {
+  .login3-mobile-brand {
+    display: none;
+  }
+}
+
+.login3-mobile-logo {
+  display: block;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  /* The true logo, unmodified - see .login3-hero-logo's comment. */
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.login3-mobile-wordmark {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #e11d33;
+}
+
+.login3-heading {
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0 0 10px;
+}
+
+.login3-heading-underline {
+  display: block;
+  width: 48px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ff4d5e 0%, #e11d33 100%);
+  margin-bottom: 14px;
+}
+
+.login3-subheading {
+  font-size: 14px;
+  color: rgba(242, 242, 244, 0.68);
+  margin: 0 0 28px;
+}
+
+.login3-field {
   margin-bottom: 16px;
 }
 
-.login2-field-row {
+.login3-label-row {
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* The asterisk lives as a sibling of the <label>, not a descendant of it -
+   nesting it inside the label (even with aria-hidden) still ended up in the
+   label's computed accessible name in testing, breaking an exact-match
+   test ("Password" vs. "Password*"). As a sibling it can't affect that at
+   all, regardless of aria-hidden support. */
+.login3-label {
+  display: inline;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(242, 242, 244, 0.9);
+}
+
+.login3-label-required {
+  color: #e11d33;
+  margin-left: 2px;
+}
+
+.login3-meta-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin: 4px 0 20px;
 }
 
-.login2-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--l2-on-surface-variant);
-  margin-bottom: 4px;
+.login3-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(242, 242, 244, 0.75);
+  cursor: pointer;
 }
 
-.login2-field-row .login2-label {
-  margin-bottom: 0;
+.login3-remember input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #e11d33;
+  cursor: pointer;
 }
 
-.login2-input-wrap {
+.login3-input-wrap {
   position: relative;
 }
 
-.login2-input-icon {
+.login3-input-icon {
   position: absolute;
-  left: 12px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--l2-outline-variant);
+  color: #9a9aa0;
   pointer-events: none;
 }
 
-.login2-input {
+.login3-input {
   width: 100%;
-  background: var(--l2-input-bg);
-  border: none;
-  border-bottom: 2px solid transparent;
+  background: #f6f6f8;
+  border: 1px solid #e4e4e7;
   border-radius: 999px;
-  padding: 12px 16px 12px 40px;
-  color: var(--l2-on-surface);
+  padding: 13px 42px;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 14px;
+  color: #16161a;
   outline: none;
   box-sizing: border-box;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
-.login2-input:focus {
-  border-color: var(--l2-primary);
-  background: #171c25;
+.login3-input::placeholder {
+  color: #b0b0b6;
 }
 
-.login2-input--password {
-  padding-right: 40px;
+.login3-input:focus {
+  border-color: #e11d33;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(225, 29, 51, 0.12);
 }
 
-.login2-toggle-visibility {
+.login3-toggle-visibility {
   position: absolute;
   right: 12px;
   top: 50%;
@@ -301,20 +331,23 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--l2-outline-variant);
+  color: #9a9aa0;
   display: flex;
   align-items: center;
-  padding: 4px;
+  padding: 2px;
 }
 
-.login2-toggle-visibility:hover {
-  color: var(--l2-on-surface);
+.login3-toggle-visibility:hover {
+  color: #26262b;
 }
 
-.login2-forgot-link {
-  font-size: 12px;
+.login3-forgot-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
   font-weight: 600;
-  color: var(--l2-primary);
+  color: #e11d33;
   background: none;
   border: none;
   padding: 0;
@@ -322,90 +355,129 @@
   font-family: inherit;
 }
 
-.login2-forgot-link:hover {
-  color: var(--l2-primary-bright);
+.login3-forgot-link:hover {
+  text-decoration: underline;
 }
 
-.login2-error {
+.login3-error {
   font-size: 13px;
-  color: var(--l2-accent-red);
+  color: #e11d33;
   margin-bottom: 14px;
 }
 
-.login2-submit {
+.login3-success {
+  font-size: 13px;
+  color: #3ddc8b;
+  margin-bottom: 14px;
+}
+
+.login3-submit {
+  position: relative;
+  overflow: hidden;
   width: 100%;
-  padding: 12px 16px;
-  margin-top: 8px;
-  background: var(--l2-primary);
-  color: var(--l2-on-primary);
+  padding: 14px 16px;
   border: none;
   border-radius: 999px;
-  font-size: 20px;
-  font-weight: 600;
+  background: linear-gradient(135deg, #ff4d5e 0%, #e11d33 100%);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+  box-shadow: 0 12px 24px -8px rgba(225, 29, 51, 0.55);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.15s ease;
 }
 
-.login2-submit:hover:not(:disabled) {
-  background: var(--l2-primary-bright);
-  box-shadow: 0 0 20px rgba(248, 182, 178, 0.3);
-  transform: scale(1.02);
+.login3-submit-shimmer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 80px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  filter: blur(8px);
+  pointer-events: none;
 }
 
-.login2-submit:active:not(:disabled) {
-  transform: scale(0.98);
+.login3-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 28px -8px rgba(225, 29, 51, 0.65);
 }
 
-.login2-submit:disabled {
+.login3-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.login3-submit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.login2-mobile-tagline {
-  display: block;
-  margin-top: 24px;
+.login3-access-note {
+  margin: 20px 0 0;
   text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--l2-on-surface-variant);
-  transition: opacity 500ms ease-in-out;
+  font-size: 13px;
+  color: rgba(242, 242, 244, 0.6);
 }
 
-.login2-shell--focused .login2-mobile-tagline {
-  opacity: 0;
-  pointer-events: none;
+.login3-access-link {
+  font-weight: 700;
+  color: #ff4d5e;
 }
 
-@media (--tablet-up) {
-  .login2-shell {
-    flex-direction: row;
+/* Mobile light-theme override, continued from the @media block near the top
+   of this file (which handles the shell/photo/overlay) - placed down here,
+   after every base rule it touches, so it actually wins the cascade. Per a
+   reference screenshot: a white card, dark text, uppercase field labels,
+   and a solid black Sign In button instead of the red gradient used
+   everywhere else. Brand red is kept for the wordmark/links/required-marks
+   rather than the reference's teal/amber, to match the rest of the app's
+   actual palette. */
+@media (max-width: 767px) {
+  .login3-panel-inner {
+    background: #ffffff;
+    border: 1px solid #e4e4e7;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.35);
   }
 
-  .login2-left {
-    display: flex;
+  .login3-heading {
+    color: #16161a;
   }
 
-  .login2-mobile-logo {
-    display: none;
+  .login3-subheading {
+    color: #6b6b6f;
   }
 
-  .login2-mobile-tagline {
-    display: none;
+  .login3-label {
+    color: #26262b;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.03em;
   }
 
-  .login2-right {
-    width: 45%;
+  .login3-remember {
+    color: #4b4b52;
   }
 
-  .login2-shell--focused .login2-right {
-    transform: translateX(-50vw) translateX(50%);
+  .login3-access-note {
+    color: #6b6b6f;
   }
-}
 
-/* Left literal: tuned to the iPad-landscape width (1024px) specifically, not the
-   general breakpoint scale — using --desktop (1025px) would exclude that device. */
-@media (min-width: 1024px) {
-  .login2-shell--focused .login2-right {
-    transform: translateX(-55vw) translateX(50%);
+  .login3-access-link {
+    color: #e11d33;
+  }
+
+  .login3-success {
+    color: #1a9c5c;
+  }
+
+  .login3-submit {
+    background: #16161a;
+    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5);
+  }
+
+  .login3-submit:hover:not(:disabled) {
+    box-shadow: 0 16px 28px -10px rgba(0, 0, 0, 0.55);
   }
 }

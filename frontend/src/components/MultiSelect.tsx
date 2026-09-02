@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent as ReactMouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, X } from 'lucide-react';
 import SearchInput from './SearchInput';
@@ -41,6 +41,31 @@ function MultiSelect({
     setIsOpen(true);
   }
 
+  // Same fix as RowActionsMenu: the panel's height isn't known until it
+  // renders, so flip it above the trigger if opening below would push it
+  // past the bottom of the viewport - otherwise a field low in a form (or on
+  // a short viewport) opens a panel that's partly unreachable.
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    const trigger = triggerRef.current;
+    const panel = panelRef.current;
+    if (!trigger || !panel) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const margin = 8;
+
+    let top = triggerRect.bottom + 4;
+    if (top + panelRect.height > window.innerHeight - margin) {
+      top = triggerRect.top - panelRect.height - 4;
+    }
+    top = Math.max(margin, top);
+
+    if (top !== position.top) {
+      setPosition((current) => ({ ...current, top }));
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
 
@@ -55,6 +80,10 @@ function MultiSelect({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
+        // Capture phase + stopPropagation: when this panel is rendered inside
+        // a Modal, Modal's own bubble-phase Escape listener on `document`
+        // would otherwise also fire and close the whole modal underneath us.
+        event.stopPropagation();
         setIsOpen(false);
       }
     }
@@ -66,12 +95,12 @@ function MultiSelect({
     }
 
     document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, true);
     window.addEventListener('scroll', handleScrollOrResize, true);
     window.addEventListener('resize', handleScrollOrResize);
     return () => {
       document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('scroll', handleScrollOrResize, true);
       window.removeEventListener('resize', handleScrollOrResize);
     };

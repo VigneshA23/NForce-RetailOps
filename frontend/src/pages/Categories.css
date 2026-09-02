@@ -1,5 +1,49 @@
+@import '../styles/breakpoints.css';
+
 .categories-page {
   padding: var(--space-lg);
+}
+
+.categories-page__filter-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0 var(--space-lg) var(--space-md);
+}
+
+.categories-page__filter {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.categories-page__filter--search {
+  flex: 1 1 auto;
+  max-width: 320px;
+}
+
+.categories-page__filter--search .search-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.categories-page__filter--status {
+  flex-basis: 180px;
+}
+
+@media (--tablet-down) {
+  .categories-page__filter-bar {
+    flex-wrap: wrap;
+  }
+
+  .categories-page__filter--search,
+  .categories-page__filter--status {
+    flex: 1 1 calc(50% - var(--space-sm));
+  }
+
+  .categories-page__filter--search {
+    flex-basis: 100%;
+    max-width: none;
+  }
 }
 
 .categories-page__add-label {

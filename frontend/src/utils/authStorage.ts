@@ -1,16 +1,27 @@
 export const AUTH_TOKEN_STORAGE_KEY = 'nforce-retailops-auth-token';
 const TOKEN_KEY = AUTH_TOKEN_STORAGE_KEY;
 
-export function setAuthToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+// "Remember me" controls which storage the token lands in: localStorage
+// survives closing the browser, sessionStorage is cleared with the tab. Only
+// one is ever populated at a time - switching accounts/logging in again with
+// a different choice must not leave a stale token behind in the other one.
+export function setAuthToken(token: string, remember: boolean): void {
+  if (remember) {
+    localStorage.setItem(TOKEN_KEY, token);
+    sessionStorage.removeItem(TOKEN_KEY);
+  } else {
+    sessionStorage.setItem(TOKEN_KEY, token);
+    localStorage.removeItem(TOKEN_KEY);
+  }
 }
 
 export function getAuthToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
 }
 
 export function clearAuthToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
 }
 
 export const ACTIVE_STORE_STORAGE_KEY = 'nforce-retailops-active-store';

@@ -1,6 +1,7 @@
+import { Pencil, Trash2 } from 'lucide-react';
 import type { AdminTask } from '../types/adminTask';
-import { completionTypeLabel, responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions';
-import TaskRowActions from './TaskRowActions';
+import { completionTypeLabel, responseTypeBadgeClass, responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions';
+import StoreChips from './StoreChips';
 import './TaskTable.css';
 
 interface TaskTableProps {
@@ -8,11 +9,24 @@ interface TaskTableProps {
   isLoading?: boolean;
   onEdit: (task: AdminTask) => void;
   onDelete: (task: AdminTask) => void;
+  onToggleStatus: (task: AdminTask) => void;
 }
 
-function TaskTable({ tasks, isLoading = false, onEdit, onDelete }: TaskTableProps) {
+function TaskStoreCell({ task }: { task: AdminTask }) {
+  if (task.appliesToAllStores) {
+    return (
+      <span className="store-chip" title="All Stores">
+        All Stores
+      </span>
+    );
+  }
+
+  return <StoreChips stores={task.stores} emptyLabel="No stores" emptyTitle="No stores selected" />;
+}
+
+function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus }: TaskTableProps) {
   return (
-    <div className="task-table__card">
+    <div className="table-card">
       <div className="table-scroll">
         <table className="data-table">
           <thead>
@@ -32,17 +46,53 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete }: TaskTableProp
               <tr key={task.id}>
                 <td className="task-table__name" data-label="Task">{task.name}</td>
                 <td data-label="Category">{task.categoryName}</td>
-                <td data-label="Store">{task.appliesToAllStores ? 'All Stores' : `${task.stores.length} store${task.stores.length === 1 ? '' : 's'}`}</td>
+                <td data-label="Store">
+                  <TaskStoreCell task={task} />
+                </td>
                 <td data-label="Schedule">{scheduleSummary(task.scheduleType, task.selectedDays)}</td>
-                <td data-label="Response">{responseTypeLabel(task.responseType)}</td>
-                <td data-label="Completion">{completionTypeLabel(task.completionType)}</td>
-                <td data-label="Status">
-                  <span className={`badge task-table__status-badge ${task.active ? 'badge--solid' : 'badge--outline'}`}>
-                    {task.active ? 'Active' : 'Inactive'}
+                <td data-label="Response">
+                  <span className={`badge ${responseTypeBadgeClass(task.responseType)}`}>
+                    {responseTypeLabel(task.responseType)}
                   </span>
                 </td>
+                <td data-label="Completion">{completionTypeLabel(task.completionType)}</td>
+                <td data-label="Status">
+                  <label
+                    className="task-status-toggle"
+                    title={task.active ? 'Deactivate task' : 'Activate task'}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={task.active}
+                      onChange={() => onToggleStatus(task)}
+                      aria-label={task.active ? 'Deactivate task' : 'Activate task'}
+                    />
+                    <span className="task-status-toggle__track" aria-hidden="true">
+                      <span className="task-status-toggle__thumb" />
+                    </span>
+                  </label>
+                </td>
                 <td className="task-table__actions-cell" data-label="Actions">
-                  <TaskRowActions onEdit={() => onEdit(task)} onDelete={() => onDelete(task)} />
+                  <div className="task-table__actions">
+                    <button
+                      type="button"
+                      className="task-table__icon-btn"
+                      aria-label={`Edit ${task.name}`}
+                      title="Edit"
+                      onClick={() => onEdit(task)}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="task-table__icon-btn task-table__icon-btn--danger"
+                      aria-label={`Delete ${task.name}`}
+                      title="Delete"
+                      onClick={() => onDelete(task)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -50,9 +100,9 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete }: TaskTableProp
         </table>
       </div>
       {!isLoading && tasks.length === 0 && (
-        <div className="task-table__empty">No tasks match your filters.</div>
+        <div className="table-card__empty">No tasks match your filters.</div>
       )}
-      {isLoading && <div className="task-table__empty">Loading tasks...</div>}
+      {isLoading && <div className="table-card__empty">Loading tasks...</div>}
     </div>
   );
 }

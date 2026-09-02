@@ -15,6 +15,7 @@
 
   --color-accent: #e11d33;
   --color-accent-contrast: #ffffff;
+  --color-focus-ring: #1d6fd6;
 
   --color-badge-solid-bg: #14141a;
   --color-badge-solid-text: #ffffff;
@@ -38,7 +39,7 @@
   --z-modal: 1000;
 
   --sidebar-width-expanded: 240px;
-  --sidebar-width-collapsed: 72px;
+  --sidebar-width-collapsed: 96px;
 
   --sidebar-item-padding-y: 12px;
   --sidebar-item-padding-x: var(--space-md);
@@ -61,6 +62,11 @@
   --color-badge-icon-warning-fg: #c8790a;
   --color-badge-icon-info-bg: #e5f1fd;
   --color-badge-icon-info-fg: #1d6fd6;
+  --color-badge-icon-purple-bg: #f1e8fd;
+  --color-badge-icon-purple-fg: #7c3aed;
+
+  --color-toggle-on-bg: #1a9c5c;
+  --color-toggle-off-bg: #e0384a;
 }
 
 @media (--mobile) {
@@ -82,6 +88,7 @@
   --color-text-muted: #7c7c85;
 
   --color-border: #2c2c33;
+  --color-focus-ring: #5aa4f2;
 
   --color-badge-solid-bg: #f2f2f4;
   --color-badge-solid-text: #14141a;
@@ -100,4 +107,9 @@
   --color-badge-icon-warning-fg: #f0ab3d;
   --color-badge-icon-info-bg: #16283d;
   --color-badge-icon-info-fg: #5aa4f2;
+  --color-badge-icon-purple-bg: #2c2140;
+  --color-badge-icon-purple-fg: #b794f6;
+
+  --color-toggle-on-bg: #3ddc8b;
+  --color-toggle-off-bg: #ff5a6a;
 }

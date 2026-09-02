@@ -140,9 +140,21 @@ const SpecularButton = ({
     const fx = fxRef.current;
     if (!btn || !fx) return;
 
+    // WebGL2 context creation can fail (disabled WebGL, blacklisted GPU,
+    // locked-down browser policy) on any browser. This effect is purely a
+    // decorative shine on top of a fully functional <button> - if it fails,
+    // skip the effect rather than letting the error take out the button.
     const dpr = window.devicePixelRatio || 1;
-    const renderer = new Renderer({ alpha: true, premultipliedAlpha: true, antialias: true, dpr });
-    const gl = renderer.gl;
+    let renderer: Renderer;
+    let gl: Renderer['gl'];
+    try {
+      renderer = new Renderer({ alpha: true, premultipliedAlpha: true, antialias: true, dpr });
+      gl = renderer.gl;
+      if (!gl) return;
+    } catch {
+      return;
+    }
+
     gl.clearColor(0, 0, 0, 0);
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);

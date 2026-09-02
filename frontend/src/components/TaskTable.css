@@ -1,40 +1,9 @@
 @import '../styles/breakpoints.css';
 
-.task-table__card {
-  background: var(--color-surface-card);
-  border-radius: var(--radius-md);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-}
-
-.task-table__card .data-table thead th {
-  padding: 10px var(--space-md);
-  font-size: 11px;
-}
-
-.task-table__card .data-table tbody td {
-  padding: 10px var(--space-md);
-  font-size: 13px;
-}
-
 .task-table__name {
   font-weight: 600;
   color: var(--color-text-primary);
   white-space: nowrap;
-}
-
-.task-table__status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.task-table__status-badge::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: currentColor;
-  flex-shrink: 0;
 }
 
 .task-table__actions-cell {
@@ -42,50 +11,87 @@
   white-space: nowrap;
 }
 
-.task-table__empty {
-  padding: var(--space-xl);
-  text-align: center;
+.task-table__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  justify-content: flex-end;
+}
+
+.task-table__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-card);
   color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.task-table__icon-btn:hover {
+  background: var(--color-badge-outline-bg);
+  color: var(--color-text-primary);
+}
+
+.task-table__icon-btn--danger:hover {
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+/* Compact status toggle: green when active, red when inactive. Position of
+   the thumb (not just color) communicates state for accessibility. */
+.task-status-toggle {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.task-status-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.task-status-toggle__track {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--color-toggle-off-bg);
+  border-radius: var(--radius-pill);
+  transition: background 0.15s ease;
+}
+
+.task-status-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+
+.task-status-toggle input:checked + .task-status-toggle__track {
+  background: var(--color-toggle-on-bg);
+}
+
+.task-status-toggle input:checked + .task-status-toggle__track .task-status-toggle__thumb {
+  transform: translateX(16px);
+}
+
+.task-status-toggle input:focus-visible + .task-status-toggle__track {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }
 
 @media (--mobile) {
-  .task-table__card .data-table {
-    min-width: 0;
-  }
-
-  .task-table__card .data-table thead {
-    display: none;
-  }
-
-  .task-table__card .data-table tbody tr {
-    display: block;
-    padding: var(--space-sm) var(--space-md);
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  .task-table__card .data-table tbody tr:last-child {
-    border-bottom: none;
-  }
-
-  .task-table__card .data-table tbody td {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-md);
-    padding: 6px 0;
-    border-bottom: none;
-  }
-
-  .task-table__card .data-table tbody td::before {
-    content: attr(data-label);
-    flex-shrink: 0;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-  }
-
   .task-table__name {
     min-width: 0;
     white-space: normal;

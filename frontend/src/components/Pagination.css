@@ -1,3 +1,7 @@
+/* @import must be the first statement in the file, or PostCSS drops it and the
+   @custom-media query below silently never resolves. */
+@import '../styles/breakpoints.css';
+
 .pagination {
   display: flex;
   align-items: center;
@@ -33,4 +37,13 @@
 
 .pagination__page {
   white-space: nowrap;
+}
+
+/* 28px is below a comfortable touch target on phones; 44px matches the rest
+   of the app (see .btn min-height). */
+@media (--mobile) {
+  .pagination__button {
+    width: 44px;
+    height: 44px;
+  }
 }

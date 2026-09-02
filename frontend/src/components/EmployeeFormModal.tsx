@@ -6,6 +6,7 @@ import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import Modal from './Modal';
 import FormField from './FormField';
 import MultiSelect from './MultiSelect';
+import Select from './Select';
 import './EmployeeFormModal.css';
 
 type FormValues = EmployeeUpdateValues & { countryCode: string };
@@ -125,50 +126,36 @@ function EmployeeFormModal({
           </div>
 
           <FormField label="Shift" htmlFor="employee-shift" required error={errors.shift}>
-            <select
+            <Select
               id="employee-shift"
-              className="select"
               value={values.shift}
-              onChange={(event) => updateField('shift', event.target.value as FormValues['shift'])}
-            >
-              {SHIFT_OPTIONS.map((shift) => (
-                <option key={shift.name} value={shift.name}>
-                  {shift.name} ({shift.timeRange})
-                </option>
-              ))}
-            </select>
+              onChange={(value) => updateField('shift', value as FormValues['shift'])}
+              options={SHIFT_OPTIONS.map((shift) => ({
+                value: shift.name,
+                label: `${shift.name} (${shift.timeRange})`,
+              }))}
+            />
           </FormField>
 
           <FormField label="Type" htmlFor="employee-type" required error={errors.employeeType}>
-            <select
+            <Select
               id="employee-type"
-              className="select"
               value={values.employeeType}
-              onChange={(event) => updateField('employeeType', event.target.value as FormValues['employeeType'])}
-            >
-              {EMPLOYEE_TYPE_OPTIONS.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => updateField('employeeType', value as FormValues['employeeType'])}
+              options={EMPLOYEE_TYPE_OPTIONS.map((type) => ({ value: type, label: type }))}
+            />
           </FormField>
 
           <FormField label="Contact" htmlFor="employee-phone" required error={errors.phone}>
             <div className="employee-form__phone-row">
-              <select
+              <Select
                 id="employee-country-code"
-                className="select employee-form__country-code"
+                className="employee-form__country-code"
+                ariaLabel="Country code"
                 value={values.countryCode}
-                onChange={(event) => updateField('countryCode', event.target.value)}
-                aria-label="Country code"
-              >
-                {COUNTRY_CODE_OPTIONS.map((option) => (
-                  <option key={option.code} value={option.code}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(value) => updateField('countryCode', value)}
+                options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
+              />
               <input
                 id="employee-phone"
                 className="input"
@@ -181,18 +168,12 @@ function EmployeeFormModal({
           </FormField>
 
           <FormField label="Gender" htmlFor="employee-gender" error={errors.gender}>
-            <select
+            <Select
               id="employee-gender"
-              className="select"
               value={values.gender}
-              onChange={(event) => updateField('gender', event.target.value as FormValues['gender'])}
-            >
-              {GENDER_OPTIONS.map((gender) => (
-                <option key={gender} value={gender}>
-                  {gender}
-                </option>
-              ))}
-            </select>
+              onChange={(value) => updateField('gender', value as FormValues['gender'])}
+              options={GENDER_OPTIONS.map((gender) => ({ value: gender, label: gender }))}
+            />
           </FormField>
 
           <div className="form-field--full">

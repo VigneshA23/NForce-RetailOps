@@ -21,7 +21,7 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
 function toPayload(values: AdminTaskFormValues) {
   return {
     name: values.name.trim(),
-    description: null,
+    description: values.description.trim() || null,
     categoryId: values.categoryId,
     displayOrder: values.displayOrder.trim() !== '' ? Number(values.displayOrder) : null,
     appliesToAllStores: values.appliesToAllStores,

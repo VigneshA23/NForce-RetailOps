@@ -58,13 +58,13 @@
 
 .task-form__grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: var(--space-md);
 }
 
 .task-form__grid-3 {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-md);
 }
 
@@ -96,7 +96,9 @@
   text-align: right;
 }
 
-@media (--mobile) {
+/* Stack to a single column below tablet width, not just at the phone breakpoint,
+   so fields never get unnaturally squeezed to keep two/three columns. */
+@media (max-width: 768px) {
   .task-form__grid-2,
   .task-form__grid-3 {
     grid-template-columns: 1fr;

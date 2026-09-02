@@ -5,7 +5,11 @@ import TaskFormModal from './TaskFormModal';
 import type { Category } from '../types/category';
 import type { OwnerStore } from '../types/ownerStore';
 
+<<<<<<< HEAD
 const categories: Category[] = [{ id: 1, name: 'Cleaning', displayOrder: 0, active: true }];
+=======
+const categories: Category[] = [{ id: 1, name: 'Cleaning', displayOrder: 0, active: true, taskCount: 0 }];
+>>>>>>> dev
 const stores: OwnerStore[] = [{ id: 1, storeCode: 10001, name: 'Store 1', active: true, employeeCount: 0, taskCount: 0 }];
 
 function renderModal() {

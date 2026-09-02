@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { ClipboardList, CheckCircle2, CircleDot, Repeat2, Plus } from 'lucide-react';
 import { getCategories } from '../api/categories';
 import { getStores } from '../api/ownerStores';
 import { createTask, deleteTask, getTasks, setTaskActive, TaskHasHistoryError, updateTask } from '../api/ownerTasks';
@@ -13,6 +13,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
+import StatCard from '../components/StatCard';
 import './Tasks.css';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -117,6 +118,16 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
 
   const activeTaskCount = useMemo(() => tasks.filter((task) => task.active).length, [tasks]);
 
+  const singleCompletionCount = useMemo(
+    () => tasks.filter((task) => task.active && task.completionType === 'SINGLE').length,
+    [tasks],
+  );
+
+  const multipleCompletionCount = useMemo(
+    () => tasks.filter((task) => task.active && task.completionType === 'MULTIPLE').length,
+    [tasks],
+  );
+
   const storeCoverageCount = useMemo(() => {
     if (tasks.some((task) => task.appliesToAllStores)) return stores.length;
     const storeIds = new Set<number>();
@@ -169,6 +180,20 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
     }
   }
 
+  async function handleToggleStatus(task: AdminTask) {
+    setActionError(null);
+    const nextActive = !task.active;
+    // Optimistic update so the toggle responds immediately; reverted below on failure.
+    setTasks((current) => current.map((t) => (t.id === task.id ? { ...t, active: nextActive } : t)));
+    try {
+      const updated = await setTaskActive(task.id, nextActive);
+      setTasks((current) => current.map((t) => (t.id === updated.id ? updated : t)));
+    } catch (error) {
+      setTasks((current) => current.map((t) => (t.id === task.id ? { ...t, active: task.active } : t)));
+      setActionError(error instanceof Error ? error.message : 'Failed to update task status');
+    }
+  }
+
   async function handleDeactivateInsteadOfDelete() {
     if (!historyConflictTask) return;
     setActionError(null);
@@ -184,6 +209,13 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
 
   return (
     <div className="tasks-page">
+      <div className="stat-card-row">
+        <StatCard icon={ClipboardList} label="Total Tasks" value={tasks.length} tone="primary" />
+        <StatCard icon={CheckCircle2} label="Active Tasks" value={activeTaskCount} tone="success" />
+        <StatCard icon={CircleDot} label="Single Completion" value={singleCompletionCount} tone="info" />
+        <StatCard icon={Repeat2} label="Multiple Completions" value={multipleCompletionCount} tone="warning" />
+      </div>
+
       <div className="tasks-page__header">
         <p className="tasks-page__summary">{summaryText}</p>
 
@@ -209,13 +241,13 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         </SpecularButton>
       </div>
 
-      <div className="tasks-page__filter-bar">
-        <div className="tasks-page__filter tasks-page__filter--search">
+      <div className="filter-bar">
+        <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search tasks" />
         </div>
 
         <select
-          className="select tasks-page__filter tasks-page__filter--category"
+          className="select filter"
           value={categoryFilter}
           onChange={(event) => setCategoryFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
         >
@@ -228,7 +260,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         </select>
 
         <select
-          className="select tasks-page__filter tasks-page__filter--store"
+          className="select filter"
           value={storeFilter}
           onChange={(event) => setStoreFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
         >
@@ -241,7 +273,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         </select>
 
         <select
-          className="select tasks-page__filter tasks-page__filter--status"
+          className="select filter filter--narrow"
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
         >
@@ -251,7 +283,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         </select>
 
         <select
-          className="select tasks-page__filter tasks-page__filter--schedule"
+          className="select filter"
           value={scheduleFilter}
           onChange={(event) => setScheduleFilter(event.target.value as ScheduleType | 'ALL')}
         >
@@ -287,6 +319,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
               setActionError(null);
               setDeleteTarget(task);
             }}
+            onToggleStatus={handleToggleStatus}
           />
           <Pagination
             page={currentPage}

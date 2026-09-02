@@ -22,8 +22,7 @@
 }
 
 .employee-form__country-code {
-  flex: 0 0 auto;
-  width: auto;
+  flex: 0 0 40%;
   max-width: 40%;
 }
 
