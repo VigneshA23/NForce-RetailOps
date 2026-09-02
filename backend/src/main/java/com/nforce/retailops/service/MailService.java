@@ -1,16 +1,21 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.exception.EmailDeliveryException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class MailService {
+
+    private static final Logger log = LoggerFactory.getLogger(MailService.class);
 
     private final RestClient restClient;
     private final String fromEmail;
@@ -46,7 +51,14 @@ public class MailService {
                 .retrieve()
                 .toBodilessEntity();
         } catch (RestClientException ex) {
-            throw new EmailDeliveryException("Failed to send the account email to " + toEmail);
+            log.error("Resend send failed for {}", toEmail, ex);
+            // Only a trusted super admin ever sees this message (it comes back through
+            // a super-admin-only endpoint), so it's safe -- and far more useful than a
+            // blank "failed" -- to surface Resend's own rejection reason here.
+            String detail = ex instanceof RestClientResponseException responseEx
+                ? responseEx.getResponseBodyAsString()
+                : ex.getMessage();
+            throw new EmailDeliveryException("Failed to send the account email to " + toEmail + ": " + detail);
         }
     }
 

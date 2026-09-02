@@ -20,6 +20,13 @@ public class StoreOwner {
     @JoinColumn(name = "user_id", nullable = false)
     private User owner;
 
+    // Whether THIS owner currently has access to THIS store -- distinct from
+    // Store.active, which is reserved for the store's own open/closed status
+    // (a separate feature). Revoking access here leaves the store record and
+    // its code untouched so it can be handed to a new owner later.
+    @Column(nullable = false)
+    private boolean active = true;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -51,6 +58,14 @@ public class StoreOwner {
 
     public void setOwner(User owner) {
         this.owner = owner;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 
     public OffsetDateTime getCreatedAt() {

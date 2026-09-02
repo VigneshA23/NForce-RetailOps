@@ -25,7 +25,17 @@ function getInitials(name: string): string {
 }
 
 function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: OwnerCardProps) {
-  const representative = owner.stores[0];
+  const representative: OwnerSummary = owner.stores[0] ?? {
+    ownerId: owner.ownerId,
+    ownerName: owner.ownerName,
+    ownerEmail: owner.ownerEmail,
+    ownerActive: owner.active,
+    storeId: null,
+    storeCode: null,
+    storeName: null,
+    storeLocation: null,
+    storeActive: null,
+  };
 
   return (
     <div className="owner-card">
@@ -70,6 +80,7 @@ function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: O
           {owner.stores.length} {owner.stores.length === 1 ? 'Store' : 'Stores'}
         </span>
         <div className="owner-card__stores-list">
+          {owner.stores.length === 0 && <p className="owner-card__stores-empty">No stores yet.</p>}
           {owner.stores.map((store) => (
             <div className={`store-row ${store.storeActive ? '' : 'store-row--inactive'}`} key={store.storeId}>
               <div className="store-row__info">

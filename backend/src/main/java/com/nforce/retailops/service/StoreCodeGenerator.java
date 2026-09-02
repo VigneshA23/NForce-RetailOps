@@ -39,4 +39,15 @@ public class StoreCodeGenerator {
         storeCodeCounterRepository.save(counter);
         return code;
     }
+
+    // Read-only preview of the code the NEXT store will get, without consuming
+    // it -- purely informational, so no lock and no row creation here. A
+    // concurrent creation could still take this exact number first; that's an
+    // acceptable trade-off for a display-only hint in a low-traffic admin tool.
+    @Transactional(readOnly = true)
+    public long peek() {
+        return storeCodeCounterRepository.findById(COUNTER_ROW_ID)
+            .map(StoreCodeCounter::getNextValue)
+            .orElse(FIRST_STORE_CODE);
+    }
 }

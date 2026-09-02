@@ -1,0 +1,5 @@
+.assign-store-modal__hint {
+  margin: -8px 0 var(--space-md);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
