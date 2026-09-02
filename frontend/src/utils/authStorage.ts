@@ -24,6 +24,23 @@ export function clearAuthToken(): void {
   sessionStorage.removeItem(TOKEN_KEY);
 }
 
+const LAST_ROLE_KEY = 'nforce-retailops-last-role';
+
+// The login page's "Need assistance?" note has to be role-specific, but the
+// role is only known *after* a successful login/session-restore -- by which
+// point the app has already navigated away from the login page. Persisting
+// the most recently authenticated role lets the next time this browser shows
+// the login page (after a manual logout, or a session expiring) render the
+// right message for whoever last used it, without guessing from the email
+// being typed. Deliberately never cleared on logout: that's the whole point.
+export function setLastKnownRole(role: string): void {
+  localStorage.setItem(LAST_ROLE_KEY, role);
+}
+
+export function getLastKnownRole(): string | null {
+  return localStorage.getItem(LAST_ROLE_KEY);
+}
+
 export const ACTIVE_STORE_STORAGE_KEY = 'nforce-retailops-active-store';
 
 // Only the id is stored. It is re-validated against the server's list of
