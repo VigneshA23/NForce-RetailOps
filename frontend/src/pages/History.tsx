@@ -9,7 +9,7 @@ import { getStores } from '../api/ownerStores';
 import { getChecklistHistorySummary } from '../api/checklistHistory';
 import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import type { OwnerStore } from '../types/ownerStore';
-import { MAX_RANGE_DAYS, diffDaysInclusive, todayDate } from '../utils/checklistHistoryOptions';
+import { todayDate } from '../utils/checklistHistoryOptions';
 import './History.css';
 
 function History() {
@@ -20,8 +20,7 @@ function History() {
   const [selectedStoreIds, setSelectedStoreIds] = useState<number[]>([]);
   const [allStoresSelected, setAllStoresSelected] = useState(true);
 
-  const [startDate, setStartDate] = useState(todayDate);
-  const [endDate, setEndDate] = useState(todayDate);
+  const [selectedDate, setSelectedDate] = useState(todayDate);
 
   const [rows, setRows] = useState<ChecklistHistorySummaryRow[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -43,8 +42,8 @@ function History() {
     setSummaryError(null);
     getChecklistHistorySummary({
       storeIds: allStoresSelected ? [] : selectedStoreIds,
-      startDate,
-      endDate,
+      startDate: selectedDate,
+      endDate: selectedDate,
     })
       .then(setRows)
       .catch((error: Error) => setSummaryError(error.message))
@@ -62,19 +61,12 @@ function History() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rangeSpanDays = diffDaysInclusive(startDate, endDate);
-  const isRangeValid = startDate <= endDate && rangeSpanDays <= MAX_RANGE_DAYS;
   const hasStoreSelection = allStoresSelected || selectedStoreIds.length > 0;
+  const validationMessage = !hasStoreSelection
+    ? 'Select at least one store, or choose All Stores.'
+    : null;
 
-  const rangeValidationMessage = startDate > endDate
-    ? 'Start date must be on or before end date.'
-    : rangeSpanDays > MAX_RANGE_DAYS
-      ? `Select a range of ${MAX_RANGE_DAYS} days or fewer.`
-      : !hasStoreSelection
-        ? 'Select at least one store, or choose All Stores.'
-        : null;
-
-  const canSearch = isRangeValid && hasStoreSelection && !summaryLoading;
+  const canSearch = hasStoreSelection && !summaryLoading;
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => a.storeName.localeCompare(b.storeName) || a.date.localeCompare(b.date)),
@@ -92,7 +84,7 @@ function History() {
         </div>
       </div>
 
-      <div className="filter-bar history-page__filters">
+      <div className="filter-bar">
         <div className="filter">
           <SearchableSelect
             id="history-stores"
@@ -116,26 +108,16 @@ function History() {
           />
         </div>
 
-        <label className="history-page__date-field">
-          From
+        <div className="filter filter--narrow">
           <input
             type="date"
-            value={startDate}
+            className="input"
+            aria-label="Date"
+            value={selectedDate}
             max={todayDate()}
-            onChange={(event) => setStartDate(event.target.value || todayDate())}
+            onChange={(event) => setSelectedDate(event.target.value || todayDate())}
           />
-        </label>
-
-        <label className="history-page__date-field">
-          To
-          <input
-            type="date"
-            value={endDate}
-            min={startDate}
-            max={todayDate()}
-            onChange={(event) => setEndDate(event.target.value || todayDate())}
-          />
-        </label>
+        </div>
 
         <button type="button" className="btn btn--primary" disabled={!canSearch} onClick={runSearch}>
           <SearchIcon size={16} />
@@ -143,7 +125,7 @@ function History() {
         </button>
       </div>
 
-      {rangeValidationMessage && <p className="history-page__validation">{rangeValidationMessage}</p>}
+      {validationMessage && <p className="history-page__validation">{validationMessage}</p>}
 
       {summaryError && (
         <div className="history-page__error">
