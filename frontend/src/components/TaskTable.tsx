@@ -58,7 +58,7 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus 
                 <td data-label="Completion">{completionTypeLabel(task.completionType)}</td>
                 <td data-label="Status">
                   <label
-                    className="task-status-toggle"
+                    className="status-toggle"
                     title={task.active ? 'Deactivate task' : 'Activate task'}
                   >
                     <input
@@ -67,16 +67,16 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus 
                       onChange={() => onToggleStatus(task)}
                       aria-label={task.active ? 'Deactivate task' : 'Activate task'}
                     />
-                    <span className="task-status-toggle__track" aria-hidden="true">
-                      <span className="task-status-toggle__thumb" />
+                    <span className="status-toggle__track" aria-hidden="true">
+                      <span className="status-toggle__thumb" />
                     </span>
                   </label>
                 </td>
-                <td className="task-table__actions-cell" data-label="Actions">
-                  <div className="task-table__actions">
+                <td className="table-actions-cell" data-label="Actions">
+                  <div className="table-row-actions">
                     <button
                       type="button"
-                      className="task-table__icon-btn"
+                      className="table-icon-btn"
                       aria-label={`Edit ${task.name}`}
                       title="Edit"
                       onClick={() => onEdit(task)}
@@ -85,7 +85,7 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus 
                     </button>
                     <button
                       type="button"
-                      className="task-table__icon-btn task-table__icon-btn--danger"
+                      className="table-icon-btn table-icon-btn--danger"
                       aria-label={`Delete ${task.name}`}
                       title="Delete"
                       onClick={() => onDelete(task)}

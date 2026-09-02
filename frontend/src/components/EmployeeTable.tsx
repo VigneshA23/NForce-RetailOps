@@ -1,8 +1,7 @@
+import { Pencil, Trash2 } from 'lucide-react';
 import type { Employee, EmployeeType } from '../types/employee';
 import { getShiftTimeRange } from '../utils/employeeUtils';
-import RowActionsMenu from './RowActionsMenu';
 import StoreChips from './StoreChips';
-import Toggle from './Toggle';
 import './EmployeeTable.css';
 
 interface EmployeeTableProps {
@@ -19,10 +18,6 @@ interface EmployeeTableProps {
 function TypeBadge({ type }: { type: EmployeeType }) {
   const className = type === 'Full Time' ? 'badge badge--solid' : 'badge badge--outline';
   return <span className={className}>{type}</span>;
-}
-
-function statusLabel(employee: Employee): string {
-  return employee.active ? 'Active' : 'Inactive';
 }
 
 function EmployeeTable({
@@ -82,19 +77,42 @@ function EmployeeTable({
                 </td>
                 <td data-label="Gender">{employee.gender}</td>
                 <td data-label="Status">
-                  <div className="employee-table__status">
-                    <span className={`badge badge--dot ${employee.active ? 'badge--solid' : 'badge--outline'}`}>
-                      {statusLabel(employee)}
-                    </span>
-                    <Toggle
+                  <label
+                    className="status-toggle"
+                    title={employee.active ? 'Deactivate employee' : 'Activate employee'}
+                  >
+                    <input
+                      type="checkbox"
                       checked={employee.active}
                       onChange={() => onToggleStatus(employee)}
-                      label={`${employee.active ? 'Deactivate' : 'Activate'} ${employee.name}`}
+                      aria-label={`${employee.active ? 'Deactivate' : 'Activate'} ${employee.name}`}
                     />
-                  </div>
+                    <span className="status-toggle__track" aria-hidden="true">
+                      <span className="status-toggle__thumb" />
+                    </span>
+                  </label>
                 </td>
-                <td className="employee-table__actions-cell" data-label="Actions">
-                  <RowActionsMenu onEdit={() => onEdit(employee)} onDelete={() => onDelete(employee)} />
+                <td className="table-actions-cell" data-label="Actions">
+                  <div className="table-row-actions">
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`Edit ${employee.name}`}
+                      title="Edit"
+                      onClick={() => onEdit(employee)}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn table-icon-btn--danger"
+                      aria-label={`Delete ${employee.name}`}
+                      title="Delete"
+                      onClick={() => onDelete(employee)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
