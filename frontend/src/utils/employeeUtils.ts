@@ -1,8 +1,20 @@
-import type { EmployeeCreateValues, EmployeeUpdateValues, ShiftName } from '../types/employee';
+import type { Employee, EmployeeCreateValues, EmployeeUpdateValues, ShiftName } from '../types/employee';
 import { SHIFT_OPTIONS } from './employeeOptions';
 
 export function getShiftTimeRange(shift: ShiftName): string {
   return SHIFT_OPTIONS.find((option) => option.name === shift)?.timeRange ?? '';
+}
+
+export function toEmployeeUpdateValues(employee: Employee): EmployeeUpdateValues {
+  return {
+    name: employee.name,
+    email: employee.email,
+    phone: employee.phone,
+    shift: employee.shift,
+    employeeType: employee.employeeType,
+    gender: employee.gender,
+    storeIds: employee.stores.map((store) => store.id),
+  };
 }
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

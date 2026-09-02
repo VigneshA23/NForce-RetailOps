@@ -17,8 +17,10 @@ import type {
   StoreOption,
 } from '../types/employee';
 import { EMPLOYEE_TYPE_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
+import { toEmployeeUpdateValues } from '../utils/employeeUtils';
 import EmployeeTable from '../components/EmployeeTable';
 import EmployeeFormModal from '../components/EmployeeFormModal';
+import EmployeeDetailModal from '../components/EmployeeDetailModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
@@ -30,18 +32,6 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; employee: Employee } | null;
 
 const PAGE_SIZE = 10;
-
-function toUpdateValues(employee: Employee): EmployeeUpdateValues {
-  return {
-    name: employee.name,
-    email: employee.email,
-    phone: employee.phone,
-    shift: employee.shift,
-    employeeType: employee.employeeType,
-    gender: employee.gender,
-    storeIds: employee.stores.map((store) => store.id),
-  };
-}
 
 function Employees() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -64,6 +54,8 @@ function Employees() {
   const [statusTarget, setStatusTarget] = useState<Employee | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [detailTarget, setDetailTarget] = useState<Employee | null>(null);
 
   useEffect(() => {
     if (!successMessage) return;
@@ -297,6 +289,7 @@ function Employees() {
             employees={pagedEmployees}
             isLoading={isLoading}
             emptyMessage={emptyMessage}
+            onViewDetails={(employee) => setDetailTarget(employee)}
             onEdit={(employee) => {
               setFormError(null);
               setFormModalState({ mode: 'edit', employee });
@@ -323,13 +316,15 @@ function Employees() {
       <EmployeeFormModal
         isOpen={formModalState !== null}
         mode={formModalState?.mode ?? 'create'}
-        initialValues={formModalState?.mode === 'edit' ? toUpdateValues(formModalState.employee) : undefined}
+        initialValues={formModalState?.mode === 'edit' ? toEmployeeUpdateValues(formModalState.employee) : undefined}
         storeOptions={storeOptions}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => setFormModalState(null)}
         onSubmit={handleFormSubmit}
       />
+
+      <EmployeeDetailModal employee={detailTarget} onClose={() => setDetailTarget(null)} />
 
       <ConfirmDialog
         isOpen={deleteTarget !== null}

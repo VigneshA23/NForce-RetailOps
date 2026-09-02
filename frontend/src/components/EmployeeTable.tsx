@@ -1,8 +1,5 @@
-import type { Employee, EmployeeType } from '../types/employee';
-import { getShiftTimeRange } from '../utils/employeeUtils';
-import RowActionsMenu from './RowActionsMenu';
-import StoreChips from './StoreChips';
-import Toggle from './Toggle';
+import { Pencil, Trash2 } from 'lucide-react';
+import type { Employee } from '../types/employee';
 import './EmployeeTable.css';
 
 interface EmployeeTableProps {
@@ -11,24 +8,17 @@ interface EmployeeTableProps {
   isLoading?: boolean;
   /** Resolved by the page, which alone can tell "none yet" from "none match". */
   emptyMessage?: string;
+  onViewDetails: (employee: Employee) => void;
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
   onToggleStatus: (employee: Employee) => void;
-}
-
-function TypeBadge({ type }: { type: EmployeeType }) {
-  const className = type === 'Full Time' ? 'badge badge--solid' : 'badge badge--outline';
-  return <span className={className}>{type}</span>;
-}
-
-function statusLabel(employee: Employee): string {
-  return employee.active ? 'Active' : 'Inactive';
 }
 
 function EmployeeTable({
   employees,
   isLoading = false,
   emptyMessage = 'No employees match your filters.',
+  onViewDetails,
   onEdit,
   onDelete,
   onToggleStatus,
@@ -41,12 +31,7 @@ function EmployeeTable({
             <tr>
               <th scope="col">Emp ID</th>
               <th scope="col">Employee Name</th>
-              <th scope="col">Assigned Stores</th>
-              <th scope="col">Shift</th>
               <th scope="col">Contact</th>
-              <th scope="col">Type</th>
-              <th scope="col">Email</th>
-              <th scope="col">Gender</th>
               <th scope="col">Status</th>
               <th scope="col">Actions</th>
             </tr>
@@ -54,47 +39,54 @@ function EmployeeTable({
           <tbody>
             {employees.map((employee) => (
               <tr key={employee.empId}>
-                <td className="employee-table__emp-id" data-label="Emp ID">{employee.empId}</td>
+                <td data-label="Emp ID">
+                  <button
+                    type="button"
+                    className="employee-table__emp-id employee-table__id-link"
+                    onClick={() => onViewDetails(employee)}
+                  >
+                    {employee.empId}
+                  </button>
+                </td>
                 <td className="employee-table__name" data-label="Employee Name">{employee.name}</td>
-                <td data-label="Assigned Stores">
-                  <StoreChips stores={employee.stores} emptyLabel="No stores" />
-                </td>
-                <td data-label="Shift">
-                  <div className="employee-table__shift">
-                    <div className="employee-table__shift-name">{employee.shift}</div>
-                    <div className="employee-table__shift-range">
-                      ({getShiftTimeRange(employee.shift)})
-                    </div>
-                  </div>
-                </td>
-                <td data-label="Contact">
-                  <a className="employee-table__link" href={`tel:${employee.phone}`}>
-                    {employee.phone}
-                  </a>
-                </td>
-                <td data-label="Type">
-                  <TypeBadge type={employee.employeeType} />
-                </td>
-                <td data-label="Email">
-                  <a className="employee-table__link" href={`mailto:${employee.email}`}>
-                    {employee.email}
-                  </a>
-                </td>
-                <td data-label="Gender">{employee.gender}</td>
+                <td data-label="Contact">{employee.phone}</td>
                 <td data-label="Status">
-                  <div className="employee-table__status">
-                    <span className={`badge badge--dot ${employee.active ? 'badge--solid' : 'badge--outline'}`}>
-                      {statusLabel(employee)}
-                    </span>
-                    <Toggle
+                  <label
+                    className="status-toggle"
+                    title={employee.active ? 'Deactivate employee' : 'Activate employee'}
+                  >
+                    <input
+                      type="checkbox"
                       checked={employee.active}
                       onChange={() => onToggleStatus(employee)}
-                      label={`${employee.active ? 'Deactivate' : 'Activate'} ${employee.name}`}
+                      aria-label={`${employee.active ? 'Deactivate' : 'Activate'} ${employee.name}`}
                     />
-                  </div>
+                    <span className="status-toggle__track" aria-hidden="true">
+                      <span className="status-toggle__thumb" />
+                    </span>
+                  </label>
                 </td>
-                <td className="employee-table__actions-cell" data-label="Actions">
-                  <RowActionsMenu onEdit={() => onEdit(employee)} onDelete={() => onDelete(employee)} />
+                <td className="table-actions-cell" data-label="Actions">
+                  <div className="table-row-actions">
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`Edit ${employee.name}`}
+                      title="Edit"
+                      onClick={() => onEdit(employee)}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn table-icon-btn--danger"
+                      aria-label={`Delete ${employee.name}`}
+                      title="Delete"
+                      onClick={() => onDelete(employee)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

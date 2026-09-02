@@ -1,54 +1,24 @@
 @import '../styles/breakpoints.css';
 
-/* RowActionsMenu portals its panel to <body>, but keep the card unclipped so a
-   focus ring on an edge cell isn't cut off. */
-.employee-table__card {
-  overflow: visible;
-}
-
 .employee-table__emp-id {
   color: var(--color-accent);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
-.employee-table__name {
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.employee-table__shift-name {
-  color: var(--color-text-secondary);
-}
-
-.employee-table__shift-range {
-  color: var(--color-text-muted);
-  font-size: 12px;
-}
-
-.employee-table__link {
-  color: var(--color-accent);
+.employee-table__id-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
   text-decoration: none;
 }
 
-.employee-table__link:hover {
+.employee-table__id-link:hover {
   text-decoration: underline;
 }
 
-.employee-table__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.employee-table__actions-cell {
-  text-align: right;
-  white-space: nowrap;
-}
-
-@media (--mobile) {
-  .employee-table__shift {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-  }
+.employee-table__name {
+  font-weight: 600;
+  color: var(--color-text-primary);
 }

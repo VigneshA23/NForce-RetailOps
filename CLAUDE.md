@@ -10,14 +10,7 @@ Two-store retail operations app: an employee checklist UI and an owner/admin das
 
 ### Frontend (`frontend/`)
 
-```
-npm install          # install deps
-npm run dev          # start Vite dev server (port 5173)
-npm run build        # tsc -b && vite build
-npm run preview      # preview production build
-npm run test         # vitest run
-npm run lint         # eslint . — no ESLint config exists in the repo yet, this will fail until one is added
-```
+`npm run lint` (`eslint .`) — no ESLint config exists in the repo yet, this will fail until one is added.
 
 Tests use Vitest + Testing Library + jsdom (`frontend/src/test/setup.ts`, `vite.config.ts`'s `test` block). Test files sit next to the code they cover (e.g. `Header.test.tsx`), not in a separate `__tests__` tree.
 
@@ -25,12 +18,7 @@ Tests use Vitest + Testing Library + jsdom (`frontend/src/test/setup.ts`, `vite.
 
 Requires Java 17+ and a running PostgreSQL instance (Neon or local; connection vars are `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD`, loaded from `backend/.env` via `spring-dotenv` — there is no committed `.env.example` for the backend, unlike the frontend).
 
-```
-mvn spring-boot:run                          # run the app
-mvn test                                     # run all tests
-mvn test -Dtest=ClassName#methodName         # run a single test
-mvn package                                  # build the jar
-```
+Run a single test with `mvn test -Dtest=ClassName#methodName`.
 
 Tests run against H2 in PostgreSQL compatibility mode with Flyway disabled (`backend/src/test/resources/application-test.yml`).
 

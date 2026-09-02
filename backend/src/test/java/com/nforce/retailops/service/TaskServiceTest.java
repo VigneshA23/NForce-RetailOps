@@ -11,6 +11,7 @@ import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
 import com.nforce.retailops.exception.TaskAlreadyCompletedException;
+import com.nforce.retailops.exception.TaskHasHistoryException;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -34,6 +35,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -250,5 +253,32 @@ class TaskServiceTest {
 
         assertThatThrownBy(() -> taskService.submitResponse(42L, taskId, request))
             .isInstanceOf(TaskAlreadyCompletedException.class);
+    }
+
+    @Test
+    void deleteTaskIsRejectedWhenTaskHasCheckedHistory() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        when(taskRepository.findByIdAndOwnerId(taskId, OWNER_ID)).thenReturn(Optional.of(task));
+        when(taskResponseEntryRepository.existsByTaskId(taskId)).thenReturn(true);
+
+        assertThatThrownBy(() -> taskService.deleteTask(OWNER_ID, taskId))
+            .isInstanceOf(TaskHasHistoryException.class);
+
+        verify(taskRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteTaskProceedsWhenTaskHasNoHistory() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        when(taskRepository.findByIdAndOwnerId(taskId, OWNER_ID)).thenReturn(Optional.of(task));
+        when(taskResponseEntryRepository.existsByTaskId(taskId)).thenReturn(false);
+
+        taskService.deleteTask(OWNER_ID, taskId);
+
+        verify(taskRepository).delete(task);
     }
 }

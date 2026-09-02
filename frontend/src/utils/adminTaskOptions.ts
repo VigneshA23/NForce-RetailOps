@@ -70,3 +70,16 @@ export function responseTypeBadgeClass(responseType: ResponseType): string {
 export function completionTypeLabel(completionType: CompletionType): string {
   return COMPLETION_TYPE_OPTIONS.find((option) => option.value === completionType)?.label ?? completionType;
 }
+
+export function dayLabel(day: DayCode): string {
+  return DAY_OPTIONS.find((option) => option.value === day)?.label ?? day;
+}
+
+export function formatTaskDate(isoDate: string | null): string | null {
+  if (!isoDate) return null;
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}

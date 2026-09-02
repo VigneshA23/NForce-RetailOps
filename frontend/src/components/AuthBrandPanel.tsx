@@ -34,7 +34,7 @@ function AuthBrandPanel({ heading, description, showFeatures = false }: AuthBran
         </span>
         <div>
           <div className="login-brand-title">NForce RetailOps</div>
-          <div className="login-brand-subtitle">Retail Store Operations Platform</div>
+          <div className="login-brand-subtitle">Store Ops Platform</div>
         </div>
       </div>
 

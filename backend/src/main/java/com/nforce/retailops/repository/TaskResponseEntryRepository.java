@@ -21,4 +21,22 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     );
 
     Optional<TaskResponseEntry> findByIdAndTaskIdAndStoreId(Long id, Long taskId, Long storeId);
+
+    // Admin checklist-history summary: one query for an entire store-range request,
+    // rather than one query per store per day.
+    List<TaskResponseEntry> findByStoreIdInAndResponseDateBetweenAndActiveTrue(
+        Collection<Long> storeIds, LocalDate startDate, LocalDate endDate
+    );
+
+    // Admin checklist-history detail: deliberately broader than
+    // findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue -- no task_id predicate, so it
+    // also surfaces responses for tasks that are no longer eligible under the current
+    // task configuration (deactivated, rescoped, etc.), which the union-based
+    // reconstruction in ChecklistHistoryService relies on to never drop real history.
+    List<TaskResponseEntry> findByStoreIdAndResponseDateAndActiveTrue(Long storeId, LocalDate responseDate);
+
+    // Backs the deleteTask history guard. Deliberately has no "active" predicate --
+    // an undone (active=false) response is still a historical fact that must block
+    // deletion, per TaskResponseEntry's own preserve-history contract.
+    boolean existsByTaskId(Long taskId);
 }

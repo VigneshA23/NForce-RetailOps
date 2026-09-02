@@ -24,6 +24,7 @@ function renderTable(employees: Employee[], props: Partial<Parameters<typeof Emp
   return render(
     <EmployeeTable
       employees={employees}
+      onViewDetails={vi.fn()}
       onEdit={vi.fn()}
       onDelete={vi.fn()}
       onToggleStatus={vi.fn()}
@@ -52,47 +53,13 @@ describe('EmployeeTable', () => {
     expect(headers.map((header) => header.textContent)).toEqual([
       'Emp ID',
       'Employee Name',
-      'Assigned Stores',
-      'Shift',
       'Contact',
-      'Type',
-      'Email',
-      'Gender',
       'Status',
       'Actions',
     ]);
     headers.forEach((header) => {
       expect(header.querySelector('button')).toBeNull();
     });
-  });
-
-  it('shows the store name for a single-store employee', () => {
-    renderTable([baseEmployee({ stores: [{ id: 1, name: 'Downtown - Store 1' }] })]);
-
-    expect(screen.getByText('Downtown - Store 1')).toBeInTheDocument();
-  });
-
-  it('collapses more than two assigned stores into a +N chip', () => {
-    renderTable([
-      baseEmployee({
-        stores: [
-          { id: 1, name: 'Downtown - Store 1' },
-          { id: 2, name: 'River way - Store 2' },
-          { id: 3, name: 'Uptown - Store 3' },
-        ],
-      }),
-    ]);
-
-    expect(screen.getByText('Downtown - Store 1')).toBeInTheDocument();
-    expect(screen.getByText('River way - Store 2')).toBeInTheDocument();
-    expect(screen.queryByText('Uptown - Store 3')).not.toBeInTheDocument();
-    expect(screen.getByText('+1')).toHaveAttribute('title', 'Uptown - Store 3');
-  });
-
-  it('shows a placeholder chip when an employee has no assigned stores', () => {
-    renderTable([baseEmployee({ stores: [] })]);
-
-    expect(screen.getByText('No stores')).toBeInTheDocument();
   });
 
   it('renders the supplied empty message when there are no rows', () => {
@@ -113,8 +80,34 @@ describe('EmployeeTable', () => {
     const employee = baseEmployee({ active: true });
     renderTable([employee], { onToggleStatus });
 
-    await userEvent.click(screen.getByRole('switch', { name: 'Deactivate Asha Rao' }));
+    const toggle = screen.getByLabelText('Deactivate Asha Rao');
+    expect(toggle).toBeChecked();
+
+    await userEvent.click(toggle);
 
     expect(onToggleStatus).toHaveBeenCalledWith(employee);
+  });
+
+  it('calls onViewDetails when the Emp ID link is clicked', async () => {
+    const onViewDetails = vi.fn();
+    const employee = baseEmployee();
+    renderTable([employee], { onViewDetails });
+
+    await userEvent.click(screen.getByRole('button', { name: 'EMP-001' }));
+
+    expect(onViewDetails).toHaveBeenCalledWith(employee);
+  });
+
+  it('renders direct Edit and Delete icon buttons instead of a menu', async () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    const employee = baseEmployee();
+    renderTable([employee], { onEdit, onDelete });
+
+    await userEvent.click(screen.getByRole('button', { name: /edit asha rao/i }));
+    expect(onEdit).toHaveBeenCalledWith(employee);
+
+    await userEvent.click(screen.getByRole('button', { name: /delete asha rao/i }));
+    expect(onDelete).toHaveBeenCalledWith(employee);
   });
 });
