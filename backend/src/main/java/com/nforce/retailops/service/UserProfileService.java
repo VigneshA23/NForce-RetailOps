@@ -2,13 +2,17 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.AssignedStoreResponse;
 import com.nforce.retailops.dto.MeResponse;
+import com.nforce.retailops.dto.UpdateMeRequest;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,13 +26,16 @@ public class UserProfileService {
 
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
+    private final UserRepository userRepository;
 
     public UserProfileService(
         StoreOwnerRepository storeOwnerRepository,
-        StoreEmployeeRepository storeEmployeeRepository
+        StoreEmployeeRepository storeEmployeeRepository,
+        UserRepository userRepository
     ) {
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
+        this.userRepository = userRepository;
     }
 
     @Transactional(readOnly = true)
@@ -39,7 +46,45 @@ public class UserProfileService {
             .map(Store::getName)
             .toList();
 
-        return new MeResponse(user.getId(), user.getFullName(), user.getEmail(), role, storeNames, user.isMustResetPassword());
+        String shift = null;
+        String employeeType = null;
+        String phone = null;
+        if (!isOwnerAdmin(user)) {
+            StoreEmployee storeEmployee = storeEmployeeRepository.findByEmployeeId(user.getId()).orElse(null);
+            if (storeEmployee != null) {
+                shift = storeEmployee.getShift();
+                employeeType = storeEmployee.getEmployeeType();
+                phone = storeEmployee.getPhone();
+            }
+        }
+
+        return new MeResponse(
+            user.getId(), user.getFullName(), user.getEmail(), role, storeNames, user.isMustResetPassword(),
+            shift, employeeType, phone);
+    }
+
+    /**
+     * Self-service profile edit: full name and email always apply; phone only
+     * applies to callers with a StoreEmployee record (employees) and is silently
+     * ignored for owners/super admins, who have none.
+     */
+    @Transactional
+    public MeResponse updateMe(User user, UpdateMeRequest request) {
+        String email = request.email().trim();
+        if (!user.getEmail().equalsIgnoreCase(email) && userRepository.findByEmailWithRoles(email).isPresent()) {
+            throw new EmailAlreadyExistsException("A user with this email already exists");
+        }
+
+        user.setFullName(request.fullName().trim());
+        user.setEmail(email);
+        userRepository.save(user);
+
+        storeEmployeeRepository.findByEmployeeId(user.getId()).ifPresent(storeEmployee -> {
+            storeEmployee.setPhone(request.phone().trim());
+            storeEmployeeRepository.save(storeEmployee);
+        });
+
+        return getMe(user);
     }
 
     /**

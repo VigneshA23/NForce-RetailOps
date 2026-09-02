@@ -1,7 +1,11 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.SuperAdmin;
+import com.nforce.retailops.entity.User;
+import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.SuperAdminRepository;
+import com.nforce.retailops.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -34,6 +38,12 @@ class AuthControllerTest {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private RoleRepository roleRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
@@ -62,7 +72,7 @@ class AuthControllerTest {
         mockMvc.perform(get("/api/auth/session-config"))
             .andExpect(status().isOk())
             .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                .jsonPath("$.inactivityTimeoutMinutes").value(10));
+                .jsonPath("$.inactivityTimeoutMinutes").value(30));
     }
 
     @Test
@@ -98,6 +108,60 @@ class AuthControllerTest {
         // valid, unexpired) token must now be rejected as unauthenticated.
         mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + token))
             .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @Transactional
+    void changePasswordRejectsAnIncorrectCurrentPasswordButAcceptsTheCorrectOne() throws Exception {
+        // Flyway is disabled for the test profile, so roles aren't seeded --
+        // create one directly, the same way other integration tests do.
+        Role employeeRole = roleRepository.findByName("EMPLOYEE").orElseGet(() -> {
+            Role role = new Role();
+            role.setName("EMPLOYEE");
+            return roleRepository.save(role);
+        });
+
+        User user = new User();
+        user.setFullName("Change Password Test");
+        user.setEmail("change-pw-test@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("original-password"));
+        user.getRoles().add(employeeRole);
+        userRepository.save(user);
+
+        String loginBody = objectMapper.writeValueAsString(new LoginPayload(
+            "change-pw-test@nforce.test", "original-password"
+        ));
+        String responseJson = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginBody))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        String token = objectMapper.readTree(responseJson).get("token").asText();
+
+        // The current password must be verified -- an incorrect one is rejected,
+        // unlike /reset-password which trusts the session alone.
+        mockMvc.perform(post("/api/auth/change-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"wrong-password\",\"newPassword\":\"brand-new-password\"}"))
+            .andExpect(status().isBadRequest());
+
+        mockMvc.perform(post("/api/auth/change-password")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"original-password\",\"newPassword\":\"brand-new-password\"}"))
+            .andExpect(status().isOk());
+
+        // The new password now works for login.
+        String reloginBody = objectMapper.writeValueAsString(new LoginPayload(
+            "change-pw-test@nforce.test", "brand-new-password"
+        ));
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(reloginBody))
+            .andExpect(status().isOk());
     }
 
     private record LoginPayload(String email, String password) {

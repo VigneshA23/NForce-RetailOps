@@ -18,6 +18,8 @@ interface AppShellProps<Key extends string = NavTabKey> {
   loggingOut?: boolean;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
+  // Extra page-specific header action(s), forwarded to Header's `actions` slot.
+  headerActions?: ReactNode;
   children: ReactNode;
 }
 
@@ -31,6 +33,7 @@ function AppShell<Key extends string = NavTabKey>({
   loggingOut,
   onProfileClick,
   onHelpClick,
+  headerActions,
   children,
 }: AppShellProps<Key>) {
   const { isDarkTheme, toggleTheme } = useTheme();
@@ -65,6 +68,7 @@ function AppShell<Key extends string = NavTabKey>({
             onLogout={onLogout}
             loggingOut={loggingOut}
             onMenuClick={isMobile ? () => setMobileDrawerOpen(true) : undefined}
+            actions={headerActions}
           />
         </div>
         <main className="app-shell__main">{children}</main>

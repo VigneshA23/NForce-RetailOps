@@ -2,7 +2,7 @@
 // that should own inactivity timing or 401 detection — pages must never wire
 // up their own timers or fetch interceptors.
 
-export const DEFAULT_INACTIVITY_TIMEOUT_MINUTES = 10;
+export const DEFAULT_INACTIVITY_TIMEOUT_MINUTES = 30;
 
 const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'] as const;
 const ACTIVITY_RESET_THROTTLE_MS = 1000;

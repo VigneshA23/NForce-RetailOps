@@ -30,6 +30,12 @@ export interface ChecklistTask {
   // may undo one of their own -- both come straight from the backend.
   responses: TaskResponseSummary[];
   canUndo: boolean;
+  // "X/Y Completed By" status: X (completedByCount) is the count of distinct ACTIVE
+  // employees with at least one active response today, Y (totalActiveEmployees) is
+  // the store's active-employee headcount. Deactivated employees count in neither.
+  completedByCount: number;
+  totalActiveEmployees: number;
+  completedByNames: string[];
 }
 
 export interface ChecklistCategory {

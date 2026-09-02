@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Mail, ShieldCheck, Store as StoreIcon } from 'lucide-react';
+import { Briefcase, Clock, Mail, Pencil, Phone, ShieldCheck, Store as StoreIcon } from 'lucide-react';
 import { getMe, type MeResponse } from '../api/me';
 import UserAvatar from '../components/UserAvatar';
+import EditProfileForm from '../components/EditProfileForm';
+import ResetPasswordModal from '../components/ResetPasswordModal';
 import './Profile.css';
 
 interface ProfileProps {
@@ -18,6 +20,8 @@ function Profile({ initials }: ProfileProps) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -53,23 +57,66 @@ function Profile({ initials }: ProfileProps) {
             <div className="profile-card__name">{me.fullName}</div>
             <span className="badge badge--solid">{ROLE_LABELS[me.role]}</span>
           </div>
+          {!isEditing && (
+            <button
+              type="button"
+              className="btn btn--secondary profile-card__edit-btn"
+              onClick={() => setIsEditing(true)}
+            >
+              <Pencil size={14} />
+              Edit Profile
+            </button>
+          )}
         </div>
 
-        <div className="profile-card__details">
-          <div className="profile-card__row">
-            <Mail size={16} />
-            <span>{me.email}</span>
+        {isEditing ? (
+          <EditProfileForm
+            me={me}
+            onSaved={(updated) => {
+              // Reflects immediately in the display below, without a reload.
+              setMe(updated);
+              setIsEditing(false);
+            }}
+            onCancel={() => setIsEditing(false)}
+            onOpenResetPassword={() => setIsResetPasswordOpen(true)}
+          />
+        ) : (
+          <div className="profile-card__details">
+            <div className="profile-card__row">
+              <Mail size={16} />
+              <span>{me.email}</span>
+            </div>
+            {me.phone && (
+              <div className="profile-card__row">
+                <Phone size={16} />
+                <span>{me.phone}</span>
+              </div>
+            )}
+            <div className="profile-card__row">
+              <ShieldCheck size={16} />
+              <span>{ROLE_LABELS[me.role]}</span>
+            </div>
+            <div className="profile-card__row">
+              <StoreIcon size={16} />
+              <span>{me.storeNames.length > 0 ? me.storeNames.join(', ') : 'No stores assigned'}</span>
+            </div>
+            {me.shift && (
+              <div className="profile-card__row">
+                <Clock size={16} />
+                <span>{me.shift} shift</span>
+              </div>
+            )}
+            {me.employeeType && (
+              <div className="profile-card__row">
+                <Briefcase size={16} />
+                <span>{me.employeeType}</span>
+              </div>
+            )}
           </div>
-          <div className="profile-card__row">
-            <ShieldCheck size={16} />
-            <span>{ROLE_LABELS[me.role]}</span>
-          </div>
-          <div className="profile-card__row">
-            <StoreIcon size={16} />
-            <span>{me.storeNames.length > 0 ? me.storeNames.join(', ') : 'No stores assigned'}</span>
-          </div>
-        </div>
+        )}
       </div>
+
+      <ResetPasswordModal isOpen={isResetPasswordOpen} onClose={() => setIsResetPasswordOpen(false)} />
     </div>
   );
 }

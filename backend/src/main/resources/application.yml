@@ -24,7 +24,7 @@ jwt:
   expiration-ms: ${JWT_EXPIRATION_MS:86400000}
 
 session:
-  inactivity-timeout-minutes: ${SESSION_INACTIVITY_TIMEOUT_MINUTES:10}
+  inactivity-timeout-minutes: ${SESSION_INACTIVITY_TIMEOUT_MINUTES:30}
 
 resend:
   api-key: ${RESEND_API_KEY:}

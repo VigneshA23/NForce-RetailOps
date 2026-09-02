@@ -29,6 +29,7 @@ import com.nforce.retailops.exception.TaskNotFoundException;
 import com.nforce.retailops.exception.TaskResponseNotFoundException;
 import com.nforce.retailops.exception.UnauthorizedTaskResponseActionException;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.TaskRepository;
@@ -62,6 +63,7 @@ public class TaskService {
     private final UserRepository userRepository;
     private final UserProfileService userProfileService;
     private final TaskResponseEntryRepository taskResponseEntryRepository;
+    private final StoreEmployeeRepository storeEmployeeRepository;
 
     public TaskService(
         TaskRepository taskRepository,
@@ -70,7 +72,8 @@ public class TaskService {
         StoreRepository storeRepository,
         UserRepository userRepository,
         UserProfileService userProfileService,
-        TaskResponseEntryRepository taskResponseEntryRepository
+        TaskResponseEntryRepository taskResponseEntryRepository,
+        StoreEmployeeRepository storeEmployeeRepository
     ) {
         this.taskRepository = taskRepository;
         this.categoryRepository = categoryRepository;
@@ -79,6 +82,7 @@ public class TaskService {
         this.userRepository = userRepository;
         this.userProfileService = userProfileService;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
+        this.storeEmployeeRepository = storeEmployeeRepository;
     }
 
     @Transactional(readOnly = true)
@@ -157,6 +161,10 @@ public class TaskService {
             : taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue(taskIds, storeId, today).stream()
                 .collect(Collectors.groupingBy(entry -> entry.getTask().getId()));
 
+        // Y in "X/Y Completed By": the same value for every task on this checklist,
+        // so it's computed once rather than per task.
+        int totalActiveEmployees = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId);
+
         LinkedHashMap<Long, List<Task>> tasksByCategory = new LinkedHashMap<>();
         for (Task task : applicableTasks) {
             tasksByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(task);
@@ -168,7 +176,7 @@ public class TaskService {
                 tasks.get(0).getCategory().getName(),
                 tasks.stream()
                     .map(task -> TaskChecklistItemResponse.from(
-                        task, responsesByTask.getOrDefault(task.getId(), List.of()), employeeUserId))
+                        task, responsesByTask.getOrDefault(task.getId(), List.of()), employeeUserId, totalActiveEmployees))
                     .toList()
             ))
             .toList();
@@ -248,7 +256,17 @@ public class TaskService {
             .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, storeId, date);
         List<TaskResponseSummary> summaries = active.stream().map(TaskResponseSummary::from).toList();
         boolean canUndo = active.stream().anyMatch(entry -> entry.getEmployee().getId().equals(employeeUserId));
-        return new TaskResponseStateResponse(taskId, summaries, canUndo);
+
+        LinkedHashMap<Long, String> activeResponders = new LinkedHashMap<>();
+        for (TaskResponseEntry entry : active) {
+            if (entry.getEmployee().isActive()) {
+                activeResponders.putIfAbsent(entry.getEmployee().getId(), entry.getEmployee().getFullName());
+            }
+        }
+        int totalActiveEmployees = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId);
+
+        return new TaskResponseStateResponse(
+            taskId, summaries, canUndo, activeResponders.size(), totalActiveEmployees, List.copyOf(activeResponders.values()));
     }
 
     // Same store-membership check the checklist query applies (applies-to-all-stores,

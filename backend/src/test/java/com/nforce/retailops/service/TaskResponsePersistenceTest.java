@@ -406,4 +406,65 @@ class TaskResponsePersistenceTest {
             employee1Id, created.id(), new TaskResponseSubmitRequest(otherStore.getId(), true, null, null)))
             .isInstanceOf(TaskNotFoundException.class);
     }
+
+    // 13. "X/Y Completed By": Y is the store's active-employee headcount, X counts
+    // each responding employee once even with repeat MULTIPLE submissions, and Undo
+    // removes them from X once no active response remains.
+    @Test
+    @Transactional
+    void completedByCountTracksDistinctActiveRespondersAndUndo() {
+        Long taskId = createTask(ResponseType.NUMERIC, CompletionType.MULTIPLE);
+
+        TaskResponseStateResponse afterFirst = taskService.submitResponse(
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 10.0, null));
+        assertThat(afterFirst.totalActiveEmployees()).isEqualTo(2);
+        assertThat(afterFirst.completedByCount()).isEqualTo(1);
+        assertThat(afterFirst.completedByNames()).containsExactly("Test employee1");
+
+        // A repeat submission by the same employee must not double-count.
+        TaskResponseStateResponse afterRepeat = taskService.submitResponse(
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 20.0, null));
+        assertThat(afterRepeat.completedByCount()).isEqualTo(1);
+
+        TaskResponseStateResponse afterSecondEmployee = taskService.submitResponse(
+            employee2Id, taskId, new TaskResponseSubmitRequest(storeId, null, 5.0, null));
+        assertThat(afterSecondEmployee.completedByCount()).isEqualTo(2);
+        assertThat(afterSecondEmployee.completedByNames()).containsExactlyInAnyOrder("Test employee1", "Test employee2");
+
+        TaskChecklistItemResponse item = checklistItem(employee1Id, taskId);
+        assertThat(item.totalActiveEmployees()).isEqualTo(2);
+        assertThat(item.completedByCount()).isEqualTo(2);
+
+        // Undo employee2's only response: they drop out of X, but Y (headcount) is unaffected.
+        Long employee2ResponseId = afterSecondEmployee.responses().stream()
+            .filter(r -> r.employeeUserId().equals(employee2Id))
+            .findFirst().orElseThrow().id();
+        TaskResponseStateResponse afterUndo = taskService.undoResponse(employee2Id, taskId, storeId, employee2ResponseId);
+        assertThat(afterUndo.completedByCount()).isEqualTo(1);
+        assertThat(afterUndo.totalActiveEmployees()).isEqualTo(2);
+        assertThat(afterUndo.completedByNames()).containsExactly("Test employee1");
+    }
+
+    // 14. Deactivated employees count in neither X nor Y, even if one of their old
+    // responses is still active.
+    @Test
+    @Transactional
+    void deactivatedEmployeesExcludedFromCompletedByCounts() {
+        Long taskId = createTask(ResponseType.YES_NO, CompletionType.MULTIPLE);
+
+        taskService.submitResponse(employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employee2Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+
+        User employee2 = userRepository.getReferenceById(employee2Id);
+        employee2.setActive(false);
+        userRepository.save(employee2);
+
+        TaskChecklistItemResponse item = checklistItem(employee1Id, taskId);
+        assertThat(item.totalActiveEmployees()).isEqualTo(1);
+        assertThat(item.completedByCount()).isEqualTo(1);
+        assertThat(item.completedByNames()).containsExactly("Test employee1");
+        // The deactivated employee's response is still an active DB row, just excluded
+        // from the active-employee counts -- existing response history is preserved.
+        assertThat(item.responses()).hasSize(2);
+    }
 }

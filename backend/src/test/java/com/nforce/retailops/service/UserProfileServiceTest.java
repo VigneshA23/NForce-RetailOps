@@ -2,14 +2,17 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.AssignedStoreResponse;
 import com.nforce.retailops.dto.MeResponse;
+import com.nforce.retailops.dto.UpdateMeRequest;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -35,6 +38,8 @@ class UserProfileServiceTest {
     private StoreOwnerRepository storeOwnerRepository;
     @Mock
     private StoreEmployeeRepository storeEmployeeRepository;
+    @Mock
+    private UserRepository userRepository;
 
     @InjectMocks
     private UserProfileService userProfileService;
@@ -119,5 +124,43 @@ class UserProfileServiceTest {
         assertThatThrownBy(() -> userProfileService.requireAssignedStore(USER_ID, 42L))
             .isInstanceOf(StoreNotFoundException.class)
             .hasMessage("Store not found");
+    }
+
+    @Test
+    void updateMeAppliesNameEmailAndPhoneForAnEmployee() {
+        User employee = user("EMPLOYEE");
+        StoreEmployee storeEmployee = new StoreEmployee();
+        storeEmployee.setPhone("555-0000");
+        when(storeEmployeeRepository.findByEmployeeId(USER_ID)).thenReturn(Optional.of(storeEmployee));
+        when(userRepository.findByEmailWithRoles("new@nforce.test")).thenReturn(Optional.empty());
+
+        MeResponse updated = userProfileService.updateMe(
+            employee, new UpdateMeRequest("New Name", "new@nforce.test", "555-1234"));
+
+        assertThat(employee.getFullName()).isEqualTo("New Name");
+        assertThat(employee.getEmail()).isEqualTo("new@nforce.test");
+        assertThat(storeEmployee.getPhone()).isEqualTo("555-1234");
+        assertThat(updated.fullName()).isEqualTo("New Name");
+        assertThat(updated.phone()).isEqualTo("555-1234");
+    }
+
+    @Test
+    void updateMeRejectsAnEmailAlreadyUsedBySomeoneElse() {
+        User employee = user("EMPLOYEE");
+        when(userRepository.findByEmailWithRoles("taken@nforce.test")).thenReturn(Optional.of(new User()));
+
+        assertThatThrownBy(() -> userProfileService.updateMe(
+            employee, new UpdateMeRequest("New Name", "taken@nforce.test", "555-1234")))
+            .isInstanceOf(EmailAlreadyExistsException.class);
+    }
+
+    @Test
+    void updateMeAllowsKeepingTheSameEmail() {
+        User employee = user("EMPLOYEE");
+        when(storeEmployeeRepository.findByEmployeeId(USER_ID)).thenReturn(Optional.empty());
+
+        assertThatCode(() -> userProfileService.updateMe(
+            employee, new UpdateMeRequest("New Name", employee.getEmail(), "555-1234")))
+            .doesNotThrowAnyException();
     }
 }

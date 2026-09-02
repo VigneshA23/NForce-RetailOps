@@ -8,6 +8,11 @@ public record MeResponse(
     String email,
     String role,
     List<String> storeNames,
-    boolean mustResetPassword
+    boolean mustResetPassword,
+    // Employee-only details for the Profile page; null for owners/super admins,
+    // who have no StoreEmployee record to source them from.
+    String shift,
+    String employeeType,
+    String phone
 ) {
 }

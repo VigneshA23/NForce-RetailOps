@@ -29,6 +29,9 @@ export interface TaskResponseStateResponse {
   taskId: number;
   responses: TaskResponseSummary[];
   canUndo: boolean;
+  completedByCount: number;
+  totalActiveEmployees: number;
+  completedByNames: string[];
 }
 
 export async function submitTaskResponse(

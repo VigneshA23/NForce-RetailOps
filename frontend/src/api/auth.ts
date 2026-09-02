@@ -37,6 +37,25 @@ export async function completePasswordReset(newPassword: string): Promise<void> 
   }
 }
 
+// Voluntary in-app password change from the Profile page -- unlike
+// completePasswordReset above (the forced first-login flow), this verifies the
+// caller's current password server-side before allowing a new one.
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const message =
+      (payload && typeof payload === 'object' && 'message' in payload && String(payload.message)) ||
+      'Unable to change password. Please try again.'
+    throw new Error(message)
+  }
+}
+
 export async function logout(): Promise<void> {
   await fetch(`${API_BASE_URL}/auth/logout`, {
     method: 'POST',
