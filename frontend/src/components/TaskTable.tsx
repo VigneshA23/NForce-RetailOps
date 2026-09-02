@@ -1,30 +1,23 @@
+import type { MouseEvent } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import type { AdminTask } from '../types/adminTask';
 import { completionTypeLabel, responseTypeBadgeClass, responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions';
-import StoreChips from './StoreChips';
 import './TaskTable.css';
 
 interface TaskTableProps {
   tasks: AdminTask[];
   isLoading?: boolean;
+  onRowClick: (task: AdminTask) => void;
   onEdit: (task: AdminTask) => void;
   onDelete: (task: AdminTask) => void;
   onToggleStatus: (task: AdminTask) => void;
 }
 
-function TaskStoreCell({ task }: { task: AdminTask }) {
-  if (task.appliesToAllStores) {
-    return (
-      <span className="store-chip" title="All Stores">
-        All Stores
-      </span>
-    );
-  }
-
-  return <StoreChips stores={task.stores} emptyLabel="No stores" emptyTitle="No stores selected" />;
+function stopRowClick(event: MouseEvent) {
+  event.stopPropagation();
 }
 
-function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus }: TaskTableProps) {
+function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onToggleStatus }: TaskTableProps) {
   return (
     <div className="table-card">
       <div className="table-scroll">
@@ -33,22 +26,18 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus 
             <tr>
               <th scope="col">Task</th>
               <th scope="col">Category</th>
-              <th scope="col">Store</th>
               <th scope="col">Schedule</th>
               <th scope="col">Response</th>
               <th scope="col">Completion</th>
               <th scope="col">Status</th>
-              <th scope="col">Actions</th>
+              <th scope="col" className="task-table__actions-header">Actions</th>
             </tr>
           </thead>
           <tbody>
             {tasks.map((task) => (
-              <tr key={task.id}>
+              <tr key={task.id} className="task-table__row" onClick={() => onRowClick(task)}>
                 <td className="task-table__name" data-label="Task">{task.name}</td>
                 <td data-label="Category">{task.categoryName}</td>
-                <td data-label="Store">
-                  <TaskStoreCell task={task} />
-                </td>
                 <td data-label="Schedule">{scheduleSummary(task.scheduleType, task.selectedDays)}</td>
                 <td data-label="Response">
                   <span className={`badge ${responseTypeBadgeClass(task.responseType)}`}>
@@ -60,6 +49,7 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus 
                   <label
                     className="task-status-toggle"
                     title={task.active ? 'Deactivate task' : 'Activate task'}
+                    onClick={stopRowClick}
                   >
                     <input
                       type="checkbox"
@@ -79,7 +69,10 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus 
                       className="task-table__icon-btn"
                       aria-label={`Edit ${task.name}`}
                       title="Edit"
-                      onClick={() => onEdit(task)}
+                      onClick={(event) => {
+                        stopRowClick(event);
+                        onEdit(task);
+                      }}
                     >
                       <Pencil size={16} />
                     </button>
@@ -88,7 +81,10 @@ function TaskTable({ tasks, isLoading = false, onEdit, onDelete, onToggleStatus 
                       className="task-table__icon-btn task-table__icon-btn--danger"
                       aria-label={`Delete ${task.name}`}
                       title="Delete"
-                      onClick={() => onDelete(task)}
+                      onClick={(event) => {
+                        stopRowClick(event);
+                        onDelete(task);
+                      }}
                     >
                       <Trash2 size={16} />
                     </button>

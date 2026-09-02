@@ -1,13 +1,23 @@
 @import '../styles/breakpoints.css';
 
+.task-table__row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.task-table__row:hover {
+  background: var(--color-badge-outline-bg);
+}
+
 .task-table__name {
   font-weight: 600;
   color: var(--color-text-primary);
   white-space: nowrap;
 }
 
+.task-table__actions-header,
 .task-table__actions-cell {
-  text-align: right;
+  text-align: center;
   white-space: nowrap;
 }
 
@@ -15,7 +25,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 .task-table__icon-btn {
@@ -35,6 +45,10 @@
 .task-table__icon-btn:hover {
   background: var(--color-badge-outline-bg);
   color: var(--color-text-primary);
+}
+
+.task-table__icon-btn--danger {
+  color: var(--color-accent);
 }
 
 .task-table__icon-btn--danger:hover {

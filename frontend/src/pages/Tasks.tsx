@@ -9,6 +9,7 @@ import type { AdminTask, AdminTaskFormValues, ScheduleType } from '../types/admi
 import { SCHEDULE_TYPE_OPTIONS } from '../utils/adminTaskOptions';
 import TaskTable from '../components/TaskTable';
 import TaskFormModal from '../components/TaskFormModal';
+import TaskDetailsModal from '../components/TaskDetailsModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
@@ -49,6 +50,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [detailsTask, setDetailsTask] = useState<AdminTask | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<AdminTask | null>(null);
   const [historyConflictTask, setHistoryConflictTask] = useState<AdminTask | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -311,6 +313,7 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
           <TaskTable
             tasks={pagedTasks}
             isLoading={isLoading}
+            onRowClick={(task) => setDetailsTask(task)}
             onEdit={(task) => {
               setFormError(null);
               setFormModalState({ mode: 'edit', task });
@@ -348,6 +351,12 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         isSubmitting={isSubmitting}
         onClose={() => setFormModalState(null)}
         onSubmit={handleFormSubmit}
+      />
+
+      <TaskDetailsModal
+        task={detailsTask}
+        isOpen={detailsTask !== null}
+        onClose={() => setDetailsTask(null)}
       />
 
       <ConfirmDialog
