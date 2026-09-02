@@ -1,9 +1,13 @@
 import { useState } from 'react'
-import { CalendarCheck, HelpCircle, History as HistoryIcon, Inbox, Settings, Store as StoreIcon } from 'lucide-react'
+import { CalendarCheck, History as HistoryIcon, Inbox, Moon, Store as StoreIcon, Sun } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
 import { useIsMobile } from '../hooks/useMediaQuery'
+import { useTheme } from '../hooks/useTheme'
+import { useSidebarCollapsed } from '../hooks/useSidebarCollapsed'
+import Sidebar from '../components/Sidebar'
+import IconButton from '../components/IconButton'
 import PlaceholderPage from '../components/PlaceholderPage'
 import ProfileMenu from '../components/ProfileMenu'
 import BottomNav from '../components/BottomNav'
@@ -26,16 +30,11 @@ const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'audits', label: 'Audits & Inbox', icon: Inbox },
 ]
 
-const FOOTER_NAV_ITEMS: EmployeeNavItem[] = [
-  { key: 'settings', label: 'Settings', icon: Settings },
-  { key: 'support', label: 'Support', icon: HelpCircle },
-]
-
-const ALL_NAV_ITEMS: EmployeeNavItem[] = [...NAV_ITEMS, ...FOOTER_NAV_ITEMS]
-
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const isMobile = useIsMobile()
+  const { isDarkTheme, toggleTheme } = useTheme()
+  const [collapsed, setCollapsed] = useSidebarCollapsed()
   // With a single assigned store there is nothing to switch to -- the control
   // would only lead to a one-option picker and straight back here.
   const canSwitchStore = stores.length > 1
@@ -48,10 +47,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         return <EmployeeHistory store={store} stores={stores} />
       case 'audits':
         return <PlaceholderPage title="Audits & Inbox" icon={Inbox} />
-      case 'settings':
-        return <PlaceholderPage title="Settings" icon={Settings} />
-      case 'support':
-        return <PlaceholderPage title="Support" icon={HelpCircle} />
       default: {
         const _exhaustive: never = activeTab
         return _exhaustive
@@ -62,47 +57,14 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   return (
     <div className="employee-shell">
       {!isMobile && (
-        <nav className="employee-shell-sidebar">
-          <div className="employee-shell-sidebar-brand">
-            <img src="/nforce-logo.png" alt="NForce logo" className="employee-shell-sidebar-brand-logo" />
-            <div>
-              <div className="employee-shell-sidebar-brand-title">NForce RetailOps</div>
-              <div className="employee-shell-sidebar-brand-subtitle">Retail Operations</div>
-            </div>
-          </div>
-          <div className="employee-shell-sidebar-nav">
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={`employee-shell-nav-item${activeTab === item.key ? ' employee-shell-nav-item--active' : ''}`}
-                  onClick={() => setActiveTab(item.key)}
-                >
-                  <Icon size={20} />
-                  <span>{item.label}</span>
-                </button>
-              )
-            })}
-          </div>
-          <div className="employee-shell-sidebar-footer">
-            {FOOTER_NAV_ITEMS.map((item) => {
-              const Icon = item.icon
-              return (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={`employee-shell-nav-item${activeTab === item.key ? ' employee-shell-nav-item--active' : ''}`}
-                  onClick={() => setActiveTab(item.key)}
-                >
-                  <Icon size={20} />
-                  <span>{item.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
+        <Sidebar<EmployeeNavTabKey>
+          items={NAV_ITEMS}
+          activeKey={activeTab}
+          onSelect={setActiveTab}
+          collapsed={collapsed}
+          onToggleCollapsed={() => setCollapsed((current) => !current)}
+          user={user}
+        />
       )}
 
       <div className="employee-shell-content">
@@ -115,6 +77,12 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                 Switch Store
               </button>
             )}
+            <IconButton
+              icon={isDarkTheme ? Sun : Moon}
+              ariaLabel={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
+              onClick={toggleTheme}
+              variant="accent"
+            />
             <ProfileMenu fullName={user.fullName} onLogout={onLogout} loggingOut={loggingOut} />
           </div>
         </div>
@@ -122,7 +90,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         <main className="employee-shell-main">{renderActivePage()}</main>
       </div>
 
-      {isMobile && <BottomNav items={ALL_NAV_ITEMS} activeKey={activeTab} onSelect={setActiveTab} />}
+      {isMobile && <BottomNav items={NAV_ITEMS} activeKey={activeTab} onSelect={setActiveTab} />}
     </div>
   )
 }

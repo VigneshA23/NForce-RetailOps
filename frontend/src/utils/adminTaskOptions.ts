@@ -56,6 +56,17 @@ export function responseTypeLabel(responseType: ResponseType): string {
   return RESPONSE_TYPE_OPTIONS.find((option) => option.value === responseType)?.label ?? responseType;
 }
 
+const RESPONSE_TYPE_BADGE_CLASSES: Record<ResponseType, string> = {
+  DONE_NOT_DONE: 'badge--success',
+  NUMERIC: 'badge--info',
+  YES_NO: 'badge--warning',
+  TEXT: 'badge--purple',
+};
+
+export function responseTypeBadgeClass(responseType: ResponseType): string {
+  return RESPONSE_TYPE_BADGE_CLASSES[responseType] ?? 'badge--outline';
+}
+
 export function completionTypeLabel(completionType: CompletionType): string {
   return COMPLETION_TYPE_OPTIONS.find((option) => option.value === completionType)?.label ?? completionType;
 }

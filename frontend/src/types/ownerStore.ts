@@ -1,5 +1,6 @@
 export interface OwnerStore {
   id: number;
+  storeCode: number;
   name: string;
   active: boolean;
   employeeCount: number;

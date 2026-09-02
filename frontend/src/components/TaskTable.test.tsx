@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import TaskTable from './TaskTable';
 import type { AdminTask } from '../types/adminTask';
@@ -36,7 +37,7 @@ function baseTask(overrides: Partial<AdminTask>): AdminTask {
 }
 
 function renderTable(tasks: AdminTask[]) {
-  return render(<TaskTable tasks={tasks} onEdit={vi.fn()} onDelete={vi.fn()} />);
+  return render(<TaskTable tasks={tasks} onEdit={vi.fn()} onDelete={vi.fn()} onToggleStatus={vi.fn()} />);
 }
 
 describe('TaskTable Store column', () => {
@@ -89,5 +90,64 @@ describe('TaskTable Store column', () => {
     renderTable([baseTask({ stores: [{ id: 1, name: '' }] })]);
 
     expect(screen.getByText('Unknown Store')).toBeInTheDocument();
+  });
+});
+
+describe('TaskTable status toggle', () => {
+  it('shows an ON toggle for an active task and calls onToggleStatus when clicked', async () => {
+    const onToggleStatus = vi.fn();
+    const task = baseTask({ active: true });
+    render(<TaskTable tasks={[task]} onEdit={vi.fn()} onDelete={vi.fn()} onToggleStatus={onToggleStatus} />);
+
+    const toggle = screen.getByLabelText('Deactivate task');
+    expect(toggle).toBeChecked();
+
+    await userEvent.click(toggle);
+    expect(onToggleStatus).toHaveBeenCalledWith(task);
+  });
+
+  it('shows an OFF toggle for an inactive task and calls onToggleStatus when clicked', async () => {
+    const onToggleStatus = vi.fn();
+    const task = baseTask({ active: false });
+    render(<TaskTable tasks={[task]} onEdit={vi.fn()} onDelete={vi.fn()} onToggleStatus={onToggleStatus} />);
+
+    const toggle = screen.getByLabelText('Activate task');
+    expect(toggle).not.toBeChecked();
+
+    await userEvent.click(toggle);
+    expect(onToggleStatus).toHaveBeenCalledWith(task);
+  });
+});
+
+describe('TaskTable actions', () => {
+  it('renders direct Edit and Delete icon buttons instead of a menu', async () => {
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
+    const task = baseTask({});
+    render(<TaskTable tasks={[task]} onEdit={onEdit} onDelete={onDelete} onToggleStatus={vi.fn()} />);
+
+    expect(screen.queryByRole('button', { name: /task actions/i })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /edit wipe counters/i }));
+    expect(onEdit).toHaveBeenCalledWith(task);
+
+    await userEvent.click(screen.getByRole('button', { name: /delete wipe counters/i }));
+    expect(onDelete).toHaveBeenCalledWith(task);
+  });
+});
+
+describe('TaskTable response type badges', () => {
+  it('applies the correct badge tone class for each response type', () => {
+    renderTable([
+      baseTask({ id: 1, name: 'Done task', responseType: 'DONE_NOT_DONE' }),
+      baseTask({ id: 2, name: 'Number task', responseType: 'NUMERIC' }),
+      baseTask({ id: 3, name: 'Yes/No task', responseType: 'YES_NO' }),
+      baseTask({ id: 4, name: 'Text task', responseType: 'TEXT' }),
+    ]);
+
+    expect(screen.getByText('Done / Checkbox')).toHaveClass('badge--success');
+    expect(screen.getByText('Number')).toHaveClass('badge--info');
+    expect(screen.getByText('Yes / No')).toHaveClass('badge--warning');
+    expect(screen.getByText('Short Text')).toHaveClass('badge--purple');
   });
 });

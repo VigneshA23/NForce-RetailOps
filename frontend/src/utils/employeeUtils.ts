@@ -8,13 +8,8 @@ export function getShiftTimeRange(shift: ShiftName): string {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const NAME_PATTERN = /^[A-Za-z]+(?: [A-Za-z]+)*$/;
 const PHONE_PATTERN = /^\d{10}$/;
-const PASSWORD_MIN_LENGTH = 8;
-
-type EmployeeFormValues = EmployeeUpdateValues & { password?: string };
-
 export function validateEmployeeForm(
-  values: EmployeeFormValues,
-  requirePassword: boolean,
+  values: EmployeeUpdateValues,
 ): Partial<Record<keyof EmployeeCreateValues, string>> {
   const errors: Partial<Record<keyof EmployeeCreateValues, string>> = {};
 
@@ -46,14 +41,6 @@ export function validateEmployeeForm(
 
   if (!values.gender) {
     errors.gender = 'Gender is required';
-  }
-
-  if (requirePassword) {
-    if (!values.password || !values.password.trim()) {
-      errors.password = 'Temporary password is required';
-    } else if (values.password.trim().length < PASSWORD_MIN_LENGTH) {
-      errors.password = `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
-    }
   }
 
   return errors;

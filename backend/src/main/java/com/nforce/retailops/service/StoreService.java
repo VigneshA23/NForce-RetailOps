@@ -41,7 +41,7 @@ public class StoreService {
         int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
         long taskCount = taskRepository.countByStoreId(store.getId())
             + taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
-        return new StoreResponse(store.getId(), store.getName(), store.isActive(), employeeCount, (int) taskCount);
+        return new StoreResponse(store.getId(), store.getStoreCode(), store.getName(), store.isActive(), employeeCount, (int) taskCount);
     }
 
     private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
@@ -73,6 +73,7 @@ public class StoreService {
         return stores.stream()
             .map(store -> new StoreResponse(
                 store.getId(),
+                store.getStoreCode(),
                 store.getName(),
                 store.isActive(),
                 employeeCounts.getOrDefault(store.getId(), 0),

@@ -31,6 +31,7 @@ interface TaskFormModalProps {
 function toFormValues(task: AdminTask): AdminTaskFormValues {
   return {
     name: task.name,
+    description: task.description ?? '',
     categoryId: task.categoryId,
     displayOrder: String(task.displayOrder),
     appliesToAllStores: task.appliesToAllStores,
@@ -152,6 +153,16 @@ function TaskFormModal({
               onChange={(event) => updateField('name', event.target.value)}
               placeholder="Enter task name"
               autoFocus
+            />
+          </FormField>
+
+          <FormField label="Description / Instructions" htmlFor="task-description">
+            <textarea
+              id="task-description"
+              className="input task-form__textarea"
+              value={values.description}
+              onChange={(event) => updateField('description', event.target.value)}
+              rows={4}
             />
           </FormField>
         </section>
@@ -379,21 +390,6 @@ function TaskFormModal({
             </FormField>
           </div>
           <p className="task-form__hint">Leave End Date empty for an ongoing task until it's deactivated.</p>
-        </section>
-
-        <section className="task-form__section">
-          <h3 className="task-form__heading">Status</h3>
-          <FormField label="Status" htmlFor="task-status">
-            <select
-              id="task-status"
-              className="select"
-              value={values.active ? 'ACTIVE' : 'INACTIVE'}
-              onChange={(event) => updateField('active', event.target.value === 'ACTIVE')}
-            >
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
-          </FormField>
         </section>
 
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}

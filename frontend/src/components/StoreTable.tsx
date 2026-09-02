@@ -15,6 +15,7 @@ function StoreTable({ stores, isLoading = false, onEdit }: StoreTableProps) {
         <table className="data-table">
           <thead>
             <tr>
+              <th scope="col">Store ID</th>
               <th scope="col">Store Name</th>
               <th scope="col">Employees</th>
               <th scope="col">Tasks</th>
@@ -25,6 +26,7 @@ function StoreTable({ stores, isLoading = false, onEdit }: StoreTableProps) {
           <tbody>
             {stores.map((store) => (
               <tr key={store.id}>
+                <td className="store-table__code">#{store.storeCode}</td>
                 <td className="store-table__name">{store.name}</td>
                 <td>{store.employeeCount}</td>
                 <td>{store.taskCount}</td>

@@ -44,6 +44,7 @@ export interface AdminTask {
 
 export interface AdminTaskFormValues {
   name: string;
+  description: string;
   categoryId: number | null;
   displayOrder: string;
   appliesToAllStores: boolean;

@@ -6,7 +6,7 @@ import type { AuthUser } from '../types/auth'
 import './LoginCrimson.css'
 
 interface LoginProps {
-  onLoginSuccess: (user: AuthUser, remember: boolean) => void
+  onLoginSuccess: (user: AuthUser, remember: boolean, mustResetPassword: boolean) => void
   onForgotPassword: () => void
   notice?: string | null
 }
@@ -25,8 +25,8 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
     setError(null)
     setLoading(true)
     try {
-      const user = await login(email, password)
-      onLoginSuccess(user, rememberMe)
+      const result = await login(email, password)
+      onLoginSuccess(result, rememberMe, result.mustResetPassword)
     } catch {
       setError('Invalid email or password')
     } finally {
@@ -40,14 +40,15 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
       <div className="login3-bg-overlay" aria-hidden="true" />
       <div className="login3-grid">
         <div className="login3-hero">
-          <motion.img
-            src="/nforce-logo.png"
-            alt="NForce RetailOps logo"
-            className="login3-hero-logo"
+          <motion.div
+            className="login3-hero-brand"
             initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.5 }}
-          />
+          >
+            <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-hero-logo" />
+            <span className="login3-hero-wordmark">NForce RetailOps</span>
+          </motion.div>
           <motion.div
             className="login3-hero-text"
             initial={{ opacity: 0, y: -16 }}
@@ -57,11 +58,6 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
             <h2 className="login3-hero-heading">
               Your stores. <span className="login3-hero-accent">One checklist.</span>
             </h2>
-            <p className="login3-hero-copy">
-              Opening, prep, cleaning and closing across every location, recorded in order,
-              signed off by the person on shift, and auditable the next morning. No paper, no
-              group chats.
-            </p>
           </motion.div>
         </div>
 
@@ -72,8 +68,10 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
-            <p className="login3-mobile-wordmark">RetailOps</p>
+            <div className="login3-mobile-brand">
+              <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
+              <p className="login3-mobile-wordmark">NForce RetailOps</p>
+            </div>
 
             <h1 className="login3-heading">Welcome Back</h1>
             <span className="login3-heading-underline" aria-hidden="true" />

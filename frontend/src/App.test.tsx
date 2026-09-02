@@ -29,6 +29,8 @@ vi.mock('./api/me', () => ({
 vi.mock('./api/tasks', () => ({
   getDailyChecklist: vi.fn(),
   raiseIssue: vi.fn(),
+  submitTaskResponse: vi.fn(),
+  undoTaskResponse: vi.fn(),
 }))
 
 const mockLogin = vi.mocked(authApi.login)
@@ -42,7 +44,7 @@ const STORE_1: StoreSummary = { id: 1, name: 'Store 1', location: 'Main St', sta
 const STORE_2: StoreSummary = { id: 2, name: 'Store 2', location: 'Oak Ave', status: 'Open' }
 
 async function loginAsEmployee(user: ReturnType<typeof userEvent.setup>) {
-  mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe' })
+  mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false })
   await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
   await user.type(screen.getByLabelText(/^password$/i), 'password123')
   // "Remember me" defaults to unchecked, which stores the token in
@@ -71,6 +73,17 @@ beforeEach(() => {
   // Two stores by default, so the picker is shown and has something to choose.
   mockGetAuthorizedStores.mockResolvedValue([STORE_1, STORE_2])
   mockGetMe.mockReset()
+  // EmployeeDashboard also resolves the current employee via getMe() (for Undo
+  // eligibility) independently of App's own session-restore call -- these tests
+  // exercise auth/navigation, not that, so give it a harmless default.
+  mockGetMe.mockResolvedValue({
+    id: 1,
+    fullName: 'Jane Doe',
+    email: 'jane@nforceone.com',
+    role: 'EMPLOYEE',
+    storeNames: [],
+    mustResetPassword: false,
+  })
   mockGetDailyChecklist.mockReset()
   // These tests exercise auth/navigation, not checklist content.
   mockGetDailyChecklist.mockResolvedValue([])
@@ -192,6 +205,7 @@ describe('session restore', () => {
       email: 'jane@nforceone.com',
       role: 'EMPLOYEE',
       storeNames: ['Store 1', 'Store 2'],
+      mustResetPassword: false,
     })
 
     render(<App />)
@@ -210,6 +224,7 @@ describe('session restore', () => {
       email: 'jane@nforceone.com',
       role: 'EMPLOYEE',
       storeNames: ['Store 1', 'Store 2'],
+      mustResetPassword: false,
     })
 
     render(<App />)
@@ -222,7 +237,7 @@ describe('store selection', () => {
   it('auto-selects the only assigned store and hides the switch-store control', async () => {
     const user = userEvent.setup()
     mockGetAuthorizedStores.mockResolvedValue([STORE_1])
-    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe' })
+    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false })
 
     render(<App />)
     await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
@@ -237,7 +252,7 @@ describe('store selection', () => {
   it('shows an empty state when the employee has no assigned store', async () => {
     const user = userEvent.setup()
     mockGetAuthorizedStores.mockResolvedValue([])
-    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe' })
+    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false })
 
     render(<App />)
     await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')

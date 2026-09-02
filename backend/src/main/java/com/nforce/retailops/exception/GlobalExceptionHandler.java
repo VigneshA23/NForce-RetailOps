@@ -75,6 +75,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(EmailDeliveryException.class)
+    public ResponseEntity<Map<String, String>> handleEmailDelivery(EmailDeliveryException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidTaskConfigurationException.class)
     public ResponseEntity<Map<String, String>> handleInvalidTaskConfiguration(InvalidTaskConfigurationException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
@@ -84,5 +89,25 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleAccessDenied() {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
             .body(Map.of("message", "You do not have permission to perform this action"));
+    }
+
+    @ExceptionHandler(InvalidTaskResponseException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidTaskResponse(InvalidTaskResponseException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(TaskAlreadyCompletedException.class)
+    public ResponseEntity<Map<String, String>> handleTaskAlreadyCompleted(TaskAlreadyCompletedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(TaskResponseNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleTaskResponseNotFound(TaskResponseNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(UnauthorizedTaskResponseActionException.class)
+    public ResponseEntity<Map<String, String>> handleUnauthorizedTaskResponseAction(UnauthorizedTaskResponseActionException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
     }
 }
