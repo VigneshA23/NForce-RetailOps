@@ -1,9 +1,35 @@
 @import '../styles/breakpoints.css';
 
+.task-table__row {
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.task-table__row:hover {
+  background: var(--color-badge-outline-bg);
+}
+
 .task-table__name {
   font-weight: 600;
   color: var(--color-text-primary);
   white-space: nowrap;
+}
+
+/* Task-specific overrides on top of the shared table.css classes: the
+   Actions header/cell/icon-row are centered here (not just right-aligned)
+   so the icons sit directly under "ACTIONS". Scoped with a descendant
+   selector (not by redefining the shared classes) so Employees/Stores,
+   which also use .table-actions-cell/.table-row-actions, are unaffected. */
+.task-table__actions-header {
+  text-align: center;
+}
+
+.task-table__row .table-actions-cell {
+  text-align: center;
+}
+
+.task-table__row .table-row-actions {
+  justify-content: center;
 }
 
 @media (--mobile) {

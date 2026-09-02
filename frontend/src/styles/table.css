@@ -95,6 +95,10 @@
   color: var(--color-text-primary);
 }
 
+.table-icon-btn--danger {
+  color: var(--color-accent);
+}
+
 .table-icon-btn--danger:hover {
   background: var(--color-badge-icon-primary-bg);
   color: var(--color-accent);
