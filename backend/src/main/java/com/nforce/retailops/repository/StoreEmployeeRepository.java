@@ -26,6 +26,20 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
 
     List<StoreEmployee> findByCreatedByOwnerId(Long ownerId);
 
+    // Fetch-joined forms of the two finders above, for listEmployees: the User
+    // side of the one-to-one is required by every row of the response, so
+    // fetch it up front instead of one lazy-load query per employee.
+    @Query("select distinct se from StoreEmployee se join fetch se.employee join se.stores s where s.id in :storeIds order by se.id asc")
+    List<StoreEmployee> findDistinctByStoresIdInOrderByIdAscFetchEmployee(@Param("storeIds") Collection<Long> storeIds);
+
+    @Query("select se from StoreEmployee se join fetch se.employee where se.createdByOwner.id = :ownerId")
+    List<StoreEmployee> findByCreatedByOwnerIdFetchEmployee(@Param("ownerId") Long ownerId);
+
+    // Batched form of StoreEmployee.stores, for listing many employees at once
+    // without one query per employee for their (lazy, many-to-many) store list.
+    @Query("select se.id, s.id, s.name from StoreEmployee se join se.stores s where se.id in :employeeIds order by s.name asc")
+    List<Object[]> findStoreRowsGroupedByEmployeeIds(@Param("employeeIds") Collection<Long> employeeIds);
+
     // Keyed on the User id, which is what the authenticated principal yields --
     // not the StoreEmployee PK.
     Optional<StoreEmployee> findByEmployeeId(Long userId);

@@ -47,6 +47,17 @@ public record TaskResponse(
             .sorted(Comparator.comparing(Store::getName))
             .map(StoreOptionResponse::from)
             .toList();
+        return from(task, storeOptions);
+    }
+
+    // Takes a pre-loaded store list instead of reading task.getStores() itself,
+    // so a caller mapping many tasks at once (listTasks) can batch-load every
+    // task's stores in one query up front rather than paying one lazy-load
+    // query per task here.
+    public static TaskResponse from(Task task, List<StoreOptionResponse> stores) {
+        List<StoreOptionResponse> storeOptions = stores.stream()
+            .sorted(Comparator.comparing(StoreOptionResponse::name))
+            .toList();
 
         List<DayOfWeekCode> days = task.getSelectedDays().stream()
             .sorted()

@@ -22,6 +22,26 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("ownerId") Long ownerId
     );
 
+    // Fetch-joined form of the above, for listTasks: every row of the response
+    // needs its category's name, so fetch it up front instead of one lazy-load
+    // query per task.
+    @org.springframework.data.jpa.repository.Query(
+        "select t from Task t join fetch t.category where t.owner.id = :ownerId "
+            + "order by t.category.displayOrder asc, t.displayOrder asc, t.updatedAt desc, t.id asc"
+    )
+    List<Task> findByOwnerIdOrderByCategoryAndDisplayOrderFetchCategory(
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId
+    );
+
+    // Batched form of Task.stores, for listing many tasks at once without one
+    // query per task for its (lazy, many-to-many) store list.
+    @org.springframework.data.jpa.repository.Query(
+        "select t.id, s.id, s.name from Task t join t.stores s where t.id in :taskIds order by s.name asc"
+    )
+    List<Object[]> findStoreRowsGroupedByTaskIds(
+        @org.springframework.data.repository.query.Param("taskIds") Collection<Long> taskIds
+    );
+
     Optional<Task> findByIdAndOwnerId(Long id, Long ownerId);
 
     long countByOwnerIdAndAppliesToAllStoresTrue(Long ownerId);

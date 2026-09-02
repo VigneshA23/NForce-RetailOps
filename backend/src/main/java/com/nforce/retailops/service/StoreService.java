@@ -13,9 +13,7 @@ import com.nforce.retailops.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class StoreService {
@@ -44,40 +42,22 @@ public class StoreService {
         return new StoreResponse(store.getId(), store.getStoreCode(), store.getName(), store.isActive(), employeeCount, (int) taskCount);
     }
 
-    private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
-        Map<Long, Integer> counts = new HashMap<>();
-        for (Object[] row : rows) {
-            counts.put((Long) row[0], ((Long) row[1]).intValue());
-        }
-        return counts;
-    }
-
     @Transactional(readOnly = true)
     public List<StoreResponse> listStores(Long ownerId) {
-        List<Store> stores = storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .map(StoreOwner::getStore)
-            .toList();
-
-        if (stores.isEmpty()) {
-            return List.of();
-        }
-
-        // Batched instead of one employee-count + one task-count query per store
-        // (N+1), and the "applies to all stores" count no longer gets recomputed
-        // redundantly for every store -- it's the same owner-wide number each time.
-        List<Long> storeIds = stores.stream().map(Store::getId).toList();
-        Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countGroupedByStoreIds(storeIds));
-        Map<Long, Integer> storeTaskCounts = toCountMap(taskRepository.countGroupedByStoreIds(storeIds));
-        long appliesToAllCount = taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
-
-        return stores.stream()
-            .map(store -> new StoreResponse(
-                store.getId(),
-                store.getStoreCode(),
-                store.getName(),
-                store.isActive(),
-                employeeCounts.getOrDefault(store.getId(), 0),
-                (int) (storeTaskCounts.getOrDefault(store.getId(), 0) + appliesToAllCount)
+        // One round trip instead of four (find-owner-stores, then a separate
+        // batched count query per relation): findOwnerStoreSummaryRows
+        // pre-aggregates every relation in its own subquery and joins them all
+        // together server-side. Each round trip to the database has a real,
+        // fixed network cost here, so collapsing four into one is a direct win
+        // independent of how fast any single query runs.
+        return storeRepository.findOwnerStoreSummaryRows(ownerId).stream()
+            .map(row -> new StoreResponse(
+                ((Number) row[0]).longValue(),
+                ((Number) row[1]).longValue(),
+                (String) row[2],
+                (Boolean) row[3],
+                ((Number) row[4]).intValue(),
+                ((Number) row[5]).intValue() + ((Number) row[6]).intValue()
             ))
             .toList();
     }
