@@ -1,5 +1,6 @@
 import type { ChecklistHistoryDetail, ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import { authHeaders } from '../utils/authStorage';
+import { fetchWithTimeout } from './client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
@@ -31,7 +32,7 @@ export async function getChecklistHistorySummary(
   const query = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate });
   params.storeIds.forEach((id) => query.append('storeIds', String(id)));
 
-  const response = await fetch(`${API_BASE_URL}/checklist-history/summary?${query}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/checklist-history/summary?${query}`, {
     headers: authHeaders(),
   });
 
@@ -48,7 +49,7 @@ export async function getChecklistHistorySummary(
 
 export async function getChecklistHistoryDetail(storeId: number, date: string): Promise<ChecklistHistoryDetail> {
   const query = new URLSearchParams({ storeId: String(storeId), date });
-  const response = await fetch(`${API_BASE_URL}/checklist-history/detail?${query}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/checklist-history/detail?${query}`, {
     headers: authHeaders(),
   });
 

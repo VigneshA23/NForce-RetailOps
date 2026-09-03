@@ -109,4 +109,29 @@
   .modal__footer {
     padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
   }
+
+  /* Employee pages opt into this via Modal's `centered` prop -- keeps the
+     dialog centered like desktop instead of docking to the bottom edge. */
+  .modal-overlay--centered {
+    padding: var(--space-md);
+    align-items: center;
+  }
+
+  .modal-overlay--centered .modal,
+  .modal-overlay--centered .modal--lg {
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    max-height: 90svh;
+    max-height: 90dvh;
+    border-radius: var(--radius-md);
+  }
+
+  .modal-overlay--centered .modal--lg {
+    max-width: 720px;
+  }
+
+  .modal-overlay--centered .modal__footer {
+    padding-bottom: var(--space-md);
+  }
 }

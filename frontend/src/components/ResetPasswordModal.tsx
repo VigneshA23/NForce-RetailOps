@@ -8,6 +8,11 @@ import './ResetPasswordModal.css';
 interface ResetPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Employee pages only -- see Modal's `centered` prop.
+  centered?: boolean;
+  // Defaults to "Change Password" for self-service use; pass "Reset Password"
+  // when used in an admin context (e.g. admin resetting an employee's password).
+  title?: string;
 }
 
 function emptyState() {
@@ -25,7 +30,7 @@ function passwordStrength(pwd: string): { label: string; level: 0 | 1 | 2 | 3 } 
   return { label: 'Strong', level: 3 };
 }
 
-function ResetPasswordModal({ isOpen, onClose }: ResetPasswordModalProps) {
+function ResetPasswordModal({ isOpen, onClose, centered = false, title = 'Change Password' }: ResetPasswordModalProps) {
   const [values, setValues] = useState(emptyState());
   const [show, setShow] = useState({ current: false, new: false, confirm: false });
   const [currentError, setCurrentError] = useState<string | null>(null);
@@ -93,7 +98,8 @@ function ResetPasswordModal({ isOpen, onClose }: ResetPasswordModalProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Change Password"
+      centered={centered}
+      title={title}
       footer={
         succeeded ? (
           <button type="button" className="btn btn--primary" onClick={onClose}>

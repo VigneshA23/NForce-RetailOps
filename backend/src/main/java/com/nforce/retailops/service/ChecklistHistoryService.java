@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
+import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
@@ -39,8 +40,7 @@ import java.util.stream.Collectors;
 @Service
 public class ChecklistHistoryService {
 
-    // Generous ceiling for a compliance/audit review ("2-store scale" per CLAUDE.md) while
-    // still bounding the O(numStores) query fan-out per request to a fixed worst case.
+    // Generous ceiling for a compliance/audit review ("2-store scale" per CLAUDE.md).
     private static final int MAX_DATE_RANGE_DAYS = 92;
     private static final int MAX_STORE_SELECTION = 50;
 
@@ -79,13 +79,33 @@ public class ChecklistHistoryService {
                 .findByStoreIdInAndResponseDateBetweenAndActiveTrue(storeIds, resolvedStart, resolvedEnd).stream()
                 .collect(Collectors.groupingBy(entry -> entry.getStore().getId()));
 
+        // Fetched once across ALL requested stores (not once per store): a task's own
+        // config rarely changes day-to-day, so only per-store/per-day schedule/date-range
+        // eligibility needs to be re-evaluated below, in memory.
+        List<Task> candidateTasks = storeIds.isEmpty()
+            ? List.of()
+            : taskRepository.findActiveForStoresAndDateRange(ownerId, storeIds, resolvedStart, resolvedEnd);
+
+        // Batched form of Task.stores, so per-store eligibility for scoped (non-
+        // appliesToAllStores) tasks can be reconstructed without a lazy-load per task.
+        List<Long> scopedTaskIds = candidateTasks.stream()
+            .filter(task -> !task.isAppliesToAllStores())
+            .map(Task::getId)
+            .toList();
+        Map<Long, Set<Long>> storeIdsByTaskId = scopedTaskIds.isEmpty()
+            ? Map.of()
+            : taskRepository.findStoreRowsGroupedByTaskIds(scopedTaskIds).stream()
+                .collect(Collectors.groupingBy(
+                    row -> (Long) row[0],
+                    Collectors.mapping(row -> (Long) row[1], Collectors.toSet())
+                ));
+
         List<ChecklistHistorySummaryRow> rows = new ArrayList<>();
         for (Store store : stores) {
-            // Fetched once per store (not once per store-per-day): a task's own
-            // config rarely changes day-to-day, so only per-day schedule/date-range
-            // eligibility needs to be re-evaluated below, in memory.
-            List<Task> candidateTasks = taskRepository
-                .findActiveForStoreAndDateRange(ownerId, store.getId(), resolvedStart, resolvedEnd);
+            List<Task> tasksForStore = candidateTasks.stream()
+                .filter(task -> task.isAppliesToAllStores()
+                    || storeIdsByTaskId.getOrDefault(task.getId(), Set.of()).contains(store.getId()))
+                .toList();
             Map<LocalDate, List<TaskResponseEntry>> responsesByDate = responsesByStore
                 .getOrDefault(store.getId(), List.of()).stream()
                 .collect(Collectors.groupingBy(TaskResponseEntry::getResponseDate));
@@ -96,7 +116,7 @@ public class ChecklistHistoryService {
                     .map(entry -> entry.getTask().getId())
                     .collect(Collectors.toSet());
 
-                Set<Long> eligibleTaskIds = candidateTasks.stream()
+                Set<Long> eligibleTaskIds = tasksForStore.stream()
                     .filter(task -> withinTaskDateRange(task, date) && TaskScheduleMatcher.matches(task, date))
                     .map(Task::getId)
                     .collect(Collectors.toSet());
@@ -107,9 +127,22 @@ public class ChecklistHistoryService {
                 Set<Long> unionTaskIds = new HashSet<>(eligibleTaskIds);
                 unionTaskIds.addAll(respondedTaskIds);
 
+                // Same "latest response per task, per day" reduction as getDetail's
+                // consumer (checklistHistoryOptions.taskStatus): only the most recent
+                // answer for a task that day counts toward whether it's an exception.
+                Map<Long, TaskResponseEntry> latestResponseByTask = dayResponses.stream()
+                    .collect(Collectors.toMap(
+                        entry -> entry.getTask().getId(),
+                        entry -> entry,
+                        (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
+                    ));
+                long exceptionCount = latestResponseByTask.values().stream()
+                    .filter(entry -> entry.getResponseType() == ResponseType.YES_NO && Boolean.FALSE.equals(entry.getValueBoolean()))
+                    .count();
+
                 rows.add(new ChecklistHistorySummaryRow(
                     store.getId(), store.getName(), date,
-                    !unionTaskIds.isEmpty(), unionTaskIds.size(), respondedTaskIds.size()
+                    !unionTaskIds.isEmpty(), unionTaskIds.size(), respondedTaskIds.size(), (int) exceptionCount
                 ));
             }
         }
@@ -203,6 +236,8 @@ public class ChecklistHistoryService {
             task.getDescription(),
             task.getResponseType(),
             task.getCompletionType(),
+            task.getScheduleType(),
+            task.getNumericUnit(),
             !responseDtos.isEmpty(),
             task.isActive(),
             responseDtos

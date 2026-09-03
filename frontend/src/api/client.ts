@@ -2,6 +2,8 @@ import { authHeaders } from '../utils/authStorage';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
+const DEFAULT_TIMEOUT_MS = 15_000;
+
 export class ApiError extends Error {
   status: number;
 
@@ -11,13 +13,34 @@ export class ApiError extends Error {
   }
 }
 
+// A hung backend request would otherwise leave the caller waiting forever with
+// only a loading spinner -- this bounds every request to a fixed worst case.
+export async function fetchWithTimeout(
+  input: string,
+  init: RequestInit = {},
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') {
+      throw new Error('The request timed out. Please check your connection and try again.');
+    }
+    throw cause;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
 interface RequestOptions {
   method?: string;
   body?: unknown;
 }
 
 export async function apiRequest<T>(path: string, { method = 'GET', body }: RequestOptions = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',

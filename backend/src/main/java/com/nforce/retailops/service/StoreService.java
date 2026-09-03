@@ -37,6 +37,14 @@ public class StoreService {
         this.taskRepository = taskRepository;
     }
 
+    private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
+        Map<Long, Integer> counts = new HashMap<>();
+        for (Object[] row : rows) {
+            counts.put((Long) row[0], ((Long) row[1]).intValue());
+        }
+        return counts;
+    }
+
     private StoreResponse toResponse(StoreOwner storeOwner, Long ownerId) {
         Store store = storeOwner.getStore();
         int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());

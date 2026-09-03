@@ -35,96 +35,68 @@
   margin-bottom: var(--space-sm);
 }
 
+/* A themed Store icon prefixed onto the shared SearchableSelect's trigger,
+   which has no icon slot of its own -- absolutely positioned over the extra
+   left padding carved out below, rather than forking the component. */
 .employee-history-store-select {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  min-height: 48px;
-  padding: 0 var(--space-md);
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  box-shadow: var(--shadow-card);
 }
 
-.employee-history-store-select select {
-  flex: 1;
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  border: none;
+.employee-history-store-select-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  pointer-events: none;
+  color: var(--color-text-secondary);
+  display: flex;
+}
+
+.employee-history-store-select .searchable-select__trigger {
+  min-height: 48px;
+  padding-left: 38px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary);
-  padding-right: var(--space-lg);
-  cursor: pointer;
 }
 
-.employee-history-store-select select:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-  border-radius: var(--radius-sm);
-}
-
-.employee-history-store-select-chevron {
-  position: absolute;
-  right: var(--space-md);
-  pointer-events: none;
-  color: var(--color-text-muted);
-}
-
-.employee-history-date-chips {
+.employee-history-date-trigger-wrap {
   display: flex;
-  gap: var(--space-sm);
 }
 
-.employee-history-date-chip {
-  position: relative;
+/* The lone date control now that Today/Yesterday chips are gone -- always
+   shows the currently selected date's label next to the icon, since there's
+   no other visual cue (like a highlighted "Today" chip) telling the owner
+   what's currently in view. */
+.employee-history-date-trigger {
   flex: 1;
   min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-card);
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   box-shadow: var(--shadow-card);
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-  overflow: hidden;
-}
-
-.employee-history-date-chip--icon {
-  flex: 0 0 48px;
-}
-
-.employee-history-date-chip--icon span {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.employee-history-date-chip--active {
+.employee-history-date-trigger:hover {
+  border-color: var(--color-accent);
+}
+
+.employee-history-date-trigger[aria-expanded='true'] {
   border-color: var(--color-accent);
   color: var(--color-accent);
   background: var(--color-badge-icon-primary-bg);
-}
-
-.employee-history-date-chip:hover {
-  border-color: var(--color-accent);
-}
-
-.employee-history-date-input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  pointer-events: none;
 }
 
 /* Skeleton loading state */
@@ -241,13 +213,13 @@
   border-radius: var(--radius-lg);
   background: var(--color-surface-card);
   box-shadow: var(--shadow-card);
-  border-left: 4px solid var(--color-border);
+  border: 1px solid var(--color-border);
   overflow: hidden;
-  transition: border-color 0.2s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
 .employee-history-card--complete {
-  border-left-color: var(--color-accent);
+  border-color: color-mix(in srgb, var(--color-badge-icon-success-fg) 35%, var(--color-border));
 }
 
 .employee-history-card-header {
@@ -270,6 +242,7 @@
 }
 
 .employee-history-card-icon {
+  position: relative;
   flex-shrink: 0;
   width: 36px;
   height: 36px;
@@ -281,9 +254,38 @@
   color: var(--color-text-secondary);
 }
 
-.employee-history-card--complete .employee-history-card-icon {
-  background: var(--color-badge-icon-primary-bg);
-  color: var(--color-accent);
+/* Each category keeps its own identity/color whether or not it's complete --
+   completion is shown as a small check badge on top, not by overwriting the
+   category's own icon color to a single generic "done" tint. */
+.employee-history-card-icon--success {
+  background: var(--color-badge-icon-success-bg);
+  color: var(--color-badge-icon-success-fg);
+}
+
+.employee-history-card-icon--warning {
+  background: var(--color-badge-icon-warning-bg);
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.employee-history-card-icon--purple {
+  background: var(--color-badge-icon-purple-bg);
+  color: var(--color-badge-icon-purple-fg);
+}
+
+.employee-history-card-icon--info {
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+}
+
+.employee-history-card-icon-check {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: flex;
+  border-radius: 50%;
+  background: var(--color-surface-card);
+  color: var(--color-badge-icon-success-fg);
+  box-shadow: 0 0 0 2px var(--color-surface-card);
 }
 
 .employee-history-card-heading {
@@ -387,8 +389,8 @@
     flex: 0 0 260px;
   }
 
-  .employee-history-date-chips {
+  .employee-history-date-trigger-wrap {
     flex: 1;
-    max-width: 320px;
+    max-width: 260px;
   }
 }

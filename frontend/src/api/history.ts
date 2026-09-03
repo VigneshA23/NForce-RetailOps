@@ -1,6 +1,7 @@
 import type { HistoryCategoryEntry, HistoryTaskDetail, ShiftHistory, TaskStatus } from '../types/history';
 import { authHeaders } from '../utils/authStorage';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
+import { fetchWithTimeout } from './client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
@@ -73,12 +74,20 @@ function deriveTaskStatus(task: RawTaskItem, latest: RawResponseEntry | null): T
 
 function toHistoryTask(task: RawTaskItem): HistoryTaskDetail {
   const latest = latestResponse(task.responses);
+  const completedByAll = [...task.responses]
+    .sort((a, b) => new Date(a.respondedAt).getTime() - new Date(b.respondedAt).getTime())
+    .map((entry) => ({
+      employeeUserId: entry.employeeUserId,
+      name: entry.employeeFullName,
+      respondedAt: formatTimeLabel(entry.respondedAt),
+    }));
   return {
     id: task.id,
     name: task.name,
     status: deriveTaskStatus(task, latest),
     completedBy: latest ? { employeeUserId: latest.employeeUserId, name: latest.employeeFullName } : null,
     completedAt: latest ? formatTimeLabel(latest.respondedAt) : null,
+    completedByAll,
   };
 }
 
@@ -95,7 +104,7 @@ function toHistoryCategory(category: RawCategory): HistoryCategoryEntry {
 
 export async function getShiftHistory(storeId: number, date: string): Promise<ShiftHistory> {
   const query = new URLSearchParams({ storeId: String(storeId), date });
-  const response = await fetch(`${API_BASE_URL}/me/history/detail?${query}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/me/history/detail?${query}`, {
     headers: authHeaders(),
   });
 

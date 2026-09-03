@@ -3,16 +3,22 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.TaskRequest;
 import com.nforce.retailops.dto.TaskResponse;
 import com.nforce.retailops.dto.TaskResponseSubmitRequest;
+import com.nforce.retailops.dto.TodayChecklistResponse;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.ScheduleType;
+import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
+import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
+import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
 import com.nforce.retailops.exception.TaskAlreadyCompletedException;
 import com.nforce.retailops.exception.TaskHasHistoryException;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.TaskRepository;
@@ -59,6 +65,8 @@ class TaskServiceTest {
     private UserProfileService userProfileService;
     @Mock
     private TaskResponseEntryRepository taskResponseEntryRepository;
+    @Mock
+    private StoreEmployeeRepository storeEmployeeRepository;
 
     @InjectMocks
     private TaskService taskService;
@@ -280,5 +288,60 @@ class TaskServiceTest {
         taskService.deleteTask(OWNER_ID, taskId);
 
         verify(taskRepository).delete(task);
+    }
+
+    // Guards against a future accidental left-join regression on the fetch-joined
+    // TaskResponseEntryRepository queries: the employee behind a response must still
+    // be fully resolved (name, active flag) when building today's checklist.
+    @Test
+    void todayChecklistSurfacesActiveResponderNamesFromFetchedEmployee() {
+        Long employeeUserId = 42L;
+        Long storeId = 7L;
+        LocalDate today = LocalDate.now();
+
+        Store store = new Store();
+        ReflectionTestUtils.setField(store, "id", storeId);
+        User owner = new User();
+        ReflectionTestUtils.setField(owner, "id", OWNER_ID);
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setStore(store);
+        storeOwner.setOwner(owner);
+        when(storeOwnerRepository.findByStoreId(storeId)).thenReturn(Optional.of(storeOwner));
+
+        Task task = new Task();
+        ReflectionTestUtils.setField(task, "id", 55L);
+        task.setCategory(category);
+        task.setActive(true);
+        task.setAppliesToAllStores(true);
+        task.setResponseType(ResponseType.YES_NO);
+        task.setCompletionType(CompletionType.SINGLE);
+        task.setScheduleType(ScheduleType.EVERY_DAY);
+        task.setTimeMode(TimeMode.ANYTIME);
+        task.setStartDate(today.minusDays(1));
+        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, storeId, today)).thenReturn(List.of(task));
+
+        User respondingEmployee = new User();
+        ReflectionTestUtils.setField(respondingEmployee, "id", 99L);
+        respondingEmployee.setFullName("Jane Doe");
+        respondingEmployee.setActive(true);
+
+        TaskResponseEntry entry = new TaskResponseEntry();
+        ReflectionTestUtils.setField(entry, "id", 500L);
+        entry.setTask(task);
+        entry.setEmployee(respondingEmployee);
+        entry.setResponseType(ResponseType.YES_NO);
+        entry.setCompletionType(CompletionType.SINGLE);
+        entry.setValueBoolean(true);
+        entry.setActive(true);
+
+        when(taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue(List.of(55L), storeId, today))
+            .thenReturn(List.of(entry));
+        when(storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId)).thenReturn(3);
+
+        TodayChecklistResponse response = taskService.getTodayChecklistForEmployee(employeeUserId, storeId);
+
+        var item = response.categories().get(0).tasks().get(0);
+        assertThat(item.completedByNames()).containsExactly("Jane Doe");
+        assertThat(item.completedByCount()).isEqualTo(1);
     }
 }

@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   danger?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  centered?: boolean;
 }
 
 function ConfirmDialog({
@@ -20,12 +21,14 @@ function ConfirmDialog({
   danger = true,
   onConfirm,
   onCancel,
+  centered = false,
 }: ConfirmDialogProps) {
   return (
     <Modal
       isOpen={isOpen}
       onClose={onCancel}
       title={title}
+      centered={centered}
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onCancel}>

@@ -28,6 +28,7 @@ function renderTable(employees: Employee[], props: Partial<Parameters<typeof Emp
       onEdit={vi.fn()}
       onDelete={vi.fn()}
       onToggleStatus={vi.fn()}
+      onResetPassword={vi.fn()}
       {...props}
     />,
   );
@@ -109,5 +110,14 @@ describe('EmployeeTable', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /delete asha rao/i }));
     expect(onDelete).toHaveBeenCalledWith(employee);
+  });
+
+  it('calls onResetPassword when the reset password icon is clicked', async () => {
+    const onResetPassword = vi.fn();
+    const employee = baseEmployee();
+    renderTable([employee], { onResetPassword });
+
+    await userEvent.click(screen.getByRole('button', { name: /reset password for asha rao/i }));
+    expect(onResetPassword).toHaveBeenCalledWith(employee);
   });
 });

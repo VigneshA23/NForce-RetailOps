@@ -12,6 +12,7 @@ function row(overrides: Partial<ChecklistHistorySummaryRow>): ChecklistHistorySu
     hasChecklist: true,
     totalTasks: 10,
     completedTasks: 8,
+    exceptionCount: 0,
     ...overrides,
   };
 }

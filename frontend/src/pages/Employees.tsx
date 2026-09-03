@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createEmployee,
   deleteEmployee,
   getAssignableStores,
-  getEmployees,
+  resetEmployeePassword,
   setEmployeeStatus,
   updateEmployee,
 } from '../api/employees';
@@ -34,11 +34,21 @@ type FormModalState = { mode: 'create' } | { mode: 'edit'; employee: Employee } 
 
 const PAGE_SIZE = 10;
 
-function Employees() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+interface EmployeesProps {
+  employees: Employee[];
+  setEmployees: Dispatch<SetStateAction<Employee[]>>;
+  employeesLoading: boolean;
+  employeesError: string | null;
+  onRetryEmployees: () => void;
+}
+
+function Employees({ employees, setEmployees, employeesLoading, employeesError, onRetryEmployees }: EmployeesProps) {
   const [storeOptions, setStoreOptions] = useState<StoreOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [storeOptionsLoading, setStoreOptionsLoading] = useState(true);
+  const [storeOptionsError, setStoreOptionsError] = useState<string | null>(null);
+
+  const isLoading = employeesLoading || storeOptionsLoading;
+  const loadError = employeesError ?? storeOptionsError;
 
   const [search, setSearch] = useState('');
   const [storeFilter, setStoreFilter] = useState<number | 'ALL'>('ALL');
@@ -54,24 +64,36 @@ function Employees() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<Employee | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<Employee | null>(null);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [detailTarget, setDetailTarget] = useState<Employee | null>(null);
 
-  function loadEmployees() {
-    setIsLoading(true);
-    setLoadError(null);
-    Promise.all([getEmployees(), getAssignableStores()])
-      .then(([employeeList, stores]) => {
-        setEmployees(employeeList);
-        setStoreOptions(stores);
-      })
-      .catch((error: Error) => setLoadError(error.message))
-      .finally(() => setIsLoading(false));
+  useEffect(() => {
+    if (!successMessage) return;
+    const timer = window.setTimeout(() => setSuccessMessage(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [successMessage]);
+
+  function loadStoreOptions() {
+    setStoreOptionsLoading(true);
+    setStoreOptionsError(null);
+    getAssignableStores()
+      .then(setStoreOptions)
+      .catch((error: Error) => setStoreOptionsError(error.message))
+      .finally(() => setStoreOptionsLoading(false));
   }
 
   useEffect(() => {
-    loadEmployees();
+    loadStoreOptions();
   }, []);
+
+  function retryLoad() {
+    onRetryEmployees();
+    loadStoreOptions();
+  }
 
   const filteredEmployees = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -153,6 +175,21 @@ function Employees() {
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
       setStatusTarget(null);
+    }
+  }
+
+  async function handleConfirmResetPassword() {
+    if (!resetPasswordTarget) return;
+    setResetPasswordError(null);
+    setIsResettingPassword(true);
+    try {
+      await resetEmployeePassword(resetPasswordTarget.id);
+      setSuccessMessage(`Reset password email sent to ${resetPasswordTarget.name}.`);
+      setResetPasswordTarget(null);
+    } catch (error) {
+      setResetPasswordError(error instanceof Error ? error.message : "Failed to reset the employee's password");
+    } finally {
+      setIsResettingPassword(false);
     }
   }
 
@@ -277,7 +314,7 @@ function Employees() {
       {loadError ? (
         <div className="employees-page__error">
           {loadError}
-          <button type="button" className="btn btn--secondary" onClick={loadEmployees}>
+          <button type="button" className="btn btn--secondary" onClick={retryLoad}>
             Retry
           </button>
         </div>
@@ -299,6 +336,10 @@ function Employees() {
             onToggleStatus={(employee) => {
               setStatusError(null);
               setStatusTarget(employee);
+            }}
+            onResetPassword={(employee) => {
+              setResetPasswordError(null);
+              setResetPasswordTarget(employee);
             }}
           />
           <Pagination
@@ -355,6 +396,25 @@ function Employees() {
         danger={statusTarget?.active ?? true}
         onConfirm={handleConfirmStatusChange}
         onCancel={() => setStatusTarget(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={resetPasswordTarget !== null}
+        title="Reset Password"
+        message={
+          resetPasswordTarget
+            ? `Reset the password for ${resetPasswordTarget.name} (${resetPasswordTarget.empId})? A new temporary password will be emailed to them and they will be signed out of any active session.${
+                resetPasswordError ? ` ${resetPasswordError}` : ''
+              }`
+            : ''
+        }
+        confirmLabel={isResettingPassword ? 'Sending...' : 'Send Reset Email'}
+        danger={false}
+        onConfirm={handleConfirmResetPassword}
+        onCancel={() => {
+          setResetPasswordError(null);
+          setResetPasswordTarget(null);
+        }}
       />
     </div>
   );

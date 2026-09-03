@@ -1,5 +1,6 @@
 import type { AuthUser } from '../types/auth'
 import { authHeaders } from '../utils/authStorage'
+import { fetchWithTimeout } from './client'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api'
 
@@ -8,7 +9,7 @@ export interface LoginResult extends AuthUser {
 }
 
 export async function login(email: string, password: string): Promise<LoginResult> {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -22,7 +23,7 @@ export async function login(email: string, password: string): Promise<LoginResul
 }
 
 export async function completePasswordReset(newPassword: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/reset-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ newPassword }),
@@ -41,7 +42,7 @@ export async function completePasswordReset(newPassword: string): Promise<void> 
 // completePasswordReset above (the forced first-login flow), this verifies the
 // caller's current password server-side before allowing a new one.
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/auth/change-password`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/change-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ currentPassword, newPassword }),
@@ -57,7 +58,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 export async function logout(): Promise<void> {
-  await fetch(`${API_BASE_URL}/auth/logout`, {
+  await fetchWithTimeout(`${API_BASE_URL}/auth/logout`, {
     method: 'POST',
     headers: authHeaders(),
   })
@@ -68,7 +69,7 @@ export interface SessionConfig {
 }
 
 export async function getSessionConfig(): Promise<SessionConfig> {
-  const response = await fetch(`${API_BASE_URL}/auth/session-config`)
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/session-config`)
 
   if (!response.ok) {
     throw new Error('Unable to load session configuration')
@@ -78,7 +79,7 @@ export async function getSessionConfig(): Promise<SessionConfig> {
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/forgot-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),

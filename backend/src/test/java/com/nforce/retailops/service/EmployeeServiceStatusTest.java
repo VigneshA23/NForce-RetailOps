@@ -5,7 +5,6 @@ import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmployeeNotFoundException;
-import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -39,11 +38,15 @@ class EmployeeServiceStatusTest {
     @Mock
     private UserRepository userRepository;
     @Mock
-    private RoleRepository roleRepository;
+    private SessionService sessionService;
+    @Mock
+    private MailService mailService;
+    @Mock
+    private EmployeeProvisioningService employeeProvisioningService;
     @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
-    private SessionService sessionService;
+    private TemporaryPasswordGenerator temporaryPasswordGenerator;
 
     @InjectMocks
     private EmployeeService employeeService;
@@ -109,6 +112,38 @@ class EmployeeServiceStatusTest {
         ).isInstanceOf(EmployeeNotFoundException.class);
 
         verify(userRepository, never()).save(any(User.class));
+        verify(sessionService, never()).invalidateAllForUser(anyString());
+    }
+
+    @Test
+    void resettingPasswordGeneratesAndEmailsANewTemporaryPasswordAndRevokesSessions() {
+        when(storeEmployeeRepository.findById(EMPLOYEE_ID)).thenReturn(Optional.of(storeEmployee));
+        when(temporaryPasswordGenerator.generate()).thenReturn("Temp-Pass1");
+        when(passwordEncoder.encode("Temp-Pass1")).thenReturn("hashed");
+
+        employeeService.resetEmployeePassword(OWNER_ID, EMPLOYEE_ID);
+
+        assertThat(storeEmployee.getEmployee().getPasswordHash()).isEqualTo("hashed");
+        assertThat(storeEmployee.getEmployee().isMustResetPassword()).isTrue();
+        verify(userRepository).save(storeEmployee.getEmployee());
+        verify(sessionService).invalidateAllForUser(EMPLOYEE_EMAIL);
+        verify(mailService).sendPasswordReset(EMPLOYEE_EMAIL, "Test Employee", "Temp-Pass1");
+    }
+
+    @Test
+    void resettingPasswordForAnEmployeeTheOwnerCannotManageIsNotFound() {
+        StoreEmployee otherOwnersEmployee = new StoreEmployee();
+        ReflectionTestUtils.setField(otherOwnersEmployee, "id", EMPLOYEE_ID);
+        otherOwnersEmployee.setEmployee(storeEmployee.getEmployee());
+        User otherOwner = new User();
+        ReflectionTestUtils.setField(otherOwner, "id", 99L);
+        otherOwnersEmployee.setCreatedByOwner(otherOwner);
+        when(storeEmployeeRepository.findById(EMPLOYEE_ID)).thenReturn(Optional.of(otherOwnersEmployee));
+
+        assertThatThrownBy(() -> employeeService.resetEmployeePassword(OWNER_ID, EMPLOYEE_ID))
+            .isInstanceOf(EmployeeNotFoundException.class);
+
+        verify(mailService, never()).sendPasswordReset(anyString(), anyString(), anyString());
         verify(sessionService, never()).invalidateAllForUser(anyString());
     }
 

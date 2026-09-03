@@ -1,5 +1,6 @@
 import type { OwnerStore, OwnerStoreFormValues } from '../types/ownerStore';
 import { authHeaders } from '../utils/authStorage';
+import { fetchWithTimeout } from './client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
@@ -13,7 +14,7 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
 }
 
 export async function getStores(): Promise<OwnerStore[]> {
-  const response = await fetch(`${API_BASE_URL}/stores`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/stores`, {
     headers: authHeaders(),
   });
 
@@ -25,7 +26,7 @@ export async function getStores(): Promise<OwnerStore[]> {
 }
 
 export async function renameStore(id: number, values: OwnerStoreFormValues): Promise<OwnerStore> {
-  const response = await fetch(`${API_BASE_URL}/stores/${id}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/stores/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(values),

@@ -11,6 +11,12 @@ export interface HistoryResponder {
   name: string;
 }
 
+export interface HistoryResponderEntry extends HistoryResponder {
+  // Formatted local time (e.g. "2:30 PM") of this employee's response --
+  // derived client-side from the backend's respondedAt ISO timestamp.
+  respondedAt: string;
+}
+
 export interface HistoryTaskDetail {
   id: number;
   name: string;
@@ -20,6 +26,10 @@ export interface HistoryTaskDetail {
   // `status`/`completedBy` -- derived client-side from the backend's
   // respondedAt ISO timestamp, not a raw API field.
   completedAt: string | null;
+  // Every employee who has completed this task for this store/date, oldest
+  // first. For a SINGLE-completion task this is at most one entry (same as
+  // completedBy); a MULTIPLE-completion task can have several.
+  completedByAll: HistoryResponderEntry[];
 }
 
 export interface HistoryCategoryEntry {

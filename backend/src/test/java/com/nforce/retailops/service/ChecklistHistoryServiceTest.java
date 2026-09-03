@@ -38,6 +38,8 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -135,7 +137,7 @@ class ChecklistHistoryServiceTest {
         Task mondayWednesdayTask = task(30L, category, ScheduleType.SELECTED_DAYS,
             Set.of(DayOfWeekCode.MON, DayOfWeekCode.WED), true);
 
-        when(taskRepository.findActiveForStoreAndDateRange(OWNER_ID, 10L, monday, sunday))
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), monday, sunday))
             .thenReturn(List.of(mondayWednesdayTask));
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), monday, sunday))
             .thenReturn(List.of());
@@ -154,7 +156,7 @@ class ChecklistHistoryServiceTest {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
         when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
-        when(taskRepository.findActiveForStoreAndDateRange(OWNER_ID, 10L, today, today)).thenReturn(List.of());
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
             .thenReturn(List.of());
 
@@ -177,9 +179,9 @@ class ChecklistHistoryServiceTest {
 
         Category category = category(20L, "Opening", 0);
         Task deactivatedTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
-        // Excluded here because findActiveForStoreAndDateRange filters on active=true --
+        // Excluded here because findActiveForStoresAndDateRange filters on active=true --
         // simulating a task deactivated after it accumulated history.
-        when(taskRepository.findActiveForStoreAndDateRange(OWNER_ID, 10L, today, today)).thenReturn(List.of());
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
 
         User employee = user(99L, "Jane Doe");
         TaskResponseEntry response = response(deactivatedTask, store, employee, today);
@@ -194,6 +196,94 @@ class ChecklistHistoryServiceTest {
         assertThat(row.totalTasks()).isEqualTo(1);
         assertThat(row.completedTasks()).isEqualTo(1);
         assertThat(row.completedTasks()).isLessThanOrEqualTo(row.totalTasks());
+    }
+
+    // Regression test for the O(numStores) query fan-out fix: with multiple stores
+    // requested, findActiveForStoresAndDateRange must be queried exactly once (not
+    // once per store), and each store's row must only reflect tasks actually scoped
+    // to it.
+    @Test
+    void summaryBatchesAcrossStoresAndRespectsPerStoreScoping() {
+        LocalDate today = LocalDate.now();
+        Store storeA = store(10L, "Downtown");
+        Store storeB = store(11L, "Uptown");
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L, 11L)))
+            .thenReturn(List.of(storeOwner(storeA), storeOwner(storeB)));
+
+        Category category = category(20L, "Opening", 0);
+        Task allStoresTask = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        Task storeAOnlyTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        storeAOnlyTask.setAppliesToAllStores(false);
+
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L, 11L), today, today))
+            .thenReturn(List.of(allStoresTask, storeAOnlyTask));
+        when(taskRepository.findStoreRowsGroupedByTaskIds(List.of(31L)))
+            .thenReturn(List.<Object[]>of(new Object[] {31L, 10L, "Downtown"}));
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L, 11L), today, today))
+            .thenReturn(List.of());
+
+        List<ChecklistHistorySummaryRow> rows =
+            checklistHistoryService.getSummary(OWNER_ID, List.of(10L, 11L), today, today);
+
+        assertThat(rows).hasSize(2);
+        ChecklistHistorySummaryRow downtownRow = rows.stream()
+            .filter(row -> row.storeName().equals("Downtown")).findFirst().orElseThrow();
+        ChecklistHistorySummaryRow uptownRow = rows.stream()
+            .filter(row -> row.storeName().equals("Uptown")).findFirst().orElseThrow();
+        assertThat(downtownRow.totalTasks()).isEqualTo(2);
+        assertThat(uptownRow.totalTasks()).isEqualTo(1);
+
+        verify(taskRepository, times(1))
+            .findActiveForStoresAndDateRange(OWNER_ID, List.of(10L, 11L), today, today);
+    }
+
+    // Daily Operations Summary report: exceptionCount must reuse the app's one
+    // existing exception definition (a Yes/No task whose latest response that
+    // day was "No") -- not a newly invented rule -- and only the latest
+    // response per task that day should be considered.
+    @Test
+    void summaryCountsAYesNoTaskAnsweredNoAsAnExceptionUsingItsLatestResponseOnly() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task yesNoTask = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(yesNoTask));
+
+        User employee = user(99L, "Jane Doe");
+        // An earlier "Yes" followed by a corrected, later "No" -- only the later
+        // (higher createdAt) answer should count toward the exception.
+        TaskResponseEntry earlierYes = response(yesNoTask, store, employee, today);
+        earlierYes.setValueBoolean(true);
+        ReflectionTestUtils.setField(earlierYes, "createdAt", OffsetDateTime.now().minusHours(1));
+
+        TaskResponseEntry laterNo = response(yesNoTask, store, employee, today);
+        laterNo.setValueBoolean(false);
+        ReflectionTestUtils.setField(laterNo, "createdAt", OffsetDateTime.now());
+
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of(earlierYes, laterNo));
+
+        List<ChecklistHistorySummaryRow> rows = checklistHistoryService.getSummary(OWNER_ID, List.of(10L), today, today);
+
+        assertThat(rows).hasSize(1);
+        assertThat(rows.get(0).exceptionCount()).isEqualTo(1);
+        assertThat(rows.get(0).completedTasks()).isEqualTo(1);
+    }
+
+    @Test
+    void summaryHasZeroExceptionCountWhenNothingIsScheduledOrRecorded() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of());
+
+        List<ChecklistHistorySummaryRow> rows = checklistHistoryService.getSummary(OWNER_ID, List.of(10L), today, today);
+
+        assertThat(rows.get(0).exceptionCount()).isZero();
     }
 
     @Test

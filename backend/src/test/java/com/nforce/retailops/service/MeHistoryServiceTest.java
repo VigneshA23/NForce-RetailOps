@@ -191,6 +191,9 @@ class MeHistoryServiceTest {
         assertThat(detail.hasChecklist()).isTrue();
         assertThat(detail.categories()).hasSize(1);
         assertThat(detail.categories().get(0).id()).isEqualTo(categoryId);
+        // Regression check for the join-fetched Task.category query: name/displayOrder
+        // grouping must still resolve correctly against a real Hibernate session.
+        assertThat(detail.categories().get(0).name()).isEqualTo("Opening");
 
         var item = detail.categories().get(0).tasks().get(0);
         assertThat(item.id()).isEqualTo(task.getId());
@@ -312,12 +315,13 @@ class MeHistoryServiceTest {
         assertThat(todaysHistory.categories().get(0).tasks().get(0).id()).isEqualTo(task.getId());
     }
 
-    // 7. Data isolation -- same store, same date, two employees: each employee's
-    // History must show only their OWN response, never a teammate's, even for a
-    // MULTIPLE-completion task both of them genuinely answered that day.
+    // 7. Same store, same date, two employees, MULTIPLE-completion task: every
+    // employee's History must show ALL employees' responses for that task, not
+    // just the caller's own -- this is the core "who else completed this"
+    // requirement for MULTIPLE-completion tasks.
     @Test
     @Transactional
-    void historyExcludesOtherEmployeesResponsesInSameStoreAndDate() {
+    void historySurfacesAllEmployeesResponsesForMultipleCompletionTask() {
         Store store = storeRepository.getReferenceById(storeId);
         User employee1 = userRepository.getReferenceById(employeeId);
         User employee2 = saveUser("history-teammate");
@@ -333,13 +337,45 @@ class MeHistoryServiceTest {
 
         ChecklistHistoryDetailResponse employee1History = meHistoryService.getDetail(employeeId, storeId, today);
         HistoryTaskItemResponse employee1Item = employee1History.categories().get(0).tasks().get(0);
-        assertThat(employee1Item.responses()).hasSize(1);
-        assertThat(employee1Item.responses().get(0).employeeUserId()).isEqualTo(employeeId);
+        assertThat(employee1Item.responses()).hasSize(2);
+        assertThat(employee1Item.responses().stream().map(HistoryResponseEntryResponse::employeeUserId).toList())
+            .containsExactlyInAnyOrder(employeeId, employee2.getId());
 
         ChecklistHistoryDetailResponse employee2History = meHistoryService.getDetail(employee2.getId(), storeId, today);
         HistoryTaskItemResponse employee2Item = employee2History.categories().get(0).tasks().get(0);
+        assertThat(employee2Item.responses()).hasSize(2);
+        assertThat(employee2Item.responses().stream().map(HistoryResponseEntryResponse::employeeUserId).toList())
+            .containsExactlyInAnyOrder(employeeId, employee2.getId());
+    }
+
+    // 7b. Same store, same date, two employees, SINGLE-completion task: unchanged
+    // means matching what Today's Task List already does for SINGLE tasks (it
+    // doesn't filter by employeeId either) -- exactly one response ever exists
+    // for a SINGLE task, and it surfaces the same way to every authorized
+    // employee, not just whoever happened to submit it.
+    @Test
+    @Transactional
+    void historyShowsTheOneResponseForSingleCompletionTaskToEveryAuthorizedEmployee() {
+        Store store = storeRepository.getReferenceById(storeId);
+        User employee1 = userRepository.getReferenceById(employeeId);
+        User employee2 = saveUser("history-single-teammate");
+        saveStoreEmployee(employee2, userRepository.getReferenceById(ownerId), store);
+
+        Task task = saveTask(store);
+        LocalDate today = LocalDate.now();
+        saveResponse(task, store, employee1, today, true);
+
+        ChecklistHistoryDetailResponse employee2History = meHistoryService.getDetail(employee2.getId(), storeId, today);
+        HistoryTaskItemResponse employee2Item = employee2History.categories().get(0).tasks().get(0);
+        assertThat(employee2Item.completed()).isTrue();
         assertThat(employee2Item.responses()).hasSize(1);
-        assertThat(employee2Item.responses().get(0).employeeUserId()).isEqualTo(employee2.getId());
+        assertThat(employee2Item.responses().get(0).employeeUserId()).isEqualTo(employeeId);
+
+        ChecklistHistoryDetailResponse employee1History = meHistoryService.getDetail(employeeId, storeId, today);
+        HistoryTaskItemResponse employee1Item = employee1History.categories().get(0).tasks().get(0);
+        assertThat(employee1Item.completed()).isTrue();
+        assertThat(employee1Item.responses()).hasSize(1);
+        assertThat(employee1Item.responses().get(0).employeeUserId()).isEqualTo(employeeId);
     }
 
     // 8. Data isolation -- same employee, two stores, same date: selecting Store A
@@ -378,14 +414,15 @@ class MeHistoryServiceTest {
         assertThat(storeBItem.responses().get(0).booleanValue()).isFalse();
     }
 
-    // 9. Data isolation -- the full intersection: with "noise" responses planted
-    // on every other combination of store/employee/date, a query for one exact
-    // (store, employee, date) triple must return only the one response matching
-    // all three, proving the filtering isn't accidentally satisfied by any single
-    // dimension alone.
+    // 9. Data isolation -- store/date is the real boundary: with "noise" responses
+    // planted on every other combination of store/employee/date, a query for one
+    // exact (store, date) pair returns every response matching store+date
+    // (MULTIPLE-completion, so both employee1's and employee2's responses count),
+    // but excludes the other-store and other-date noise, proving the filtering
+    // isn't accidentally satisfied by store or date alone.
     @Test
     @Transactional
-    void historyReturnsOnlyTheResponseMatchingStoreEmployeeAndDateExactly() {
+    void historyReturnsOnlyResponsesMatchingStoreAndDateExactly() {
         Store storeA = storeRepository.getReferenceById(storeId);
         Store storeB = saveStore(93001L + System.nanoTime() % 1000);
         linkOwnerToStore(userRepository.getReferenceById(ownerId), storeB);
@@ -433,9 +470,13 @@ class MeHistoryServiceTest {
             .flatMap(item -> item.responses().stream())
             .toList();
 
-        assertThat(allResponses).hasSize(1);
-        assertThat(allResponses.get(0).id()).isEqualTo(target.getId());
-        assertThat(allResponses.get(0).employeeUserId()).isEqualTo(employeeId);
+        // Same store + same date (employee1's target and employee2's noise) both
+        // surface; different-store and different-date noise do not.
+        assertThat(allResponses).hasSize(2);
+        assertThat(allResponses.stream().map(HistoryResponseEntryResponse::id).toList())
+            .contains(target.getId());
+        assertThat(allResponses.stream().map(HistoryResponseEntryResponse::employeeUserId).toList())
+            .containsExactlyInAnyOrder(employeeId, employee2.getId());
     }
 
     // 10. Today's History must mirror the live Daily Checklist exactly, even when

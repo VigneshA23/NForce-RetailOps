@@ -31,12 +31,16 @@ import java.util.stream.Collectors;
  * data. Deliberately a sibling of ChecklistHistoryService (the owner/admin
  * equivalent) rather than a shared/refactored dependency: similar eligible-
  * tasks-unioned-with-responded-tasks reconstruction (so a deactivated/
- * reconfigured task never disappears from history), but with two isolation
- * differences from the owner view: (1) store access is scoped to a single
+ * reconfigured task never disappears from history), but with one isolation
+ * difference from the owner view: store access is scoped to a single
  * employee's assigned store via UserProfileService instead of an owner's store
- * ownership, and (2) task_responses are additionally scoped to that employee's
- * OWN responses (findByStoreIdAndResponseDateAndEmployeeIdAndActiveTrue) --
- * this is the caller's personal history, never a teammate's activity.
+ * ownership. task_responses are fetched store/date-wide (every employee's
+ * responses), the same as both the owner-facing detail AND
+ * TaskService.getTodayChecklistForEmployee (the live Daily Checklist) --
+ * neither of those filters by employeeId either, so every authorized
+ * employee's response for a MULTIPLE-completion task surfaces here too. A
+ * SINGLE-completion task can only ever have one active responder store-wide
+ * (enforced by the V19 partial unique index), so this is a no-op for it.
  */
 @Service
 public class MeHistoryService {
@@ -74,12 +78,13 @@ public class MeHistoryService {
             .filter(task -> TaskScheduleMatcher.matches(task, date))
             .toList();
 
-        // Data isolation: this is the caller's OWN history, not the store's whole
-        // team activity like the owner-facing detail -- scoped by employeeUserId in
-        // addition to storeId/date, so a teammate's response (same store, same day)
-        // and this employee's responses at any other store never appear here.
+        // Fetched store/date-wide (every employee's responses) -- same as the
+        // owner-facing detail and the live Daily Checklist, neither of which
+        // filters by employeeId. MULTIPLE-completion tasks need every employee's
+        // response visible here, not just the caller's; SINGLE-completion tasks
+        // are unaffected since only one active responder can ever exist for them.
         List<TaskResponseEntry> responses = taskResponseEntryRepository
-            .findByStoreIdAndResponseDateAndEmployeeIdAndActiveTrue(storeId, date, employeeUserId);
+            .findByStoreIdAndResponseDateAndActiveTrue(storeId, date);
         Map<Long, List<TaskResponseEntry>> responsesByTask = responses.stream()
             .collect(Collectors.groupingBy(entry -> entry.getTask().getId()));
 
@@ -162,6 +167,8 @@ public class MeHistoryService {
             task.getDescription(),
             task.getResponseType(),
             task.getCompletionType(),
+            task.getScheduleType(),
+            task.getNumericUnit(),
             !responseDtos.isEmpty(),
             task.isActive(),
             responseDtos

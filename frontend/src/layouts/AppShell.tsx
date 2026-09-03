@@ -18,6 +18,9 @@ interface AppShellProps<Key extends string = NavTabKey> {
   // that don't pass them (Admin/Super Admin) render exactly as before.
   subtitle?: string;
   logoSrc?: string;
+  hideLogoOnDesktop?: boolean;
+  // Employee pages only -- see Modal's `centered` prop.
+  centeredModals?: boolean;
   user: AuthUser;
   onLogout: () => void;
   loggingOut?: boolean;
@@ -41,6 +44,8 @@ function AppShell<Key extends string = NavTabKey>({
   title,
   subtitle,
   logoSrc,
+  hideLogoOnDesktop,
+  centeredModals,
   user,
   onLogout,
   loggingOut,
@@ -77,6 +82,8 @@ function AppShell<Key extends string = NavTabKey>({
             title={title}
             subtitle={subtitle}
             logoSrc={logoSrc}
+            hideLogoOnDesktop={hideLogoOnDesktop}
+            centeredModals={centeredModals}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             isDarkTheme={isDarkTheme}

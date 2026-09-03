@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EmployeeDashboard from './EmployeeDashboard'
 import * as tasksApi from '../api/tasks'
-import * as meApi from '../api/me'
 import type { ChecklistCategory } from '../types/task'
 import type { StoreSummary } from '../types/store'
 
@@ -14,13 +13,8 @@ vi.mock('../api/tasks', () => ({
   undoTaskResponse: vi.fn(),
 }))
 
-vi.mock('../api/me', () => ({
-  getMe: vi.fn(),
-}))
-
 const mockGetDailyChecklist = vi.mocked(tasksApi.getDailyChecklist)
 const mockSubmitTaskResponse = vi.mocked(tasksApi.submitTaskResponse)
-const mockGetMe = vi.mocked(meApi.getMe)
 
 const STORE: StoreSummary = { id: 1, name: 'Store 1', location: 'Main St', status: 'Open' }
 
@@ -31,19 +25,6 @@ function checklistWith(task: ChecklistCategory['tasks'][number]): ChecklistCateg
 beforeEach(() => {
   mockGetDailyChecklist.mockReset()
   mockSubmitTaskResponse.mockReset()
-  mockGetMe.mockReset()
-  mockGetMe.mockResolvedValue({
-    id: 99,
-    fullName: 'Test Employee',
-    email: 'test@example.com',
-    role: 'EMPLOYEE',
-    storeNames: ['Store 1'],
-    mustResetPassword: false,
-    shift: null,
-    employeeType: null,
-    phone: null,
-    avatarUrl: null,
-  })
 })
 
 describe('Employee Checklist response type rendering', () => {
@@ -68,7 +49,7 @@ describe('Employee Checklist response type rendering', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByRole('button', { name: 'Yes' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'No' })).toBeInTheDocument()
@@ -97,7 +78,7 @@ describe('Employee Checklist response type rendering', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByRole('button', { name: /done/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Yes' })).not.toBeInTheDocument()
@@ -125,7 +106,7 @@ describe('Employee Checklist response type rendering', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     const input = await screen.findByRole('textbox')
     expect(input).toHaveAttribute('maxlength', '25')
@@ -153,7 +134,7 @@ describe('Employee Checklist response type rendering', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     const input = await screen.findByRole('spinbutton')
     expect(input).toHaveAttribute('min', '32')
@@ -202,7 +183,7 @@ describe('Employee Checklist response type rendering', () => {
     })
 
     const user = userEvent.setup()
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     const input = await screen.findByRole('textbox')
     await user.type(input, 'All clear')
@@ -235,7 +216,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByText('Not Answered')).toBeInTheDocument()
     expect(screen.queryByText(/Completed By/)).not.toBeInTheDocument()
@@ -274,7 +255,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
         completedByNames: ['Alex Employee', 'Jordan Employee'],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByText(/2\/4 Completed By/)).toBeInTheDocument()
     // Old status text and the old responder name + time list must not also render.
@@ -307,7 +288,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
       }),
     )
     const user = userEvent.setup()
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     const infoIcon = await screen.findByRole('button', { name: /who completed wipe tables today/i })
     await user.hover(infoIcon)
@@ -341,7 +322,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
         completedByNames: ['Alex Employee'],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     // A raw click (no synthesized hover, unlike userEvent.click) is what a real
     // touch tap looks like -- touch devices don't fire mouseenter/mouseleave.
@@ -384,9 +365,156 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
         completedByNames: ['Alex Employee'],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByText('Completed by Alex Employee')).toBeInTheDocument()
     expect(screen.queryByText(/Completed By/)).not.toBeInTheDocument()
+  })
+})
+
+function progressTask(overrides: Partial<ChecklistCategory['tasks'][number]>): ChecklistCategory['tasks'][number] {
+  return {
+    id: 1,
+    name: 'Task',
+    description: null,
+    responseType: 'DONE_NOT_DONE',
+    responseNote: null,
+    numericUnit: null,
+    numericMin: null,
+    numericMax: null,
+    textMaxLength: null,
+    completionType: 'SINGLE',
+    maxCompletions: null,
+    responses: [],
+    canUndo: false,
+    completedByCount: 0,
+    totalActiveEmployees: 1,
+    completedByNames: [],
+    ...overrides,
+  }
+}
+
+const DONE_RESPONSE = {
+  id: 1,
+  employeeUserId: 99,
+  employeeFullName: 'Test Employee',
+  booleanValue: true,
+  numericValue: null,
+  textValue: null,
+  respondedAt: new Date().toISOString(),
+}
+
+describe('Daily progress indicator', () => {
+  it('shows the overall completed/scheduled count and percentage in the header', async () => {
+    mockGetDailyChecklist.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Preparation',
+        tasks: [
+          progressTask({ id: 1, name: 'Task 1', responses: [DONE_RESPONSE] }),
+          progressTask({ id: 2, name: 'Task 2' }),
+        ],
+      },
+    ])
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
+
+    expect(await screen.findByText('Overall: 1/2 - 50%')).toBeInTheDocument()
+  })
+
+  it('shows each category\'s own completed/total sub-fraction', async () => {
+    mockGetDailyChecklist.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Preparation',
+        tasks: [
+          progressTask({ id: 1, responses: [DONE_RESPONSE] }),
+          progressTask({ id: 2 }),
+        ],
+      },
+      {
+        id: 2,
+        name: 'Cleaning',
+        tasks: [
+          progressTask({ id: 3, responses: [DONE_RESPONSE] }),
+          progressTask({ id: 4, responses: [DONE_RESPONSE] }),
+        ],
+      },
+    ])
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
+
+    expect(await screen.findByText('Preparation')).toBeInTheDocument()
+    expect(screen.getByText('1/2')).toBeInTheDocument()
+    expect(screen.getByText('Cleaning')).toBeInTheDocument()
+    expect(screen.getByText('2/2')).toBeInTheDocument()
+  })
+
+  it('shows 0/0 - 0% with no scheduled tasks, without dividing by zero', async () => {
+    mockGetDailyChecklist.mockResolvedValue([])
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
+
+    expect(await screen.findByText('Overall: 0/0 - 0%')).toBeInTheDocument()
+  })
+
+  it('shows 100% when every scheduled task is completed', async () => {
+    mockGetDailyChecklist.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Preparation',
+        tasks: [
+          progressTask({ id: 1, responses: [DONE_RESPONSE] }),
+          progressTask({ id: 2, responses: [DONE_RESPONSE] }),
+        ],
+      },
+    ])
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
+
+    expect(await screen.findByText('Overall: 2/2 - 100%')).toBeInTheDocument()
+  })
+
+  it('updates the overall and category counts immediately after a task submission, with no page reload', async () => {
+    mockGetDailyChecklist.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Preparation',
+        tasks: [progressTask({ id: 1, name: 'Wipe counters' })],
+      },
+    ])
+    mockSubmitTaskResponse.mockResolvedValue({
+      taskId: 1,
+      responses: [DONE_RESPONSE],
+      canUndo: true,
+      completedByCount: 1,
+      totalActiveEmployees: 1,
+      completedByNames: ['Test Employee'],
+    })
+
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
+
+    expect(await screen.findByText('Overall: 0/1 - 0%')).toBeInTheDocument()
+    expect(screen.getByText('0/1')).toBeInTheDocument() // category sub-fraction
+
+    await userEvent.click(screen.getByRole('button', { name: /done/i }))
+
+    expect(await screen.findByText('Overall: 1/1 - 100%')).toBeInTheDocument()
+    expect(screen.getByText('1/1')).toBeInTheDocument()
+    // Exactly one submit call -- no duplicate/stale count from a second request.
+    expect(mockSubmitTaskResponse).toHaveBeenCalledTimes(1)
+  })
+
+  it('computes progress independently per store', async () => {
+    mockGetDailyChecklist.mockResolvedValueOnce([
+      { id: 1, name: 'Preparation', tasks: [progressTask({ id: 1, responses: [DONE_RESPONSE] })] },
+    ])
+    const { unmount } = render(<EmployeeDashboard store={{ ...STORE, id: 1 }} onLogout={() => {}} employeeId={99} />)
+    expect(await screen.findByText('Overall: 1/1 - 100%')).toBeInTheDocument()
+    expect(mockGetDailyChecklist).toHaveBeenCalledWith(1)
+    unmount()
+
+    mockGetDailyChecklist.mockResolvedValueOnce([
+      { id: 1, name: 'Preparation', tasks: [progressTask({ id: 2 })] },
+    ])
+    render(<EmployeeDashboard store={{ ...STORE, id: 2 }} onLogout={() => {}} employeeId={99} />)
+    expect(await screen.findByText('Overall: 0/1 - 0%')).toBeInTheDocument()
+    expect(mockGetDailyChecklist).toHaveBeenCalledWith(2)
   })
 })

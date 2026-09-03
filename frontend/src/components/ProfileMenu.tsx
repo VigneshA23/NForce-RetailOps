@@ -11,13 +11,15 @@ interface ProfileMenuProps {
   onHelpClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
+  // Employee pages only -- see Modal's `centered` prop.
+  centeredModals?: boolean;
 }
 
 function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onLogout, loggingOut = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -105,6 +107,7 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onLogou
       )}
       <ConfirmDialog
         isOpen={isConfirmOpen}
+        centered={centeredModals}
         title="Log out"
         message="Are you sure you want to log out?"
         confirmLabel={loggingOut ? 'Logging out…' : 'Log out'}

@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, CheckCircle2, CircleDot, Repeat2, Plus } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { getCategories } from '../api/categories';
-import { getStores } from '../api/ownerStores';
 import { createTask, deleteTask, getTasks, setTaskActive, TaskHasHistoryError, updateTask } from '../api/ownerTasks';
 import type { Category } from '../types/category';
 import type { OwnerStore } from '../types/ownerStore';
@@ -25,20 +23,30 @@ const PAGE_SIZE = 10;
 
 interface TasksProps {
   onNavigateToCategories?: () => void;
+  categories: Category[];
+  categoriesLoading: boolean;
+  categoriesError: string | null;
+  onRetryCategories: () => void;
+  stores: OwnerStore[];
+  storesLoading: boolean;
+  storesError: string | null;
+  onRetryStores: () => void;
 }
 
-function Tasks({ onNavigateToCategories }: TasksProps) {
+function Tasks({
+  onNavigateToCategories,
+  categories,
+  categoriesLoading,
+  categoriesError,
+  onRetryCategories,
+  stores,
+  storesLoading,
+  storesError,
+  onRetryStores,
+}: TasksProps) {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [categoriesLoading, setCategoriesLoading] = useState(true);
-  const [categoriesError, setCategoriesError] = useState<string | null>(null);
-
-  const [stores, setStores] = useState<OwnerStore[]>([]);
-  const [storesLoading, setStoresLoading] = useState(true);
-  const [storesError, setStoresError] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | 'ALL'>('ALL');
@@ -65,28 +73,8 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
       .finally(() => setIsLoading(false));
   }
 
-  function loadCategories() {
-    setCategoriesLoading(true);
-    setCategoriesError(null);
-    getCategories()
-      .then(setCategories)
-      .catch((error: Error) => setCategoriesError(error.message))
-      .finally(() => setCategoriesLoading(false));
-  }
-
-  function loadStores() {
-    setStoresLoading(true);
-    setStoresError(null);
-    getStores()
-      .then(setStores)
-      .catch((error: Error) => setStoresError(error.message))
-      .finally(() => setStoresLoading(false));
-  }
-
   useEffect(() => {
     loadTasks();
-    loadCategories();
-    loadStores();
   }, []);
 
   const filteredTasks = useMemo(() => {
@@ -346,12 +334,12 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         categories={categories}
         categoriesLoading={categoriesLoading}
         categoriesError={categoriesError}
-        onRetryCategories={loadCategories}
+        onRetryCategories={onRetryCategories}
         onManageCategories={() => onNavigateToCategories?.()}
         stores={stores}
         storesLoading={storesLoading}
         storesError={storesError}
-        onRetryStores={loadStores}
+        onRetryStores={onRetryStores}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => setFormModalState(null)}

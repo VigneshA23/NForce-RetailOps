@@ -1,32 +1,24 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Store as StoreIcon, CircleCheck, CircleSlash } from 'lucide-react';
-import { getStores, renameStore } from '../api/ownerStores';
+import { renameStore } from '../api/ownerStores';
 import type { OwnerStore } from '../types/ownerStore';
 import StoreTable from '../components/StoreTable';
 import StoreFormModal from '../components/StoreFormModal';
 import StatCard from '../components/StatCard';
 import './Stores.css';
 
-function Stores() {
-  const [stores, setStores] = useState<OwnerStore[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+interface StoresProps {
+  stores: OwnerStore[];
+  setStores: Dispatch<SetStateAction<OwnerStore[]>>;
+  isLoading: boolean;
+  loadError: string | null;
+  onRetry: () => void;
+}
+
+function Stores({ stores, setStores, isLoading, loadError, onRetry }: StoresProps) {
   const [editTarget, setEditTarget] = useState<OwnerStore | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  function loadStores() {
-    setIsLoading(true);
-    setLoadError(null);
-    getStores()
-      .then(setStores)
-      .catch((error: Error) => setLoadError(error.message))
-      .finally(() => setIsLoading(false));
-  }
-
-  useEffect(() => {
-    loadStores();
-  }, []);
 
   async function handleFormSubmit(values: { name: string }) {
     if (!editTarget) return;
@@ -56,7 +48,7 @@ function Stores() {
       {loadError ? (
         <div className="stores-page__error">
           {loadError}
-          <button type="button" className="btn btn--secondary" onClick={loadStores}>
+          <button type="button" className="btn btn--secondary" onClick={onRetry}>
             Retry
           </button>
         </div>

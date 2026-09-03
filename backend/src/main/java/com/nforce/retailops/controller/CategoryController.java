@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.CategoryReorderRequest;
 import com.nforce.retailops.dto.CategoryRequest;
 import com.nforce.retailops.dto.CategoryResponse;
 import com.nforce.retailops.dto.CategoryStatusRequest;
@@ -55,6 +56,14 @@ public class CategoryController {
         @Valid @RequestBody CategoryStatusRequest request
     ) {
         return ResponseEntity.ok(categoryService.setActive(principal.getUser().getId(), id, request.active()));
+    }
+
+    @PatchMapping("/reorder")
+    public ResponseEntity<List<CategoryResponse>> reorder(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @Valid @RequestBody CategoryReorderRequest request
+    ) {
+        return ResponseEntity.ok(categoryService.reorderCategories(principal.getUser().getId(), request.orderedIds()));
     }
 
     @DeleteMapping("/{id}")

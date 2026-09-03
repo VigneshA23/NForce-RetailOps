@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
-  Blend,
-  Calendar,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -12,11 +10,14 @@ import {
   MoonStar,
   Sparkles,
   Store as StoreIcon,
+  Sunrise,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { getShiftHistory } from '../api/history'
 import type { StoreSummary } from '../types/store'
 import type { ShiftHistory, TaskStatus } from '../types/history'
+import SearchableSelect from '../components/SearchableSelect'
+import CalendarPopover from '../components/CalendarPopover'
 import './EmployeeHistory.css'
 
 interface EmployeeHistoryProps {
@@ -28,11 +29,18 @@ interface EmployeeHistoryProps {
 
 // Keyed by category name (lowercased) rather than id -- unlike the old mock,
 // real categories are owner-defined with arbitrary numeric ids, so only the
-// name is a stable enough hook for a themed icon. Falls back to Clock below.
+// name is a stable enough hook for a themed icon/tone. Falls back to Clock
+// and a neutral tone below for anything an owner names outside these three.
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  preparation: Blend,
+  preparation: Sunrise,
   cleaning: Sparkles,
   closing: Lock,
+}
+
+const CATEGORY_TONES: Record<string, string> = {
+  preparation: 'warning',
+  cleaning: 'success',
+  closing: 'purple',
 }
 
 const TASK_STATUS_META: Record<TaskStatus, { label: string; badgeClass: string; icon: LucideIcon }> = {
@@ -89,14 +97,18 @@ function categoryKey(storeId: number, categoryId: number): string {
 function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
   const availableStores = stores.length > 0 ? stores : [store]
   const [selectedStoreId, setSelectedStoreId] = useState<StoreFilter>(store.id)
-  const [selectedDate, setSelectedDate] = useState(todayDate)
+  // Defaults to yesterday: a shift's checklist is realistically only fully
+  // wrapped up (and worth reviewing) once the day is over, so that's the more
+  // useful starting point than an in-progress "today".
+  const [selectedDate, setSelectedDate] = useState(yesterdayDate)
   const [historyEntries, setHistoryEntries] = useState<StoreHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // Which category cards are expanded, independently of one another -- a
   // Set rather than a single id, so opening one no longer closes the rest.
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
-  const dateInputRef = useRef<HTMLInputElement>(null)
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false)
+  const calendarButtonRef = useRef<HTMLButtonElement>(null)
 
   function loadHistory() {
     let active = true
@@ -144,9 +156,6 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStoreId, selectedDate])
 
-  const isToday = selectedDate === todayDate()
-  const isYesterday = selectedDate === yesterdayDate()
-
   const entriesWithActivity = useMemo(() => historyEntries.filter(entryHasActivity), [historyEntries])
   const hasActivity = entriesWithActivity.length > 0
   // The per-store heading is only useful once more than one store's worth of
@@ -170,16 +179,6 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
     })
   }
 
-  function openDatePicker() {
-    const input = dateInputRef.current
-    if (!input) return
-    if ('showPicker' in input && typeof input.showPicker === 'function') {
-      input.showPicker()
-    } else {
-      input.click()
-    }
-  }
-
   return (
     <div className="employee-history">
       <div className="employee-history-header">
@@ -188,59 +187,45 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
       </div>
 
       <div className="employee-history-filters">
-        <label className="employee-history-store-select">
-          <StoreIcon size={16} />
-          <select
-            value={selectedStoreId}
-            onChange={(event) =>
-              setSelectedStoreId(event.target.value === ALL_STORES_VALUE ? ALL_STORES_VALUE : Number(event.target.value))
-            }
-          >
-            <option value={ALL_STORES_VALUE}>All Stores</option>
-            {availableStores.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={16} className="employee-history-store-select-chevron" />
-        </label>
+        <div className="employee-history-store-select">
+          <span className="employee-history-store-select-icon">
+            <StoreIcon size={16} />
+          </span>
+          <SearchableSelect
+            id="employee-history-store"
+            options={availableStores.map((option) => ({ id: option.id, label: option.name }))}
+            selectedIds={selectedStoreId === ALL_STORES_VALUE ? [] : [selectedStoreId]}
+            onChange={(ids) => setSelectedStoreId(ids[0] ?? ALL_STORES_VALUE)}
+            placeholder="Select a store"
+            allOption={{
+              label: 'All Stores',
+              selected: selectedStoreId === ALL_STORES_VALUE,
+              onToggle: () => setSelectedStoreId(ALL_STORES_VALUE),
+            }}
+          />
+        </div>
 
-        <div className="employee-history-date-chips">
+        <div className="employee-history-date-trigger-wrap">
           <button
+            ref={calendarButtonRef}
             type="button"
-            className={`employee-history-date-chip${isToday ? ' employee-history-date-chip--active' : ''}`}
-            onClick={() => setSelectedDate(todayDate())}
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            className={`employee-history-date-chip${isYesterday ? ' employee-history-date-chip--active' : ''}`}
-            onClick={() => setSelectedDate(yesterdayDate())}
-          >
-            Yesterday
-          </button>
-          <button
-            type="button"
-            className={`employee-history-date-chip employee-history-date-chip--icon${!isToday && !isYesterday ? ' employee-history-date-chip--active' : ''}`}
-            onClick={openDatePicker}
+            className="employee-history-date-trigger"
+            onClick={() => setIsCalendarOpen((open) => !open)}
             aria-label="Pick a date"
-            title={formatDateLabel(selectedDate)}
+            aria-haspopup="dialog"
+            aria-expanded={isCalendarOpen}
           >
-            <Calendar size={16} />
-            {!isToday && !isYesterday && <span>{formatDateLabel(selectedDate)}</span>}
-            <input
-              ref={dateInputRef}
-              type="date"
-              className="employee-history-date-input"
-              value={selectedDate}
-              max={todayDate()}
-              onChange={(event) => setSelectedDate(event.target.value || todayDate())}
-              tabIndex={-1}
-              aria-hidden="true"
-            />
+            <span className="icon-mask-calendar" style={{ width: 16, height: 16 }} aria-hidden="true" />
+            <span>{formatDateLabel(selectedDate)}</span>
           </button>
+          <CalendarPopover
+            value={selectedDate}
+            max={todayDate()}
+            isOpen={isCalendarOpen}
+            onClose={() => setIsCalendarOpen(false)}
+            onSelect={setSelectedDate}
+            anchorRef={calendarButtonRef}
+          />
         </div>
       </div>
 
@@ -279,6 +264,7 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
               {showStoreHeadings && <h2 className="employee-history-store-group-heading">{entryStore.name}</h2>}
               {history.categories.map((category) => {
                 const Icon = CATEGORY_ICONS[category.name.toLowerCase()] ?? Clock
+                const tone = CATEGORY_TONES[category.name.toLowerCase()] ?? 'outline'
                 const isComplete = category.tasksTotal > 0 && category.tasksCompleted === category.tasksTotal
                 const key = categoryKey(entryStore.id, category.id)
                 const isExpanded = expandedKeys.has(key)
@@ -294,8 +280,13 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
                       onClick={() => toggleCategory(key)}
                       aria-expanded={isExpanded}
                     >
-                      <span className="employee-history-card-icon">
+                      <span className={`employee-history-card-icon employee-history-card-icon--${tone}`}>
                         <Icon size={18} />
+                        {isComplete && (
+                          <span className="employee-history-card-icon-check" aria-hidden="true">
+                            <CheckCircle2 size={12} />
+                          </span>
+                        )}
                       </span>
                       <span className="employee-history-card-heading">
                         <span className="employee-history-card-name">{category.name}</span>
@@ -317,11 +308,22 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
                             <div key={task.id} className="employee-history-task">
                               <div className="employee-history-task-info">
                                 <p className="employee-history-task-name">{task.name}</p>
-                                <p className="employee-history-task-detail">
-                                  {task.completedBy
-                                    ? `${task.completedBy.name}${task.completedAt ? ` · ${task.completedAt}` : ''}`
-                                    : 'No staff recorded'}
-                                </p>
+                                {task.completedByAll.length > 1 ? (
+                                  task.completedByAll.map((responder) => (
+                                    <p
+                                      key={responder.employeeUserId}
+                                      className="employee-history-task-detail"
+                                    >
+                                      {`${responder.name} · ${responder.respondedAt}`}
+                                    </p>
+                                  ))
+                                ) : (
+                                  <p className="employee-history-task-detail">
+                                    {task.completedBy
+                                      ? `${task.completedBy.name}${task.completedAt ? ` · ${task.completedAt}` : ''}`
+                                      : 'No staff recorded'}
+                                  </p>
+                                )}
                               </div>
                               <span className={`badge ${meta.badgeClass} employee-history-task-status`}>
                                 <StatusIcon size={14} />

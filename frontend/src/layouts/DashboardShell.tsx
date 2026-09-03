@@ -7,35 +7,16 @@ import Employees from '../pages/Employees';
 import Categories from '../pages/Categories';
 import Home from '../pages/Home';
 import Stores from '../pages/Stores';
+import StoreDetail from '../pages/StoreDetail';
 import Tasks from '../pages/Tasks';
 import History from '../pages/History';
 import Settings from '../pages/Settings';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 import { getInitials } from '../utils/initials';
-
-function renderActivePage(activeTab: NavTabKey, onNavigateToCategories: () => void, userName: string) {
-  switch (activeTab) {
-    case 'home':
-      return <Home userName={userName} />;
-    case 'store-management':
-      return <Stores />;
-    case 'employees':
-      return <Employees />;
-    case 'categories':
-      return <Categories />;
-    case 'tasks':
-      return <Tasks onNavigateToCategories={onNavigateToCategories} />;
-    case 'history':
-      return <History />;
-    case 'settings':
-      return <Settings />;
-    default: {
-      const _exhaustive: never = activeTab;
-      return _exhaustive;
-    }
-  }
-}
+import { useOwnerStores } from '../hooks/useOwnerStores';
+import { useOwnerCategories } from '../hooks/useOwnerCategories';
+import { useOwnerEmployees } from '../hooks/useOwnerEmployees';
 
 interface DashboardShellProps {
   user: AuthUser;
@@ -50,10 +31,98 @@ type Overlay = 'profile' | 'help' | null;
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const [storeDetailStoreId, setStoreDetailStoreId] = useState<number | null>(null);
+
+  // Fetched once here (not per-page) and shared as props, so switching tabs
+  // never re-fetches data that hasn't changed. See useAssignedStores.ts for
+  // the equivalent pattern already used on the employee side.
+  const storesState = useOwnerStores();
+  const categoriesState = useOwnerCategories();
+  const employeesState = useOwnerEmployees();
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
   const title = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : PAGE_TITLES[activeTab];
+
+  function renderActivePage() {
+    switch (activeTab) {
+      case 'home':
+        return (
+          <Home
+            userName={user.fullName}
+            stores={storesState.stores}
+            storesLoading={storesState.isLoading}
+            employees={employeesState.employees}
+            categories={categoriesState.categories}
+            onViewStoreDetail={(storeId) => {
+              setStoreDetailStoreId(storeId);
+              setActiveTab('store-detail');
+            }}
+          />
+        );
+      case 'store-management':
+        return (
+          <Stores
+            stores={storesState.stores}
+            setStores={storesState.setStores}
+            isLoading={storesState.isLoading}
+            loadError={storesState.error}
+            onRetry={storesState.reload}
+          />
+        );
+      case 'store-detail':
+        return <StoreDetail initialStoreId={storeDetailStoreId} />;
+      case 'employees':
+        return (
+          <Employees
+            employees={employeesState.employees}
+            setEmployees={employeesState.setEmployees}
+            employeesLoading={employeesState.isLoading}
+            employeesError={employeesState.error}
+            onRetryEmployees={employeesState.reload}
+          />
+        );
+      case 'categories':
+        return (
+          <Categories
+            categories={categoriesState.categories}
+            setCategories={categoriesState.setCategories}
+            isLoading={categoriesState.isLoading}
+            loadError={categoriesState.error}
+            onRetry={categoriesState.reload}
+          />
+        );
+      case 'tasks':
+        return (
+          <Tasks
+            onNavigateToCategories={() => setActiveTab('categories')}
+            categories={categoriesState.categories}
+            categoriesLoading={categoriesState.isLoading}
+            categoriesError={categoriesState.error}
+            onRetryCategories={categoriesState.reload}
+            stores={storesState.stores}
+            storesLoading={storesState.isLoading}
+            storesError={storesState.error}
+            onRetryStores={storesState.reload}
+          />
+        );
+      case 'history':
+        return (
+          <History
+            stores={storesState.stores}
+            storesLoading={storesState.isLoading}
+            storesError={storesState.error}
+            onRetryStores={storesState.reload}
+          />
+        );
+      case 'settings':
+        return <Settings />;
+      default: {
+        const _exhaustive: never = activeTab;
+        return _exhaustive;
+      }
+    }
+  }
 
   return (
     <AppShell
@@ -76,7 +145,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       ) : overlay === 'help' ? (
         <Help />
       ) : (
-        renderActivePage(activeTab, () => setActiveTab('categories'), user.fullName)
+        renderActivePage()
       )}
     </AppShell>
   );

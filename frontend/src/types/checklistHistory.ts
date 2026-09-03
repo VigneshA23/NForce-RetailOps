@@ -1,5 +1,6 @@
 export type ChecklistResponseType = 'YES_NO' | 'DONE_NOT_DONE' | 'NUMERIC' | 'TEXT';
 export type ChecklistCompletionType = 'SINGLE' | 'MULTIPLE';
+export type ChecklistScheduleType = 'EVERY_DAY' | 'WEEKDAYS' | 'WEEKENDS' | 'SELECTED_DAYS';
 
 export interface ChecklistHistorySummaryRow {
   storeId: number;
@@ -8,6 +9,9 @@ export interface ChecklistHistorySummaryRow {
   hasChecklist: boolean;
   totalTasks: number;
   completedTasks: number;
+  // Tasks whose latest response that day was a Yes/No task answered "No" -- the
+  // same exception/issue definition the Store Details checklist already uses.
+  exceptionCount: number;
 }
 
 export interface ChecklistHistoryResponseEntry {
@@ -29,6 +33,8 @@ export interface ChecklistHistoryTaskItem {
   description: string | null;
   responseType: ChecklistResponseType;
   completionType: ChecklistCompletionType;
+  scheduleType: ChecklistScheduleType;
+  numericUnit: string | null;
   completed: boolean;
   // False when this task has since been deactivated/reconfigured but still
   // shows up here because it has real historical responses.

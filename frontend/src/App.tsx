@@ -25,8 +25,9 @@ import {
 } from './utils/authStorage'
 import { DEFAULT_INACTIVITY_TIMEOUT_MINUTES, onUnauthorizedResponse, startInactivityTimer } from './utils/sessionManager'
 import { getSessionConfig, logout } from './api/auth'
-import { getMe } from './api/me'
 import { useAssignedStores } from './hooks/useAssignedStores'
+import { getMe } from './api/me'
+import { useMe } from './hooks/useMe'
 
 type View = 'login' | 'forgot-password' | 'set-new-password'
 
@@ -56,6 +57,7 @@ function App() {
     error: storesError,
     reload: reloadStores,
   } = useAssignedStores(Boolean(isEmployee))
+  const meState = useMe(restoringSession || (user !== null && user.role !== 'SUPER_ADMIN'))
 
   // The one place that ends an authenticated session, for any reason: manual
   // logout, inactivity timeout, or a 401 from any API call. Every protected
@@ -104,12 +106,16 @@ function App() {
   // token that is expired, revoked, or belongs to a deactivated account fails
   // here and is cleared.
   useEffect(() => {
-    if (!restoringSession) return
+    if (!restoringSession || meState.isLoading) return
 
     const token = getAuthToken()
-    if (!token) {
-      setRestoringSession(false)
-      return
+    if (token && meState.me) {
+      setUser({ token, role: meState.me.role, fullName: meState.me.fullName })
+      setLastKnownRole(meState.me.role)
+      setNeedsPasswordReset(meState.me.mustResetPassword)
+    } else if (!token || meState.error) {
+      clearAuthToken()
+      clearActiveStoreId()
     }
 
     let active = true
@@ -291,6 +297,7 @@ function App() {
       loggingOut={loggingOut}
       avatarUrl={avatarUrl}
       onAvatarChange={handleAvatarChange}
+      employeeId={meState.me?.id ?? null}
     />
   )
 }
