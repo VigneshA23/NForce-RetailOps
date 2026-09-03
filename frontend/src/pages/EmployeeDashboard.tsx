@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AlertTriangle,
-  Calendar,
   CheckCircle2,
   ChevronDown,
   Circle,
@@ -247,7 +246,7 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
             </p>
           </div>
           <span className="employee-dashboard-date">
-            <Calendar size={14} />
+            <span className="icon-mask-calendar" style={{ width: 14, height: 14 }} aria-hidden="true" />
             {todayLabel}
           </span>
         </div>

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
-  Calendar,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -98,7 +97,10 @@ function categoryKey(storeId: number, categoryId: number): string {
 function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
   const availableStores = stores.length > 0 ? stores : [store]
   const [selectedStoreId, setSelectedStoreId] = useState<StoreFilter>(store.id)
-  const [selectedDate, setSelectedDate] = useState(todayDate)
+  // Defaults to yesterday: a shift's checklist is realistically only fully
+  // wrapped up (and worth reviewing) once the day is over, so that's the more
+  // useful starting point than an in-progress "today".
+  const [selectedDate, setSelectedDate] = useState(yesterdayDate)
   const [historyEntries, setHistoryEntries] = useState<StoreHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -154,9 +156,6 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStoreId, selectedDate])
 
-  const isToday = selectedDate === todayDate()
-  const isYesterday = selectedDate === yesterdayDate()
-
   const entriesWithActivity = useMemo(() => historyEntries.filter(entryHasActivity), [historyEntries])
   const hasActivity = entriesWithActivity.length > 0
   // The per-store heading is only useful once more than one store's worth of
@@ -206,33 +205,18 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
           />
         </div>
 
-        <div className="employee-history-date-chips">
-          <button
-            type="button"
-            className={`employee-history-date-chip${isToday ? ' employee-history-date-chip--active' : ''}`}
-            onClick={() => setSelectedDate(todayDate())}
-          >
-            Today
-          </button>
-          <button
-            type="button"
-            className={`employee-history-date-chip${isYesterday ? ' employee-history-date-chip--active' : ''}`}
-            onClick={() => setSelectedDate(yesterdayDate())}
-          >
-            Yesterday
-          </button>
+        <div className="employee-history-date-trigger-wrap">
           <button
             ref={calendarButtonRef}
             type="button"
-            className={`employee-history-date-chip employee-history-date-chip--icon${!isToday && !isYesterday ? ' employee-history-date-chip--active' : ''}`}
+            className="employee-history-date-trigger"
             onClick={() => setIsCalendarOpen((open) => !open)}
             aria-label="Pick a date"
             aria-haspopup="dialog"
             aria-expanded={isCalendarOpen}
-            title={formatDateLabel(selectedDate)}
           >
-            <Calendar size={16} />
-            {!isToday && !isYesterday && <span>{formatDateLabel(selectedDate)}</span>}
+            <span className="icon-mask-calendar" style={{ width: 16, height: 16 }} aria-hidden="true" />
+            <span>{formatDateLabel(selectedDate)}</span>
           </button>
           <CalendarPopover
             value={selectedDate}

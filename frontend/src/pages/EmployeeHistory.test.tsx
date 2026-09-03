@@ -17,6 +17,18 @@ function emptyHistory(storeId: number, date: string): ShiftHistory {
   return { date, storeId, hasChecklist: false, categories: [] }
 }
 
+// Mirrors EmployeeHistory's own formatDateLabel exactly, rather than
+// hardcoding an expected string -- the test environment's default locale
+// formats "short month" differently from en-US (e.g. "2 Sept 2026" instead
+// of "Sep 2, 2026"), so the two must be computed the same way.
+function formatDateLabel(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 beforeEach(() => {
   mockGetShiftHistory.mockReset()
   mockGetShiftHistory.mockImplementation((storeId, date) => Promise.resolve(emptyHistory(storeId, date)))
@@ -28,63 +40,47 @@ afterEach(() => {
 })
 
 describe('EmployeeHistory date selection', () => {
-  // Regression test for the reported bug: at 2026-09-03 01:30 local time in a
-  // timezone ahead of UTC (Asia/Kolkata, UTC+5:30), the UTC calendar date is
-  // still 2026-09-02 -- a toISOString()-based "today" would request yesterday
-  // even though the UI shows "Today" selected and the local date is 09-03.
-  it('requests the current LOCAL date for "Today", not the UTC date', async () => {
+  // Regression test for the original "Today" bug, now applied to the new
+  // default: at 2026-09-03 01:30 local time in a timezone ahead of UTC
+  // (Asia/Kolkata, UTC+5:30), the UTC calendar date is still 2026-09-02 -- a
+  // toISOString()-based "yesterday" would request two days back even though
+  // the local date is 09-03 and "yesterday" should be 09-02.
+  it('defaults to the current LOCAL date minus one day, not the UTC date', async () => {
     vi.stubEnv('TZ', 'Asia/Kolkata')
     vi.setSystemTime(new Date('2026-09-02T20:00:00Z')) // 2026-09-03 01:30 IST
 
     render(<EmployeeHistory store={STORE} stores={[STORE]} />)
 
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
-    expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-03')
-    expect(mockGetShiftHistory).not.toHaveBeenCalledWith(1, '2026-09-02')
+    expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-02')
   })
 
-  it('requests LOCAL date minus one day for "Yesterday"', async () => {
+  it('shows the selected date label next to the calendar icon', async () => {
     vi.stubEnv('TZ', 'Asia/Kolkata')
-    vi.setSystemTime(new Date('2026-09-02T20:00:00Z')) // local 2026-09-03 01:30
+    vi.setSystemTime(new Date('2026-09-02T20:00:00Z')) // local 2026-09-03, so default is 2026-09-02
 
     render(<EmployeeHistory store={STORE} stores={[STORE]} />)
-    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-03'))
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
 
-    mockGetShiftHistory.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: 'Yesterday' }))
+    expect(screen.getByRole('button', { name: 'Pick a date' })).toHaveTextContent(formatDateLabel('2026-09-02'))
+  })
 
+  it('requests exactly the calendar-picked date, unaffected by timezone, and updates the label', async () => {
+    vi.stubEnv('TZ', 'Asia/Kolkata')
+    vi.setSystemTime(new Date('2026-09-02T20:00:00Z')) // local 2026-09-03
+
+    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-02'))
-  })
-
-  it('re-selecting "Today" after "Yesterday" requests the current local date again', async () => {
-    vi.stubEnv('TZ', 'Asia/Kolkata')
-    vi.setSystemTime(new Date('2026-09-02T20:00:00Z')) // local 2026-09-03 01:30
-
-    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
-    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-03'))
-
-    fireEvent.click(screen.getByRole('button', { name: 'Yesterday' }))
-    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-02'))
-
-    mockGetShiftHistory.mockClear()
-    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
-    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-03'))
-  })
-
-  it('requests exactly the calendar-picked date, unaffected by timezone', async () => {
-    vi.stubEnv('TZ', 'Asia/Kolkata')
-    vi.setSystemTime(new Date('2026-09-02T20:00:00Z'))
-
-    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
-    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-03'))
     mockGetShiftHistory.mockClear()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' }))
+    const trigger = screen.getByRole('button', { name: 'Pick a date' })
+    fireEvent.click(trigger)
     const dialog = await screen.findByRole('dialog', { name: 'Choose a date' })
-    // The 2nd of the displayed month (September 2026) -- a day before "today"
-    // so it isn't disabled by the picker's max-date cutoff.
-    fireEvent.click(within(dialog).getByRole('button', { name: '2' }))
+    // The 1st of the displayed month (September 2026) -- on or before "today"
+    // (the 3rd locally), so it isn't disabled by the picker's max-date cutoff.
+    fireEvent.click(within(dialog).getByRole('button', { name: '1' }))
 
-    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-02'))
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-01'))
+    expect(trigger).toHaveTextContent(formatDateLabel('2026-09-01'))
   })
 })
