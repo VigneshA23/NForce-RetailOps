@@ -130,4 +130,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleTaskHasHistory(TaskHasHistoryException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler(InvalidPasswordResetTokenException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidResetToken(InvalidPasswordResetTokenException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
 }

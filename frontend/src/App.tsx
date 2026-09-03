@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Login from './pages/Login'
 import ForgotPassword from './pages/ForgotPassword'
+import SetNewPassword from './pages/SetNewPassword'
 import ResetPasswordRequired from './pages/ResetPasswordRequired'
 import StorePicker from './pages/StorePicker'
 import EmployeeShell from './layouts/EmployeeShell'
@@ -24,7 +25,7 @@ import { getSessionConfig, logout } from './api/auth'
 import { getMe } from './api/me'
 import { useAssignedStores } from './hooks/useAssignedStores'
 
-type View = 'login' | 'forgot-password'
+type View = 'login' | 'forgot-password' | 'set-new-password'
 
 const INACTIVITY_MESSAGE = 'Your session has expired due to inactivity. Please log in again.'
 const INVALID_SESSION_MESSAGE = 'Your session has expired or is invalid. Please log in again.'
@@ -33,7 +34,10 @@ const SIGNED_OUT_ELSEWHERE_MESSAGE = 'You have been logged out.'
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [needsPasswordReset, setNeedsPasswordReset] = useState(false)
-  const [view, setView] = useState<View>('login')
+  const [resetToken] = useState<string | null>(() => new URLSearchParams(window.location.search).get('token'))
+  const [view, setView] = useState<View>(() =>
+    new URLSearchParams(window.location.search).get('token') ? 'set-new-password' : 'login',
+  )
   const [activeStore, setActiveStore] = useState<StoreSummary | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
   const [sessionMessage, setSessionMessage] = useState<string | null>(null)
@@ -185,6 +189,17 @@ function App() {
   }
 
   if (!user) {
+    if (view === 'set-new-password' && resetToken) {
+      return (
+        <SetNewPassword
+          token={resetToken}
+          onDone={() => {
+            window.history.replaceState({}, '', '/')
+            setView('login')
+          }}
+        />
+      )
+    }
     return view === 'forgot-password' ? (
       <ForgotPassword onBackToSignIn={() => setView('login')} />
     ) : (

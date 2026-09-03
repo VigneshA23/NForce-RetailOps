@@ -33,6 +33,7 @@ resend:
 app:
   cors:
     allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+  base-url: ${APP_BASE_URL:http://localhost:5173}
 
 management:
   endpoints:

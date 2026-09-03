@@ -88,3 +88,19 @@ export async function requestPasswordReset(email: string): Promise<void> {
     throw new Error('Unable to send reset instructions')
   }
 }
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, newPassword }),
+  })
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null)
+    const message =
+      (payload && typeof payload === 'object' && 'message' in payload && String(payload.message)) ||
+      'Invalid or expired reset link.'
+    throw new Error(message)
+  }
+}
