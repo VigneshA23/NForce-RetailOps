@@ -308,11 +308,22 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
                             <div key={task.id} className="employee-history-task">
                               <div className="employee-history-task-info">
                                 <p className="employee-history-task-name">{task.name}</p>
-                                <p className="employee-history-task-detail">
-                                  {task.completedBy
-                                    ? `${task.completedBy.name}${task.completedAt ? ` · ${task.completedAt}` : ''}`
-                                    : 'No staff recorded'}
-                                </p>
+                                {task.completedByAll.length > 1 ? (
+                                  task.completedByAll.map((responder) => (
+                                    <p
+                                      key={responder.employeeUserId}
+                                      className="employee-history-task-detail"
+                                    >
+                                      {`${responder.name} · ${responder.respondedAt}`}
+                                    </p>
+                                  ))
+                                ) : (
+                                  <p className="employee-history-task-detail">
+                                    {task.completedBy
+                                      ? `${task.completedBy.name}${task.completedAt ? ` · ${task.completedAt}` : ''}`
+                                      : 'No staff recorded'}
+                                  </p>
+                                )}
                               </div>
                               <span className={`badge ${meta.badgeClass} employee-history-task-status`}>
                                 <StatusIcon size={14} />
