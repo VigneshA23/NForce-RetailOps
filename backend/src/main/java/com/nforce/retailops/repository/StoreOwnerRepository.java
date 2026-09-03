@@ -21,4 +21,9 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     @Query("select so from StoreOwner so join fetch so.store join fetch so.owner")
     List<StoreOwner> findAllWithStoreAndOwner();
+
+    // Store-owner links with access revoked -- candidates for handing off to a
+    // newly created owner while keeping the same store record/code.
+    @Query("select so from StoreOwner so join fetch so.store join fetch so.owner where so.active = false")
+    List<StoreOwner> findAllWithRevokedAccess();
 }

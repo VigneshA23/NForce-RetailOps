@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
 import { addOwner, assignStore, getOwners, setOwnerStatus, setStoreStatus } from '../api/owners';
-import type { AssignStoreValues, OwnerFormValues, OwnerSummary } from '../types/owner';
+import type { AddOwnerValues, AssignStoreValues, OwnerSummary } from '../types/owner';
 import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
 import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
@@ -51,13 +51,16 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     loadOwners();
   }, []);
 
-  async function handleFormSubmit(values: OwnerFormValues) {
+  async function handleFormSubmit(values: AddOwnerValues) {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      const created = await addOwner(values);
-      setOwners((current) => [...current, created]);
+      await addOwner(values);
       setIsFormOpen(false);
+      // Reloaded rather than appended locally: assigning an existing store
+      // moves it away from its previous (deactivated) owner, so a full
+      // refresh is the only way to keep that owner's row correct too.
+      loadOwners();
     } catch (error) {
       setFormError(error instanceof Error ? error.message : 'Something went wrong');
     } finally {
@@ -85,8 +88,12 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     setStatusError(null);
     try {
       const updated = await setOwnerStatus(statusTarget.ownerId, !statusTarget.ownerActive);
-      const updatedByStoreId = new Map(updated.map((owner) => [owner.storeId, owner]));
-      setOwners((current) => current.map((owner) => updatedByStoreId.get(owner.storeId) ?? owner));
+      // Keyed by owner+store rather than bare storeId: several store-less
+      // owners would all carry storeId `null` and collide on that alone.
+      const updatedByKey = new Map(updated.map((owner) => [`${owner.ownerId}-${owner.storeId}`, owner]));
+      setOwners((current) =>
+        current.map((owner) => updatedByKey.get(`${owner.ownerId}-${owner.storeId}`) ?? owner),
+      );
       setStatusTarget(null);
     } catch (error) {
       setStatusTarget(null);
@@ -95,7 +102,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   }
 
   async function handleConfirmStoreStatusChange() {
-    if (!storeStatusTarget) return;
+    if (!storeStatusTarget || storeStatusTarget.storeId == null) return;
     setStoreStatusError(null);
     try {
       const updated = await setStoreStatus(
@@ -103,8 +110,10 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         storeStatusTarget.storeId,
         !storeStatusTarget.storeActive,
       );
-      const updatedByStoreId = new Map(updated.map((owner) => [owner.storeId, owner]));
-      setOwners((current) => current.map((owner) => updatedByStoreId.get(owner.storeId) ?? owner));
+      const updatedByKey = new Map(updated.map((owner) => [`${owner.ownerId}-${owner.storeId}`, owner]));
+      setOwners((current) =>
+        current.map((owner) => updatedByKey.get(`${owner.ownerId}-${owner.storeId}`) ?? owner),
+      );
       setStoreStatusTarget(null);
     } catch (error) {
       setStoreStatusTarget(null);
@@ -118,7 +127,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         (owner) =>
           owner.ownerName.toLowerCase().includes(query) ||
           owner.ownerEmail.toLowerCase().includes(query) ||
-          owner.storeName.toLowerCase().includes(query),
+          (owner.storeName?.toLowerCase().includes(query) ?? false),
       )
     : owners;
 
@@ -127,6 +136,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     () => new Set(owners.filter((owner) => owner.ownerActive).map((owner) => owner.ownerId)).size,
     [owners],
   );
+  const totalStoreCount = useMemo(() => owners.filter((owner) => owner.storeId != null).length, [owners]);
 
   return (
     <AppShell<SuperAdminNavTabKey>
@@ -142,7 +152,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         <div className="stat-card-row">
           <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
           <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
-          <StatCard icon={StoreIcon} label="Total Stores" value={owners.length} tone="info" />
+          <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount} tone="info" />
         </div>
 
         {statusError && (
