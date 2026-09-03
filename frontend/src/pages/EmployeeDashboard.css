@@ -38,6 +38,20 @@
   margin: 0;
 }
 
+.employee-dashboard-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .employee-dashboard-summary {
   margin-bottom: var(--space-xl);
 }
@@ -134,7 +148,7 @@
 }
 
 .checklist-category-count--complete {
-  color: var(--color-accent);
+  color: var(--color-badge-icon-success-fg);
 }
 
 .checklist-category-chevron {
@@ -162,7 +176,12 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-md);
-  transition: opacity 0.15s ease;
+  transition: opacity 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.checklist-task:hover {
+  border-color: color-mix(in srgb, var(--color-accent) 25%, var(--color-border));
+  box-shadow: var(--shadow-card);
 }
 
 .checklist-task-name {
@@ -173,9 +192,23 @@
 }
 
 .checklist-task-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 13px;
   color: var(--color-text-secondary);
   margin: 4px 0 0;
+}
+
+.checklist-task-status-dot {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+  fill: var(--color-text-muted);
+}
+
+.checklist-task-status-dot--done {
+  color: var(--color-badge-icon-success-fg);
+  fill: none;
 }
 
 .checklist-task-completed-by {
@@ -302,10 +335,19 @@
   cursor: not-allowed;
 }
 
+.checklist-task-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card);
+}
+
+.checklist-task-btn:not(:disabled):active {
+  transform: translateY(0);
+}
+
 .checklist-task-btn--yes-active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: var(--color-accent-contrast);
+  background: var(--color-badge-icon-success-fg);
+  border-color: var(--color-badge-icon-success-fg);
+  color: #ffffff;
 }
 
 .checklist-task-btn--no-active {
@@ -369,8 +411,48 @@
 }
 
 @media (--mobile) {
+  /* The Employee shell's bottom tab bar (~56px + safe-area inset) sits fixed
+     over this same corner -- without clearing it, the FAB was rendered right
+     underneath and effectively unreachable. Icon-only here too, since there
+     isn't room for the label next to the tab bar. */
   .raise-with-owner-fab {
     right: var(--space-md);
-    bottom: var(--space-md);
+    bottom: calc(56px + env(safe-area-inset-bottom) + var(--space-md));
+    padding: 14px;
+  }
+
+  .raise-with-owner-fab-label {
+    display: none;
+  }
+
+  .employee-dashboard-heading {
+    font-size: 24px;
+  }
+
+  .employee-dashboard-date {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  /* Keeps task name/status pinned left and the response control pinned
+     right on narrow screens instead of wrapping the response onto its own
+     line below -- the name truncates with an ellipsis if it's too long. */
+  .checklist-task {
+    flex-wrap: nowrap;
+  }
+
+  .checklist-task-info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .checklist-task-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .checklist-task-controls {
+    flex: 0 0 auto;
   }
 }

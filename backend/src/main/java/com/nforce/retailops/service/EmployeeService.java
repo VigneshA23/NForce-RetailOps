@@ -235,6 +235,32 @@ public class EmployeeService {
     }
 
     @Transactional
+    public void resetEmployeePassword(Long ownerId, Long id) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        if (!canManageEmployee(storeEmployee, ownerId)) {
+            throw new EmployeeNotFoundException("Employee not found");
+        }
+
+        User employee = storeEmployee.getEmployee();
+        String temporaryPassword = temporaryPasswordGenerator.generate();
+        employee.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        employee.setMustResetPassword(true);
+        userRepository.save(employee);
+
+        // The old password stops working the moment this runs, so any session
+        // still holding a token issued against it is invalidated immediately
+        // rather than staying valid until that token's own expiry.
+        sessionService.invalidateAllForUser(employee.getEmail());
+
+        // Thrown on failure, which rolls back the password change above -- an
+        // employee must not be locked out of an account whose new password
+        // they were never actually told.
+        mailService.sendPasswordReset(employee.getEmail(), employee.getFullName(), temporaryPassword);
+    }
+
+    @Transactional
     public EmployeeResponse setEmployeeActive(Long ownerId, Long id, UpdateEmployeeStatusRequest request) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));

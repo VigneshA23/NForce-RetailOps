@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Briefcase, Clock, Mail, Pencil, Phone, ShieldCheck, Store as StoreIcon } from 'lucide-react';
+import { Briefcase, Clock, Mail, Pencil, PenLine, Phone, ShieldCheck, Sparkles, Store as StoreIcon } from 'lucide-react';
 import { getMe, type MeResponse } from '../api/me';
 import UserAvatar from '../components/UserAvatar';
 import EditProfileForm from '../components/EditProfileForm';
@@ -8,6 +8,10 @@ import './Profile.css';
 
 interface ProfileProps {
   initials: string;
+  // 'default' (Owner/Admin's profile screen, unchanged) vs 'employee' -- a
+  // more compact header (icon-only edit, name that never wraps, role sitting
+  // right next to that icon) used only by the Employee shell.
+  variant?: 'default' | 'employee';
 }
 
 const ROLE_LABELS: Record<MeResponse['role'], string> = {
@@ -16,7 +20,7 @@ const ROLE_LABELS: Record<MeResponse['role'], string> = {
   SUPER_ADMIN: 'Super Admin',
 };
 
-function Profile({ initials }: ProfileProps) {
+function Profile({ initials, variant = 'default' }: ProfileProps) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,23 +55,49 @@ function Profile({ initials }: ProfileProps) {
   return (
     <div className="profile-page">
       <div className="profile-card">
-        <div className="profile-card__header">
-          <UserAvatar initials={initials} size={64} />
-          <div>
-            <div className="profile-card__name">{me.fullName}</div>
-            <span className="badge badge--solid">{ROLE_LABELS[me.role]}</span>
+        {variant === 'employee' ? (
+          <div className="profile-card__header profile-card__header--employee">
+            <UserAvatar initials={initials} size={64} />
+            <div className="profile-card__header-text">
+              <div className="profile-card__name profile-card__name--nowrap">{me.fullName}</div>
+              <div className="profile-card__role-row">
+                <span className="badge badge--purple profile-card__role-badge">
+                  <Sparkles size={12} />
+                  {ROLE_LABELS[me.role]}
+                </span>
+                {!isEditing && (
+                  <button
+                    type="button"
+                    className="profile-card__edit-icon-btn"
+                    onClick={() => setIsEditing(true)}
+                    aria-label="Edit Profile"
+                    title="Edit Profile"
+                  >
+                    <PenLine size={16} />
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
-          {!isEditing && (
-            <button
-              type="button"
-              className="btn btn--secondary profile-card__edit-btn"
-              onClick={() => setIsEditing(true)}
-            >
-              <Pencil size={14} />
-              Edit Profile
-            </button>
-          )}
-        </div>
+        ) : (
+          <div className="profile-card__header">
+            <UserAvatar initials={initials} size={64} />
+            <div>
+              <div className="profile-card__name">{me.fullName}</div>
+              <span className="badge badge--solid">{ROLE_LABELS[me.role]}</span>
+            </div>
+            {!isEditing && (
+              <button
+                type="button"
+                className="btn btn--secondary profile-card__edit-btn"
+                onClick={() => setIsEditing(true)}
+              >
+                <Pencil size={14} />
+                Edit Profile
+              </button>
+            )}
+          </div>
+        )}
 
         {isEditing ? (
           <EditProfileForm
@@ -116,7 +146,11 @@ function Profile({ initials }: ProfileProps) {
         )}
       </div>
 
-      <ResetPasswordModal isOpen={isResetPasswordOpen} onClose={() => setIsResetPasswordOpen(false)} />
+      <ResetPasswordModal
+        isOpen={isResetPasswordOpen}
+        onClose={() => setIsResetPasswordOpen(false)}
+        centered={variant === 'employee'}
+      />
     </div>
   );
 }

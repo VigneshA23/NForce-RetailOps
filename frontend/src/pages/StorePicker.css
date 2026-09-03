@@ -1,51 +1,17 @@
 @import '../styles/breakpoints.css';
 
+/* Token-based rather than fixed hex, so this page (and NoStoreAssigned,
+   which shares these classes) follows the light/dark theme toggle instead of
+   always rendering a fixed dark palette -- previously it looked fine in dark
+   mode but was low-contrast/unreadable once a user switched to light. */
 .store-picker {
   min-height: 100dvh;
   background:
-    radial-gradient(120% 100% at 50% 0%, rgba(177, 17, 22, 0.22) 0%, transparent 55%),
-    linear-gradient(160deg, #0a0b0e 0%, #12141a 100%);
-  color: #f5f5f7;
-  font-family: 'Inter', sans-serif;
+    radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--color-accent) 12%, transparent) 0%, transparent 65%),
+    var(--color-bg-page);
+  color: var(--color-text-primary);
   display: flex;
   flex-direction: column;
-}
-
-.store-picker-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24px 40px 0;
-}
-
-.store-picker-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.store-picker-brand-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.store-picker-brand-title {
-  font-family: 'Space Grotesk', sans-serif;
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: 0.03em;
-  color: #f5f5f7;
-}
-
-.store-picker-brand-subtitle {
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: rgba(245, 245, 247, 0.45);
-  margin-top: 2px;
 }
 
 .store-picker-body {
@@ -62,13 +28,13 @@
   font-family: 'Space Grotesk', sans-serif;
   font-size: 34px;
   font-weight: 700;
-  color: #ff9b9e;
+  color: var(--color-accent);
   margin: 0 0 12px;
 }
 
 .store-picker-subheading {
   font-size: 14px;
-  color: rgba(245, 245, 247, 0.65);
+  color: var(--color-text-secondary);
   margin: 0 0 40px;
 }
 
@@ -80,95 +46,200 @@
   max-width: 900px;
 }
 
+/* Each tone cycles across the grid purely so a multi-store list reads as a
+   set of distinct places rather than identical tiles -- no meaning is tied
+   to a particular store keeping a particular tone. */
+.store-card--primary {
+  --card-accent: var(--color-accent);
+  --card-accent-bg: var(--color-badge-icon-primary-bg);
+}
+
+.store-card--info {
+  --card-accent: var(--color-badge-icon-info-fg);
+  --card-accent-bg: var(--color-badge-icon-info-bg);
+}
+
+.store-card--success {
+  --card-accent: var(--color-badge-icon-success-fg);
+  --card-accent-bg: var(--color-badge-icon-success-bg);
+}
+
+.store-card--purple {
+  --card-accent: var(--color-badge-icon-purple-fg);
+  --card-accent-bg: var(--color-badge-icon-purple-bg);
+}
+
+.store-card--warning {
+  --card-accent: var(--color-badge-icon-warning-fg);
+  --card-accent-bg: var(--color-badge-icon-warning-bg);
+}
+
 .store-card {
   position: relative;
   height: 140px;
   border-radius: 16px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: linear-gradient(160deg, rgba(177, 17, 22, 0.28), rgba(20, 12, 13, 0.6));
+  border: 1px solid color-mix(in srgb, var(--card-accent) 28%, var(--color-border));
+  background: linear-gradient(160deg, var(--card-accent-bg), var(--color-surface-card) 65%);
   padding: 16px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   justify-content: space-between;
   cursor: pointer;
-  transition: transform 150ms ease, border-color 150ms ease;
+  overflow: hidden;
+  outline: none;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
   font-family: inherit;
+  /* Every card gets its own ambient glow, in its own tone, staggered via the
+     inline animation-delay set per card -- previously only whichever card
+     happened to hold keyboard focus got a (browser-default, always-blue)
+     shadow, which read as an unintentional bug rather than a deliberate look. */
+  animation: store-card-pulse 3.2s ease-in-out infinite;
+}
+
+@keyframes store-card-pulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--card-accent) 14%, transparent);
+  }
+  50% {
+    box-shadow: 0 10px 30px color-mix(in srgb, var(--card-accent) 30%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .store-card {
+    animation: none;
+  }
+}
+
+/* A large, faint watermark of the store's initial -- a small personality
+   touch that also makes each card visually distinct at a glance, instead of
+   every tile being an identical icon + name + status layout. */
+.store-card::after {
+  content: attr(data-initial);
+  position: absolute;
+  right: -6px;
+  bottom: -22px;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 84px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--card-accent);
+  opacity: 0.14;
+  pointer-events: none;
 }
 
 .store-card:not(:disabled):hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 59, 63, 0.5);
+  animation-play-state: paused;
+  transform: translateY(-3px);
+  border-color: var(--card-accent);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--card-accent) 32%, transparent);
+}
+
+/* Replaces the browser's own default (always-blue) focus ring with one that
+   matches the card's own tone. */
+.store-card:focus-visible {
+  animation-play-state: paused;
+  border-color: var(--card-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--card-accent) 40%, transparent), 0 12px 28px color-mix(in srgb, var(--card-accent) 28%, transparent);
 }
 
 .store-card:disabled {
   cursor: not-allowed;
-  opacity: 0.5;
-  filter: grayscale(0.4);
+  opacity: 0.55;
+  filter: grayscale(0.5);
+  animation: none;
 }
 
 .store-card-icon {
+  position: relative;
+  z-index: 1;
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.35);
+  background: color-mix(in srgb, var(--card-accent) 20%, var(--color-surface-card));
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ff9b9e;
+  color: var(--card-accent);
 }
 
 .store-card-name {
+  position: relative;
+  z-index: 1;
   font-size: 15px;
   font-weight: 700;
-  color: #f5f5f7;
+  color: var(--color-text-primary);
 }
 
 .store-card-status {
   position: absolute;
   top: 16px;
   right: 16px;
+  z-index: 1;
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 999px;
 }
 
+/* Always green regardless of the card's own accent tone -- "Open" is a
+   status, not a decorative color, so it stays consistent across every card. */
 .store-card-status--open {
-  background: rgba(255, 255, 255, 0.9);
-  color: #14141a;
+  background: var(--color-badge-icon-success-fg);
+  color: #ffffff;
 }
 
 .store-card-status--closed {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(245, 245, 247, 0.55);
-}
-
-@media (--mobile) {
-  .store-picker-topbar {
-    flex-wrap: wrap;
-    gap: 16px;
-    padding: 20px 20px 0;
-  }
-
-  .store-picker-brand-subtitle {
-    display: none;
-  }
+  background: var(--color-badge-outline-bg);
+  color: var(--color-badge-outline-text);
+  border: 1px solid var(--color-badge-outline-border);
 }
 
 .store-card-location {
+  position: relative;
+  z-index: 1;
   font-size: 12px;
-  color: #9a9aa5;
+  color: var(--color-text-muted);
 }
 
 .store-picker-empty-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
+  width: 72px;
+  height: 72px;
   margin-bottom: 20px;
   border-radius: 50%;
-  background: rgba(255, 155, 158, 0.12);
-  color: #ff9b9e;
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--color-accent) 22%, transparent), color-mix(in srgb, var(--color-accent) 8%, transparent));
+  color: var(--color-accent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 18%, transparent), 0 12px 32px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+/* A calmer, readable card for the "no store assigned" message -- plain
+   floating text read as an afterthought, and needs its own surface so the
+   default .btn--secondary reads correctly against it in both themes. */
+.store-picker-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 420px;
+  padding: 40px 32px;
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-card);
+  box-shadow: var(--shadow-card);
+}
+
+.store-picker-empty-card .store-picker-heading {
+  font-size: 24px;
+}
+
+.store-picker-empty-card .store-picker-subheading {
+  margin-bottom: 28px;
+}
+
+.btn--secondary.store-picker-empty-logout {
+  margin-top: 8px;
 }

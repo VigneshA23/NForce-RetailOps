@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import EmployeeHistory from './EmployeeHistory'
 import * as historyApi from '../api/history'
@@ -75,14 +75,16 @@ describe('EmployeeHistory date selection', () => {
     vi.stubEnv('TZ', 'Asia/Kolkata')
     vi.setSystemTime(new Date('2026-09-02T20:00:00Z'))
 
-    const { container } = render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-03'))
     mockGetShiftHistory.mockClear()
 
-    const dateInput = container.querySelector('input[type="date"]')
-    expect(dateInput).not.toBeNull()
-    fireEvent.change(dateInput as HTMLInputElement, { target: { value: '2026-01-15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Pick a date' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Choose a date' })
+    // The 2nd of the displayed month (September 2026) -- a day before "today"
+    // so it isn't disabled by the picker's max-date cutoff.
+    fireEvent.click(within(dialog).getByRole('button', { name: '2' }))
 
-    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-01-15'))
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-02'))
   })
 })
