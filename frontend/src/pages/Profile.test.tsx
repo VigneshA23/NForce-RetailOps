@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Profile from './Profile'
@@ -9,6 +9,7 @@ import type { MeResponse } from '../api/me'
 vi.mock('../api/me', () => ({
   getMe: vi.fn(),
   updateMe: vi.fn(),
+  updateAvatar: vi.fn(),
 }))
 
 vi.mock('../api/auth', async () => {
@@ -18,6 +19,10 @@ vi.mock('../api/auth', async () => {
     changePassword: vi.fn(),
   }
 })
+
+vi.mock('../utils/toast', () => ({
+  nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}))
 
 const mockGetMe = vi.mocked(meApi.getMe)
 const mockUpdateMe = vi.mocked(meApi.updateMe)
@@ -33,6 +38,7 @@ const ME: MeResponse = {
   shift: 'Morning',
   employeeType: 'Full Time',
   phone: '555-0100',
+  avatarUrl: null,
 }
 
 beforeEach(() => {
@@ -42,97 +48,78 @@ beforeEach(() => {
   mockGetMe.mockResolvedValue(ME)
 })
 
-describe('Profile', () => {
-  it('displays the logged-in user\'s data, including the mobile field, from the real profile endpoint', async () => {
+describe('Profile overview section', () => {
+  it('displays name, email, store, and meta from the /me endpoint', async () => {
     render(<Profile initials="JE" />)
 
     expect(await screen.findByText('Jane Employee')).toBeInTheDocument()
     expect(screen.getByText('jane@nforceone.com')).toBeInTheDocument()
-    expect(screen.getByText('555-0100')).toBeInTheDocument()
     expect(screen.getByText('Store 1')).toBeInTheDocument()
-  })
-
-  it('opens an editable form pre-filled with the current profile data, and reflects a save immediately', async () => {
-    mockUpdateMe.mockResolvedValue({ ...ME, fullName: 'Jane Updated', phone: '555-9999' })
-    const user = userEvent.setup()
-    render(<Profile initials="JE" />)
-
-    await user.click(await screen.findByRole('button', { name: /edit profile/i }))
-
-    const nameInput = screen.getByLabelText(/full name/i) as HTMLInputElement
-    const phoneInput = screen.getByLabelText(/mobile/i) as HTMLInputElement
-    expect(nameInput.value).toBe('Jane Employee')
-    expect(phoneInput.value).toBe('555-0100')
-
-    await user.clear(nameInput)
-    await user.type(nameInput, 'Jane Updated')
-    await user.clear(phoneInput)
-    await user.type(phoneInput, '555-9999')
-    await user.click(screen.getByRole('button', { name: /save changes/i }))
-
-    expect(mockUpdateMe).toHaveBeenCalledWith({
-      fullName: 'Jane Updated',
-      email: 'jane@nforceone.com',
-      phone: '555-9999',
-    })
-    // Back to the read-only display, now showing the saved values without a reload.
-    expect(await screen.findByText('Jane Updated')).toBeInTheDocument()
-    expect(screen.getByText('555-9999')).toBeInTheDocument()
-  })
-
-  it('requires a mobile number in the edit form', async () => {
-    const user = userEvent.setup()
-    render(<Profile initials="JE" />)
-
-    await user.click(await screen.findByRole('button', { name: /edit profile/i }))
-    await user.clear(screen.getByLabelText(/mobile/i))
-    await user.click(screen.getByRole('button', { name: /save changes/i }))
-
-    expect(await screen.findByText('Mobile number is required')).toBeInTheDocument()
-    expect(mockUpdateMe).not.toHaveBeenCalled()
+    expect(screen.getByText(/morning shift/i)).toBeInTheDocument()
   })
 })
 
-describe('Profile "Reset Password" modal', () => {
-  it('requires all fields and rejects a mismatched confirmation', async () => {
+describe('Profile personal info section', () => {
+  it('renders always-editable fields pre-filled with current data', async () => {
+    render(<Profile initials="JE" />)
+
+    const nameInput = (await screen.findByLabelText(/full name/i)) as HTMLInputElement
+    const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement
+    const phoneInput = screen.getByLabelText(/phone/i) as HTMLInputElement
+    expect(nameInput.value).toBe('Jane Employee')
+    expect(emailInput.value).toBe('jane@nforceone.com')
+    expect(phoneInput.value).toBe('555-0100')
+  })
+
+  it('saves profile changes and reflects them in the overview on success', async () => {
+    mockUpdateMe.mockResolvedValue({ ...ME, fullName: 'Jane Updated' })
     const user = userEvent.setup()
     render(<Profile initials="JE" />)
 
-    await user.click(await screen.findByRole('button', { name: /edit profile/i }))
-    await user.click(screen.getByRole('button', { name: /reset password/i }))
+    const nameInput = await screen.findByLabelText(/full name/i)
+    await user.clear(nameInput)
+    await user.type(nameInput, 'Jane Updated')
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
 
-    const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: 'Reset Password' }))
-    expect(await within(dialog).findByText('Old password is required')).toBeInTheDocument()
-    expect(within(dialog).getByText('New password is required')).toBeInTheDocument()
-    expect(within(dialog).getByText('Please confirm your new password')).toBeInTheDocument()
+    expect(mockUpdateMe).toHaveBeenCalledWith(
+      expect.objectContaining({ fullName: 'Jane Updated', email: 'jane@nforceone.com' }),
+    )
+    expect(await screen.findByText('Jane Updated')).toBeInTheDocument()
+  })
+})
 
-    await user.type(within(dialog).getByLabelText(/^Old Password/i), 'current-pass')
-    await user.type(within(dialog).getByLabelText(/^New Password/i), 'brand-new-password')
-    await user.type(within(dialog).getByLabelText(/^Confirm New Password/i), 'does-not-match')
-    await user.click(within(dialog).getByRole('button', { name: 'Reset Password' }))
+describe('Profile change password section', () => {
+  it('is rendered inline — no modal dialog element', async () => {
+    render(<Profile initials="JE" />)
+    await screen.findByText('Jane Employee')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(await screen.findByLabelText(/current password/i)).toBeInTheDocument()
+  })
 
-    expect(await within(dialog).findByText('New password and confirmation do not match')).toBeInTheDocument()
+  it('rejects a mismatched confirmation before submitting', async () => {
+    const user = userEvent.setup()
+    render(<Profile initials="JE" />)
+
+    await user.type(await screen.findByLabelText(/current password/i), 'current-pass')
+    await user.type(screen.getByLabelText(/^new password$/i), 'brand-new-password')
+    await user.type(screen.getByLabelText(/confirm new password/i), 'does-not-match')
+    await user.click(screen.getByRole('button', { name: /change password/i }))
+
+    expect(await screen.findByText(/passwords do not match/i)).toBeInTheDocument()
     expect(mockChangePassword).not.toHaveBeenCalled()
   })
 
-  it('submits the current and new password, and closes on success', async () => {
+  it('calls changePassword and shows success state on correct input', async () => {
     mockChangePassword.mockResolvedValue(undefined)
     const user = userEvent.setup()
     render(<Profile initials="JE" />)
 
-    await user.click(await screen.findByRole('button', { name: /edit profile/i }))
-    await user.click(screen.getByRole('button', { name: /reset password/i }))
-
-    const dialog = await screen.findByRole('dialog')
-    await user.type(within(dialog).getByLabelText(/^Old Password/i), 'current-pass')
-    await user.type(within(dialog).getByLabelText(/^New Password/i), 'brand-new-password')
-    await user.type(within(dialog).getByLabelText(/^Confirm New Password/i), 'brand-new-password')
-    await user.click(within(dialog).getByRole('button', { name: 'Reset Password' }))
+    await user.type(await screen.findByLabelText(/current password/i), 'current-pass')
+    await user.type(screen.getByLabelText(/^new password$/i), 'brand-new-password')
+    await user.type(screen.getByLabelText(/confirm new password/i), 'brand-new-password')
+    await user.click(screen.getByRole('button', { name: /change password/i }))
 
     expect(mockChangePassword).toHaveBeenCalledWith('current-pass', 'brand-new-password')
-    // The modal closes on success; the edit form underneath remains open.
-    await screen.findByLabelText(/full name/i)
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(await screen.findByText(/password changed successfully/i)).toBeInTheDocument()
   })
 })

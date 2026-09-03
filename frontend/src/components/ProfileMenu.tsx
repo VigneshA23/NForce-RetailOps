@@ -6,6 +6,7 @@ import './ProfileMenu.css';
 
 interface ProfileMenuProps {
   fullName: string;
+  avatarUrl?: string | null;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
   onLogout: () => void;
@@ -16,7 +17,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, onProfileClick, onHelpClick, onLogout, loggingOut = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onLogout, loggingOut = false }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,7 +55,7 @@ function ProfileMenu({ fullName, onProfileClick, onHelpClick, onLogout, loggingO
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
       >
-        <UserAvatar initials={getInitials(fullName)} />
+        <UserAvatar initials={getInitials(fullName)} src={avatarUrl} />
       </button>
       {isOpen && (
         <div className="profile-menu__dropdown" role="menu">

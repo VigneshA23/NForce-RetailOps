@@ -19,6 +19,9 @@ import {
   setActiveStoreId,
   clearActiveStoreId,
   setLastKnownRole,
+  getStoredAvatarUrl,
+  setStoredAvatarUrl,
+  clearStoredAvatarUrl,
 } from './utils/authStorage'
 import { DEFAULT_INACTIVITY_TIMEOUT_MINUTES, onUnauthorizedResponse, startInactivityTimer } from './utils/sessionManager'
 import { getSessionConfig, logout } from './api/auth'
@@ -44,6 +47,7 @@ function App() {
   // Starts true whenever a token is already in storage: we must not flash the
   // Login screen while we are still finding out whether that token is good.
   const [restoringSession, setRestoringSession] = useState(() => getAuthToken() !== null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(() => getStoredAvatarUrl())
 
   const isEmployee = user?.role === 'EMPLOYEE'
   const {
@@ -60,9 +64,11 @@ function App() {
   const endSession = useCallback((message: string | null) => {
     clearAuthToken()
     clearActiveStoreId()
+    clearStoredAvatarUrl()
     setUser(null)
     setNeedsPasswordReset(false)
     setActiveStore(null)
+    setAvatarUrl(null)
     setView('login')
     setSessionMessage(message)
   }, [])
@@ -88,6 +94,11 @@ function App() {
     setNeedsPasswordReset(mustResetPassword)
   }
 
+  function handleAvatarChange(url: string | null) {
+    setAvatarUrl(url)
+    setStoredAvatarUrl(url)
+  }
+
   // Rehydrate the session on boot. The token outlives a page load, so ask the
   // server who it belongs to rather than trusting anything cached locally; a
   // token that is expired, revoked, or belongs to a deactivated account fails
@@ -108,6 +119,10 @@ function App() {
         setUser({ token, role: me.role, fullName: me.fullName })
         setLastKnownRole(me.role)
         setNeedsPasswordReset(me.mustResetPassword)
+        if (me.avatarUrl) {
+          setAvatarUrl(me.avatarUrl)
+          setStoredAvatarUrl(me.avatarUrl)
+        }
       })
       .catch(() => {
         if (!active) return
@@ -226,7 +241,7 @@ function App() {
   }
 
   if (user.role === 'OWNER_ADMIN') {
-    return <DashboardShell user={user} onLogout={handleLogout} loggingOut={loggingOut} />
+    return <DashboardShell user={user} onLogout={handleLogout} loggingOut={loggingOut} avatarUrl={avatarUrl} onAvatarChange={handleAvatarChange} />
   }
 
   if (storesLoading) {
@@ -274,6 +289,8 @@ function App() {
         setActiveStore(null)
       }}
       loggingOut={loggingOut}
+      avatarUrl={avatarUrl}
+      onAvatarChange={handleAvatarChange}
     />
   )
 }

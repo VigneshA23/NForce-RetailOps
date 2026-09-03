@@ -18,6 +18,8 @@ interface EmployeeShellProps {
   onLogout: () => void
   onSwitchStore: () => void
   loggingOut?: boolean
+  avatarUrl?: string | null
+  onAvatarChange?: (url: string | null) => void
 }
 
 const NAV_ITEMS: EmployeeNavItem[] = [
@@ -28,7 +30,7 @@ const NAV_ITEMS: EmployeeNavItem[] = [
 
 type Overlay = 'profile' | 'help' | null
 
-function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut }: EmployeeShellProps) {
+function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const [overlay, setOverlay] = useState<Overlay>(null)
   // With a single assigned store there is nothing to switch to -- the control
@@ -73,6 +75,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
+      avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
       headerActions={
         canSwitchStore && (
@@ -88,7 +91,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         )
       }
     >
-      {overlay === 'profile' ? <Profile initials={userInitials} /> : overlay === 'help' ? <Help /> : renderActivePage()}
+      {overlay === 'profile' ? <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} /> : overlay === 'help' ? <Help /> : renderActivePage()}
     </AppShell>
   )
 }

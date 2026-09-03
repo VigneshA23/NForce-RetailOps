@@ -42,6 +42,7 @@ beforeEach(() => {
     shift: null,
     employeeType: null,
     phone: null,
+    avatarUrl: null,
   })
 })
 

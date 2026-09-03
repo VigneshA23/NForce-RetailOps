@@ -41,11 +41,13 @@ interface DashboardShellProps {
   user: AuthUser;
   onLogout: () => void;
   loggingOut?: boolean;
+  avatarUrl?: string | null;
+  onAvatarChange?: (url: string | null) => void;
 }
 
 type Overlay = 'profile' | 'help' | null;
 
-function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
+function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
 
@@ -67,9 +69,10 @@ function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
+      avatarUrl={avatarUrl}
     >
       {overlay === 'profile' ? (
-        <Profile initials={userInitials} />
+        <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : overlay === 'help' ? (
         <Help />
       ) : (

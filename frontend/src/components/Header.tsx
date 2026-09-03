@@ -19,6 +19,7 @@ interface HeaderProps {
   isDarkTheme: boolean;
   onToggleTheme: () => void;
   userName: string;
+  avatarUrl?: string | null;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
   onLogout: () => void;
@@ -39,6 +40,7 @@ function Header({
   isDarkTheme,
   onToggleTheme,
   userName,
+  avatarUrl,
   onProfileClick,
   onHelpClick,
   onLogout,
@@ -70,6 +72,7 @@ function Header({
         <IconButton icon={Bell} ariaLabel="Notifications" />
         <ProfileMenu
           fullName={userName}
+          avatarUrl={avatarUrl}
           onProfileClick={onProfileClick}
           onHelpClick={onHelpClick}
           onLogout={onLogout}

@@ -22,6 +22,7 @@ interface SidebarProps<Key extends string = NavTabKey> {
   mobileOpen?: boolean;
   onClose?: () => void;
   user: AuthUser;
+  avatarUrl?: string | null;
 }
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -43,6 +44,7 @@ function Sidebar<Key extends string = NavTabKey>({
   mobileOpen = false,
   onClose,
   user,
+  avatarUrl,
 }: SidebarProps<Key>) {
   const isMobile = useIsMobile();
   const isTabletDown = useIsTabletDown();
@@ -134,7 +136,7 @@ function Sidebar<Key extends string = NavTabKey>({
         </div>
         <div className="sidebar__footer">
           <div className="sidebar__profile">
-            <UserAvatar initials={getInitials(user.fullName)} size={32} />
+            <UserAvatar initials={getInitials(user.fullName)} size={32} src={avatarUrl} />
             <div className="sidebar__profile-text sidebar__label">
               <span className="sidebar__profile-name">{user.fullName}</span>
               <span className="sidebar__profile-role">{ROLE_LABELS[user.role]}</span>
