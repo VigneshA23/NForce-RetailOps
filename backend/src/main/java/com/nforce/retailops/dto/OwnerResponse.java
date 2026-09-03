@@ -1,6 +1,7 @@
 package com.nforce.retailops.dto;
 
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.User;
 
 public record OwnerResponse(
     Long ownerId,
@@ -11,7 +12,7 @@ public record OwnerResponse(
     Long storeCode,
     String storeName,
     String storeLocation,
-    boolean storeActive
+    Boolean storeActive
 ) {
     public static OwnerResponse from(StoreOwner storeOwner) {
         return new OwnerResponse(
@@ -23,7 +24,21 @@ public record OwnerResponse(
             storeOwner.getStore().getStoreCode(),
             storeOwner.getStore().getName(),
             storeOwner.getStore().getLocation(),
-            storeOwner.getStore().isActive()
+            storeOwner.isActive()
+        );
+    }
+
+    public static OwnerResponse withoutStore(User owner) {
+        return new OwnerResponse(
+            owner.getId(),
+            owner.getFullName(),
+            owner.getEmail(),
+            owner.isActive(),
+            null,
+            null,
+            null,
+            null,
+            null
         );
     }
 }

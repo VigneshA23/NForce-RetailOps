@@ -16,6 +16,10 @@
   color: var(--color-text-secondary);
 }
 
+.owner-form__hint--error {
+  color: var(--color-accent);
+}
+
 @media (--mobile) {
   .owner-form__grid {
     grid-template-columns: 1fr;
