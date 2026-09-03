@@ -26,7 +26,6 @@ import {
 import { DEFAULT_INACTIVITY_TIMEOUT_MINUTES, onUnauthorizedResponse, startInactivityTimer } from './utils/sessionManager'
 import { getSessionConfig, logout } from './api/auth'
 import { useAssignedStores } from './hooks/useAssignedStores'
-import { getMe } from './api/me'
 import { useMe } from './hooks/useMe'
 
 type View = 'login' | 'forgot-password' | 'set-new-password'
@@ -113,36 +112,17 @@ function App() {
       setUser({ token, role: meState.me.role, fullName: meState.me.fullName })
       setLastKnownRole(meState.me.role)
       setNeedsPasswordReset(meState.me.mustResetPassword)
-    } else if (!token || meState.error) {
+      if (meState.me.avatarUrl) {
+        setAvatarUrl(meState.me.avatarUrl)
+        setStoredAvatarUrl(meState.me.avatarUrl)
+      }
+    } else {
       clearAuthToken()
       clearActiveStoreId()
     }
 
-    let active = true
-    getMe()
-      .then((me) => {
-        if (!active) return
-        setUser({ token, role: me.role, fullName: me.fullName })
-        setLastKnownRole(me.role)
-        setNeedsPasswordReset(me.mustResetPassword)
-        if (me.avatarUrl) {
-          setAvatarUrl(me.avatarUrl)
-          setStoredAvatarUrl(me.avatarUrl)
-        }
-      })
-      .catch(() => {
-        if (!active) return
-        clearAuthToken()
-        clearActiveStoreId()
-      })
-      .finally(() => {
-        if (active) setRestoringSession(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [restoringSession])
+    setRestoringSession(false)
+  }, [restoringSession, meState.isLoading])
 
   // Single global session-management mechanism: an inactivity timer plus a
   // 401 watcher, both scoped to the lifetime of an authenticated session.

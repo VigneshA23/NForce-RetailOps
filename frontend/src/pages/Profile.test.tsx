@@ -52,16 +52,23 @@ describe('Profile overview section', () => {
   it('displays name, email, store, and meta from the /me endpoint', async () => {
     render(<Profile initials="JE" />)
 
-    expect(await screen.findByText('Jane Employee')).toBeInTheDocument()
-    expect(screen.getByText('jane@nforceone.com')).toBeInTheDocument()
+    // Name appears in both the <h2> header and the read-only field row — find by heading role.
+    expect(await screen.findByRole('heading', { name: 'Jane Employee' })).toBeInTheDocument()
+    // Email appears in the identity meta span and in the read-only personal info row.
+    expect((await screen.findAllByText('jane@nforceone.com')).length).toBeGreaterThan(0)
     expect(screen.getByText('Store 1')).toBeInTheDocument()
     expect(screen.getByText(/morning shift/i)).toBeInTheDocument()
   })
 })
 
 describe('Profile personal info section', () => {
-  it('renders always-editable fields pre-filled with current data', async () => {
+  it('renders editable fields pre-filled with current data when edit mode is opened', async () => {
+    const user = userEvent.setup()
     render(<Profile initials="JE" />)
+
+    // Wait for data to load, then open the edit form.
+    await screen.findByRole('heading', { name: 'Jane Employee' })
+    await user.click(screen.getByRole('button', { name: /edit personal info/i }))
 
     const nameInput = (await screen.findByLabelText(/full name/i)) as HTMLInputElement
     const emailInput = screen.getByLabelText(/email/i) as HTMLInputElement
@@ -76,6 +83,9 @@ describe('Profile personal info section', () => {
     const user = userEvent.setup()
     render(<Profile initials="JE" />)
 
+    await screen.findByRole('heading', { name: 'Jane Employee' })
+    await user.click(screen.getByRole('button', { name: /edit personal info/i }))
+
     const nameInput = await screen.findByLabelText(/full name/i)
     await user.clear(nameInput)
     await user.type(nameInput, 'Jane Updated')
@@ -84,26 +94,34 @@ describe('Profile personal info section', () => {
     expect(mockUpdateMe).toHaveBeenCalledWith(
       expect.objectContaining({ fullName: 'Jane Updated', email: 'jane@nforceone.com' }),
     )
-    expect(await screen.findByText('Jane Updated')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Jane Updated' })).toBeInTheDocument()
   })
 })
 
 describe('Profile change password section', () => {
-  it('is rendered inline — no modal dialog element', async () => {
+  it('expands inline when "Change password" is clicked — no modal dialog', async () => {
+    const user = userEvent.setup()
     render(<Profile initials="JE" />)
-    await screen.findByText('Jane Employee')
+    await screen.findByRole('heading', { name: 'Jane Employee' })
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /change password/i }))
+
     expect(await screen.findByLabelText(/current password/i)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('rejects a mismatched confirmation before submitting', async () => {
     const user = userEvent.setup()
     render(<Profile initials="JE" />)
 
+    await screen.findByRole('heading', { name: 'Jane Employee' })
+    await user.click(screen.getByRole('button', { name: /change password/i }))
+
     await user.type(await screen.findByLabelText(/current password/i), 'current-pass')
     await user.type(screen.getByLabelText(/^new password$/i), 'brand-new-password')
     await user.type(screen.getByLabelText(/confirm new password/i), 'does-not-match')
-    await user.click(screen.getByRole('button', { name: /change password/i }))
+    await user.click(screen.getByRole('button', { name: /update password/i }))
 
     expect(await screen.findByText(/passwords do not match/i)).toBeInTheDocument()
     expect(mockChangePassword).not.toHaveBeenCalled()
@@ -114,12 +132,17 @@ describe('Profile change password section', () => {
     const user = userEvent.setup()
     render(<Profile initials="JE" />)
 
+    await screen.findByRole('heading', { name: 'Jane Employee' })
+    await user.click(screen.getByRole('button', { name: /change password/i }))
+
     await user.type(await screen.findByLabelText(/current password/i), 'current-pass')
     await user.type(screen.getByLabelText(/^new password$/i), 'brand-new-password')
     await user.type(screen.getByLabelText(/confirm new password/i), 'brand-new-password')
-    await user.click(screen.getByRole('button', { name: /change password/i }))
+    await user.click(screen.getByRole('button', { name: /update password/i }))
 
     expect(mockChangePassword).toHaveBeenCalledWith('current-pass', 'brand-new-password')
-    expect(await screen.findByText(/password changed successfully/i)).toBeInTheDocument()
+    // On success the form collapses — the current-password input disappears.
+    await screen.findByRole('button', { name: /change password/i })
+    expect(screen.queryByLabelText(/current password/i)).not.toBeInTheDocument()
   })
 })

@@ -111,11 +111,4 @@ public class StoreService {
         storeRepository.delete(storeOwner.getStore());
     }
 
-    private Map<Long, Integer> toCountMap(List<Object[]> rows) {
-        Map<Long, Integer> map = new HashMap<>();
-        for (Object[] row : rows) {
-            map.put((Long) row[0], ((Long) row[1]).intValue());
-        }
-        return map;
-    }
 }
