@@ -203,6 +203,8 @@ public class ChecklistHistoryService {
             task.getDescription(),
             task.getResponseType(),
             task.getCompletionType(),
+            task.getScheduleType(),
+            task.getNumericUnit(),
             !responseDtos.isEmpty(),
             task.isActive(),
             responseDtos

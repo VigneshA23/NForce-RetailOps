@@ -7,6 +7,7 @@ import Employees from '../pages/Employees';
 import Categories from '../pages/Categories';
 import Home from '../pages/Home';
 import Stores from '../pages/Stores';
+import StoreDetail from '../pages/StoreDetail';
 import Tasks from '../pages/Tasks';
 import History from '../pages/History';
 import Settings from '../pages/Settings';
@@ -14,12 +15,22 @@ import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 import { getInitials } from '../utils/initials';
 
-function renderActivePage(activeTab: NavTabKey, onNavigateToCategories: () => void, userName: string) {
+interface RenderActivePageOptions {
+  onNavigateToCategories: () => void;
+  onViewStoreDetail: (storeId: number) => void;
+  storeDetailStoreId: number | null;
+  userName: string;
+}
+
+function renderActivePage(activeTab: NavTabKey, options: RenderActivePageOptions) {
+  const { onNavigateToCategories, onViewStoreDetail, storeDetailStoreId, userName } = options;
   switch (activeTab) {
     case 'home':
-      return <Home userName={userName} />;
+      return <Home userName={userName} onViewStoreDetail={onViewStoreDetail} />;
     case 'store-management':
       return <Stores />;
+    case 'store-detail':
+      return <StoreDetail initialStoreId={storeDetailStoreId} />;
     case 'employees':
       return <Employees />;
     case 'categories':
@@ -48,6 +59,7 @@ type Overlay = 'profile' | 'help' | null;
 function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const [storeDetailStoreId, setStoreDetailStoreId] = useState<number | null>(null);
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
@@ -73,7 +85,15 @@ function DashboardShell({ user, onLogout, loggingOut }: DashboardShellProps) {
       ) : overlay === 'help' ? (
         <Help />
       ) : (
-        renderActivePage(activeTab, () => setActiveTab('categories'), user.fullName)
+        renderActivePage(activeTab, {
+          onNavigateToCategories: () => setActiveTab('categories'),
+          onViewStoreDetail: (storeId) => {
+            setStoreDetailStoreId(storeId);
+            setActiveTab('store-detail');
+          },
+          storeDetailStoreId,
+          userName: user.fullName,
+        })
       )}
     </AppShell>
   );

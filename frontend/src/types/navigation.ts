@@ -1,9 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CheckSquare, Clock, LayoutGrid, Settings, Store, Tags, Users } from 'lucide-react';
+import { Building2, CheckSquare, ClipboardList, Clock, LayoutGrid, Settings, Store, Tags, Users } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
   | 'store-management'
+  | 'store-detail'
   | 'employees'
   | 'categories'
   | 'tasks'
@@ -18,6 +19,7 @@ export interface NavItem<Key extends string = NavTabKey> {
 
 export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'Home', icon: LayoutGrid },
+  { key: 'store-detail', label: 'Store Detail', icon: ClipboardList },
   { key: 'store-management', label: 'Stores', icon: Store },
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
@@ -29,6 +31,7 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
 export const PAGE_TITLES: Record<NavTabKey, string> = {
   home: 'Home',
   'store-management': 'Stores',
+  'store-detail': 'Store Detail',
   employees: 'Employees',
   categories: 'Categories',
   tasks: 'Tasks',

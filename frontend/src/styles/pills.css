@@ -39,6 +39,11 @@
   color: var(--color-badge-icon-purple-fg);
 }
 
+.badge--danger {
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
+}
+
 /* Status pill with a leading dot in the pill's own text colour. */
 .badge--dot {
   gap: 6px;

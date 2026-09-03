@@ -45,6 +45,14 @@ public class StoreService {
         return new StoreResponse(store.getId(), store.getStoreCode(), store.getName(), storeOwner.isActive(), employeeCount, (int) taskCount);
     }
 
+    private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
+        Map<Long, Integer> counts = new HashMap<>();
+        for (Object[] row : rows) {
+            counts.put((Long) row[0], ((Long) row[1]).intValue());
+        }
+        return counts;
+    }
+
     @Transactional(readOnly = true)
     public List<StoreResponse> listStores(Long ownerId) {
         List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
