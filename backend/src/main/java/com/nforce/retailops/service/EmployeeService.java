@@ -73,13 +73,12 @@ public class EmployeeService {
         }
         Set<Store> stores = new LinkedHashSet<>();
         for (Long storeId : storeIds) {
-            Store store = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
-                .map(StoreOwner::getStore)
+            StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
                 .orElseThrow(() -> new AccessDeniedException("You cannot assign employees to another store"));
-            if (!store.isActive()) {
-                throw new StoreInactiveException("\"" + store.getName() + "\" has been deactivated and cannot be assigned employees");
+            if (!storeOwner.isActive()) {
+                throw new StoreInactiveException("\"" + storeOwner.getStore().getName() + "\" has been deactivated and cannot be assigned employees");
             }
-            stores.add(store);
+            stores.add(storeOwner.getStore());
         }
         return stores;
     }
