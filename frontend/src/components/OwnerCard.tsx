@@ -1,5 +1,6 @@
 import { Store } from 'lucide-react';
 import type { OwnerSummary } from '../types/owner';
+import Toggle from './Toggle';
 import './OwnerCard.css';
 
 export interface GroupedOwner {
@@ -25,7 +26,17 @@ function getInitials(name: string): string {
 }
 
 function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: OwnerCardProps) {
-  const representative = owner.stores[0];
+  const representative: OwnerSummary = owner.stores[0] ?? {
+    ownerId: owner.ownerId,
+    ownerName: owner.ownerName,
+    ownerEmail: owner.ownerEmail,
+    ownerActive: owner.active,
+    storeId: null,
+    storeCode: null,
+    storeName: null,
+    storeLocation: null,
+    storeActive: null,
+  };
 
   return (
     <div className="owner-card">
@@ -50,14 +61,14 @@ function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: O
         <div className="owner-card__actions">
           <button
             type="button"
-            className="btn btn--secondary owner-card__action-btn"
+            className="btn btn--dark owner-card__action-btn"
             onClick={() => onAddStore(representative)}
           >
             Add Store
           </button>
           <button
             type="button"
-            className={`btn owner-card__action-btn ${owner.active ? 'btn--danger' : 'btn--primary'}`}
+            className={`btn owner-card__action-btn ${owner.active ? 'btn--danger' : 'btn--secondary'}`}
             onClick={() => onToggleStatus(representative)}
           >
             {owner.active ? 'Deactivate' : 'Activate'}
@@ -70,6 +81,7 @@ function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: O
           {owner.stores.length} {owner.stores.length === 1 ? 'Store' : 'Stores'}
         </span>
         <div className="owner-card__stores-list">
+          {owner.stores.length === 0 && <p className="owner-card__stores-empty">No stores yet.</p>}
           {owner.stores.map((store) => (
             <div className={`store-row ${store.storeActive ? '' : 'store-row--inactive'}`} key={store.storeId}>
               <div className="store-row__info">
@@ -83,16 +95,11 @@ function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: O
                 </div>
               </div>
               <div className="store-row__meta">
-                <span className={`badge ${store.storeActive ? 'badge--solid' : 'badge--outline'}`}>
-                  {store.storeActive ? 'Active' : 'Inactive'}
-                </span>
-                <button
-                  type="button"
-                  className={`btn store-row__status-btn ${store.storeActive ? 'btn--danger' : 'btn--primary'}`}
-                  onClick={() => onToggleStoreStatus(store)}
-                >
-                  {store.storeActive ? 'Deactivate' : 'Activate'}
-                </button>
+                <Toggle
+                  checked={store.storeActive ?? false}
+                  onChange={() => onToggleStoreStatus(store)}
+                  label={`${store.storeActive ? 'Deactivate' : 'Activate'} ${store.storeName ?? 'store'}`}
+                />
               </div>
             </div>
           ))}

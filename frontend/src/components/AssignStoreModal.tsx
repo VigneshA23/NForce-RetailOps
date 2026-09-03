@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { getNextStoreCode } from '../api/owners';
 import type { AssignStoreValues } from '../types/owner';
 import Modal from './Modal';
 import FormField from './FormField';
+import './AssignStoreModal.css';
 
 interface AssignStoreModalProps {
   isOpen: boolean;
@@ -24,11 +26,16 @@ function AssignStoreModal({
 }: AssignStoreModalProps) {
   const [values, setValues] = useState<AssignStoreValues>(EMPTY_VALUES);
   const [errors, setErrors] = useState<Partial<Record<keyof AssignStoreValues, string>>>({});
+  const [nextStoreCode, setNextStoreCode] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setValues(EMPTY_VALUES);
       setErrors({});
+      setNextStoreCode(null);
+      getNextStoreCode()
+        .then(setNextStoreCode)
+        .catch(() => setNextStoreCode(null));
     }
   }, [isOpen]);
 
@@ -89,6 +96,17 @@ function AssignStoreModal({
             placeholder="e.g. Downtown, Austin TX"
           />
         </FormField>
+
+        <p className="assign-store-modal__hint">
+          {nextStoreCode != null ? (
+            <>
+              This store will be assigned Store ID <strong>#{nextStoreCode}</strong>.
+            </>
+          ) : (
+            'A unique Store ID will be assigned automatically.'
+          )}
+        </p>
+
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>
     </Modal>

@@ -429,7 +429,7 @@ public class TaskService {
         if (owned.size() != Set.copyOf(storeIds).size()) {
             throw new InvalidStoreSelectionException("One or more selected stores could not be found");
         }
-        if (owned.stream().map(StoreOwner::getStore).anyMatch(store -> !store.isActive())) {
+        if (owned.stream().anyMatch(so -> !so.isActive())) {
             throw new StoreInactiveException("One or more selected stores have been deactivated");
         }
 

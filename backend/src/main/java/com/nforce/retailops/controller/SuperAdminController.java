@@ -2,7 +2,9 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.AddOwnerRequest;
 import com.nforce.retailops.dto.AssignStoreRequest;
+import com.nforce.retailops.dto.NextStoreCodeResponse;
 import com.nforce.retailops.dto.OwnerResponse;
+import com.nforce.retailops.dto.ReassignableStoreResponse;
 import com.nforce.retailops.dto.UpdateOwnerStatusRequest;
 import com.nforce.retailops.dto.UpdateStoreStatusRequest;
 import com.nforce.retailops.service.OwnerManagementService;
@@ -28,6 +30,16 @@ public class SuperAdminController {
     @GetMapping("/owners")
     public ResponseEntity<List<OwnerResponse>> listOwners() {
         return ResponseEntity.ok(ownerManagementService.listOwners());
+    }
+
+    @GetMapping("/owners/next-store-code")
+    public ResponseEntity<NextStoreCodeResponse> nextStoreCode() {
+        return ResponseEntity.ok(new NextStoreCodeResponse(ownerManagementService.peekNextStoreCode()));
+    }
+
+    @GetMapping("/owners/reassignable-stores")
+    public ResponseEntity<List<ReassignableStoreResponse>> reassignableStores() {
+        return ResponseEntity.ok(ownerManagementService.listReassignableStores());
     }
 
     @PostMapping("/addowners")

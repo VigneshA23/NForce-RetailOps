@@ -17,15 +17,15 @@ function groupOwnersByStores(owners: OwnerSummary[]): GroupedOwner[] {
   owners.forEach((owner) => {
     const existing = groups.get(owner.ownerId);
     if (existing) {
-      existing.stores.push(owner);
       existing.active = owner.ownerActive;
+      if (owner.storeId != null) existing.stores.push(owner);
     } else {
       groups.set(owner.ownerId, {
         ownerId: owner.ownerId,
         ownerName: owner.ownerName,
         ownerEmail: owner.ownerEmail,
         active: owner.ownerActive,
-        stores: [owner],
+        stores: owner.storeId != null ? [owner] : [],
       });
     }
   });

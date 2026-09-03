@@ -33,3 +33,8 @@
   background: var(--color-accent);
   color: var(--color-accent-contrast);
 }
+
+.btn--dark {
+  background: var(--color-nav-bg);
+  color: var(--color-header-text);
+}
