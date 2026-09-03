@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
+import { nfToast } from '../utils/toast';
 import {
   createEmployee,
   deleteEmployee,
@@ -53,15 +54,8 @@ function Employees() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<Employee | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [detailTarget, setDetailTarget] = useState<Employee | null>(null);
-
-  useEffect(() => {
-    if (!successMessage) return;
-    const timer = window.setTimeout(() => setSuccessMessage(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [successMessage]);
 
   function loadEmployees() {
     setIsLoading(true);
@@ -118,13 +112,17 @@ function Employees() {
       if (formModalState?.mode === 'edit') {
         const updated = await updateEmployee(formModalState.employee.id, values as EmployeeUpdateValues);
         setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
+        nfToast.success(`"${updated.name}" employee updated.`);
       } else {
         const created = await createEmployee(values as EmployeeCreateValues);
         setEmployees((current) => [...current, created]);
+        nfToast.success(`"${created.name}" employee added.`);
       }
       setFormModalState(null);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Something went wrong');
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setFormError(msg);
+      nfToast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -136,8 +134,9 @@ function Employees() {
     try {
       await deleteEmployee(deleteTarget.id);
       setEmployees((current) => current.filter((employee) => employee.id !== deleteTarget.id));
+      const deletedName = deleteTarget.name;
       setDeleteTarget(null);
-      setSuccessMessage('Employee deleted successfully.');
+      nfToast.success(`"${deletedName}" employee removed.`);
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Failed to delete employee');
     }
@@ -150,7 +149,7 @@ function Employees() {
       const updated = await setEmployeeStatus(statusTarget.id, !statusTarget.active);
       setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
       setStatusTarget(null);
-      setSuccessMessage(`${updated.name} is now ${updated.active ? 'active' : 'inactive'}.`);
+      nfToast.success(`"${updated.name}" employee ${updated.active ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
       setStatusTarget(null);
@@ -273,7 +272,6 @@ function Employees() {
         </select>
       </div>
 
-      {successMessage && <div className="employees-page__success">{successMessage}</div>}
       {statusError && <div className="employees-page__error">{statusError}</div>}
 
       {loadError ? (

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, CheckCircle2, CircleDot, Repeat2, Plus } from 'lucide-react';
+import { nfToast } from '../utils/toast';
 import { getCategories } from '../api/categories';
 import { getStores } from '../api/ownerStores';
 import { createTask, deleteTask, getTasks, setTaskActive, TaskHasHistoryError, updateTask } from '../api/ownerTasks';
@@ -54,13 +55,6 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
   const [deleteTarget, setDeleteTarget] = useState<AdminTask | null>(null);
   const [historyConflictTask, setHistoryConflictTask] = useState<AdminTask | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!successMessage) return;
-    const timer = window.setTimeout(() => setSuccessMessage(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [successMessage]);
 
   function loadTasks() {
     setIsLoading(true);
@@ -147,8 +141,10 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
     try {
       if (formModalState?.mode === 'edit') {
         await updateTask(formModalState.task.id, values);
+        nfToast.success(`"${formModalState.task.name}" task updated.`);
       } else {
         await createTask(values);
+        nfToast.success(`"${values.name}" task added.`);
       }
       // Re-fetch from the backend rather than splicing the response into local state --
       // the list must reflect the backend's category + Display Order sort, not insertion
@@ -156,7 +152,9 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
       loadTasks();
       setFormModalState(null);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Something went wrong');
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setFormError(msg);
+      nfToast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -167,9 +165,10 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
     setActionError(null);
     try {
       await deleteTask(deleteTarget.id);
+      const deletedName = deleteTarget.name;
       setTasks((current) => current.filter((task) => task.id !== deleteTarget.id));
       setDeleteTarget(null);
-      setSuccessMessage('Task deleted successfully.');
+      nfToast.success(`"${deletedName}" task deleted.`);
     } catch (error) {
       if (error instanceof TaskHasHistoryError) {
         const conflicted = deleteTarget;
@@ -190,9 +189,12 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
     try {
       const updated = await setTaskActive(task.id, nextActive);
       setTasks((current) => current.map((t) => (t.id === updated.id ? updated : t)));
+      nfToast.success(`"${updated.name}" task ${updated.active ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setTasks((current) => current.map((t) => (t.id === task.id ? { ...t, active: task.active } : t)));
-      setActionError(error instanceof Error ? error.message : 'Failed to update task status');
+      const msg = error instanceof Error ? error.message : 'Failed to update task status';
+      setActionError(msg);
+      nfToast.error(msg);
     }
   }
 
@@ -202,10 +204,14 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
     try {
       const updated = await setTaskActive(historyConflictTask.id, false);
       setTasks((current) => current.map((task) => (task.id === updated.id ? updated : task)));
+      const deactivatedName = updated.name;
       setHistoryConflictTask(null);
+      nfToast.success(`"${deactivatedName}" task deactivated.`);
     } catch (error) {
       setHistoryConflictTask(null);
-      setActionError(error instanceof Error ? error.message : 'Failed to deactivate task');
+      const msg = error instanceof Error ? error.message : 'Failed to deactivate task';
+      setActionError(msg);
+      nfToast.error(msg);
     }
   }
 
@@ -298,7 +304,6 @@ function Tasks({ onNavigateToCategories }: TasksProps) {
         </select>
       </div>
 
-      {successMessage && <div className="tasks-page__success">{successMessage}</div>}
       {actionError && <div className="tasks-page__error">{actionError}</div>}
 
       {loadError ? (

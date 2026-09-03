@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
+import { nfToast } from '../utils/toast';
 import { addOwner, assignStore, getOwners, setOwnerStatus, setStoreStatus } from '../api/owners';
 import type { AddOwnerValues, AssignStoreValues, OwnerSummary } from '../types/owner';
 import type { AuthUser } from '../types/auth';
@@ -61,8 +62,11 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       // moves it away from its previous (deactivated) owner, so a full
       // refresh is the only way to keep that owner's row correct too.
       loadOwners();
+      nfToast.success(`"${values.ownerName}" owner added.`);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Something went wrong');
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setFormError(msg);
+      nfToast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -73,11 +77,15 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     setAssignStoreError(null);
     setIsAssigningStore(true);
     try {
+      const ownerName = assignStoreTarget.ownerName;
       const created = await assignStore(assignStoreTarget.ownerId, values);
       setOwners((current) => [...current, created]);
       setAssignStoreTarget(null);
+      nfToast.success(`"${values.storeName}" store assigned to ${ownerName}.`);
     } catch (error) {
-      setAssignStoreError(error instanceof Error ? error.message : 'Something went wrong');
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setAssignStoreError(msg);
+      nfToast.error(msg);
     } finally {
       setIsAssigningStore(false);
     }
@@ -87,7 +95,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     if (!statusTarget) return;
     setStatusError(null);
     try {
-      const updated = await setOwnerStatus(statusTarget.ownerId, !statusTarget.ownerActive);
+      const ownerName = statusTarget.ownerName;
+      const isActivating = !statusTarget.ownerActive;
+      const updated = await setOwnerStatus(statusTarget.ownerId, isActivating);
       // Keyed by owner+store rather than bare storeId: several store-less
       // owners would all carry storeId `null` and collide on that alone.
       const updatedByKey = new Map(updated.map((owner) => [`${owner.ownerId}-${owner.storeId}`, owner]));
@@ -95,9 +105,12 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         current.map((owner) => updatedByKey.get(`${owner.ownerId}-${owner.storeId}`) ?? owner),
       );
       setStatusTarget(null);
+      nfToast.success(`"${ownerName}" owner ${isActivating ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setStatusTarget(null);
-      setStatusError(error instanceof Error ? error.message : 'Failed to update owner status');
+      const msg = error instanceof Error ? error.message : 'Failed to update owner status';
+      setStatusError(msg);
+      nfToast.error(msg);
     }
   }
 
@@ -105,19 +118,24 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     if (!storeStatusTarget || storeStatusTarget.storeId == null) return;
     setStoreStatusError(null);
     try {
+      const storeName = storeStatusTarget.storeName ?? 'Store';
+      const isActivating = !storeStatusTarget.storeActive;
       const updated = await setStoreStatus(
         storeStatusTarget.ownerId,
         storeStatusTarget.storeId,
-        !storeStatusTarget.storeActive,
+        isActivating,
       );
       const updatedByKey = new Map(updated.map((owner) => [`${owner.ownerId}-${owner.storeId}`, owner]));
       setOwners((current) =>
         current.map((owner) => updatedByKey.get(`${owner.ownerId}-${owner.storeId}`) ?? owner),
       );
       setStoreStatusTarget(null);
+      nfToast.success(`"${storeName}" store ${isActivating ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setStoreStatusTarget(null);
-      setStoreStatusError(error instanceof Error ? error.message : 'Failed to update store status');
+      const msg = error instanceof Error ? error.message : 'Failed to update store status';
+      setStoreStatusError(msg);
+      nfToast.error(msg);
     }
   }
 
