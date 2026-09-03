@@ -13,7 +13,9 @@ import com.nforce.retailops.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class StoreService {
@@ -99,5 +101,13 @@ public class StoreService {
 
         storeOwnerRepository.delete(storeOwner);
         storeRepository.delete(storeOwner.getStore());
+    }
+
+    private Map<Long, Integer> toCountMap(List<Object[]> rows) {
+        Map<Long, Integer> map = new HashMap<>();
+        for (Object[] row : rows) {
+            map.put((Long) row[0], ((Long) row[1]).intValue());
+        }
+        return map;
     }
 }
