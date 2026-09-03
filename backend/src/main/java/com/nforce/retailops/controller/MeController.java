@@ -6,6 +6,7 @@ import com.nforce.retailops.dto.MeResponse;
 import com.nforce.retailops.dto.TaskResponseStateResponse;
 import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.dto.TodayChecklistResponse;
+import com.nforce.retailops.dto.UpdateAvatarRequest;
 import com.nforce.retailops.dto.UpdateMeRequest;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.exception.StoreNotFoundException;
@@ -20,6 +21,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -61,6 +63,7 @@ public class MeController {
                 false,
                 null,
                 null,
+                null,
                 null
             ));
         }
@@ -82,6 +85,22 @@ public class MeController {
 
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(userProfileService.updateMe(userDetails.getUser(), request));
+    }
+
+    // Avatar upload/removal. SuperAdmins have no users row, so rejected.
+    // avatarUrl is a base64 data URL or null to clear.
+    @PatchMapping("/avatar")
+    public ResponseEntity<Void> updateAvatar(
+        @AuthenticationPrincipal UserDetails principal,
+        @RequestBody UpdateAvatarRequest request
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new AccessDeniedException("Not supported for this account type");
+        }
+
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        userProfileService.updateAvatar(userDetails.getUser(), request.avatarUrl());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/stores")
