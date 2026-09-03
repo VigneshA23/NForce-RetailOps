@@ -13,7 +13,9 @@ import com.nforce.retailops.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class StoreService {
@@ -41,6 +43,14 @@ public class StoreService {
         long taskCount = taskRepository.countByStoreId(store.getId())
             + taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
         return new StoreResponse(store.getId(), store.getStoreCode(), store.getName(), storeOwner.isActive(), employeeCount, (int) taskCount);
+    }
+
+    private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
+        Map<Long, Integer> counts = new HashMap<>();
+        for (Object[] row : rows) {
+            counts.put((Long) row[0], ((Long) row[1]).intValue());
+        }
+        return counts;
     }
 
     @Transactional(readOnly = true)
