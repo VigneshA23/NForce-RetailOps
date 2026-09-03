@@ -1,0 +1,108 @@
+.calendar-popover {
+  position: fixed;
+  z-index: var(--z-modal);
+  width: 272px;
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.calendar-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.calendar-popover__label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.calendar-popover__nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-badge-outline-bg);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.calendar-popover__nav:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent) 15%, var(--color-badge-outline-bg));
+  color: var(--color-accent);
+}
+
+.calendar-popover__nav:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.calendar-popover__weekdays,
+.calendar-popover__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.calendar-popover__weekdays {
+  margin-bottom: 4px;
+}
+
+.calendar-popover__weekdays span {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  padding: 4px 0;
+}
+
+.calendar-popover__grid {
+  gap: 2px;
+}
+
+.calendar-popover__cell {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.calendar-popover__cell--empty {
+  cursor: default;
+}
+
+.calendar-popover__cell:not(.calendar-popover__cell--empty):hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+}
+
+.calendar-popover__cell--today {
+  box-shadow: inset 0 0 0 1.5px var(--color-accent);
+  color: var(--color-accent);
+}
+
+.calendar-popover__cell--selected {
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+
+.calendar-popover__cell:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+  opacity: 0.4;
+}

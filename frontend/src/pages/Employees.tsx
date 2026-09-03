@@ -5,6 +5,7 @@ import {
   deleteEmployee,
   getAssignableStores,
   getEmployees,
+  resetEmployeePassword,
   setEmployeeStatus,
   updateEmployee,
 } from '../api/employees';
@@ -53,6 +54,9 @@ function Employees() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<Employee | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [resetPasswordTarget, setResetPasswordTarget] = useState<Employee | null>(null);
+  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [detailTarget, setDetailTarget] = useState<Employee | null>(null);
@@ -154,6 +158,21 @@ function Employees() {
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
       setStatusTarget(null);
+    }
+  }
+
+  async function handleConfirmResetPassword() {
+    if (!resetPasswordTarget) return;
+    setResetPasswordError(null);
+    setIsResettingPassword(true);
+    try {
+      await resetEmployeePassword(resetPasswordTarget.id);
+      setSuccessMessage(`Reset password email sent to ${resetPasswordTarget.name}.`);
+      setResetPasswordTarget(null);
+    } catch (error) {
+      setResetPasswordError(error instanceof Error ? error.message : "Failed to reset the employee's password");
+    } finally {
+      setIsResettingPassword(false);
     }
   }
 
@@ -302,6 +321,10 @@ function Employees() {
               setStatusError(null);
               setStatusTarget(employee);
             }}
+            onResetPassword={(employee) => {
+              setResetPasswordError(null);
+              setResetPasswordTarget(employee);
+            }}
           />
           <Pagination
             page={currentPage}
@@ -357,6 +380,25 @@ function Employees() {
         danger={statusTarget?.active ?? true}
         onConfirm={handleConfirmStatusChange}
         onCancel={() => setStatusTarget(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={resetPasswordTarget !== null}
+        title="Reset Password"
+        message={
+          resetPasswordTarget
+            ? `Reset the password for ${resetPasswordTarget.name} (${resetPasswordTarget.empId})? A new temporary password will be emailed to them and they will be signed out of any active session.${
+                resetPasswordError ? ` ${resetPasswordError}` : ''
+              }`
+            : ''
+        }
+        confirmLabel={isResettingPassword ? 'Sending...' : 'Send Reset Email'}
+        danger={false}
+        onConfirm={handleConfirmResetPassword}
+        onCancel={() => {
+          setResetPasswordError(null);
+          setResetPasswordTarget(null);
+        }}
       />
     </div>
   );

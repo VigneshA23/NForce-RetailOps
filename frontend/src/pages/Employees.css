@@ -32,15 +32,22 @@
   color: var(--color-text-secondary);
 }
 
+/* A bottom-docked toast rather than an inline banner -- confirms the action
+   without shifting the page's layout, and disappears on its own timer. */
 .employees-page__success {
-  padding: var(--space-sm) var(--space-md);
-  margin-bottom: var(--space-md);
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  color: var(--color-text-primary);
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-xl);
+  transform: translateX(-50%);
+  z-index: var(--z-modal);
+  max-width: calc(100vw - 2 * var(--space-lg));
+  padding: 12px 20px;
+  background: var(--color-badge-solid-bg);
+  border-radius: var(--radius-pill);
+  color: var(--color-badge-solid-text);
   font-size: 13px;
   font-weight: 600;
+  box-shadow: var(--shadow-card-hover);
 }
 
 @media (--mobile) {

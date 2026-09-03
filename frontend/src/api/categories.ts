@@ -66,6 +66,20 @@ export async function updateCategoryStatus(id: number, active: boolean): Promise
   return response.json();
 }
 
+export async function reorderCategories(orderedIds: number[]): Promise<Category[]> {
+  const response = await fetch(`${API_BASE_URL}/categories/reorder`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ orderedIds }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to save the new category order'));
+  }
+
+  return response.json();
+}
+
 export async function deleteCategory(id: number): Promise<void> {
   const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
     method: 'DELETE',

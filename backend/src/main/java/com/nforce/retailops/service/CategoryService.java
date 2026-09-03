@@ -5,13 +5,17 @@ import com.nforce.retailops.dto.CategoryResponse;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.exception.CategoryNameExistsException;
 import com.nforce.retailops.exception.CategoryNotFoundException;
+import com.nforce.retailops.exception.InvalidCategoryOrderException;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Service
 public class CategoryService {
@@ -96,6 +100,34 @@ public class CategoryService {
         category = categoryRepository.save(category);
 
         return toResponse(category);
+    }
+
+    // Takes the owner's FULL category id list, in the desired order, rather
+    // than a from/to index pair -- simpler to reason about (and to validate
+    // completely: every one of the owner's categories accounted for, no
+    // stray/foreign ids) than reconstructing a move from a partial delta, and
+    // matches what a drag-and-drop list naturally has on hand after a drop.
+    @Transactional
+    public List<CategoryResponse> reorderCategories(Long ownerId, List<Long> orderedIds) {
+        List<Category> categories = categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(ownerId);
+        Map<Long, Category> categoriesById = new LinkedHashMap<>();
+        for (Category category : categories) {
+            categoriesById.put(category.getId(), category);
+        }
+
+        boolean sameSize = orderedIds.size() == categoriesById.size();
+        boolean noDuplicates = Set.copyOf(orderedIds).size() == orderedIds.size();
+        if (!sameSize || !noDuplicates || !categoriesById.keySet().containsAll(orderedIds)) {
+            throw new InvalidCategoryOrderException("orderedIds must include every one of your categories exactly once");
+        }
+
+        int order = 0;
+        for (Long categoryId : orderedIds) {
+            categoriesById.get(categoryId).setDisplayOrder(order++);
+        }
+        categoryRepository.saveAll(categoriesById.values());
+
+        return listCategories(ownerId);
     }
 
     @Transactional

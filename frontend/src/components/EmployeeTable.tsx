@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Unlock } from 'lucide-react';
 import type { Employee } from '../types/employee';
 import './EmployeeTable.css';
 
@@ -12,6 +12,7 @@ interface EmployeeTableProps {
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
   onToggleStatus: (employee: Employee) => void;
+  onResetPassword: (employee: Employee) => void;
 }
 
 function EmployeeTable({
@@ -22,6 +23,7 @@ function EmployeeTable({
   onEdit,
   onDelete,
   onToggleStatus,
+  onResetPassword,
 }: EmployeeTableProps) {
   return (
     <div className="table-card employee-table__card">
@@ -76,6 +78,15 @@ function EmployeeTable({
                       onClick={() => onEdit(employee)}
                     >
                       <Pencil size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`Reset password for ${employee.name}`}
+                      title="Reset Password"
+                      onClick={() => onResetPassword(employee)}
+                    >
+                      <Unlock size={16} />
                     </button>
                     <button
                       type="button"
