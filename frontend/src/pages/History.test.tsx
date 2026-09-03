@@ -1,9 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import History from './History';
 import * as checklistHistoryApi from '../api/checklistHistory';
-import * as ownerStoresApi from '../api/ownerStores';
 import { todayDate } from '../utils/checklistHistoryOptions';
 import type { ChecklistHistoryDetail, ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import type { OwnerStore } from '../types/ownerStore';
@@ -14,17 +13,18 @@ vi.mock('../api/checklistHistory', () => ({
   ChecklistHistoryRangeError: class ChecklistHistoryRangeError extends Error {},
 }));
 
-vi.mock('../api/ownerStores', () => ({
-  getStores: vi.fn(),
-}));
-
 const mockGetSummary = vi.mocked(checklistHistoryApi.getChecklistHistorySummary);
 const mockGetDetail = vi.mocked(checklistHistoryApi.getChecklistHistoryDetail);
-const mockGetStores = vi.mocked(ownerStoresApi.getStores);
 
 const STORES: OwnerStore[] = [
   { id: 1, storeCode: 101, name: 'Downtown', active: true, employeeCount: 2, taskCount: 5 },
 ];
+
+function renderHistory() {
+  return render(
+    <History stores={STORES} storesLoading={false} storesError={null} onRetryStores={() => {}} />,
+  );
+}
 
 function summaryRow(): ChecklistHistorySummaryRow {
   return {
@@ -54,6 +54,8 @@ function detailFixture(): ChecklistHistoryDetail {
             description: null,
             responseType: 'YES_NO',
             completionType: 'SINGLE',
+            scheduleType: 'EVERY_DAY',
+            numericUnit: null,
             completed: true,
             currentlyActive: true,
             responses: [
@@ -75,6 +77,8 @@ function detailFixture(): ChecklistHistoryDetail {
             description: null,
             responseType: 'YES_NO',
             completionType: 'SINGLE',
+            scheduleType: 'EVERY_DAY',
+            numericUnit: null,
             completed: false,
             currentlyActive: true,
             responses: [],
@@ -88,15 +92,13 @@ function detailFixture(): ChecklistHistoryDetail {
 beforeEach(() => {
   mockGetSummary.mockReset();
   mockGetDetail.mockReset();
-  mockGetStores.mockReset();
-  mockGetStores.mockResolvedValue(STORES);
   mockGetSummary.mockResolvedValue([summaryRow()]);
   mockGetDetail.mockResolvedValue(detailFixture());
 });
 
 describe('History page', () => {
   it('fetches the summary once on mount with the default (today, all stores) filters', async () => {
-    render(<History />);
+    renderHistory();
 
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
     const call = mockGetSummary.mock.calls[0][0];
@@ -106,44 +108,46 @@ describe('History page', () => {
   });
 
   it('does not refetch when filters change without clicking Search', async () => {
-    render(<History />);
+    renderHistory();
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
-    const fromInput = screen.getByLabelText('From');
-    fireEvent.change(fromInput, { target: { value: '2026-08-01' } });
+    const dateInput = screen.getByLabelText('Date');
+    fireEvent.change(dateInput, { target: { value: '2026-08-01' } });
 
     expect(mockGetSummary).toHaveBeenCalledTimes(1);
   });
 
   it('refetches with updated filters when Search is clicked', async () => {
-    render(<History />);
+    renderHistory();
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
-    const fromInput = screen.getByLabelText('From');
-    fireEvent.change(fromInput, { target: { value: '2026-08-01' } });
+    const dateInput = screen.getByLabelText('Date');
+    fireEvent.change(dateInput, { target: { value: '2026-08-01' } });
 
     await userEvent.click(screen.getByRole('button', { name: /search/i }));
 
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(2));
     expect(mockGetSummary.mock.calls[1][0].startDate).toBe('2026-08-01');
+    expect(mockGetSummary.mock.calls[1][0].endDate).toBe('2026-08-01');
   });
 
-  it('disables Search and shows a validation message for an invalid range', async () => {
-    render(<History />);
+  it('disables Search and shows a validation message when no store is selected', async () => {
+    renderHistory();
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
-    const fromInput = screen.getByLabelText('From');
-    const toInput = screen.getByLabelText('To');
+    // Stores default to "All Stores" selected, so the trigger's accessible
+    // name is "All Stores" too; open it, then toggle the option off inside
+    // the (portaled) listbox panel specifically, to avoid matching the trigger.
+    await userEvent.click(screen.getByRole('button', { name: 'All Stores' }));
+    const listbox = await screen.findByRole('listbox');
+    await userEvent.click(within(listbox).getByRole('button', { name: 'All Stores' }));
 
-    fireEvent.change(fromInput, { target: { value: todayDate() } });
-    fireEvent.change(toInput, { target: { value: '2000-01-01' } });
-
-    expect(screen.getByText('Start date must be on or before end date.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /search/i })).toBeDisabled();
+    expect(screen.getByText('Select at least one store, or choose All Stores.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Search' })).toBeDisabled();
   });
 
   it('opens the detail modal and renders completed/not-completed items with employee EMP ID on View', async () => {
-    render(<History />);
+    renderHistory();
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
     await userEvent.click(await screen.findByRole('button', { name: /view downtown checklist/i }));

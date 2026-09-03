@@ -62,49 +62,41 @@
   font-weight: 600;
 }
 
-.employee-history-date-chips {
+.employee-history-date-trigger-wrap {
   display: flex;
-  gap: var(--space-sm);
 }
 
-.employee-history-date-chip {
-  position: relative;
+/* The lone date control now that Today/Yesterday chips are gone -- always
+   shows the currently selected date's label next to the icon, since there's
+   no other visual cue (like a highlighted "Today" chip) telling the owner
+   what's currently in view. */
+.employee-history-date-trigger {
   flex: 1;
   min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface-card);
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   box-shadow: var(--shadow-card);
   transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-  overflow: hidden;
-}
-
-.employee-history-date-chip--icon {
-  flex: 0 0 48px;
-}
-
-.employee-history-date-chip--icon span {
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.employee-history-date-chip--active {
+.employee-history-date-trigger:hover {
+  border-color: var(--color-accent);
+}
+
+.employee-history-date-trigger[aria-expanded='true'] {
   border-color: var(--color-accent);
   color: var(--color-accent);
   background: var(--color-badge-icon-primary-bg);
-}
-
-.employee-history-date-chip:hover {
-  border-color: var(--color-accent);
 }
 
 /* Skeleton loading state */
@@ -397,8 +389,8 @@
     flex: 0 0 260px;
   }
 
-  .employee-history-date-chips {
+  .employee-history-date-trigger-wrap {
     flex: 1;
-    max-width: 320px;
+    max-width: 260px;
   }
 }

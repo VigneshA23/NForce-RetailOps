@@ -37,20 +37,20 @@ public class StoreService {
         this.taskRepository = taskRepository;
     }
 
-    private StoreResponse toResponse(StoreOwner storeOwner, Long ownerId) {
-        Store store = storeOwner.getStore();
-        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
-        long taskCount = taskRepository.countByStoreId(store.getId())
-            + taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
-        return new StoreResponse(store.getId(), store.getStoreCode(), store.getName(), storeOwner.isActive(), employeeCount, (int) taskCount);
-    }
-
     private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
         Map<Long, Integer> counts = new HashMap<>();
         for (Object[] row : rows) {
             counts.put((Long) row[0], ((Long) row[1]).intValue());
         }
         return counts;
+    }
+
+    private StoreResponse toResponse(StoreOwner storeOwner, Long ownerId) {
+        Store store = storeOwner.getStore();
+        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
+        long taskCount = taskRepository.countByStoreId(store.getId())
+            + taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
+        return new StoreResponse(store.getId(), store.getStoreCode(), store.getName(), storeOwner.isActive(), employeeCount, (int) taskCount);
     }
 
     @Transactional(readOnly = true)

@@ -5,23 +5,24 @@ import ChecklistHistoryTable from '../components/ChecklistHistoryTable';
 import ChecklistHistoryDetailModal, {
   type ChecklistHistoryDetailTarget,
 } from '../components/ChecklistHistoryDetailModal';
-import { getStores } from '../api/ownerStores';
 import { getChecklistHistorySummary } from '../api/checklistHistory';
 import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import type { OwnerStore } from '../types/ownerStore';
-import { MAX_RANGE_DAYS, diffDaysInclusive, todayDate } from '../utils/checklistHistoryOptions';
+import { todayDate } from '../utils/checklistHistoryOptions';
 import './History.css';
 
-function History() {
-  const [stores, setStores] = useState<OwnerStore[]>([]);
-  const [storesLoading, setStoresLoading] = useState(true);
-  const [storesError, setStoresError] = useState<string | null>(null);
+interface HistoryProps {
+  stores: OwnerStore[];
+  storesLoading: boolean;
+  storesError: string | null;
+  onRetryStores: () => void;
+}
 
+function History({ stores, storesLoading, storesError, onRetryStores }: HistoryProps) {
   const [selectedStoreIds, setSelectedStoreIds] = useState<number[]>([]);
   const [allStoresSelected, setAllStoresSelected] = useState(true);
 
-  const [startDate, setStartDate] = useState(todayDate);
-  const [endDate, setEndDate] = useState(todayDate);
+  const [selectedDate, setSelectedDate] = useState(todayDate);
 
   const [rows, setRows] = useState<ChecklistHistorySummaryRow[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -29,22 +30,13 @@ function History() {
 
   const [detailTarget, setDetailTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
 
-  function loadStores() {
-    setStoresLoading(true);
-    setStoresError(null);
-    getStores()
-      .then(setStores)
-      .catch((error: Error) => setStoresError(error.message))
-      .finally(() => setStoresLoading(false));
-  }
-
   function runSearch() {
     setSummaryLoading(true);
     setSummaryError(null);
     getChecklistHistorySummary({
       storeIds: allStoresSelected ? [] : selectedStoreIds,
-      startDate,
-      endDate,
+      startDate: selectedDate,
+      endDate: selectedDate,
     })
       .then(setRows)
       .catch((error: Error) => setSummaryError(error.message))
@@ -57,24 +49,16 @@ function History() {
   // is expensive server-side and this codebase never auto-refetches from the
   // server on filter changes elsewhere.
   useEffect(() => {
-    loadStores();
     runSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rangeSpanDays = diffDaysInclusive(startDate, endDate);
-  const isRangeValid = startDate <= endDate && rangeSpanDays <= MAX_RANGE_DAYS;
   const hasStoreSelection = allStoresSelected || selectedStoreIds.length > 0;
+  const validationMessage = !hasStoreSelection
+    ? 'Select at least one store, or choose All Stores.'
+    : null;
 
-  const rangeValidationMessage = startDate > endDate
-    ? 'Start date must be on or before end date.'
-    : rangeSpanDays > MAX_RANGE_DAYS
-      ? `Select a range of ${MAX_RANGE_DAYS} days or fewer.`
-      : !hasStoreSelection
-        ? 'Select at least one store, or choose All Stores.'
-        : null;
-
-  const canSearch = isRangeValid && hasStoreSelection && !summaryLoading;
+  const canSearch = hasStoreSelection && !summaryLoading;
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => a.storeName.localeCompare(b.storeName) || a.date.localeCompare(b.date)),
@@ -92,7 +76,7 @@ function History() {
         </div>
       </div>
 
-      <div className="filter-bar history-page__filters">
+      <div className="filter-bar">
         <div className="filter">
           <SearchableSelect
             id="history-stores"
@@ -103,7 +87,7 @@ function History() {
             onChange={setSelectedStoreIds}
             isLoading={storesLoading}
             error={storesError}
-            onRetry={loadStores}
+            onRetry={onRetryStores}
             emptyMessage="No stores yet."
             allOption={{
               label: 'All Stores',
@@ -116,26 +100,16 @@ function History() {
           />
         </div>
 
-        <label className="history-page__date-field">
-          From
+        <div className="filter filter--narrow">
           <input
             type="date"
-            value={startDate}
+            className="input"
+            aria-label="Date"
+            value={selectedDate}
             max={todayDate()}
-            onChange={(event) => setStartDate(event.target.value || todayDate())}
+            onChange={(event) => setSelectedDate(event.target.value || todayDate())}
           />
-        </label>
-
-        <label className="history-page__date-field">
-          To
-          <input
-            type="date"
-            value={endDate}
-            min={startDate}
-            max={todayDate()}
-            onChange={(event) => setEndDate(event.target.value || todayDate())}
-          />
-        </label>
+        </div>
 
         <button type="button" className="btn btn--primary" disabled={!canSearch} onClick={runSearch}>
           <SearchIcon size={16} />
@@ -143,7 +117,7 @@ function History() {
         </button>
       </div>
 
-      {rangeValidationMessage && <p className="history-page__validation">{rangeValidationMessage}</p>}
+      {validationMessage && <p className="history-page__validation">{validationMessage}</p>}
 
       {summaryError && (
         <div className="history-page__error">

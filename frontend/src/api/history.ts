@@ -1,6 +1,7 @@
 import type { HistoryCategoryEntry, HistoryTaskDetail, ShiftHistory, TaskStatus } from '../types/history';
 import { authHeaders } from '../utils/authStorage';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
+import { fetchWithTimeout } from './client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
@@ -95,7 +96,7 @@ function toHistoryCategory(category: RawCategory): HistoryCategoryEntry {
 
 export async function getShiftHistory(storeId: number, date: string): Promise<ShiftHistory> {
   const query = new URLSearchParams({ storeId: String(storeId), date });
-  const response = await fetch(`${API_BASE_URL}/me/history/detail?${query}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/me/history/detail?${query}`, {
     headers: authHeaders(),
   });
 

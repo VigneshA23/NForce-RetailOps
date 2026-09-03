@@ -1,5 +1,6 @@
 import type { AdminTask, AdminTaskFormValues } from '../types/adminTask';
 import { authHeaders } from '../utils/authStorage';
+import { fetchWithTimeout } from './client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
@@ -46,7 +47,7 @@ function toPayload(values: AdminTaskFormValues) {
 }
 
 export async function getTasks(): Promise<AdminTask[]> {
-  const response = await fetch(`${API_BASE_URL}/tasks`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/tasks`, {
     headers: authHeaders(),
   });
 
@@ -58,7 +59,7 @@ export async function getTasks(): Promise<AdminTask[]> {
 }
 
 export async function createTask(values: AdminTaskFormValues): Promise<AdminTask> {
-  const response = await fetch(`${API_BASE_URL}/tasks`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(toPayload(values)),
@@ -72,7 +73,7 @@ export async function createTask(values: AdminTaskFormValues): Promise<AdminTask
 }
 
 export async function updateTask(id: number, values: AdminTaskFormValues): Promise<AdminTask> {
-  const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/tasks/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(toPayload(values)),
@@ -86,7 +87,7 @@ export async function updateTask(id: number, values: AdminTaskFormValues): Promi
 }
 
 export async function setTaskActive(id: number, active: boolean): Promise<AdminTask> {
-  const response = await fetch(`${API_BASE_URL}/tasks/${id}/status`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/tasks/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ active }),
@@ -100,7 +101,7 @@ export async function setTaskActive(id: number, active: boolean): Promise<AdminT
 }
 
 export async function deleteTask(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/tasks/${id}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/tasks/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });

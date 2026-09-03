@@ -4,68 +4,79 @@ import com.nforce.retailops.dto.AddOwnerRequest;
 import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.dto.ReassignableStoreResponse;
-import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.exception.EmailAlreadyExistsException;
+import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
-import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class OwnerManagementService {
 
-    private static final String OWNER_ROLE_NAME = "OWNER_ADMIN";
+    private static final Logger log = LoggerFactory.getLogger(OwnerManagementService.class);
+
+    // Generous ceiling for a platform-wide listing ("2-store scale" per CLAUDE.md)
+    // while still bounding response size to a fixed worst case.
+    private static final int MAX_OWNER_LISTING_ROWS = 500;
 
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final MailService mailService;
     private final StoreCodeGenerator storeCodeGenerator;
+    private final OwnerProvisioningService ownerProvisioningService;
 
     public OwnerManagementService(
         UserRepository userRepository,
-        RoleRepository roleRepository,
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
-        PasswordEncoder passwordEncoder,
-        TemporaryPasswordGenerator temporaryPasswordGenerator,
         MailService mailService,
-        StoreCodeGenerator storeCodeGenerator
+        StoreCodeGenerator storeCodeGenerator,
+        OwnerProvisioningService ownerProvisioningService
     ) {
         this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.mailService = mailService;
         this.storeCodeGenerator = storeCodeGenerator;
+        this.ownerProvisioningService = ownerProvisioningService;
     }
 
     @Transactional(readOnly = true)
     public List<OwnerResponse> listOwners() {
+        List<User> owners = userRepository.findAllOwners();
+        List<Long> ownerIds = owners.stream().map(User::getId).toList();
+
+        Map<Long, List<StoreOwner>> storeOwnersByOwnerId = ownerIds.isEmpty()
+            ? Map.of()
+            : storeOwnerRepository.findByOwnerIdInWithStoreAndOwner(ownerIds).stream()
+                .collect(Collectors.groupingBy(storeOwner -> storeOwner.getOwner().getId()));
+
         List<OwnerResponse> result = new ArrayList<>();
-        for (User owner : userRepository.findAllOwners()) {
-            List<StoreOwner> stores = storeOwnerRepository.findByOwnerId(owner.getId());
+        for (User owner : owners) {
+            List<StoreOwner> stores = storeOwnersByOwnerId.getOrDefault(owner.getId(), List.of());
             if (stores.isEmpty()) {
                 result.add(OwnerResponse.withoutStore(owner));
             } else {
                 stores.forEach(storeOwner -> result.add(OwnerResponse.from(storeOwner)));
+            }
+            if (result.size() >= MAX_OWNER_LISTING_ROWS) {
+                log.warn("Owner listing truncated at {} rows", MAX_OWNER_LISTING_ROWS);
+                break;
             }
         }
         return result;
@@ -83,7 +94,13 @@ public class OwnerManagementService {
             .toList();
     }
 
-    @Transactional
+    // Deliberately NOT @Transactional: the account (and any store change) is
+    // persisted in its own short-lived transaction (OwnerProvisioningService),
+    // so the mail send below never holds a pooled DB connection for the
+    // duration of that external HTTP call. If mail delivery fails, the account
+    // and any store change are explicitly compensated away (in a second short
+    // transaction) rather than relying on an implicit rollback -- an owner
+    // must not be left unable to ever learn their own password.
     public OwnerResponse addOwner(AddOwnerRequest request) {
         if (userRepository.findByEmailWithRoles(request.ownerEmail()).isPresent()) {
             throw new EmailAlreadyExistsException("A user with this email already exists");
@@ -105,11 +122,7 @@ public class OwnerManagementService {
         StoreOwner storeOwner = createOrReassignStore(
             owner, request.storeName(), request.storeLocation(), request.existingStoreId());
 
-        // Thrown on failure, which rolls back the account and any store change above --
-        // an owner must not be left unable to ever learn their own password.
-        mailService.sendTemporaryPassword(owner.getEmail(), owner.getFullName(), temporaryPassword);
-
-        return storeOwner != null ? OwnerResponse.from(storeOwner) : OwnerResponse.withoutStore(owner);
+        return provisioned.response();
     }
 
     @Transactional

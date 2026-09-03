@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Tags, CircleCheck, CircleSlash } from 'lucide-react';
 import {
-  getCategories,
   createCategory,
   updateCategory,
   updateCategoryStatus,
@@ -20,10 +19,15 @@ import './Categories.css';
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
 
-function Categories() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+interface CategoriesProps {
+  categories: Category[];
+  setCategories: Dispatch<SetStateAction<Category[]>>;
+  isLoading: boolean;
+  loadError: string | null;
+  onRetry: () => void;
+}
+
+function Categories({ categories, setCategories, isLoading, loadError, onRetry }: CategoriesProps) {
   const [formModalState, setFormModalState] = useState<FormModalState>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -33,19 +37,6 @@ function Categories() {
   const [reorderError, setReorderError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
-
-  function loadCategories() {
-    setIsLoading(true);
-    setLoadError(null);
-    getCategories()
-      .then(setCategories)
-      .catch((error: Error) => setLoadError(error.message))
-      .finally(() => setIsLoading(false));
-  }
-
-  useEffect(() => {
-    loadCategories();
-  }, []);
 
   async function handleFormSubmit(values: CategoryFormValues) {
     setFormError(null);
@@ -150,7 +141,7 @@ function Categories() {
       {loadError ? (
         <div className="categories-page__error">
           {loadError}
-          <button type="button" className="btn btn--secondary" onClick={loadCategories}>
+          <button type="button" className="btn btn--secondary" onClick={onRetry}>
             Retry
           </button>
         </div>

@@ -4,6 +4,7 @@ import com.nforce.retailops.exception.EmailDeliveryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -25,9 +26,16 @@ public class MailService {
         @Value("${resend.from-email}") String fromEmail
     ) {
         this.fromEmail = fromEmail;
+        // Bounded so a slow/hung Resend response can only ever block the calling
+        // request (and hold its DB transaction/connection open) for a fixed worst
+        // case, instead of indefinitely.
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(3_000);
+        requestFactory.setReadTimeout(5_000);
         this.restClient = RestClient.builder()
             .baseUrl("https://api.resend.com")
             .defaultHeader("Authorization", "Bearer " + apiKey)
+            .requestFactory(requestFactory)
             .build();
     }
 

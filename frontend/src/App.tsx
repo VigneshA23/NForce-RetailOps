@@ -21,8 +21,8 @@ import {
 } from './utils/authStorage'
 import { DEFAULT_INACTIVITY_TIMEOUT_MINUTES, onUnauthorizedResponse, startInactivityTimer } from './utils/sessionManager'
 import { getSessionConfig, logout } from './api/auth'
-import { getMe } from './api/me'
 import { useAssignedStores } from './hooks/useAssignedStores'
+import { useMe } from './hooks/useMe'
 
 type View = 'login' | 'forgot-password'
 
@@ -48,6 +48,7 @@ function App() {
     error: storesError,
     reload: reloadStores,
   } = useAssignedStores(Boolean(isEmployee))
+  const meState = useMe(restoringSession || (user !== null && user.role !== 'SUPER_ADMIN'))
 
   // The one place that ends an authenticated session, for any reason: manual
   // logout, inactivity timeout, or a 401 from any API call. Every protected
@@ -89,35 +90,19 @@ function App() {
   // token that is expired, revoked, or belongs to a deactivated account fails
   // here and is cleared.
   useEffect(() => {
-    if (!restoringSession) return
+    if (!restoringSession || meState.isLoading) return
 
     const token = getAuthToken()
-    if (!token) {
-      setRestoringSession(false)
-      return
+    if (token && meState.me) {
+      setUser({ token, role: meState.me.role, fullName: meState.me.fullName })
+      setLastKnownRole(meState.me.role)
+      setNeedsPasswordReset(meState.me.mustResetPassword)
+    } else if (!token || meState.error) {
+      clearAuthToken()
+      clearActiveStoreId()
     }
-
-    let active = true
-    getMe()
-      .then((me) => {
-        if (!active) return
-        setUser({ token, role: me.role, fullName: me.fullName })
-        setLastKnownRole(me.role)
-        setNeedsPasswordReset(me.mustResetPassword)
-      })
-      .catch(() => {
-        if (!active) return
-        clearAuthToken()
-        clearActiveStoreId()
-      })
-      .finally(() => {
-        if (active) setRestoringSession(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [restoringSession])
+    setRestoringSession(false)
+  }, [restoringSession, meState.me, meState.isLoading, meState.error])
 
   // Single global session-management mechanism: an inactivity timer plus a
   // 401 watcher, both scoped to the lifetime of an authenticated session.
@@ -211,7 +196,17 @@ function App() {
   }
 
   if (user.role === 'OWNER_ADMIN') {
-    return <DashboardShell user={user} onLogout={handleLogout} loggingOut={loggingOut} />
+    return (
+      <DashboardShell
+        user={user}
+        onLogout={handleLogout}
+        loggingOut={loggingOut}
+        me={meState.me}
+        meLoading={meState.isLoading}
+        meError={meState.error}
+        onMeUpdated={meState.setMe}
+      />
+    )
   }
 
   if (storesLoading) {
@@ -259,6 +254,10 @@ function App() {
         setActiveStore(null)
       }}
       loggingOut={loggingOut}
+      me={meState.me}
+      meLoading={meState.isLoading}
+      meError={meState.error}
+      onMeUpdated={meState.setMe}
     />
   )
 }

@@ -77,9 +77,7 @@ function CategoryTable({
                   </td>
                 )}
                 <td className="category-table__name">{category.name}</td>
-                <td className="category-table__task-count">
-                  {category.taskCount} {category.taskCount === 1 ? 'task' : 'tasks'}
-                </td>
+                <td className="category-table__task-count">{category.taskCount}</td>
                 <td>
                   <div className="category-table__status">
                     <span className={`badge ${category.active ? 'badge--solid' : 'badge--outline'}`}>

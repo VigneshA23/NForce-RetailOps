@@ -5,7 +5,6 @@ import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmployeeNotFoundException;
-import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -39,15 +38,15 @@ class EmployeeServiceStatusTest {
     @Mock
     private UserRepository userRepository;
     @Mock
-    private RoleRepository roleRepository;
+    private SessionService sessionService;
+    @Mock
+    private MailService mailService;
+    @Mock
+    private EmployeeProvisioningService employeeProvisioningService;
     @Mock
     private PasswordEncoder passwordEncoder;
     @Mock
-    private SessionService sessionService;
-    @Mock
     private TemporaryPasswordGenerator temporaryPasswordGenerator;
-    @Mock
-    private MailService mailService;
 
     @InjectMocks
     private EmployeeService employeeService;

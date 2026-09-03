@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CalendarCheck, History as HistoryIcon, Inbox, Store as StoreIcon } from 'lucide-react'
+import type { MeResponse } from '../api/me'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
@@ -19,6 +20,10 @@ interface EmployeeShellProps {
   onLogout: () => void
   onSwitchStore: () => void
   loggingOut?: boolean
+  me: MeResponse | null
+  meLoading: boolean
+  meError: string | null
+  onMeUpdated: (me: MeResponse) => void
 }
 
 const NAV_ITEMS: EmployeeNavItem[] = [
@@ -29,7 +34,9 @@ const NAV_ITEMS: EmployeeNavItem[] = [
 
 type Overlay = 'profile' | 'help' | null
 
-function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut }: EmployeeShellProps) {
+function EmployeeShell({
+  user, store, stores, onLogout, onSwitchStore, loggingOut, me, meLoading, meError, onMeUpdated,
+}: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const [overlay, setOverlay] = useState<Overlay>(null)
   const isMobile = useIsMobile()
@@ -42,7 +49,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   function renderActivePage() {
     switch (activeTab) {
       case 'today':
-        return <EmployeeDashboard store={store} onLogout={onLogout} loggingOut={false} />
+        return <EmployeeDashboard store={store} onLogout={onLogout} loggingOut={false} employeeId={me?.id ?? null} />
       case 'history':
         return <EmployeeHistory store={store} stores={stores} />
       case 'audits':
@@ -100,7 +107,14 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       }
     >
       {overlay === 'profile' ? (
-        <Profile initials={userInitials} variant="employee" />
+        <Profile
+          initials={userInitials}
+          me={me}
+          isLoading={meLoading}
+          error={meError}
+          onMeUpdated={onMeUpdated}
+          variant="employee"
+        />
       ) : overlay === 'help' ? (
         <Help />
       ) : (

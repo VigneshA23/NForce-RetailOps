@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AlertTriangle,
-  Calendar,
   CheckCircle2,
   ChevronDown,
   Circle,
@@ -16,7 +15,6 @@ import {
 import { ApiError } from '../api/client'
 import { getDailyChecklist, raiseIssue, submitTaskResponse, undoTaskResponse } from '../api/tasks'
 import type { TaskResponseStateResponse } from '../api/tasks'
-import { getMe } from '../api/me'
 import type { StoreSummary } from '../types/store'
 import type { ChecklistCategory, ChecklistTask, TaskResponseSummary } from '../types/task'
 import Modal from '../components/Modal'
@@ -28,6 +26,7 @@ interface EmployeeDashboardProps {
   store: StoreSummary
   onLogout: () => void
   loggingOut?: boolean
+  employeeId: number | null
 }
 
 const GENERIC_TASK_ERROR = "Couldn't save your response. Please try again."
@@ -64,11 +63,10 @@ function showsCompletedByCount(task: ChecklistTask): boolean {
   return task.completionType === 'MULTIPLE' && task.completedByCount > 0
 }
 
-function EmployeeDashboard({ store }: EmployeeDashboardProps) {
+function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [employeeId, setEmployeeId] = useState<number | null>(null)
   const [flagCount, setFlagCount] = useState(0)
   const [isRaiseModalOpen, setIsRaiseModalOpen] = useState(false)
   const [issueNote, setIssueNote] = useState('')
@@ -107,20 +105,6 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
   }
 
   useEffect(() => loadChecklist(), [store.id])
-
-  useEffect(() => {
-    let active = true
-    getMe()
-      .then((me) => {
-        if (active) setEmployeeId(me.id)
-      })
-      .catch(() => {
-        // Undo will simply stay unavailable if the profile can't be resolved.
-      })
-    return () => {
-      active = false
-    }
-  }, [])
 
   const totalTasks = useMemo(() => categories.reduce((sum, category) => sum + category.tasks.length, 0), [categories])
   const completedTasks = useMemo(
@@ -247,7 +231,7 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
             </p>
           </div>
           <span className="employee-dashboard-date">
-            <Calendar size={14} />
+            <span className="icon-mask-calendar" style={{ width: 14, height: 14 }} aria-hidden="true" />
             {todayLabel}
           </span>
         </div>

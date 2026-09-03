@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EmployeeDashboard from './EmployeeDashboard'
 import * as tasksApi from '../api/tasks'
-import * as meApi from '../api/me'
 import type { ChecklistCategory } from '../types/task'
 import type { StoreSummary } from '../types/store'
 
@@ -14,13 +13,8 @@ vi.mock('../api/tasks', () => ({
   undoTaskResponse: vi.fn(),
 }))
 
-vi.mock('../api/me', () => ({
-  getMe: vi.fn(),
-}))
-
 const mockGetDailyChecklist = vi.mocked(tasksApi.getDailyChecklist)
 const mockSubmitTaskResponse = vi.mocked(tasksApi.submitTaskResponse)
-const mockGetMe = vi.mocked(meApi.getMe)
 
 const STORE: StoreSummary = { id: 1, name: 'Store 1', location: 'Main St', status: 'Open' }
 
@@ -31,18 +25,6 @@ function checklistWith(task: ChecklistCategory['tasks'][number]): ChecklistCateg
 beforeEach(() => {
   mockGetDailyChecklist.mockReset()
   mockSubmitTaskResponse.mockReset()
-  mockGetMe.mockReset()
-  mockGetMe.mockResolvedValue({
-    id: 99,
-    fullName: 'Test Employee',
-    email: 'test@example.com',
-    role: 'EMPLOYEE',
-    storeNames: ['Store 1'],
-    mustResetPassword: false,
-    shift: null,
-    employeeType: null,
-    phone: null,
-  })
 })
 
 describe('Employee Checklist response type rendering', () => {
@@ -67,7 +49,7 @@ describe('Employee Checklist response type rendering', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByRole('button', { name: 'Yes' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'No' })).toBeInTheDocument()
@@ -96,7 +78,7 @@ describe('Employee Checklist response type rendering', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByRole('button', { name: /done/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Yes' })).not.toBeInTheDocument()
@@ -124,7 +106,7 @@ describe('Employee Checklist response type rendering', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     const input = await screen.findByRole('textbox')
     expect(input).toHaveAttribute('maxlength', '25')
@@ -152,7 +134,7 @@ describe('Employee Checklist response type rendering', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     const input = await screen.findByRole('spinbutton')
     expect(input).toHaveAttribute('min', '32')
@@ -201,7 +183,7 @@ describe('Employee Checklist response type rendering', () => {
     })
 
     const user = userEvent.setup()
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     const input = await screen.findByRole('textbox')
     await user.type(input, 'All clear')
@@ -234,7 +216,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
         completedByNames: [],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByText('Not Answered')).toBeInTheDocument()
     expect(screen.queryByText(/Completed By/)).not.toBeInTheDocument()
@@ -273,7 +255,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
         completedByNames: ['Alex Employee', 'Jordan Employee'],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByText(/2\/4 Completed By/)).toBeInTheDocument()
     // Old status text and the old responder name + time list must not also render.
@@ -306,7 +288,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
       }),
     )
     const user = userEvent.setup()
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     const infoIcon = await screen.findByRole('button', { name: /who completed wipe tables today/i })
     await user.hover(infoIcon)
@@ -340,7 +322,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
         completedByNames: ['Alex Employee'],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     // A raw click (no synthesized hover, unlike userEvent.click) is what a real
     // touch tap looks like -- touch devices don't fire mouseenter/mouseleave.
@@ -383,7 +365,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
         completedByNames: ['Alex Employee'],
       }),
     )
-    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
     expect(await screen.findByText('Completed by Alex Employee')).toBeInTheDocument()
     expect(screen.queryByText(/Completed By/)).not.toBeInTheDocument()
