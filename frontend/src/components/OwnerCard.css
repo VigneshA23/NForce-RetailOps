@@ -185,12 +185,6 @@
   flex-shrink: 0;
 }
 
-.store-row__status-btn {
-  padding: 6px 14px;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
 @media (--mobile) {
   .owner-card {
     padding: var(--space-md);
@@ -215,10 +209,6 @@
   }
 
   .store-row__meta {
-    justify-content: space-between;
-  }
-
-  .store-row__status-btn {
-    flex: 1;
+    justify-content: flex-end;
   }
 }

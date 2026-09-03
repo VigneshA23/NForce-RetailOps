@@ -180,17 +180,15 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
                 />
               </FormField>
 
-              <div className="form-field--full">
-                <p className="owner-form__hint">
-                  {nextStoreCode != null ? (
-                    <>
-                      This store will be assigned Store ID <strong>#{nextStoreCode}</strong>.
-                    </>
-                  ) : (
-                    'A unique Store ID will be assigned automatically.'
-                  )}
-                </p>
-              </div>
+              <FormField label="Store ID" htmlFor="owner-store-id">
+                <input
+                  id="owner-store-id"
+                  className="input"
+                  value={nextStoreCode != null ? `#${nextStoreCode}` : 'Assigned automatically'}
+                  disabled
+                  readOnly
+                />
+              </FormField>
             </>
           )}
 
