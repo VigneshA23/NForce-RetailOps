@@ -16,6 +16,24 @@
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.header__logo {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.header__brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  line-height: 1.2;
 }
 
 .header__title {
@@ -23,12 +41,25 @@
   font-weight: 700;
   line-height: 1.2;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header__subtitle {
+  font-size: 12px;
+  font-weight: 500;
+  color: color-mix(in srgb, var(--color-header-text) 65%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .header__right {
   display: flex;
   align-items: center;
   gap: var(--space-md);
+  flex-shrink: 0;
 }
 
 /* An action button (e.g. Employee's "Switch Store") sits on the header's
@@ -45,6 +76,31 @@
 }
 
 @media (--mobile) {
+  .header {
+    padding: 0 var(--space-sm);
+  }
+
+  .header__left {
+    gap: var(--space-sm);
+  }
+
+  .header__right {
+    gap: var(--space-sm);
+  }
+
+  .header__logo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .header__title {
+    font-size: 14px;
+  }
+
+  .header__subtitle {
+    font-size: 11px;
+  }
+
   .search-input {
     min-width: 0;
     display: none;

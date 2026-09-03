@@ -1,44 +1,41 @@
-export type AuditStatus = 'AUDITED' | 'PENDING_AUDIT' | 'NOT_AUDITED';
-
+// Status is derived client-side (see api/history.ts) from the real backend's
+// per-task `completed` boolean and its responses' `booleanValue` -- there is
+// no such field on the wire. NOT_ANSWERED: no completed response yet. NO
+// ("Flagged"): completed, and the most recent response's booleanValue is
+// explicitly false. YES ("Complete"): completed, anything else (including
+// NUMERIC/TEXT tasks, which have no booleanValue at all).
 export type TaskStatus = 'YES' | 'NO' | 'NOT_ANSWERED';
 
-export interface HistoryStaffMember {
-  id: string;
+export interface HistoryResponder {
+  employeeUserId: number;
   name: string;
-  initials: string;
 }
 
 export interface HistoryTaskDetail {
-  id: string;
+  id: number;
   name: string;
   status: TaskStatus;
-  completedBy: HistoryStaffMember | null;
+  completedBy: HistoryResponder | null;
+  // Formatted local time (e.g. "2:30 PM") of the response used to derive
+  // `status`/`completedBy` -- derived client-side from the backend's
+  // respondedAt ISO timestamp, not a raw API field.
   completedAt: string | null;
 }
 
 export interface HistoryCategoryEntry {
-  id: string;
+  id: number;
   name: string;
-  completedAt: string | null;
-  scheduledFor: string | null;
-  auditStatus: AuditStatus;
-  auditedBy: string | null;
-  auditNote: string | null;
   tasksCompleted: number;
   tasksTotal: number;
-  staff: HistoryStaffMember[];
   tasks: HistoryTaskDetail[];
-}
-
-export interface DailySummary {
-  onTimePercent: number;
-  totalTasks: number;
-  audits: number;
 }
 
 export interface ShiftHistory {
   date: string;
   storeId: number;
+  // Straight from the backend's ChecklistHistoryDetailResponse -- false means
+  // no task applied to this store on this date at all, distinct from tasks
+  // having applied but none being answered yet.
+  hasChecklist: boolean;
   categories: HistoryCategoryEntry[];
-  summary: DailySummary;
 }

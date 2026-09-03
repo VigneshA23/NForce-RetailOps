@@ -7,6 +7,13 @@ import './Header.css';
 
 interface HeaderProps {
   title: string;
+  // Shown as a second, smaller line under the title (e.g. Employee's
+  // currently selected store name) -- optional, so other shells' single-line
+  // title is unaffected when omitted.
+  subtitle?: string;
+  // Optional brand logo rendered to the left of the title/subtitle -- omitted
+  // by default, so Admin/Super Admin headers stay exactly as-is.
+  logoSrc?: string;
   searchValue: string;
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;
@@ -25,6 +32,8 @@ interface HeaderProps {
 
 function Header({
   title,
+  subtitle,
+  logoSrc,
   searchValue,
   onSearchChange,
   isDarkTheme,
@@ -43,7 +52,11 @@ function Header({
         {onMenuClick && (
           <IconButton icon={Menu} ariaLabel="Open navigation menu" onClick={onMenuClick} />
         )}
-        <h1 className="header__title">{title}</h1>
+        {logoSrc && <img src={logoSrc} alt="" className="header__logo" />}
+        <div className="header__brand">
+          <h1 className="header__title">{title}</h1>
+          {subtitle && <span className="header__subtitle">{subtitle}</span>}
+        </div>
       </div>
       <div className="header__right">
         {actions}

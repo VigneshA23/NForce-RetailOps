@@ -66,6 +66,12 @@ public class SecurityConfig {
                 // being allowed through to get real CORS headers back.
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/login", "/api/auth/session-config", "/actuator/health").permitAll()
+                // Explicit rather than left to the anyRequest() catch-all below: every
+                // /api/me/** endpoint (including /api/me/history/**) requires the same
+                // authenticated-caller check, with per-employee store scoping enforced
+                // imperatively inside the controller/service layer (requireAssignedStore),
+                // not here.
+                .requestMatchers("/api/me/**").authenticated()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

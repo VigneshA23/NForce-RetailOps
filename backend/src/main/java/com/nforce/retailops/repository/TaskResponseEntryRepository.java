@@ -33,7 +33,18 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     // also surfaces responses for tasks that are no longer eligible under the current
     // task configuration (deactivated, rescoped, etc.), which the union-based
     // reconstruction in ChecklistHistoryService relies on to never drop real history.
+    // Owner-facing only: intentionally includes every employee's responses.
     List<TaskResponseEntry> findByStoreIdAndResponseDateAndActiveTrue(Long storeId, LocalDate responseDate);
+
+    // Employee-facing history detail: the employee-scoped analogue of
+    // findByStoreIdAndResponseDateAndActiveTrue above -- adds an employeeId
+    // predicate so MeHistoryService only ever loads (and can only ever return)
+    // the calling employee's own responses for that store/day, never a
+    // teammate's. Same "no task_id predicate" reasoning applies, so a
+    // deactivated/rescoped task the employee personally answered still surfaces.
+    List<TaskResponseEntry> findByStoreIdAndResponseDateAndEmployeeIdAndActiveTrue(
+        Long storeId, LocalDate responseDate, Long employeeId
+    );
 
     // Backs the deleteTask history guard. Deliberately has no "active" predicate --
     // an undone (active=false) response is still a historical fact that must block

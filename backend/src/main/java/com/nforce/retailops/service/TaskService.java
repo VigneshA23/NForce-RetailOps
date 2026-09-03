@@ -1,6 +1,7 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.CategoryChecklistResponse;
+import com.nforce.retailops.dto.StoreOptionResponse;
 import com.nforce.retailops.dto.TaskChecklistItemResponse;
 import com.nforce.retailops.dto.TaskRequest;
 import com.nforce.retailops.dto.TaskResponse;
@@ -88,8 +89,21 @@ public class TaskService {
 
     @Transactional(readOnly = true)
     public List<TaskResponse> listTasks(Long ownerId) {
-        return taskRepository.findByOwnerIdOrderByCategoryAndDisplayOrder(ownerId).stream()
-            .map(TaskResponse::from)
+        List<Task> tasks = taskRepository.findByOwnerIdOrderByCategoryAndDisplayOrderFetchCategory(ownerId);
+        if (tasks.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, List<StoreOptionResponse>> storesByTaskId = new LinkedHashMap<>();
+        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
+        for (Object[] row : taskRepository.findStoreRowsGroupedByTaskIds(taskIds)) {
+            storesByTaskId
+                .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
+                .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
+        }
+
+        return tasks.stream()
+            .map(task -> TaskResponse.from(task, storesByTaskId.getOrDefault(task.getId(), List.of())))
             .toList();
     }
 

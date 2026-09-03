@@ -22,6 +22,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -108,17 +109,35 @@ public class EmployeeService {
 
         Map<Long, StoreEmployee> employeesById = new LinkedHashMap<>();
         if (!storeIds.isEmpty()) {
-            for (StoreEmployee storeEmployee : storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAsc(storeIds)) {
+            for (StoreEmployee storeEmployee : storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(storeIds)) {
                 employeesById.put(storeEmployee.getId(), storeEmployee);
             }
         }
-        for (StoreEmployee storeEmployee : storeEmployeeRepository.findByCreatedByOwnerId(ownerId)) {
+        for (StoreEmployee storeEmployee : storeEmployeeRepository.findByCreatedByOwnerIdFetchEmployee(ownerId)) {
             employeesById.putIfAbsent(storeEmployee.getId(), storeEmployee);
         }
 
-        return employeesById.values().stream()
+        List<StoreEmployee> employees = employeesById.values().stream()
             .sorted(Comparator.comparing(StoreEmployee::getId))
-            .map(EmployeeResponse::from)
+            .toList();
+
+        if (employees.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, List<StoreOptionResponse>> storesByEmployeeId = new LinkedHashMap<>();
+        List<Long> employeeIds = employees.stream().map(StoreEmployee::getId).toList();
+        for (Object[] row : storeEmployeeRepository.findStoreRowsGroupedByEmployeeIds(employeeIds)) {
+            storesByEmployeeId
+                .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
+                .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
+        }
+
+        return employees.stream()
+            .map(storeEmployee -> EmployeeResponse.from(
+                storeEmployee,
+                storesByEmployeeId.getOrDefault(storeEmployee.getId(), List.of())
+            ))
             .toList();
     }
 

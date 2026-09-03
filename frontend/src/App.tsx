@@ -17,6 +17,7 @@ import {
   getActiveStoreId,
   setActiveStoreId,
   clearActiveStoreId,
+  setLastKnownRole,
 } from './utils/authStorage'
 import { DEFAULT_INACTIVITY_TIMEOUT_MINUTES, onUnauthorizedResponse, startInactivityTimer } from './utils/sessionManager'
 import { getSessionConfig, logout } from './api/auth'
@@ -77,6 +78,7 @@ function App() {
 
   function handleLoginSuccess(authUser: AuthUser, remember: boolean, mustResetPassword: boolean) {
     setAuthToken(authUser.token, remember)
+    setLastKnownRole(authUser.role)
     setSessionMessage(null)
     setUser(authUser)
     setNeedsPasswordReset(mustResetPassword)
@@ -100,6 +102,7 @@ function App() {
       .then((me) => {
         if (!active) return
         setUser({ token, role: me.role, fullName: me.fullName })
+        setLastKnownRole(me.role)
         setNeedsPasswordReset(me.mustResetPassword)
       })
       .catch(() => {

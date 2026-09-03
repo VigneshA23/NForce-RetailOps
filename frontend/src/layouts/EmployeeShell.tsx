@@ -52,7 +52,10 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     }
   }
 
-  const title = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : store.name
+  // The app name stays fixed in the header; the second line reflects
+  // whichever screen is active -- the currently selected store day-to-day,
+  // or a contextual label while on the Profile/Help overlays.
+  const subtitle = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : store.name
 
   return (
     <AppShell<EmployeeNavTabKey>
@@ -62,12 +65,15 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         setOverlay(null)
         setActiveTab(key)
       }}
-      title={title}
+      title="NForce RetailOps"
+      subtitle={subtitle}
+      logoSrc="/nforce-logo.png"
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
+      mobileNav="bottom-tabs"
       headerActions={
         canSwitchStore && (
           <button
