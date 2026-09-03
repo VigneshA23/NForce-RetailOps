@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
 import {
   createEmployee,
   deleteEmployee,
   getAssignableStores,
-  getEmployees,
   setEmployeeStatus,
   updateEmployee,
 } from '../api/employees';
@@ -33,11 +32,21 @@ type FormModalState = { mode: 'create' } | { mode: 'edit'; employee: Employee } 
 
 const PAGE_SIZE = 10;
 
-function Employees() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+interface EmployeesProps {
+  employees: Employee[];
+  setEmployees: Dispatch<SetStateAction<Employee[]>>;
+  employeesLoading: boolean;
+  employeesError: string | null;
+  onRetryEmployees: () => void;
+}
+
+function Employees({ employees, setEmployees, employeesLoading, employeesError, onRetryEmployees }: EmployeesProps) {
   const [storeOptions, setStoreOptions] = useState<StoreOption[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [storeOptionsLoading, setStoreOptionsLoading] = useState(true);
+  const [storeOptionsError, setStoreOptionsError] = useState<string | null>(null);
+
+  const isLoading = employeesLoading || storeOptionsLoading;
+  const loadError = employeesError ?? storeOptionsError;
 
   const [search, setSearch] = useState('');
   const [storeFilter, setStoreFilter] = useState<number | 'ALL'>('ALL');
@@ -63,21 +72,23 @@ function Employees() {
     return () => window.clearTimeout(timer);
   }, [successMessage]);
 
-  function loadEmployees() {
-    setIsLoading(true);
-    setLoadError(null);
-    Promise.all([getEmployees(), getAssignableStores()])
-      .then(([employeeList, stores]) => {
-        setEmployees(employeeList);
-        setStoreOptions(stores);
-      })
-      .catch((error: Error) => setLoadError(error.message))
-      .finally(() => setIsLoading(false));
+  function loadStoreOptions() {
+    setStoreOptionsLoading(true);
+    setStoreOptionsError(null);
+    getAssignableStores()
+      .then(setStoreOptions)
+      .catch((error: Error) => setStoreOptionsError(error.message))
+      .finally(() => setStoreOptionsLoading(false));
   }
 
   useEffect(() => {
-    loadEmployees();
+    loadStoreOptions();
   }, []);
+
+  function retryLoad() {
+    onRetryEmployees();
+    loadStoreOptions();
+  }
 
   const filteredEmployees = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -279,7 +290,7 @@ function Employees() {
       {loadError ? (
         <div className="employees-page__error">
           {loadError}
-          <button type="button" className="btn btn--secondary" onClick={loadEmployees}>
+          <button type="button" className="btn btn--secondary" onClick={retryLoad}>
             Retry
           </button>
         </div>

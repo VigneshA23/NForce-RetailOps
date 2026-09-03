@@ -3,7 +3,6 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import History from './History';
 import * as checklistHistoryApi from '../api/checklistHistory';
-import * as ownerStoresApi from '../api/ownerStores';
 import { todayDate } from '../utils/checklistHistoryOptions';
 import type { ChecklistHistoryDetail, ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import type { OwnerStore } from '../types/ownerStore';
@@ -14,17 +13,18 @@ vi.mock('../api/checklistHistory', () => ({
   ChecklistHistoryRangeError: class ChecklistHistoryRangeError extends Error {},
 }));
 
-vi.mock('../api/ownerStores', () => ({
-  getStores: vi.fn(),
-}));
-
 const mockGetSummary = vi.mocked(checklistHistoryApi.getChecklistHistorySummary);
 const mockGetDetail = vi.mocked(checklistHistoryApi.getChecklistHistoryDetail);
-const mockGetStores = vi.mocked(ownerStoresApi.getStores);
 
 const STORES: OwnerStore[] = [
   { id: 1, storeCode: 101, name: 'Downtown', active: true, employeeCount: 2, taskCount: 5 },
 ];
+
+function renderHistory() {
+  return render(
+    <History stores={STORES} storesLoading={false} storesError={null} onRetryStores={() => {}} />,
+  );
+}
 
 function summaryRow(): ChecklistHistorySummaryRow {
   return {
@@ -88,15 +88,13 @@ function detailFixture(): ChecklistHistoryDetail {
 beforeEach(() => {
   mockGetSummary.mockReset();
   mockGetDetail.mockReset();
-  mockGetStores.mockReset();
-  mockGetStores.mockResolvedValue(STORES);
   mockGetSummary.mockResolvedValue([summaryRow()]);
   mockGetDetail.mockResolvedValue(detailFixture());
 });
 
 describe('History page', () => {
   it('fetches the summary once on mount with the default (today, all stores) filters', async () => {
-    render(<History />);
+    renderHistory();
 
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
     const call = mockGetSummary.mock.calls[0][0];
@@ -106,7 +104,7 @@ describe('History page', () => {
   });
 
   it('does not refetch when filters change without clicking Search', async () => {
-    render(<History />);
+    renderHistory();
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
     const dateInput = screen.getByLabelText('Date');
@@ -116,7 +114,7 @@ describe('History page', () => {
   });
 
   it('refetches with updated filters when Search is clicked', async () => {
-    render(<History />);
+    renderHistory();
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
     const dateInput = screen.getByLabelText('Date');
@@ -130,7 +128,7 @@ describe('History page', () => {
   });
 
   it('disables Search and shows a validation message when no store is selected', async () => {
-    render(<History />);
+    renderHistory();
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
     // Stores default to "All Stores" selected, so the trigger's accessible
@@ -145,7 +143,7 @@ describe('History page', () => {
   });
 
   it('opens the detail modal and renders completed/not-completed items with employee EMP ID on View', async () => {
-    render(<History />);
+    renderHistory();
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
     await userEvent.click(await screen.findByRole('button', { name: /view downtown checklist/i }));

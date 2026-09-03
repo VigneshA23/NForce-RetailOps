@@ -73,8 +73,8 @@ beforeEach(() => {
   // Two stores by default, so the picker is shown and has something to choose.
   mockGetAuthorizedStores.mockResolvedValue([STORE_1, STORE_2])
   mockGetMe.mockReset()
-  // EmployeeDashboard also resolves the current employee via getMe() (for Undo
-  // eligibility) independently of App's own session-restore call -- these tests
+  // App's own useMe() call resolves this once per session and shares it down
+  // into EmployeeDashboard (for Undo eligibility) and Profile -- these tests
   // exercise auth/navigation, not that, so give it a harmless default.
   mockGetMe.mockResolvedValue({
     id: 1,

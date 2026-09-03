@@ -5,18 +5,20 @@ import ChecklistHistoryTable from '../components/ChecklistHistoryTable';
 import ChecklistHistoryDetailModal, {
   type ChecklistHistoryDetailTarget,
 } from '../components/ChecklistHistoryDetailModal';
-import { getStores } from '../api/ownerStores';
 import { getChecklistHistorySummary } from '../api/checklistHistory';
 import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import type { OwnerStore } from '../types/ownerStore';
 import { todayDate } from '../utils/checklistHistoryOptions';
 import './History.css';
 
-function History() {
-  const [stores, setStores] = useState<OwnerStore[]>([]);
-  const [storesLoading, setStoresLoading] = useState(true);
-  const [storesError, setStoresError] = useState<string | null>(null);
+interface HistoryProps {
+  stores: OwnerStore[];
+  storesLoading: boolean;
+  storesError: string | null;
+  onRetryStores: () => void;
+}
 
+function History({ stores, storesLoading, storesError, onRetryStores }: HistoryProps) {
   const [selectedStoreIds, setSelectedStoreIds] = useState<number[]>([]);
   const [allStoresSelected, setAllStoresSelected] = useState(true);
 
@@ -27,15 +29,6 @@ function History() {
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
   const [detailTarget, setDetailTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
-
-  function loadStores() {
-    setStoresLoading(true);
-    setStoresError(null);
-    getStores()
-      .then(setStores)
-      .catch((error: Error) => setStoresError(error.message))
-      .finally(() => setStoresLoading(false));
-  }
 
   function runSearch() {
     setSummaryLoading(true);
@@ -56,7 +49,6 @@ function History() {
   // is expensive server-side and this codebase never auto-refetches from the
   // server on filter changes elsewhere.
   useEffect(() => {
-    loadStores();
     runSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -95,7 +87,7 @@ function History() {
             onChange={setSelectedStoreIds}
             isLoading={storesLoading}
             error={storesError}
-            onRetry={loadStores}
+            onRetry={onRetryStores}
             emptyMessage="No stores yet."
             allOption={{
               label: 'All Stores',

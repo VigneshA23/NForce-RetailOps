@@ -5,20 +5,20 @@ import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.StoreOptionResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
-import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailAlreadyExistsException;
+import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.EmployeeNotFoundException;
 import com.nforce.retailops.exception.StoreInactiveException;
-import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,35 +33,29 @@ import java.util.Set;
 @Service
 public class EmployeeService {
 
-    private static final String EMPLOYEE_ROLE_NAME = "EMPLOYEE";
+    private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
 
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
-    private final PasswordEncoder passwordEncoder;
     private final SessionService sessionService;
-    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final MailService mailService;
+    private final EmployeeProvisioningService employeeProvisioningService;
 
     public EmployeeService(
         StoreEmployeeRepository storeEmployeeRepository,
         StoreOwnerRepository storeOwnerRepository,
         UserRepository userRepository,
-        RoleRepository roleRepository,
-        PasswordEncoder passwordEncoder,
         SessionService sessionService,
-        TemporaryPasswordGenerator temporaryPasswordGenerator,
-        MailService mailService
+        MailService mailService,
+        EmployeeProvisioningService employeeProvisioningService
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.passwordEncoder = passwordEncoder;
         this.sessionService = sessionService;
-        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.mailService = mailService;
+        this.employeeProvisioningService = employeeProvisioningService;
     }
 
     // Store assignment is optional: an employee can be created or edited with no
@@ -148,43 +142,33 @@ public class EmployeeService {
             .toList();
     }
 
-    @Transactional
+    // Deliberately NOT @Transactional: the account is persisted in its own
+    // short-lived transaction (EmployeeProvisioningService), so the mail send
+    // below never holds a pooled DB connection for the duration of that
+    // external HTTP call. If mail delivery fails, the account is explicitly
+    // compensated away (in a second short transaction) rather than relying on
+    // an implicit rollback -- an employee must not be left unable to ever
+    // learn their own password.
     public EmployeeResponse createEmployee(Long ownerId, EmployeeCreateRequest request) {
         Set<Store> stores = resolveOwnerStores(ownerId, request.storeIds());
 
-        String email = request.email().trim();
-        if (userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        EmployeeProvisioningService.ProvisionedEmployee provisioned =
+            employeeProvisioningService.createEmployeeAccount(ownerId, request, stores);
+
+        try {
+            mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
+        } catch (EmailDeliveryException ex) {
+            try {
+                employeeProvisioningService.deleteUnreachableEmployee(provisioned.storeEmployeeId(), provisioned.userId());
+            } catch (RuntimeException cleanupEx) {
+                log.error("Failed to clean up employee {} after a mail delivery failure -- account may be orphaned",
+                    provisioned.userId(), cleanupEx);
+                ex.addSuppressed(cleanupEx);
+            }
+            throw ex;
         }
 
-        Role employeeRole = roleRepository.findByName(EMPLOYEE_ROLE_NAME)
-            .orElseThrow(() -> new IllegalStateException(EMPLOYEE_ROLE_NAME + " role is not seeded"));
-
-        String temporaryPassword = temporaryPasswordGenerator.generate();
-
-        User employee = new User();
-        employee.setFullName(request.name().trim());
-        employee.setEmail(email);
-        employee.setPasswordHash(passwordEncoder.encode(temporaryPassword));
-        employee.setMustResetPassword(true);
-        employee.getRoles().add(employeeRole);
-        employee = userRepository.save(employee);
-
-        StoreEmployee storeEmployee = new StoreEmployee();
-        storeEmployee.setStores(stores);
-        storeEmployee.setEmployee(employee);
-        storeEmployee.setCreatedByOwner(userRepository.getReferenceById(ownerId));
-        storeEmployee.setPhone(request.phone().trim());
-        storeEmployee.setShift(request.shift());
-        storeEmployee.setEmployeeType(request.employeeType());
-        storeEmployee.setGender(request.gender());
-        storeEmployee = storeEmployeeRepository.save(storeEmployee);
-
-        // Thrown on failure, which rolls back the account created above -- an
-        // employee must not be left unable to ever learn their own password.
-        mailService.sendTemporaryPassword(employee.getEmail(), employee.getFullName(), temporaryPassword);
-
-        return EmployeeResponse.from(storeEmployee);
+        return provisioned.response();
     }
 
     @Transactional

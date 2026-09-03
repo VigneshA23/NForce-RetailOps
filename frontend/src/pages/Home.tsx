@@ -14,9 +14,6 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { getStores } from '../api/ownerStores';
-import { getEmployees } from '../api/employees';
-import { getCategories } from '../api/categories';
 import { getMockShiftHistory } from '../api/homeDashboardMock';
 import type { OwnerStore } from '../types/ownerStore';
 import type { Employee } from '../types/employee';
@@ -28,6 +25,10 @@ import './Home.css';
 
 interface HomeProps {
   userName: string;
+  stores: OwnerStore[];
+  storesLoading: boolean;
+  employees: Employee[];
+  categories: Category[];
 }
 
 function firstName(fullName: string): string {
@@ -51,37 +52,29 @@ function averageOnTimePercent(histories: HomeMockShiftHistory[]): number {
   return Math.round(histories.reduce((sum, history) => sum + history.summary.onTimePercent, 0) / histories.length);
 }
 
-function Home({ userName }: HomeProps) {
-  const [stores, setStores] = useState<OwnerStore[]>([]);
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+function Home({ userName, stores, storesLoading, employees, categories }: HomeProps) {
   const [todayHistories, setTodayHistories] = useState<HomeMockShiftHistory[]>([]);
   const [trend, setTrend] = useState<{ day: string; completion: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (storesLoading) return;
     let active = true;
+    setIsLoading(true);
 
-    Promise.all([getStores(), getEmployees(), getCategories()])
-      .then(async ([storeList, employeeList, categoryList]) => {
-        if (!active) return;
-        setStores(storeList);
-        setEmployees(employeeList);
-        setCategories(categoryList);
+    const storeIds = stores.map((store) => store.id);
 
-        const storeIds = storeList.map((store) => store.id);
-
-        const [todayResults, trendResults] = await Promise.all([
-          Promise.all(storeIds.map((id) => getMockShiftHistory(id, isoDateDaysAgo(0)))),
-          Promise.all(
-            Array.from({ length: TREND_DAYS }, (_, index) => TREND_DAYS - 1 - index).map(async (daysAgo) => {
-              const date = isoDateDaysAgo(daysAgo);
-              const histories = await Promise.all(storeIds.map((id) => getMockShiftHistory(id, date)));
-              return { day: formatDayLabel(date), completion: averageOnTimePercent(histories) };
-            }),
-          ),
-        ]);
-
+    Promise.all([
+      Promise.all(storeIds.map((id) => getMockShiftHistory(id, isoDateDaysAgo(0)))),
+      Promise.all(
+        Array.from({ length: TREND_DAYS }, (_, index) => TREND_DAYS - 1 - index).map(async (daysAgo) => {
+          const date = isoDateDaysAgo(daysAgo);
+          const histories = await Promise.all(storeIds.map((id) => getMockShiftHistory(id, date)));
+          return { day: formatDayLabel(date), completion: averageOnTimePercent(histories) };
+        }),
+      ),
+    ])
+      .then(([todayResults, trendResults]) => {
         if (!active) return;
         setTodayHistories(todayResults);
         setTrend(trendResults);
@@ -93,7 +86,7 @@ function Home({ userName }: HomeProps) {
     return () => {
       active = false;
     };
-  }, []);
+  }, [storesLoading, stores]);
 
   const activeStoreCount = useMemo(() => stores.filter((store) => store.active).length, [stores]);
   const todayCompletion = useMemo(() => averageOnTimePercent(todayHistories), [todayHistories]);

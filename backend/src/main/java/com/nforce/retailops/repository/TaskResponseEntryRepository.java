@@ -2,6 +2,8 @@ package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.TaskResponseEntry;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -10,14 +12,23 @@ import java.util.Optional;
 
 public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseEntry, Long> {
 
+    // join fetch tre.employee: every caller reads entry.getEmployee().getFullName()/
+    // isActive() while building the checklist response, so fetch it up front instead
+    // of one lazy-load query per distinct employee.
+    @Query("select tre from TaskResponseEntry tre join fetch tre.employee "
+        + "where tre.task.id = :taskId and tre.store.id = :storeId "
+        + "and tre.responseDate = :responseDate and tre.active = true")
     List<TaskResponseEntry> findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(
-        Long taskId, Long storeId, LocalDate responseDate
+        @Param("taskId") Long taskId, @Param("storeId") Long storeId, @Param("responseDate") LocalDate responseDate
     );
 
     // Batched form of the above, for building an entire day's checklist without one
     // query per task.
+    @Query("select tre from TaskResponseEntry tre join fetch tre.employee "
+        + "where tre.task.id in :taskIds and tre.store.id = :storeId "
+        + "and tre.responseDate = :responseDate and tre.active = true")
     List<TaskResponseEntry> findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue(
-        Collection<Long> taskIds, Long storeId, LocalDate responseDate
+        @Param("taskIds") Collection<Long> taskIds, @Param("storeId") Long storeId, @Param("responseDate") LocalDate responseDate
     );
 
     Optional<TaskResponseEntry> findByIdAndTaskIdAndStoreId(Long id, Long taskId, Long storeId);

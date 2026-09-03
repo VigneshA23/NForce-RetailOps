@@ -76,8 +76,12 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     // either via applies_to_all_stores or a specific task_stores entry, and within the
     // task's active date range. Day-of-week/schedule-type matching is done in the
     // service layer since it isn't a plain column comparison.
+    // join fetch t.category: every caller (today's checklist, both history detail
+    // services) reads task.getCategory().getName()/getDisplayOrder() while building
+    // its response, so fetch it up front instead of one lazy-load query per
+    // distinct category.
     @org.springframework.data.jpa.repository.Query(
-        "select t from Task t where t.owner.id = :ownerId and t.active = true and t.category.active = true "
+        "select t from Task t join fetch t.category where t.owner.id = :ownerId and t.active = true and t.category.active = true "
             + "and (t.appliesToAllStores = true or :storeId in (select s.id from t.stores s)) "
             + "and t.startDate <= :date and (t.endDate is null or t.endDate >= :date) "
             + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"
@@ -88,20 +92,21 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("date") LocalDate date
     );
 
-    // Range-overlap variant of findActiveForStoreAndDate, for the admin checklist-history
-    // summary view: fetches the superset of tasks that could apply on ANY day in
-    // [startDate, endDate] in one query per store, so per-day eligibility (which still
-    // depends on each task's own startDate/endDate and schedule type) can be evaluated
-    // in memory without re-querying the DB once per day.
+    // Batched, multi-store range-overlap variant of findActiveForStoreAndDate, for the
+    // admin checklist-history summary view: fetches the superset of tasks that could
+    // apply on ANY day in [startDate, endDate] across ALL requested stores in one query
+    // (instead of one query per store), so per-store/per-day eligibility (which still
+    // depends on each task's own startDate/endDate, store scoping and schedule type)
+    // can be evaluated in memory without re-querying the DB once per store.
     @org.springframework.data.jpa.repository.Query(
         "select t from Task t where t.owner.id = :ownerId and t.active = true and t.category.active = true "
-            + "and (t.appliesToAllStores = true or :storeId in (select s.id from t.stores s)) "
+            + "and (t.appliesToAllStores = true or exists (select s.id from t.stores s where s.id in :storeIds)) "
             + "and t.startDate <= :endDate and (t.endDate is null or t.endDate >= :startDate) "
             + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"
     )
-    List<Task> findActiveForStoreAndDateRange(
+    List<Task> findActiveForStoresAndDateRange(
         @org.springframework.data.repository.query.Param("ownerId") Long ownerId,
-        @org.springframework.data.repository.query.Param("storeId") Long storeId,
+        @org.springframework.data.repository.query.Param("storeIds") Collection<Long> storeIds,
         @org.springframework.data.repository.query.Param("startDate") LocalDate startDate,
         @org.springframework.data.repository.query.Param("endDate") LocalDate endDate
     );

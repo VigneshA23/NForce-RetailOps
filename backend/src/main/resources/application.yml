@@ -6,6 +6,8 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/retailops}
     username: ${DATABASE_USERNAME:postgres}
     password: ${DATABASE_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
 
   jpa:
     hibernate:

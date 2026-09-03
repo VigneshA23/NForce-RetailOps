@@ -191,6 +191,9 @@ class MeHistoryServiceTest {
         assertThat(detail.hasChecklist()).isTrue();
         assertThat(detail.categories()).hasSize(1);
         assertThat(detail.categories().get(0).id()).isEqualTo(categoryId);
+        // Regression check for the join-fetched Task.category query: name/displayOrder
+        // grouping must still resolve correctly against a real Hibernate session.
+        assertThat(detail.categories().get(0).name()).isEqualTo("Opening");
 
         var item = detail.categories().get(0).tasks().get(0);
         assertThat(item.id()).isEqualTo(task.getId());

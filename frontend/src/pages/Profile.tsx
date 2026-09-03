@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Briefcase, Clock, Mail, Pencil, Phone, ShieldCheck, Store as StoreIcon } from 'lucide-react';
-import { getMe, type MeResponse } from '../api/me';
+import type { MeResponse } from '../api/me';
 import UserAvatar from '../components/UserAvatar';
 import EditProfileForm from '../components/EditProfileForm';
 import ResetPasswordModal from '../components/ResetPasswordModal';
@@ -8,6 +8,10 @@ import './Profile.css';
 
 interface ProfileProps {
   initials: string;
+  me: MeResponse | null;
+  isLoading: boolean;
+  error: string | null;
+  onMeUpdated: (me: MeResponse) => void;
 }
 
 const ROLE_LABELS: Record<MeResponse['role'], string> = {
@@ -16,29 +20,9 @@ const ROLE_LABELS: Record<MeResponse['role'], string> = {
   SUPER_ADMIN: 'Super Admin',
 };
 
-function Profile({ initials }: ProfileProps) {
-  const [me, setMe] = useState<MeResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+function Profile({ initials, me, isLoading, error, onMeUpdated }: ProfileProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isResetPasswordOpen, setIsResetPasswordOpen] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    getMe()
-      .then((data) => {
-        if (isMounted) setMe(data);
-      })
-      .catch(() => {
-        if (isMounted) setError('Unable to load your profile. Please refresh the page.');
-      })
-      .finally(() => {
-        if (isMounted) setIsLoading(false);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   if (isLoading) {
     return <div className="profile-page__empty">Loading profile...</div>;
@@ -74,7 +58,7 @@ function Profile({ initials }: ProfileProps) {
             me={me}
             onSaved={(updated) => {
               // Reflects immediately in the display below, without a reload.
-              setMe(updated);
+              onMeUpdated(updated);
               setIsEditing(false);
             }}
             onCancel={() => setIsEditing(false)}

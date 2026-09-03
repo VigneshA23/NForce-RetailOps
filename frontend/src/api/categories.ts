@@ -1,5 +1,6 @@
 import type { Category, CategoryFormValues } from '../types/category';
 import { authHeaders } from '../utils/authStorage';
+import { fetchWithTimeout } from './client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
@@ -13,7 +14,7 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
 }
 
 export async function getCategories(): Promise<Category[]> {
-  const response = await fetch(`${API_BASE_URL}/categories`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/categories`, {
     headers: authHeaders(),
   });
 
@@ -25,7 +26,7 @@ export async function getCategories(): Promise<Category[]> {
 }
 
 export async function createCategory(values: CategoryFormValues): Promise<Category> {
-  const response = await fetch(`${API_BASE_URL}/categories`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/categories`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(values),
@@ -39,7 +40,7 @@ export async function createCategory(values: CategoryFormValues): Promise<Catego
 }
 
 export async function updateCategory(id: number, values: CategoryFormValues): Promise<Category> {
-  const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/categories/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(values),
@@ -53,7 +54,7 @@ export async function updateCategory(id: number, values: CategoryFormValues): Pr
 }
 
 export async function updateCategoryStatus(id: number, active: boolean): Promise<Category> {
-  const response = await fetch(`${API_BASE_URL}/categories/${id}/status`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/categories/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ active }),
@@ -67,7 +68,7 @@ export async function updateCategoryStatus(id: number, active: boolean): Promise
 }
 
 export async function deleteCategory(id: number): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/categories/${id}`, {
     method: 'DELETE',
     headers: authHeaders(),
   });

@@ -1,5 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Profile from './Profile'
 import * as meApi from '../api/me'
@@ -7,7 +8,6 @@ import * as authApi from '../api/auth'
 import type { MeResponse } from '../api/me'
 
 vi.mock('../api/me', () => ({
-  getMe: vi.fn(),
   updateMe: vi.fn(),
 }))
 
@@ -19,7 +19,6 @@ vi.mock('../api/auth', async () => {
   }
 })
 
-const mockGetMe = vi.mocked(meApi.getMe)
 const mockUpdateMe = vi.mocked(meApi.updateMe)
 const mockChangePassword = vi.mocked(authApi.changePassword)
 
@@ -35,16 +34,25 @@ const ME: MeResponse = {
   phone: '555-0100',
 }
 
+// Profile is now purely prop-driven (the shared `me` cache lives in App/the
+// shell), so tests own a tiny stateful wrapper to stand in for that -- this
+// also exercises onMeUpdated the same way the real shell does.
+function renderProfile() {
+  function Wrapper() {
+    const [me, setMe] = useState<MeResponse | null>(ME)
+    return <Profile initials="JE" me={me} isLoading={false} error={null} onMeUpdated={setMe} />
+  }
+  return render(<Wrapper />)
+}
+
 beforeEach(() => {
-  mockGetMe.mockReset()
   mockUpdateMe.mockReset()
   mockChangePassword.mockReset()
-  mockGetMe.mockResolvedValue(ME)
 })
 
 describe('Profile', () => {
   it('displays the logged-in user\'s data, including the mobile field, from the real profile endpoint', async () => {
-    render(<Profile initials="JE" />)
+    renderProfile()
 
     expect(await screen.findByText('Jane Employee')).toBeInTheDocument()
     expect(screen.getByText('jane@nforceone.com')).toBeInTheDocument()
@@ -55,7 +63,7 @@ describe('Profile', () => {
   it('opens an editable form pre-filled with the current profile data, and reflects a save immediately', async () => {
     mockUpdateMe.mockResolvedValue({ ...ME, fullName: 'Jane Updated', phone: '555-9999' })
     const user = userEvent.setup()
-    render(<Profile initials="JE" />)
+    renderProfile()
 
     await user.click(await screen.findByRole('button', { name: /edit profile/i }))
 
@@ -82,7 +90,7 @@ describe('Profile', () => {
 
   it('requires a mobile number in the edit form', async () => {
     const user = userEvent.setup()
-    render(<Profile initials="JE" />)
+    renderProfile()
 
     await user.click(await screen.findByRole('button', { name: /edit profile/i }))
     await user.clear(screen.getByLabelText(/mobile/i))
@@ -96,7 +104,7 @@ describe('Profile', () => {
 describe('Profile "Reset Password" modal', () => {
   it('requires all fields and rejects a mismatched confirmation', async () => {
     const user = userEvent.setup()
-    render(<Profile initials="JE" />)
+    renderProfile()
 
     await user.click(await screen.findByRole('button', { name: /edit profile/i }))
     await user.click(screen.getByRole('button', { name: /reset password/i }))
@@ -119,7 +127,7 @@ describe('Profile "Reset Password" modal', () => {
   it('submits the current and new password, and closes on success', async () => {
     mockChangePassword.mockResolvedValue(undefined)
     const user = userEvent.setup()
-    render(<Profile initials="JE" />)
+    renderProfile()
 
     await user.click(await screen.findByRole('button', { name: /edit profile/i }))
     await user.click(screen.getByRole('button', { name: /reset password/i }))
