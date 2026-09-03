@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
+import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
@@ -126,9 +127,22 @@ public class ChecklistHistoryService {
                 Set<Long> unionTaskIds = new HashSet<>(eligibleTaskIds);
                 unionTaskIds.addAll(respondedTaskIds);
 
+                // Same "latest response per task, per day" reduction as getDetail's
+                // consumer (checklistHistoryOptions.taskStatus): only the most recent
+                // answer for a task that day counts toward whether it's an exception.
+                Map<Long, TaskResponseEntry> latestResponseByTask = dayResponses.stream()
+                    .collect(Collectors.toMap(
+                        entry -> entry.getTask().getId(),
+                        entry -> entry,
+                        (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
+                    ));
+                long exceptionCount = latestResponseByTask.values().stream()
+                    .filter(entry -> entry.getResponseType() == ResponseType.YES_NO && Boolean.FALSE.equals(entry.getValueBoolean()))
+                    .count();
+
                 rows.add(new ChecklistHistorySummaryRow(
                     store.getId(), store.getName(), date,
-                    !unionTaskIds.isEmpty(), unionTaskIds.size(), respondedTaskIds.size()
+                    !unionTaskIds.isEmpty(), unionTaskIds.size(), respondedTaskIds.size(), (int) exceptionCount
                 ));
             }
         }

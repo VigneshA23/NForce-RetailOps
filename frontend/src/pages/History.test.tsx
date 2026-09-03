@@ -34,6 +34,7 @@ function summaryRow(): ChecklistHistorySummaryRow {
     hasChecklist: true,
     totalTasks: 2,
     completedTasks: 1,
+    exceptionCount: 0,
   };
 }
 
