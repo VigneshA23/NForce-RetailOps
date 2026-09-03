@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import History from './History';
@@ -34,6 +34,7 @@ function summaryRow(): ChecklistHistorySummaryRow {
     hasChecklist: true,
     totalTasks: 2,
     completedTasks: 1,
+    exceptionCount: 0,
   };
 }
 
@@ -113,8 +114,8 @@ describe('History page', () => {
     render(<History />);
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
-    const fromInput = screen.getByLabelText('From');
-    fireEvent.change(fromInput, { target: { value: '2026-08-01' } });
+    const dateInput = screen.getByLabelText('Date');
+    fireEvent.change(dateInput, { target: { value: '2026-08-01' } });
 
     expect(mockGetSummary).toHaveBeenCalledTimes(1);
   });
@@ -123,27 +124,27 @@ describe('History page', () => {
     render(<History />);
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
-    const fromInput = screen.getByLabelText('From');
-    fireEvent.change(fromInput, { target: { value: '2026-08-01' } });
+    const dateInput = screen.getByLabelText('Date');
+    fireEvent.change(dateInput, { target: { value: '2026-08-01' } });
 
     await userEvent.click(screen.getByRole('button', { name: /search/i }));
 
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(2));
     expect(mockGetSummary.mock.calls[1][0].startDate).toBe('2026-08-01');
+    expect(mockGetSummary.mock.calls[1][0].endDate).toBe('2026-08-01');
   });
 
-  it('disables Search and shows a validation message for an invalid range', async () => {
+  it('disables Search when no store is selected', async () => {
     render(<History />);
     await waitFor(() => expect(mockGetSummary).toHaveBeenCalledTimes(1));
 
-    const fromInput = screen.getByLabelText('From');
-    const toInput = screen.getByLabelText('To');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /all stores/i }));
+    const panel = screen.getByRole('listbox');
+    await user.click(within(panel).getByText('All Stores'));
 
-    fireEvent.change(fromInput, { target: { value: todayDate() } });
-    fireEvent.change(toInput, { target: { value: '2000-01-01' } });
-
-    expect(screen.getByText('Start date must be on or before end date.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /search/i })).toBeDisabled();
+    expect(screen.getByText('Select at least one store, or choose All Stores.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^search$/i })).toBeDisabled();
   });
 
   it('opens the detail modal and renders completed/not-completed items with employee EMP ID on View', async () => {

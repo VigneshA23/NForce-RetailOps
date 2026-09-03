@@ -389,3 +389,150 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
     expect(screen.queryByText(/Completed By/)).not.toBeInTheDocument()
   })
 })
+
+function progressTask(overrides: Partial<ChecklistCategory['tasks'][number]>): ChecklistCategory['tasks'][number] {
+  return {
+    id: 1,
+    name: 'Task',
+    description: null,
+    responseType: 'DONE_NOT_DONE',
+    responseNote: null,
+    numericUnit: null,
+    numericMin: null,
+    numericMax: null,
+    textMaxLength: null,
+    completionType: 'SINGLE',
+    maxCompletions: null,
+    responses: [],
+    canUndo: false,
+    completedByCount: 0,
+    totalActiveEmployees: 1,
+    completedByNames: [],
+    ...overrides,
+  }
+}
+
+const DONE_RESPONSE = {
+  id: 1,
+  employeeUserId: 99,
+  employeeFullName: 'Test Employee',
+  booleanValue: true,
+  numericValue: null,
+  textValue: null,
+  respondedAt: new Date().toISOString(),
+}
+
+describe('Daily progress indicator', () => {
+  it('shows the overall completed/scheduled count and percentage in the header', async () => {
+    mockGetDailyChecklist.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Preparation',
+        tasks: [
+          progressTask({ id: 1, name: 'Task 1', responses: [DONE_RESPONSE] }),
+          progressTask({ id: 2, name: 'Task 2' }),
+        ],
+      },
+    ])
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+
+    expect(await screen.findByText('Overall: 1/2 - 50%')).toBeInTheDocument()
+  })
+
+  it('shows each category\'s own completed/total sub-fraction', async () => {
+    mockGetDailyChecklist.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Preparation',
+        tasks: [
+          progressTask({ id: 1, responses: [DONE_RESPONSE] }),
+          progressTask({ id: 2 }),
+        ],
+      },
+      {
+        id: 2,
+        name: 'Cleaning',
+        tasks: [
+          progressTask({ id: 3, responses: [DONE_RESPONSE] }),
+          progressTask({ id: 4, responses: [DONE_RESPONSE] }),
+        ],
+      },
+    ])
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+
+    expect(await screen.findByText('Preparation')).toBeInTheDocument()
+    expect(screen.getByText('1/2')).toBeInTheDocument()
+    expect(screen.getByText('Cleaning')).toBeInTheDocument()
+    expect(screen.getByText('2/2')).toBeInTheDocument()
+  })
+
+  it('shows 0/0 - 0% with no scheduled tasks, without dividing by zero', async () => {
+    mockGetDailyChecklist.mockResolvedValue([])
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+
+    expect(await screen.findByText('Overall: 0/0 - 0%')).toBeInTheDocument()
+  })
+
+  it('shows 100% when every scheduled task is completed', async () => {
+    mockGetDailyChecklist.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Preparation',
+        tasks: [
+          progressTask({ id: 1, responses: [DONE_RESPONSE] }),
+          progressTask({ id: 2, responses: [DONE_RESPONSE] }),
+        ],
+      },
+    ])
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+
+    expect(await screen.findByText('Overall: 2/2 - 100%')).toBeInTheDocument()
+  })
+
+  it('updates the overall and category counts immediately after a task submission, with no page reload', async () => {
+    mockGetDailyChecklist.mockResolvedValue([
+      {
+        id: 1,
+        name: 'Preparation',
+        tasks: [progressTask({ id: 1, name: 'Wipe counters' })],
+      },
+    ])
+    mockSubmitTaskResponse.mockResolvedValue({
+      taskId: 1,
+      responses: [DONE_RESPONSE],
+      canUndo: true,
+      completedByCount: 1,
+      totalActiveEmployees: 1,
+      completedByNames: ['Test Employee'],
+    })
+
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} />)
+
+    expect(await screen.findByText('Overall: 0/1 - 0%')).toBeInTheDocument()
+    expect(screen.getByText('0/1')).toBeInTheDocument() // category sub-fraction
+
+    await userEvent.click(screen.getByRole('button', { name: /done/i }))
+
+    expect(await screen.findByText('Overall: 1/1 - 100%')).toBeInTheDocument()
+    expect(screen.getByText('1/1')).toBeInTheDocument()
+    // Exactly one submit call -- no duplicate/stale count from a second request.
+    expect(mockSubmitTaskResponse).toHaveBeenCalledTimes(1)
+  })
+
+  it('computes progress independently per store', async () => {
+    mockGetDailyChecklist.mockResolvedValueOnce([
+      { id: 1, name: 'Preparation', tasks: [progressTask({ id: 1, responses: [DONE_RESPONSE] })] },
+    ])
+    const { unmount } = render(<EmployeeDashboard store={{ ...STORE, id: 1 }} onLogout={() => {}} />)
+    expect(await screen.findByText('Overall: 1/1 - 100%')).toBeInTheDocument()
+    expect(mockGetDailyChecklist).toHaveBeenCalledWith(1)
+    unmount()
+
+    mockGetDailyChecklist.mockResolvedValueOnce([
+      { id: 1, name: 'Preparation', tasks: [progressTask({ id: 2 })] },
+    ])
+    render(<EmployeeDashboard store={{ ...STORE, id: 2 }} onLogout={() => {}} />)
+    expect(await screen.findByText('Overall: 0/1 - 0%')).toBeInTheDocument()
+    expect(mockGetDailyChecklist).toHaveBeenCalledWith(2)
+  })
+})

@@ -9,6 +9,9 @@ export interface ChecklistHistorySummaryRow {
   hasChecklist: boolean;
   totalTasks: number;
   completedTasks: number;
+  // Tasks whose latest response that day was a Yes/No task answered "No" -- the
+  // same exception/issue definition the Store Details checklist already uses.
+  exceptionCount: number;
 }
 
 export interface ChecklistHistoryResponseEntry {

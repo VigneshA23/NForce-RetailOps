@@ -9,7 +9,7 @@ import { getStores } from '../api/ownerStores';
 import { getChecklistHistorySummary } from '../api/checklistHistory';
 import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import type { OwnerStore } from '../types/ownerStore';
-import { MAX_RANGE_DAYS, diffDaysInclusive, todayDate } from '../utils/checklistHistoryOptions';
+import { todayDate } from '../utils/checklistHistoryOptions';
 import './History.css';
 
 function History() {
@@ -20,8 +20,7 @@ function History() {
   const [selectedStoreIds, setSelectedStoreIds] = useState<number[]>([]);
   const [allStoresSelected, setAllStoresSelected] = useState(true);
 
-  const [startDate, setStartDate] = useState(todayDate);
-  const [endDate, setEndDate] = useState(todayDate);
+  const [date, setDate] = useState(todayDate);
 
   const [rows, setRows] = useState<ChecklistHistorySummaryRow[]>([]);
   const [summaryLoading, setSummaryLoading] = useState(true);
@@ -43,8 +42,8 @@ function History() {
     setSummaryError(null);
     getChecklistHistorySummary({
       storeIds: allStoresSelected ? [] : selectedStoreIds,
-      startDate,
-      endDate,
+      startDate: date,
+      endDate: date,
     })
       .then(setRows)
       .catch((error: Error) => setSummaryError(error.message))
@@ -62,19 +61,11 @@ function History() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rangeSpanDays = diffDaysInclusive(startDate, endDate);
-  const isRangeValid = startDate <= endDate && rangeSpanDays <= MAX_RANGE_DAYS;
   const hasStoreSelection = allStoresSelected || selectedStoreIds.length > 0;
 
-  const rangeValidationMessage = startDate > endDate
-    ? 'Start date must be on or before end date.'
-    : rangeSpanDays > MAX_RANGE_DAYS
-      ? `Select a range of ${MAX_RANGE_DAYS} days or fewer.`
-      : !hasStoreSelection
-        ? 'Select at least one store, or choose All Stores.'
-        : null;
+  const rangeValidationMessage = !hasStoreSelection ? 'Select at least one store, or choose All Stores.' : null;
 
-  const canSearch = isRangeValid && hasStoreSelection && !summaryLoading;
+  const canSearch = hasStoreSelection && !summaryLoading;
 
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => a.storeName.localeCompare(b.storeName) || a.date.localeCompare(b.date)),
@@ -117,23 +108,12 @@ function History() {
         </div>
 
         <label className="history-page__date-field">
-          From
+          Date
           <input
             type="date"
-            value={startDate}
+            value={date}
             max={todayDate()}
-            onChange={(event) => setStartDate(event.target.value || todayDate())}
-          />
-        </label>
-
-        <label className="history-page__date-field">
-          To
-          <input
-            type="date"
-            value={endDate}
-            min={startDate}
-            max={todayDate()}
-            onChange={(event) => setEndDate(event.target.value || todayDate())}
+            onChange={(event) => setDate(event.target.value || todayDate())}
           />
         </label>
 

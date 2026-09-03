@@ -242,7 +242,7 @@ function EmployeeDashboard({ store }: EmployeeDashboardProps) {
           <div>
             <h1 className="employee-dashboard-heading">Today's Tasks</h1>
             <p className="employee-dashboard-subheading">
-              Overall: {completedTasks}/{totalTasks}
+              Overall: {completedTasks}/{totalTasks} - {completionPercent}%
             </p>
           </div>
           <span className="employee-dashboard-date">
