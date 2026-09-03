@@ -57,6 +57,61 @@
   flex-shrink: 0;
 }
 
+/* Employee variant: name never wraps, and the edit control drops down to sit
+   right next to the role pill instead of floating at the top of the card. */
+.profile-card__header--employee {
+  align-items: center;
+}
+
+.profile-card__header-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-card__name--nowrap {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-card__role-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.profile-card__role-badge {
+  gap: 5px;
+  padding: 4px 12px 4px 9px;
+  background: linear-gradient(135deg, var(--color-badge-icon-purple-bg), color-mix(in srgb, var(--color-badge-icon-purple-fg) 16%, var(--color-badge-icon-purple-bg)));
+  color: var(--color-badge-icon-purple-fg);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-badge-icon-purple-fg) 20%, transparent);
+}
+
+.profile-card__role-badge svg {
+  flex-shrink: 0;
+}
+
+.profile-card__edit-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-accent);
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.profile-card__edit-icon-btn:hover {
+  background: color-mix(in srgb, var(--color-accent) 20%, var(--color-badge-icon-primary-bg));
+  transform: scale(1.08) rotate(-6deg);
+}
+
 .profile-card__actions {
   display: flex;
   flex-wrap: wrap;

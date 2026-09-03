@@ -66,6 +66,15 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.setEmployeeActive(principal.getUser().getId(), id, request));
     }
 
+    @PostMapping("/{id}/reset-password")
+    public ResponseEntity<Void> resetPassword(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @PathVariable Long id
+    ) {
+        employeeService.resetEmployeePassword(principal.getUser().getId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(
         @AuthenticationPrincipal AppUserDetails principal,

@@ -162,6 +162,8 @@ public class MeHistoryService {
             task.getDescription(),
             task.getResponseType(),
             task.getCompletionType(),
+            task.getScheduleType(),
+            task.getNumericUnit(),
             !responseDtos.isEmpty(),
             task.isActive(),
             responseDtos

@@ -19,6 +19,7 @@ import com.nforce.retailops.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,8 @@ public class EmployeeService {
     private final SessionService sessionService;
     private final MailService mailService;
     private final EmployeeProvisioningService employeeProvisioningService;
+    private final PasswordEncoder passwordEncoder;
+    private final TemporaryPasswordGenerator temporaryPasswordGenerator;
 
     public EmployeeService(
         StoreEmployeeRepository storeEmployeeRepository,
@@ -48,7 +51,9 @@ public class EmployeeService {
         UserRepository userRepository,
         SessionService sessionService,
         MailService mailService,
-        EmployeeProvisioningService employeeProvisioningService
+        EmployeeProvisioningService employeeProvisioningService,
+        PasswordEncoder passwordEncoder,
+        TemporaryPasswordGenerator temporaryPasswordGenerator
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -56,6 +61,8 @@ public class EmployeeService {
         this.sessionService = sessionService;
         this.mailService = mailService;
         this.employeeProvisioningService = employeeProvisioningService;
+        this.passwordEncoder = passwordEncoder;
+        this.temporaryPasswordGenerator = temporaryPasswordGenerator;
     }
 
     // Store assignment is optional: an employee can be created or edited with no
@@ -216,6 +223,32 @@ public class EmployeeService {
         sessionService.invalidateAllForUser(employee.getEmail());
         storeEmployeeRepository.delete(storeEmployee);
         userRepository.delete(employee);
+    }
+
+    @Transactional
+    public void resetEmployeePassword(Long ownerId, Long id) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        if (!canManageEmployee(storeEmployee, ownerId)) {
+            throw new EmployeeNotFoundException("Employee not found");
+        }
+
+        User employee = storeEmployee.getEmployee();
+        String temporaryPassword = temporaryPasswordGenerator.generate();
+        employee.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        employee.setMustResetPassword(true);
+        userRepository.save(employee);
+
+        // The old password stops working the moment this runs, so any session
+        // still holding a token issued against it is invalidated immediately
+        // rather than staying valid until that token's own expiry.
+        sessionService.invalidateAllForUser(employee.getEmail());
+
+        // Thrown on failure, which rolls back the password change above -- an
+        // employee must not be locked out of an account whose new password
+        // they were never actually told.
+        mailService.sendPasswordReset(employee.getEmail(), employee.getFullName(), temporaryPassword);
     }
 
     @Transactional

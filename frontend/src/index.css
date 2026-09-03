@@ -26,3 +26,16 @@
 .app-boot--error {
   color: #e11d33;
 }
+
+/* Masks the downloaded icons8 calendar PNG with the surrounding text color,
+   instead of rendering its own flat black pixels -- keeps it behaving like
+   the lucide-react icon it replaces (adapts to light/dark theme and to
+   active/hover color changes on its parent, via `currentColor`). Callers set
+   their own width/height to match the size they need. */
+.icon-mask-calendar {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: url('/calendar-icon.png') center / contain no-repeat;
+  mask: url('/calendar-icon.png') center / contain no-repeat;
+}

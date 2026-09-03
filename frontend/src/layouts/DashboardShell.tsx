@@ -8,6 +8,7 @@ import Employees from '../pages/Employees';
 import Categories from '../pages/Categories';
 import Home from '../pages/Home';
 import Stores from '../pages/Stores';
+import StoreDetail from '../pages/StoreDetail';
 import Tasks from '../pages/Tasks';
 import History from '../pages/History';
 import Settings from '../pages/Settings';
@@ -33,6 +34,7 @@ type Overlay = 'profile' | 'help' | null;
 function DashboardShell({ user, onLogout, loggingOut, me, meLoading, meError, onMeUpdated }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const [storeDetailStoreId, setStoreDetailStoreId] = useState<number | null>(null);
 
   // Fetched once here (not per-page) and shared as props, so switching tabs
   // never re-fetches data that hasn't changed. See useAssignedStores.ts for
@@ -55,6 +57,10 @@ function DashboardShell({ user, onLogout, loggingOut, me, meLoading, meError, on
             storesLoading={storesState.isLoading}
             employees={employeesState.employees}
             categories={categoriesState.categories}
+            onViewStoreDetail={(storeId) => {
+              setStoreDetailStoreId(storeId);
+              setActiveTab('store-detail');
+            }}
           />
         );
       case 'store-management':
@@ -67,6 +73,8 @@ function DashboardShell({ user, onLogout, loggingOut, me, meLoading, meError, on
             onRetry={storesState.reload}
           />
         );
+      case 'store-detail':
+        return <StoreDetail initialStoreId={storeDetailStoreId} />;
       case 'employees':
         return (
           <Employees

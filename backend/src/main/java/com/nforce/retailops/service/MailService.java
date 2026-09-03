@@ -47,13 +47,28 @@ public class MailService {
             <p>You will be asked to set a new password the first time you sign in.</p>
             """.formatted(escapeHtml(fullName), escapeHtml(temporaryPassword));
 
+        send(toEmail, "Your RetailOps account is ready", html);
+    }
+
+    public void sendPasswordReset(String toEmail, String fullName, String temporaryPassword) {
+        String html = """
+            <p>Hi %s,</p>
+            <p>Your RetailOps password was reset by your admin. Use the temporary password below to sign in:</p>
+            <p style="font-size:20px;font-weight:bold;letter-spacing:2px;">%s</p>
+            <p>You will be asked to set a new password the next time you sign in.</p>
+            """.formatted(escapeHtml(fullName), escapeHtml(temporaryPassword));
+
+        send(toEmail, "Your RetailOps password has been reset", html);
+    }
+
+    private void send(String toEmail, String subject, String html) {
         try {
             restClient.post()
                 .uri("/emails")
                 .body(Map.of(
                     "from", fromEmail,
                     "to", List.of(toEmail),
-                    "subject", "Your RetailOps account is ready",
+                    "subject", subject,
                     "html", html
                 ))
                 .retrieve()

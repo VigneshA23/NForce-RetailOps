@@ -1,0 +1,113 @@
+@import '../styles/breakpoints.css';
+
+.store-detail-page {
+  padding: var(--space-lg);
+}
+
+.store-detail-page__header {
+  margin-bottom: var(--space-md);
+}
+
+.store-detail-page__heading {
+  margin: 0 0 4px;
+}
+
+.store-detail-page__subheading {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.store-detail-page__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.store-detail-page__filters {
+  margin-bottom: var(--space-md);
+}
+
+.store-detail-page__date-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.store-detail-page__date-field input[type='date'],
+.store-detail-page__date-field select {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.store-detail-page__stat-row {
+  margin-bottom: var(--space-xs);
+}
+
+.store-detail-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-card);
+  cursor: pointer;
+  text-align: left;
+  box-shadow: var(--shadow-card);
+  font-family: inherit;
+}
+
+.store-detail-chip:hover {
+  box-shadow: var(--shadow-card-hover);
+}
+
+.store-detail-chip__value {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+}
+
+.store-detail-chip__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.store-detail-chip--danger .store-detail-chip__value {
+  color: var(--color-accent);
+}
+
+.store-detail-chip--active {
+  border-color: var(--color-accent);
+}
+
+.store-detail-chip--active .store-detail-chip__value {
+  color: var(--color-accent);
+}
+
+.store-detail-page__hint {
+  margin: 0 0 var(--space-md);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.store-detail-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  color: var(--color-text-secondary);
+}

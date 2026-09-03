@@ -54,6 +54,8 @@ function detailFixture(): ChecklistHistoryDetail {
             description: null,
             responseType: 'YES_NO',
             completionType: 'SINGLE',
+            scheduleType: 'EVERY_DAY',
+            numericUnit: null,
             completed: true,
             currentlyActive: true,
             responses: [
@@ -75,6 +77,8 @@ function detailFixture(): ChecklistHistoryDetail {
             description: null,
             responseType: 'YES_NO',
             completionType: 'SINGLE',
+            scheduleType: 'EVERY_DAY',
+            numericUnit: null,
             completed: false,
             currentlyActive: true,
             responses: [],

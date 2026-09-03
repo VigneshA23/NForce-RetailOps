@@ -53,6 +53,14 @@ export async function deleteEmployee(id: number): Promise<void> {
   if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to delete employee'));
 }
 
+export async function resetEmployeePassword(id: number): Promise<void> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/employees/${id}/reset-password`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, "Failed to reset the employee's password"));
+}
+
 export async function setEmployeeStatus(id: number, active: boolean): Promise<Employee> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/employees/${id}/status`, {
     method: 'PATCH',

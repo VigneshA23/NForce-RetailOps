@@ -1,8 +1,15 @@
+import { useState } from 'react'
 import { Store as StoreIcon } from 'lucide-react'
 import type { StoreSummary } from '../types/store'
 import type { AuthUser } from '../types/auth'
-import ProfileMenu from '../components/ProfileMenu'
+import Header from '../components/Header'
+import { useTheme } from '../hooks/useTheme'
 import './StorePicker.css'
+
+// Cycled by position so a multi-store grid reads as a set of distinct
+// places rather than identical tiles repeated -- purely decorative, no
+// meaning tied to a particular store.
+const CARD_TONES = ['primary', 'info', 'success', 'purple', 'warning'] as const
 
 interface StorePickerProps {
   user: AuthUser
@@ -15,32 +22,43 @@ interface StorePickerProps {
 }
 
 function StorePicker({ user, stores, onSelectStore, onLogout, loggingOut }: StorePickerProps) {
+  const { isDarkTheme, toggleTheme } = useTheme()
+  const [searchValue, setSearchValue] = useState('')
+
   return (
     <div className="store-picker">
-      <div className="store-picker-topbar">
-        <div className="store-picker-brand">
-          <img src="/nforce-logo.png" alt="NForce logo" className="store-picker-brand-logo" />
-          <div>
-            <div className="store-picker-brand-title">NForce RetailOps</div>
-            <div className="store-picker-brand-subtitle">Store Ops Platform</div>
-          </div>
-        </div>
-        <ProfileMenu fullName={user.fullName} onLogout={onLogout} loggingOut={loggingOut} />
-      </div>
+      <Header
+        title="NForce RetailOps"
+        subtitle="Choose a Store"
+        logoSrc="/nforce-logo.png"
+        showSearch={false}
+        showNotifications={false}
+        centeredModals
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        isDarkTheme={isDarkTheme}
+        onToggleTheme={toggleTheme}
+        userName={user.fullName}
+        onLogout={onLogout}
+        loggingOut={loggingOut}
+      />
 
       <div className="store-picker-body">
         <h1 className="store-picker-heading">Select your store</h1>
         <p className="store-picker-subheading">Choose an active location to access the RetailOps dashboard.</p>
 
         <div className="store-picker-grid">
-          {stores.map((store) => {
+          {stores.map((store, index) => {
             const isOpen = store.status === 'Open'
+            const tone = CARD_TONES[index % CARD_TONES.length]
             return (
               <button
                 key={store.id}
                 type="button"
-                className="store-card"
+                className={`store-card store-card--${tone}`}
                 disabled={!isOpen}
+                data-initial={store.name.charAt(0).toUpperCase()}
+                style={{ animationDelay: `${index * 150}ms` }}
                 onClick={() => isOpen && onSelectStore(store)}
               >
                 <span className="store-card-icon">

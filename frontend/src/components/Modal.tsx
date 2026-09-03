@@ -11,9 +11,13 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   size?: 'md' | 'lg';
+  // Employee pages only: keeps the dialog centered on mobile instead of the
+  // default bottom-sheet layout. Off by default, so every existing caller
+  // (Owner/Admin included) renders exactly as before.
+  centered?: boolean;
 }
 
-function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md' }: ModalProps) {
+function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md', centered = false }: ModalProps) {
   const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2)}`).current;
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -129,7 +133,7 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
   return createPortal(
     <div
       ref={overlayRef}
-      className="modal-overlay"
+      className={`modal-overlay${centered ? ' modal-overlay--centered' : ''}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

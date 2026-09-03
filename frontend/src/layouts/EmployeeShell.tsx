@@ -5,6 +5,7 @@ import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
 import { getInitials } from '../utils/initials'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import AppShell from './AppShell'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
@@ -38,6 +39,7 @@ function EmployeeShell({
 }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const [overlay, setOverlay] = useState<Overlay>(null)
+  const isMobile = useIsMobile()
   // With a single assigned store there is nothing to switch to -- the control
   // would only lead to a one-option picker and straight back here.
   const canSwitchStore = stores.length > 1
@@ -59,10 +61,17 @@ function EmployeeShell({
     }
   }
 
-  // The app name stays fixed in the header; the second line reflects
-  // whichever screen is active -- the currently selected store day-to-day,
+  // Whichever screen is active -- the currently selected store day-to-day,
   // or a contextual label while on the Profile/Help overlays.
-  const subtitle = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : store.name
+  const contextLabel = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : store.name
+
+  // On mobile there's no sidebar, so the header is the only place the app is
+  // ever named -- it keeps the full "NForce RetailOps" title with the context
+  // as a subtitle. On desktop/tablet the sidebar already carries that
+  // branding, so the header collapses to just the context label instead of
+  // repeating "NForce RetailOps" a second time.
+  const headerTitle = isMobile ? 'NForce RetailOps' : contextLabel
+  const headerSubtitle = isMobile ? contextLabel : undefined
 
   return (
     <AppShell<EmployeeNavTabKey>
@@ -72,9 +81,11 @@ function EmployeeShell({
         setOverlay(null)
         setActiveTab(key)
       }}
-      title="NForce RetailOps"
-      subtitle={subtitle}
+      title={headerTitle}
+      subtitle={headerSubtitle}
       logoSrc="/nforce-logo.png"
+      hideLogoOnDesktop
+      centeredModals
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
@@ -96,7 +107,14 @@ function EmployeeShell({
       }
     >
       {overlay === 'profile' ? (
-        <Profile initials={userInitials} me={me} isLoading={meLoading} error={meError} onMeUpdated={onMeUpdated} />
+        <Profile
+          initials={userInitials}
+          me={me}
+          isLoading={meLoading}
+          error={meError}
+          onMeUpdated={onMeUpdated}
+          variant="employee"
+        />
       ) : overlay === 'help' ? (
         <Help />
       ) : (

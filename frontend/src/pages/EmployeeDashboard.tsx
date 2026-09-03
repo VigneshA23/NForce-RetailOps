@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ChevronDown, Circle, ClipboardList, Flag, Info, ListTodo, Percent } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
+  Circle,
+  ClipboardList,
+  Flag,
+  Info,
+  ListTodo,
+  MessageSquareWarning,
+  Percent,
+} from 'lucide-react'
 import { ApiError } from '../api/client'
 import { getDailyChecklist, raiseIssue, submitTaskResponse, undoTaskResponse } from '../api/tasks'
 import type { TaskResponseStateResponse } from '../api/tasks'
@@ -101,6 +113,10 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
   )
   const completionPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100)
   const remainingTasks = totalTasks - completedTasks
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    [],
+  )
 
   function categoryProgress(category: ChecklistCategory): { done: number; total: number } {
     const done = category.tasks.filter((task) => task.responses.length > 0).length
@@ -214,6 +230,10 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
               Overall: {completedTasks}/{totalTasks}
             </p>
           </div>
+          <span className="employee-dashboard-date">
+            <span className="icon-mask-calendar" style={{ width: 14, height: 14 }} aria-hidden="true" />
+            {todayLabel}
+          </span>
         </div>
 
         <div className="stat-card-row employee-dashboard-summary">
@@ -278,7 +298,7 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
 
                       return (
                         <div key={task.id} className="checklist-task">
-                          <div>
+                          <div className="checklist-task-info">
                             <p className="checklist-task-name">{task.name}</p>
                             {task.completionType === 'MULTIPLE' ? (
                               showsCompletedByCount(task) ? (
@@ -325,13 +345,24 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
                                   </span>
                                 </p>
                               ) : (
-                                <p className="checklist-task-status">Not Answered</p>
+                                <p className="checklist-task-status">
+                                  <Circle size={8} className="checklist-task-status-dot" />
+                                  Not Answered
+                                </p>
                               )
                             ) : (
                               <p className="checklist-task-status">
-                                {task.responses.length > 0
-                                  ? `Completed by ${task.responses[task.responses.length - 1].employeeFullName}`
-                                  : 'Not Answered'}
+                                {task.responses.length > 0 ? (
+                                  <>
+                                    <CheckCircle2 size={13} className="checklist-task-status-dot checklist-task-status-dot--done" />
+                                    {`Completed by ${task.responses[task.responses.length - 1].employeeFullName}`}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Circle size={8} className="checklist-task-status-dot" />
+                                    Not Answered
+                                  </>
+                                )}
                               </p>
                             )}
                             {taskError && <p className="checklist-task-error">{taskError}</p>}
@@ -445,14 +476,29 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
         )}
       </div>
 
-      <button type="button" className="raise-with-owner-fab" onClick={() => setIsRaiseModalOpen(true)}>
-        <Flag size={16} />
-        Raise with Owner
-      </button>
+      {/* Portaled to <body> -- position:fixed alone wasn't enough here, since
+          this button's actual ancestor chain includes AppShell's scrollable
+          `.app-shell__main` (overflow-y: auto), which clips a fixed-position
+          descendant on many mobile browsers even though its geometry is
+          computed against the viewport. That's what made it invisible under
+          the bottom tab bar rather than merely mispositioned. */}
+      {createPortal(
+        <button
+          type="button"
+          className="raise-with-owner-fab"
+          onClick={() => setIsRaiseModalOpen(true)}
+          aria-label="Raise an issue with the owner"
+        >
+          <MessageSquareWarning size={18} />
+          <span className="raise-with-owner-fab-label">Raise with Owner</span>
+        </button>,
+        document.body,
+      )}
 
       <Modal
         isOpen={isRaiseModalOpen}
         onClose={() => setIsRaiseModalOpen(false)}
+        centered
         title="Raise an issue with the owner"
         footer={
           <>

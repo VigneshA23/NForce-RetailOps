@@ -6,6 +6,8 @@ import FormField from './FormField';
 interface ResetPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Employee pages only -- see Modal's `centered` prop.
+  centered?: boolean;
 }
 
 interface FormErrors {
@@ -18,7 +20,7 @@ function emptyState() {
   return { currentPassword: '', newPassword: '', confirmPassword: '' };
 }
 
-function ResetPasswordModal({ isOpen, onClose }: ResetPasswordModalProps) {
+function ResetPasswordModal({ isOpen, onClose, centered = false }: ResetPasswordModalProps) {
   const [values, setValues] = useState(emptyState());
   const [errors, setErrors] = useState<FormErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -73,6 +75,7 @@ function ResetPasswordModal({ isOpen, onClose }: ResetPasswordModalProps) {
     <Modal
       isOpen={isOpen}
       onClose={onClose}
+      centered={centered}
       title="Reset Password"
       footer={
         <>
