@@ -1,0 +1,39 @@
+.store-detail-table__card {
+  overflow: visible;
+}
+
+.store-detail-table__category {
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.store-detail-table__task-name {
+  display: block;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.store-detail-table__task-meta {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.store-detail-table__response--issue {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.store-detail-table__response-time {
+  color: var(--color-text-muted);
+}
+
+.store-detail-table__status-cell,
+/* Beats the higher-specificity `.data-table thead th { text-align: left }`
+   base rule in table.css, so the header lines up with the cell. */
+.data-table thead th.store-detail-table__status-cell {
+  text-align: right;
+}
