@@ -52,6 +52,11 @@ function Profile({ initials, variant = 'default' }: ProfileProps) {
     return <div className="profile-page__empty">{error ?? 'Profile unavailable.'}</div>;
   }
 
+  // Super admins have no User/StoreEmployee record, so there's nothing for
+  // EditProfileForm to save -- they can only view their details and change
+  // their password directly.
+  const canEditProfile = me.role !== 'SUPER_ADMIN';
+
   return (
     <div className="profile-page">
       <div className="profile-card">
@@ -86,7 +91,7 @@ function Profile({ initials, variant = 'default' }: ProfileProps) {
               <div className="profile-card__name">{me.fullName}</div>
               <span className="badge badge--solid">{ROLE_LABELS[me.role]}</span>
             </div>
-            {!isEditing && (
+            {canEditProfile && !isEditing && (
               <button
                 type="button"
                 className="btn btn--secondary profile-card__edit-btn"
@@ -126,10 +131,12 @@ function Profile({ initials, variant = 'default' }: ProfileProps) {
               <ShieldCheck size={16} />
               <span>{ROLE_LABELS[me.role]}</span>
             </div>
-            <div className="profile-card__row">
-              <StoreIcon size={16} />
-              <span>{me.storeNames.length > 0 ? me.storeNames.join(', ') : 'No stores assigned'}</span>
-            </div>
+            {me.role !== 'SUPER_ADMIN' && (
+              <div className="profile-card__row">
+                <StoreIcon size={16} />
+                <span>{me.storeNames.length > 0 ? me.storeNames.join(', ') : 'No stores assigned'}</span>
+              </div>
+            )}
             {me.shift && (
               <div className="profile-card__row">
                 <Clock size={16} />
@@ -140,6 +147,19 @@ function Profile({ initials, variant = 'default' }: ProfileProps) {
               <div className="profile-card__row">
                 <Briefcase size={16} />
                 <span>{me.employeeType}</span>
+              </div>
+            )}
+            {!canEditProfile && (
+              <div className="profile-card__actions">
+                <div className="profile-card__actions-end">
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => setIsResetPasswordOpen(true)}
+                  >
+                    Reset Password
+                  </button>
+                </div>
               </div>
             )}
           </div>

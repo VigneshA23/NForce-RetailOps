@@ -13,6 +13,8 @@ import SpecularButton from '../components/SpecularButton';
 import SearchInput from '../components/SearchInput';
 import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
+import Profile from '../pages/Profile';
+import { getInitials } from '../utils/initials';
 import './SuperAdminDashboard.css';
 
 interface SuperAdminDashboardProps {
@@ -37,6 +39,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [isAssigningStore, setIsAssigningStore] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const [activeTab] = useState<SuperAdminNavTabKey>('owners');
+  const [showProfile, setShowProfile] = useState(false);
+  const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
   function loadOwners() {
     setIsLoading(true);
@@ -73,9 +77,12 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     setAssignStoreError(null);
     setIsAssigningStore(true);
     try {
-      const created = await assignStore(assignStoreTarget.ownerId, values);
-      setOwners((current) => [...current, created]);
+      await assignStore(assignStoreTarget.ownerId, values);
       setAssignStoreTarget(null);
+      // Reloaded rather than appended locally: assigning an unassigned store
+      // moves it away from its previous (deactivated) owner, so a full
+      // refresh is the only way to keep that owner's row correct too.
+      loadOwners();
     } catch (error) {
       setAssignStoreError(error instanceof Error ? error.message : 'Something went wrong');
     } finally {
@@ -142,12 +149,16 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     <AppShell<SuperAdminNavTabKey>
       navItems={SUPER_ADMIN_NAV_ITEMS}
       activeTab={activeTab}
-      onSelectTab={() => {}}
-      title={SUPER_ADMIN_PAGE_TITLES[activeTab]}
+      onSelectTab={() => setShowProfile(false)}
+      title={showProfile ? 'My Profile' : SUPER_ADMIN_PAGE_TITLES[activeTab]}
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
+      onProfileClick={() => setShowProfile(true)}
     >
+      {showProfile ? (
+        <Profile initials={userInitials} />
+      ) : (
       <div className="owners-page">
         <div className="stat-card-row">
           <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
@@ -226,6 +237,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
           </div>
         )}
       </div>
+      )}
 
       <OwnerFormModal
         isOpen={isFormOpen}
