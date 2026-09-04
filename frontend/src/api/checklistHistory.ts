@@ -1,4 +1,4 @@
-import type { ChecklistHistoryDetail, ChecklistHistorySummaryRow } from '../types/checklistHistory';
+import type { ChecklistHistoryDetail, ChecklistHistoryOperationsReport, ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import { authHeaders } from '../utils/authStorage';
 import { fetchWithTimeout } from './client';
 
@@ -38,6 +38,34 @@ export async function getChecklistHistorySummary(
 
   if (!response.ok) {
     const message = await parseErrorMessage(response, 'Failed to load checklist history');
+    if (response.status === 400) {
+      throw new ChecklistHistoryRangeError(message);
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+}
+
+export interface ChecklistHistoryOperationsReportParams {
+  startDate: string;
+  endDate: string;
+}
+
+// Daily Operations Summary report -- deliberately takes no storeId/storeIds:
+// the backend always resolves the caller's own authorized store(s), so the
+// frontend cannot request (and does not need a picker for) another store.
+export async function getChecklistHistoryOperationsReport(
+  params: ChecklistHistoryOperationsReportParams,
+): Promise<ChecklistHistoryOperationsReport> {
+  const query = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate });
+
+  const response = await fetchWithTimeout(`${API_BASE_URL}/checklist-history/operations-summary?${query}`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    const message = await parseErrorMessage(response, 'Failed to load the operations summary');
     if (response.status === 400) {
       throw new ChecklistHistoryRangeError(message);
     }

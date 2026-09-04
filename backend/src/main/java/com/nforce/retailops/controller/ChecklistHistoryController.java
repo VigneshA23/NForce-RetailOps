@@ -1,6 +1,7 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
+import com.nforce.retailops.dto.ChecklistHistoryOperationsReportResponse;
 import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.ChecklistHistoryService;
@@ -34,6 +35,19 @@ public class ChecklistHistoryController {
     ) {
         return ResponseEntity.ok(checklistHistoryService.getSummary(
             principal.getUser().getId(), storeIds, startDate, endDate));
+    }
+
+    // Daily Operations Summary report -- deliberately has no storeId/storeIds param
+    // at all: the backend always resolves the caller's own authorized store(s), so
+    // an Owner/Admin can never request another store's summary or task details.
+    @GetMapping("/operations-summary")
+    public ResponseEntity<ChecklistHistoryOperationsReportResponse> operationsSummary(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @RequestParam(required = false) LocalDate startDate,
+        @RequestParam(required = false) LocalDate endDate
+    ) {
+        return ResponseEntity.ok(checklistHistoryService.getOperationsReport(
+            principal.getUser().getId(), startDate, endDate));
     }
 
     // Super Admin can view any store's checklist by looking up the store's actual owner.

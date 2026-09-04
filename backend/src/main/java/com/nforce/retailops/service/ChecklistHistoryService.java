@@ -1,7 +1,9 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
+import com.nforce.retailops.dto.ChecklistHistoryOperationsReportResponse;
 import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
+import com.nforce.retailops.dto.ChecklistHistoryTaskDetailRow;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
@@ -65,6 +67,105 @@ public class ChecklistHistoryService {
     public List<ChecklistHistorySummaryRow> getSummary(
         Long ownerId, List<Long> requestedStoreIds, LocalDate startDate, LocalDate endDate
     ) {
+        List<StoreDayContext> contexts = buildStoreDayContexts(ownerId, requestedStoreIds, startDate, endDate);
+
+        List<ChecklistHistorySummaryRow> rows = contexts.stream().map(this::toSummaryRow).collect(Collectors.toList());
+        rows.sort(Comparator.comparing(ChecklistHistorySummaryRow::storeName)
+            .thenComparing(ChecklistHistorySummaryRow::date));
+        return rows;
+    }
+
+    // Daily Operations Summary report: same aggregation as getSummary (same
+    // eligible-tasks-union-responded-tasks reconstruction, same Issue definition),
+    // plus flattened task-level rows for CSV export / Print. Deliberately takes no
+    // storeIds from the caller -- always resolves to the authenticated owner's own
+    // authorized store(s), so an Admin can never request another store's data.
+    @Transactional(readOnly = true)
+    public ChecklistHistoryOperationsReportResponse getOperationsReport(
+        Long ownerId, LocalDate startDate, LocalDate endDate
+    ) {
+        List<StoreDayContext> contexts = buildStoreDayContexts(ownerId, null, startDate, endDate);
+
+        List<ChecklistHistorySummaryRow> summary = contexts.stream().map(this::toSummaryRow).collect(Collectors.toList());
+        summary.sort(Comparator.comparing(ChecklistHistorySummaryRow::storeName)
+            .thenComparing(ChecklistHistorySummaryRow::date));
+
+        List<ChecklistHistoryTaskDetailRow> details = new ArrayList<>();
+        for (StoreDayContext context : contexts) {
+            for (Task task : context.unionTasksById().values()) {
+                List<TaskResponseEntry> responses = context.responsesByTask().getOrDefault(task.getId(), List.of());
+                if (responses.isEmpty()) {
+                    details.add(new ChecklistHistoryTaskDetailRow(
+                        context.store().getId(), context.store().getName(), context.date(),
+                        task.getCategory().getName(), task.getName(), "NOT_COMPLETED", null, null, null
+                    ));
+                } else {
+                    for (TaskResponseEntry response : responses) {
+                        boolean isIssue = response.getResponseType() == ResponseType.YES_NO
+                            && Boolean.FALSE.equals(response.getValueBoolean());
+                        details.add(new ChecklistHistoryTaskDetailRow(
+                            context.store().getId(), context.store().getName(), context.date(),
+                            task.getCategory().getName(), task.getName(), isIssue ? "ISSUE" : "COMPLETED",
+                            formatResponseValue(response), response.getEmployee().getFullName(), response.getCreatedAt()
+                        ));
+                    }
+                }
+            }
+        }
+        details.sort(Comparator.comparing(ChecklistHistoryTaskDetailRow::storeName)
+            .thenComparing(ChecklistHistoryTaskDetailRow::date)
+            .thenComparing(ChecklistHistoryTaskDetailRow::taskName));
+
+        return new ChecklistHistoryOperationsReportResponse(summary, details);
+    }
+
+    private ChecklistHistorySummaryRow toSummaryRow(StoreDayContext context) {
+        return new ChecklistHistorySummaryRow(
+            context.store().getId(), context.store().getName(), context.date(),
+            !context.unionTaskIds().isEmpty(), context.unionTaskIds().size(),
+            context.respondedTaskIds().size(), context.issueCount()
+        );
+    }
+
+    private String formatResponseValue(TaskResponseEntry response) {
+        if (response.getValueBoolean() != null) {
+            if (response.getResponseType() == ResponseType.YES_NO) {
+                return response.getValueBoolean() ? "Yes" : "No";
+            }
+            return response.getValueBoolean() ? "Done" : "Not done";
+        }
+        if (response.getValueNumeric() != null) {
+            return String.valueOf(response.getValueNumeric());
+        }
+        if (response.getValueText() != null && !response.getValueText().isEmpty()) {
+            return response.getValueText();
+        }
+        return "";
+    }
+
+    // One entry per (store, date) in the requested range: the union of eligible and
+    // responded tasks for that store/day, plus enough data (Task objects, grouped
+    // responses) for both the summary counts and the task-level detail rows to be
+    // derived from it without re-querying.
+    private record StoreDayContext(
+        Store store,
+        LocalDate date,
+        Set<Long> unionTaskIds,
+        // Best-effort resolved Task objects for unionTaskIds -- used only to build
+        // task-level detail rows (category/name). Summary counts always come from
+        // unionTaskIds/respondedTaskIds directly, never from this map's size, so an
+        // unresolved task id (should not happen in practice) can never under-count
+        // the existing Scheduled/Completed totals.
+        Map<Long, Task> unionTasksById,
+        Set<Long> respondedTaskIds,
+        Map<Long, List<TaskResponseEntry>> responsesByTask,
+        int issueCount
+    ) {
+    }
+
+    private List<StoreDayContext> buildStoreDayContexts(
+        Long ownerId, List<Long> requestedStoreIds, LocalDate startDate, LocalDate endDate
+    ) {
         LocalDate resolvedStart = startDate != null ? startDate : LocalDate.now();
         LocalDate resolvedEnd = endDate != null ? endDate : LocalDate.now();
         validateRange(resolvedStart, resolvedEnd);
@@ -85,6 +186,8 @@ public class ChecklistHistoryService {
         List<Task> candidateTasks = storeIds.isEmpty()
             ? List.of()
             : taskRepository.findActiveForStoresAndDateRange(ownerId, storeIds, resolvedStart, resolvedEnd);
+        Map<Long, Task> candidateTasksById = candidateTasks.stream()
+            .collect(Collectors.toMap(Task::getId, task -> task, (a, b) -> a));
 
         // Batched form of Task.stores, so per-store eligibility for scoped (non-
         // appliesToAllStores) tasks can be reconstructed without a lazy-load per task.
@@ -100,7 +203,22 @@ public class ChecklistHistoryService {
                     Collectors.mapping(row -> (Long) row[1], Collectors.toSet())
                 ));
 
-        List<ChecklistHistorySummaryRow> rows = new ArrayList<>();
+        // Tasks with responses but deactivated/rescoped since (not in candidateTasks
+        // at all) -- fetched once across every store/date so they still appear in the
+        // union instead of silently disappearing (same rule as getDetail).
+        Set<Long> allRespondedTaskIds = responsesByStore.values().stream()
+            .flatMap(List::stream)
+            .map(entry -> entry.getTask().getId())
+            .collect(Collectors.toSet());
+        Set<Long> missingTaskIds = allRespondedTaskIds.stream()
+            .filter(id -> !candidateTasksById.containsKey(id))
+            .collect(Collectors.toSet());
+        Map<Long, Task> missingTasksById = missingTaskIds.isEmpty()
+            ? Map.of()
+            : taskRepository.findAllById(missingTaskIds).stream()
+                .collect(Collectors.toMap(Task::getId, task -> task));
+
+        List<StoreDayContext> contexts = new ArrayList<>();
         for (Store store : stores) {
             List<Task> tasksForStore = candidateTasks.stream()
                 .filter(task -> task.isAppliesToAllStores()
@@ -112,9 +230,9 @@ public class ChecklistHistoryService {
 
             for (LocalDate date : dates) {
                 List<TaskResponseEntry> dayResponses = responsesByDate.getOrDefault(date, List.of());
-                Set<Long> respondedTaskIds = dayResponses.stream()
-                    .map(entry -> entry.getTask().getId())
-                    .collect(Collectors.toSet());
+                Map<Long, List<TaskResponseEntry>> responsesByTask = dayResponses.stream()
+                    .collect(Collectors.groupingBy(entry -> entry.getTask().getId()));
+                Set<Long> respondedTaskIds = responsesByTask.keySet();
 
                 Set<Long> eligibleTaskIds = tasksForStore.stream()
                     .filter(task -> withinTaskDateRange(task, date) && TaskScheduleMatcher.matches(task, date))
@@ -126,30 +244,33 @@ public class ChecklistHistoryService {
                 // responses for.
                 Set<Long> unionTaskIds = new HashSet<>(eligibleTaskIds);
                 unionTaskIds.addAll(respondedTaskIds);
+                Map<Long, Task> unionTasksById = new LinkedHashMap<>();
+                for (Long taskId : unionTaskIds) {
+                    Task task = candidateTasksById.getOrDefault(taskId, missingTasksById.get(taskId));
+                    if (task != null) {
+                        unionTasksById.put(taskId, task);
+                    }
+                }
 
                 // Same "latest response per task, per day" reduction as getDetail's
                 // consumer (checklistHistoryOptions.taskStatus): only the most recent
-                // answer for a task that day counts toward whether it's an exception.
+                // answer for a task that day counts toward whether it's an Issue.
                 Map<Long, TaskResponseEntry> latestResponseByTask = dayResponses.stream()
                     .collect(Collectors.toMap(
                         entry -> entry.getTask().getId(),
                         entry -> entry,
                         (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
                     ));
-                long exceptionCount = latestResponseByTask.values().stream()
+                long issueCount = latestResponseByTask.values().stream()
                     .filter(entry -> entry.getResponseType() == ResponseType.YES_NO && Boolean.FALSE.equals(entry.getValueBoolean()))
                     .count();
 
-                rows.add(new ChecklistHistorySummaryRow(
-                    store.getId(), store.getName(), date,
-                    !unionTaskIds.isEmpty(), unionTaskIds.size(), respondedTaskIds.size(), (int) exceptionCount
+                contexts.add(new StoreDayContext(
+                    store, date, unionTaskIds, unionTasksById, respondedTaskIds, responsesByTask, (int) issueCount
                 ));
             }
         }
-
-        rows.sort(Comparator.comparing(ChecklistHistorySummaryRow::storeName)
-            .thenComparing(ChecklistHistorySummaryRow::date));
-        return rows;
+        return contexts;
     }
 
     @Transactional(readOnly = true)
