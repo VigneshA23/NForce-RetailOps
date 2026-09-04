@@ -1,11 +1,14 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.CreateStoreRequest;
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.dto.SuperAdminStoreResponse;
+import com.nforce.retailops.dto.UpdateStoreStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.StoreService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -36,6 +39,12 @@ public class StoreController {
         return ResponseEntity.ok(storeService.listAllStoresForSuperAdmin());
     }
 
+    @PostMapping
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<SuperAdminStoreResponse> createUnownedStore(@Valid @RequestBody CreateStoreRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(storeService.createUnownedStore(request));
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<StoreResponse> rename(
@@ -50,5 +59,17 @@ public class StoreController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         storeService.deleteStore(id);
         return ResponseEntity.noContent().build();
+    }
+
+    // Toggles the store's OWN active/inactive status -- not to be confused
+    // with PATCH /api/owners/{ownerId}/stores/{storeId}/status, which toggles
+    // an owner's access to a store instead.
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<SuperAdminStoreResponse> updateStatus(
+        @PathVariable Long id,
+        @Valid @RequestBody UpdateStoreStatusRequest request
+    ) {
+        return ResponseEntity.ok(storeService.setStoreActive(id, request.active()));
     }
 }

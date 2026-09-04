@@ -13,7 +13,6 @@ export function toEmployeeUpdateValues(employee: Employee): EmployeeUpdateValues
     shift: employee.shift,
     employeeType: employee.employeeType,
     gender: employee.gender,
-    storeIds: employee.stores.map((store) => store.id),
   };
 }
 

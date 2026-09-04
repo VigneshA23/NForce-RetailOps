@@ -1,0 +1,47 @@
+.super-admin-stores-page {
+  padding: var(--space-lg);
+}
+
+.super-admin-stores-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-lg);
+  background: var(--color-badge-icon-primary-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+}
+
+.super-admin-stores-page__error span {
+  flex: 1;
+}
+
+.super-admin-stores-page__add-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.super-admin-stores-page__header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
+/* A comparator <select> paired with a number <input>, sharing one .filter slot. */
+.super-admin-stores-page__count-filter {
+  display: flex;
+  gap: 4px;
+}
+
+.super-admin-stores-page__count-filter select {
+  flex: 1 1 60%;
+  min-width: 0;
+}
+
+.super-admin-stores-page__count-filter input {
+  flex: 1 1 40%;
+  min-width: 0;
+}

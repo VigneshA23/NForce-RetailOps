@@ -63,6 +63,9 @@ public class EmployeeProvisioningService {
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
     }
 
+    // ownerId is null for the Super Admin creation path -- the employee starts
+    // out with no creating owner and no stores; an owner picks them up later
+    // via EmployeeService.assignToMyStore.
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ProvisionedEmployee createEmployeeAccount(Long ownerId, EmployeeCreateRequest request, Set<Store> stores) {
         String email = request.email().trim();
@@ -86,7 +89,9 @@ public class EmployeeProvisioningService {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setStores(stores);
         storeEmployee.setEmployee(employee);
-        storeEmployee.setCreatedByOwner(userRepository.getReferenceById(ownerId));
+        if (ownerId != null) {
+            storeEmployee.setCreatedByOwner(userRepository.getReferenceById(ownerId));
+        }
         storeEmployee.setPhone(request.phone().trim());
         storeEmployee.setShift(request.shift());
         storeEmployee.setEmployeeType(request.employeeType());

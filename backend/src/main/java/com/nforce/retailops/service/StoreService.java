@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.CreateStoreRequest;
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.dto.SuperAdminStoreResponse;
@@ -29,17 +30,20 @@ public class StoreService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final TaskRepository taskRepository;
+    private final StoreCodeGenerator storeCodeGenerator;
 
     public StoreService(
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
-        TaskRepository taskRepository
+        TaskRepository taskRepository,
+        StoreCodeGenerator storeCodeGenerator
     ) {
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.taskRepository = taskRepository;
+        this.storeCodeGenerator = storeCodeGenerator;
     }
 
     private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
@@ -54,7 +58,7 @@ public class StoreService {
         Store store = storeOwner.getStore();
         int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
         long taskCount = taskRepository.countByStoreId(store.getId())
-            + taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
+            + (ownerId != null ? taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId) : 0);
         return new StoreResponse(store.getId(), store.getStoreCode(), store.getName(), storeOwner.isActive(), employeeCount, (int) taskCount);
     }
 
@@ -97,7 +101,9 @@ public class StoreService {
         Map<Long, Integer> storeTaskCounts = toCountMap(taskRepository.countGroupedByStoreIds(storeIds));
 
         Set<Long> ownerIds = storeOwners.stream()
-            .map(so -> so.getOwner().getId())
+            .map(StoreOwner::getOwner)
+            .filter(java.util.Objects::nonNull)
+            .map(User::getId)
             .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<Long, Integer> appliesAllCounts = toCountMap(taskRepository.countAppliesToAllGroupedByOwnerIds(ownerIds));
 
@@ -106,16 +112,17 @@ public class StoreService {
                 Store store = storeOwner.getStore();
                 User owner = storeOwner.getOwner();
                 int taskCount = storeTaskCounts.getOrDefault(store.getId(), 0)
-                    + appliesAllCounts.getOrDefault(owner.getId(), 0);
+                    + (owner != null ? appliesAllCounts.getOrDefault(owner.getId(), 0) : 0);
                 return new SuperAdminStoreResponse(
                     store.getId(),
                     store.getStoreCode(),
                     store.getName(),
                     store.getLocation(),
-                    storeOwner.isActive(),
-                    owner.getId(),
-                    owner.getFullName(),
-                    owner.isActive(),
+                    store.isActive(),
+                    owner != null ? owner.getId() : null,
+                    owner != null ? owner.getFullName() : null,
+                    owner != null ? owner.isActive() : null,
+                    owner != null && storeOwner.isActive(),
                     employeeCounts.getOrDefault(store.getId(), 0),
                     taskCount
                 );
@@ -133,7 +140,41 @@ public class StoreService {
         store.setName(request.name().trim());
         storeRepository.save(store);
 
-        return toResponse(storeOwner, storeOwner.getOwner().getId());
+        Long ownerId = storeOwner.getOwner() != null ? storeOwner.getOwner().getId() : null;
+        return toResponse(storeOwner, ownerId);
+    }
+
+    // Super Admin toggles the store's OWN open/closed status -- distinct from
+    // (and must never touch) StoreOwner.active, which OwnerManagementService.
+    // setStoreActive uses for a completely different feature: revoking an
+    // owner's access to a store while leaving the store itself untouched.
+    @Transactional
+    public SuperAdminStoreResponse setStoreActive(Long storeId, boolean active) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        store.setActive(active);
+        store = storeRepository.save(store);
+
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        User owner = storeOwner.getOwner();
+        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
+        long taskCount = taskRepository.countByStoreId(store.getId())
+            + (owner != null ? taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(owner.getId()) : 0);
+
+        return new SuperAdminStoreResponse(
+            store.getId(),
+            store.getStoreCode(),
+            store.getName(),
+            store.getLocation(),
+            store.isActive(),
+            owner != null ? owner.getId() : null,
+            owner != null ? owner.getFullName() : null,
+            owner != null ? owner.isActive() : null,
+            owner != null && storeOwner.isActive(),
+            employeeCount,
+            (int) taskCount
+        );
     }
 
     @Transactional
@@ -143,6 +184,38 @@ public class StoreService {
 
         storeOwnerRepository.delete(storeOwner);
         storeRepository.delete(storeOwner.getStore());
+    }
+
+    // Super Admin creates a store with no owner yet -- active = false on the
+    // StoreOwner row, the same shape as a revoked-access store, so it's
+    // immediately picked up by the "existing store" list when a new owner is
+    // created (OwnerManagementService.listReassignableStores).
+    @Transactional
+    public SuperAdminStoreResponse createUnownedStore(CreateStoreRequest request) {
+        Store store = new Store();
+        store.setName(request.name().trim());
+        store.setLocation(request.location().trim());
+        store.setStoreCode(storeCodeGenerator.next());
+        store = storeRepository.save(store);
+
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setStore(store);
+        storeOwner.setActive(false);
+        storeOwnerRepository.save(storeOwner);
+
+        return new SuperAdminStoreResponse(
+            store.getId(),
+            store.getStoreCode(),
+            store.getName(),
+            store.getLocation(),
+            store.isActive(),
+            null,
+            null,
+            null,
+            false,
+            0,
+            0
+        );
     }
 
 }

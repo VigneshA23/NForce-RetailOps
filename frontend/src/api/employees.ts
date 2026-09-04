@@ -1,4 +1,4 @@
-import type { Employee, EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
+import type { Employee, EmployeeDirectoryEntry, EmployeeUpdateValues } from '../types/employee';
 import { authHeaders } from '../utils/authStorage';
 import { fetchWithTimeout } from './client';
 
@@ -19,19 +19,30 @@ export async function getEmployees(): Promise<Employee[]> {
   return response.json();
 }
 
-export async function getAssignableStores(): Promise<StoreOption[]> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/employees/stores`, { headers: authHeaders() });
-  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to load stores'));
+// Cross-owner directory for the "Assign Employee" flow -- every active
+// employee platform-wide (created by the Super Admin), so the caller can find
+// one and add their own store to it.
+export async function getEmployeeDirectory(): Promise<EmployeeDirectoryEntry[]> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/employees/directory`, { headers: authHeaders() });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to load employees'));
   return response.json();
 }
 
-export async function createEmployee(values: EmployeeCreateValues): Promise<Employee> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/employees`, {
+export async function assignEmployeeToMyStore(id: number): Promise<Employee> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/employees/${id}/assignment`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
-    body: JSON.stringify(values),
+    headers: authHeaders(),
   });
-  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to create employee'));
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to assign employee to your store'));
+  return response.json();
+}
+
+export async function unassignEmployeeFromMyStore(id: number): Promise<Employee> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/employees/${id}/assignment`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to remove employee from your store'));
   return response.json();
 }
 

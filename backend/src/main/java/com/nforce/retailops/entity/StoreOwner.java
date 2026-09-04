@@ -16,8 +16,11 @@ public class StoreOwner {
     @JoinColumn(name = "store_id", nullable = false, unique = true)
     private Store store;
 
+    // Nullable: a store can exist with no owner yet (Super Admin creates it
+    // up front, active = false, and it surfaces as a reassignable store when
+    // a new owner is created later -- see StoreService.createUnownedStore).
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @JoinColumn(name = "user_id")
     private User owner;
 
     // Whether THIS owner currently has access to THIS store -- distinct from

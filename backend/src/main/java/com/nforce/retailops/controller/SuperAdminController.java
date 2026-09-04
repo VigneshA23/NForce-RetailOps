@@ -3,6 +3,7 @@ package com.nforce.retailops.controller;
 import com.nforce.retailops.dto.AddOwnerRequest;
 import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.NextStoreCodeResponse;
+import com.nforce.retailops.dto.OwnerCreationResponse;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.dto.ReassignableStoreResponse;
 import com.nforce.retailops.dto.UpdateOwnerStatusRequest;
@@ -43,7 +44,7 @@ public class SuperAdminController {
     }
 
     @PostMapping("/addowners")
-    public ResponseEntity<OwnerResponse> addOwner(@Valid @RequestBody AddOwnerRequest request) {
+    public ResponseEntity<OwnerCreationResponse> addOwner(@Valid @RequestBody AddOwnerRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ownerManagementService.addOwner(request));
     }
 

@@ -4,8 +4,10 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.util.List;
-
+// Store assignment is handled separately (EmployeeController assign/unassign
+// endpoints), not through this edit form -- an employee's stores can span
+// several owners, so a per-owner edit must never be able to replace the
+// whole set.
 public record EmployeeUpdateRequest(
     @NotBlank(message = "Name is required")
     @Size(max = 150, message = "Name must be 150 characters or fewer")
@@ -25,8 +27,6 @@ public record EmployeeUpdateRequest(
     String employeeType,
 
     @NotBlank(message = "Gender is required")
-    String gender,
-
-    List<Long> storeIds
+    String gender
 ) {
 }

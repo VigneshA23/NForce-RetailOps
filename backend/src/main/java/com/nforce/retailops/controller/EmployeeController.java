@@ -1,9 +1,10 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.EmployeeCreateRequest;
+import com.nforce.retailops.dto.EmployeeCreationResponse;
+import com.nforce.retailops.dto.EmployeeDirectoryResponse;
 import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
-import com.nforce.retailops.dto.StoreOptionResponse;
 import com.nforce.retailops.dto.SuperAdminEmployeeResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
@@ -40,20 +41,37 @@ public class EmployeeController {
         return ResponseEntity.ok(employeeService.listAllEmployeesForSuperAdmin());
     }
 
-    @GetMapping("/stores")
-    public ResponseEntity<List<StoreOptionResponse>> assignableStores(
+    // Cross-owner directory for the Owner's "Assign Employee" flow -- find an
+    // existing (Super-Admin-created) employee and add my own store to them.
+    @GetMapping("/directory")
+    public ResponseEntity<List<EmployeeDirectoryResponse>> directory(
         @AuthenticationPrincipal AppUserDetails principal
     ) {
-        return ResponseEntity.ok(employeeService.listAssignableStores(principal.getUser().getId()));
+        return ResponseEntity.ok(employeeService.listDirectory(principal.getUser().getId()));
     }
 
-    @PostMapping
-    public ResponseEntity<EmployeeResponse> create(
+    @PostMapping("/{id}/assignment")
+    public ResponseEntity<EmployeeResponse> assign(
         @AuthenticationPrincipal AppUserDetails principal,
-        @Valid @RequestBody EmployeeCreateRequest request
+        @PathVariable Long id
     ) {
-        EmployeeResponse created = employeeService.createEmployee(principal.getUser().getId(), request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        return ResponseEntity.ok(employeeService.assignToMyStore(principal.getUser().getId(), id));
+    }
+
+    @DeleteMapping("/{id}/assignment")
+    public ResponseEntity<EmployeeResponse> unassign(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(employeeService.unassignFromMyStore(principal.getUser().getId(), id));
+    }
+
+    // Super-Admin-only: creates the employee account with no store. An owner
+    // assigns their own store to it afterward via POST /{id}/assignment.
+    @PostMapping
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<EmployeeCreationResponse> create(@Valid @RequestBody EmployeeCreateRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.createEmployee(request));
     }
 
     @PutMapping("/{id}")

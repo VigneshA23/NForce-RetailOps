@@ -19,9 +19,9 @@ public record SuperAdminEmployeeResponse(
     Long ownerId,
     String ownerName
 ) {
-    // Owner attribution comes from StoreEmployee.createdByOwner, which every
-    // employee-creation path (EmployeeProvisioningService) always sets -- there
-    // is no other route to create one, so no fallback lookup is needed here.
+    // Owner attribution comes from StoreEmployee.createdByOwner, which is null
+    // for every employee going forward (Super-Admin-only creation, no owner
+    // involved) -- callers pass ownerName "Unassigned" in that case.
     public static SuperAdminEmployeeResponse from(
         StoreEmployee storeEmployee, List<StoreOptionResponse> stores, Long ownerId, String ownerName
     ) {
