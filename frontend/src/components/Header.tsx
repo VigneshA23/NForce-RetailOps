@@ -32,6 +32,7 @@ interface HeaderProps {
   avatarUrl?: string | null;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
+  onSettingsClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
   // Employee pages only -- see Modal's `centered` prop. Forwarded down to the
@@ -59,6 +60,7 @@ function Header({
   avatarUrl,
   onProfileClick,
   onHelpClick,
+  onSettingsClick,
   onLogout,
   loggingOut,
   centeredModals,
@@ -90,7 +92,6 @@ function Header({
           icon={isDarkTheme ? Sun : Moon}
           ariaLabel={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
           onClick={onToggleTheme}
-          variant="accent"
         />
         {showNotifications && <IconButton icon={Bell} ariaLabel="Notifications" />}
         <ProfileMenu
@@ -98,6 +99,7 @@ function Header({
           avatarUrl={avatarUrl}
           onProfileClick={onProfileClick}
           onHelpClick={onHelpClick}
+          onSettingsClick={onSettingsClick}
           onLogout={onLogout}
           loggingOut={loggingOut}
           centeredModals={centeredModals}

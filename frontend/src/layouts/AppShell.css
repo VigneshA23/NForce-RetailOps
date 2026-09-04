@@ -22,5 +22,6 @@
 }
 
 .app-shell__main--bottom-nav {
-  padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  /* pill height (64px) + bottom offset (16px) + breathing room (16px) */
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }

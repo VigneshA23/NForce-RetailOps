@@ -8,8 +8,19 @@ interface BottomNavProps<Key extends string = NavTabKey> {
 }
 
 function BottomNav<Key extends string = NavTabKey>({ items, activeKey, onSelect }: BottomNavProps<Key>) {
+  const activeIndex = items.findIndex((item) => item.key === activeKey);
+
   return (
     <nav className="bottom-nav" aria-label="Primary">
+      {/* Sliding glow highlight — moves to active tab position */}
+      <div
+        className="bottom-nav__highlight"
+        aria-hidden="true"
+        style={{
+          width: `${100 / items.length}%`,
+          transform: `translateX(${activeIndex * 100}%) translateY(-50%)`,
+        }}
+      />
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = item.key === activeKey;

@@ -26,12 +26,9 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
-// Mobile bottom tab bar for the Owner/Admin shell: a deliberately narrower
-// subset of OWNER_NAV_ITEMS (no Home/History/Settings) so the fixed-width
-// bar stays legible at phone width. Order is Employees, Categories, Tasks,
-// Store Detail -- not OWNER_NAV_ITEMS' own order -- to match the requested
-// tab hierarchy.
-const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['employees', 'categories', 'tasks', 'store-detail'];
+// Mobile bottom tab bar for the Owner/Admin shell: a subset of OWNER_NAV_ITEMS
+// (no History/Settings) so the floating pill stays legible at phone width.
+const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['home', 'employees', 'categories', 'tasks', 'store-detail'];
 export const OWNER_BOTTOM_NAV_ITEMS: NavItem[] = OWNER_BOTTOM_NAV_ORDER.map(
   (key) => OWNER_NAV_ITEMS.find((item) => item.key === key)!,
 );

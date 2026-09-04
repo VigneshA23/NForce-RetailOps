@@ -108,11 +108,16 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
         setActiveTab(key);
       }}
       title={title}
+      logoSrc="/nforce-logo.png"
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
+      onSettingsClick={() => {
+        setOverlay(null);
+        setActiveTab('settings');
+      }}
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
       bottomNavItems={OWNER_BOTTOM_NAV_ITEMS}

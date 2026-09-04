@@ -26,6 +26,7 @@ interface AppShellProps<Key extends string = NavTabKey> {
   loggingOut?: boolean;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
+  onSettingsClick?: () => void;
   avatarUrl?: string | null;
   // Extra page-specific header action(s), forwarded to Header's `actions` slot.
   headerActions?: ReactNode;
@@ -56,6 +57,7 @@ function AppShell<Key extends string = NavTabKey>({
   loggingOut,
   onProfileClick,
   onHelpClick,
+  onSettingsClick,
   avatarUrl,
   headerActions,
   mobileNav = 'drawer',
@@ -97,6 +99,7 @@ function AppShell<Key extends string = NavTabKey>({
             avatarUrl={avatarUrl}
             onProfileClick={onProfileClick}
             onHelpClick={onHelpClick}
+            onSettingsClick={onSettingsClick}
             onLogout={onLogout}
             loggingOut={loggingOut}
             onMenuClick={isMobile && !useBottomTabs ? () => setMobileDrawerOpen(true) : undefined}

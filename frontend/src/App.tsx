@@ -220,7 +220,7 @@ function App() {
   }
 
   if (user.role === 'SUPER_ADMIN') {
-    return <SuperAdminDashboard user={user} onLogout={handleLogout} loggingOut={loggingOut} />
+    return <SuperAdminDashboard user={user} onLogout={handleLogout} loggingOut={loggingOut} avatarUrl={avatarUrl} onAvatarChange={handleAvatarChange} />
   }
 
   if (user.role === 'OWNER_ADMIN') {

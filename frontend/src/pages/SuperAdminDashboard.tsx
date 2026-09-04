@@ -18,6 +18,7 @@ import SearchInput from '../components/SearchInput';
 import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
 import Profile from '../pages/Profile';
+import Help from '../pages/Help';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
 import { getInitials } from '../utils/initials';
@@ -27,9 +28,11 @@ interface SuperAdminDashboardProps {
   user: AuthUser;
   onLogout: () => void;
   loggingOut?: boolean;
+  avatarUrl?: string | null;
+  onAvatarChange?: (url: string | null) => void;
 }
 
-function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboardProps) {
+function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: SuperAdminDashboardProps) {
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -48,6 +51,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [searchValue, setSearchValue] = useState('');
   const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('owners');
   const [showProfile, setShowProfile] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
   function loadOwners() {
@@ -174,16 +178,23 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       activeTab={activeTab}
       onSelectTab={(key) => {
         setShowProfile(false);
+        setShowHelp(false);
         setActiveTab(key);
       }}
-      title={showProfile ? 'My Profile' : SUPER_ADMIN_PAGE_TITLES[activeTab]}
+      title={showProfile ? 'My Profile' : showHelp ? 'Help & Guidance' : SUPER_ADMIN_PAGE_TITLES[activeTab]}
+      logoSrc="/nforce-logo.png"
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
-      onProfileClick={() => setShowProfile(true)}
+      avatarUrl={avatarUrl}
+      onProfileClick={() => { setShowHelp(false); setShowProfile(true); }}
+      onHelpClick={() => { setShowProfile(false); setShowHelp(true); }}
+      mobileNav="bottom-tabs"
     >
       {showProfile ? (
-        <Profile initials={userInitials} />
+        <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
+      ) : showHelp ? (
+        <Help />
       ) : activeTab === 'stores' ? (
         <SuperAdminStores />
       ) : activeTab === 'employees' ? (
