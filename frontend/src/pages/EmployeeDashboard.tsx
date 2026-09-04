@@ -231,7 +231,7 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
             </p>
           </div>
           <span className="employee-dashboard-date">
-            <span className="icon-mask-calendar" style={{ width: 14, height: 14 }} aria-hidden="true" />
+            <span className="icon-mask-calendar" style={{ width: 16, height: 16 }} aria-hidden="true" />
             {todayLabel}
           </span>
         </div>

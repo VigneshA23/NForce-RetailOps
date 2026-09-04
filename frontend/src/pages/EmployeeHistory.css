@@ -241,6 +241,15 @@
   background: color-mix(in srgb, var(--color-text-primary) 3%, transparent);
 }
 
+.employee-history-card-header:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+.employee-history-card--expanded {
+  box-shadow: var(--shadow-card), 0 0 0 1px color-mix(in srgb, var(--color-accent) 15%, transparent);
+}
+
 .employee-history-card-icon {
   position: relative;
   flex-shrink: 0;
@@ -345,15 +354,18 @@
 
 .employee-history-task {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
   padding: var(--space-sm) var(--space-md);
   background: var(--color-bg-page);
   border-radius: var(--radius-md);
+  transition: box-shadow 0.15s ease;
 }
 
 .employee-history-task-info {
+  flex: 1 1 220px;
   min-width: 0;
 }
 
