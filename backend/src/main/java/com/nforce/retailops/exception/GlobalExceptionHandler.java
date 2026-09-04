@@ -145,4 +145,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleInvalidResetToken(InvalidPasswordResetTokenException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler(IssueNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleIssueNotFound(IssueNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(NotificationNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNotificationNotFound(NotificationNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
 }

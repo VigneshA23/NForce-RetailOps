@@ -7,6 +7,8 @@ import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.dto.TodayChecklistResponse;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
+import com.nforce.retailops.entity.IssueStatus;
+import com.nforce.retailops.entity.RaisedIssue;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.Store;
@@ -18,6 +20,7 @@ import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -66,6 +69,8 @@ class MeHistoryServiceTest {
     private StoreEmployeeRepository storeEmployeeRepository;
     @Autowired
     private TaskResponseEntryRepository taskResponseEntryRepository;
+    @Autowired
+    private RaisedIssueRepository raisedIssueRepository;
 
     private Long ownerId;
     private Long categoryId;
@@ -542,5 +547,49 @@ class MeHistoryServiceTest {
         assertThat(historyItem.completed()).isTrue();
         assertThat(historyItem.responses()).hasSize(1);
         assertThat(historyItem.responses().get(0).booleanValue()).isTrue();
+    }
+
+    // 6. A same-day raised issue (Raise with Owner) surfaces in the employee's
+    // History detail response -- independent of whether any checklist task was
+    // ever configured/answered that day.
+    @Test
+    @Transactional
+    void detailIncludesAnIssueRaisedTheSameDay() {
+        Store store = storeRepository.getReferenceById(storeId);
+        User employee = userRepository.getReferenceById(employeeId);
+
+        RaisedIssue issue = new RaisedIssue();
+        issue.setStore(store);
+        issue.setEmployee(employee);
+        issue.setNote("Freezer #2 is not cooling properly.");
+        issue.setStatus(IssueStatus.OPEN);
+        raisedIssueRepository.save(issue);
+
+        ChecklistHistoryDetailResponse detail = meHistoryService.getDetail(employeeId, storeId, LocalDate.now());
+
+        assertThat(detail.issues()).hasSize(1);
+        assertThat(detail.issues().get(0).note()).isEqualTo("Freezer #2 is not cooling properly.");
+        assertThat(detail.issues().get(0).status()).isEqualTo("OPEN");
+        assertThat(detail.issues().get(0).responseText()).isNull();
+    }
+
+    // 7. An issue raised for a different day must not leak into today's history.
+    @Test
+    @Transactional
+    void detailExcludesAnIssueRaisedOnADifferentDay() {
+        Store store = storeRepository.getReferenceById(storeId);
+        User employee = userRepository.getReferenceById(employeeId);
+
+        RaisedIssue issue = new RaisedIssue();
+        issue.setStore(store);
+        issue.setEmployee(employee);
+        issue.setNote("Yesterday's issue");
+        issue.setStatus(IssueStatus.OPEN);
+        issue.setRaisedDate(LocalDate.now().minusDays(1));
+        raisedIssueRepository.save(issue);
+
+        ChecklistHistoryDetailResponse detail = meHistoryService.getDetail(employeeId, storeId, LocalDate.now());
+
+        assertThat(detail.issues()).isEmpty();
     }
 }

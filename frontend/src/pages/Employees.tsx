@@ -43,11 +43,27 @@ interface EmployeesProps {
   employeesLoading: boolean;
   employeesError: string | null;
   onRetryEmployees: () => void;
+  /** Re-fetches the owner's employee list from the backend. Called after any
+   * mutation that can affect rows beyond the one the mutation call itself
+   * returned (e.g. a store reassignment elsewhere), so the list never drifts
+   * from the authoritative backend state. */
+  onEmployeesChanged: () => void;
 }
 
-function Employees({ employees, setEmployees, employeesLoading, employeesError, onRetryEmployees }: EmployeesProps) {
-  const isLoading = employeesLoading;
-  const loadError = employeesError;
+function Employees({
+  employees,
+  setEmployees,
+  employeesLoading,
+  employeesError,
+  onRetryEmployees,
+  onEmployeesChanged,
+}: EmployeesProps) {
+  const [storeOptions, setStoreOptions] = useState<StoreOption[]>([]);
+  const [storeOptionsLoading, setStoreOptionsLoading] = useState(true);
+  const [storeOptionsError, setStoreOptionsError] = useState<string | null>(null);
+
+  const isLoading = employeesLoading || storeOptionsLoading;
+  const loadError = employeesError ?? storeOptionsError;
 
   const [search, setSearch] = useState('');
   const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
@@ -112,10 +128,21 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
     setFormError(null);
     setIsSubmitting(true);
     try {
-      const updated = await updateEmployee(editTarget.id, values as EmployeeUpdateValues);
-      setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
-      nfToast.success(`"${updated.name}" employee updated.`);
-      setEditTarget(null);
+      if (formModalState?.mode === 'edit') {
+        const updated = await updateEmployee(formModalState.employee.id, values as EmployeeUpdateValues);
+        // Patched locally for an instant close, then reconciled against the
+        // backend -- a store reassignment elsewhere can affect rows beyond
+        // this one, so the local patch alone isn't a reliable source of truth.
+        setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
+        onEmployeesChanged();
+        nfToast.success(`"${updated.name}" employee updated.`);
+      } else {
+        const created = await createEmployee(values as EmployeeCreateValues);
+        setEmployees((current) => [...current, created]);
+        onEmployeesChanged();
+        nfToast.success(`"${created.name}" employee added.`);
+      }
+      setFormModalState(null);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setFormError(msg);
@@ -131,6 +158,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
     try {
       await deleteEmployee(deleteTarget.id);
       setEmployees((current) => current.filter((employee) => employee.id !== deleteTarget.id));
+      onEmployeesChanged();
       const deletedName = deleteTarget.name;
       setDeleteTarget(null);
       nfToast.success(`"${deletedName}" employee removed.`);
@@ -145,6 +173,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
     try {
       const updated = await setEmployeeStatus(statusTarget.id, !statusTarget.active);
       setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
+      onEmployeesChanged();
       setStatusTarget(null);
       nfToast.success(`"${updated.name}" employee ${updated.active ? 'activated' : 'deactivated'}.`);
     } catch (error) {

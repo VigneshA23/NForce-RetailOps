@@ -2,6 +2,7 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
+import com.nforce.retailops.dto.HistoryIssueResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
 import com.nforce.retailops.entity.Store;
@@ -9,6 +10,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.TaskRepository;
@@ -50,19 +52,22 @@ public class MeHistoryService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final UserProfileService userProfileService;
+    private final RaisedIssueRepository raisedIssueRepository;
 
     public MeHistoryService(
         TaskRepository taskRepository,
         TaskResponseEntryRepository taskResponseEntryRepository,
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
-        UserProfileService userProfileService
+        UserProfileService userProfileService,
+        RaisedIssueRepository raisedIssueRepository
     ) {
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.userProfileService = userProfileService;
+        this.raisedIssueRepository = raisedIssueRepository;
     }
 
     @Transactional(readOnly = true)
@@ -142,7 +147,12 @@ public class MeHistoryService {
             ))
             .toList();
 
-        return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories);
+        List<HistoryIssueResponse> issues = raisedIssueRepository
+            .findByStoreIdAndEmployeeIdAndRaisedDateOrderByCreatedAtDesc(storeId, employeeUserId, date).stream()
+            .map(HistoryIssueResponse::from)
+            .toList();
+
+        return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories, issues);
     }
 
     private HistoryTaskItemResponse toHistoryTaskItem(

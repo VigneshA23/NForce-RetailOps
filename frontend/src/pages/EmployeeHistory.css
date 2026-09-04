@@ -387,6 +387,80 @@
   gap: 4px;
 }
 
+/* Raised Issues */
+
+.employee-history-issues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.employee-history-issues-heading {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.employee-history-issue-card {
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.employee-history-issue-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.employee-history-issue-card-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-badge-icon-warning-bg);
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.employee-history-issue-note {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.employee-history-issue-meta {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin: 0 0 0 44px;
+}
+
+.employee-history-issue-response {
+  margin: 4px 0 0 44px;
+  padding: var(--space-sm);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-page);
+}
+
+.employee-history-issue-response-text {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  margin: 0 0 2px;
+}
+
 @media (--tablet-up) {
   .employee-history {
     max-width: 880px;

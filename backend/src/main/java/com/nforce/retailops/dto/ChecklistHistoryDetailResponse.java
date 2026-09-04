@@ -8,6 +8,10 @@ public record ChecklistHistoryDetailResponse(
     String storeName,
     LocalDate date,
     boolean hasChecklist,
-    List<HistoryCategoryResponse> categories
+    List<HistoryCategoryResponse> categories,
+    // Employee-facing only (MeHistoryService) -- the owner-facing equivalent
+    // (ChecklistHistoryService) always passes an empty list here; issues are
+    // surfaced to owners separately via IssueController/StoreDetail instead.
+    List<HistoryIssueResponse> issues
 ) {
 }

@@ -40,6 +40,20 @@ export interface HistoryCategoryEntry {
   tasks: HistoryTaskDetail[];
 }
 
+export type IssueStatus = 'OPEN' | 'RESOLVED';
+
+export interface HistoryIssueEntry {
+  id: number;
+  note: string;
+  status: IssueStatus;
+  responseText: string | null;
+  respondedByName: string | null;
+  // Formatted local time, derived client-side the same way completedAt is --
+  // null until an owner responds.
+  respondedAt: string | null;
+  raisedAt: string;
+}
+
 export interface ShiftHistory {
   date: string;
   storeId: number;
@@ -48,4 +62,5 @@ export interface ShiftHistory {
   // having applied but none being answered yet.
   hasChecklist: boolean;
   categories: HistoryCategoryEntry[];
+  issues: HistoryIssueEntry[];
 }

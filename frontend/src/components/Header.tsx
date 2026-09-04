@@ -24,6 +24,8 @@ interface HeaderProps {
   // page content for either to act on yet) turns them off.
   showSearch?: boolean;
   showNotifications?: boolean;
+  onNotificationsClick?: () => void;
+  notificationCount?: number;
   searchValue: string;
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;
@@ -51,6 +53,8 @@ function Header({
   hideLogoOnDesktop,
   showSearch = true,
   showNotifications = true,
+  onNotificationsClick,
+  notificationCount,
   searchValue,
   onSearchChange,
   isDarkTheme,
@@ -92,7 +96,9 @@ function Header({
           onClick={onToggleTheme}
           variant="accent"
         />
-        {showNotifications && <IconButton icon={Bell} ariaLabel="Notifications" />}
+        {showNotifications && (
+          <IconButton icon={Bell} ariaLabel="Notifications" onClick={onNotificationsClick} badgeCount={notificationCount} />
+        )}
         <ProfileMenu
           fullName={userName}
           avatarUrl={avatarUrl}

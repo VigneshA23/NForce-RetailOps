@@ -129,3 +129,171 @@
   color: var(--color-text-secondary);
 }
 
+.store-detail-page__issues {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.store-detail-page__issues-header {
+  margin-bottom: var(--space-md);
+}
+
+.store-detail-issue-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.store-detail-issue-list--resolved {
+  margin-top: var(--space-md);
+}
+
+.store-detail-issue-card {
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--color-border);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.store-detail-issue-card--resolved {
+  opacity: 0.85;
+}
+
+.store-detail-issue-card__top {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+}
+
+.store-detail-issue-card__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-badge-icon-warning-bg);
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.store-detail-issue-card__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.store-detail-issue-card__note {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 2px;
+}
+
+.store-detail-issue-card__respond {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: flex-start;
+}
+
+.store-detail-issue-card__textarea {
+  flex: 1;
+  min-height: 44px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.store-detail-issue-card__send {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.store-detail-issue-card__response-text {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm);
+  margin: 0;
+}
+
+.store-detail-page__report {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.store-detail-page__report-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.store-detail-page__report-heading {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+
+.store-detail-page__all-stores-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  align-self: flex-end;
+  padding-bottom: 8px;
+}
+
+/* Shown only in the printed output -- the interactive filters/heading above
+   are hidden there instead (see the print rules below). */
+.store-detail-page__print-only {
+  display: none;
+}
+
+@media (--mobile) {
+  .store-detail-page__report-header {
+    flex-direction: column;
+  }
+}
+
+/* Printing the Daily Operations Summary: isolate just that section (title,
+   selected range/store, and the table) and hide the rest of the app shell and
+   this page's own interactive controls, without touching on-screen styling or
+   requiring a PDF-generation dependency. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .store-detail-page__report,
+  .store-detail-page__report * {
+    visibility: visible;
+  }
+
+  .store-detail-page__report {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    padding: 0;
+    border-top: none;
+  }
+
+  .store-detail-page__no-print {
+    display: none !important;
+  }
+
+  .store-detail-page__print-only {
+    display: block;
+    margin-bottom: var(--space-md);
+  }
+}

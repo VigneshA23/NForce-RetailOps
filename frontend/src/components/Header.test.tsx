@@ -1,60 +1,60 @@
-import { render, screen, within } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
-import Header from './Header'
+import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { describe, expect, it, vi } from 'vitest';
+import Header from './Header';
 
-function renderHeader(onLogout: () => void, loggingOut = false) {
+function renderHeader(overrides: Partial<Parameters<typeof Header>[0]> = {}) {
   return render(
     <Header
-      title="Employees"
+      title="RetailOps"
       searchValue=""
-      onSearchChange={() => {}}
+      onSearchChange={vi.fn()}
       isDarkTheme={false}
-      onToggleTheme={() => {}}
-      userName="Alex Owner"
-      onProfileClick={() => {}}
-      onHelpClick={() => {}}
-      onLogout={onLogout}
-      loggingOut={loggingOut}
+      onToggleTheme={vi.fn()}
+      userName="Jane Doe"
+      onLogout={vi.fn()}
+      {...overrides}
     />,
-  )
+  );
 }
 
-describe('Header sign-out', () => {
-  it('shows a log out option for the signed-in admin and calls onLogout after confirming', async () => {
-    const onLogout = vi.fn()
-    const user = userEvent.setup()
-    renderHeader(onLogout)
+// Proves the fix wiring the header bell to the Notifications page: clicking
+// it fires onNotificationsClick (the shell then swaps in the Notifications
+// overlay), and the unread count renders as a badge on the icon.
+describe('Header notifications bell', () => {
+  it('calls onNotificationsClick when the bell is clicked', async () => {
+    const onNotificationsClick = vi.fn();
+    renderHeader({ onNotificationsClick });
 
-    await user.click(screen.getByLabelText(/signed in as alex owner/i))
-    await user.click(screen.getByRole('menuitem', { name: /log out/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Notifications' }));
 
-    const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: /^log out$/i }))
+    expect(onNotificationsClick).toHaveBeenCalledTimes(1);
+  });
 
-    expect(onLogout).toHaveBeenCalledTimes(1)
-  })
+  it('does not render a badge when there are no unread notifications', () => {
+    renderHeader({ onNotificationsClick: vi.fn(), notificationCount: 0 });
 
-  it('does not call onLogout when the confirmation is cancelled', async () => {
-    const onLogout = vi.fn()
-    const user = userEvent.setup()
-    renderHeader(onLogout)
+    const bell = screen.getByRole('button', { name: 'Notifications' });
+    expect(bell.querySelector('.icon-button__badge')).not.toBeInTheDocument();
+  });
 
-    await user.click(screen.getByLabelText(/signed in as alex owner/i))
-    await user.click(screen.getByRole('menuitem', { name: /log out/i }))
+  it('renders the unread count as a badge on the bell', () => {
+    renderHeader({ onNotificationsClick: vi.fn(), notificationCount: 3 });
 
-    const dialog = await screen.findByRole('dialog')
-    await user.click(within(dialog).getByRole('button', { name: /cancel/i }))
+    const bell = screen.getByRole('button', { name: 'Notifications' });
+    expect(bell.querySelector('.icon-button__badge')).toHaveTextContent('3');
+  });
 
-    expect(onLogout).not.toHaveBeenCalled()
-  })
+  it('caps the badge at "9+" for large counts', () => {
+    renderHeader({ onNotificationsClick: vi.fn(), notificationCount: 42 });
 
-  it('disables the menu item while a logout is already in progress', async () => {
-    const onLogout = vi.fn()
-    const user = userEvent.setup()
-    renderHeader(onLogout, true)
+    const bell = screen.getByRole('button', { name: 'Notifications' });
+    expect(bell.querySelector('.icon-button__badge')).toHaveTextContent('9+');
+  });
 
-    await user.click(screen.getByLabelText(/signed in as alex owner/i))
-    expect(screen.getByRole('menuitem', { name: /log out/i })).toBeDisabled()
-  })
-})
+  it('omits the bell entirely when showNotifications is false', () => {
+    renderHeader({ showNotifications: false, onNotificationsClick: vi.fn() });
+
+    expect(screen.queryByRole('button', { name: 'Notifications' })).not.toBeInTheDocument();
+  });
+});

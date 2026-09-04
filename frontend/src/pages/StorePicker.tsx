@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Store as StoreIcon } from 'lucide-react'
 import type { StoreSummary } from '../types/store'
 import type { AuthUser } from '../types/auth'
@@ -13,17 +13,28 @@ const CARD_TONES = ['primary', 'info', 'success', 'purple', 'warning'] as const
 
 interface StorePickerProps {
   user: AuthUser
-  // Loaded once in App from the server-scoped list, so the picker can never
-  // offer a store the employee is not assigned to.
+  // Server-scoped list, so the picker can never offer a store the employee
+  // is not assigned to -- but the list itself is only as fresh as the last
+  // fetch. onReload re-fetches it every time this screen is actually shown
+  // (first login, or returning via "Switch Store"), so a store an Admin
+  // unassigned the employee from mid-session doesn't linger as a stale card.
   stores: StoreSummary[]
   onSelectStore: (store: StoreSummary) => void
+  onReload: () => void
   onLogout: () => void
   loggingOut?: boolean
 }
 
-function StorePicker({ user, stores, onSelectStore, onLogout, loggingOut }: StorePickerProps) {
+function StorePicker({ user, stores, onSelectStore, onReload, onLogout, loggingOut }: StorePickerProps) {
   const { isDarkTheme, toggleTheme } = useTheme()
   const [searchValue, setSearchValue] = useState('')
+
+  useEffect(() => {
+    onReload()
+    // Only ever re-run if the callback identity itself changes, not on every
+    // render -- this must fire once per mount (each time the picker is shown).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return (
     <div className="store-picker">

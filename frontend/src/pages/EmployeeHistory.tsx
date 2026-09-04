@@ -7,6 +7,7 @@ import {
   Flag,
   HelpCircle,
   Lock,
+  MessageSquareWarning,
   MoonStar,
   Sparkles,
   Store as StoreIcon,
@@ -58,7 +59,8 @@ interface StoreHistoryEntry {
 }
 
 function entryHasActivity(entry: StoreHistoryEntry): entry is StoreHistoryEntry & { history: ShiftHistory } {
-  return Boolean(entry.history?.hasChecklist && entry.history.categories.length > 0)
+  if (!entry.history) return false
+  return (entry.history.hasChecklist && entry.history.categories.length > 0) || entry.history.issues.length > 0
 }
 
 // YYYY-MM-DD from the Date object's own LOCAL calendar fields -- deliberately
@@ -182,7 +184,7 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
   return (
     <div className="employee-history">
       <div className="employee-history-header">
-        <h1 className="employee-history-heading">Operational History</h1>
+        <h1 className="employee-history-heading">Audit History</h1>
         <p className="employee-history-subheading">Review past shifts and completed tasks.</p>
       </div>
 
@@ -262,6 +264,34 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
           {entriesWithActivity.map(({ store: entryStore, history }) => (
             <div key={entryStore.id} className="employee-history-store-group">
               {showStoreHeadings && <h2 className="employee-history-store-group-heading">{entryStore.name}</h2>}
+              {history.issues.length > 0 && (
+                <div className="employee-history-issues">
+                  <h3 className="employee-history-issues-heading">Raised Issues</h3>
+                  {history.issues.map((issue) => (
+                    <div key={issue.id} className="employee-history-issue-card">
+                      <div className="employee-history-issue-card-top">
+                        <span className="employee-history-issue-card-icon" aria-hidden="true">
+                          <MessageSquareWarning size={16} />
+                        </span>
+                        <p className="employee-history-issue-note">{issue.note}</p>
+                        <span className={`badge ${issue.status === 'RESOLVED' ? 'badge--success' : 'badge--warning'}`}>
+                          {issue.status === 'RESOLVED' ? 'Resolved' : 'Open'}
+                        </span>
+                      </div>
+                      <p className="employee-history-issue-meta">Raised at {issue.raisedAt}</p>
+                      {issue.status === 'RESOLVED' && issue.responseText && (
+                        <div className="employee-history-issue-response">
+                          <p className="employee-history-issue-response-text">{issue.responseText}</p>
+                          <p className="employee-history-issue-meta">
+                            {issue.respondedByName ? `${issue.respondedByName} · ` : ''}
+                            {issue.respondedAt}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
               {history.categories.map((category) => {
                 const Icon = CATEGORY_ICONS[category.name.toLowerCase()] ?? Clock
                 const tone = CATEGORY_TONES[category.name.toLowerCase()] ?? 'outline'

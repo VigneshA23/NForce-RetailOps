@@ -46,7 +46,7 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   settings: 'Settings',
 };
 
-export type EmployeeNavTabKey = 'today' | 'history' | 'audits';
+export type EmployeeNavTabKey = 'today' | 'history';
 
 export interface EmployeeNavItem {
   key: EmployeeNavTabKey;

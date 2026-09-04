@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react'
-import { CalendarCheck, History as HistoryIcon, Inbox, Store as StoreIcon } from 'lucide-react'
+import { CalendarCheck, History as HistoryIcon, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
 import { getInitials } from '../utils/initials'
 import { useIsMobile } from '../hooks/useMediaQuery'
+import { useNotifications } from '../hooks/useNotifications'
 import AppShell from './AppShell'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
-import PlaceholderPage from '../components/PlaceholderPage'
+import Notifications from '../pages/Notifications'
 import Profile from '../pages/Profile'
 import Help from '../pages/Help'
 
@@ -26,11 +27,10 @@ interface EmployeeShellProps {
 
 const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'today', label: 'Today', icon: CalendarCheck },
-  { key: 'history', label: 'History', icon: HistoryIcon },
-  { key: 'audits', label: 'Audits & Inbox', icon: Inbox },
+  { key: 'history', label: 'Audit History', icon: HistoryIcon },
 ]
 
-type Overlay = 'profile' | 'help' | null
+type Overlay = 'profile' | 'help' | 'notifications' | null
 
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, employeeId = null }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
@@ -42,14 +42,14 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName])
 
+  const notificationsState = useNotifications(true)
+
   function renderActivePage() {
     switch (activeTab) {
       case 'today':
         return <EmployeeDashboard store={store} onLogout={onLogout} loggingOut={false} employeeId={employeeId} />
       case 'history':
         return <EmployeeHistory store={store} stores={stores} />
-      case 'audits':
-        return <PlaceholderPage title="Audits & Inbox" icon={Inbox} />
       default: {
         const _exhaustive: never = activeTab
         return _exhaustive
@@ -58,8 +58,15 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   }
 
   // Whichever screen is active -- the currently selected store day-to-day,
-  // or a contextual label while on the Profile/Help overlays.
-  const contextLabel = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : store.name
+  // or a contextual label while on the Profile/Help/Notifications overlays.
+  const contextLabel =
+    overlay === 'profile'
+      ? 'My Profile'
+      : overlay === 'help'
+        ? 'Help & Guidance'
+        : overlay === 'notifications'
+          ? 'Notifications'
+          : store.name
 
   // On mobile there's no sidebar, so the header is the only place the app is
   // ever named -- it keeps the full "NForce RetailOps" title with the context
@@ -87,6 +94,8 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
+      onNotificationsClick={() => setOverlay('notifications')}
+      notificationCount={notificationsState.unreadCount}
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
       headerActions={
@@ -103,7 +112,22 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         )
       }
     >
-      {overlay === 'profile' ? <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} /> : overlay === 'help' ? <Help /> : renderActivePage()}
+      {overlay === 'profile' ? (
+        <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
+      ) : overlay === 'help' ? (
+        <Help />
+      ) : overlay === 'notifications' ? (
+        <Notifications
+          notifications={notificationsState.notifications}
+          isLoading={notificationsState.isLoading}
+          error={notificationsState.error}
+          onRetry={notificationsState.reload}
+          onMarkRead={notificationsState.markRead}
+          onMarkAllRead={notificationsState.markAllRead}
+        />
+      ) : (
+        renderActivePage()
+      )}
     </AppShell>
   )
 }

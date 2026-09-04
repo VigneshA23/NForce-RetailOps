@@ -2,7 +2,10 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.AssignedStoreResponse;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
+import com.nforce.retailops.dto.IssueResponse;
 import com.nforce.retailops.dto.MeResponse;
+import com.nforce.retailops.dto.NotificationResponse;
+import com.nforce.retailops.dto.RaiseIssueRequest;
 import com.nforce.retailops.dto.TaskResponseStateResponse;
 import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.dto.TodayChecklistResponse;
@@ -12,7 +15,9 @@ import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.security.SuperAdminUserDetails;
+import com.nforce.retailops.service.IssueService;
 import com.nforce.retailops.service.MeHistoryService;
+import com.nforce.retailops.service.NotificationService;
 import com.nforce.retailops.service.TaskService;
 import com.nforce.retailops.service.UserProfileService;
 import jakarta.validation.Valid;
@@ -40,11 +45,21 @@ public class MeController {
     private final UserProfileService userProfileService;
     private final TaskService taskService;
     private final MeHistoryService meHistoryService;
+    private final IssueService issueService;
+    private final NotificationService notificationService;
 
-    public MeController(UserProfileService userProfileService, TaskService taskService, MeHistoryService meHistoryService) {
+    public MeController(
+        UserProfileService userProfileService,
+        TaskService taskService,
+        MeHistoryService meHistoryService,
+        IssueService issueService,
+        NotificationService notificationService
+    ) {
         this.userProfileService = userProfileService;
         this.taskService = taskService;
         this.meHistoryService = meHistoryService;
+        this.issueService = issueService;
+        this.notificationService = notificationService;
     }
 
     // Not role-gated, so the principal here can be either an AppUserDetails
@@ -182,5 +197,59 @@ public class MeController {
 
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(meHistoryService.getDetail(userDetails.getUser().getId(), storeId, date));
+    }
+
+    // Employee-facing: raise a free-text issue with the owner of one of the
+    // caller's assigned stores. requireAssignedStore (inside IssueService)
+    // enforces the store belongs to this employee.
+    @PostMapping("/issues")
+    public ResponseEntity<IssueResponse> raiseIssue(
+        @AuthenticationPrincipal UserDetails principal,
+        @Valid @RequestBody RaiseIssueRequest request
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(issueService.raiseIssue(userDetails.getUser().getId(), request));
+    }
+
+    @GetMapping("/notifications")
+    public ResponseEntity<List<NotificationResponse>> notifications(
+        @AuthenticationPrincipal UserDetails principal
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(notificationService.listForUser(userDetails.getUser().getId()));
+    }
+
+    @PatchMapping("/notifications/{id}/read")
+    public ResponseEntity<NotificationResponse> markNotificationRead(
+        @AuthenticationPrincipal UserDetails principal,
+        @PathVariable Long id
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new AccessDeniedException("Not supported for this account type");
+        }
+
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(notificationService.markRead(userDetails.getUser().getId(), id));
+    }
+
+    @PatchMapping("/notifications/read-all")
+    public ResponseEntity<Void> markAllNotificationsRead(
+        @AuthenticationPrincipal UserDetails principal
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new AccessDeniedException("Not supported for this account type");
+        }
+
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        notificationService.markAllRead(userDetails.getUser().getId());
+        return ResponseEntity.noContent().build();
     }
 }

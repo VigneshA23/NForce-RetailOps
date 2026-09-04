@@ -65,6 +65,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             employeesLoading={employeesState.isLoading}
             employeesError={employeesState.error}
             onRetryEmployees={employeesState.reload}
+            onEmployeesChanged={employeesState.reload}
           />
         );
       case 'categories':
