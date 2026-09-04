@@ -19,6 +19,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
+import com.nforce.retailops.exception.CategoryInactiveException;
 import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
@@ -335,6 +336,14 @@ public class TaskService {
     private void applyRequest(Task task, Long ownerId, TaskRequest request) {
         Category category = categoryRepository.findByIdAndOwnerId(request.categoryId(), ownerId)
             .orElseThrow(() -> new CategoryNotFoundException("Category not found"));
+
+        // Inactive categories can't be picked for a task -- except leaving an
+        // already-assigned (now-inactive) category untouched while editing some
+        // other field of the task, which must still be possible.
+        boolean categoryUnchanged = task.getCategory() != null && task.getCategory().getId().equals(category.getId());
+        if (!category.isActive() && !categoryUnchanged) {
+            throw new CategoryInactiveException("This category is inactive and cannot be selected");
+        }
 
         task.setName(request.name().trim());
         task.setDescription(blankToNull(request.description()));

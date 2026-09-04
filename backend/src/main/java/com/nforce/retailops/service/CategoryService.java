@@ -3,6 +3,7 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.CategoryRequest;
 import com.nforce.retailops.dto.CategoryResponse;
 import com.nforce.retailops.entity.Category;
+import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.exception.CategoryNameExistsException;
 import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.exception.InvalidCategoryOrderException;
@@ -98,6 +99,13 @@ public class CategoryService {
 
         category.setActive(active);
         category = categoryRepository.save(category);
+
+        // Cascade: keep every task's own active flag in sync with its category's,
+        // so Task Management's status column never shows "Active" for a task that's
+        // actually hidden from the employee checklist because its category is off.
+        List<Task> tasks = taskRepository.findByCategoryId(categoryId);
+        tasks.forEach(task -> task.setActive(active));
+        taskRepository.saveAll(tasks);
 
         return toResponse(category);
     }
