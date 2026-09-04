@@ -23,11 +23,6 @@
   font-size: 14px;
 }
 
-.home-page__empty {
-  color: var(--color-text-secondary);
-  font-size: 13px;
-}
-
 .home-page__donut {
   position: relative;
   width: 100%;

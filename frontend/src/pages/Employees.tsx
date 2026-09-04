@@ -25,9 +25,26 @@ import EmployeeDetailModal from '../components/EmployeeDetailModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
+import Select from '../components/Select';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Employees.css';
+
+const SHIFT_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Shifts' },
+  ...SHIFT_OPTIONS.map((option) => ({ value: option.name, label: option.name })),
+];
+
+const TYPE_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Types' },
+  ...EMPLOYEE_TYPE_OPTIONS.map((type) => ({ value: type, label: type })),
+];
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Statuses' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; employee: Employee } | null;
@@ -257,41 +274,29 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
           <SearchInput value={search} onChange={setSearch} placeholder="Search employees" />
         </div>
 
-        <select
-          className="select filter"
+        <Select
+          className="filter"
+          options={SHIFT_FILTER_OPTIONS}
           value={shiftFilter}
-          onChange={(event) => setShiftFilter(event.target.value as ShiftName | 'ALL')}
-        >
-          <option value="ALL">All Shifts</option>
-          {SHIFT_OPTIONS.map((option) => (
-            <option key={option.name} value={option.name}>
-              {option.name}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setShiftFilter(value as ShiftName | 'ALL')}
+          ariaLabel="Filter by shift"
+        />
 
-        <select
-          className="select filter"
+        <Select
+          className="filter"
+          options={TYPE_FILTER_OPTIONS}
           value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value as EmployeeType | 'ALL')}
-        >
-          <option value="ALL">All Types</option>
-          {EMPLOYEE_TYPE_OPTIONS.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setTypeFilter(value as EmployeeType | 'ALL')}
+          ariaLabel="Filter by employee type"
+        />
 
-        <select
-          className="select filter filter--narrow"
+        <Select
+          className="filter filter--narrow"
+          options={STATUS_FILTER_OPTIONS}
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-        </select>
+          onChange={(value) => setStatusFilter(value as StatusFilter)}
+          ariaLabel="Filter by status"
+        />
       </div>
 
       {statusError && <div className="employees-page__error">{statusError}</div>}

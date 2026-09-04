@@ -1,0 +1,99 @@
+@import '../styles/breakpoints.css';
+
+.store-completion-card__empty {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin: 0;
+}
+
+.store-completion-card__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.store-completion-card__icon-btn:hover {
+  background: var(--color-badge-icon-primary-bg);
+}
+
+.store-completion-card__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.store-completion-card__ring-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1.1;
+}
+
+.store-completion-card__ring-caption {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.store-completion-card__legend {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-md) 0 0;
+  border-top: 1px solid var(--color-border);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.store-completion-card__legend-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 13px;
+}
+
+.store-completion-card__legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--color-text-muted);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.store-completion-card__legend-dot--completed {
+  background: var(--color-status-completed);
+}
+
+.store-completion-card__legend-dot--in-progress {
+  background: var(--color-status-in-progress);
+}
+
+.store-completion-card__legend-dot--unscheduled {
+  background: var(--color-status-unscheduled);
+}
+
+.store-completion-card__legend-label {
+  color: var(--color-text-secondary);
+  flex: 1;
+}
+
+.store-completion-card__legend-value {
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+@media (--mobile) {
+  .card__toolbar {
+    justify-content: space-between;
+  }
+}

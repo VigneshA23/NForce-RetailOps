@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { NavTabKey } from '../types/navigation';
-import { OWNER_NAV_ITEMS, PAGE_TITLES } from '../types/navigation';
+import { OWNER_BOTTOM_NAV_ITEMS, OWNER_NAV_ITEMS, PAGE_TITLES } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
 import AppShell from './AppShell';
 import Employees from '../pages/Employees';
@@ -114,6 +114,8 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
       avatarUrl={avatarUrl}
+      mobileNav="bottom-tabs"
+      bottomNavItems={OWNER_BOTTOM_NAV_ITEMS}
     >
       {overlay === 'profile' ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />

@@ -10,6 +10,16 @@
   box-sizing: border-box;
   background: linear-gradient(90deg, #050506 0%, #6B0C10 40%, #A01418 100%);
   color: var(--color-header-text);
+  border-bottom: 1px solid var(--color-header-border);
+}
+
+/* The avatar reads better against the header's busy red gradient with a
+   soft white ring around it -- scoped to the header so the same UserAvatar
+   used on the Profile page and in the Sidebar (both on flat backgrounds)
+   is unaffected. */
+.header .user-avatar {
+  box-sizing: border-box;
+  border: 2px solid rgba(255, 255, 255, 0.55);
 }
 
 .header__left {

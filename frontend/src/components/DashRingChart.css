@@ -1,0 +1,53 @@
+.dash-ring {
+  position: relative;
+}
+
+.dash-ring__svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.dash-ring__svg line {
+  cursor: pointer;
+  transition: stroke-width 0.1s ease;
+}
+
+.dash-ring__svg line:hover {
+  stroke-width: 7;
+}
+
+.dash-ring__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.dash-ring__tooltip {
+  position: fixed;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #0d0d0f;
+  color: #ffffff;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  pointer-events: none;
+  z-index: var(--z-modal);
+  white-space: nowrap;
+}
+
+.dash-ring__tooltip-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dash-ring__tooltip-value {
+  font-weight: 700;
+}

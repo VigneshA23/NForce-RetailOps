@@ -54,4 +54,13 @@
   .employees-page__header {
     flex-wrap: wrap;
   }
+
+  /* Once the summary text pushes the button onto its own wrapped row,
+     `justify-content: space-between` has nothing left to space out on that
+     row alone, so the button (a lone flex item) sits at the row's start
+     instead of staying right-aligned. `margin-left: auto` pushes it back to
+     the end of its own line regardless of wrapping. */
+  .employees-page__header .specular-button {
+    margin-left: auto;
+  }
 }

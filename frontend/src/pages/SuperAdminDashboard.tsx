@@ -16,6 +16,8 @@ import SpecularButton from '../components/SpecularButton';
 import SearchInput from '../components/SearchInput';
 import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
+import Profile from './Profile';
+import { getInitials } from '../utils/initials';
 import './SuperAdminDashboard.css';
 
 interface SuperAdminDashboardProps {
@@ -41,6 +43,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [storeChecklistTarget, setStoreChecklistTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [activeTab] = useState<SuperAdminNavTabKey>('owners');
+  const [overlay, setOverlay] = useState<'profile' | null>(null);
+
+  const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
   function loadOwners() {
     setIsLoading(true);
@@ -159,102 +164,109 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   );
   const totalStoreCount = useMemo(() => owners.filter((owner) => owner.storeId != null).length, [owners]);
 
+  const title = overlay === 'profile' ? 'My Profile' : SUPER_ADMIN_PAGE_TITLES[activeTab];
+
   return (
     <AppShell<SuperAdminNavTabKey>
       navItems={SUPER_ADMIN_NAV_ITEMS}
       activeTab={activeTab}
-      onSelectTab={() => {}}
-      title={SUPER_ADMIN_PAGE_TITLES[activeTab]}
+      onSelectTab={() => setOverlay(null)}
+      title={title}
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
+      onProfileClick={() => setOverlay('profile')}
     >
-      <div className="owners-page">
-        <div className="stat-card-row">
-          <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
-          <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
-          <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount} tone="info" />
-        </div>
-
-        {statusError && (
-          <div className="owners-page__error">
-            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-            <span className="owners-page__error-message">{statusError}</span>
+      {overlay === 'profile' ? (
+        <Profile initials={userInitials} />
+      ) : (
+        <div className="owners-page">
+          <div className="stat-card-row">
+            <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
+            <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
+            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount} tone="info" />
           </div>
-        )}
 
-        {storeStatusError && (
-          <div className="owners-page__error">
-            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-            <span className="owners-page__error-message">{storeStatusError}</span>
-          </div>
-        )}
-
-        {loadError ? (
-          <div className="owners-page__error">
-            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-            <span className="owners-page__error-message">{loadError}</span>
-            <button type="button" className="btn btn--secondary" onClick={loadOwners}>
-              Retry
-            </button>
-          </div>
-        ) : (
-          <div className="card">
-            <div className="card__header">
-              <h2 className="card__title">All Owners</h2>
-              <div className="card__toolbar">
-                <SearchInput
-                  variant="card"
-                  value={searchValue}
-                  onChange={setSearchValue}
-                  placeholder="Search by owner, email, or store..."
-                />
-                <SpecularButton
-                  size="sm"
-                  radius={999}
-                  tint="var(--color-badge-solid-bg)"
-                  tintOpacity={1}
-                  textColor="var(--color-badge-solid-text)"
-                  lineColor="#e11d33"
-                  baseColor="#e4e4e7"
-                  followMouse
-                  proximity={180}
-                  onClick={() => {
-                    setFormError(null);
-                    setIsFormOpen(true);
-                  }}
-                >
-                  <span className="owners-page__add-label">
-                    <Plus size={16} />
-                    Add Owner
-                  </span>
-                </SpecularButton>
-              </div>
+          {statusError && (
+            <div className="owners-page__error">
+              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+              <span className="owners-page__error-message">{statusError}</span>
             </div>
-            <OwnerList
-              owners={filteredOwners}
-              isLoading={isLoading}
-              onToggleStatus={setStatusTarget}
-              onAddStore={(owner) => {
-                setAssignStoreError(null);
-                setAssignStoreTarget(owner);
-              }}
-              onToggleStoreStatus={(store) => {
-                setStoreStatusError(null);
-                setStoreStatusTarget(store);
-              }}
-              onViewStoreChecklist={(store) => {
-                if (store.storeId == null || store.storeName == null) return;
-                setStoreChecklistTarget({
-                  storeId: store.storeId,
-                  storeName: store.storeName,
-                  date: new Date().toISOString().slice(0, 10),
-                });
-              }}
-            />
-          </div>
-        )}
-      </div>
+          )}
+
+          {storeStatusError && (
+            <div className="owners-page__error">
+              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+              <span className="owners-page__error-message">{storeStatusError}</span>
+            </div>
+          )}
+
+          {loadError ? (
+            <div className="owners-page__error">
+              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+              <span className="owners-page__error-message">{loadError}</span>
+              <button type="button" className="btn btn--secondary" onClick={loadOwners}>
+                Retry
+              </button>
+            </div>
+          ) : (
+            <div className="card">
+              <div className="card__header">
+                <h2 className="card__title">All Owners</h2>
+                <div className="card__toolbar">
+                  <SearchInput
+                    variant="card"
+                    value={searchValue}
+                    onChange={setSearchValue}
+                    placeholder="Search by owner, email, or store..."
+                  />
+                  <SpecularButton
+                    size="sm"
+                    radius={999}
+                    tint="var(--color-badge-solid-bg)"
+                    tintOpacity={1}
+                    textColor="var(--color-badge-solid-text)"
+                    lineColor="#e11d33"
+                    baseColor="#e4e4e7"
+                    followMouse
+                    proximity={180}
+                    onClick={() => {
+                      setFormError(null);
+                      setIsFormOpen(true);
+                    }}
+                  >
+                    <span className="owners-page__add-label">
+                      <Plus size={16} />
+                      Add Owner
+                    </span>
+                  </SpecularButton>
+                </div>
+              </div>
+              <OwnerList
+                owners={filteredOwners}
+                isLoading={isLoading}
+                onToggleStatus={setStatusTarget}
+                onAddStore={(owner) => {
+                  setAssignStoreError(null);
+                  setAssignStoreTarget(owner);
+                }}
+                onToggleStoreStatus={(store) => {
+                  setStoreStatusError(null);
+                  setStoreStatusTarget(store);
+                }}
+                onViewStoreChecklist={(store) => {
+                  if (store.storeId == null || store.storeName == null) return;
+                  setStoreChecklistTarget({
+                    storeId: store.storeId,
+                    storeName: store.storeName,
+                    date: new Date().toISOString().slice(0, 10),
+                  });
+                }}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <OwnerFormModal
         isOpen={isFormOpen}

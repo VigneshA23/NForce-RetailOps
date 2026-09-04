@@ -83,9 +83,8 @@
 }
 
 .sidebar__brand-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.02em;
   color: var(--color-header-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -226,13 +225,21 @@
   max-width: 0;
 }
 
-/* The collapsed rail is sized (see --sidebar-width-collapsed) for the logo
-   and toggle to sit snugly together on the left, matching how nav icons
-   below are also left-aligned rather than centered. */
+/* The collapsed rail is sized (see --sidebar-width-collapsed) just wide
+   enough for the logo and toggle to sit snugly together on the left. */
 .sidebar--collapsed .sidebar__brand {
   justify-content: flex-start;
   gap: 4px;
-  padding: 0 8px;
+  padding: 0 6px;
+}
+
+/* Icons center in the collapsed rail rather than sitting flush left with a
+   wide empty margin to their right -- the rail is only as wide as an icon
+   plus comfortable padding, not the expanded row's text-accommodating width. */
+.sidebar--collapsed .sidebar__item {
+  justify-content: center;
+  padding-left: 4px;
+  padding-right: 4px;
 }
 
 @media (--tablet-down) {
