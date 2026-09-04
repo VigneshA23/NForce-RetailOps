@@ -105,6 +105,18 @@
   border-color: var(--color-accent);
 }
 
+/* Masks the reset-password PNG with the surrounding text color, the same way
+   .icon-mask-calendar does -- keeps it behaving like the lucide-react icon it
+   replaces (adapts to light/dark theme and to hover color changes on
+   .table-icon-btn, via `currentColor`) instead of rendering flat black pixels. */
+.icon-mask-reset-password {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: url('/reset-password-icon.png') center / contain no-repeat;
+  mask: url('/reset-password-icon.png') center / contain no-repeat;
+}
+
 /* Compact status toggle: green when active, red when inactive. Position of
    the thumb (not just color) communicates state for accessibility. */
 .status-toggle {

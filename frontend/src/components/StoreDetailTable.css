@@ -31,6 +31,10 @@
   color: var(--color-text-muted);
 }
 
+.store-detail-table__employee-entry:not(:last-child) {
+  margin-bottom: 4px;
+}
+
 .store-detail-table__status-cell,
 /* Beats the higher-specificity `.data-table thead th { text-align: left }`
    base rule in table.css, so the header lines up with the cell. */

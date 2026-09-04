@@ -1,4 +1,4 @@
-import { Pencil, Trash2, Unlock } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import type { Employee } from '../types/employee';
 import './EmployeeTable.css';
 
@@ -86,7 +86,7 @@ function EmployeeTable({
                       title="Reset Password"
                       onClick={() => onResetPassword(employee)}
                     >
-                      <Unlock size={16} />
+                      <span className="icon-mask-reset-password" style={{ width: 16, height: 16 }} aria-hidden="true" />
                     </button>
                     <button
                       type="button"

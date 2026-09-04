@@ -45,7 +45,11 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist }: StoreDetail
           <tbody>
             {rows.map(({ key, categoryName, task }) => {
               const status = taskStatus(task);
-              const response = task.responses.length > 0 ? task.responses[task.responses.length - 1] : null;
+              // MULTIPLE-completion tasks can have more than one employee's
+              // response for the same store/date -- show every one of them,
+              // not just the last. SINGLE-completion tasks only ever have at
+              // most one response, so this renders exactly as before for them.
+              const responders = task.responses;
               return (
                 <tr key={key}>
                   <td data-label="Category" className="store-detail-table__category">
@@ -62,11 +66,13 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist }: StoreDetail
                     {responseDisplayValue(task)}
                   </td>
                   <td data-label="Employee">
-                    {response ? (
-                      <>
-                        {response.employeeFullName}
-                        <span className="store-detail-table__response-time"> · {formatTimeLabel(response.respondedAt)}</span>
-                      </>
+                    {responders.length > 0 ? (
+                      responders.map((responder) => (
+                        <div key={responder.id} className="store-detail-table__employee-entry">
+                          {responder.employeeFullName}
+                          <span className="store-detail-table__response-time"> · {formatTimeLabel(responder.respondedAt)}</span>
+                        </div>
+                      ))
                     ) : (
                       '—'
                     )}
