@@ -1,0 +1,17 @@
+.super-admin-store-detail__back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: none;
+  border: none;
+  padding: 0;
+  margin-bottom: var(--space-md);
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.super-admin-store-detail__back:hover {
+  color: var(--color-text-primary);
+}

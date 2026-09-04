@@ -1,0 +1,121 @@
+.store-filter {
+  position: relative;
+}
+
+.store-filter__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-width: 160px;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.store-filter__trigger:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+
+.store-filter__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-filter__chevron {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.store-filter__panel {
+  position: fixed;
+  z-index: 1000;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  padding: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.store-filter__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  border-radius: var(--radius-sm);
+}
+
+.store-filter__option:hover {
+  background: var(--color-bg-page);
+}
+
+.store-filter__option--selected {
+  font-weight: 600;
+}
+
+.store-filter__option-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  color: var(--color-accent);
+  flex-shrink: 0;
+}
+
+.store-filter__divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--color-border);
+}
+
+.store-filter__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid var(--color-text-muted);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.store-filter__status-dot--completed {
+  background: var(--color-status-completed);
+}
+
+.store-filter__status-dot--in-progress {
+  background: var(--color-status-in-progress);
+}
+
+.store-filter__status-dot--unscheduled {
+  background: var(--color-status-unscheduled);
+}
+
+.store-filter__option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-filter__option-status {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}

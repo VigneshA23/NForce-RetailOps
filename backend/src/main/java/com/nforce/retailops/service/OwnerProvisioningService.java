@@ -35,6 +35,11 @@ public class OwnerProvisioningService {
         String temporaryPassword,
         Long storeOwnerId,
         Long newStoreId,
+        // True whenever an existing store-owner link was repossessed for this
+        // owner, regardless of whether it had a previous owner at all -- a
+        // never-owned store reassigned here still needs compensating back to
+        // "unowned" on failure, even though previousOwnerIdIfReassigned is null.
+        boolean reassignedExistingStore,
         Long previousOwnerIdIfReassigned,
         OwnerResponse response
     ) {}
@@ -88,6 +93,7 @@ public class OwnerProvisioningService {
 
         StoreOwner storeOwner = null;
         Long newStoreId = null;
+        boolean reassignedExistingStore = false;
         Long previousOwnerId = null;
         if (hasNewStore) {
             Store store = new Store();
@@ -107,7 +113,8 @@ public class OwnerProvisioningService {
             if (storeOwner.isActive()) {
                 throw new InvalidOwnerRequestException("That store is not available for reassignment");
             }
-            previousOwnerId = storeOwner.getOwner().getId();
+            reassignedExistingStore = true;
+            previousOwnerId = storeOwner.getOwner() != null ? storeOwner.getOwner().getId() : null;
             storeOwner.setOwner(owner);
             storeOwner.setActive(true);
             storeOwner = storeOwnerRepository.save(storeOwner);
@@ -122,6 +129,7 @@ public class OwnerProvisioningService {
             temporaryPassword,
             storeOwner != null ? storeOwner.getId() : null,
             newStoreId,
+            reassignedExistingStore,
             previousOwnerId,
             response
         );
@@ -134,15 +142,17 @@ public class OwnerProvisioningService {
             // and nothing else could have referenced the store yet.
             storeOwnerRepository.deleteById(provisioned.storeOwnerId());
             storeRepository.deleteById(provisioned.newStoreId());
-        } else if (provisioned.previousOwnerIdIfReassigned() != null) {
-            // This StoreOwner row was repossessed, not created -- owner_id is
-            // NOT NULL, so "revoked" always means active=false with the last
-            // real owner still on the row. Revert to exactly that shape rather
-            // than deleting it.
+        } else if (provisioned.reassignedExistingStore()) {
+            // This StoreOwner row was repossessed, not created -- revert to
+            // exactly the shape it had before: either the last real owner
+            // (revoked-access reassignment) or no owner at all (a
+            // never-owned store picked up as "existing").
             StoreOwner storeOwner = storeOwnerRepository.findById(provisioned.storeOwnerId())
                 .orElseThrow(() -> new IllegalStateException(
                     "Reassigned store-owner link " + provisioned.storeOwnerId() + " vanished during compensation"));
-            storeOwner.setOwner(userRepository.getReferenceById(provisioned.previousOwnerIdIfReassigned()));
+            storeOwner.setOwner(provisioned.previousOwnerIdIfReassigned() != null
+                ? userRepository.getReferenceById(provisioned.previousOwnerIdIfReassigned())
+                : null);
             storeOwner.setActive(false);
             storeOwnerRepository.save(storeOwner);
         }

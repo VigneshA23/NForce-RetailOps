@@ -9,6 +9,7 @@ import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigat
 import OwnerList from '../components/OwnerList';
 import OwnerFormModal from '../components/OwnerFormModal';
 import AssignStoreModal from '../components/AssignStoreModal';
+import TemporaryPasswordPopup from '../components/TemporaryPasswordPopup';
 import ChecklistHistoryDetailModal from '../components/ChecklistHistoryDetailModal';
 import type { ChecklistHistoryDetailTarget } from '../components/ChecklistHistoryDetailModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -16,6 +17,10 @@ import SpecularButton from '../components/SpecularButton';
 import SearchInput from '../components/SearchInput';
 import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
+import Profile from '../pages/Profile';
+import SuperAdminStores from '../pages/SuperAdminStores';
+import SuperAdminEmployees from '../pages/SuperAdminEmployees';
+import { getInitials } from '../utils/initials';
 import './SuperAdminDashboard.css';
 
 interface SuperAdminDashboardProps {
@@ -39,8 +44,11 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [assignStoreError, setAssignStoreError] = useState<string | null>(null);
   const [isAssigningStore, setIsAssigningStore] = useState(false);
   const [storeChecklistTarget, setStoreChecklistTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
   const [searchValue, setSearchValue] = useState('');
-  const [activeTab] = useState<SuperAdminNavTabKey>('owners');
+  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('owners');
+  const [showProfile, setShowProfile] = useState(false);
+  const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
   function loadOwners() {
     setIsLoading(true);
@@ -59,13 +67,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     setFormError(null);
     setIsSubmitting(true);
     try {
-      await addOwner(values);
+      const created = await addOwner(values);
       setIsFormOpen(false);
       // Reloaded rather than appended locally: assigning an existing store
       // moves it away from its previous (deactivated) owner, so a full
       // refresh is the only way to keep that owner's row correct too.
       loadOwners();
       nfToast.success(`"${values.ownerName}" owner added.`);
+      setTempPassword({ name: values.ownerName, password: created.temporaryPassword });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setFormError(msg);
@@ -163,12 +172,23 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     <AppShell<SuperAdminNavTabKey>
       navItems={SUPER_ADMIN_NAV_ITEMS}
       activeTab={activeTab}
-      onSelectTab={() => {}}
-      title={SUPER_ADMIN_PAGE_TITLES[activeTab]}
+      onSelectTab={(key) => {
+        setShowProfile(false);
+        setActiveTab(key);
+      }}
+      title={showProfile ? 'My Profile' : SUPER_ADMIN_PAGE_TITLES[activeTab]}
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
+      onProfileClick={() => setShowProfile(true)}
     >
+      {showProfile ? (
+        <Profile initials={userInitials} />
+      ) : activeTab === 'stores' ? (
+        <SuperAdminStores />
+      ) : activeTab === 'employees' ? (
+        <SuperAdminEmployees />
+      ) : (
       <div className="owners-page">
         <div className="stat-card-row">
           <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
@@ -255,6 +275,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
           </div>
         )}
       </div>
+      )}
 
       <OwnerFormModal
         isOpen={isFormOpen}
@@ -308,6 +329,13 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       <ChecklistHistoryDetailModal
         target={storeChecklistTarget}
         onClose={() => setStoreChecklistTarget(null)}
+      />
+
+      <TemporaryPasswordPopup
+        isOpen={tempPassword !== null}
+        name={tempPassword?.name}
+        password={tempPassword?.password ?? null}
+        onClose={() => setTempPassword(null)}
       />
     </AppShell>
   );

@@ -3,7 +3,8 @@
 :root {
   --color-bg-page: #f2f2f4;
   --color-surface-card: #ffffff;
-  --color-header-bg: #0d0d0f;
+  --color-header-bg: linear-gradient(90deg, #050506 0%, #6b0c10 40%, #a01418 100%);
+  --color-header-border: rgba(228, 55, 61, 0.22);
   --color-header-text: #ffffff;
   --color-nav-bg: #0d0d0f;
 
@@ -16,6 +17,16 @@
   --color-accent: #e11d33;
   --color-accent-contrast: #ffffff;
   --color-focus-ring: #1d6fd6;
+
+  /* The logo's own palette (black badge, white lettering, red accent) rather
+     than a red/amber/gray traffic light -- used for the Stores by Completion
+     rings/legend/status dots. Kept identical across light/dark theme since
+     these are brand-color references, not theme-adaptive UI tones; each ring
+     segment/dot gets a --color-border stroke so the white one stays visible
+     against a white card. */
+  --color-status-completed: #e11d33;
+  --color-status-in-progress: #0d0d0f;
+  --color-status-unscheduled: #ffffff;
 
   --color-badge-solid-bg: #14141a;
   --color-badge-solid-text: #ffffff;
@@ -38,8 +49,8 @@
   --z-sidebar: 100;
   --z-modal: 1000;
 
-  --sidebar-width-expanded: 240px;
-  --sidebar-width-collapsed: 96px;
+  --sidebar-width-expanded: 224px;
+  --sidebar-width-collapsed: 80px;
 
   --sidebar-item-padding-y: 12px;
   --sidebar-item-padding-x: var(--space-md);
@@ -79,7 +90,8 @@
 :root[data-theme='dark'] {
   --color-bg-page: #131316;
   --color-surface-card: #1c1c21;
-  --color-header-bg: #000000;
+  --color-header-bg: linear-gradient(90deg, #050506 0%, #6b0c10 40%, #a01418 100%);
+  --color-header-border: rgba(228, 55, 61, 0.22);
   --color-header-text: #ffffff;
   --color-nav-bg: #000000;
 

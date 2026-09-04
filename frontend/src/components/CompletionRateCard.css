@@ -1,0 +1,73 @@
+.completion-rate-card__period {
+  width: 150px;
+}
+
+.completion-rate-card__headline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.completion-rate-card__value {
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.completion-rate-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.completion-rate-card__badge--up {
+  background: var(--color-badge-icon-success-bg);
+  color: var(--color-badge-icon-success-fg);
+}
+
+.completion-rate-card__badge--down {
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-accent);
+}
+
+.completion-rate-card__badge--flat {
+  background: var(--color-bg-page);
+  color: var(--color-text-muted);
+}
+
+.completion-rate-card__subtext {
+  margin: 4px 0 var(--space-md);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.completion-rate-card__chart {
+  height: 220px;
+}
+
+.completion-rate-card__tooltip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #0d0d0f;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+}
+
+.completion-rate-card__tooltip-value {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.completion-rate-card__tooltip-label {
+  color: rgba(255, 255, 255, 0.7);
+}

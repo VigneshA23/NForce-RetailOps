@@ -90,10 +90,23 @@ public class AuthService {
     /**
      * Voluntary in-app password change: unlike resetPassword (the forced
      * first-login flow, which trusts the session alone), this verifies the
-     * caller's current password hash before allowing the new one.
+     * caller's current password hash before allowing the new one. Checks
+     * super admins first, the same lookup order login() uses, since the two
+     * tables share no key space.
      */
     @Transactional
     public void changePassword(String email, String currentPassword, String newPassword) {
+        Optional<SuperAdmin> superAdminMatch = superAdminRepository.findByEmailIgnoreCase(email);
+        if (superAdminMatch.isPresent()) {
+            SuperAdmin superAdmin = superAdminMatch.get();
+            if (!passwordEncoder.matches(currentPassword, superAdmin.getPasswordHash())) {
+                throw new InvalidCurrentPasswordException("Current password is incorrect");
+            }
+            superAdmin.setPasswordHash(passwordEncoder.encode(newPassword));
+            superAdminRepository.save(superAdmin);
+            return;
+        }
+
         User user = userRepository.findByEmailWithRoles(email)
             .orElseThrow(() -> new BadCredentialsException("Invalid session"));
         if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {

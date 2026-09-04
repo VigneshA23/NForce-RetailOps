@@ -1,19 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronRight, Users, Tags, Percent } from 'lucide-react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getChecklistHistoryDetail, getChecklistHistorySummary } from '../api/checklistHistory';
 import type { OwnerStore } from '../types/ownerStore';
 import type { Employee } from '../types/employee';
@@ -21,6 +8,7 @@ import type { Category } from '../types/category';
 import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import StatCard from '../components/StatCard';
 import ChartCard from '../components/ChartCard';
+import CompletionRateCard from '../components/CompletionRateCard';
 import './Home.css';
 
 interface HomeProps {
@@ -36,16 +24,48 @@ function firstName(fullName: string): string {
   return fullName.trim().split(/\s+/)[0] ?? fullName;
 }
 
-const TREND_DAYS = 7;
+const DEFAULT_TREND_DAYS = 7;
+
+// Local calendar date, not UTC -- .toISOString() converts to UTC first, which
+// silently rolls the date back a day for any timezone ahead of UTC (e.g.
+// IST) during the hours after local midnight but before UTC midnight.
+function toLocalIsoDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
 function isoDateDaysAgo(daysAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
-  return date.toISOString().slice(0, 10);
+  return toLocalIsoDate(date);
 }
 
-function formatDayLabel(isoDate: string): string {
-  return new Date(`${isoDate}T00:00:00`).toLocaleDateString(undefined, { weekday: 'short' });
+function addDaysIso(isoDate: string, days: number): string {
+  const date = new Date(`${isoDate}T00:00:00`);
+  date.setDate(date.getDate() + days);
+  return toLocalIsoDate(date);
+}
+
+// Monday of the calendar week containing today. getDay() is 0=Sun..6=Sat, so
+// (day + 6) % 7 is how many days to step back to reach that week's Monday
+// (0 when today already is Monday).
+function mondayOfThisWeekIso(): string {
+  const today = new Date();
+  const back = (today.getDay() + 6) % 7;
+  today.setDate(today.getDate() - back);
+  return toLocalIsoDate(today);
+}
+
+// Weekday name at a glance for a short window; "Mon"/"Tue" repeats and gets
+// ambiguous once the window spans more than a week, so a longer period spells
+// out the date instead.
+function formatDayLabel(isoDate: string, periodDays: number): string {
+  const date = new Date(`${isoDate}T00:00:00`);
+  return periodDays <= 7
+    ? date.toLocaleDateString(undefined, { weekday: 'short' })
+    : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 // completedTasks/totalTasks as a whole-number percent, 0 for a day/store with
@@ -66,6 +86,7 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
   const [trend, setTrend] = useState<{ day: string; completion: number }[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<{ id: number; name: string; completed: number; total: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [trendDays, setTrendDays] = useState(DEFAULT_TREND_DAYS);
 
   useEffect(() => {
     if (storesLoading) return;
@@ -85,7 +106,18 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       }
 
       const today = isoDateDaysAgo(0);
-      const trendStartDate = isoDateDaysAgo(TREND_DAYS - 1);
+      // The 7-day view is pinned to the current Mon-Sun calendar week (so the
+      // axis always reads Mon,Tue,Wed,Thu,Fri,Sat,Sun) rather than a rolling
+      // "last 7 days" window, whose start weekday would drift with today's
+      // date. Longer periods stay a rolling window, where a fixed weekday
+      // order doesn't apply anyway. Only fetched through today, not the
+      // week's future days -- those simply have no data yet.
+      const weekStart = mondayOfThisWeekIso();
+      const trendStartDate = trendDays === 7 ? weekStart : isoDateDaysAgo(trendDays - 1);
+      const trendDates =
+        trendDays === 7
+          ? Array.from({ length: 7 }, (_, index) => addDaysIso(weekStart, index))
+          : Array.from({ length: trendDays }, (_, index) => isoDateDaysAgo(trendDays - 1 - index));
 
       const [todaySummary, trendSummary, details] = await Promise.all([
         getChecklistHistorySummary({ storeIds, startDate: today, endDate: today }),
@@ -104,9 +136,9 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
         trendTotalsByDate.set(row.date, existing);
       });
       setTrend(
-        Array.from({ length: TREND_DAYS }, (_, index) => isoDateDaysAgo(TREND_DAYS - 1 - index)).map((date) => {
+        trendDates.map((date) => {
           const totals = trendTotalsByDate.get(date) ?? { totalTasks: 0, completedTasks: 0 };
-          return { day: formatDayLabel(date), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
+          return { day: formatDayLabel(date, trendDays), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
         }),
       );
 
@@ -129,7 +161,7 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
     return () => {
       active = false;
     };
-  }, [storesLoading, stores]);
+  }, [storesLoading, stores, trendDays]);
 
   const storeName = stores[0]?.name ?? null;
   const todayCompletion = useMemo(() => {
@@ -162,37 +194,12 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       {storeName && <p className="home-page__store-label">{storeName}</p>}
 
       <div className="chart-card-row">
-        <ChartCard title="Completion Rate" subtitle={`Last ${TREND_DAYS} days across all stores`}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={trend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-              <XAxis dataKey="day" stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-              <YAxis
-                stroke="var(--color-text-muted)"
-                fontSize={12}
-                tickLine={false}
-                axisLine={false}
-                width={36}
-                unit="%"
-              />
-              <Tooltip
-                contentStyle={{
-                  background: 'var(--color-surface-card)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey="completion"
-                name="Completion %"
-                stroke="var(--color-accent)"
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <CompletionRateCard
+          trend={trend}
+          periodDays={trendDays}
+          onPeriodChange={setTrendDays}
+          todayCompletion={todayCompletion}
+        />
 
         <ChartCard title="Tasks by Category" subtitle="Completed vs. total, today">
           <ResponsiveContainer width="100%" height="100%">

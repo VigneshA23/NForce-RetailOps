@@ -1,6 +1,7 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.AddOwnerRequest;
+import com.nforce.retailops.dto.OwnerCreationResponse;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
@@ -56,7 +57,7 @@ class OwnerManagementServiceAddOwnerTest {
         request = new AddOwnerRequest("New Owner", "owner@nforce.test", null, null, null);
         OwnerResponse response = OwnerResponse.withoutStore(newUser());
         provisioned = new OwnerProvisioningService.ProvisionedOwner(
-            5L, "owner@nforce.test", "New Owner", "temp-pass-123", null, null, null, response
+            5L, "owner@nforce.test", "New Owner", "temp-pass-123", null, null, false, null, response
         );
     }
 
@@ -72,9 +73,10 @@ class OwnerManagementServiceAddOwnerTest {
     void onMailSuccessTheProvisionedResponsePassesThroughAndNothingIsCleanedUp() {
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
 
-        OwnerResponse result = ownerManagementService.addOwner(request);
+        OwnerCreationResponse result = ownerManagementService.addOwner(request);
 
-        assertThat(result).isEqualTo(provisioned.response());
+        assertThat(result.owner()).isEqualTo(provisioned.response());
+        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
         verify(mailService).sendTemporaryPassword("owner@nforce.test", "New Owner", "temp-pass-123");
         verify(ownerProvisioningService, never()).deleteUnreachableOwner(any());
     }

@@ -21,8 +21,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -122,6 +124,170 @@ class StoreControllerTest {
         mockMvc.perform(delete("/api/stores/" + store.getId())
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @Transactional
+    void ownerAdminCannotListAllStores() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        User owner = user("store-all-denied@nforce.test", ownerRole);
+        linkOwnerToStore(owner, store("Denied Directory Store", 8006L));
+
+        String token = login("store-all-denied@nforce.test");
+
+        mockMvc.perform(get("/api/stores/all")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanListAllStoresAcrossOwners() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role superRole = role("SUPER_ADMIN");
+        User owner = user("store-all-owner@nforce.test", ownerRole);
+        user("store-all-super@nforce.test", superRole);
+        linkOwnerToStore(owner, store("Directory Test Store", 8007L));
+
+        String token = login("store-all-super@nforce.test");
+
+        mockMvc.perform(get("/api/stores/all")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[*].storeName", org.hamcrest.Matchers.hasItem("Directory Test Store")))
+            .andExpect(jsonPath("$[*].ownerName", org.hamcrest.Matchers.hasItem("Test User")))
+            .andExpect(jsonPath("$[?(@.storeName=='Directory Test Store')].ownerAccessActive",
+                org.hamcrest.Matchers.hasItem(true)));
+    }
+
+    @Test
+    @Transactional
+    void aStoreWithARevokedOwnerLinkIsReportedAsHavingNoActiveOwnerAccess() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role superRole = role("SUPER_ADMIN");
+        User owner = user("store-revoked-owner@nforce.test", ownerRole);
+        user("store-revoked-super@nforce.test", superRole);
+        Store store = store("Revoked Access Store", 8008L);
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setOwner(owner);
+        storeOwner.setStore(store);
+        storeOwner.setActive(false);
+        storeOwnerRepository.save(storeOwner);
+
+        String token = login("store-revoked-super@nforce.test");
+
+        mockMvc.perform(get("/api/stores/all")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            // The store itself is still active/open -- only the owner's access
+            // to it was revoked.
+            .andExpect(jsonPath("$[?(@.storeName=='Revoked Access Store')].storeActive",
+                org.hamcrest.Matchers.hasItem(true)))
+            .andExpect(jsonPath("$[?(@.storeName=='Revoked Access Store')].ownerName",
+                org.hamcrest.Matchers.hasItem("Test User")))
+            .andExpect(jsonPath("$[?(@.storeName=='Revoked Access Store')].ownerAccessActive",
+                org.hamcrest.Matchers.hasItem(false)));
+    }
+
+    @Test
+    @Transactional
+    void ownerAdminCannotCreateAStore() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        user("store-create-denied@nforce.test", ownerRole);
+
+        String token = login("store-create-denied@nforce.test");
+
+        mockMvc.perform(post("/api/stores")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Attempted Store\",\"location\":\"Nowhere\"}"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanCreateAnUnownedStoreAndItAppearsAsReassignable() throws Exception {
+        Role superRole = role("SUPER_ADMIN");
+        user("store-create-super@nforce.test", superRole);
+
+        String token = login("store-create-super@nforce.test");
+
+        mockMvc.perform(post("/api/stores")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Unowned Store\",\"location\":\"Midtown\"}"))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.storeName").value("Unowned Store"))
+            .andExpect(jsonPath("$.ownerId").value(org.hamcrest.Matchers.nullValue()))
+            // The store itself is active/open even with no owner assigned yet --
+            // storeActive must reflect the store, not the (necessarily inactive)
+            // owner link used for reassignment.
+            .andExpect(jsonPath("$.storeActive").value(true))
+            .andExpect(jsonPath("$.ownerAccessActive").value(false));
+
+        mockMvc.perform(get("/api/owners/reassignable-stores")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[*].storeName", org.hamcrest.Matchers.hasItem("Unowned Store")));
+
+        mockMvc.perform(get("/api/stores/all")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.storeName=='Unowned Store')].storeActive", org.hamcrest.Matchers.hasItem(true)));
+    }
+
+    @Test
+    @Transactional
+    void ownerAdminCannotToggleStoreStatus() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        User owner = user("store-status-denied@nforce.test", ownerRole);
+        Store store = store("Status Denied Store", 8009L);
+        linkOwnerToStore(owner, store);
+
+        String token = login("store-status-denied@nforce.test");
+
+        mockMvc.perform(patch("/api/stores/" + store.getId() + "/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\":false}"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanToggleStoreActiveStatusAndItPersistsWithoutAffectingOwnerAccess() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role superRole = role("SUPER_ADMIN");
+        User owner = user("store-status-owner@nforce.test", ownerRole);
+        user("store-status-super@nforce.test", superRole);
+        Store store = store("Status Toggle Store", 8010L);
+        linkOwnerToStore(owner, store);
+
+        String token = login("store-status-super@nforce.test");
+
+        mockMvc.perform(patch("/api/stores/" + store.getId() + "/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\":false}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.storeActive").value(false))
+            // Deactivating the store itself must not touch the owner's access.
+            .andExpect(jsonPath("$.ownerName").value("Test User"))
+            .andExpect(jsonPath("$.ownerAccessActive").value(true));
+
+        mockMvc.perform(get("/api/stores/all")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.storeName=='Status Toggle Store')].storeActive",
+                org.hamcrest.Matchers.hasItem(false)));
+
+        mockMvc.perform(patch("/api/stores/" + store.getId() + "/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\":true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.storeActive").value(true))
+            .andExpect(jsonPath("$.ownerAccessActive").value(true));
     }
 
     private Role role(String name) {

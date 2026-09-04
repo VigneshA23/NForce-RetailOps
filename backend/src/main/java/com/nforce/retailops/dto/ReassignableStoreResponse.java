@@ -7,6 +7,7 @@ public record ReassignableStoreResponse(
     Long storeCode,
     String storeName,
     String storeLocation,
+    // Null for a store that has never had an owner.
     String currentOwnerName
 ) {
     public static ReassignableStoreResponse from(StoreOwner storeOwner) {
@@ -15,7 +16,7 @@ public record ReassignableStoreResponse(
             storeOwner.getStore().getStoreCode(),
             storeOwner.getStore().getName(),
             storeOwner.getStore().getLocation(),
-            storeOwner.getOwner().getFullName()
+            storeOwner.getOwner() != null ? storeOwner.getOwner().getFullName() : null
         );
     }
 }

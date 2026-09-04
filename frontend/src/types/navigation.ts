@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CheckSquare, ClipboardList, Clock, LayoutGrid, Settings, Tags, Users } from 'lucide-react';
+import { Building2, CheckSquare, ClipboardList, Clock, LayoutGrid, Settings, Store, Tags, Users } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -26,6 +26,16 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
+// Mobile bottom tab bar for the Owner/Admin shell: a deliberately narrower
+// subset of OWNER_NAV_ITEMS (no Home/History/Settings) so the fixed-width
+// bar stays legible at phone width. Order is Employees, Categories, Tasks,
+// Store Detail -- not OWNER_NAV_ITEMS' own order -- to match the requested
+// tab hierarchy.
+const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['employees', 'categories', 'tasks', 'store-detail'];
+export const OWNER_BOTTOM_NAV_ITEMS: NavItem[] = OWNER_BOTTOM_NAV_ORDER.map(
+  (key) => OWNER_NAV_ITEMS.find((item) => item.key === key)!,
+);
+
 export const PAGE_TITLES: Record<NavTabKey, string> = {
   home: 'Home',
   'store-detail': 'Store Detail',
@@ -44,12 +54,16 @@ export interface EmployeeNavItem {
   icon: LucideIcon;
 }
 
-export type SuperAdminNavTabKey = 'owners';
+export type SuperAdminNavTabKey = 'owners' | 'stores' | 'employees';
 
 export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'owners', label: 'Owners', icon: Building2 },
+  { key: 'stores', label: 'Stores', icon: Store },
+  { key: 'employees', label: 'Employees', icon: Users },
 ];
 
 export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
   owners: 'Owners',
+  stores: 'Stores',
+  employees: 'Employees',
 };

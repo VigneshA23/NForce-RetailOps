@@ -4,7 +4,6 @@ import { PanelLeft } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser, Role } from '../types/auth';
 import { useIsMobile, useIsTabletDown } from '../hooks/useMediaQuery';
-import UserAvatar from './UserAvatar';
 import './Sidebar.css';
 
 interface HoveredTooltip {
@@ -22,7 +21,6 @@ interface SidebarProps<Key extends string = NavTabKey> {
   mobileOpen?: boolean;
   onClose?: () => void;
   user: AuthUser;
-  avatarUrl?: string | null;
 }
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -30,10 +28,6 @@ const ROLE_LABELS: Record<Role, string> = {
   EMPLOYEE: 'Employee',
   SUPER_ADMIN: 'Super Admin',
 };
-
-function getInitials(fullName: string): string {
-  return fullName.charAt(0).toUpperCase() || '?';
-}
 
 function Sidebar<Key extends string = NavTabKey>({
   items,
@@ -44,7 +38,6 @@ function Sidebar<Key extends string = NavTabKey>({
   mobileOpen = false,
   onClose,
   user,
-  avatarUrl,
 }: SidebarProps<Key>) {
   const isMobile = useIsMobile();
   const isTabletDown = useIsTabletDown();
@@ -69,9 +62,14 @@ function Sidebar<Key extends string = NavTabKey>({
   // markup, because .sidebar needs overflow-x: hidden for its collapse
   // animation, which would otherwise clip a tooltip escaping to the right
   // of an icon-only rail.
-  function showTooltip(label: string, target: HTMLElement) {
+  //
+  // Positioned off the icon itself, not the full-width nav button -- the
+  // button spans the entire (now-centered) rail, so anchoring to its right
+  // edge left a wide gap between the icon and its tooltip.
+  function showTooltip(label: string, button: HTMLElement) {
     if (!isIconOnly) return;
-    const rect = target.getBoundingClientRect();
+    const icon = button.querySelector<HTMLElement>('.sidebar__icon') ?? button;
+    const rect = icon.getBoundingClientRect();
     setHoveredTooltip({ label, top: rect.top + rect.height / 2, left: rect.right + 8 });
   }
 
@@ -136,7 +134,6 @@ function Sidebar<Key extends string = NavTabKey>({
         </div>
         <div className="sidebar__footer">
           <div className="sidebar__profile">
-            <UserAvatar initials={getInitials(user.fullName)} size={32} src={avatarUrl} />
             <div className="sidebar__profile-text sidebar__label">
               <span className="sidebar__profile-name">{user.fullName}</span>
               <span className="sidebar__profile-role">{ROLE_LABELS[user.role]}</span>

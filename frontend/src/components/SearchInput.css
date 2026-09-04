@@ -2,7 +2,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  background: rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-pill);
   padding: 8px 14px;
   color: var(--color-text-muted);
@@ -20,6 +19,24 @@
 
 .search-input__field::placeholder {
   color: rgba(255, 255, 255, 0.5);
+}
+
+.search-input--header {
+  background: #1e2128;
+  border: 1px solid #2a2e37;
+  border-radius: 8px;
+  padding: 7px 11px;
+  gap: 8px;
+  color: #6b7280;
+}
+
+.search-input--header .search-input__field {
+  color: #e8eaed;
+  font-size: 12px;
+}
+
+.search-input--header .search-input__field::placeholder {
+  color: #6b7280;
 }
 
 .search-input--card {

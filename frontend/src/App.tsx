@@ -18,7 +18,6 @@ import {
   getActiveStoreId,
   setActiveStoreId,
   clearActiveStoreId,
-  setLastKnownRole,
   getStoredAvatarUrl,
   setStoredAvatarUrl,
   clearStoredAvatarUrl,
@@ -89,7 +88,6 @@ function App() {
 
   function handleLoginSuccess(authUser: AuthUser, remember: boolean, mustResetPassword: boolean) {
     setAuthToken(authUser.token, remember)
-    setLastKnownRole(authUser.role)
     setSessionMessage(null)
     setUser(authUser)
     setNeedsPasswordReset(mustResetPassword)
@@ -110,7 +108,6 @@ function App() {
     const token = getAuthToken()
     if (token && meState.me) {
       setUser({ token, role: meState.me.role, fullName: meState.me.fullName })
-      setLastKnownRole(meState.me.role)
       setNeedsPasswordReset(meState.me.mustResetPassword)
       if (meState.me.avatarUrl) {
         setAvatarUrl(meState.me.avatarUrl)
