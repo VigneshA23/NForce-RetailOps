@@ -60,7 +60,7 @@ public class UserProfileService {
 
         return new MeResponse(
             user.getId(), user.getFullName(), user.getEmail(), role, storeNames, user.isMustResetPassword(),
-            shift, employeeType, phone);
+            shift, employeeType, phone, user.getAvatarUrl());
     }
 
     /**
@@ -80,11 +80,18 @@ public class UserProfileService {
         userRepository.save(user);
 
         storeEmployeeRepository.findByEmployeeId(user.getId()).ifPresent(storeEmployee -> {
-            storeEmployee.setPhone(request.phone().trim());
+            String phone = request.phone();
+            storeEmployee.setPhone(phone != null ? phone.trim() : null);
             storeEmployeeRepository.save(storeEmployee);
         });
 
         return getMe(user);
+    }
+
+    @Transactional
+    public void updateAvatar(User user, String avatarUrl) {
+        user.setAvatarUrl(avatarUrl);
+        userRepository.save(user);
     }
 
     /**
@@ -118,9 +125,9 @@ public class UserProfileService {
 
     private List<Store> accessibleStores(User user) {
         List<Store> stores = isOwnerAdmin(user)
-            ? storeOwnerRepository.findByOwnerId(user.getId()).stream()
-                .map(StoreOwner::getStore)
-                .toList()
+            ? storeOwnerRepository.findByOwnerIdAndActiveTrue(user.getId())
+                .map(so -> List.of(so.getStore()))
+                .orElseGet(List::of)
             : storeEmployeeRepository.findByEmployeeId(user.getId())
                 .map(storeEmployee -> List.copyOf(storeEmployee.getStores()))
                 .orElseGet(List::of);

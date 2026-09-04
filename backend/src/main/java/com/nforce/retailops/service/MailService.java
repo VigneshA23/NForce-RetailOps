@@ -85,6 +85,33 @@ public class MailService {
         }
     }
 
+    public void sendPasswordResetEmail(String toEmail, String fullName, String resetLink) {
+        String html = """
+            <p>Hi %s,</p>
+            <p>We received a request to reset your RetailOps password. Click the button below to set a new one:</p>
+            <p style="margin:24px 0;">
+              <a href="%s" style="background:#e11d33;color:#ffffff;padding:12px 28px;border-radius:6px;text-decoration:none;font-weight:700;font-size:15px;">Reset Password</a>
+            </p>
+            <p>This link expires in <strong>1 hour</strong>. If you did not request a reset, you can safely ignore this email.</p>
+            """.formatted(escapeHtml(fullName), resetLink);
+
+        try {
+            restClient.post()
+                .uri("/emails")
+                .body(Map.of(
+                    "from", fromEmail,
+                    "to", List.of(toEmail),
+                    "subject", "Reset your RetailOps password",
+                    "html", html
+                ))
+                .retrieve()
+                .toBodilessEntity();
+        } catch (RestClientException ex) {
+            log.error("Resend password reset send failed for {}", toEmail, ex);
+            throw new EmailDeliveryException("Failed to send the reset email to " + toEmail);
+        }
+    }
+
     private static String escapeHtml(String value) {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }

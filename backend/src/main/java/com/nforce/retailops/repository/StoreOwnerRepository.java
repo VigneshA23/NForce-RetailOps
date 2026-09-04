@@ -13,6 +13,10 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     List<StoreOwner> findByOwnerId(Long ownerId);
 
+    Optional<StoreOwner> findByOwnerIdAndActiveTrue(Long ownerId);
+
+    boolean existsByOwnerIdAndActiveTrue(Long ownerId);
+
     // Batched form of findByOwnerId, for listing many owners at once without one
     // query per owner.
     @Query("select so from StoreOwner so join fetch so.store join fetch so.owner where so.owner.id in :ownerIds")
@@ -23,6 +27,8 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
     Optional<StoreOwner> findByStoreIdAndOwnerId(Long storeId, Long ownerId);
 
     Optional<StoreOwner> findByStoreId(Long storeId);
+
+    Optional<StoreOwner> findByStoreIdAndActiveTrue(Long storeId);
 
     void deleteByStoreId(Long storeId);
 

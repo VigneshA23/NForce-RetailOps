@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
+import { nfToast } from '../utils/toast';
 import {
   createEmployee,
   deleteEmployee,
@@ -50,7 +51,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const loadError = employeesError ?? storeOptionsError;
 
   const [search, setSearch] = useState('');
-  const [storeFilter, setStoreFilter] = useState<number | 'ALL'>('ALL');
   const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
   const [typeFilter, setTypeFilter] = useState<EmployeeType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -107,18 +107,17 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
       ) {
         return false;
       }
-      if (storeFilter !== 'ALL' && !employee.stores.some((store) => store.id === storeFilter)) return false;
       if (shiftFilter !== 'ALL' && employee.shift !== shiftFilter) return false;
       if (typeFilter !== 'ALL' && employee.employeeType !== typeFilter) return false;
       if (statusFilter === 'ACTIVE' && !employee.active) return false;
       if (statusFilter === 'INACTIVE' && employee.active) return false;
       return true;
     });
-  }, [employees, search, storeFilter, shiftFilter, typeFilter, statusFilter]);
+  }, [employees, search, shiftFilter, typeFilter, statusFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, storeFilter, shiftFilter, typeFilter, statusFilter]);
+  }, [search, shiftFilter, typeFilter, statusFilter]);
 
   // Derived rather than clamped in an effect, so a filter that shrinks the list
   // below the current page still renders correctly on the same pass.
@@ -133,13 +132,17 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
       if (formModalState?.mode === 'edit') {
         const updated = await updateEmployee(formModalState.employee.id, values as EmployeeUpdateValues);
         setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
+        nfToast.success(`"${updated.name}" employee updated.`);
       } else {
         const created = await createEmployee(values as EmployeeCreateValues);
         setEmployees((current) => [...current, created]);
+        nfToast.success(`"${created.name}" employee added.`);
       }
       setFormModalState(null);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Something went wrong');
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setFormError(msg);
+      nfToast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -151,8 +154,9 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
     try {
       await deleteEmployee(deleteTarget.id);
       setEmployees((current) => current.filter((employee) => employee.id !== deleteTarget.id));
+      const deletedName = deleteTarget.name;
       setDeleteTarget(null);
-      setSuccessMessage('Employee deleted successfully.');
+      nfToast.success(`"${deletedName}" employee removed.`);
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : 'Failed to delete employee');
     }
@@ -165,7 +169,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
       const updated = await setEmployeeStatus(statusTarget.id, !statusTarget.active);
       setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
       setStatusTarget(null);
-      setSuccessMessage(`${updated.name} is now ${updated.active ? 'active' : 'inactive'}.`);
+      nfToast.success(`"${updated.name}" employee ${updated.active ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
       setStatusTarget(null);
@@ -255,19 +259,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
 
         <select
           className="select filter"
-          value={storeFilter}
-          onChange={(event) => setStoreFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
-        >
-          <option value="ALL">All Stores</option>
-          {storeOptions.map((store) => (
-            <option key={store.id} value={store.id}>
-              {store.name}
-            </option>
-          ))}
-        </select>
-
-        <select
-          className="select filter"
           value={shiftFilter}
           onChange={(event) => setShiftFilter(event.target.value as ShiftName | 'ALL')}
         >
@@ -303,7 +294,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
         </select>
       </div>
 
-      {successMessage && <div className="employees-page__success">{successMessage}</div>}
       {statusError && <div className="employees-page__error">{statusError}</div>}
 
       {loadError ? (

@@ -26,6 +26,7 @@ interface AppShellProps<Key extends string = NavTabKey> {
   loggingOut?: boolean;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
+  avatarUrl?: string | null;
   // Extra page-specific header action(s), forwarded to Header's `actions` slot.
   headerActions?: ReactNode;
   // 'drawer' (default): hamburger opens the sliding Sidebar on mobile, as
@@ -50,6 +51,7 @@ function AppShell<Key extends string = NavTabKey>({
   loggingOut,
   onProfileClick,
   onHelpClick,
+  avatarUrl,
   headerActions,
   mobileNav = 'drawer',
   children,
@@ -72,6 +74,7 @@ function AppShell<Key extends string = NavTabKey>({
         mobileOpen={isMobile && mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
         user={user}
+        avatarUrl={avatarUrl}
       />
       <div className="app-shell__content">
         <div className="app-shell__header">
@@ -86,6 +89,7 @@ function AppShell<Key extends string = NavTabKey>({
             isDarkTheme={isDarkTheme}
             onToggleTheme={toggleTheme}
             userName={user.fullName}
+            avatarUrl={avatarUrl}
             onProfileClick={onProfileClick}
             onHelpClick={onHelpClick}
             onLogout={onLogout}

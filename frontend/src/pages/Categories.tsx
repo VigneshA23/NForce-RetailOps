@@ -1,5 +1,6 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Tags, CircleCheck, CircleSlash } from 'lucide-react';
+import { nfToast } from '../utils/toast';
 import {
   createCategory,
   updateCategory,
@@ -45,13 +46,17 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
       if (formModalState?.mode === 'edit') {
         const updated = await updateCategory(formModalState.category.id, values);
         setCategories((current) => current.map((c) => (c.id === updated.id ? updated : c)));
+        nfToast.success(`"${updated.name}" category updated.`);
       } else {
         const created = await createCategory(values);
         setCategories((current) => [...current, created]);
+        nfToast.success(`"${created.name}" category added.`);
       }
       setFormModalState(null);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Something went wrong');
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setFormError(msg);
+      nfToast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -65,9 +70,12 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
     try {
       const updated = await updateCategoryStatus(category.id, active);
       setCategories((current) => current.map((c) => (c.id === updated.id ? updated : c)));
+      nfToast.success(`"${category.name}" category ${active ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setCategories((current) => current.map((c) => (c.id === category.id ? category : c)));
-      setStatusError(error instanceof Error ? error.message : 'Failed to update category status');
+      const msg = error instanceof Error ? error.message : 'Failed to update category status';
+      setStatusError(msg);
+      nfToast.error(msg);
     }
   }
 
@@ -107,10 +115,14 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
     try {
       await deleteCategory(deleteTarget.id);
       setCategories((current) => current.filter((c) => c.id !== deleteTarget.id));
+      const deletedName = deleteTarget.name;
       setDeleteTarget(null);
+      nfToast.success(`"${deletedName}" category deleted.`);
     } catch (error) {
       setDeleteTarget(null);
-      setDeleteError(error instanceof Error ? error.message : 'Failed to delete category');
+      const msg = error instanceof Error ? error.message : 'Failed to delete category';
+      setDeleteError(msg);
+      nfToast.error(msg);
     }
   }
 

@@ -29,20 +29,18 @@ public class StoreController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<StoreResponse> rename(
-        @AuthenticationPrincipal AppUserDetails principal,
         @PathVariable Long id,
         @Valid @RequestBody StoreRequest request
     ) {
-        return ResponseEntity.ok(storeService.renameStore(principal.getUser().getId(), id, request));
+        return ResponseEntity.ok(storeService.renameStore(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-        @AuthenticationPrincipal AppUserDetails principal,
-        @PathVariable Long id
-    ) {
-        storeService.deleteStore(principal.getUser().getId(), id);
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        storeService.deleteStore(id);
         return ResponseEntity.noContent().build();
     }
 }

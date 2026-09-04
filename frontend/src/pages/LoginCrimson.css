@@ -1,5 +1,6 @@
 @import '../styles/breakpoints.css';
 
+/* ─── Shell ──────────────────────────────────────────────────────────────── */
 .login3-shell {
   position: relative;
   min-height: 100dvh;
@@ -7,8 +8,10 @@
   font-family: 'Open Sans', 'Inter', sans-serif;
   background: #0d0d0f;
   overflow: hidden;
+  color: #f2f2f4;
 }
 
+/* ─── Background layers (visible on desktop) ─────────────────────────────── */
 .login3-bg-photo {
   position: absolute;
   inset: -24px;
@@ -16,9 +19,6 @@
   background-image: url('/login-bg-aisle.png');
   background-size: cover;
   background-position: center;
-  /* Blurred and darkened store-aisle photo as the base layer - the -24px
-     inset plus this blur keeps the blur from showing a sharp/clipped edge
-     at the shell's own boundary. */
   filter: blur(6px) brightness(0.55) saturate(1.05);
 }
 
@@ -26,33 +26,7 @@
   position: absolute;
   inset: 0;
   z-index: 1;
-  /* Brand wash over the photo, semi-transparent so the aisle shows through
-     underneath rather than being replaced by flat colour. No white/light
-     zone anywhere now - the whole page stays a dark, moody red-black wash
-     with the photo visible through it, and the form card (its own dark
-     glass panel) provides the only real contrast. */
   background: rgba(13, 13, 15, 0.72);
-}
-
-/* Mobile (below the --tablet-up split-layout breakpoint): flat black page
-   background, no aisle photo at this size. The rest of the mobile
-   light-theme override (card, text colours, button) lives in a second
-   @media block at the end of this file, after the base rules it overrides
-   - an override declared earlier in the file than the rule it's overriding
-   loses the cascade even when its own media query matches, since source
-   order (not media-query specificity) decides ties. */
-@media (max-width: 767px) {
-  .login3-shell {
-    background: #000000;
-  }
-
-  .login3-bg-photo {
-    display: none;
-  }
-
-  .login3-bg-overlay {
-    background: transparent;
-  }
 }
 
 @media (--tablet-up) {
@@ -68,6 +42,7 @@
   }
 }
 
+/* ─── Grid ───────────────────────────────────────────────────────────────── */
 .login3-grid {
   position: relative;
   z-index: 2;
@@ -82,13 +57,12 @@
   }
 }
 
+/* ─── Hero column (desktop only) ─────────────────────────────────────────── */
 .login3-hero {
   --hero-logo-size: 260px;
   display: none;
   position: relative;
   flex-direction: column;
-  /* Brand lockup + tagline read as one vertically-centred group within the
-     column, left-aligned within that group rather than anchored to the top. */
   justify-content: center;
   padding: 56px 48px 56px 96px;
   overflow: hidden;
@@ -114,11 +88,6 @@
   width: var(--hero-logo-size);
   height: var(--hero-logo-size);
   flex-shrink: 0;
-  /* The true logo, unmodified: no filter, no mask, no blend-mode - every
-     earlier attempt at "immersing" it (blend-mode, luminance masks,
-     brightness/saturation boosts) altered its actual colours, which reads
-     as wrong against the real brand mark. A plain circular crop, same as
-     .sidebar__brand-logo elsewhere in the app. */
   object-fit: cover;
   border-radius: 50%;
 }
@@ -134,7 +103,6 @@
   position: relative;
   z-index: 1;
   text-align: left;
-  /* Starts at the logo's horizontal centre, not its left edge. */
   margin-left: calc(var(--hero-logo-size) / 2);
 }
 
@@ -150,10 +118,12 @@
   color: #ff4d5e;
 }
 
+/* ─── Panel (form column) ────────────────────────────────────────────────── */
 .login3-panel {
   display: flex;
   flex-direction: column;
   justify-content: center;
+  min-height: 100dvh;
   padding: 40px 24px;
 }
 
@@ -163,13 +133,11 @@
   }
 }
 
+/* ─── Panel inner ─────────────────────────────────────────────────────────── */
 .login3-panel-inner {
   width: 100%;
   max-width: 400px;
   margin: 0 auto;
-  /* A dark frosted glass card (no white anywhere) rather than a solid
-     white block - the blurred photo shows through it faintly, matching
-     the darker "Admin Login" reference the user pointed to. */
   background: rgba(20, 12, 14, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 24px;
@@ -179,12 +147,7 @@
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
-@media (--mobile) {
-  .login3-panel-inner {
-    padding: 32px 24px;
-  }
-}
-
+/* ─── Mobile brand lockup ────────────────────────────────────────────────── */
 .login3-mobile-brand {
   display: flex;
   align-items: center;
@@ -203,7 +166,6 @@
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  /* The true logo, unmodified - see .login3-hero-logo's comment. */
   object-fit: cover;
   border-radius: 50%;
 }
@@ -215,6 +177,11 @@
   color: #e11d33;
 }
 
+.login3-mobile-tagline {
+  display: none;
+}
+
+/* ─── Heading ────────────────────────────────────────────────────────────── */
 .login3-heading {
   font-size: 26px;
   font-weight: 800;
@@ -237,6 +204,7 @@
   margin: 0 0 28px;
 }
 
+/* ─── Form fields ────────────────────────────────────────────────────────── */
 .login3-field {
   margin-bottom: 16px;
 }
@@ -246,11 +214,6 @@
   margin-bottom: 6px;
 }
 
-/* The asterisk lives as a sibling of the <label>, not a descendant of it -
-   nesting it inside the label (even with aria-hidden) still ended up in the
-   label's computed accessible name in testing, breaking an exact-match
-   test ("Password" vs. "Password*"). As a sibling it can't affect that at
-   all, regardless of aria-hidden support. */
 .login3-label {
   display: inline;
   font-size: 13px;
@@ -261,29 +224,6 @@
 .login3-label-required {
   color: #e11d33;
   margin-left: 2px;
-}
-
-.login3-meta-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 4px 0 20px;
-}
-
-.login3-remember {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: rgba(242, 242, 244, 0.75);
-  cursor: pointer;
-}
-
-.login3-remember input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
-  accent-color: #e11d33;
-  cursor: pointer;
 }
 
 .login3-input-wrap {
@@ -306,7 +246,8 @@
   border-radius: 999px;
   padding: 13px 42px;
   font-family: inherit;
-  font-size: 14px;
+  /* 16px minimum — iOS Safari auto-zooms on any input focused below this size */
+  font-size: 16px;
   color: #16161a;
   outline: none;
   box-sizing: border-box;
@@ -341,6 +282,30 @@
   color: #26262b;
 }
 
+/* ─── Meta row (remember + forgot) ──────────────────────────────────────── */
+.login3-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 20px;
+}
+
+.login3-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: rgba(242, 242, 244, 0.75);
+  cursor: pointer;
+}
+
+.login3-remember input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #e11d33;
+  cursor: pointer;
+}
+
 .login3-forgot-link {
   display: inline-flex;
   align-items: center;
@@ -359,6 +324,7 @@
   text-decoration: underline;
 }
 
+/* ─── Feedback ───────────────────────────────────────────────────────────── */
 .login3-error {
   font-size: 13px;
   color: #e11d33;
@@ -371,6 +337,7 @@
   margin-bottom: 14px;
 }
 
+/* ─── Submit button ──────────────────────────────────────────────────────── */
 .login3-submit {
   position: relative;
   overflow: hidden;
@@ -412,6 +379,7 @@
   cursor: not-allowed;
 }
 
+/* ─── Footer note ────────────────────────────────────────────────────────── */
 .login3-access-note {
   margin: 20px 0 0;
   text-align: center;
@@ -424,60 +392,172 @@
   color: #ff4d5e;
 }
 
-/* Mobile light-theme override, continued from the @media block near the top
-   of this file (which handles the shell/photo/overlay) - placed down here,
-   after every base rule it touches, so it actually wins the cascade. Per a
-   reference screenshot: a white card, dark text, uppercase field labels,
-   and a solid black Sign In button instead of the red gradient used
-   everywhere else. Brand red is kept for the wordmark/links/required-marks
-   rather than the reference's teal/amber, to match the rest of the app's
-   actual palette. */
+/* ─── Mobile overrides ───────────────────────────────────────────────────── */
+/* All overrides come AFTER base rules so cascade wins. Goal: full-bleed dark
+   canvas on mobile — no white card, no letterbox, notch/home-bar aware. */
 @media (max-width: 767px) {
-  .login3-panel-inner {
-    background: #ffffff;
-    border: 1px solid #e4e4e7;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.35);
+  /* Signature element: a crimson radial glow from below, like a spotlight
+     aimed up at the screen. References the idea of the app illuminating your
+     store operations. Static, not animated — auth screens need calm. */
+  .login3-shell {
+    background:
+      radial-gradient(ellipse 130% 52% at 50% 112%, rgba(177, 17, 22, 0.22) 0%, transparent 65%),
+      linear-gradient(185deg, #0a0a0c 0%, #100c0e 100%);
   }
 
+  .login3-bg-photo {
+    display: none;
+  }
+
+  .login3-bg-overlay {
+    background: transparent;
+  }
+
+  /* Panel fills true viewport height, top-aligned, with notch + home-bar awareness.
+     64px minimum (not 52) leaves breathing room below the status bar when
+     black-translucent overlays it — notched iPhones have ~47px inset so the
+     minimum wins and gives ~17px clearance; Dynamic Island (~59px) gets ~5px. */
+  .login3-panel {
+    min-height: 100dvh;
+    padding:
+      max(env(safe-area-inset-top, 0px), 64px)
+      28px
+      max(env(safe-area-inset-bottom, 0px), 32px);
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  /* Strip the card — the dark gradient screen IS the canvas.
+     No background, no border, no radius, no shadow. */
+  .login3-panel-inner {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    max-width: 480px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  /* Brand lockup: column-stacked, centered, prominent at top */
+  .login3-mobile-brand {
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 40px;
+    text-align: center;
+  }
+
+  .login3-mobile-logo {
+    width: 72px;
+    height: 72px;
+  }
+
+  .login3-mobile-wordmark {
+    font-size: 22px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: -0.01em;
+  }
+
+  .login3-mobile-tagline {
+    display: block;
+    font-size: 13px;
+    color: rgba(242, 242, 244, 0.5);
+    margin: -4px 0 0;
+    letter-spacing: 0.02em;
+  }
+
+  .login3-mobile-tagline-accent {
+    color: #ff4d5e;
+  }
+
+  /* Form headings on dark */
   .login3-heading {
-    color: #16161a;
+    color: #f2f2f4;
+    font-size: 22px;
   }
 
   .login3-subheading {
-    color: #6b6b6f;
+    color: rgba(242, 242, 244, 0.55);
+    font-size: 13px;
+    margin: 0 0 24px;
   }
 
+  /* Labels: uppercase, spaced, quiet */
   .login3-label {
-    color: #26262b;
+    color: rgba(242, 242, 244, 0.65);
     text-transform: uppercase;
-    font-size: 12px;
-    letter-spacing: 0.03em;
+    font-size: 11px;
+    letter-spacing: 0.07em;
+  }
+
+  /* Inputs: frosted dark glass, not white */
+  .login3-input {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    color: #f2f2f4;
+    font-size: 16px;
+  }
+
+  .login3-input::placeholder {
+    color: rgba(242, 242, 244, 0.3);
+  }
+
+  .login3-input:focus {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: #e11d33;
+    box-shadow: 0 0 0 3px rgba(225, 29, 51, 0.18);
+  }
+
+  .login3-input-icon {
+    color: rgba(242, 242, 244, 0.38);
+  }
+
+  .login3-toggle-visibility {
+    color: rgba(242, 242, 244, 0.38);
+  }
+
+  .login3-toggle-visibility:hover {
+    color: rgba(242, 242, 244, 0.75);
   }
 
   .login3-remember {
-    color: #4b4b52;
+    color: rgba(242, 242, 244, 0.6);
   }
 
-  .login3-access-note {
-    color: #6b6b6f;
+  .login3-forgot-link {
+    color: #ff4d5e;
   }
 
-  .login3-access-link {
-    color: #e11d33;
-  }
-
-  .login3-success {
-    color: #1a9c5c;
-  }
-
+  /* Red gradient CTA on mobile too — not the old black override */
   .login3-submit {
-    background: #16161a;
-    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.5);
+    background: linear-gradient(135deg, #ff4d5e 0%, #e11d33 100%);
+    box-shadow: 0 12px 24px -8px rgba(225, 29, 51, 0.40);
+    font-size: 16px;
+    padding: 16px;
   }
 
   .login3-submit:hover:not(:disabled) {
-    box-shadow: 0 16px 28px -10px rgba(0, 0, 0, 0.55);
+    box-shadow: 0 16px 28px -8px rgba(225, 29, 51, 0.55);
+  }
+
+  .login3-access-note {
+    color: rgba(242, 242, 244, 0.45);
+  }
+
+  .login3-access-link {
+    color: #ff4d5e;
+  }
+
+  .login3-success {
+    color: #3ddc8b;
+  }
+
+  .login3-error {
+    color: #ff6b7a;
   }
 }

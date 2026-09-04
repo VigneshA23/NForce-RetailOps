@@ -61,6 +61,24 @@ export function clearActiveStoreId(): void {
   localStorage.removeItem(ACTIVE_STORE_STORAGE_KEY);
 }
 
+const AVATAR_KEY = 'nforce-retailops-avatar-url';
+
+export function setStoredAvatarUrl(url: string | null): void {
+  if (url === null) {
+    localStorage.removeItem(AVATAR_KEY);
+  } else {
+    localStorage.setItem(AVATAR_KEY, url);
+  }
+}
+
+export function getStoredAvatarUrl(): string | null {
+  return localStorage.getItem(AVATAR_KEY);
+}
+
+export function clearStoredAvatarUrl(): void {
+  localStorage.removeItem(AVATAR_KEY);
+}
+
 export function authHeaders(): HeadersInit {
   const token = getAuthToken();
   return token ? { Authorization: `Bearer ${token}` } : {};

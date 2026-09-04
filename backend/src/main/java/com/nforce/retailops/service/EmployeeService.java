@@ -102,10 +102,9 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<EmployeeResponse> listEmployees(Long ownerId) {
-        List<Long> storeIds = storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .map(StoreOwner::getStore)
-            .map(Store::getId)
-            .toList();
+        List<Long> storeIds = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+            .map(so -> List.of(so.getStore().getId()))
+            .orElseGet(List::of);
 
         Map<Long, StoreEmployee> employeesById = new LinkedHashMap<>();
         if (!storeIds.isEmpty()) {
@@ -143,10 +142,9 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<StoreOptionResponse> listAssignableStores(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .map(StoreOwner::getStore)
-            .map(StoreOptionResponse::from)
-            .toList();
+        return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+            .map(so -> List.of(StoreOptionResponse.from(so.getStore())))
+            .orElseGet(List::of);
     }
 
     // Deliberately NOT @Transactional: the account is persisted in its own

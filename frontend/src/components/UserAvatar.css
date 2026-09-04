@@ -8,3 +8,8 @@
   font-weight: 700;
   letter-spacing: 0.02em;
 }
+
+.user-avatar--img {
+  object-fit: cover;
+  background: transparent;
+}

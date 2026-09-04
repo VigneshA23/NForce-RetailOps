@@ -2,12 +2,10 @@ import { useMemo, useState } from 'react';
 import type { NavTabKey } from '../types/navigation';
 import { OWNER_NAV_ITEMS, PAGE_TITLES } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
-import type { MeResponse } from '../api/me';
 import AppShell from './AppShell';
 import Employees from '../pages/Employees';
 import Categories from '../pages/Categories';
 import Home from '../pages/Home';
-import Stores from '../pages/Stores';
 import StoreDetail from '../pages/StoreDetail';
 import Tasks from '../pages/Tasks';
 import History from '../pages/History';
@@ -23,18 +21,15 @@ interface DashboardShellProps {
   user: AuthUser;
   onLogout: () => void;
   loggingOut?: boolean;
-  me: MeResponse | null;
-  meLoading: boolean;
-  meError: string | null;
-  onMeUpdated: (me: MeResponse) => void;
+  avatarUrl?: string | null;
+  onAvatarChange?: (url: string | null) => void;
 }
 
 type Overlay = 'profile' | 'help' | null;
 
-function DashboardShell({ user, onLogout, loggingOut, me, meLoading, meError, onMeUpdated }: DashboardShellProps) {
+function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
-  const [storeDetailStoreId, setStoreDetailStoreId] = useState<number | null>(null);
 
   // Fetched once here (not per-page) and shared as props, so switching tabs
   // never re-fetches data that hasn't changed. See useAssignedStores.ts for
@@ -57,24 +52,11 @@ function DashboardShell({ user, onLogout, loggingOut, me, meLoading, meError, on
             storesLoading={storesState.isLoading}
             employees={employeesState.employees}
             categories={categoriesState.categories}
-            onViewStoreDetail={(storeId) => {
-              setStoreDetailStoreId(storeId);
-              setActiveTab('store-detail');
-            }}
-          />
-        );
-      case 'store-management':
-        return (
-          <Stores
-            stores={storesState.stores}
-            setStores={storesState.setStores}
-            isLoading={storesState.isLoading}
-            loadError={storesState.error}
-            onRetry={storesState.reload}
+            onViewStoreDetail={() => setActiveTab('store-detail')}
           />
         );
       case 'store-detail':
-        return <StoreDetail initialStoreId={storeDetailStoreId} />;
+        return <StoreDetail storeId={storesState.stores[0]?.id ?? null} />;
       case 'employees':
         return (
           <Employees
@@ -104,20 +86,10 @@ function DashboardShell({ user, onLogout, loggingOut, me, meLoading, meError, on
             categoriesError={categoriesState.error}
             onRetryCategories={categoriesState.reload}
             stores={storesState.stores}
-            storesLoading={storesState.isLoading}
-            storesError={storesState.error}
-            onRetryStores={storesState.reload}
           />
         );
       case 'history':
-        return (
-          <History
-            stores={storesState.stores}
-            storesLoading={storesState.isLoading}
-            storesError={storesState.error}
-            onRetryStores={storesState.reload}
-          />
-        );
+        return <History />;
       case 'settings':
         return <Settings />;
       default: {
@@ -141,9 +113,10 @@ function DashboardShell({ user, onLogout, loggingOut, me, meLoading, meError, on
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
+      avatarUrl={avatarUrl}
     >
       {overlay === 'profile' ? (
-        <Profile initials={userInitials} me={me} isLoading={meLoading} error={meError} onMeUpdated={onMeUpdated} />
+        <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : overlay === 'help' ? (
         <Help />
       ) : (

@@ -6,6 +6,7 @@ import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.ChecklistHistoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,13 +36,21 @@ public class ChecklistHistoryController {
             principal.getUser().getId(), storeIds, startDate, endDate));
     }
 
+    // Super Admin can view any store's checklist by looking up the store's actual owner.
+    // Uses Authentication (not @AuthenticationPrincipal AppUserDetails) because Super Admin
+    // uses SuperAdminUserDetails — a different principal type — and @AuthenticationPrincipal
+    // with a typed parameter binds to null when the type doesn't match.
     @GetMapping("/detail")
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ChecklistHistoryDetailResponse> detail(
-        @AuthenticationPrincipal AppUserDetails principal,
+        Authentication authentication,
         @RequestParam Long storeId,
         @RequestParam LocalDate date
     ) {
-        return ResponseEntity.ok(checklistHistoryService.getDetail(
-            principal.getUser().getId(), storeId, date));
+        ChecklistHistoryDetailResponse response =
+            authentication.getPrincipal() instanceof AppUserDetails appUserDetails
+                ? checklistHistoryService.getDetail(appUserDetails.getUser().getId(), storeId, date)
+                : checklistHistoryService.getDetailForSuperAdmin(storeId, date);
+        return ResponseEntity.ok(response);
     }
 }
