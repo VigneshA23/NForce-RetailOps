@@ -17,13 +17,6 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
-    # The shared Neon database has a migration recorded as version 23
-    # ("missing fk indexes") that was applied directly against the database
-    # and was never committed as a file in any branch (verified across full
-    # git history). Without this, Flyway refuses to run at all. This only
-    # relaxes validation for that gap -- it doesn't touch the database. If
-    # you find the original V23 SQL, commit it and remove this line.
-    ignore-migration-patterns: "*:missing"
 
 server:
   port: ${PORT:8080}

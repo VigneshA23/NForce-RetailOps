@@ -102,25 +102,32 @@ public class OwnerManagementService {
     // transaction) rather than relying on an implicit rollback -- an owner
     // must not be left unable to ever learn their own password.
     public OwnerResponse addOwner(AddOwnerRequest request) {
-        if (userRepository.findByEmailWithRoles(request.ownerEmail()).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        boolean hasNewStoreName = request.storeName() != null && !request.storeName().isBlank();
+        boolean hasNewStoreLocation = request.storeLocation() != null && !request.storeLocation().isBlank();
+        if (hasNewStoreName != hasNewStoreLocation) {
+            throw new InvalidOwnerRequestException("Provide both store name and location, or leave both blank");
+        }
+        boolean hasNewStore = hasNewStoreName;
+        boolean hasExistingStore = request.existingStoreId() != null;
+        if (hasNewStore && hasExistingStore) {
+            throw new InvalidOwnerRequestException("Choose either a new store or an existing store, not both");
         }
 
-        Role ownerRole = roleRepository.findByName(OWNER_ROLE_NAME)
-            .orElseThrow(() -> new IllegalStateException(OWNER_ROLE_NAME + " role is not seeded"));
+        OwnerProvisioningService.ProvisionedOwner provisioned =
+            ownerProvisioningService.createOwnerAccount(request, hasNewStore, hasExistingStore);
 
-        String temporaryPassword = temporaryPasswordGenerator.generate();
-
-        User owner = new User();
-        owner.setFullName(request.ownerName());
-        owner.setEmail(request.ownerEmail());
-        owner.setPasswordHash(passwordEncoder.encode(temporaryPassword));
-        owner.setMustResetPassword(true);
-        owner.getRoles().add(ownerRole);
-        owner = userRepository.save(owner);
-
-        StoreOwner storeOwner = createOrReassignStore(
-            owner, request.storeName(), request.storeLocation(), request.existingStoreId());
+        try {
+            mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
+        } catch (EmailDeliveryException ex) {
+            try {
+                ownerProvisioningService.deleteUnreachableOwner(provisioned);
+            } catch (RuntimeException cleanupEx) {
+                log.error("Failed to clean up owner {} after a mail delivery failure -- account may be orphaned",
+                    provisioned.ownerId(), cleanupEx);
+                ex.addSuppressed(cleanupEx);
+            }
+            throw ex;
+        }
 
         return provisioned.response();
     }
