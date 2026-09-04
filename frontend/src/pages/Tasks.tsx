@@ -90,6 +90,23 @@ function Tasks({
     [categories],
   );
 
+  // The task form's own category picker must offer only active categories --
+  // except, while editing, the task's current category even if it's since been
+  // deactivated, so its existing assignment still displays instead of coming up
+  // blank (the backend allows leaving it as-is, just not switching to another
+  // inactive one).
+  const categoriesForForm = useMemo(() => {
+    const active = categories.filter((category) => category.active);
+    if (formModalState?.mode === 'edit') {
+      const currentCategoryId = formModalState.task.categoryId;
+      if (!active.some((category) => category.id === currentCategoryId)) {
+        const current = categories.find((category) => category.id === currentCategoryId);
+        if (current) return [...active, current];
+      }
+    }
+    return active;
+  }, [categories, formModalState]);
+
   const filteredTasks = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     return tasks.filter((task) => {
@@ -316,7 +333,7 @@ function Tasks({
         isOpen={formModalState !== null}
         mode={formModalState?.mode ?? 'create'}
         initialTask={formModalState?.mode === 'edit' ? formModalState.task : undefined}
-        categories={categories}
+        categories={categoriesForForm}
         categoriesLoading={categoriesLoading}
         categoriesError={categoriesError}
         onRetryCategories={onRetryCategories}

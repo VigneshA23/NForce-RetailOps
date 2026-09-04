@@ -48,6 +48,9 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     int countByCategoryId(Long categoryId);
 
+    // For cascading a category's active/inactive toggle onto every task under it.
+    List<Task> findByCategoryId(Long categoryId);
+
     @org.springframework.data.jpa.repository.Query(
         "select count(distinct t) from Task t join t.stores s where s.id = :storeId"
     )

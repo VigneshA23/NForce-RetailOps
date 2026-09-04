@@ -45,6 +45,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(CategoryInactiveException.class)
+    public ResponseEntity<Map<String, String>> handleCategoryInactive(CategoryInactiveException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(CategoryNameExistsException.class)
     public ResponseEntity<Map<String, String>> handleCategoryNameExists(CategoryNameExistsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
