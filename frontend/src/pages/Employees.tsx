@@ -51,7 +51,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const loadError = employeesError ?? storeOptionsError;
 
   const [search, setSearch] = useState('');
-  const [storeFilter, setStoreFilter] = useState<number | 'ALL'>('ALL');
   const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
   const [typeFilter, setTypeFilter] = useState<EmployeeType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -108,18 +107,17 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
       ) {
         return false;
       }
-      if (storeFilter !== 'ALL' && !employee.stores.some((store) => store.id === storeFilter)) return false;
       if (shiftFilter !== 'ALL' && employee.shift !== shiftFilter) return false;
       if (typeFilter !== 'ALL' && employee.employeeType !== typeFilter) return false;
       if (statusFilter === 'ACTIVE' && !employee.active) return false;
       if (statusFilter === 'INACTIVE' && employee.active) return false;
       return true;
     });
-  }, [employees, search, storeFilter, shiftFilter, typeFilter, statusFilter]);
+  }, [employees, search, shiftFilter, typeFilter, statusFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, storeFilter, shiftFilter, typeFilter, statusFilter]);
+  }, [search, shiftFilter, typeFilter, statusFilter]);
 
   // Derived rather than clamped in an effect, so a filter that shrinks the list
   // below the current page still renders correctly on the same pass.
@@ -258,19 +256,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
         <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search employees" />
         </div>
-
-        <select
-          className="select filter"
-          value={storeFilter}
-          onChange={(event) => setStoreFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
-        >
-          <option value="ALL">All Stores</option>
-          {storeOptions.map((store) => (
-            <option key={store.id} value={store.id}>
-              {store.name}
-            </option>
-          ))}
-        </select>
 
         <select
           className="select filter"

@@ -131,7 +131,7 @@ class ChecklistHistoryServiceTest {
         LocalDate sunday = monday.plusDays(6);
 
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner(store)));
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task mondayWednesdayTask = task(30L, category, ScheduleType.SELECTED_DAYS,

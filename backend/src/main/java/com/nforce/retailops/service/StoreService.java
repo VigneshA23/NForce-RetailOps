@@ -4,7 +4,6 @@ import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
-import com.nforce.retailops.exception.StoreInactiveException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -55,57 +54,42 @@ public class StoreService {
 
     @Transactional(readOnly = true)
     public List<StoreResponse> listStores(Long ownerId) {
-        List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
-        if (storeOwners.isEmpty()) {
-            return List.of();
-        }
-
-        // Batched instead of one employee-count + one task-count query per store
-        // (N+1), and the "applies to all stores" count no longer gets recomputed
-        // redundantly for every store -- it's the same owner-wide number each time.
-        List<Long> storeIds = storeOwners.stream().map(so -> so.getStore().getId()).toList();
-        Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countGroupedByStoreIds(storeIds));
-        Map<Long, Integer> storeTaskCounts = toCountMap(taskRepository.countGroupedByStoreIds(storeIds));
-        long appliesToAllCount = taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
-
-        return storeOwners.stream()
+        return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
             .map(storeOwner -> {
                 Store store = storeOwner.getStore();
-                return new StoreResponse(
-                    store.getId(),
+                Long storeId = store.getId();
+                List<Long> storeIds = List.of(storeId);
+                Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countGroupedByStoreIds(storeIds));
+                Map<Long, Integer> storeTaskCounts = toCountMap(taskRepository.countGroupedByStoreIds(storeIds));
+                long appliesToAllCount = taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
+                return List.of(new StoreResponse(
+                    storeId,
                     store.getStoreCode(),
                     store.getName(),
                     storeOwner.isActive(),
-                    employeeCounts.getOrDefault(store.getId(), 0),
-                    (int) (storeTaskCounts.getOrDefault(store.getId(), 0) + appliesToAllCount)
-                );
+                    employeeCounts.getOrDefault(storeId, 0),
+                    (int) (storeTaskCounts.getOrDefault(storeId, 0) + appliesToAllCount)
+                ));
             })
-            .toList();
+            .orElseGet(List::of);
     }
 
     @Transactional
-    public StoreResponse renameStore(Long ownerId, Long storeId, StoreRequest request) {
-        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
+    public StoreResponse renameStore(Long storeId, StoreRequest request) {
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
-        if (!storeOwner.isActive()) {
-            throw new StoreInactiveException("This store has been deactivated and cannot be edited");
-        }
         Store store = storeOwner.getStore();
         store.setName(request.name().trim());
         storeRepository.save(store);
 
-        return toResponse(storeOwner, ownerId);
+        return toResponse(storeOwner, storeOwner.getOwner().getId());
     }
 
     @Transactional
-    public void deleteStore(Long ownerId, Long storeId) {
-        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
+    public void deleteStore(Long storeId) {
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-
-        if (!storeOwner.isActive()) {
-            throw new StoreInactiveException("This store has been deactivated and cannot be removed");
-        }
 
         storeOwnerRepository.delete(storeOwner);
         storeRepository.delete(storeOwner.getStore());

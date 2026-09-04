@@ -1,9 +1,11 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.OwnerStoreConflictException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -16,8 +18,11 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -95,6 +100,37 @@ class OwnerManagementServiceTest {
         assertThat(result.get(2).storeId()).isEqualTo(11L);
 
         verify(storeOwnerRepository, times(1)).findByOwnerIdInWithStoreAndOwner(List.of(1L, 2L));
+    }
+
+    @Test
+    void assignStoreThrowsConflictWhenOwnerAlreadyHasActiveStore() {
+        User owner = user(1L, "Alice Owner");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(1L)).thenReturn(true);
+
+        assertThatThrownBy(() -> ownerManagementService.assignStore(1L, new AssignStoreRequest("New Store", "Main St")))
+            .isInstanceOf(OwnerStoreConflictException.class)
+            .hasMessageContaining("active store assigned");
+    }
+
+    @Test
+    void assignStoreSucceedsWhenOwnerHasNoActiveStore() {
+        User owner = user(1L, "Alice Owner");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(1L)).thenReturn(false);
+        when(storeCodeGenerator.next()).thenReturn(300L);
+        when(storeRepository.save(any(Store.class))).thenAnswer(invocation -> {
+            Store s = invocation.getArgument(0);
+            ReflectionTestUtils.setField(s, "id", 20L);
+            return s;
+        });
+        when(storeOwnerRepository.save(any(StoreOwner.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OwnerResponse response = ownerManagementService.assignStore(1L, new AssignStoreRequest("New Store", "Main St"));
+
+        assertThat(response.ownerId()).isEqualTo(1L);
+        assertThat(response.storeId()).isEqualTo(20L);
+        assertThat(response.storeName()).isEqualTo("New Store");
     }
 
     // Regression test for the unbounded-listing fix: the response is capped at

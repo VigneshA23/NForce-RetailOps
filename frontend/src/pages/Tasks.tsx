@@ -28,9 +28,6 @@ interface TasksProps {
   categoriesError: string | null;
   onRetryCategories: () => void;
   stores: OwnerStore[];
-  storesLoading: boolean;
-  storesError: string | null;
-  onRetryStores: () => void;
 }
 
 function Tasks({
@@ -40,9 +37,6 @@ function Tasks({
   categoriesError,
   onRetryCategories,
   stores,
-  storesLoading,
-  storesError,
-  onRetryStores,
 }: TasksProps) {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +44,6 @@ function Tasks({
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | 'ALL'>('ALL');
-  const [storeFilter, setStoreFilter] = useState<number | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [scheduleFilter, setScheduleFilter] = useState<ScheduleType | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
@@ -82,19 +75,16 @@ function Tasks({
     return tasks.filter((task) => {
       if (normalizedSearch && !task.name.toLowerCase().includes(normalizedSearch)) return false;
       if (categoryFilter !== 'ALL' && task.categoryId !== categoryFilter) return false;
-      if (storeFilter !== 'ALL' && !task.appliesToAllStores && !task.stores.some((store) => store.id === storeFilter)) {
-        return false;
-      }
       if (statusFilter === 'ACTIVE' && !task.active) return false;
       if (statusFilter === 'INACTIVE' && task.active) return false;
       if (scheduleFilter !== 'ALL' && task.scheduleType !== scheduleFilter) return false;
       return true;
     });
-  }, [tasks, search, categoryFilter, storeFilter, statusFilter, scheduleFilter]);
+  }, [tasks, search, categoryFilter, statusFilter, scheduleFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, storeFilter, statusFilter, scheduleFilter]);
+  }, [search, categoryFilter, statusFilter, scheduleFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -256,19 +246,6 @@ function Tasks({
         </select>
 
         <select
-          className="select filter"
-          value={storeFilter}
-          onChange={(event) => setStoreFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
-        >
-          <option value="ALL">All Stores</option>
-          {stores.map((store) => (
-            <option key={store.id} value={store.id}>
-              {store.name}
-            </option>
-          ))}
-        </select>
-
-        <select
           className="select filter filter--narrow"
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
@@ -337,9 +314,6 @@ function Tasks({
         onRetryCategories={onRetryCategories}
         onManageCategories={() => onNavigateToCategories?.()}
         stores={stores}
-        storesLoading={storesLoading}
-        storesError={storesError}
-        onRetryStores={onRetryStores}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => setFormModalState(null)}

@@ -14,8 +14,13 @@
   box-sizing: border-box;
 }
 
-.btn:hover {
+.btn:hover:not(:disabled) {
   opacity: 0.85;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .btn--primary {

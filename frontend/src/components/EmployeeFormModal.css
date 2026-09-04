@@ -30,6 +30,13 @@
   flex: 1;
 }
 
+.employee-form__store-label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
 .employee-form__hint {
   margin: -8px 0 var(--space-md);
   font-size: 13px;

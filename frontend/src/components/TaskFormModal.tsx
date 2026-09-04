@@ -19,9 +19,6 @@ interface TaskFormModalProps {
   onRetryCategories: () => void;
   onManageCategories: () => void;
   stores: OwnerStore[];
-  storesLoading: boolean;
-  storesError: string | null;
-  onRetryStores: () => void;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -60,9 +57,6 @@ function TaskFormModal({
   onRetryCategories,
   onManageCategories,
   stores,
-  storesLoading,
-  storesError,
-  onRetryStores,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -73,10 +67,18 @@ function TaskFormModal({
 
   useEffect(() => {
     if (isOpen) {
-      setValues(initialTask ? toFormValues(initialTask) : emptyTaskFormValues());
+      if (initialTask) {
+        setValues(toFormValues(initialTask));
+      } else {
+        const base = emptyTaskFormValues();
+        if (stores[0]) {
+          base.storeIds = [stores[0].id];
+        }
+        setValues(base);
+      }
       setErrors({});
     }
-  }, [isOpen, initialTask]);
+  }, [isOpen, initialTask, stores]);
 
   function updateField<K extends keyof AdminTaskFormValues>(field: K, value: AdminTaskFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -209,30 +211,13 @@ function TaskFormModal({
         </section>
 
         <section className="task-form__section">
-          <h3 className="task-form__heading">Stores</h3>
-          <FormField label="Applicable Stores *" htmlFor="task-stores" error={errors.storeIds}>
-            <SearchableSelect
-              id="task-stores"
-              multiple
-              placeholder="Search and select stores"
-              options={stores.map((store) => ({ id: store.id, label: store.name }))}
-              selectedIds={values.storeIds}
-              onChange={(ids) => updateField('storeIds', ids)}
-              isLoading={storesLoading}
-              error={storesError}
-              onRetry={onRetryStores}
-              emptyMessage="No stores yet."
-              emptyAction={{ label: 'Manage Stores', onClick: onManageCategories }}
-              allOption={{
-                label: 'All Stores',
-                selected: values.appliesToAllStores,
-                onToggle: () => {
-                  updateField('appliesToAllStores', !values.appliesToAllStores);
-                  if (!values.appliesToAllStores) updateField('storeIds', []);
-                },
-              }}
-            />
-          </FormField>
+          <h3 className="task-form__heading">Store</h3>
+          <div className="form-field">
+            <span className="form-field__label">Applicable store</span>
+            <p className="task-form__store-label">
+              {values.appliesToAllStores ? 'All stores' : (stores[0]?.name ?? '—')}
+            </p>
+          </div>
         </section>
 
         <section className="task-form__section">

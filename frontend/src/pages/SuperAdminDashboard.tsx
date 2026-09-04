@@ -9,6 +9,8 @@ import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigat
 import OwnerList from '../components/OwnerList';
 import OwnerFormModal from '../components/OwnerFormModal';
 import AssignStoreModal from '../components/AssignStoreModal';
+import ChecklistHistoryDetailModal from '../components/ChecklistHistoryDetailModal';
+import type { ChecklistHistoryDetailTarget } from '../components/ChecklistHistoryDetailModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
 import SearchInput from '../components/SearchInput';
@@ -36,6 +38,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [assignStoreTarget, setAssignStoreTarget] = useState<OwnerSummary | null>(null);
   const [assignStoreError, setAssignStoreError] = useState<string | null>(null);
   const [isAssigningStore, setIsAssigningStore] = useState(false);
+  const [storeChecklistTarget, setStoreChecklistTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [activeTab] = useState<SuperAdminNavTabKey>('owners');
 
@@ -240,6 +243,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
                 setStoreStatusError(null);
                 setStoreStatusTarget(store);
               }}
+              onViewStoreChecklist={(store) => {
+                if (store.storeId == null || store.storeName == null) return;
+                setStoreChecklistTarget({
+                  storeId: store.storeId,
+                  storeName: store.storeName,
+                  date: new Date().toISOString().slice(0, 10),
+                });
+              }}
             />
           </div>
         )}
@@ -292,6 +303,11 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         danger={storeStatusTarget?.storeActive ?? true}
         onConfirm={handleConfirmStoreStatusChange}
         onCancel={() => setStoreStatusTarget(null)}
+      />
+
+      <ChecklistHistoryDetailModal
+        target={storeChecklistTarget}
+        onClose={() => setStoreChecklistTarget(null)}
       />
     </AppShell>
   );

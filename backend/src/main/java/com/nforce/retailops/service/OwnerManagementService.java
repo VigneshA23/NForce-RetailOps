@@ -10,6 +10,7 @@ import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
+import com.nforce.retailops.exception.OwnerStoreConflictException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -136,6 +137,11 @@ public class OwnerManagementService {
     public OwnerResponse assignStore(Long ownerId, AssignStoreRequest request) {
         User owner = userRepository.findById(ownerId)
             .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+
+        if (storeOwnerRepository.existsByOwnerIdAndActiveTrue(ownerId)) {
+            throw new OwnerStoreConflictException(
+                "This owner already has an active store assigned. Deactivate their current store first before assigning a new one.");
+        }
 
         Store store = new Store();
         store.setName(request.storeName());

@@ -153,6 +153,13 @@ public class ChecklistHistoryService {
     }
 
     @Transactional(readOnly = true)
+    public ChecklistHistoryDetailResponse getDetailForSuperAdmin(Long storeId, LocalDate date) {
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndActiveTrue(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return getDetail(storeOwner.getOwner().getId(), storeId, date);
+    }
+
+    @Transactional(readOnly = true)
     public ChecklistHistoryDetailResponse getDetail(Long ownerId, Long storeId, LocalDate date) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
@@ -268,7 +275,9 @@ public class ChecklistHistoryService {
 
     private List<Store> resolveStores(Long ownerId, List<Long> requestedStoreIds) {
         if (requestedStoreIds == null || requestedStoreIds.isEmpty()) {
-            return storeOwnerRepository.findByOwnerId(ownerId).stream().map(StoreOwner::getStore).toList();
+            return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+                .map(so -> List.of(so.getStore()))
+                .orElseGet(List::of);
         }
         if (requestedStoreIds.size() > MAX_STORE_SELECTION) {
             throw new InvalidStoreSelectionException("Select at most " + MAX_STORE_SELECTION + " stores");

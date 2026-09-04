@@ -125,9 +125,9 @@ public class UserProfileService {
 
     private List<Store> accessibleStores(User user) {
         List<Store> stores = isOwnerAdmin(user)
-            ? storeOwnerRepository.findByOwnerId(user.getId()).stream()
-                .map(StoreOwner::getStore)
-                .toList()
+            ? storeOwnerRepository.findByOwnerIdAndActiveTrue(user.getId())
+                .map(so -> List.of(so.getStore()))
+                .orElseGet(List::of)
             : storeEmployeeRepository.findByEmployeeId(user.getId())
                 .map(storeEmployee -> List.copyOf(storeEmployee.getStores()))
                 .orElseGet(List::of);

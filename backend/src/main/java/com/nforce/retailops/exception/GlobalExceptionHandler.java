@@ -95,6 +95,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(OwnerStoreConflictException.class)
+    public ResponseEntity<Map<String, String>> handleOwnerStoreConflict(OwnerStoreConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidTaskConfigurationException.class)
     public ResponseEntity<Map<String, String>> handleInvalidTaskConfiguration(InvalidTaskConfigurationException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));

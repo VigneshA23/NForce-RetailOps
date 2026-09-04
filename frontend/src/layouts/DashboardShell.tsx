@@ -6,7 +6,6 @@ import AppShell from './AppShell';
 import Employees from '../pages/Employees';
 import Categories from '../pages/Categories';
 import Home from '../pages/Home';
-import Stores from '../pages/Stores';
 import StoreDetail from '../pages/StoreDetail';
 import Tasks from '../pages/Tasks';
 import History from '../pages/History';
@@ -31,7 +30,6 @@ type Overlay = 'profile' | 'help' | null;
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
-  const [storeDetailStoreId, setStoreDetailStoreId] = useState<number | null>(null);
 
   // Fetched once here (not per-page) and shared as props, so switching tabs
   // never re-fetches data that hasn't changed. See useAssignedStores.ts for
@@ -54,24 +52,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             storesLoading={storesState.isLoading}
             employees={employeesState.employees}
             categories={categoriesState.categories}
-            onViewStoreDetail={(storeId) => {
-              setStoreDetailStoreId(storeId);
-              setActiveTab('store-detail');
-            }}
-          />
-        );
-      case 'store-management':
-        return (
-          <Stores
-            stores={storesState.stores}
-            setStores={storesState.setStores}
-            isLoading={storesState.isLoading}
-            loadError={storesState.error}
-            onRetry={storesState.reload}
+            onViewStoreDetail={() => setActiveTab('store-detail')}
           />
         );
       case 'store-detail':
-        return <StoreDetail initialStoreId={storeDetailStoreId} />;
+        return <StoreDetail storeId={storesState.stores[0]?.id ?? null} />;
       case 'employees':
         return (
           <Employees
@@ -101,20 +86,10 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             categoriesError={categoriesState.error}
             onRetryCategories={categoriesState.reload}
             stores={storesState.stores}
-            storesLoading={storesState.isLoading}
-            storesError={storesState.error}
-            onRetryStores={storesState.reload}
           />
         );
       case 'history':
-        return (
-          <History
-            stores={storesState.stores}
-            storesLoading={storesState.isLoading}
-            storesError={storesState.error}
-            onRetryStores={storesState.reload}
-          />
-        );
+        return <History />;
       case 'settings':
         return <Settings />;
       default: {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Store as StoreIcon, Users, Tags, CircleCheck, Percent } from 'lucide-react';
+import { ChevronRight, Users, Tags, Percent } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -29,7 +29,7 @@ interface HomeProps {
   storesLoading: boolean;
   employees: Employee[];
   categories: Category[];
-  onViewStoreDetail: (storeId: number) => void;
+  onViewStoreDetail: () => void;
 }
 
 function firstName(fullName: string): string {
@@ -131,23 +131,16 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
     };
   }, [storesLoading, stores]);
 
-  const activeStoreCount = useMemo(() => stores.filter((store) => store.active).length, [stores]);
+  const storeName = stores[0]?.name ?? null;
   const todayCompletion = useMemo(() => {
     const totals = sumTasks(todayRows);
     return completionPercent(totals.totalTasks, totals.completedTasks);
   }, [todayRows]);
 
-  const completionByStore = useMemo(
-    () =>
-      todayRows
-        .map((row) => ({
-          id: row.storeId,
-          name: row.storeName,
-          completion: completionPercent(row.totalTasks, row.completedTasks),
-        }))
-        .sort((a, b) => b.completion - a.completion),
-    [todayRows],
-  );
+  const storeToday = useMemo(() => todayRows[0] ?? null, [todayRows]);
+  const storeTodayCompletion = storeToday
+    ? completionPercent(storeToday.totalTasks, storeToday.completedTasks)
+    : todayCompletion;
 
   const completionDonutData = useMemo(
     () => [
@@ -162,12 +155,11 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       <h1 className="home-page__greeting">Welcome, {firstName(userName)}!</h1>
 
       <div className="stat-card-row">
-        <StatCard icon={StoreIcon} label="Total Stores" value={stores.length} tone="primary" />
-        <StatCard icon={CircleCheck} label="Active Stores" value={activeStoreCount} tone="success" />
         <StatCard icon={Users} label="Total Employees" value={employees.length} tone="info" />
         <StatCard icon={Tags} label="Categories" value={categories.length} tone="info" />
         <StatCard icon={Percent} label="Today's Completion" value={`${todayCompletion}%`} tone="warning" />
       </div>
+      {storeName && <p className="home-page__store-label">{storeName}</p>}
 
       <div className="chart-card-row">
         <ChartCard title="Completion Rate" subtitle={`Last ${TREND_DAYS} days across all stores`}>
@@ -246,33 +238,25 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
           </div>
         </ChartCard>
 
-        <ChartCard title="Stores by Completion" subtitle="Ranked by today's on-time completion">
-          {completionByStore.length === 0 ? (
-            <p className="home-page__empty">No store activity recorded yet today.</p>
-          ) : (
-            <ul className="home-page__store-rank">
-              {completionByStore.map((store) => (
-                <li key={store.id} className="home-page__store-rank-row">
-                  <span className="home-page__store-rank-name">{store.name}</span>
-                  <div className="home-page__store-rank-bar-track">
-                    <div
-                      className="home-page__store-rank-bar-fill"
-                      style={{ width: `${store.completion}%` }}
-                    />
-                  </div>
-                  <span className="home-page__store-rank-value">{store.completion}%</span>
-                  <button
-                    type="button"
-                    className="home-page__store-rank-details"
-                    onClick={() => onViewStoreDetail(store.id)}
-                  >
-                    Details
-                    <ChevronRight size={14} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+        <ChartCard title="Store Today" subtitle="On-time completion for your store">
+          <div className="home-page__store-status">
+            {storeName && <p className="home-page__store-status-name">{storeName}</p>}
+            <div className="home-page__store-status-percent">{storeTodayCompletion}%</div>
+            <div className="home-page__store-status-bar-track">
+              <div
+                className="home-page__store-status-bar-fill"
+                style={{ width: `${storeTodayCompletion}%` }}
+              />
+            </div>
+            <button
+              type="button"
+              className="home-page__store-rank-details"
+              onClick={() => onViewStoreDetail()}
+            >
+              View Daily Checklist
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </ChartCard>
       </div>
 
