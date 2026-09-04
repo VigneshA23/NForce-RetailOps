@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
+import type { EmployeeCreateValues, EmployeeUpdateValues } from '../types/employee';
 import { validateEmployeeForm } from '../utils/employeeUtils';
 import EmployeeFormFields, {
   emptyEmployeeFormValues,
@@ -13,7 +13,6 @@ interface EmployeeFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
   initialValues?: EmployeeUpdateValues;
-  storeOptions: StoreOption[];
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -24,7 +23,6 @@ function EmployeeFormModal({
   isOpen,
   mode,
   initialValues,
-  storeOptions,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -37,16 +35,10 @@ function EmployeeFormModal({
 
   useEffect(() => {
     if (isOpen) {
-      if (initialValues) {
-        setValues(employeeFormValuesFromUpdate(initialValues));
-      } else {
-        const base = emptyEmployeeFormValues();
-        if (storeOptions[0]) base.storeIds = [storeOptions[0].id];
-        setValues(base);
-      }
+      setValues(initialValues ? employeeFormValuesFromUpdate(initialValues) : emptyEmployeeFormValues());
       setErrors({});
     }
-  }, [isOpen, initialValues, storeOptions]);
+  }, [isOpen, initialValues]);
 
   function updateField<K extends keyof EmployeeFormValues>(field: K, value: EmployeeFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -87,7 +79,7 @@ function EmployeeFormModal({
     >
       <form id="employee-form" onSubmit={handleSubmit} noValidate>
         <div className="employee-form__grid">
-          <EmployeeFormFields values={values} errors={errors} storeOptions={storeOptions} onChange={updateField} />
+          <EmployeeFormFields values={values} errors={errors} onChange={updateField} />
 
           {mode === 'create' && (
             <div className="form-field--full">

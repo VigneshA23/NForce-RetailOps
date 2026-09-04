@@ -145,9 +145,31 @@ class OwnerProvisioningServiceTest {
     }
 
     @Test
+    void createOwnerAccountWithANeverOwnedExistingStoreLeavesNoPreviousOwner() {
+        stubCreateAccountHappyPath();
+        Store store = new Store();
+        ReflectionTestUtils.setField(store, "id", 20L);
+        store.setName("Downtown");
+        store.setStoreCode(100L);
+        StoreOwner existingLink = new StoreOwner();
+        ReflectionTestUtils.setField(existingLink, "id", 30L);
+        existingLink.setStore(store);
+        existingLink.setActive(false);
+        when(storeOwnerRepository.findByStoreId(20L)).thenReturn(Optional.of(existingLink));
+        when(storeOwnerRepository.save(any(StoreOwner.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var provisioned = ownerProvisioningService.createOwnerAccount(requestWithExistingStore(20L), false, true);
+
+        assertThat(provisioned.reassignedExistingStore()).isTrue();
+        assertThat(provisioned.previousOwnerIdIfReassigned()).isNull();
+        assertThat(existingLink.getOwner().getId()).isEqualTo(5L);
+        assertThat(existingLink.isActive()).isTrue();
+    }
+
+    @Test
     void deleteUnreachableOwnerForTheNoStoreCaseOnlyDeletesTheOwnerRow() {
         var provisioned = new OwnerProvisioningService.ProvisionedOwner(
-            5L, "owner@nforce.test", "New Owner", "temp-pass-123", null, null, null, null
+            5L, "owner@nforce.test", "New Owner", "temp-pass-123", null, null, false, null, null
         );
 
         ownerProvisioningService.deleteUnreachableOwner(provisioned);
@@ -160,7 +182,7 @@ class OwnerProvisioningServiceTest {
     @Test
     void deleteUnreachableOwnerForTheNewStoreCaseDeletesTheLinkThenTheStoreThenTheOwner() {
         var provisioned = new OwnerProvisioningService.ProvisionedOwner(
-            5L, "owner@nforce.test", "New Owner", "temp-pass-123", 30L, 20L, null, null
+            5L, "owner@nforce.test", "New Owner", "temp-pass-123", 30L, 20L, false, null, null
         );
 
         ownerProvisioningService.deleteUnreachableOwner(provisioned);
@@ -182,7 +204,7 @@ class OwnerProvisioningServiceTest {
         when(userRepository.getReferenceById(99L)).thenReturn(previousOwnerRef);
 
         var provisioned = new OwnerProvisioningService.ProvisionedOwner(
-            5L, "owner@nforce.test", "New Owner", "temp-pass-123", 30L, null, 99L, null
+            5L, "owner@nforce.test", "New Owner", "temp-pass-123", 30L, null, true, 99L, null
         );
 
         ownerProvisioningService.deleteUnreachableOwner(provisioned);
@@ -193,6 +215,30 @@ class OwnerProvisioningServiceTest {
         order.verify(userRepository).deleteById(5L);
         assertThat(savedCaptor.getValue().getOwner().getId()).isEqualTo(99L);
         assertThat(savedCaptor.getValue().isActive()).isFalse();
+        verify(storeOwnerRepository, never()).deleteById(any());
+        verify(storeRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void deleteUnreachableOwnerForTheNeverOwnedExistingStoreCaseRevertsToNoOwner() {
+        StoreOwner existingLink = new StoreOwner();
+        ReflectionTestUtils.setField(existingLink, "id", 30L);
+        existingLink.setActive(true);
+        when(storeOwnerRepository.findById(30L)).thenReturn(Optional.of(existingLink));
+
+        var provisioned = new OwnerProvisioningService.ProvisionedOwner(
+            5L, "owner@nforce.test", "New Owner", "temp-pass-123", 30L, null, true, null, null
+        );
+
+        ownerProvisioningService.deleteUnreachableOwner(provisioned);
+
+        ArgumentCaptor<StoreOwner> savedCaptor = ArgumentCaptor.forClass(StoreOwner.class);
+        InOrder order = inOrder(storeOwnerRepository, userRepository);
+        order.verify(storeOwnerRepository).save(savedCaptor.capture());
+        order.verify(userRepository).deleteById(5L);
+        assertThat(savedCaptor.getValue().getOwner()).isNull();
+        assertThat(savedCaptor.getValue().isActive()).isFalse();
+        verify(userRepository, never()).getReferenceById(any(Long.class));
         verify(storeOwnerRepository, never()).deleteById(any());
         verify(storeRepository, never()).deleteById(any());
     }

@@ -9,6 +9,7 @@ import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigat
 import OwnerList from '../components/OwnerList';
 import OwnerFormModal from '../components/OwnerFormModal';
 import AssignStoreModal from '../components/AssignStoreModal';
+import TemporaryPasswordPopup from '../components/TemporaryPasswordPopup';
 import ChecklistHistoryDetailModal from '../components/ChecklistHistoryDetailModal';
 import type { ChecklistHistoryDetailTarget } from '../components/ChecklistHistoryDetailModal';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -16,7 +17,9 @@ import SpecularButton from '../components/SpecularButton';
 import SearchInput from '../components/SearchInput';
 import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
-import Profile from './Profile';
+import Profile from '../pages/Profile';
+import SuperAdminStores from '../pages/SuperAdminStores';
+import SuperAdminEmployees from '../pages/SuperAdminEmployees';
 import { getInitials } from '../utils/initials';
 import './SuperAdminDashboard.css';
 
@@ -41,10 +44,10 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [assignStoreError, setAssignStoreError] = useState<string | null>(null);
   const [isAssigningStore, setIsAssigningStore] = useState(false);
   const [storeChecklistTarget, setStoreChecklistTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
   const [searchValue, setSearchValue] = useState('');
-  const [activeTab] = useState<SuperAdminNavTabKey>('owners');
-  const [overlay, setOverlay] = useState<'profile' | null>(null);
-
+  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('owners');
+  const [showProfile, setShowProfile] = useState(false);
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
   function loadOwners() {
@@ -64,13 +67,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     setFormError(null);
     setIsSubmitting(true);
     try {
-      await addOwner(values);
+      const created = await addOwner(values);
       setIsFormOpen(false);
       // Reloaded rather than appended locally: assigning an existing store
       // moves it away from its previous (deactivated) owner, so a full
       // refresh is the only way to keep that owner's row correct too.
       loadOwners();
       nfToast.success(`"${values.ownerName}" owner added.`);
+      setTempPassword({ name: values.ownerName, password: created.temporaryPassword });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setFormError(msg);
@@ -164,108 +168,113 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   );
   const totalStoreCount = useMemo(() => owners.filter((owner) => owner.storeId != null).length, [owners]);
 
-  const title = overlay === 'profile' ? 'My Profile' : SUPER_ADMIN_PAGE_TITLES[activeTab];
-
   return (
     <AppShell<SuperAdminNavTabKey>
       navItems={SUPER_ADMIN_NAV_ITEMS}
       activeTab={activeTab}
-      onSelectTab={() => setOverlay(null)}
-      title={title}
+      onSelectTab={(key) => {
+        setShowProfile(false);
+        setActiveTab(key);
+      }}
+      title={showProfile ? 'My Profile' : SUPER_ADMIN_PAGE_TITLES[activeTab]}
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
-      onProfileClick={() => setOverlay('profile')}
+      onProfileClick={() => setShowProfile(true)}
     >
-      {overlay === 'profile' ? (
+      {showProfile ? (
         <Profile initials={userInitials} />
+      ) : activeTab === 'stores' ? (
+        <SuperAdminStores />
+      ) : activeTab === 'employees' ? (
+        <SuperAdminEmployees />
       ) : (
-        <div className="owners-page">
-          <div className="stat-card-row">
-            <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
-            <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
-            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount} tone="info" />
-          </div>
-
-          {statusError && (
-            <div className="owners-page__error">
-              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-              <span className="owners-page__error-message">{statusError}</span>
-            </div>
-          )}
-
-          {storeStatusError && (
-            <div className="owners-page__error">
-              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-              <span className="owners-page__error-message">{storeStatusError}</span>
-            </div>
-          )}
-
-          {loadError ? (
-            <div className="owners-page__error">
-              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-              <span className="owners-page__error-message">{loadError}</span>
-              <button type="button" className="btn btn--secondary" onClick={loadOwners}>
-                Retry
-              </button>
-            </div>
-          ) : (
-            <div className="card">
-              <div className="card__header">
-                <h2 className="card__title">All Owners</h2>
-                <div className="card__toolbar">
-                  <SearchInput
-                    variant="card"
-                    value={searchValue}
-                    onChange={setSearchValue}
-                    placeholder="Search by owner, email, or store..."
-                  />
-                  <SpecularButton
-                    size="sm"
-                    radius={999}
-                    tint="var(--color-badge-solid-bg)"
-                    tintOpacity={1}
-                    textColor="var(--color-badge-solid-text)"
-                    lineColor="#e11d33"
-                    baseColor="#e4e4e7"
-                    followMouse
-                    proximity={180}
-                    onClick={() => {
-                      setFormError(null);
-                      setIsFormOpen(true);
-                    }}
-                  >
-                    <span className="owners-page__add-label">
-                      <Plus size={16} />
-                      Add Owner
-                    </span>
-                  </SpecularButton>
-                </div>
-              </div>
-              <OwnerList
-                owners={filteredOwners}
-                isLoading={isLoading}
-                onToggleStatus={setStatusTarget}
-                onAddStore={(owner) => {
-                  setAssignStoreError(null);
-                  setAssignStoreTarget(owner);
-                }}
-                onToggleStoreStatus={(store) => {
-                  setStoreStatusError(null);
-                  setStoreStatusTarget(store);
-                }}
-                onViewStoreChecklist={(store) => {
-                  if (store.storeId == null || store.storeName == null) return;
-                  setStoreChecklistTarget({
-                    storeId: store.storeId,
-                    storeName: store.storeName,
-                    date: new Date().toISOString().slice(0, 10),
-                  });
-                }}
-              />
-            </div>
-          )}
+      <div className="owners-page">
+        <div className="stat-card-row">
+          <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
+          <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
+          <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount} tone="info" />
         </div>
+
+        {statusError && (
+          <div className="owners-page__error">
+            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+            <span className="owners-page__error-message">{statusError}</span>
+          </div>
+        )}
+
+        {storeStatusError && (
+          <div className="owners-page__error">
+            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+            <span className="owners-page__error-message">{storeStatusError}</span>
+          </div>
+        )}
+
+        {loadError ? (
+          <div className="owners-page__error">
+            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+            <span className="owners-page__error-message">{loadError}</span>
+            <button type="button" className="btn btn--secondary" onClick={loadOwners}>
+              Retry
+            </button>
+          </div>
+        ) : (
+          <div className="card">
+            <div className="card__header">
+              <h2 className="card__title">All Owners</h2>
+              <div className="card__toolbar">
+                <SearchInput
+                  variant="card"
+                  value={searchValue}
+                  onChange={setSearchValue}
+                  placeholder="Search by owner, email, or store..."
+                />
+                <SpecularButton
+                  size="sm"
+                  radius={999}
+                  tint="var(--color-badge-solid-bg)"
+                  tintOpacity={1}
+                  textColor="var(--color-badge-solid-text)"
+                  lineColor="#e11d33"
+                  baseColor="#e4e4e7"
+                  followMouse
+                  proximity={180}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsFormOpen(true);
+                  }}
+                >
+                  <span className="owners-page__add-label">
+                    <Plus size={16} />
+                    Add Owner
+                  </span>
+                </SpecularButton>
+              </div>
+            </div>
+            <OwnerList
+              owners={filteredOwners}
+              isLoading={isLoading}
+              onToggleStatus={setStatusTarget}
+              onAddStore={(owner) => {
+                setAssignStoreError(null);
+                setAssignStoreTarget(owner);
+              }}
+              onToggleStoreStatus={(store) => {
+                setStoreStatusError(null);
+                setStoreStatusTarget(store);
+              }}
+              onViewStoreChecklist={(store) => {
+                if (store.storeId == null || store.storeName == null) return;
+                setStoreChecklistTarget({
+                  storeId: store.storeId,
+                  storeName: store.storeName,
+                  date: new Date().toISOString().slice(0, 10),
+                });
+              }}
+            />
+          </div>
+        )}
+      </div>
       )}
 
       <OwnerFormModal
@@ -320,6 +329,13 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       <ChecklistHistoryDetailModal
         target={storeChecklistTarget}
         onClose={() => setStoreChecklistTarget(null)}
+      />
+
+      <TemporaryPasswordPopup
+        isOpen={tempPassword !== null}
+        name={tempPassword?.name}
+        password={tempPassword?.password ?? null}
+        onClose={() => setTempPassword(null)}
       />
     </AppShell>
   );

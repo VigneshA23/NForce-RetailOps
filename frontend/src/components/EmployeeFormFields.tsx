@@ -1,4 +1,4 @@
-import type { EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
+import type { EmployeeCreateValues, EmployeeUpdateValues } from '../types/employee';
 import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import FormField from './FormField';
@@ -9,7 +9,6 @@ export type EmployeeFormValues = EmployeeUpdateValues & { countryCode: string };
 export function emptyEmployeeFormValues(): EmployeeFormValues {
   return {
     name: '',
-    storeIds: [],
     shift: SHIFT_OPTIONS[0].name,
     phone: '',
     countryCode: COUNTRY_CODE_OPTIONS[0].code,
@@ -27,13 +26,12 @@ export function employeeFormValuesFromUpdate(initialValues: EmployeeUpdateValues
 interface EmployeeFormFieldsProps {
   values: EmployeeFormValues;
   errors: Partial<Record<keyof EmployeeCreateValues, string>>;
-  storeOptions: StoreOption[];
   onChange: <K extends keyof EmployeeFormValues>(field: K, value: EmployeeFormValues[K]) => void;
   /** Distinguishes DOM ids when this renders inside more than one modal, e.g. the edit-in-place popup. */
   idPrefix?: string;
 }
 
-function EmployeeFormFields({ values, errors, storeOptions, onChange, idPrefix = 'employee' }: EmployeeFormFieldsProps) {
+function EmployeeFormFields({ values, errors, onChange, idPrefix = 'employee' }: EmployeeFormFieldsProps) {
   return (
     <>
       <div className="form-field--full">
@@ -45,13 +43,6 @@ function EmployeeFormFields({ values, errors, storeOptions, onChange, idPrefix =
             onChange={(event) => onChange('name', event.target.value)}
           />
         </FormField>
-      </div>
-
-      <div className="form-field--full">
-        <div className="form-field">
-          <span className="form-field__label">Store</span>
-          <p className="employee-form__store-label">{storeOptions[0]?.name ?? '—'}</p>
-        </div>
       </div>
 
       <FormField label="Shift" htmlFor={`${idPrefix}-shift`} required error={errors.shift}>

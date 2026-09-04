@@ -30,5 +30,11 @@ export interface ReassignableStore {
   storeCode: number;
   storeName: string;
   storeLocation: string;
-  currentOwnerName: string;
+  // Null for a store that has never had an owner.
+  currentOwnerName: string | null;
+}
+
+export interface OwnerCreationResult {
+  owner: OwnerSummary;
+  temporaryPassword: string;
 }

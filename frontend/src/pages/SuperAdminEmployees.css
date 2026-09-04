@@ -1,0 +1,31 @@
+.super-admin-employees-page {
+  padding: var(--space-lg);
+}
+
+.super-admin-employees-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  margin-bottom: var(--space-lg);
+  background: var(--color-badge-icon-primary-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+}
+
+.super-admin-employees-page__error span {
+  flex: 1;
+}
+
+.super-admin-employees-page__header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
+.super-admin-employees-page__add-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}

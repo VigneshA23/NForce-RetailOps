@@ -26,6 +26,9 @@ public class SuperAdmin {
     )
     private String passwordHash;
 
+    @Column(columnDefinition = "TEXT")
+    private String phone;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -75,6 +78,14 @@ public class SuperAdmin {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
     }
 
     public OffsetDateTime getCreatedAt() {

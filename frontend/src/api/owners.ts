@@ -1,4 +1,4 @@
-import type { AddOwnerValues, AssignStoreValues, OwnerSummary, ReassignableStore } from '../types/owner';
+import type { AddOwnerValues, AssignStoreValues, OwnerCreationResult, OwnerSummary, ReassignableStore } from '../types/owner';
 import { authHeaders } from '../utils/authStorage';
 import { fetchWithTimeout } from './client';
 
@@ -19,7 +19,7 @@ export async function getOwners(): Promise<OwnerSummary[]> {
   return response.json();
 }
 
-export async function addOwner(values: AddOwnerValues): Promise<OwnerSummary> {
+export async function addOwner(values: AddOwnerValues): Promise<OwnerCreationResult> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/addowners`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
