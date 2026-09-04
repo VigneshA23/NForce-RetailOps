@@ -74,12 +74,20 @@ function deriveTaskStatus(task: RawTaskItem, latest: RawResponseEntry | null): T
 
 function toHistoryTask(task: RawTaskItem): HistoryTaskDetail {
   const latest = latestResponse(task.responses);
+  const completedByAll = [...task.responses]
+    .sort((a, b) => new Date(a.respondedAt).getTime() - new Date(b.respondedAt).getTime())
+    .map((entry) => ({
+      employeeUserId: entry.employeeUserId,
+      name: entry.employeeFullName,
+      respondedAt: formatTimeLabel(entry.respondedAt),
+    }));
   return {
     id: task.id,
     name: task.name,
     status: deriveTaskStatus(task, latest),
     completedBy: latest ? { employeeUserId: latest.employeeUserId, name: latest.employeeFullName } : null,
     completedAt: latest ? formatTimeLabel(latest.respondedAt) : null,
+    completedByAll,
   };
 }
 

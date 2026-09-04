@@ -65,7 +65,13 @@ public class SecurityConfig {
                 // be evaluated as an unauthenticated request and 401 rather than
                 // being allowed through to get real CORS headers back.
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/login", "/api/auth/session-config", "/actuator/health").permitAll()
+                .requestMatchers(
+                    "/api/auth/login",
+                    "/api/auth/session-config",
+                    "/api/auth/forgot-password",
+                    "/api/auth/forgot-password/confirm",
+                    "/actuator/health"
+                ).permitAll()
                 // Explicit rather than left to the anyRequest() catch-all below: every
                 // /api/me/** endpoint (including /api/me/history/**) requires the same
                 // authenticated-caller check, with per-employee store scoping enforced

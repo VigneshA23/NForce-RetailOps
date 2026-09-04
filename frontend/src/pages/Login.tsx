@@ -87,6 +87,10 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
             <div className="login3-mobile-brand">
               <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
               <p className="login3-mobile-wordmark">NForce RetailOps</p>
+              <span className="login3-mobile-tagline">
+                Your stores.{' '}
+                <span className="login3-mobile-tagline-accent">One checklist.</span>
+              </span>
             </div>
 
             <h1 className="login3-heading">Welcome Back</h1>

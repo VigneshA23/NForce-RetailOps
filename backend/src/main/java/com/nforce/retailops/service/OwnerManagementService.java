@@ -10,6 +10,7 @@ import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
+import com.nforce.retailops.exception.OwnerStoreConflictException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -137,57 +138,23 @@ public class OwnerManagementService {
         User owner = userRepository.findById(ownerId)
             .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
 
-        StoreOwner storeOwner = createOrReassignStore(
-            owner, request.storeName(), request.storeLocation(), request.existingStoreId());
-        if (storeOwner == null) {
-            throw new InvalidOwnerRequestException("Provide a new store name and location, or select an existing store");
+        if (storeOwnerRepository.existsByOwnerIdAndActiveTrue(ownerId)) {
+            throw new OwnerStoreConflictException(
+                "This owner already has an active store assigned. Deactivate their current store first before assigning a new one.");
         }
+
+        Store store = new Store();
+        store.setName(request.storeName());
+        store.setLocation(request.storeLocation());
+        store.setStoreCode(storeCodeGenerator.next());
+        store = storeRepository.save(store);
+
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setStore(store);
+        storeOwner.setOwner(owner);
+        storeOwner = storeOwnerRepository.save(storeOwner);
 
         return OwnerResponse.from(storeOwner);
-    }
-
-    // Shared by addOwner (where a store is optional) and assignStore (where it
-    // isn't) -- either creates a brand-new store or hands the owner a store
-    // whose previous owner's access was revoked (see
-    // StoreOwnerRepository.findAllWithRevokedAccess). Returns null only when
-    // neither a new-store name/location nor an existingStoreId was given.
-    private StoreOwner createOrReassignStore(User owner, String storeName, String storeLocation, Long existingStoreId) {
-        boolean hasNewStoreName = storeName != null && !storeName.isBlank();
-        boolean hasNewStoreLocation = storeLocation != null && !storeLocation.isBlank();
-        if (hasNewStoreName != hasNewStoreLocation) {
-            throw new InvalidOwnerRequestException("Provide both store name and location, or leave both blank");
-        }
-        boolean hasNewStore = hasNewStoreName;
-        boolean hasExistingStore = existingStoreId != null;
-        if (hasNewStore && hasExistingStore) {
-            throw new InvalidOwnerRequestException("Choose either a new store or an existing store, not both");
-        }
-
-        if (hasNewStore) {
-            Store store = new Store();
-            store.setName(storeName);
-            store.setLocation(storeLocation);
-            store.setStoreCode(storeCodeGenerator.next());
-            store = storeRepository.save(store);
-
-            StoreOwner storeOwner = new StoreOwner();
-            storeOwner.setStore(store);
-            storeOwner.setOwner(owner);
-            return storeOwnerRepository.save(storeOwner);
-        }
-
-        if (hasExistingStore) {
-            StoreOwner storeOwner = storeOwnerRepository.findByStoreId(existingStoreId)
-                .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-            if (storeOwner.isActive()) {
-                throw new InvalidOwnerRequestException("That store is not available for reassignment");
-            }
-            storeOwner.setOwner(owner);
-            storeOwner.setActive(true);
-            return storeOwnerRepository.save(storeOwner);
-        }
-
-        return null;
     }
 
     @Transactional

@@ -1,6 +1,8 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.ChangePasswordRequest;
+import com.nforce.retailops.dto.ConfirmPasswordResetRequest;
+import com.nforce.retailops.dto.ForgotPasswordRequest;
 import com.nforce.retailops.dto.LoginRequest;
 import com.nforce.retailops.dto.LoginResponse;
 import com.nforce.retailops.dto.ResetPasswordRequest;
@@ -9,6 +11,7 @@ import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.security.JwtService;
 import com.nforce.retailops.security.SuperAdminUserDetails;
 import com.nforce.retailops.service.AuthService;
+import com.nforce.retailops.service.PasswordResetService;
 import com.nforce.retailops.service.SessionService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -29,11 +32,18 @@ public class AuthController {
     private final AuthService authService;
     private final SessionService sessionService;
     private final JwtService jwtService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService, SessionService sessionService, JwtService jwtService) {
+    public AuthController(
+        AuthService authService,
+        SessionService sessionService,
+        JwtService jwtService,
+        PasswordResetService passwordResetService
+    ) {
         this.authService = authService;
         this.sessionService = sessionService;
         this.jwtService = jwtService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/login")
@@ -76,6 +86,18 @@ public class AuthController {
     @GetMapping("/session-config")
     public ResponseEntity<SessionConfigResponse> sessionConfig() {
         return ResponseEntity.ok(new SessionConfigResponse(sessionService.getInactivityTimeoutMinutes()));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.email());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/forgot-password/confirm")
+    public ResponseEntity<Void> confirmPasswordReset(@Valid @RequestBody ConfirmPasswordResetRequest request) {
+        passwordResetService.confirmReset(request.token(), request.newPassword());
+        return ResponseEntity.ok().build();
     }
 
     @PostMapping("/logout")

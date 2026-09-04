@@ -20,12 +20,9 @@ export type AddOwnerValues = {
   existingStoreId?: number;
 };
 
-export type AssignStoreMode = 'new' | 'existing';
-
 export type AssignStoreValues = {
-  storeName?: string;
-  storeLocation?: string;
-  existingStoreId?: number;
+  storeName: string;
+  storeLocation: string;
 };
 
 export interface ReassignableStore {

@@ -1,5 +1,13 @@
+@import '../styles/breakpoints.css';
+@import '../components/ResetPasswordModal.css';
+
+/* ── Page ────────────────────────────────────────────────── */
 .profile-page {
   padding: var(--space-lg);
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
 }
 
 .profile-page__empty {
@@ -8,123 +16,594 @@
   color: var(--color-text-secondary);
 }
 
-.profile-card {
-  max-width: 480px;
+/* ── Section cards ───────────────────────────────────────── */
+.profile-section {
   background: var(--color-surface-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   padding: var(--space-xl);
 }
 
-.profile-card__header {
+/* Section header: title + optional Edit button */
+.profile-section__header {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
+  justify-content: space-between;
+  gap: var(--space-sm);
   margin-bottom: var(--space-lg);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
 }
 
-.profile-card__name {
-  font-size: 18px;
-  font-weight: 800;
+.profile-section__title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   color: var(--color-text-primary);
-  margin-bottom: 6px;
+  margin: 0;
 }
 
-.profile-card__details {
+.profile-section__title svg {
+  color: var(--color-accent);
+}
+
+/* Inline "Edit" button next to section title */
+.profile-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.profile-edit-btn:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-muted, var(--color-text-secondary));
+}
+
+/* Section Save/Cancel action row */
+.profile-section__actions {
+  margin-top: var(--space-lg);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+/* ── Identity card ───────────────────────────────────────── */
+.profile-section--identity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-xl);
+}
+
+/* ── Avatar column ───────────────────────────────────────── */
+.profile-identity-avatar-col {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--color-border);
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.profile-card__row {
+/* Anchor: positioning context for the camera badge */
+.profile-avatar-anchor {
+  position: relative;
+  width: 88px;
+  height: 88px;
+}
+
+/* Avatar body: main click target */
+.profile-avatar-wrap {
+  position: relative;
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  cursor: pointer;
+  user-select: none;
+}
+
+.profile-avatar-wrap:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  border-radius: 50%;
+}
+
+/* ── Hover overlay (desktop visual dim, pointer-events:none always) ─── */
+.profile-avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.52);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+
+/* ── Camera badge (always visible upload shortcut) ───────── */
+/*
+ * Shown on ALL devices — desktop and mobile alike.
+ * Clicking/tapping it always opens the file picker.
+ * Clicking/tapping the avatar body opens the preview modal (when a photo exists).
+ * The hover overlay on desktop is an additional visual bonus but not required.
+ */
+.profile-camera-badge {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  border: 2px solid var(--color-surface-card);
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
-  color: var(--color-text-secondary);
-  font-size: 14px;
+  justify-content: center;
+  color: #fff;
+  cursor: pointer;
+  z-index: 2;
+  transition: background 0.15s, transform 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
 }
 
-.profile-card__row svg {
-  color: var(--color-accent);
-  flex-shrink: 0;
+.profile-camera-badge:hover {
+  background: color-mix(in srgb, var(--color-accent) 85%, #000);
+  transform: scale(1.1);
 }
 
-.profile-card__edit-btn {
-  margin-left: auto;
-  align-self: flex-start;
-  flex-shrink: 0;
+/* Desktop: reveal overlay dim on hover */
+@media (hover: hover) and (pointer: fine) {
+  .profile-avatar-anchor:hover .profile-avatar-overlay {
+    opacity: 1;
+  }
 }
 
-/* Employee variant: name never wraps, and the edit control drops down to sit
-   right next to the role pill instead of floating at the top of the card. */
-.profile-card__header--employee {
-  align-items: center;
+/* Touch: hide the overlay (no hover); badge already always visible */
+@media (hover: none), (pointer: coarse) {
+  .profile-avatar-overlay {
+    display: none;
+  }
 }
 
-.profile-card__header-text {
-  min-width: 0;
+/* ── Upload spinner ──────────────────────────────────────── */
+@keyframes profile-spin {
+  to { transform: rotate(360deg); }
+}
+
+.profile-avatar-spinner {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+
+.profile-avatar-spinner::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  border: 2.5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: profile-spin 0.65s linear infinite;
+}
+
+/* Hidden file input */
+.profile-avatar-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* ── Identity info ───────────────────────────────────────── */
+.profile-identity-info {
   flex: 1;
+  min-width: 0;
+  padding-top: 4px;
 }
 
-.profile-card__name--nowrap {
+.profile-identity-name {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin: 0 0 8px 0;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.profile-card__role-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.profile-card__role-badge {
-  gap: 5px;
-  padding: 4px 12px 4px 9px;
-  background: linear-gradient(135deg, var(--color-badge-icon-purple-bg), color-mix(in srgb, var(--color-badge-icon-purple-fg) 16%, var(--color-badge-icon-purple-bg)));
-  color: var(--color-badge-icon-purple-fg);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-badge-icon-purple-fg) 20%, transparent);
-}
-
-.profile-card__role-badge svg {
-  flex-shrink: 0;
-}
-
-.profile-card__edit-icon-btn {
+/* ── Role badge ──────────────────────────────────────────── */
+.profile-role-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  margin-bottom: 12px;
+}
+
+.profile-role-badge--super-admin {
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
+}
+
+.profile-role-badge--owner-admin {
+  background: var(--color-badge-icon-warning-bg);
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.profile-role-badge--employee {
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+}
+
+/* ── Identity meta rows ──────────────────────────────────── */
+.profile-identity-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.profile-identity-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-identity-meta svg {
+  color: var(--color-text-muted, var(--color-text-secondary));
   flex-shrink: 0;
+  opacity: 0.7;
+}
+
+/* ── Read-only field display ─────────────────────────────── */
+.profile-fields-readonly {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.profile-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.profile-field-row:last-child {
+  border-bottom: none;
+}
+
+.profile-field-value {
+  font-size: 14px;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+/* ── Editable form fields ────────────────────────────────── */
+.profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: var(--space-md);
+}
+
+.profile-field__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.profile-field__opt {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-muted, var(--color-text-secondary));
+  margin-left: 4px;
+}
+
+.profile-field__icon-wrap {
+  position: relative;
+}
+
+.profile-field__icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-secondary);
+  pointer-events: none;
+}
+
+.profile-field__input--icon {
+  padding-left: 36px;
+}
+
+.profile-field__error {
+  font-size: 12px;
+  color: var(--color-accent);
+  margin: 0;
+}
+
+/* ── Password gate (default collapsed state) ─────────────── */
+.profile-pw-gate {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+}
+
+.profile-pw-gate__desc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+  flex: 1;
+  min-width: 160px;
+}
+
+.profile-pw-gate__btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Avatar preview lightbox ─────────────────────────────── */
+@keyframes av-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes av-modal-in {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.avatar-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  animation: av-fade-in 0.15s ease-out;
+}
+
+.avatar-preview-modal {
+  position: relative;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl) var(--space-xl) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  min-width: 360px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.3);
+  animation: av-modal-in 0.18s ease-out;
+}
+
+.avatar-preview-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
   border: none;
   border-radius: 50%;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.avatar-preview-close:hover {
+  background: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.avatar-preview-img {
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-preview-actions {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.avatar-preview-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Icon-only upload button */
+.avatar-preview-upload-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.15s;
+}
+
+.avatar-preview-upload-icon:hover {
+  border-color: var(--color-text-primary);
+  color: var(--color-text-primary);
+  background: var(--color-border);
+  transform: scale(1.08);
+}
+
+.avatar-preview-upload-icon:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Icon-only trash button (default state) */
+.avatar-preview-delete-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-accent);
   background: var(--color-badge-icon-primary-bg);
   color: var(--color-accent);
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: background 0.15s, transform 0.15s;
 }
 
-.profile-card__edit-icon-btn:hover {
-  background: color-mix(in srgb, var(--color-accent) 20%, var(--color-badge-icon-primary-bg));
-  transform: scale(1.08) rotate(-6deg);
+.avatar-preview-delete-icon:hover {
+  background: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  transform: scale(1.08);
 }
 
-.profile-card__actions {
+.avatar-preview-delete-icon:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Inline confirmation row */
+.avatar-delete-confirm {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  margin-top: var(--space-lg);
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--color-border);
+  gap: 12px;
+  width: 100%;
+  animation: av-fade-in 0.15s ease-out;
 }
 
-.profile-card__actions-end {
+.avatar-delete-confirm__msg {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  text-align: center;
+}
+
+.avatar-delete-confirm__btns {
   display: flex;
-  gap: var(--space-sm);
-  margin-left: auto;
+  gap: 8px;
+}
+
+.avatar-delete-confirm__cancel,
+.avatar-delete-confirm__remove {
+  padding: 7px 18px;
+  font-size: 13px;
+}
+
+/* ── Mobile ──────────────────────────────────────────────── */
+@media (--mobile) {
+  .profile-page {
+    padding: var(--space-md);
+    max-width: 100%;
+  }
+
+  .profile-section {
+    padding: var(--space-lg);
+  }
+
+  /* Identity card stacks vertically on mobile */
+  .profile-section--identity {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-md);
+  }
+
+  .profile-identity-name {
+    font-size: 18px;
+    white-space: normal;
+  }
+
+  .profile-identity-meta span {
+    justify-content: center;
+    white-space: normal;
+  }
+
+  .profile-identity-info {
+    padding-top: 0;
+    width: 100%;
+  }
+
+  .profile-role-badge {
+    margin-bottom: 10px;
+  }
+
+  /* Section actions stack on mobile */
+  .profile-section__actions {
+    flex-direction: column-reverse;
+  }
+
+  .profile-section__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Password gate stacks on mobile */
+  .profile-pw-gate {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .profile-pw-gate__btn {
+    width: 100%;
+  }
+
+  /* Avatar preview modal on mobile */
+  .avatar-preview-modal {
+    min-width: unset;
+    width: calc(100vw - 48px);
+    max-width: 360px;
+  }
+
+  .avatar-preview-img {
+    width: min(240px, calc(100vw - 96px));
+    height: min(240px, calc(100vw - 96px));
+  }
 }

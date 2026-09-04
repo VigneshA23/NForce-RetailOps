@@ -13,6 +13,9 @@ public record MeResponse(
     // who have no StoreEmployee record to source them from.
     String shift,
     String employeeType,
-    String phone
+    String phone,
+    // Base64-encoded profile photo (data: URL). Null when not set.
+    // SuperAdmins always get null (no users table row).
+    String avatarUrl
 ) {
 }

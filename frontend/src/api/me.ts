@@ -12,12 +12,14 @@ export interface MeResponse {
   shift: string | null;
   employeeType: string | null;
   phone: string | null;
+  // Base64 data URL or null when not set.
+  avatarUrl: string | null;
 }
 
 export interface UpdateMePayload {
   fullName: string;
   email: string;
-  phone: string;
+  phone?: string | null;
 }
 
 export async function getMe(): Promise<MeResponse> {
@@ -28,4 +30,9 @@ export async function getMe(): Promise<MeResponse> {
 // refresh its display immediately, without a second round trip.
 export async function updateMe(payload: UpdateMePayload): Promise<MeResponse> {
   return apiRequest<MeResponse>('/me', { method: 'PUT', body: payload });
+}
+
+// Upload or remove profile avatar. Pass null to clear.
+export async function updateAvatar(avatarUrl: string | null): Promise<void> {
+  return apiRequest<void>('/me/avatar', { method: 'PATCH', body: { avatarUrl } });
 }

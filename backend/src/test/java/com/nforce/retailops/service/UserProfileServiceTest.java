@@ -93,7 +93,7 @@ class UserProfileServiceTest {
     void ownerSeesTheirOwnStores() {
         StoreOwner storeOwner = new StoreOwner();
         storeOwner.setStore(store(9L, "Owned"));
-        when(storeOwnerRepository.findByOwnerId(USER_ID)).thenReturn(List.of(storeOwner));
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(USER_ID)).thenReturn(Optional.of(storeOwner));
 
         List<AssignedStoreResponse> stores = userProfileService.listMyStores(user("OWNER_ADMIN"));
 

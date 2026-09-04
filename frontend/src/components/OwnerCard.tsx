@@ -16,6 +16,7 @@ interface OwnerCardProps {
   onToggleStatus: (owner: OwnerSummary) => void;
   onAddStore: (owner: OwnerSummary) => void;
   onToggleStoreStatus: (store: OwnerSummary) => void;
+  onViewStoreChecklist: (store: OwnerSummary) => void;
 }
 
 function getInitials(name: string): string {
@@ -25,7 +26,8 @@ function getInitials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: OwnerCardProps) {
+function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus, onViewStoreChecklist }: OwnerCardProps) {
+  const hasActiveStore = owner.stores.some((s) => s.storeActive === true);
   const representative: OwnerSummary = owner.stores[0] ?? {
     ownerId: owner.ownerId,
     ownerName: owner.ownerName,
@@ -63,6 +65,8 @@ function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: O
             type="button"
             className="btn btn--dark owner-card__action-btn"
             onClick={() => onAddStore(representative)}
+            disabled={hasActiveStore}
+            title={hasActiveStore ? 'This owner already has an active store' : undefined}
           >
             Add Store
           </button>
@@ -95,6 +99,15 @@ function OwnerCard({ owner, onToggleStatus, onAddStore, onToggleStoreStatus }: O
                 </div>
               </div>
               <div className="store-row__meta">
+                {store.storeActive && (
+                  <button
+                    type="button"
+                    className="btn btn--secondary owner-card__action-btn"
+                    onClick={() => onViewStoreChecklist(store)}
+                  >
+                    View Checklist
+                  </button>
+                )}
                 <Toggle
                   checked={store.storeActive ?? false}
                   onChange={() => onToggleStoreStatus(store)}

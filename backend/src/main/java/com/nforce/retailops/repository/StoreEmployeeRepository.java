@@ -35,6 +35,12 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
     @Query("select se from StoreEmployee se join fetch se.employee where se.createdByOwner.id = :ownerId")
     List<StoreEmployee> findByCreatedByOwnerIdFetchEmployee(@Param("ownerId") Long ownerId);
 
+    // Super Admin's cross-owner employee directory: every employee platform-wide,
+    // with its User and creating owner fetched up front (left join -- a legacy row
+    // could in principle have no recorded creator) to avoid a lazy-load per row.
+    @Query("select se from StoreEmployee se join fetch se.employee left join fetch se.createdByOwner")
+    List<StoreEmployee> findAllFetchEmployeeAndCreatedByOwner();
+
     // Batched form of StoreEmployee.stores, for listing many employees at once
     // without one query per employee for their (lazy, many-to-many) store list.
     @Query("select se.id, s.id, s.name from StoreEmployee se join se.stores s where se.id in :employeeIds order by s.name asc")

@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
+import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
@@ -126,9 +127,22 @@ public class ChecklistHistoryService {
                 Set<Long> unionTaskIds = new HashSet<>(eligibleTaskIds);
                 unionTaskIds.addAll(respondedTaskIds);
 
+                // Same "latest response per task, per day" reduction as getDetail's
+                // consumer (checklistHistoryOptions.taskStatus): only the most recent
+                // answer for a task that day counts toward whether it's an exception.
+                Map<Long, TaskResponseEntry> latestResponseByTask = dayResponses.stream()
+                    .collect(Collectors.toMap(
+                        entry -> entry.getTask().getId(),
+                        entry -> entry,
+                        (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
+                    ));
+                long exceptionCount = latestResponseByTask.values().stream()
+                    .filter(entry -> entry.getResponseType() == ResponseType.YES_NO && Boolean.FALSE.equals(entry.getValueBoolean()))
+                    .count();
+
                 rows.add(new ChecklistHistorySummaryRow(
                     store.getId(), store.getName(), date,
-                    !unionTaskIds.isEmpty(), unionTaskIds.size(), respondedTaskIds.size()
+                    !unionTaskIds.isEmpty(), unionTaskIds.size(), respondedTaskIds.size(), (int) exceptionCount
                 ));
             }
         }
@@ -136,6 +150,13 @@ public class ChecklistHistoryService {
         rows.sort(Comparator.comparing(ChecklistHistorySummaryRow::storeName)
             .thenComparing(ChecklistHistorySummaryRow::date));
         return rows;
+    }
+
+    @Transactional(readOnly = true)
+    public ChecklistHistoryDetailResponse getDetailForSuperAdmin(Long storeId, LocalDate date) {
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndActiveTrue(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return getDetail(storeOwner.getOwner().getId(), storeId, date);
     }
 
     @Transactional(readOnly = true)
@@ -254,7 +275,9 @@ public class ChecklistHistoryService {
 
     private List<Store> resolveStores(Long ownerId, List<Long> requestedStoreIds) {
         if (requestedStoreIds == null || requestedStoreIds.isEmpty()) {
-            return storeOwnerRepository.findByOwnerId(ownerId).stream().map(StoreOwner::getStore).toList();
+            return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+                .map(so -> List.of(so.getStore()))
+                .orElseGet(List::of);
         }
         if (requestedStoreIds.size() > MAX_STORE_SELECTION) {
             throw new InvalidStoreSelectionException("Select at most " + MAX_STORE_SELECTION + " stores");

@@ -10,6 +10,7 @@ interface OwnerListProps {
   onToggleStatus: (owner: OwnerSummary) => void;
   onAddStore: (owner: OwnerSummary) => void;
   onToggleStoreStatus: (store: OwnerSummary) => void;
+  onViewStoreChecklist: (store: OwnerSummary) => void;
 }
 
 function groupOwnersByStores(owners: OwnerSummary[]): GroupedOwner[] {
@@ -32,7 +33,7 @@ function groupOwnersByStores(owners: OwnerSummary[]): GroupedOwner[] {
   return Array.from(groups.values());
 }
 
-function OwnerList({ owners, isLoading = false, onToggleStatus, onAddStore, onToggleStoreStatus }: OwnerListProps) {
+function OwnerList({ owners, isLoading = false, onToggleStatus, onAddStore, onToggleStoreStatus, onViewStoreChecklist }: OwnerListProps) {
   const groupedOwners = useMemo(() => groupOwnersByStores(owners), [owners]);
 
   if (isLoading) {
@@ -52,6 +53,7 @@ function OwnerList({ owners, isLoading = false, onToggleStatus, onAddStore, onTo
           onToggleStatus={onToggleStatus}
           onAddStore={onAddStore}
           onToggleStoreStatus={onToggleStoreStatus}
+          onViewStoreChecklist={onViewStoreChecklist}
         />
       ))}
     </div>

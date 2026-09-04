@@ -13,11 +13,13 @@ import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -69,6 +71,8 @@ class ChecklistHistoryControllerTest {
     @Autowired
     private StoreEmployeeRepository storeEmployeeRepository;
     @Autowired
+    private SuperAdminRepository superAdminRepository;
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -97,6 +101,14 @@ class ChecklistHistoryControllerTest {
         store.setStoreCode(storeCode);
         store.setActive(true);
         return storeRepository.save(store);
+    }
+
+    private SuperAdmin superAdmin(String email) {
+        SuperAdmin sa = new SuperAdmin();
+        sa.setName("Test Super Admin");
+        sa.setEmail(email);
+        sa.setPasswordHash(passwordEncoder.encode(PASSWORD));
+        return superAdminRepository.save(sa);
     }
 
     private void linkOwnerToStore(User owner, Store store) {
@@ -246,6 +258,41 @@ class ChecklistHistoryControllerTest {
                 .param("endDate", today.toString()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].hasChecklist").value(false));
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanViewDetailForAnyStore() throws Exception {
+        // Owner + store that the super admin does NOT own
+        Role ownerRole = role("OWNER_ADMIN");
+        User owner = user("history-owner-g@nforce.test", ownerRole);
+        Store store = store("Super Admin Target Store", 9105L);
+        linkOwnerToStore(owner, store);
+
+        // Real SuperAdmin entity in super_admins table — gets SuperAdminUserDetails principal,
+        // which is what the real authentication path issues. A User row with role SUPER_ADMIN
+        // gets AppUserDetails instead and would not exercise the actual super-admin code path.
+        superAdmin("history-superadmin@nforce.test");
+        String superAdminToken = login("history-superadmin@nforce.test");
+
+        mockMvc.perform(get("/api/checklist-history/detail")
+                .header("Authorization", "Bearer " + superAdminToken)
+                .param("storeId", String.valueOf(store.getId()))
+                .param("date", LocalDate.now().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.storeId").value(store.getId()));
+    }
+
+    @Test
+    @Transactional
+    void superAdminIsBlockedFromSummaryEndpoint() throws Exception {
+        Role superAdminRole = role("SUPER_ADMIN");
+        user("history-superadmin-b@nforce.test", superAdminRole);
+        String superAdminToken = login("history-superadmin-b@nforce.test");
+
+        mockMvc.perform(get("/api/checklist-history/summary")
+                .header("Authorization", "Bearer " + superAdminToken))
+            .andExpect(status().isForbidden());
     }
 
     private record LoginPayload(String email, String password) {

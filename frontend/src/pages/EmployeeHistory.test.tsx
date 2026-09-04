@@ -84,3 +84,71 @@ describe('EmployeeHistory date selection', () => {
     expect(trigger).toHaveTextContent(formatDateLabel('2026-09-01'))
   })
 })
+
+describe('EmployeeHistory task responder list', () => {
+  it('lists every employee who completed a MULTIPLE-completion task, not just the caller', async () => {
+    mockGetShiftHistory.mockResolvedValue({
+      date: '2026-09-02',
+      storeId: 1,
+      hasChecklist: true,
+      categories: [
+        {
+          id: 10,
+          name: 'Cleaning',
+          tasksCompleted: 1,
+          tasksTotal: 1,
+          tasks: [
+            {
+              id: 100,
+              name: 'Wipe counters',
+              status: 'YES',
+              completedBy: { employeeUserId: 2, name: 'Bob Teammate' },
+              completedAt: '3:00 PM',
+              completedByAll: [
+                { employeeUserId: 1, name: 'Alice Caller', respondedAt: '2:00 PM' },
+                { employeeUserId: 2, name: 'Bob Teammate', respondedAt: '3:00 PM' },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
+
+    expect(await screen.findByText('Alice Caller · 2:00 PM')).toBeInTheDocument()
+    expect(screen.getByText('Bob Teammate · 3:00 PM')).toBeInTheDocument()
+  })
+
+  it('keeps the single-line responder view for a SINGLE-completion task', async () => {
+    mockGetShiftHistory.mockResolvedValue({
+      date: '2026-09-02',
+      storeId: 1,
+      hasChecklist: true,
+      categories: [
+        {
+          id: 10,
+          name: 'Cleaning',
+          tasksCompleted: 1,
+          tasksTotal: 1,
+          tasks: [
+            {
+              id: 100,
+              name: 'Unlock front door',
+              status: 'YES',
+              completedBy: { employeeUserId: 1, name: 'Alice Caller' },
+              completedAt: '2:00 PM',
+              completedByAll: [{ employeeUserId: 1, name: 'Alice Caller', respondedAt: '2:00 PM' }],
+            },
+          ],
+        },
+      ],
+    })
+
+    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
+
+    expect(await screen.findByText('Alice Caller · 2:00 PM')).toBeInTheDocument()
+  })
+})

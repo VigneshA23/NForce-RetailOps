@@ -2,6 +2,7 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
+import com.nforce.retailops.dto.SuperAdminStoreResponse;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.StoreService;
 import jakarta.validation.Valid;
@@ -28,21 +29,26 @@ public class StoreController {
         return ResponseEntity.ok(storeService.listStores(principal.getUser().getId()));
     }
 
+    // Read-only, cross-owner directory for the Super Admin's Stores page.
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<SuperAdminStoreResponse>> listAll() {
+        return ResponseEntity.ok(storeService.listAllStoresForSuperAdmin());
+    }
+
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<StoreResponse> rename(
-        @AuthenticationPrincipal AppUserDetails principal,
         @PathVariable Long id,
         @Valid @RequestBody StoreRequest request
     ) {
-        return ResponseEntity.ok(storeService.renameStore(principal.getUser().getId(), id, request));
+        return ResponseEntity.ok(storeService.renameStore(id, request));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-        @AuthenticationPrincipal AppUserDetails principal,
-        @PathVariable Long id
-    ) {
-        storeService.deleteStore(principal.getUser().getId(), id);
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        storeService.deleteStore(id);
         return ResponseEntity.noContent().build();
     }
 }

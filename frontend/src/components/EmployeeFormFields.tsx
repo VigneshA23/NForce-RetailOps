@@ -2,7 +2,6 @@ import type { EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '..
 import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import FormField from './FormField';
-import MultiSelect from './MultiSelect';
 import Select from './Select';
 
 export type EmployeeFormValues = EmployeeUpdateValues & { countryCode: string };
@@ -49,16 +48,10 @@ function EmployeeFormFields({ values, errors, storeOptions, onChange, idPrefix =
       </div>
 
       <div className="form-field--full">
-        <FormField label="Assigned Stores" htmlFor={`${idPrefix}-stores`} error={errors.storeIds}>
-          <MultiSelect
-            id={`${idPrefix}-stores`}
-            options={storeOptions.map((store) => ({ id: store.id, label: store.name }))}
-            value={values.storeIds}
-            onChange={(ids) => onChange('storeIds', ids)}
-            placeholder="Select stores..."
-            searchPlaceholder="Search stores..."
-          />
-        </FormField>
+        <div className="form-field">
+          <span className="form-field__label">Store</span>
+          <p className="employee-form__store-label">{storeOptions[0]?.name ?? '—'}</p>
+        </div>
       </div>
 
       <FormField label="Shift" htmlFor={`${idPrefix}-shift`} required error={errors.shift}>

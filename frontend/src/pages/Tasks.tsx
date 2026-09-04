@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardList, CheckCircle2, CircleDot, Repeat2, Plus } from 'lucide-react';
+import { nfToast } from '../utils/toast';
 import { createTask, deleteTask, getTasks, setTaskActive, TaskHasHistoryError, updateTask } from '../api/ownerTasks';
 import type { Category } from '../types/category';
 import type { OwnerStore } from '../types/ownerStore';
@@ -27,9 +28,6 @@ interface TasksProps {
   categoriesError: string | null;
   onRetryCategories: () => void;
   stores: OwnerStore[];
-  storesLoading: boolean;
-  storesError: string | null;
-  onRetryStores: () => void;
 }
 
 function Tasks({
@@ -39,9 +37,6 @@ function Tasks({
   categoriesError,
   onRetryCategories,
   stores,
-  storesLoading,
-  storesError,
-  onRetryStores,
 }: TasksProps) {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +44,6 @@ function Tasks({
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<number | 'ALL'>('ALL');
-  const [storeFilter, setStoreFilter] = useState<number | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [scheduleFilter, setScheduleFilter] = useState<ScheduleType | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
@@ -62,13 +56,6 @@ function Tasks({
   const [deleteTarget, setDeleteTarget] = useState<AdminTask | null>(null);
   const [historyConflictTask, setHistoryConflictTask] = useState<AdminTask | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!successMessage) return;
-    const timer = window.setTimeout(() => setSuccessMessage(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [successMessage]);
 
   function loadTasks() {
     setIsLoading(true);
@@ -88,19 +75,16 @@ function Tasks({
     return tasks.filter((task) => {
       if (normalizedSearch && !task.name.toLowerCase().includes(normalizedSearch)) return false;
       if (categoryFilter !== 'ALL' && task.categoryId !== categoryFilter) return false;
-      if (storeFilter !== 'ALL' && !task.appliesToAllStores && !task.stores.some((store) => store.id === storeFilter)) {
-        return false;
-      }
       if (statusFilter === 'ACTIVE' && !task.active) return false;
       if (statusFilter === 'INACTIVE' && task.active) return false;
       if (scheduleFilter !== 'ALL' && task.scheduleType !== scheduleFilter) return false;
       return true;
     });
-  }, [tasks, search, categoryFilter, storeFilter, statusFilter, scheduleFilter]);
+  }, [tasks, search, categoryFilter, statusFilter, scheduleFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, storeFilter, statusFilter, scheduleFilter]);
+  }, [search, categoryFilter, statusFilter, scheduleFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -135,8 +119,10 @@ function Tasks({
     try {
       if (formModalState?.mode === 'edit') {
         await updateTask(formModalState.task.id, values);
+        nfToast.success(`"${formModalState.task.name}" task updated.`);
       } else {
         await createTask(values);
+        nfToast.success(`"${values.name}" task added.`);
       }
       // Re-fetch from the backend rather than splicing the response into local state --
       // the list must reflect the backend's category + Display Order sort, not insertion
@@ -144,7 +130,9 @@ function Tasks({
       loadTasks();
       setFormModalState(null);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Something went wrong');
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setFormError(msg);
+      nfToast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -155,9 +143,10 @@ function Tasks({
     setActionError(null);
     try {
       await deleteTask(deleteTarget.id);
+      const deletedName = deleteTarget.name;
       setTasks((current) => current.filter((task) => task.id !== deleteTarget.id));
       setDeleteTarget(null);
-      setSuccessMessage('Task deleted successfully.');
+      nfToast.success(`"${deletedName}" task deleted.`);
     } catch (error) {
       if (error instanceof TaskHasHistoryError) {
         const conflicted = deleteTarget;
@@ -178,9 +167,12 @@ function Tasks({
     try {
       const updated = await setTaskActive(task.id, nextActive);
       setTasks((current) => current.map((t) => (t.id === updated.id ? updated : t)));
+      nfToast.success(`"${updated.name}" task ${updated.active ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setTasks((current) => current.map((t) => (t.id === task.id ? { ...t, active: task.active } : t)));
-      setActionError(error instanceof Error ? error.message : 'Failed to update task status');
+      const msg = error instanceof Error ? error.message : 'Failed to update task status';
+      setActionError(msg);
+      nfToast.error(msg);
     }
   }
 
@@ -190,10 +182,14 @@ function Tasks({
     try {
       const updated = await setTaskActive(historyConflictTask.id, false);
       setTasks((current) => current.map((task) => (task.id === updated.id ? updated : task)));
+      const deactivatedName = updated.name;
       setHistoryConflictTask(null);
+      nfToast.success(`"${deactivatedName}" task deactivated.`);
     } catch (error) {
       setHistoryConflictTask(null);
-      setActionError(error instanceof Error ? error.message : 'Failed to deactivate task');
+      const msg = error instanceof Error ? error.message : 'Failed to deactivate task';
+      setActionError(msg);
+      nfToast.error(msg);
     }
   }
 
@@ -250,19 +246,6 @@ function Tasks({
         </select>
 
         <select
-          className="select filter"
-          value={storeFilter}
-          onChange={(event) => setStoreFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
-        >
-          <option value="ALL">All Stores</option>
-          {stores.map((store) => (
-            <option key={store.id} value={store.id}>
-              {store.name}
-            </option>
-          ))}
-        </select>
-
-        <select
           className="select filter filter--narrow"
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
@@ -286,7 +269,6 @@ function Tasks({
         </select>
       </div>
 
-      {successMessage && <div className="tasks-page__success">{successMessage}</div>}
       {actionError && <div className="tasks-page__error">{actionError}</div>}
 
       {loadError ? (
@@ -332,9 +314,6 @@ function Tasks({
         onRetryCategories={onRetryCategories}
         onManageCategories={() => onNavigateToCategories?.()}
         stores={stores}
-        storesLoading={storesLoading}
-        storesError={storesError}
-        onRetryStores={onRetryStores}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => setFormModalState(null)}

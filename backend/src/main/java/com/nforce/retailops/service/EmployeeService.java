@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.EmployeeCreateRequest;
 import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.StoreOptionResponse;
+import com.nforce.retailops.dto.SuperAdminEmployeeResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
@@ -102,10 +103,9 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<EmployeeResponse> listEmployees(Long ownerId) {
-        List<Long> storeIds = storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .map(StoreOwner::getStore)
-            .map(Store::getId)
-            .toList();
+        List<Long> storeIds = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+            .map(so -> List.of(so.getStore().getId()))
+            .orElseGet(List::of);
 
         Map<Long, StoreEmployee> employeesById = new LinkedHashMap<>();
         if (!storeIds.isEmpty()) {
@@ -141,12 +141,43 @@ public class EmployeeService {
             .toList();
     }
 
+    // Read-only, cross-owner directory for the Super Admin's Employees page --
+    // every employee platform-wide, regardless of which owner created them or
+    // which stores they're assigned to.
+    @Transactional(readOnly = true)
+    public List<SuperAdminEmployeeResponse> listAllEmployeesForSuperAdmin() {
+        List<StoreEmployee> employees = storeEmployeeRepository.findAllFetchEmployeeAndCreatedByOwner();
+        if (employees.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> employeeIds = employees.stream().map(StoreEmployee::getId).toList();
+        Map<Long, List<StoreOptionResponse>> storesByEmployeeId = new LinkedHashMap<>();
+        for (Object[] row : storeEmployeeRepository.findStoreRowsGroupedByEmployeeIds(employeeIds)) {
+            storesByEmployeeId
+                .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
+                .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
+        }
+
+        return employees.stream()
+            .map(storeEmployee -> {
+                User owner = storeEmployee.getCreatedByOwner();
+                return SuperAdminEmployeeResponse.from(
+                    storeEmployee,
+                    storesByEmployeeId.getOrDefault(storeEmployee.getId(), List.of()),
+                    owner != null ? owner.getId() : null,
+                    owner != null ? owner.getFullName() : "Unassigned"
+                );
+            })
+            .sorted(Comparator.comparing(SuperAdminEmployeeResponse::name, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+    }
+
     @Transactional(readOnly = true)
     public List<StoreOptionResponse> listAssignableStores(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .map(StoreOwner::getStore)
-            .map(StoreOptionResponse::from)
-            .toList();
+        return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+            .map(so -> List.of(StoreOptionResponse.from(so.getStore())))
+            .orElseGet(List::of);
     }
 
     // Deliberately NOT @Transactional: the account is persisted in its own

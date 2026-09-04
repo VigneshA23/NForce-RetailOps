@@ -1,6 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import './RowActionsMenu.css';
 
 interface RowActionsMenuProps {
@@ -8,138 +6,27 @@ interface RowActionsMenuProps {
   onDelete?: () => void;
 }
 
-const MENU_WIDTH = 168;
-const VIEWPORT_MARGIN = 8;
-
 function RowActionsMenu({ onEdit, onDelete }: RowActionsMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  function openMenu() {
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) {
-      setPosition({ top: rect.bottom + 4, left: rect.right - MENU_WIDTH });
-    }
-    setIsOpen(true);
-  }
-
-  // The menu's height isn't known until it renders, so the initial position
-  // above is a guess (below + right-aligned). Once mounted, measure it and
-  // flip/clamp against the actual viewport - otherwise a row near the bottom
-  // (or edge) of the screen opens a menu that's partly or fully unreachable,
-  // in every browser equally.
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    const trigger = triggerRef.current;
-    const menu = menuRef.current;
-    if (!trigger || !menu) return;
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const menuRect = menu.getBoundingClientRect();
-
-    let top = triggerRect.bottom + 4;
-    if (top + menuRect.height > window.innerHeight - VIEWPORT_MARGIN) {
-      top = triggerRect.top - menuRect.height - 4;
-    }
-    top = Math.max(VIEWPORT_MARGIN, top);
-
-    let left = triggerRect.right - MENU_WIDTH;
-    left = Math.min(left, window.innerWidth - MENU_WIDTH - VIEWPORT_MARGIN);
-    left = Math.max(VIEWPORT_MARGIN, left);
-
-    if (top !== position.top || left !== position.left) {
-      setPosition({ top, left });
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node;
-      const clickedTrigger = triggerRef.current?.contains(target);
-      const clickedMenu = menuRef.current?.contains(target);
-      if (!clickedTrigger && !clickedMenu) {
-        setIsOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
-    }
-
-    // Simplest robust fix for a portal-rendered menu: close on scroll rather
-    // than tracking the trigger's position continuously.
-    function handleScrollOrResize() {
-      setIsOpen(false);
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
-    };
-  }, [isOpen]);
-
   return (
     <div className="row-actions">
       <button
-        ref={triggerRef}
         type="button"
-        className="row-actions__trigger"
-        aria-label="Row actions"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => (isOpen ? setIsOpen(false) : openMenu())}
+        className="row-actions__btn row-actions__btn--edit"
+        aria-label="Edit"
+        onClick={onEdit}
       >
-        <MoreVertical size={18} />
+        <Pencil size={15} />
       </button>
-      {isOpen &&
-        createPortal(
-          <div
-            ref={menuRef}
-            className="row-actions__menu row-actions__menu--portal"
-            role="menu"
-            style={{ top: position.top, left: position.left }}
-          >
-            <button
-              type="button"
-              role="menuitem"
-              className="row-actions__item"
-              onClick={() => {
-                setIsOpen(false);
-                onEdit();
-              }}
-            >
-              <Pencil size={14} />
-              Edit
-            </button>
-            {onDelete && (
-              <button
-                type="button"
-                role="menuitem"
-                className="row-actions__item row-actions__item--danger"
-                onClick={() => {
-                  setIsOpen(false);
-                  onDelete();
-                }}
-              >
-                <Trash2 size={14} />
-                Delete
-              </button>
-            )}
-          </div>,
-          document.body,
-        )}
+      {onDelete && (
+        <button
+          type="button"
+          className="row-actions__btn row-actions__btn--delete"
+          aria-label="Delete"
+          onClick={onDelete}
+        >
+          <Trash2 size={15} />
+        </button>
+      )}
     </div>
   );
 }

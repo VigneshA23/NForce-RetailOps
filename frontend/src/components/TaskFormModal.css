@@ -86,6 +86,13 @@
   cursor: pointer;
 }
 
+.task-form__store-label {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
 .task-form__hint {
   margin: var(--space-sm) 0 0;
   font-size: 12px;

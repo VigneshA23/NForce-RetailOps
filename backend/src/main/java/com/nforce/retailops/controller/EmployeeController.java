@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.EmployeeCreateRequest;
 import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.StoreOptionResponse;
+import com.nforce.retailops.dto.SuperAdminEmployeeResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.EmployeeService;
@@ -30,6 +31,13 @@ public class EmployeeController {
     @GetMapping
     public ResponseEntity<List<EmployeeResponse>> list(@AuthenticationPrincipal AppUserDetails principal) {
         return ResponseEntity.ok(employeeService.listEmployees(principal.getUser().getId()));
+    }
+
+    // Read-only, cross-owner directory for the Super Admin's Employees page.
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<SuperAdminEmployeeResponse>> listAll() {
+        return ResponseEntity.ok(employeeService.listAllEmployeesForSuperAdmin());
     }
 
     @GetMapping("/stores")

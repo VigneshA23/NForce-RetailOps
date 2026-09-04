@@ -37,10 +37,16 @@ function EmployeeFormModal({
 
   useEffect(() => {
     if (isOpen) {
-      setValues(initialValues ? employeeFormValuesFromUpdate(initialValues) : emptyEmployeeFormValues());
+      if (initialValues) {
+        setValues(employeeFormValuesFromUpdate(initialValues));
+      } else {
+        const base = emptyEmployeeFormValues();
+        if (storeOptions[0]) base.storeIds = [storeOptions[0].id];
+        setValues(base);
+      }
       setErrors({});
     }
-  }, [isOpen, initialValues]);
+  }, [isOpen, initialValues, storeOptions]);
 
   function updateField<K extends keyof EmployeeFormValues>(field: K, value: EmployeeFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));

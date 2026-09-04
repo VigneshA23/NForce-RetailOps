@@ -19,9 +19,6 @@ function renderModal() {
       onRetryCategories={() => {}}
       onManageCategories={() => {}}
       stores={stores}
-      storesLoading={false}
-      storesError={null}
-      onRetryStores={() => {}}
       onClose={() => {}}
       onSubmit={vi.fn()}
     />,

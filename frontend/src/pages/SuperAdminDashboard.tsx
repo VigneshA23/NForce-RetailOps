@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
+import { nfToast } from '../utils/toast';
 import { addOwner, assignStore, getOwners, setOwnerStatus, setStoreStatus } from '../api/owners';
 import type { AddOwnerValues, AssignStoreValues, OwnerSummary } from '../types/owner';
 import type { AuthUser } from '../types/auth';
@@ -8,6 +9,8 @@ import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigat
 import OwnerList from '../components/OwnerList';
 import OwnerFormModal from '../components/OwnerFormModal';
 import AssignStoreModal from '../components/AssignStoreModal';
+import ChecklistHistoryDetailModal from '../components/ChecklistHistoryDetailModal';
+import type { ChecklistHistoryDetailTarget } from '../components/ChecklistHistoryDetailModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
 import SearchInput from '../components/SearchInput';
@@ -37,6 +40,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
   const [assignStoreTarget, setAssignStoreTarget] = useState<OwnerSummary | null>(null);
   const [assignStoreError, setAssignStoreError] = useState<string | null>(null);
   const [isAssigningStore, setIsAssigningStore] = useState(false);
+  const [storeChecklistTarget, setStoreChecklistTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [activeTab] = useState<SuperAdminNavTabKey>('owners');
   const [showProfile, setShowProfile] = useState(false);
@@ -65,8 +69,11 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       // moves it away from its previous (deactivated) owner, so a full
       // refresh is the only way to keep that owner's row correct too.
       loadOwners();
+      nfToast.success(`"${values.ownerName}" owner added.`);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Something went wrong');
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setFormError(msg);
+      nfToast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -77,14 +84,15 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     setAssignStoreError(null);
     setIsAssigningStore(true);
     try {
-      await assignStore(assignStoreTarget.ownerId, values);
+      const ownerName = assignStoreTarget.ownerName;
+      const created = await assignStore(assignStoreTarget.ownerId, values);
+      setOwners((current) => [...current, created]);
       setAssignStoreTarget(null);
-      // Reloaded rather than appended locally: assigning an unassigned store
-      // moves it away from its previous (deactivated) owner, so a full
-      // refresh is the only way to keep that owner's row correct too.
-      loadOwners();
+      nfToast.success(`"${values.storeName}" store assigned to ${ownerName}.`);
     } catch (error) {
-      setAssignStoreError(error instanceof Error ? error.message : 'Something went wrong');
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setAssignStoreError(msg);
+      nfToast.error(msg);
     } finally {
       setIsAssigningStore(false);
     }
@@ -94,7 +102,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     if (!statusTarget) return;
     setStatusError(null);
     try {
-      const updated = await setOwnerStatus(statusTarget.ownerId, !statusTarget.ownerActive);
+      const ownerName = statusTarget.ownerName;
+      const isActivating = !statusTarget.ownerActive;
+      const updated = await setOwnerStatus(statusTarget.ownerId, isActivating);
       // Keyed by owner+store rather than bare storeId: several store-less
       // owners would all carry storeId `null` and collide on that alone.
       const updatedByKey = new Map(updated.map((owner) => [`${owner.ownerId}-${owner.storeId}`, owner]));
@@ -102,9 +112,12 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         current.map((owner) => updatedByKey.get(`${owner.ownerId}-${owner.storeId}`) ?? owner),
       );
       setStatusTarget(null);
+      nfToast.success(`"${ownerName}" owner ${isActivating ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setStatusTarget(null);
-      setStatusError(error instanceof Error ? error.message : 'Failed to update owner status');
+      const msg = error instanceof Error ? error.message : 'Failed to update owner status';
+      setStatusError(msg);
+      nfToast.error(msg);
     }
   }
 
@@ -112,19 +125,24 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     if (!storeStatusTarget || storeStatusTarget.storeId == null) return;
     setStoreStatusError(null);
     try {
+      const storeName = storeStatusTarget.storeName ?? 'Store';
+      const isActivating = !storeStatusTarget.storeActive;
       const updated = await setStoreStatus(
         storeStatusTarget.ownerId,
         storeStatusTarget.storeId,
-        !storeStatusTarget.storeActive,
+        isActivating,
       );
       const updatedByKey = new Map(updated.map((owner) => [`${owner.ownerId}-${owner.storeId}`, owner]));
       setOwners((current) =>
         current.map((owner) => updatedByKey.get(`${owner.ownerId}-${owner.storeId}`) ?? owner),
       );
       setStoreStatusTarget(null);
+      nfToast.success(`"${storeName}" store ${isActivating ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setStoreStatusTarget(null);
-      setStoreStatusError(error instanceof Error ? error.message : 'Failed to update store status');
+      const msg = error instanceof Error ? error.message : 'Failed to update store status';
+      setStoreStatusError(msg);
+      nfToast.error(msg);
     }
   }
 
@@ -233,6 +251,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
                 setStoreStatusError(null);
                 setStoreStatusTarget(store);
               }}
+              onViewStoreChecklist={(store) => {
+                if (store.storeId == null || store.storeName == null) return;
+                setStoreChecklistTarget({
+                  storeId: store.storeId,
+                  storeName: store.storeName,
+                  date: new Date().toISOString().slice(0, 10),
+                });
+              }}
             />
           </div>
         )}
@@ -286,6 +312,11 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         danger={storeStatusTarget?.storeActive ?? true}
         onConfirm={handleConfirmStoreStatusChange}
         onCancel={() => setStoreStatusTarget(null)}
+      />
+
+      <ChecklistHistoryDetailModal
+        target={storeChecklistTarget}
+        onClose={() => setStoreChecklistTarget(null)}
       />
     </AppShell>
   );

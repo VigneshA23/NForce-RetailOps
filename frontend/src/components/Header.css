@@ -8,7 +8,7 @@
   height: var(--header-height);
   padding: 0 var(--space-lg);
   box-sizing: border-box;
-  background: var(--color-header-bg);
+  background: linear-gradient(90deg, #050506 0%, #6B0C10 40%, #A01418 100%);
   color: var(--color-header-text);
 }
 

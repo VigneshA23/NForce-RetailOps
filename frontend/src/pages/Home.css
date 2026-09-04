@@ -11,6 +11,13 @@
   margin: 0 0 var(--space-lg);
 }
 
+.home-page__store-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin: calc(-1 * var(--space-sm)) 0 var(--space-md);
+}
+
 .home-page__loading {
   color: var(--color-text-secondary);
   font-size: 14px;
@@ -50,51 +57,43 @@
   color: var(--color-text-muted);
 }
 
-.home-page__store-rank {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.home-page__store-status {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  overflow-y: auto;
-  height: 100%;
-}
-
-.home-page__store-rank-row {
-  display: grid;
-  grid-template-columns: minmax(64px, 1.4fr) 1fr auto auto;
   align-items: center;
-  gap: var(--space-sm);
+  justify-content: center;
+  gap: var(--space-md);
+  height: 100%;
+  padding: var(--space-md) 0;
 }
 
-.home-page__store-rank-name {
+.home-page__store-status-name {
+  margin: 0;
   font-size: 13px;
-  color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 600;
+  color: var(--color-text-secondary);
 }
 
-.home-page__store-rank-bar-track {
-  height: 6px;
+.home-page__store-status-percent {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  line-height: 1;
+}
+
+.home-page__store-status-bar-track {
+  width: 100%;
+  height: 8px;
   border-radius: var(--radius-pill);
   background: var(--color-border);
   overflow: hidden;
 }
 
-.home-page__store-rank-bar-fill {
+.home-page__store-status-bar-fill {
   height: 100%;
   border-radius: var(--radius-pill);
   background: var(--color-accent);
-}
-
-.home-page__store-rank-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  min-width: 34px;
-  text-align: right;
+  transition: width 0.4s ease;
 }
 
 .home-page__store-rank-details {

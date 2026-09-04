@@ -86,6 +86,7 @@ beforeEach(() => {
     shift: null,
     employeeType: null,
     phone: null,
+    avatarUrl: null,
   })
   mockGetDailyChecklist.mockReset()
   // These tests exercise auth/navigation, not checklist content.
@@ -212,6 +213,7 @@ describe('session restore', () => {
       shift: null,
       employeeType: null,
       phone: null,
+      avatarUrl: null,
     })
 
     render(<App />)
@@ -234,6 +236,7 @@ describe('session restore', () => {
       shift: null,
       employeeType: null,
       phone: null,
+      avatarUrl: null,
     })
 
     render(<App />)

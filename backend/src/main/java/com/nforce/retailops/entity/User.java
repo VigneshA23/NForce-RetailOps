@@ -37,6 +37,9 @@ public class User {
     @Column(name = "must_reset_password", nullable = false)
     private boolean mustResetPassword = false;
 
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
+    private String avatarUrl;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -108,5 +111,13 @@ public class User {
 
     public Set<Role> getRoles() {
         return roles;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 }
