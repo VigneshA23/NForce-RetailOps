@@ -32,11 +32,13 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     void deleteByStoreId(Long storeId);
 
-    @Query("select so from StoreOwner so join fetch so.store join fetch so.owner")
+    // Left-joined on owner: a store can have no owner at all (see StoreOwner.owner).
+    @Query("select so from StoreOwner so join fetch so.store left join fetch so.owner")
     List<StoreOwner> findAllWithStoreAndOwner();
 
     // Store-owner links with access revoked -- candidates for handing off to a
-    // newly created owner while keeping the same store record/code.
-    @Query("select so from StoreOwner so join fetch so.store join fetch so.owner where so.active = false")
+    // newly created owner while keeping the same store record/code. Also
+    // covers never-owned stores (owner = null, active = false).
+    @Query("select so from StoreOwner so join fetch so.store left join fetch so.owner where so.active = false")
     List<StoreOwner> findAllWithRevokedAccess();
 }

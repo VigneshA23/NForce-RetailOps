@@ -2,6 +2,7 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.AddOwnerRequest;
 import com.nforce.retailops.dto.AssignStoreRequest;
+import com.nforce.retailops.dto.OwnerCreationResponse;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.dto.ReassignableStoreResponse;
 import com.nforce.retailops.entity.Store;
@@ -102,7 +103,7 @@ public class OwnerManagementService {
     // and any store change are explicitly compensated away (in a second short
     // transaction) rather than relying on an implicit rollback -- an owner
     // must not be left unable to ever learn their own password.
-    public OwnerResponse addOwner(AddOwnerRequest request) {
+    public OwnerCreationResponse addOwner(AddOwnerRequest request) {
         boolean hasNewStoreName = request.storeName() != null && !request.storeName().isBlank();
         boolean hasNewStoreLocation = request.storeLocation() != null && !request.storeLocation().isBlank();
         if (hasNewStoreName != hasNewStoreLocation) {
@@ -130,7 +131,7 @@ public class OwnerManagementService {
             throw ex;
         }
 
-        return provisioned.response();
+        return new OwnerCreationResponse(provisioned.response(), provisioned.temporaryPassword());
     }
 
     @Transactional

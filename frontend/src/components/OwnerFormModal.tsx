@@ -208,7 +208,9 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
                     onChange={(value) => updateField('existingStoreId', Number(value))}
                     options={reassignableStores.map((store) => ({
                       value: String(store.storeId),
-                      label: `#${store.storeCode} · ${store.storeName} — was ${store.currentOwnerName}`,
+                      label: store.currentOwnerName
+                        ? `#${store.storeCode} · ${store.storeName} — was ${store.currentOwnerName}`
+                        : `#${store.storeCode} · ${store.storeName} — unassigned`,
                     }))}
                   />
                 )}

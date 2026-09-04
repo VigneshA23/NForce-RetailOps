@@ -1,9 +1,12 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.EmployeeCreateRequest;
+import com.nforce.retailops.dto.EmployeeDirectoryResponse;
+import com.nforce.retailops.dto.EmployeeCreationResponse;
 import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.StoreOptionResponse;
+import com.nforce.retailops.dto.SuperAdminEmployeeResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
@@ -12,13 +15,12 @@ import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.EmployeeNotFoundException;
-import com.nforce.retailops.exception.StoreInactiveException;
+import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +28,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -63,25 +64,6 @@ public class EmployeeService {
         this.employeeProvisioningService = employeeProvisioningService;
         this.passwordEncoder = passwordEncoder;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
-    }
-
-    // Store assignment is optional: an employee can be created or edited with no
-    // stores at all. Every store id that IS provided must individually be one the
-    // caller owns.
-    private Set<Store> resolveOwnerStores(Long ownerId, List<Long> storeIds) {
-        if (storeIds == null || storeIds.isEmpty()) {
-            return new LinkedHashSet<>();
-        }
-        Set<Store> stores = new LinkedHashSet<>();
-        for (Long storeId : storeIds) {
-            StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
-                .orElseThrow(() -> new AccessDeniedException("You cannot assign employees to another store"));
-            if (!storeOwner.isActive()) {
-                throw new StoreInactiveException("\"" + storeOwner.getStore().getName() + "\" has been deactivated and cannot be assigned employees");
-            }
-            stores.add(storeOwner.getStore());
-        }
-        return stores;
     }
 
     private boolean ownsAnyStore(StoreEmployee storeEmployee, Long ownerId) {
@@ -140,13 +122,41 @@ public class EmployeeService {
             .toList();
     }
 
+    // Read-only, cross-owner directory for the Super Admin's Employees page --
+    // every employee platform-wide, regardless of which owner created them or
+    // which stores they're assigned to.
     @Transactional(readOnly = true)
-    public List<StoreOptionResponse> listAssignableStores(Long ownerId) {
-        return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .map(so -> List.of(StoreOptionResponse.from(so.getStore())))
-            .orElseGet(List::of);
+    public List<SuperAdminEmployeeResponse> listAllEmployeesForSuperAdmin() {
+        List<StoreEmployee> employees = storeEmployeeRepository.findAllFetchEmployeeAndCreatedByOwner();
+        if (employees.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> employeeIds = employees.stream().map(StoreEmployee::getId).toList();
+        Map<Long, List<StoreOptionResponse>> storesByEmployeeId = new LinkedHashMap<>();
+        for (Object[] row : storeEmployeeRepository.findStoreRowsGroupedByEmployeeIds(employeeIds)) {
+            storesByEmployeeId
+                .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
+                .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
+        }
+
+        return employees.stream()
+            .map(storeEmployee -> {
+                User owner = storeEmployee.getCreatedByOwner();
+                return SuperAdminEmployeeResponse.from(
+                    storeEmployee,
+                    storesByEmployeeId.getOrDefault(storeEmployee.getId(), List.of()),
+                    owner != null ? owner.getId() : null,
+                    owner != null ? owner.getFullName() : "Unassigned"
+                );
+            })
+            .sorted(Comparator.comparing(SuperAdminEmployeeResponse::name, String.CASE_INSENSITIVE_ORDER))
+            .toList();
     }
 
+    // Super-Admin-only now: created with no owner and no stores. An owner
+    // picks the employee up afterward via assignToMyStore.
+    //
     // Deliberately NOT @Transactional: the account is persisted in its own
     // short-lived transaction (EmployeeProvisioningService), so the mail send
     // below never holds a pooled DB connection for the duration of that
@@ -154,11 +164,9 @@ public class EmployeeService {
     // compensated away (in a second short transaction) rather than relying on
     // an implicit rollback -- an employee must not be left unable to ever
     // learn their own password.
-    public EmployeeResponse createEmployee(Long ownerId, EmployeeCreateRequest request) {
-        Set<Store> stores = resolveOwnerStores(ownerId, request.storeIds());
-
+    public EmployeeCreationResponse createEmployee(EmployeeCreateRequest request) {
         EmployeeProvisioningService.ProvisionedEmployee provisioned =
-            employeeProvisioningService.createEmployeeAccount(ownerId, request, stores);
+            employeeProvisioningService.createEmployeeAccount(null, request, Set.of());
 
         try {
             mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
@@ -173,7 +181,80 @@ public class EmployeeService {
             throw ex;
         }
 
-        return provisioned.response();
+        return new EmployeeCreationResponse(provisioned.response(), provisioned.temporaryPassword());
+    }
+
+    // Cross-owner directory for the Owner's "Assign Employee" flow -- every
+    // active employee platform-wide, so an owner can find one (created by the
+    // Super Admin, or already working elsewhere) and add their own store to
+    // it. Omits owner attribution deliberately (see EmployeeDirectoryResponse).
+    @Transactional(readOnly = true)
+    public List<EmployeeDirectoryResponse> listDirectory(Long ownerId) {
+        Long myStoreId = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+            .map(so -> so.getStore().getId())
+            .orElse(null);
+
+        List<StoreEmployee> employees = storeEmployeeRepository.findAllFetchEmployeeAndCreatedByOwner().stream()
+            .filter(storeEmployee -> storeEmployee.getEmployee().isActive())
+            .toList();
+        if (employees.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> employeeIds = employees.stream().map(StoreEmployee::getId).toList();
+        Map<Long, List<StoreOptionResponse>> storesByEmployeeId = new LinkedHashMap<>();
+        for (Object[] row : storeEmployeeRepository.findStoreRowsGroupedByEmployeeIds(employeeIds)) {
+            storesByEmployeeId
+                .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
+                .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
+        }
+
+        return employees.stream()
+            .map(storeEmployee -> {
+                List<StoreOptionResponse> stores = storesByEmployeeId.getOrDefault(storeEmployee.getId(), List.of());
+                boolean assignedToMyStore = myStoreId != null
+                    && stores.stream().anyMatch(store -> store.id().equals(myStoreId));
+                return new EmployeeDirectoryResponse(
+                    storeEmployee.getId(),
+                    "EMP-" + String.format("%03d", storeEmployee.getId()),
+                    storeEmployee.getEmployee().getFullName(),
+                    storeEmployee.getEmployee().getEmail(),
+                    storeEmployee.getPhone(),
+                    stores,
+                    assignedToMyStore
+                );
+            })
+            .sorted(Comparator.comparing(EmployeeDirectoryResponse::name, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+    }
+
+    private StoreOwner requireActiveStore(Long ownerId) {
+        return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+            .orElseThrow(() -> new InvalidStoreSelectionException("You don't have an active store to assign employees to"));
+    }
+
+    @Transactional
+    public EmployeeResponse assignToMyStore(Long ownerId, Long employeeId) {
+        Store myStore = requireActiveStore(ownerId).getStore();
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        storeEmployee.getStores().add(myStore);
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        return EmployeeResponse.from(storeEmployee);
+    }
+
+    @Transactional
+    public EmployeeResponse unassignFromMyStore(Long ownerId, Long employeeId) {
+        Store myStore = requireActiveStore(ownerId).getStore();
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        storeEmployee.getStores().removeIf(store -> store.getId().equals(myStore.getId()));
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        return EmployeeResponse.from(storeEmployee);
     }
 
     @Transactional
@@ -184,8 +265,6 @@ public class EmployeeService {
         if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
         }
-
-        Set<Store> stores = resolveOwnerStores(ownerId, request.storeIds());
 
         String email = request.email().trim();
         User employee = storeEmployee.getEmployee();
@@ -198,7 +277,6 @@ public class EmployeeService {
         employee.setEmail(email);
         userRepository.save(employee);
 
-        storeEmployee.setStores(stores);
         storeEmployee.setPhone(request.phone().trim());
         storeEmployee.setShift(request.shift());
         storeEmployee.setEmployeeType(request.employeeType());

@@ -47,4 +47,11 @@
   .tasks-page__header {
     flex-wrap: wrap;
   }
+
+  /* Same fix as Employees: once the summary text pushes the button onto its
+     own wrapped row, space-between has nothing left to distribute on that
+     row, so the button sits at the start instead of staying right-aligned. */
+  .tasks-page__header .specular-button {
+    margin-left: auto;
+  }
 }

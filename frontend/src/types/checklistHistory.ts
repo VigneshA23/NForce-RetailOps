@@ -10,8 +10,29 @@ export interface ChecklistHistorySummaryRow {
   totalTasks: number;
   completedTasks: number;
   // Tasks whose latest response that day was a Yes/No task answered "No" -- the
-  // same exception/issue definition the Store Details checklist already uses.
-  exceptionCount: number;
+  // same Issue definition the Daily Checklist already uses.
+  issueCount: number;
+}
+
+export type ChecklistTaskDetailStatus = 'COMPLETED' | 'NOT_COMPLETED' | 'ISSUE';
+
+// One row per task completion event (or one row for a still-pending task) in the
+// Daily Operations Summary report's task-level detail (CSV export / Print).
+export interface ChecklistHistoryTaskDetailRow {
+  storeId: number;
+  storeName: string;
+  date: string;
+  categoryName: string;
+  taskName: string;
+  status: ChecklistTaskDetailStatus;
+  response: string | null;
+  employeeFullName: string | null;
+  completedAt: string | null;
+}
+
+export interface ChecklistHistoryOperationsReport {
+  summary: ChecklistHistorySummaryRow[];
+  details: ChecklistHistoryTaskDetailRow[];
 }
 
 export interface ChecklistHistoryResponseEntry {

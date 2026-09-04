@@ -71,6 +71,16 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("storeIds") Collection<Long> storeIds
     );
 
+    // Batched form of countByOwnerIdAndAppliesToAllStoresTrue, for the Super
+    // Admin's cross-owner store directory (one query for every owner's
+    // applies-to-all-stores count instead of one query per owner).
+    @org.springframework.data.jpa.repository.Query(
+        "select t.owner.id, count(t) from Task t where t.owner.id in :ownerIds and t.appliesToAllStores = true group by t.owner.id"
+    )
+    List<Object[]> countAppliesToAllGroupedByOwnerIds(
+        @org.springframework.data.repository.query.Param("ownerIds") Collection<Long> ownerIds
+    );
+
     // Candidates for an employee's checklist at a given store and date: active tasks
     // (with an active category) belonging to the store's owner, scoped to the store
     // either via applies_to_all_stores or a specific task_stores entry, and within the

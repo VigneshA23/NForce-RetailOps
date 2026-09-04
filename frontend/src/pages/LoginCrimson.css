@@ -11,17 +11,8 @@
   color: #f2f2f4;
 }
 
-/* ─── Background layers (visible on desktop) ─────────────────────────────── */
-.login3-bg-photo {
-  position: absolute;
-  inset: -24px;
-  z-index: 0;
-  background-image: url('/login-bg-aisle.png');
-  background-size: cover;
-  background-position: center;
-  filter: blur(6px) brightness(0.55) saturate(1.05);
-}
-
+/* No photo layer -- the shell's own solid colour, plus the wash below, is
+   the whole background; no store-aisle image. */
 .login3-bg-overlay {
   position: absolute;
   inset: 0;
@@ -379,19 +370,6 @@
   cursor: not-allowed;
 }
 
-/* ─── Footer note ────────────────────────────────────────────────────────── */
-.login3-access-note {
-  margin: 20px 0 0;
-  text-align: center;
-  font-size: 13px;
-  color: rgba(242, 242, 244, 0.6);
-}
-
-.login3-access-link {
-  font-weight: 700;
-  color: #ff4d5e;
-}
-
 /* ─── Mobile overrides ───────────────────────────────────────────────────── */
 /* All overrides come AFTER base rules so cascade wins. Goal: full-bleed dark
    canvas on mobile — no white card, no letterbox, notch/home-bar aware. */
@@ -543,14 +521,6 @@
 
   .login3-submit:hover:not(:disabled) {
     box-shadow: 0 16px 28px -8px rgba(225, 29, 51, 0.55);
-  }
-
-  .login3-access-note {
-    color: rgba(242, 242, 244, 0.45);
-  }
-
-  .login3-access-link {
-    color: #ff4d5e;
   }
 
   .login3-success {

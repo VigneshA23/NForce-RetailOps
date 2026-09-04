@@ -285,6 +285,41 @@ class ChecklistHistoryControllerTest {
 
     @Test
     @Transactional
+    void operationsSummaryNeverReturnsAnotherOwnersStoreEvenIfRequested() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        User ownerH = user("history-owner-h@nforce.test", ownerRole);
+        Store myStore = store("My Store", 9106L);
+        linkOwnerToStore(ownerH, myStore);
+
+        User ownerI = user("history-owner-i@nforce.test", ownerRole);
+        Store otherStore = store("Other Owner Store", 9107L);
+        linkOwnerToStore(ownerI, otherStore);
+
+        String tokenH = login("history-owner-h@nforce.test");
+
+        // No storeId/storeIds param exists on this endpoint at all -- confirms the
+        // backend always resolves the caller's own store(s), never a client-supplied one.
+        mockMvc.perform(get("/api/checklist-history/operations-summary")
+                .header("Authorization", "Bearer " + tokenH))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.summary.length()").value(1))
+            .andExpect(jsonPath("$.summary[0].storeName").value("My Store"));
+    }
+
+    @Test
+    @Transactional
+    void employeeRoleIsForbiddenFromOperationsSummaryEndpoint() throws Exception {
+        Role employeeRole = role("EMPLOYEE");
+        user("history-employee-ops@nforce.test", employeeRole);
+        String token = login("history-employee-ops@nforce.test");
+
+        mockMvc.perform(get("/api/checklist-history/operations-summary")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
     void superAdminIsBlockedFromSummaryEndpoint() throws Exception {
         Role superAdminRole = role("SUPER_ADMIN");
         user("history-superadmin-b@nforce.test", superAdminRole);

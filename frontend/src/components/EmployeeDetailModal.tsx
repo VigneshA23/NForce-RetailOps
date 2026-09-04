@@ -6,9 +6,13 @@ import './EmployeeDetailModal.css';
 interface EmployeeDetailModalProps {
   employee: Employee | null;
   onClose: () => void;
+  // Super Admin's Employees page only -- the owner this employee was created
+  // under. Omitted by the owner's own Employees page, where it would always
+  // just be "you".
+  ownerName?: string;
 }
 
-function EmployeeDetailModal({ employee, onClose }: EmployeeDetailModalProps) {
+function EmployeeDetailModal({ employee, onClose, ownerName }: EmployeeDetailModalProps) {
   if (!employee) return null;
 
   return (
@@ -33,6 +37,12 @@ function EmployeeDetailModal({ employee, onClose }: EmployeeDetailModalProps) {
             <dt>Employee ID</dt>
             <dd>{employee.empId}</dd>
           </div>
+          {ownerName && (
+            <div>
+              <dt>Owner</dt>
+              <dd>{ownerName}</dd>
+            </div>
+          )}
           <div>
             <dt>Assigned Stores</dt>
             <dd>{employee.stores.length > 0 ? employee.stores.map((store) => store.name).join(', ') : 'No stores'}</dd>

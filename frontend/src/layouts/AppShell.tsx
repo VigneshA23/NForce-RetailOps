@@ -34,6 +34,11 @@ interface AppShellProps<Key extends string = NavTabKey> {
   // fixed BottomNav on mobile instead (the Sidebar drawer trigger is hidden,
   // so it simply never opens -- no other Sidebar behavior changes).
   mobileNav?: 'drawer' | 'bottom-tabs';
+  // Items shown in the BottomNav specifically, when narrower than the full
+  // desktop `navItems` list is wanted at phone width. Falls back to
+  // `navItems` when omitted, so existing 'bottom-tabs' callers (Employee)
+  // are unaffected.
+  bottomNavItems?: NavItem<Key>[];
   children: ReactNode;
 }
 
@@ -54,6 +59,7 @@ function AppShell<Key extends string = NavTabKey>({
   avatarUrl,
   headerActions,
   mobileNav = 'drawer',
+  bottomNavItems,
   children,
 }: AppShellProps<Key>) {
   const { isDarkTheme, toggleTheme } = useTheme();
@@ -74,7 +80,6 @@ function AppShell<Key extends string = NavTabKey>({
         mobileOpen={isMobile && mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
         user={user}
-        avatarUrl={avatarUrl}
       />
       <div className="app-shell__content">
         <div className="app-shell__header">
@@ -102,7 +107,9 @@ function AppShell<Key extends string = NavTabKey>({
           {children}
         </main>
       </div>
-      {useBottomTabs && <BottomNav<Key> items={navItems} activeKey={activeTab} onSelect={onSelectTab} />}
+      {useBottomTabs && (
+        <BottomNav<Key> items={bottomNavItems ?? navItems} activeKey={activeTab} onSelect={onSelectTab} />
+      )}
     </div>
   );
 }

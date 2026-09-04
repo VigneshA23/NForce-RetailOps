@@ -23,6 +23,13 @@
   gap: 4px;
   border: none;
   background: transparent;
+  /* Plain fallback first: color-mix() is unsupported on some WebKit builds
+     still in use on real devices/simulators (pre-iOS 16.2). An invalid value
+     drops the whole declaration rather than falling back to anything, and
+     the inherited color left behind can render icons/labels invisible
+     against the dark nav background -- so a hard-coded equivalent goes
+     first, overridden by the color-mix() version wherever it's supported. */
+  color: rgba(255, 255, 255, 0.6);
   color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
   cursor: pointer;
   font-size: 11px;

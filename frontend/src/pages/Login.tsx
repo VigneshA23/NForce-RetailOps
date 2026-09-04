@@ -2,29 +2,13 @@ import { useState, type FormEvent } from 'react'
 import { Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { motion } from 'motion/react'
 import { login } from '../api/auth'
-import type { AuthUser, Role } from '../types/auth'
-import { getLastKnownRole } from '../utils/authStorage'
+import type { AuthUser } from '../types/auth'
 import './LoginCrimson.css'
 
 interface LoginProps {
   onLoginSuccess: (user: AuthUser, remember: boolean, mustResetPassword: boolean) => void
   onForgotPassword: () => void
   notice?: string | null
-}
-
-// Who each role should be pointed to for help. The role is only known once a
-// user has actually authenticated in this browser before (see
-// authStorage.getLastKnownRole) -- the login page itself has no way to know
-// who's about to sign in, and must not guess from the email being typed.
-const ASSISTANCE_CONTACT: Record<Role, string> = {
-  SUPER_ADMIN: 'Contact your support team',
-  OWNER_ADMIN: 'Contact your Super Admin',
-  EMPLOYEE: 'Contact your Owner/Admin',
-}
-
-function assistanceMessage(): string {
-  const role = getLastKnownRole() as Role | null
-  return (role && ASSISTANCE_CONTACT[role]) || 'Contact your admin'
 }
 
 function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
@@ -52,7 +36,6 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
 
   return (
     <div className="login3-shell">
-      <div className="login3-bg-photo" aria-hidden="true" />
       <div className="login3-bg-overlay" aria-hidden="true" />
       <div className="login3-grid">
         <div className="login3-hero">
@@ -196,10 +179,6 @@ function Login({ onLoginSuccess, onForgotPassword, notice }: LoginProps) {
                 )}
               </motion.button>
             </form>
-
-            <p className="login3-access-note">
-              Need assistance? <span className="login3-access-link">{assistanceMessage()}</span>
-            </p>
           </motion.div>
         </div>
       </div>

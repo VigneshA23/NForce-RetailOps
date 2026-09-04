@@ -45,8 +45,14 @@ function MultiSelect({
   // renders, so flip it above the trigger if opening below would push it
   // past the bottom of the viewport - otherwise a field low in a form (or on
   // a short viewport) opens a panel that's partly unreachable.
-  useLayoutEffect(() => {
-    if (!isOpen) return;
+  //
+  // Uses visualViewport's height, not window.innerHeight -- tapping this
+  // panel's own search field raises the on-screen keyboard on a real phone.
+  // iOS Safari shrinks visualViewport (not the layout viewport) for that and
+  // does NOT fire a window 'resize' event, so a flip computed off
+  // window.innerHeight stays sized for the pre-keyboard viewport and the
+  // panel ends up rendered under the keyboard.
+  function repositionPanel() {
     const trigger = triggerRef.current;
     const panel = panelRef.current;
     if (!trigger || !panel) return;
@@ -54,16 +60,31 @@ function MultiSelect({
     const triggerRect = trigger.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
     const margin = 8;
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
 
     let top = triggerRect.bottom + 4;
-    if (top + panelRect.height > window.innerHeight - margin) {
+    if (top + panelRect.height > viewportHeight - margin) {
       top = triggerRect.top - panelRect.height - 4;
     }
     top = Math.max(margin, top);
 
-    if (top !== position.top) {
-      setPosition((current) => ({ ...current, top }));
-    }
+    setPosition((current) => (top !== current.top ? { ...current, top } : current));
+  }
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    repositionPanel();
+  }, [isOpen]);
+
+  // Re-run the same flip logic when the on-screen keyboard opens/closes,
+  // instead of just closing the panel -- visualViewport is what actually
+  // changes size in that case, and only some browsers also fire a window
+  // 'resize' for it.
+  useEffect(() => {
+    if (!isOpen || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    viewport.addEventListener('resize', repositionPanel);
+    return () => viewport.removeEventListener('resize', repositionPanel);
   }, [isOpen]);
 
   useEffect(() => {

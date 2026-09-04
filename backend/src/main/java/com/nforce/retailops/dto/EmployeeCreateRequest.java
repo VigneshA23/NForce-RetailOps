@@ -4,8 +4,8 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-import java.util.List;
-
+// Created by the Super Admin with no store assignment -- an owner assigns
+// their store afterward (EmployeeController assign/unassign endpoints).
 public record EmployeeCreateRequest(
     @NotBlank(message = "Name is required")
     @Size(max = 150, message = "Name must be 150 characters or fewer")
@@ -25,8 +25,6 @@ public record EmployeeCreateRequest(
     String employeeType,
 
     @NotBlank(message = "Gender is required")
-    String gender,
-
-    List<Long> storeIds
+    String gender
 ) {
 }

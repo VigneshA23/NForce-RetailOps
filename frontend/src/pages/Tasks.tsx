@@ -12,9 +12,21 @@ import TaskDetailsModal from '../components/TaskDetailsModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
+import Select from '../components/Select';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Tasks.css';
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Statuses' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
+
+const SCHEDULE_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Schedules' },
+  ...SCHEDULE_TYPE_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
+];
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; task: AdminTask } | null;
@@ -69,6 +81,14 @@ function Tasks({
   useEffect(() => {
     loadTasks();
   }, []);
+
+  const categoryFilterOptions = useMemo(
+    () => [
+      { value: 'ALL', label: 'All Categories' },
+      ...categories.map((category) => ({ value: String(category.id), label: category.name })),
+    ],
+    [categories],
+  );
 
   const filteredTasks = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -232,41 +252,29 @@ function Tasks({
           <SearchInput value={search} onChange={setSearch} placeholder="Search tasks" />
         </div>
 
-        <select
-          className="select filter"
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value === 'ALL' ? 'ALL' : Number(event.target.value))}
-        >
-          <option value="ALL">All Categories</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+        <Select
+          className="filter"
+          options={categoryFilterOptions}
+          value={categoryFilter === 'ALL' ? 'ALL' : String(categoryFilter)}
+          onChange={(value) => setCategoryFilter(value === 'ALL' ? 'ALL' : Number(value))}
+          ariaLabel="Filter by category"
+        />
 
-        <select
-          className="select filter filter--narrow"
+        <Select
+          className="filter filter--narrow"
+          options={STATUS_FILTER_OPTIONS}
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-        </select>
+          onChange={(value) => setStatusFilter(value as StatusFilter)}
+          ariaLabel="Filter by status"
+        />
 
-        <select
-          className="select filter"
+        <Select
+          className="filter"
+          options={SCHEDULE_FILTER_OPTIONS}
           value={scheduleFilter}
-          onChange={(event) => setScheduleFilter(event.target.value as ScheduleType | 'ALL')}
-        >
-          <option value="ALL">All Schedules</option>
-          {SCHEDULE_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setScheduleFilter(value as ScheduleType | 'ALL')}
+          ariaLabel="Filter by schedule"
+        />
       </div>
 
       {actionError && <div className="tasks-page__error">{actionError}</div>}

@@ -61,3 +61,15 @@
     flex-basis: 100%;
   }
 }
+
+/* At phone width, an odd number of 50%-basis filters wraps with the last one
+   alone on its own row -- flex-grow then stretches it to fill that row,
+   reading as an inconsistent "two half-width, one full-width" layout. One
+   filter per row avoids that asymmetry and keeps each control's own label
+   readable in the narrower space. */
+@media (--mobile) {
+  .filter,
+  .filter--narrow {
+    flex-basis: 100%;
+  }
+}

@@ -1,6 +1,7 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.EmployeeCreateRequest;
+import com.nforce.retailops.dto.EmployeeCreationResponse;
 import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
@@ -19,6 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -31,8 +33,6 @@ import static org.mockito.Mockito.when;
 // to the caller exactly as it did when this was one @Transactional method.
 @ExtendWith(MockitoExtension.class)
 class EmployeeServiceCreateEmployeeTest {
-
-    private static final Long OWNER_ID = 1L;
 
     @Mock
     private StoreEmployeeRepository storeEmployeeRepository;
@@ -55,20 +55,21 @@ class EmployeeServiceCreateEmployeeTest {
 
     @BeforeEach
     void setUp() {
-        request = new EmployeeCreateRequest("Jane Doe", "jane@nforce.test", "555-0100", "Morning", "Full Time", "Female", List.of());
+        request = new EmployeeCreateRequest("Jane Doe", "jane@nforce.test", "555-0100", "Morning", "Full Time", "Female");
         EmployeeResponse response =
             new EmployeeResponse(7L, "EMP-007", "Jane Doe", "jane@nforce.test", "555-0100", "Morning", "Full Time", "Female", true, List.of());
         provisioned = new EmployeeProvisioningService.ProvisionedEmployee(
             42L, 7L, "jane@nforce.test", "Jane Doe", "temp-pass-123", response
         );
-        when(employeeProvisioningService.createEmployeeAccount(eq(OWNER_ID), eq(request), any())).thenReturn(provisioned);
+        when(employeeProvisioningService.createEmployeeAccount(isNull(), eq(request), any())).thenReturn(provisioned);
     }
 
     @Test
     void onMailSuccessTheProvisionedResponsePassesThroughAndNothingIsCleanedUp() {
-        EmployeeResponse result = employeeService.createEmployee(OWNER_ID, request);
+        EmployeeCreationResponse result = employeeService.createEmployee(request);
 
-        assertThat(result).isEqualTo(provisioned.response());
+        assertThat(result.employee()).isEqualTo(provisioned.response());
+        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
         verify(mailService).sendTemporaryPassword("jane@nforce.test", "Jane Doe", "temp-pass-123");
         verify(employeeProvisioningService, never()).deleteUnreachableEmployee(any(), any());
     }
@@ -78,7 +79,7 @@ class EmployeeServiceCreateEmployeeTest {
         doThrow(new EmailDeliveryException("boom")).when(mailService)
             .sendTemporaryPassword("jane@nforce.test", "Jane Doe", "temp-pass-123");
 
-        assertThatThrownBy(() -> employeeService.createEmployee(OWNER_ID, request))
+        assertThatThrownBy(() -> employeeService.createEmployee(request))
             .isInstanceOf(EmailDeliveryException.class)
             .hasMessage("boom");
 

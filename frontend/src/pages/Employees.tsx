@@ -1,36 +1,39 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { Plus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
+import { UserPlus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import {
-  createEmployee,
-  deleteEmployee,
-  getAssignableStores,
-  resetEmployeePassword,
-  setEmployeeStatus,
-  updateEmployee,
-} from '../api/employees';
-import type {
-  Employee,
-  EmployeeCreateValues,
-  EmployeeType,
-  EmployeeUpdateValues,
-  ShiftName,
-  StoreOption,
-} from '../types/employee';
+import { deleteEmployee, resetEmployeePassword, setEmployeeStatus, updateEmployee } from '../api/employees';
+import type { Employee, EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName } from '../types/employee';
 import { EMPLOYEE_TYPE_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import { toEmployeeUpdateValues } from '../utils/employeeUtils';
 import EmployeeTable from '../components/EmployeeTable';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import EmployeeDetailModal from '../components/EmployeeDetailModal';
+import AssignEmployeeModal from '../components/AssignEmployeeModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
+import Select from '../components/Select';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Employees.css';
 
+const SHIFT_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Shifts' },
+  ...SHIFT_OPTIONS.map((option) => ({ value: option.name, label: option.name })),
+];
+
+const TYPE_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Types' },
+  ...EMPLOYEE_TYPE_OPTIONS.map((type) => ({ value: type, label: type })),
+];
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Statuses' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
+
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
-type FormModalState = { mode: 'create' } | { mode: 'edit'; employee: Employee } | null;
 
 const PAGE_SIZE = 10;
 
@@ -43,12 +46,8 @@ interface EmployeesProps {
 }
 
 function Employees({ employees, setEmployees, employeesLoading, employeesError, onRetryEmployees }: EmployeesProps) {
-  const [storeOptions, setStoreOptions] = useState<StoreOption[]>([]);
-  const [storeOptionsLoading, setStoreOptionsLoading] = useState(true);
-  const [storeOptionsError, setStoreOptionsError] = useState<string | null>(null);
-
-  const isLoading = employeesLoading || storeOptionsLoading;
-  const loadError = employeesError ?? storeOptionsError;
+  const isLoading = employeesLoading;
+  const loadError = employeesError;
 
   const [search, setSearch] = useState('');
   const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
@@ -56,7 +55,8 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [page, setPage] = useState(1);
 
-  const [formModalState, setFormModalState] = useState<FormModalState>(null);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<Employee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null);
@@ -75,24 +75,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
     const timer = window.setTimeout(() => setSuccessMessage(null), 4000);
     return () => window.clearTimeout(timer);
   }, [successMessage]);
-
-  function loadStoreOptions() {
-    setStoreOptionsLoading(true);
-    setStoreOptionsError(null);
-    getAssignableStores()
-      .then(setStoreOptions)
-      .catch((error: Error) => setStoreOptionsError(error.message))
-      .finally(() => setStoreOptionsLoading(false));
-  }
-
-  useEffect(() => {
-    loadStoreOptions();
-  }, []);
-
-  function retryLoad() {
-    onRetryEmployees();
-    loadStoreOptions();
-  }
 
   const filteredEmployees = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -126,19 +108,14 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const pagedEmployees = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   async function handleFormSubmit(values: EmployeeCreateValues | EmployeeUpdateValues) {
+    if (!editTarget) return;
     setFormError(null);
     setIsSubmitting(true);
     try {
-      if (formModalState?.mode === 'edit') {
-        const updated = await updateEmployee(formModalState.employee.id, values as EmployeeUpdateValues);
-        setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
-        nfToast.success(`"${updated.name}" employee updated.`);
-      } else {
-        const created = await createEmployee(values as EmployeeCreateValues);
-        setEmployees((current) => [...current, created]);
-        nfToast.success(`"${created.name}" employee added.`);
-      }
-      setFormModalState(null);
+      const updated = await updateEmployee(editTarget.id, values as EmployeeUpdateValues);
+      setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
+      nfToast.success(`"${updated.name}" employee updated.`);
+      setEditTarget(null);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setFormError(msg);
@@ -215,7 +192,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
 
   const emptyMessage =
     employees.length === 0
-      ? 'No employees yet. Add one to get started.'
+      ? 'No employees assigned to your store yet. Assign one to get started.'
       : 'No employees match your filters.';
 
   return (
@@ -240,14 +217,11 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
           baseColor="#e4e4e7"
           followMouse
           proximity={180}
-          onClick={() => {
-            setFormError(null);
-            setFormModalState({ mode: 'create' });
-          }}
+          onClick={() => setIsAssignModalOpen(true)}
         >
           <span className="employees-page__add-label">
-            <Plus size={16} />
-            Add Employee
+            <UserPlus size={16} />
+            Assign Employee
           </span>
         </SpecularButton>
       </div>
@@ -257,41 +231,29 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
           <SearchInput value={search} onChange={setSearch} placeholder="Search employees" />
         </div>
 
-        <select
-          className="select filter"
+        <Select
+          className="filter"
+          options={SHIFT_FILTER_OPTIONS}
           value={shiftFilter}
-          onChange={(event) => setShiftFilter(event.target.value as ShiftName | 'ALL')}
-        >
-          <option value="ALL">All Shifts</option>
-          {SHIFT_OPTIONS.map((option) => (
-            <option key={option.name} value={option.name}>
-              {option.name}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setShiftFilter(value as ShiftName | 'ALL')}
+          ariaLabel="Filter by shift"
+        />
 
-        <select
-          className="select filter"
+        <Select
+          className="filter"
+          options={TYPE_FILTER_OPTIONS}
           value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value as EmployeeType | 'ALL')}
-        >
-          <option value="ALL">All Types</option>
-          {EMPLOYEE_TYPE_OPTIONS.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setTypeFilter(value as EmployeeType | 'ALL')}
+          ariaLabel="Filter by employee type"
+        />
 
-        <select
-          className="select filter filter--narrow"
+        <Select
+          className="filter filter--narrow"
+          options={STATUS_FILTER_OPTIONS}
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-        </select>
+          onChange={(value) => setStatusFilter(value as StatusFilter)}
+          ariaLabel="Filter by status"
+        />
       </div>
 
       {statusError && <div className="employees-page__error">{statusError}</div>}
@@ -299,7 +261,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
       {loadError ? (
         <div className="employees-page__error">
           {loadError}
-          <button type="button" className="btn btn--secondary" onClick={retryLoad}>
+          <button type="button" className="btn btn--secondary" onClick={onRetryEmployees}>
             Retry
           </button>
         </div>
@@ -312,7 +274,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
             onViewDetails={(employee) => setDetailTarget(employee)}
             onEdit={(employee) => {
               setFormError(null);
-              setFormModalState({ mode: 'edit', employee });
+              setEditTarget(employee);
             }}
             onDelete={(employee) => {
               setDeleteError(null);
@@ -337,14 +299,19 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
         </>
       )}
 
+      <AssignEmployeeModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        onAssignmentChange={onRetryEmployees}
+      />
+
       <EmployeeFormModal
-        isOpen={formModalState !== null}
-        mode={formModalState?.mode ?? 'create'}
-        initialValues={formModalState?.mode === 'edit' ? toEmployeeUpdateValues(formModalState.employee) : undefined}
-        storeOptions={storeOptions}
+        isOpen={editTarget !== null}
+        mode="edit"
+        initialValues={editTarget ? toEmployeeUpdateValues(editTarget) : undefined}
         errorMessage={formError}
         isSubmitting={isSubmitting}
-        onClose={() => setFormModalState(null)}
+        onClose={() => setEditTarget(null)}
         onSubmit={handleFormSubmit}
       />
 
