@@ -1,7 +1,9 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
+import com.nforce.retailops.dto.ChecklistHistoryOperationsReportResponse;
 import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
+import com.nforce.retailops.dto.ChecklistHistoryTaskDetailRow;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.DayOfWeekCode;
@@ -182,6 +184,7 @@ class ChecklistHistoryServiceTest {
         // Excluded here because findActiveForStoresAndDateRange filters on active=true --
         // simulating a task deactivated after it accumulated history.
         when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskRepository.findAllById(Set.of(31L))).thenReturn(List.of(deactivatedTask));
 
         User employee = user(99L, "Jane Doe");
         TaskResponseEntry response = response(deactivatedTask, store, employee, today);
@@ -237,12 +240,12 @@ class ChecklistHistoryServiceTest {
             .findActiveForStoresAndDateRange(OWNER_ID, List.of(10L, 11L), today, today);
     }
 
-    // Daily Operations Summary report: exceptionCount must reuse the app's one
-    // existing exception definition (a Yes/No task whose latest response that
+    // Daily Operations Summary report: issueCount must reuse the app's one
+    // existing Issue definition (a Yes/No task whose latest response that
     // day was "No") -- not a newly invented rule -- and only the latest
     // response per task that day should be considered.
     @Test
-    void summaryCountsAYesNoTaskAnsweredNoAsAnExceptionUsingItsLatestResponseOnly() {
+    void summaryCountsAYesNoTaskAnsweredNoAsAnIssueUsingItsLatestResponseOnly() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
         when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
@@ -268,12 +271,12 @@ class ChecklistHistoryServiceTest {
         List<ChecklistHistorySummaryRow> rows = checklistHistoryService.getSummary(OWNER_ID, List.of(10L), today, today);
 
         assertThat(rows).hasSize(1);
-        assertThat(rows.get(0).exceptionCount()).isEqualTo(1);
+        assertThat(rows.get(0).issueCount()).isEqualTo(1);
         assertThat(rows.get(0).completedTasks()).isEqualTo(1);
     }
 
     @Test
-    void summaryHasZeroExceptionCountWhenNothingIsScheduledOrRecorded() {
+    void summaryHasZeroIssueCountWhenNothingIsScheduledOrRecorded() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
         when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
@@ -283,7 +286,118 @@ class ChecklistHistoryServiceTest {
 
         List<ChecklistHistorySummaryRow> rows = checklistHistoryService.getSummary(OWNER_ID, List.of(10L), today, today);
 
-        assertThat(rows.get(0).exceptionCount()).isZero();
+        assertThat(rows.get(0).issueCount()).isZero();
+    }
+
+    // --- Daily Operations Summary report (getOperationsReport) ---
+    // Deliberately never accepts a storeIds param from the caller -- these tests
+    // confirm it always resolves through the SAME owner-authorization path as the
+    // rest of the app (findByOwnerIdAndActiveTrue), so an Owner/Admin can never
+    // retrieve another store's summary or task-level details.
+
+    @Test
+    void operationsReportOnlyIncludesTheCallersOwnAuthorizedStore() {
+        LocalDate today = LocalDate.now();
+        Store myStore = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(myStore)));
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of());
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.summary()).hasSize(1);
+        assertThat(report.summary().get(0).storeName()).isEqualTo("Downtown");
+        assertThat(report.details()).isEmpty();
+    }
+
+    @Test
+    void operationsReportReturnsEmptySummaryAndDetailsWhenOwnerHasNoAssignedStore() {
+        LocalDate today = LocalDate.now();
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.empty());
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.summary()).isEmpty();
+        assertThat(report.details()).isEmpty();
+    }
+
+    @Test
+    void operationsReportMarksAnUnansweredEligibleTaskAsNotCompletedInDetails() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of());
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.details()).hasSize(1);
+        ChecklistHistoryTaskDetailRow row = report.details().get(0);
+        assertThat(row.status()).isEqualTo("NOT_COMPLETED");
+        assertThat(row.employeeFullName()).isNull();
+        assertThat(row.completedAt()).isNull();
+    }
+
+    @Test
+    void operationsReportMarksACompletedTaskWithResponseEmployeeAndTimestamp() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry yes = response(task, store, employee, today);
+        yes.setValueBoolean(true);
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of(yes));
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.details()).hasSize(1);
+        ChecklistHistoryTaskDetailRow row = report.details().get(0);
+        assertThat(row.status()).isEqualTo("COMPLETED");
+        assertThat(row.response()).isEqualTo("Yes");
+        assertThat(row.employeeFullName()).isEqualTo("Jane Doe");
+        assertThat(row.completedAt()).isNotNull();
+        assertThat(row.categoryName()).isEqualTo("Opening");
+    }
+
+    @Test
+    void operationsReportMarksAYesNoTaskAnsweredNoAsIssueInDetails() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry no = response(task, store, employee, today);
+        no.setValueBoolean(false);
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of(no));
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.details()).hasSize(1);
+        ChecklistHistoryTaskDetailRow row = report.details().get(0);
+        assertThat(row.status()).isEqualTo("ISSUE");
+        assertThat(row.response()).isEqualTo("No");
+        assertThat(report.summary().get(0).issueCount()).isEqualTo(1);
     }
 
     @Test

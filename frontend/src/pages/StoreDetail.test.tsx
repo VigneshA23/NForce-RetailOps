@@ -1,19 +1,15 @@
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import StoreDetail from './StoreDetail';
 import * as checklistHistoryApi from '../api/checklistHistory';
 import { todayDate } from '../utils/checklistHistoryOptions';
-import type { ChecklistHistoryDetail, ChecklistHistorySummaryRow, ChecklistHistoryTaskItem } from '../types/checklistHistory';
+import type { ChecklistHistoryDetail, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 
 vi.mock('../api/checklistHistory', () => ({
   getChecklistHistoryDetail: vi.fn(),
-  getChecklistHistorySummary: vi.fn(),
-  ChecklistHistoryRangeError: class ChecklistHistoryRangeError extends Error {},
 }));
 
 const mockGetDetail = vi.mocked(checklistHistoryApi.getChecklistHistoryDetail);
-const mockGetSummary = vi.mocked(checklistHistoryApi.getChecklistHistorySummary);
 
 function taskItem(overrides: Partial<ChecklistHistoryTaskItem>): ChecklistHistoryTaskItem {
   return {
@@ -52,8 +48,6 @@ function respondedYes(id: number) {
 
 beforeEach(() => {
   mockGetDetail.mockReset();
-  mockGetSummary.mockReset();
-  mockGetSummary.mockResolvedValue([]);
 });
 
 describe('StoreDetail progress indicator', () => {
@@ -126,69 +120,5 @@ describe('StoreDetail progress indicator', () => {
 
     expect(await screen.findByText('100%')).toBeInTheDocument();
     expect(screen.getByText('Preparation 2/2')).toHaveClass('badge--success');
-  });
-});
-
-function summaryRow(overrides: Partial<ChecklistHistorySummaryRow>): ChecklistHistorySummaryRow {
-  return {
-    storeId: 1,
-    storeName: 'Downtown',
-    date: todayDate(),
-    hasChecklist: true,
-    totalTasks: 0,
-    completedTasks: 0,
-    exceptionCount: 0,
-    ...overrides,
-  };
-}
-
-describe('Daily Operations Summary report', () => {
-  beforeEach(() => {
-    mockGetDetail.mockResolvedValue(detail(1, 'Downtown', []));
-  });
-
-  it('sums Scheduled/Completed/Exceptions across the date range into one row per store', async () => {
-    mockGetSummary.mockResolvedValue([
-      summaryRow({ storeId: 1, storeName: 'Downtown', date: '2026-08-01', totalTasks: 10, completedTasks: 9, exceptionCount: 1 }),
-      summaryRow({ storeId: 1, storeName: 'Downtown', date: '2026-08-02', totalTasks: 10, completedTasks: 9, exceptionCount: 1 }),
-    ]);
-
-    render(<StoreDetail storeId={1} />);
-
-    const downtownRow = await screen.findByRole('row', { name: /Downtown/ });
-    expect(downtownRow).toHaveTextContent('20'); // scheduled (10 + 10)
-    expect(downtownRow).toHaveTextContent('18'); // completed (9 + 9)
-    expect(downtownRow).toHaveTextContent('90%');
-    expect(downtownRow).toHaveTextContent('2'); // exceptions (1 + 1)
-  });
-
-  it('shows 0% for a store with zero scheduled tasks in range, without an error', async () => {
-    mockGetSummary.mockResolvedValue([summaryRow({ totalTasks: 0, completedTasks: 0 })]);
-
-    render(<StoreDetail storeId={1} />);
-
-    const row = await screen.findByRole('row', { name: /Downtown/ });
-    expect(row).toHaveTextContent('0%');
-  });
-
-  it('scopes the report summary to the assigned store', async () => {
-    mockGetSummary.mockResolvedValue([]);
-    render(<StoreDetail storeId={1} />);
-
-    await waitFor(() => expect(mockGetSummary).toHaveBeenCalled());
-    expect(mockGetSummary.mock.calls[0][0].storeIds).toEqual([1]);
-  });
-
-  it('prints only the report section, not the rest of the page', async () => {
-    mockGetSummary.mockResolvedValue([summaryRow({})]);
-    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
-
-    render(<StoreDetail storeId={1} />);
-    await waitFor(() => expect(mockGetSummary).toHaveBeenCalled());
-
-    await userEvent.setup().click(await screen.findByRole('button', { name: /print/i }));
-
-    expect(printSpy).toHaveBeenCalledTimes(1);
-    printSpy.mockRestore();
   });
 });
