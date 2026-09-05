@@ -11,6 +11,7 @@ import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.security.JwtService;
 import com.nforce.retailops.security.SuperAdminUserDetails;
 import com.nforce.retailops.service.AuthService;
+import com.nforce.retailops.service.LoginRateLimitService;
 import com.nforce.retailops.service.PasswordResetService;
 import com.nforce.retailops.service.SessionService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -33,22 +34,34 @@ public class AuthController {
     private final SessionService sessionService;
     private final JwtService jwtService;
     private final PasswordResetService passwordResetService;
+    private final LoginRateLimitService loginRateLimitService;
 
     public AuthController(
         AuthService authService,
         SessionService sessionService,
         JwtService jwtService,
-        PasswordResetService passwordResetService
+        PasswordResetService passwordResetService,
+        LoginRateLimitService loginRateLimitService
     ) {
         this.authService = authService;
         this.sessionService = sessionService;
         this.jwtService = jwtService;
         this.passwordResetService = passwordResetService;
+        this.loginRateLimitService = loginRateLimitService;
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request.email(), request.password()));
+        String normalisedEmail = request.email().strip().toLowerCase();
+        loginRateLimitService.checkAndBlock(normalisedEmail);
+        try {
+            LoginResponse response = authService.login(request.email(), request.password());
+            loginRateLimitService.clearFailures(normalisedEmail);
+            return ResponseEntity.ok(response);
+        } catch (BadCredentialsException ex) {
+            loginRateLimitService.recordFailure(normalisedEmail);
+            throw ex;
+        }
     }
 
     @PostMapping("/reset-password")
