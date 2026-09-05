@@ -1,9 +1,13 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.AdminCorrectionApplyResponse;
+import com.nforce.retailops.dto.AdminCorrectionEntry;
+import com.nforce.retailops.dto.AdminCorrectionRequest;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
 import com.nforce.retailops.dto.ChecklistHistoryOperationsReportResponse;
 import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
 import com.nforce.retailops.security.AppUserDetails;
+import com.nforce.retailops.service.AdminCorrectionService;
 import com.nforce.retailops.service.ChecklistHistoryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -20,9 +24,14 @@ import java.util.List;
 public class ChecklistHistoryController {
 
     private final ChecklistHistoryService checklistHistoryService;
+    private final AdminCorrectionService adminCorrectionService;
 
-    public ChecklistHistoryController(ChecklistHistoryService checklistHistoryService) {
+    public ChecklistHistoryController(
+        ChecklistHistoryService checklistHistoryService,
+        AdminCorrectionService adminCorrectionService
+    ) {
         this.checklistHistoryService = checklistHistoryService;
+        this.adminCorrectionService = adminCorrectionService;
     }
 
     // storeIds omitted -> all stores this owner has; startDate/endDate omitted -> today.
@@ -48,6 +57,25 @@ public class ChecklistHistoryController {
     ) {
         return ResponseEntity.ok(checklistHistoryService.getOperationsReport(
             principal.getUser().getId(), startDate, endDate));
+    }
+
+    @PatchMapping("/responses/{responseId}/correct")
+    public ResponseEntity<AdminCorrectionApplyResponse> correctResponse(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @PathVariable Long responseId,
+        @RequestBody AdminCorrectionRequest request
+    ) {
+        return ResponseEntity.ok(
+            adminCorrectionService.correctResponse(responseId, principal.getUser().getId(), request));
+    }
+
+    @GetMapping("/responses/{responseId}/corrections")
+    public ResponseEntity<List<AdminCorrectionEntry>> correctionHistory(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @PathVariable Long responseId
+    ) {
+        return ResponseEntity.ok(
+            adminCorrectionService.getCorrectionHistory(responseId, principal.getUser().getId()));
     }
 
     // Super Admin can view any store's checklist by looking up the store's actual owner.

@@ -23,6 +23,12 @@
   cursor: not-allowed;
 }
 
+.btn--sm {
+  min-height: 28px;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
 .btn--primary {
   background: var(--color-badge-solid-bg);
   color: var(--color-badge-solid-text);

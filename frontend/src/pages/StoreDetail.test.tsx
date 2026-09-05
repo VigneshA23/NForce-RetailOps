@@ -42,6 +42,7 @@ function respondedYes(id: number) {
       numericValue: null,
       textValue: null,
       respondedAt: `${todayDate()}T08:00:00Z`,
+      latestCorrection: null,
     },
   ];
 }

@@ -57,13 +57,16 @@ class ChecklistHistoryServiceTest {
     private StoreOwnerRepository storeOwnerRepository;
     @Mock
     private StoreEmployeeRepository storeEmployeeRepository;
+    @Mock
+    private com.nforce.retailops.repository.AdminCorrectionRepository adminCorrectionRepository;
 
     private ChecklistHistoryService checklistHistoryService;
 
     @BeforeEach
     void setUp() {
         checklistHistoryService = new ChecklistHistoryService(
-            taskRepository, taskResponseEntryRepository, storeOwnerRepository, storeEmployeeRepository
+            taskRepository, taskResponseEntryRepository, storeOwnerRepository,
+            storeEmployeeRepository, adminCorrectionRepository
         );
     }
 

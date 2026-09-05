@@ -157,7 +157,8 @@ public class MeHistoryService {
                 entry.getValueBoolean(),
                 entry.getValueNumeric(),
                 entry.getValueText(),
-                entry.getCreatedAt()
+                entry.getCreatedAt(),
+                null  // employees viewing their own history never see admin correction metadata
             ))
             .toList();
 

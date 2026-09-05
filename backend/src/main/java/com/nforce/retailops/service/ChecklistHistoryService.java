@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.AdminCorrectionEntry;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
 import com.nforce.retailops.dto.ChecklistHistoryOperationsReportResponse;
 import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
@@ -7,6 +8,7 @@ import com.nforce.retailops.dto.ChecklistHistoryTaskDetailRow;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
+import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
@@ -15,6 +17,7 @@ import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.repository.AdminCorrectionRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.TaskRepository;
@@ -50,17 +53,20 @@ public class ChecklistHistoryService {
     private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
+    private final AdminCorrectionRepository adminCorrectionRepository;
 
     public ChecklistHistoryService(
         TaskRepository taskRepository,
         TaskResponseEntryRepository taskResponseEntryRepository,
         StoreOwnerRepository storeOwnerRepository,
-        StoreEmployeeRepository storeEmployeeRepository
+        StoreEmployeeRepository storeEmployeeRepository,
+        AdminCorrectionRepository adminCorrectionRepository
     ) {
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
+        this.adminCorrectionRepository = adminCorrectionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -324,6 +330,11 @@ public class ChecklistHistoryService {
                     storeEmployee -> "EMP-" + String.format("%03d", storeEmployee.getId())
                 ));
 
+        List<Long> responseIds = responses.stream().map(TaskResponseEntry::getId).toList();
+        Map<Long, AdminCorrection> latestCorrectionByResponseId = responseIds.isEmpty()
+            ? Map.of()
+            : adminCorrectionRepository.findLatestByResponseIds(responseIds);
+
         LinkedHashMap<Long, List<Task>> tasksByCategory = new LinkedHashMap<>();
         for (Task task : allTasks) {
             tasksByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(task);
@@ -334,7 +345,9 @@ public class ChecklistHistoryService {
                 tasks.get(0).getCategory().getId(),
                 tasks.get(0).getCategory().getName(),
                 tasks.stream()
-                    .map(task -> toHistoryTaskItem(task, responsesByTask.getOrDefault(task.getId(), List.of()), empIdByUserId))
+                    .map(task -> toHistoryTaskItem(
+                        task, responsesByTask.getOrDefault(task.getId(), List.of()),
+                        empIdByUserId, latestCorrectionByResponseId))
                     .toList()
             ))
             .toList();
@@ -342,20 +355,40 @@ public class ChecklistHistoryService {
         return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories);
     }
 
+    static AdminCorrectionEntry toCorrectionEntry(AdminCorrection c) {
+        return new AdminCorrectionEntry(
+            c.getId(),
+            c.getOriginalValueBoolean(),
+            c.getOriginalValueNumeric(),
+            c.getOriginalValueText(),
+            c.getCorrectedValueBoolean(),
+            c.getCorrectedValueNumeric(),
+            c.getCorrectedValueText(),
+            c.getCorrectedBy().getFullName(),
+            c.getCorrectedAt(),
+            c.getReason()
+        );
+    }
+
     private HistoryTaskItemResponse toHistoryTaskItem(
-        Task task, List<TaskResponseEntry> responses, Map<Long, String> empIdByUserId
+        Task task, List<TaskResponseEntry> responses, Map<Long, String> empIdByUserId,
+        Map<Long, AdminCorrection> latestCorrectionByResponseId
     ) {
         List<HistoryResponseEntryResponse> responseDtos = responses.stream()
-            .map(entry -> new HistoryResponseEntryResponse(
-                entry.getId(),
-                entry.getEmployee().getId(),
-                entry.getEmployee().getFullName(),
-                empIdByUserId.get(entry.getEmployee().getId()),
-                entry.getValueBoolean(),
-                entry.getValueNumeric(),
-                entry.getValueText(),
-                entry.getCreatedAt()
-            ))
+            .map(entry -> {
+                AdminCorrection correction = latestCorrectionByResponseId.get(entry.getId());
+                return new HistoryResponseEntryResponse(
+                    entry.getId(),
+                    entry.getEmployee().getId(),
+                    entry.getEmployee().getFullName(),
+                    empIdByUserId.get(entry.getEmployee().getId()),
+                    entry.getValueBoolean(),
+                    entry.getValueNumeric(),
+                    entry.getValueText(),
+                    entry.getCreatedAt(),
+                    correction != null ? toCorrectionEntry(correction) : null
+                );
+            })
             .toList();
 
         return new HistoryTaskItemResponse(
