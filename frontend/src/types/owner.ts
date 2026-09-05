@@ -38,3 +38,8 @@ export interface OwnerCreationResult {
   owner: OwnerSummary;
   temporaryPassword: string;
 }
+
+export interface UpdateOwnerValues {
+  ownerName: string;
+  ownerEmail: string;
+}

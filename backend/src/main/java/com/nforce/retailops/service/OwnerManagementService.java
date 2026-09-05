@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerCreationResponse;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.dto.ReassignableStoreResponse;
+import com.nforce.retailops.dto.UpdateOwnerRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
@@ -156,6 +157,21 @@ public class OwnerManagementService {
         storeOwner = storeOwnerRepository.save(storeOwner);
 
         return OwnerResponse.from(storeOwner);
+    }
+
+    @Transactional
+    public List<OwnerResponse> updateOwner(Long ownerId, UpdateOwnerRequest request) {
+        User owner = userRepository.findById(ownerId)
+            .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+        owner.setFullName(request.ownerName());
+        owner.setEmail(request.ownerEmail());
+        userRepository.save(owner);
+
+        List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
+        if (storeOwners.isEmpty()) {
+            return List.of(OwnerResponse.withoutStore(owner));
+        }
+        return storeOwners.stream().map(OwnerResponse::from).toList();
     }
 
     @Transactional
