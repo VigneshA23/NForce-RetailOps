@@ -1,14 +1,12 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CheckSquare, ClipboardList, Clock, LayoutGrid, Settings, Store, Tags, Users } from 'lucide-react';
+import { Building2, CheckSquare, ClipboardList, LayoutGrid, Store, Tags, Users } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
   | 'store-detail'
   | 'employees'
   | 'categories'
-  | 'tasks'
-  | 'history'
-  | 'settings';
+  | 'tasks';
 
 export interface NavItem<Key extends string = NavTabKey> {
   key: Key;
@@ -22,8 +20,6 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
-  { key: 'history', label: 'History', icon: Clock },
-  { key: 'settings', label: 'Settings', icon: Settings },
 ];
 
 // Mobile bottom tab bar for the Owner/Admin shell: a subset of OWNER_NAV_ITEMS
@@ -39,11 +35,9 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   employees: 'Employees',
   categories: 'Categories',
   tasks: 'Tasks',
-  history: 'History',
-  settings: 'Settings',
 };
 
-export type EmployeeNavTabKey = 'today' | 'history' | 'audits';
+export type EmployeeNavTabKey = 'today' | 'audits';
 
 export interface EmployeeNavItem {
   key: EmployeeNavTabKey;

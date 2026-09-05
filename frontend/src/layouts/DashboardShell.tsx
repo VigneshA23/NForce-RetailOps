@@ -8,10 +8,10 @@ import Categories from '../pages/Categories';
 import Home from '../pages/Home';
 import StoreDetail from '../pages/StoreDetail';
 import Tasks from '../pages/Tasks';
-import History from '../pages/History';
-import Settings from '../pages/Settings';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
+import History from '../pages/History';
+import Settings from '../pages/Settings';
 import { getInitials } from '../utils/initials';
 import { useOwnerStores } from '../hooks/useOwnerStores';
 import { useOwnerCategories } from '../hooks/useOwnerCategories';
@@ -25,7 +25,7 @@ interface DashboardShellProps {
   onAvatarChange?: (url: string | null) => void;
 }
 
-type Overlay = 'profile' | 'help' | null;
+type Overlay = 'profile' | 'help' | 'history' | 'settings' | null;
 
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
@@ -40,7 +40,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
-  const title = overlay === 'profile' ? 'My Profile' : overlay === 'help' ? 'Help & Guidance' : PAGE_TITLES[activeTab];
+  const title = overlay === 'profile' ? 'My Profile'
+    : overlay === 'help' ? 'Help & Guidance'
+    : overlay === 'history' ? 'History'
+    : overlay === 'settings' ? 'Settings'
+    : PAGE_TITLES[activeTab];
 
   function renderActivePage() {
     switch (activeTab) {
@@ -88,10 +92,6 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             stores={storesState.stores}
           />
         );
-      case 'history':
-        return <History />;
-      case 'settings':
-        return <Settings />;
       default: {
         const _exhaustive: never = activeTab;
         return _exhaustive;
@@ -108,16 +108,16 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
         setActiveTab(key);
       }}
       title={title}
+      contentKey={overlay ?? activeTab}
       logoSrc="/nforce-logo.png"
+      hideLogoOnDesktop
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
-      onSettingsClick={() => {
-        setOverlay(null);
-        setActiveTab('settings');
-      }}
+      onHistoryClick={() => setOverlay('history')}
+      onSettingsClick={() => setOverlay('settings')}
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
       bottomNavItems={OWNER_BOTTOM_NAV_ITEMS}
@@ -126,6 +126,10 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : overlay === 'help' ? (
         <Help />
+      ) : overlay === 'history' ? (
+        <History />
+      ) : overlay === 'settings' ? (
+        <Settings />
       ) : (
         renderActivePage()
       )}

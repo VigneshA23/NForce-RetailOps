@@ -7,11 +7,13 @@ import com.nforce.retailops.dto.SuperAdminStoreResponse;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.StoreHasHistoryException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.TaskRepository;
+import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +32,7 @@ public class StoreService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final TaskRepository taskRepository;
+    private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final StoreCodeGenerator storeCodeGenerator;
 
     public StoreService(
@@ -37,12 +40,14 @@ public class StoreService {
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
         TaskRepository taskRepository,
+        TaskResponseEntryRepository taskResponseEntryRepository,
         StoreCodeGenerator storeCodeGenerator
     ) {
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.taskRepository = taskRepository;
+        this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeCodeGenerator = storeCodeGenerator;
     }
 
@@ -181,6 +186,12 @@ public class StoreService {
     public void deleteStore(Long storeId) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+
+        if (taskResponseEntryRepository.existsByStoreId(storeId)
+                || taskRepository.countByStoreId(storeId) > 0) {
+            throw new StoreHasHistoryException(
+                "This store has checklist history and cannot be deleted. Deactivate it instead.");
+        }
 
         storeOwnerRepository.delete(storeOwner);
         storeRepository.delete(storeOwner.getStore());

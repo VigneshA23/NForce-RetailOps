@@ -23,7 +23,7 @@ function baseStore(overrides: Partial<SuperAdminStore> = {}): SuperAdminStore {
 
 function renderTable(stores: SuperAdminStore[], props: Partial<Parameters<typeof SuperAdminStoreTable>[0]> = {}) {
   return render(
-    <SuperAdminStoreTable stores={stores} onViewDetails={vi.fn()} onToggleStatus={vi.fn()} {...props} />,
+    <SuperAdminStoreTable stores={stores} onViewDetails={vi.fn()} onToggleStatus={vi.fn()} onDelete={vi.fn()} {...props} />,
   );
 }
 

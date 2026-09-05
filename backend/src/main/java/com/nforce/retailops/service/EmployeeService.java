@@ -302,6 +302,59 @@ public class EmployeeService {
     }
 
     @Transactional
+    public EmployeeResponse updateEmployeeAsSuperAdmin(Long id, EmployeeUpdateRequest request) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        String email = request.email().trim();
+        User employee = storeEmployee.getEmployee();
+        if (!employee.getEmail().equalsIgnoreCase(email)
+            && userRepository.findByEmailWithRoles(email).isPresent()) {
+            throw new EmailAlreadyExistsException("A user with this email already exists");
+        }
+
+        employee.setFullName(request.name().trim());
+        employee.setEmail(email);
+        userRepository.save(employee);
+
+        storeEmployee.setPhone(request.phone().trim());
+        storeEmployee.setShift(request.shift());
+        storeEmployee.setEmployeeType(request.employeeType());
+        storeEmployee.setGender(request.gender());
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        return EmployeeResponse.from(storeEmployee);
+    }
+
+    @Transactional
+    public EmployeeResponse setEmployeeActiveAsSuperAdmin(Long id, UpdateEmployeeStatusRequest request) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        User employee = storeEmployee.getEmployee();
+        employee.setActive(request.active());
+        userRepository.save(employee);
+
+        if (!request.active()) {
+            sessionService.invalidateAllForUser(employee.getEmail());
+        }
+
+        return EmployeeResponse.from(storeEmployee);
+    }
+
+    // Super Admin path — no ownership check; endpoint is already guarded by
+    // @PreAuthorize("hasRole('SUPER_ADMIN')") at the controller level.
+    @Transactional
+    public void deleteEmployeeAsSuperAdmin(Long id) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+        User employee = storeEmployee.getEmployee();
+        sessionService.invalidateAllForUser(employee.getEmail());
+        storeEmployeeRepository.delete(storeEmployee);
+        userRepository.delete(employee);
+    }
+
+    @Transactional
     public void resetEmployeePassword(Long ownerId, Long id) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));

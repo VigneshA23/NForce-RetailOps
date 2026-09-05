@@ -151,6 +151,51 @@ class EmployeeControllerTest {
 
     @Test
     @Transactional
+    void ownerAdminCannotHardDeleteAnEmployee() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role employeeRole = role("EMPLOYEE");
+        User owner = user("delete-denied-owner@nforce.test", ownerRole);
+        User employeeUser = user("delete-denied-worker@nforce.test", employeeRole);
+        StoreEmployee storeEmployee = new StoreEmployee();
+        storeEmployee.setEmployee(employeeUser);
+        storeEmployee.setCreatedByOwner(owner);
+        storeEmployee.setPhone("555-0201");
+        storeEmployee.setShift("Morning");
+        storeEmployee.setEmployeeType("Full Time");
+        storeEmployee.setGender("Female");
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        String token = login("delete-denied-owner@nforce.test");
+
+        mockMvc.perform(delete("/api/employees/" + storeEmployee.getId())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanHardDeleteAnEmployee() throws Exception {
+        Role superRole = role("SUPER_ADMIN");
+        Role employeeRole = role("EMPLOYEE");
+        user("delete-super@nforce.test", superRole);
+        User employeeUser = user("delete-target-worker@nforce.test", employeeRole);
+        StoreEmployee storeEmployee = new StoreEmployee();
+        storeEmployee.setEmployee(employeeUser);
+        storeEmployee.setPhone("555-0202");
+        storeEmployee.setShift("Morning");
+        storeEmployee.setEmployeeType("Full Time");
+        storeEmployee.setGender("Female");
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        String token = login("delete-super@nforce.test");
+
+        mockMvc.perform(delete("/api/employees/" + storeEmployee.getId())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @Transactional
     void aSecondOwnerCanAssignTheirStoreToAnEmployeeAlreadyAssignedElsewhere() throws Exception {
         Role ownerRole = role("OWNER_ADMIN");
         Role employeeRole = role("EMPLOYEE");

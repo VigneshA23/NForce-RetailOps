@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CircleCheck, Plus, Store as StoreIcon, Users } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { createStandaloneStore, getAllStores, updateStoreStatus } from '../api/superAdminStores';
+import { createStandaloneStore, deleteStore, getAllStores, updateStoreStatus } from '../api/superAdminStores';
 import type { CreateStoreValues, SuperAdminStore } from '../types/superAdminStore';
 import SuperAdminStoreTable from '../components/SuperAdminStoreTable';
 import SuperAdminStoreDetail from './SuperAdminStoreDetail';
 import AddStoreModal from '../components/AddStoreModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
@@ -37,6 +38,8 @@ function SuperAdminStores() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SuperAdminStore | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -94,6 +97,20 @@ function SuperAdminStores() {
       const msg = error instanceof Error ? error.message : 'Failed to update store status';
       setStatusError(msg);
       nfToast.error(msg);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setDeleteError(null);
+    try {
+      await deleteStore(deleteTarget.storeId);
+      setStores((current) => current.filter((s) => s.storeId !== deleteTarget.storeId));
+      const deletedName = deleteTarget.storeName;
+      setDeleteTarget(null);
+      nfToast.success(`"${deletedName}" store deleted.`);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete store');
     }
   }
 
@@ -253,6 +270,10 @@ function SuperAdminStores() {
             emptyMessage={stores.length === 0 ? 'No stores yet.' : 'No stores match your filters.'}
             onViewDetails={setSelectedStore}
             onToggleStatus={handleToggleStatus}
+            onDelete={(store) => {
+              setDeleteError(null);
+              setDeleteTarget(store);
+            }}
           />
           <Pagination
             page={currentPage}
@@ -270,6 +291,25 @@ function SuperAdminStores() {
         isSubmitting={isSubmitting}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete Store"
+        message={
+          deleteTarget
+            ? `Permanently delete "${deleteTarget.storeName}"? This cannot be undone.${
+                deleteError ? ` ${deleteError}` : ''
+              }`
+            : ''
+        }
+        confirmLabel="Delete Store"
+        danger
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteError(null);
+          setDeleteTarget(null);
+        }}
       />
     </div>
   );

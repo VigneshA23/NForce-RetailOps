@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { UserPlus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { deleteEmployee, resetEmployeePassword, setEmployeeStatus, updateEmployee } from '../api/employees';
+import { unassignEmployeeFromMyStore, setEmployeeStatus, updateEmployee } from '../api/employees';
 import type { Employee, EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName } from '../types/employee';
 import { EMPLOYEE_TYPE_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import { toEmployeeUpdateValues } from '../utils/employeeUtils';
@@ -63,18 +63,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<Employee | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [resetPasswordTarget, setResetPasswordTarget] = useState<Employee | null>(null);
-  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
-  const [isResettingPassword, setIsResettingPassword] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
   const [detailTarget, setDetailTarget] = useState<Employee | null>(null);
-
-  useEffect(() => {
-    if (!successMessage) return;
-    const timer = window.setTimeout(() => setSuccessMessage(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [successMessage]);
 
   const filteredEmployees = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -129,13 +118,13 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
     if (!deleteTarget) return;
     setDeleteError(null);
     try {
-      await deleteEmployee(deleteTarget.id);
+      await unassignEmployeeFromMyStore(deleteTarget.id);
       setEmployees((current) => current.filter((employee) => employee.id !== deleteTarget.id));
-      const deletedName = deleteTarget.name;
+      const removedName = deleteTarget.name;
       setDeleteTarget(null);
-      nfToast.success(`"${deletedName}" employee removed.`);
+      nfToast.success(`"${removedName}" removed from your store.`);
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : 'Failed to delete employee');
+      setDeleteError(error instanceof Error ? error.message : 'Failed to remove employee from store');
     }
   }
 
@@ -150,21 +139,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
       setStatusTarget(null);
-    }
-  }
-
-  async function handleConfirmResetPassword() {
-    if (!resetPasswordTarget) return;
-    setResetPasswordError(null);
-    setIsResettingPassword(true);
-    try {
-      await resetEmployeePassword(resetPasswordTarget.id);
-      setSuccessMessage(`Reset password email sent to ${resetPasswordTarget.name}.`);
-      setResetPasswordTarget(null);
-    } catch (error) {
-      setResetPasswordError(error instanceof Error ? error.message : "Failed to reset the employee's password");
-    } finally {
-      setIsResettingPassword(false);
     }
   }
 
@@ -284,10 +258,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
               setStatusError(null);
               setStatusTarget(employee);
             }}
-            onResetPassword={(employee) => {
-              setResetPasswordError(null);
-              setResetPasswordTarget(employee);
-            }}
           />
           <Pagination
             page={currentPage}
@@ -319,14 +289,15 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
 
       <ConfirmDialog
         isOpen={deleteTarget !== null}
-        title="Delete Employee"
+        title="Remove from Store"
         message={
           deleteTarget
-            ? `Are you sure you want to remove ${deleteTarget.name} (${deleteTarget.empId})? This cannot be undone.${
+            ? `Remove ${deleteTarget.name} (${deleteTarget.empId}) from your store? They will remain in the system and may still belong to other stores.${
                 deleteError ? ` ${deleteError}` : ''
               }`
             : ''
         }
+        confirmLabel="Remove from Store"
         onConfirm={handleConfirmDelete}
         onCancel={() => {
           setDeleteError(null);
@@ -350,24 +321,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
         onCancel={() => setStatusTarget(null)}
       />
 
-      <ConfirmDialog
-        isOpen={resetPasswordTarget !== null}
-        title="Reset Password"
-        message={
-          resetPasswordTarget
-            ? `Reset the password for ${resetPasswordTarget.name} (${resetPasswordTarget.empId})? A new temporary password will be emailed to them and they will be signed out of any active session.${
-                resetPasswordError ? ` ${resetPasswordError}` : ''
-              }`
-            : ''
-        }
-        confirmLabel={isResettingPassword ? 'Sending...' : 'Send Reset Email'}
-        danger={false}
-        onConfirm={handleConfirmResetPassword}
-        onCancel={() => {
-          setResetPasswordError(null);
-          setResetPasswordTarget(null);
-        }}
-      />
     </div>
   );
 }

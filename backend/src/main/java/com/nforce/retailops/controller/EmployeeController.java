@@ -75,20 +75,28 @@ public class EmployeeController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
     public ResponseEntity<EmployeeResponse> update(
         @AuthenticationPrincipal AppUserDetails principal,
         @PathVariable Long id,
         @Valid @RequestBody EmployeeUpdateRequest request
     ) {
+        if (isSuperAdmin(principal)) {
+            return ResponseEntity.ok(employeeService.updateEmployeeAsSuperAdmin(id, request));
+        }
         return ResponseEntity.ok(employeeService.updateEmployee(principal.getUser().getId(), id, request));
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
     public ResponseEntity<EmployeeResponse> updateStatus(
         @AuthenticationPrincipal AppUserDetails principal,
         @PathVariable Long id,
         @Valid @RequestBody UpdateEmployeeStatusRequest request
     ) {
+        if (isSuperAdmin(principal)) {
+            return ResponseEntity.ok(employeeService.setEmployeeActiveAsSuperAdmin(id, request));
+        }
         return ResponseEntity.ok(employeeService.setEmployeeActive(principal.getUser().getId(), id, request));
     }
 
@@ -102,11 +110,14 @@ public class EmployeeController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-        @AuthenticationPrincipal AppUserDetails principal,
-        @PathVariable Long id
-    ) {
-        employeeService.deleteEmployee(principal.getUser().getId(), id);
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        employeeService.deleteEmployeeAsSuperAdmin(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private boolean isSuperAdmin(AppUserDetails principal) {
+        return principal.getAuthorities().stream()
+            .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
     }
 }

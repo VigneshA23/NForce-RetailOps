@@ -95,6 +95,15 @@
   color: var(--color-text-primary);
 }
 
+.table-icon-btn.table-icon-btn--text {
+  width: auto;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
 .table-icon-btn--danger {
   color: var(--color-accent);
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { HelpCircle, LogOut, Settings, User as UserIcon } from 'lucide-react';
+import { Clock, HelpCircle, LogOut, Settings, User as UserIcon } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import ConfirmDialog from './ConfirmDialog';
 import './ProfileMenu.css';
@@ -9,6 +9,7 @@ interface ProfileMenuProps {
   avatarUrl?: string | null;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
+  onHistoryClick?: () => void;
   onSettingsClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
@@ -20,7 +21,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onSettingsClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onHistoryClick, onSettingsClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -62,7 +63,11 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onSetti
       </button>
       {isOpen && (
         <div className="profile-menu__dropdown" role="menu">
-          <div className="profile-menu__name">{fullName}</div>
+          <div className="profile-menu__inner">
+          <div className="profile-menu__name">
+            <span className="profile-menu__name-label">Signed in as</span>
+            <span className="profile-menu__name-text">{fullName}</span>
+          </div>
           {onProfileClick && (
             <button
               type="button"
@@ -89,6 +94,20 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onSetti
             >
               <HelpCircle size={14} />
               Help &amp; Guidance
+            </button>
+          )}
+          {onHistoryClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onHistoryClick();
+              }}
+            >
+              <Clock size={14} />
+              History
             </button>
           )}
           {onSettingsClick && (
@@ -118,6 +137,7 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onSetti
             <LogOut size={14} />
             Log out
           </button>
+          </div>
         </div>
       )}
       <ConfirmDialog

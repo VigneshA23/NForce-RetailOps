@@ -12,7 +12,6 @@ interface EmployeeTableProps {
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
   onToggleStatus: (employee: Employee) => void;
-  onResetPassword: (employee: Employee) => void;
 }
 
 function EmployeeTable({
@@ -23,7 +22,6 @@ function EmployeeTable({
   onEdit,
   onDelete,
   onToggleStatus,
-  onResetPassword,
 }: EmployeeTableProps) {
   return (
     <div className="table-card employee-table__card">
@@ -78,15 +76,6 @@ function EmployeeTable({
                       onClick={() => onEdit(employee)}
                     >
                       <Pencil size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="table-icon-btn"
-                      aria-label={`Reset password for ${employee.name}`}
-                      title="Reset Password"
-                      onClick={() => onResetPassword(employee)}
-                    >
-                      <span className="icon-mask-reset-password" style={{ width: 16, height: 16 }} aria-hidden="true" />
                     </button>
                     <button
                       type="button"

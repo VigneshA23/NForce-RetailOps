@@ -17,3 +17,7 @@ export async function createStandaloneStore(values: CreateStoreValues): Promise<
 export async function updateStoreStatus(id: number, active: boolean): Promise<SuperAdminStore> {
   return apiRequest<SuperAdminStore>(`/stores/${id}/status`, { method: 'PATCH', body: { active } });
 }
+
+export async function deleteStore(id: number): Promise<void> {
+  return apiRequest<void>(`/stores/${id}`, { method: 'DELETE' });
+}

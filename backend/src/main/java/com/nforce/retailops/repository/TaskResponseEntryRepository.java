@@ -61,4 +61,8 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     // an undone (active=false) response is still a historical fact that must block
     // deletion, per TaskResponseEntry's own preserve-history contract.
     boolean existsByTaskId(Long taskId);
+
+    // Backs the deleteStore history guard -- any response against a store (active
+    // or undone) is enough to block deletion, same rationale as existsByTaskId.
+    boolean existsByStoreId(Long storeId);
 }

@@ -3,8 +3,8 @@
 :root {
   --color-bg-page: #f2f2f4;
   --color-surface-card: #ffffff;
-  --color-header-bg: linear-gradient(90deg, #050506 0%, #6b0c10 40%, #a01418 100%);
-  --color-header-border: rgba(228, 55, 61, 0.22);
+  --color-header-bg: #0b090a;
+  --color-header-border: rgba(155, 20, 25, 0.38);
   --color-header-text: #ffffff;
   --color-nav-bg: #0d0d0f;
 
@@ -90,8 +90,8 @@
 :root[data-theme='dark'] {
   --color-bg-page: #131316;
   --color-surface-card: #1c1c21;
-  --color-header-bg: linear-gradient(90deg, #050506 0%, #6b0c10 40%, #a01418 100%);
-  --color-header-border: rgba(228, 55, 61, 0.22);
+  --color-header-bg: #0b090a;
+  --color-header-border: rgba(155, 20, 25, 0.38);
   --color-header-text: #ffffff;
   --color-nav-bg: #000000;
 

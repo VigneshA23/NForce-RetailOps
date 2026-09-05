@@ -246,7 +246,6 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
     setPwSubmitting(true);
     try {
       await changePassword(pwValues.currentPassword, pwValues.newPassword);
-      // Collapse form, toast is the confirmation
       setPwValues({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setPwShow({ current: false, new: false, confirm: false });
       setPwExpanded(false);
@@ -346,21 +345,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
       {/* ── Identity card ────────────────────────────────────────────────── */}
       <section className="profile-section profile-section--identity">
         <div className="profile-identity-avatar-col">
-          {/*
-           * Avatar anchor: positions the camera badge absolutely over the avatar.
-           * - Avatar wrap: click = preview (if photo) or upload (if no photo)
-           * - Overlay: click = upload (pointer-events controlled by CSS hover media query)
-           * - Camera badge: always-visible on mobile, hidden on desktop (overlay handles it)
-           */}
           <div className="profile-avatar-anchor">
-            {/*
-             * Avatar wrap: always the click/tap target for preview (or upload when no photo).
-             * The overlay is pointer-events:none always — it's only a visual dim layer.
-             * The camera button INSIDE the overlay gets its own pointer-events:auto so it
-             * can intercept clicks without blocking the wrap's body-click handler.
-             * This means desktop users can click the camera icon (upload) OR click the
-             * avatar body outside the icon (preview) — both work independently.
-             */}
             <div
               className="profile-avatar-wrap"
               role={localAvatar || (!localAvatar && canUploadAvatar) ? 'button' : undefined}
@@ -372,19 +357,13 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
               }}
             >
               <UserAvatar initials={displayInitials} size={88} src={localAvatar} />
-
-              {/* Dim overlay — pure visual hover effect, no click target inside */}
               {canUploadAvatar && !avatarUploading && (
                 <div className="profile-avatar-overlay" aria-hidden="true" />
               )}
-
-              {/* Upload spinner */}
               {avatarUploading && (
                 <div className="profile-avatar-spinner" aria-hidden="true" />
               )}
             </div>
-
-            {/* Camera badge — touch/mobile only; hidden on pointer-fine devices via CSS */}
             {canUploadAvatar && !avatarUploading && (
               <button
                 type="button"

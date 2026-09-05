@@ -25,3 +25,14 @@
   /* pill height (64px) + bottom offset (16px) + breathing room (16px) */
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
+
+/* Framer Motion page transition wrapper — transparent to layout */
+.app-shell__page {
+  will-change: opacity, transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell__page {
+    will-change: auto;
+  }
+}
