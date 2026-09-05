@@ -38,7 +38,7 @@ function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onT
               <tr key={task.id} className="task-table__row" onClick={() => onRowClick(task)}>
                 <td className="task-table__name" data-label="Task">{task.name}</td>
                 <td data-label="Category">{task.categoryName}</td>
-                <td data-label="Schedule">{scheduleSummary(task.scheduleType, task.selectedDays)}</td>
+                <td data-label="Schedule">{scheduleSummary(task.scheduleType, task.selectedDays, task.startDate, task.endDate)}</td>
                 <td data-label="Response">
                   <span className={`badge ${responseTypeBadgeClass(task.responseType)}`}>
                     {responseTypeLabel(task.responseType)}

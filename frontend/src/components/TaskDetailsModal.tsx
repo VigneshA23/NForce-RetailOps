@@ -80,7 +80,7 @@ function TaskDetailsModal({ task, isOpen, onClose }: TaskDetailsModalProps) {
 
         <DetailRow label="Completion Type">{completionTypeLabel(task.completionType)}</DetailRow>
 
-        <DetailRow label="Schedule">{scheduleSummary(task.scheduleType, task.selectedDays)}</DetailRow>
+        <DetailRow label="Schedule">{scheduleSummary(task.scheduleType, task.selectedDays, task.startDate, task.endDate)}</DetailRow>
 
         <DetailRow label="Selected Days">
           {task.scheduleType === 'SELECTED_DAYS' && task.selectedDays.length > 0

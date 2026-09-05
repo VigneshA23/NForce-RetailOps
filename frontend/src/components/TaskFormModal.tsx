@@ -26,6 +26,7 @@ interface TaskFormModalProps {
 }
 
 function toFormValues(task: AdminTask): AdminTaskFormValues {
+  const isOneTime = task.scheduleType === 'EVERY_DAY' && task.endDate != null && task.startDate === task.endDate;
   return {
     name: task.name,
     description: task.description ?? '',
@@ -39,10 +40,11 @@ function toFormValues(task: AdminTask): AdminTaskFormValues {
     numericMin: task.numericMin != null ? String(task.numericMin) : '',
     numericMax: task.numericMax != null ? String(task.numericMax) : '',
     completionType: task.completionType,
-    scheduleType: task.scheduleType,
+    scheduleType: isOneTime ? 'ONE_TIME' : task.scheduleType,
     selectedDays: task.selectedDays,
-    startDate: task.startDate,
-    endDate: task.endDate ?? '',
+    oneTimeDate: isOneTime ? task.startDate : '',
+    startDate: isOneTime ? '' : task.startDate,
+    endDate: isOneTime ? '' : (task.endDate ?? ''),
     active: task.active,
   };
 }
@@ -104,6 +106,9 @@ function TaskFormModal({
       ...current,
       scheduleType,
       selectedDays: scheduleType === 'SELECTED_DAYS' ? current.selectedDays : [],
+      oneTimeDate: scheduleType === 'ONE_TIME' ? current.oneTimeDate : '',
+      startDate: scheduleType === 'ONE_TIME' ? '' : current.startDate,
+      endDate: scheduleType === 'ONE_TIME' ? '' : current.endDate,
     }));
   }
 
@@ -352,30 +357,46 @@ function TaskFormModal({
           )}
         </section>
 
-        <section className="task-form__section">
-          <h3 className="task-form__heading">Date Range</h3>
-          <div className="task-form__grid-2">
-            <FormField label="Start Date *" htmlFor="task-start-date" error={errors.startDate}>
+        {values.scheduleType === 'ONE_TIME' ? (
+          <section className="task-form__section">
+            <h3 className="task-form__heading">Task Date</h3>
+            <FormField label="Date *" htmlFor="task-one-time-date" error={errors.oneTimeDate}>
               <input
-                id="task-start-date"
+                id="task-one-time-date"
                 type="date"
                 className="input"
-                value={values.startDate}
-                onChange={(event) => updateField('startDate', event.target.value)}
+                value={values.oneTimeDate}
+                onChange={(event) => updateField('oneTimeDate', event.target.value)}
               />
             </FormField>
-            <FormField label="End Date" htmlFor="task-end-date" error={errors.endDate}>
-              <input
-                id="task-end-date"
-                type="date"
-                className="input"
-                value={values.endDate}
-                onChange={(event) => updateField('endDate', event.target.value)}
-              />
-            </FormField>
-          </div>
-          <p className="task-form__hint">Leave End Date empty for an ongoing task until it's deactivated.</p>
-        </section>
+            <p className="task-form__hint">This task will appear only on the selected date.</p>
+          </section>
+        ) : (
+          <section className="task-form__section">
+            <h3 className="task-form__heading">Date Range</h3>
+            <div className="task-form__grid-2">
+              <FormField label="Start Date *" htmlFor="task-start-date" error={errors.startDate}>
+                <input
+                  id="task-start-date"
+                  type="date"
+                  className="input"
+                  value={values.startDate}
+                  onChange={(event) => updateField('startDate', event.target.value)}
+                />
+              </FormField>
+              <FormField label="End Date" htmlFor="task-end-date" error={errors.endDate}>
+                <input
+                  id="task-end-date"
+                  type="date"
+                  className="input"
+                  value={values.endDate}
+                  onChange={(event) => updateField('endDate', event.target.value)}
+                />
+              </FormField>
+            </div>
+            <p className="task-form__hint">Leave End Date empty for an ongoing task until it's deactivated.</p>
+          </section>
+        )}
 
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>

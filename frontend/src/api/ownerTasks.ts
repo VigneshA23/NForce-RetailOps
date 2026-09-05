@@ -20,6 +20,7 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
 }
 
 function toPayload(values: AdminTaskFormValues) {
+  const isOneTime = values.scheduleType === 'ONE_TIME';
   return {
     name: values.name.trim(),
     description: values.description.trim() || null,
@@ -35,10 +36,10 @@ function toPayload(values: AdminTaskFormValues) {
     textMaxLength: values.responseType === 'TEXT' ? 25 : null,
     completionType: values.completionType,
     maxCompletions: null,
-    scheduleType: values.scheduleType,
-    selectedDays: values.scheduleType === 'SELECTED_DAYS' ? values.selectedDays : [],
-    startDate: values.startDate,
-    endDate: values.endDate.trim() || null,
+    scheduleType: isOneTime ? 'EVERY_DAY' : values.scheduleType,
+    selectedDays: !isOneTime && values.scheduleType === 'SELECTED_DAYS' ? values.selectedDays : [],
+    startDate: isOneTime ? values.oneTimeDate : values.startDate,
+    endDate: isOneTime ? values.oneTimeDate : (values.endDate.trim() || null),
     timeMode: 'ANYTIME',
     startTime: null,
     endTime: null,

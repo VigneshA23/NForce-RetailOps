@@ -5,7 +5,7 @@ import { createTask, deleteTask, getTasks, setTaskActive, TaskHasHistoryError, u
 import type { Category } from '../types/category';
 import type { OwnerStore } from '../types/ownerStore';
 import type { AdminTask, AdminTaskFormValues, ScheduleType } from '../types/adminTask';
-import { SCHEDULE_TYPE_OPTIONS } from '../utils/adminTaskOptions';
+import { isOneTimeTask, SCHEDULE_TYPE_OPTIONS } from '../utils/adminTaskOptions';
 import TaskTable from '../components/TaskTable';
 import TaskFormModal from '../components/TaskFormModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
@@ -97,7 +97,10 @@ function Tasks({
       if (categoryFilter !== 'ALL' && task.categoryId !== categoryFilter) return false;
       if (statusFilter === 'ACTIVE' && !task.active) return false;
       if (statusFilter === 'INACTIVE' && task.active) return false;
-      if (scheduleFilter !== 'ALL' && task.scheduleType !== scheduleFilter) return false;
+      if (scheduleFilter !== 'ALL') {
+        const effective = isOneTimeTask(task) ? 'ONE_TIME' : task.scheduleType;
+        if (effective !== scheduleFilter) return false;
+      }
       return true;
     });
   }, [tasks, search, categoryFilter, statusFilter, scheduleFilter]);
