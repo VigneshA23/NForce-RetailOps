@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Bell, Menu, Moon, Sun } from 'lucide-react';
+import { Menu, Moon, Sun } from 'lucide-react';
 import SearchInput from './SearchInput';
 import IconButton from './IconButton';
 import ProfileMenu from './ProfileMenu';
+import NotificationBell from './NotificationBell';
 import './Header.css';
 
 interface HeaderProps {
@@ -19,11 +20,12 @@ interface HeaderProps {
   // would otherwise be a redundant second copy. Ignored below the mobile
   // breakpoint, and has no effect when logoSrc isn't set.
   hideLogoOnDesktop?: boolean;
-  // Both default to true, so every existing caller (Admin/Super Admin/
-  // Employee dashboard) renders exactly as before. The Store Picker (no
-  // page content for either to act on yet) turns them off.
   showSearch?: boolean;
   showNotifications?: boolean;
+  notificationUnreadCount?: number;
+  onNotificationsCountChange?: (count: number) => void;
+  onNotificationsClick?: () => void;
+  onNotificationNavigate?: (path: string) => void;
   searchValue: string;
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;
@@ -53,6 +55,10 @@ function Header({
   hideLogoOnDesktop,
   showSearch = true,
   showNotifications = true,
+  notificationUnreadCount = 0,
+  onNotificationsCountChange,
+  onNotificationsClick,
+  onNotificationNavigate,
   searchValue,
   onSearchChange,
   isDarkTheme,
@@ -95,7 +101,14 @@ function Header({
           ariaLabel={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
           onClick={onToggleTheme}
         />
-        {showNotifications && <IconButton icon={Bell} ariaLabel="Notifications" />}
+        {showNotifications && onNotificationsClick && (
+          <NotificationBell
+            unreadCount={notificationUnreadCount}
+            onCountChange={onNotificationsCountChange ?? (() => {})}
+            onViewAll={onNotificationsClick}
+            onNavigate={onNotificationNavigate}
+          />
+        )}
         <ProfileMenu
           fullName={userName}
           avatarUrl={avatarUrl}

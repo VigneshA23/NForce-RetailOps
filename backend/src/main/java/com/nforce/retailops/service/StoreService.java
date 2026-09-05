@@ -34,6 +34,7 @@ public class StoreService {
     private final TaskRepository taskRepository;
     private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final StoreCodeGenerator storeCodeGenerator;
+    private final NotificationService notificationService;
 
     public StoreService(
         StoreRepository storeRepository,
@@ -41,7 +42,8 @@ public class StoreService {
         StoreEmployeeRepository storeEmployeeRepository,
         TaskRepository taskRepository,
         TaskResponseEntryRepository taskResponseEntryRepository,
-        StoreCodeGenerator storeCodeGenerator
+        StoreCodeGenerator storeCodeGenerator,
+        NotificationService notificationService
     ) {
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -49,6 +51,7 @@ public class StoreService {
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeCodeGenerator = storeCodeGenerator;
+        this.notificationService = notificationService;
     }
 
     private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
@@ -163,6 +166,9 @@ public class StoreService {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         User owner = storeOwner.getOwner();
+        if (owner != null) {
+            notificationService.createForStoreStatus(store, owner, active);
+        }
         int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
         long taskCount = taskRepository.countByStoreId(store.getId())
             + (owner != null ? taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(owner.getId()) : 0);

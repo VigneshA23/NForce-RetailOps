@@ -5,9 +5,11 @@ import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
 import { getInitials } from '../utils/initials'
 import { useIsMobile } from '../hooks/useMediaQuery'
+import { useUnreadCount } from '../hooks/useUnreadCount'
 import AppShell from './AppShell'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
+import Notifications from '../pages/Notifications'
 import PlaceholderPage from '../components/PlaceholderPage'
 import Profile from '../pages/Profile'
 import Help from '../pages/Help'
@@ -30,17 +32,29 @@ const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'audits', label: 'Audits & Inbox', icon: Inbox },
 ]
 
-type Overlay = 'profile' | 'help' | 'history' | 'settings' | null
+type Overlay = 'profile' | 'help' | 'history' | 'settings' | 'notifications' | null
 
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, employeeId = null }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const [overlay, setOverlay] = useState<Overlay>(null)
   const isMobile = useIsMobile()
-  // With a single assigned store there is nothing to switch to -- the control
-  // would only lead to a one-option picker and straight back here.
+  const { count: unreadCount, setCount } = useUnreadCount()
   const canSwitchStore = stores.length > 1
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName])
+
+  function handleNotificationsCountChange(value: number) {
+    if (value === 0) setCount(0)
+    else setCount((prev) => Math.max(0, prev + value))
+  }
+
+  function handleNotificationNavigate(path: string) {
+    switch (path) {
+      case '/checklist': setActiveTab('today'); setOverlay(null); break
+      case '/history': setOverlay('history'); break
+      default: setOverlay('notifications'); break
+    }
+  }
 
   function renderActivePage() {
     switch (activeTab) {
@@ -55,19 +69,12 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     }
   }
 
-  // Whichever screen is active -- the currently selected store day-to-day,
-  // or a contextual label while on the Profile/Help overlays.
   const contextLabel = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
     : overlay === 'history' ? 'History'
     : overlay === 'settings' ? 'Settings'
     : store.name
 
-  // On mobile there's no sidebar, so the header is the only place the app is
-  // ever named -- it keeps the full "NForce RetailOps" title with the context
-  // as a subtitle. On desktop/tablet the sidebar already carries that
-  // branding, so the header collapses to just the context label instead of
-  // repeating "NForce RetailOps" a second time.
   const headerTitle = isMobile ? 'NForce RetailOps' : contextLabel
   const headerSubtitle = isMobile ? contextLabel : undefined
 
@@ -92,6 +99,10 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       onHelpClick={() => setOverlay('help')}
       onHistoryClick={() => setOverlay('history')}
       onSettingsClick={() => setOverlay('settings')}
+      onNotificationsClick={() => setOverlay('notifications')}
+      onNotificationNavigate={handleNotificationNavigate}
+      notificationUnreadCount={unreadCount}
+      onNotificationsCountChange={handleNotificationsCountChange}
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
       headerActions={
@@ -116,6 +127,8 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         ? <EmployeeHistory store={store} stores={stores} />
         : overlay === 'settings'
         ? <Settings />
+        : overlay === 'notifications'
+        ? <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
         : renderActivePage()
       }
     </AppShell>

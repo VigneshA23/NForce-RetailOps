@@ -59,6 +59,8 @@ class TodayChecklistContractTest {
     private TaskResponseEntryRepository taskResponseEntryRepository;
     @Mock
     private StoreEmployeeRepository storeEmployeeRepository;
+    @Mock
+    private NotificationService notificationService;
 
     private TaskService taskService;
 
@@ -66,7 +68,8 @@ class TodayChecklistContractTest {
     void setUp() {
         taskService = new TaskService(
             taskRepository, categoryRepository, storeOwnerRepository, storeRepository,
-            userRepository, userProfileService, taskResponseEntryRepository, storeEmployeeRepository
+            userRepository, userProfileService, taskResponseEntryRepository, storeEmployeeRepository,
+            notificationService
         );
     }
 

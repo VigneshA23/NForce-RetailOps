@@ -27,17 +27,20 @@ public class AdminCorrectionService {
     private final AdminCorrectionRepository adminCorrectionRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     public AdminCorrectionService(
         TaskResponseEntryRepository taskResponseEntryRepository,
         AdminCorrectionRepository adminCorrectionRepository,
         StoreOwnerRepository storeOwnerRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        NotificationService notificationService
     ) {
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.adminCorrectionRepository = adminCorrectionRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -115,6 +118,7 @@ public class AdminCorrectionService {
 
         taskResponseEntryRepository.save(entry);
         AdminCorrection saved = adminCorrectionRepository.save(correction);
+        notificationService.createForCorrection(saved);
 
         AdminCorrectionEntry correctionDto = ChecklistHistoryService.toCorrectionEntry(saved);
         HistoryResponseEntryResponse updatedResponse = new HistoryResponseEntryResponse(

@@ -163,6 +163,7 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
     };
   }, [storesLoading, stores, trendDays]);
 
+
   const storeName = stores[0]?.name ?? null;
   const todayCompletion = useMemo(() => {
     const totals = sumTasks(todayRows);
@@ -268,6 +269,7 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       </div>
 
       {isLoading && <p className="home-page__loading">Loading dashboard…</p>}
+
     </div>
   );
 }

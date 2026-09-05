@@ -54,12 +54,3 @@ export async function undoTaskResponse(
     { method: 'POST' },
   );
 }
-
-// TODO: replace with a real "raise issue with owner" endpoint once one exists on the backend.
-const SIMULATED_LATENCY_MS = 200;
-
-export async function raiseIssue(_storeId: number, _note: string): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, SIMULATED_LATENCY_MS);
-  });
-}

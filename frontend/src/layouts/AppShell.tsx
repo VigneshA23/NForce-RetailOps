@@ -29,6 +29,10 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onHelpClick?: () => void;
   onHistoryClick?: () => void;
   onSettingsClick?: () => void;
+  onNotificationsClick?: () => void;
+  onNotificationNavigate?: (path: string) => void;
+  notificationUnreadCount?: number;
+  onNotificationsCountChange?: (count: number) => void;
   avatarUrl?: string | null;
   // Extra page-specific header action(s), forwarded to Header's `actions` slot.
   headerActions?: ReactNode;
@@ -65,6 +69,10 @@ function AppShell<Key extends string = NavTabKey>({
   onHelpClick,
   onHistoryClick,
   onSettingsClick,
+  onNotificationsClick,
+  onNotificationNavigate,
+  notificationUnreadCount,
+  onNotificationsCountChange,
   avatarUrl,
   headerActions,
   contentKey,
@@ -110,6 +118,10 @@ function AppShell<Key extends string = NavTabKey>({
             onHelpClick={onHelpClick}
             onHistoryClick={onHistoryClick}
             onSettingsClick={onSettingsClick}
+            onNotificationsClick={onNotificationsClick}
+            onNotificationNavigate={onNotificationNavigate}
+            notificationUnreadCount={notificationUnreadCount}
+            onNotificationsCountChange={onNotificationsCountChange}
             onLogout={onLogout}
             loggingOut={loggingOut}
             onMenuClick={isMobile && !useBottomTabs ? () => setMobileDrawerOpen(true) : undefined}

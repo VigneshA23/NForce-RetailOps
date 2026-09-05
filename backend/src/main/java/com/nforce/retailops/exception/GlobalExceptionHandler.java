@@ -150,4 +150,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleInvalidResetToken(InvalidPasswordResetTokenException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
+
+    @ExceptionHandler(IssueNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleIssueNotFound(IssueNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(LoginRateLimitException.class)
+    public ResponseEntity<Map<String, String>> handleLoginRateLimit(LoginRateLimitException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
+    }
 }

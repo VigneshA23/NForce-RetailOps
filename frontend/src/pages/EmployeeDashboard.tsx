@@ -13,7 +13,9 @@ import {
   Percent,
 } from 'lucide-react'
 import { ApiError } from '../api/client'
-import { getDailyChecklist, raiseIssue, submitTaskResponse, undoTaskResponse } from '../api/tasks'
+import { getDailyChecklist, submitTaskResponse, undoTaskResponse } from '../api/tasks'
+import { raiseIssue } from '../api/issues'
+import { nfToast } from '../utils/toast'
 import type { TaskResponseStateResponse } from '../api/tasks'
 import type { StoreSummary } from '../types/store'
 import type { ChecklistCategory, ChecklistTask, TaskResponseSummary } from '../types/task'
@@ -215,6 +217,10 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
       setFlagCount((count) => count + 1)
       setIssueNote('')
       setIsRaiseModalOpen(false)
+      nfToast.success('Issue raised. Owner has been notified.')
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "Could not submit issue — please try again."
+      nfToast.error(message)
     } finally {
       setIsSubmittingIssue(false)
     }

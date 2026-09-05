@@ -45,6 +45,7 @@ public class EmployeeService {
     private final EmployeeProvisioningService employeeProvisioningService;
     private final PasswordEncoder passwordEncoder;
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
+    private final NotificationService notificationService;
 
     public EmployeeService(
         StoreEmployeeRepository storeEmployeeRepository,
@@ -54,7 +55,8 @@ public class EmployeeService {
         MailService mailService,
         EmployeeProvisioningService employeeProvisioningService,
         PasswordEncoder passwordEncoder,
-        TemporaryPasswordGenerator temporaryPasswordGenerator
+        TemporaryPasswordGenerator temporaryPasswordGenerator,
+        NotificationService notificationService
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -64,6 +66,7 @@ public class EmployeeService {
         this.employeeProvisioningService = employeeProvisioningService;
         this.passwordEncoder = passwordEncoder;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
+        this.notificationService = notificationService;
     }
 
     private boolean ownsAnyStore(StoreEmployee storeEmployee, Long ownerId) {
@@ -242,6 +245,17 @@ public class EmployeeService {
         storeEmployee.getStores().add(myStore);
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
 
+        User employee = storeEmployee.getEmployee();
+        User owner = userRepository.getReferenceById(ownerId);
+        notificationService.send(employee, "EMPLOYEE_ASSIGNED",
+            "You've been added to " + myStore.getName(),
+            "You now have access to the checklist for " + myStore.getName() + ".",
+            "/checklist");
+        notificationService.send(owner, "NEW_EMPLOYEE_JOINED",
+            employee.getFullName() + " joined your store",
+            employee.getFullName() + " has been added to " + myStore.getName() + " and can now access your checklist.",
+            "/employees");
+
         return EmployeeResponse.from(storeEmployee);
     }
 
@@ -253,6 +267,11 @@ public class EmployeeService {
 
         storeEmployee.getStores().removeIf(store -> store.getId().equals(myStore.getId()));
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        notificationService.send(storeEmployee.getEmployee(), "EMPLOYEE_REMOVED",
+            "You've been removed from " + myStore.getName(),
+            "Your access to the checklist for " + myStore.getName() + " has been removed.",
+            null);
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -332,12 +351,21 @@ public class EmployeeService {
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
         User employee = storeEmployee.getEmployee();
-        employee.setActive(request.active());
+        boolean active = request.active();
+        employee.setActive(active);
         userRepository.save(employee);
 
-        if (!request.active()) {
+        if (!active) {
             sessionService.invalidateAllForUser(employee.getEmail());
         }
+
+        notificationService.send(employee,
+            active ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
+            active ? "Your account has been reactivated" : "Your account has been deactivated",
+            active
+                ? "Your NForce account has been reactivated by your store admin."
+                : "Your NForce account has been deactivated by your store admin.",
+            active ? "/checklist" : null);
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -398,6 +426,14 @@ public class EmployeeService {
         if (!request.active()) {
             sessionService.invalidateAllForUser(employee.getEmail());
         }
+
+        notificationService.send(employee,
+            request.active() ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
+            request.active() ? "Your account has been reactivated" : "Your account has been deactivated",
+            request.active()
+                ? "Your NForce account has been reactivated."
+                : "Your NForce account has been deactivated.",
+            request.active() ? "/checklist" : null);
 
         return EmployeeResponse.from(storeEmployee);
     }

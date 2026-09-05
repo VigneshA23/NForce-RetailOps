@@ -66,6 +66,7 @@ public class TaskService {
     private final UserProfileService userProfileService;
     private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
+    private final NotificationService notificationService;
 
     public TaskService(
         TaskRepository taskRepository,
@@ -75,7 +76,8 @@ public class TaskService {
         UserRepository userRepository,
         UserProfileService userProfileService,
         TaskResponseEntryRepository taskResponseEntryRepository,
-        StoreEmployeeRepository storeEmployeeRepository
+        StoreEmployeeRepository storeEmployeeRepository,
+        NotificationService notificationService
     ) {
         this.taskRepository = taskRepository;
         this.categoryRepository = categoryRepository;
@@ -85,6 +87,7 @@ public class TaskService {
         this.userProfileService = userProfileService;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -118,6 +121,18 @@ public class TaskService {
         task.setOwner(userRepository.getReferenceById(ownerId));
         applyRequest(task, ownerId, request);
         task = taskRepository.save(task);
+
+        final String taskName = task.getName();
+        storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId).ifPresent(so -> {
+            storeEmployeeRepository
+                .findDistinctByStoresIdInOrderByIdAscFetchEmployee(List.of(so.getStore().getId()))
+                .forEach(se -> notificationService.send(
+                    se.getEmployee(), "TASK_ADDED",
+                    "New task: " + taskName,
+                    "A new task has been added to your store checklist.",
+                    "/checklist"));
+        });
+
         return TaskResponse.from(task);
     }
 

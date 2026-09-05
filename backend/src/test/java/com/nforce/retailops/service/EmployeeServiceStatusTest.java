@@ -47,6 +47,8 @@ class EmployeeServiceStatusTest {
     private PasswordEncoder passwordEncoder;
     @Mock
     private TemporaryPasswordGenerator temporaryPasswordGenerator;
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private EmployeeService employeeService;

@@ -12,10 +12,12 @@ import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 import History from '../pages/History';
 import Settings from '../pages/Settings';
+import Notifications from '../pages/Notifications';
 import { getInitials } from '../utils/initials';
 import { useOwnerStores } from '../hooks/useOwnerStores';
 import { useOwnerCategories } from '../hooks/useOwnerCategories';
 import { useOwnerEmployees } from '../hooks/useOwnerEmployees';
+import { useUnreadCount } from '../hooks/useUnreadCount';
 
 interface DashboardShellProps {
   user: AuthUser;
@@ -25,7 +27,7 @@ interface DashboardShellProps {
   onAvatarChange?: (url: string | null) => void;
 }
 
-type Overlay = 'profile' | 'help' | 'history' | 'settings' | null;
+type Overlay = 'profile' | 'help' | 'history' | 'settings' | 'notifications' | null;
 
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
@@ -37,6 +39,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
   const storesState = useOwnerStores();
   const categoriesState = useOwnerCategories();
   const employeesState = useOwnerEmployees();
+  const { count: unreadCount, setCount } = useUnreadCount();
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
@@ -45,6 +48,21 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
     : overlay === 'history' ? 'History'
     : overlay === 'settings' ? 'Settings'
     : PAGE_TITLES[activeTab];
+
+  function handleNotificationsCountChange(value: number) {
+    if (value === 0) setCount(0);
+    else setCount((prev) => Math.max(0, prev + value));
+  }
+
+  function handleNotificationNavigate(path: string) {
+    switch (path) {
+      case '/home': setActiveTab('home'); setOverlay(null); break;
+      case '/employees': setActiveTab('employees'); setOverlay(null); break;
+      case '/tasks': setActiveTab('tasks'); setOverlay(null); break;
+      case '/history': setOverlay('history'); break;
+      default: setOverlay('notifications'); break;
+    }
+  }
 
   function renderActivePage() {
     switch (activeTab) {
@@ -118,6 +136,10 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       onHelpClick={() => setOverlay('help')}
       onHistoryClick={() => setOverlay('history')}
       onSettingsClick={() => setOverlay('settings')}
+      onNotificationsClick={() => setOverlay('notifications')}
+      onNotificationNavigate={handleNotificationNavigate}
+      notificationUnreadCount={unreadCount}
+      onNotificationsCountChange={handleNotificationsCountChange}
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
       bottomNavItems={OWNER_BOTTOM_NAV_ITEMS}
@@ -130,6 +152,8 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
         <History />
       ) : overlay === 'settings' ? (
         <Settings />
+      ) : overlay === 'notifications' ? (
+        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
       ) : (
         renderActivePage()
       )}

@@ -42,6 +42,7 @@ public class OwnerManagementService {
     private final MailService mailService;
     private final StoreCodeGenerator storeCodeGenerator;
     private final OwnerProvisioningService ownerProvisioningService;
+    private final NotificationService notificationService;
 
     public OwnerManagementService(
         UserRepository userRepository,
@@ -49,7 +50,8 @@ public class OwnerManagementService {
         StoreOwnerRepository storeOwnerRepository,
         MailService mailService,
         StoreCodeGenerator storeCodeGenerator,
-        OwnerProvisioningService ownerProvisioningService
+        OwnerProvisioningService ownerProvisioningService,
+        NotificationService notificationService
     ) {
         this.userRepository = userRepository;
         this.storeRepository = storeRepository;
@@ -57,6 +59,7 @@ public class OwnerManagementService {
         this.mailService = mailService;
         this.storeCodeGenerator = storeCodeGenerator;
         this.ownerProvisioningService = ownerProvisioningService;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -180,6 +183,7 @@ public class OwnerManagementService {
             .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
         owner.setActive(active);
         userRepository.save(owner);
+        notificationService.createForAccountStatus(owner, active);
 
         List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
         if (storeOwners.isEmpty()) {

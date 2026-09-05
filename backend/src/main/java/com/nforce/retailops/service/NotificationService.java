@@ -1,0 +1,150 @@
+package com.nforce.retailops.service;
+
+import com.nforce.retailops.dto.NotificationResponse;
+import com.nforce.retailops.entity.AdminCorrection;
+import com.nforce.retailops.entity.Notification;
+import com.nforce.retailops.entity.RaisedIssue;
+import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.IssueNotFoundException;
+import com.nforce.retailops.repository.NotificationRepository;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Service
+public class NotificationService {
+
+    private static final int MAX_NOTIFICATIONS = 100;
+
+    private static final Map<String, String> PRIORITY_BY_CATEGORY;
+    static {
+        PRIORITY_BY_CATEGORY = new HashMap<>();
+        PRIORITY_BY_CATEGORY.put("ISSUE_RAISED",                  "HIGH");
+        PRIORITY_BY_CATEGORY.put("STORE_DEACTIVATED",             "HIGH");
+        PRIORITY_BY_CATEGORY.put("ACCOUNT_DEACTIVATED",           "HIGH");
+        PRIORITY_BY_CATEGORY.put("EMPLOYEE_ACCOUNT_DEACTIVATED",  "HIGH");
+        PRIORITY_BY_CATEGORY.put("EMPLOYEE_REMOVED",              "HIGH");
+        PRIORITY_BY_CATEGORY.put("CORRECTION_MADE",               "MEDIUM");
+        PRIORITY_BY_CATEGORY.put("STORE_REACTIVATED",             "MEDIUM");
+        PRIORITY_BY_CATEGORY.put("ACCOUNT_REACTIVATED",           "MEDIUM");
+        PRIORITY_BY_CATEGORY.put("EMPLOYEE_ACCOUNT_REACTIVATED",  "MEDIUM");
+        PRIORITY_BY_CATEGORY.put("TASK_ADDED",                    "LOW");
+        PRIORITY_BY_CATEGORY.put("CATEGORY_ADDED",                "LOW");
+        PRIORITY_BY_CATEGORY.put("EMPLOYEE_ASSIGNED",             "LOW");
+        PRIORITY_BY_CATEGORY.put("NEW_EMPLOYEE_JOINED",           "LOW");
+    }
+
+    private final NotificationRepository notificationRepository;
+
+    public NotificationService(NotificationRepository notificationRepository) {
+        this.notificationRepository = notificationRepository;
+    }
+
+    // Generic notification creation — the single entry point for all new notification types.
+    // Priority is resolved automatically from the category; callers do not need to set it.
+    @Transactional
+    public void send(User recipient, String category, String title, String message, String linkPath) {
+        Notification n = new Notification();
+        n.setRecipientUser(recipient);
+        n.setCategory(category);
+        n.setTitle(title);
+        n.setMessage(message);
+        n.setLinkPath(linkPath);
+        n.setPriority(PRIORITY_BY_CATEGORY.getOrDefault(category, "MEDIUM"));
+        notificationRepository.save(n);
+    }
+
+    // ISSUE_RAISED kept separate: sets the relatedIssue FK used by the detail
+    // panel in the Notifications page. All other categories go through send().
+    @Transactional
+    public void createForIssue(RaisedIssue issue, User owner) {
+        String employeeName = issue.getEmployeeUser().getFullName();
+        String storeName = issue.getStore().getName();
+        String notePreview = issue.getNote().length() > 80
+            ? issue.getNote().substring(0, 80) + "…"
+            : issue.getNote();
+
+        Notification n = new Notification();
+        n.setRecipientUser(owner);
+        n.setCategory("ISSUE_RAISED");
+        n.setPriority("HIGH");
+        n.setTitle(employeeName + " raised an issue at " + storeName);
+        n.setMessage(notePreview);
+        n.setRelatedIssue(issue);
+        notificationRepository.save(n);
+    }
+
+    @Transactional
+    public void createForCorrection(AdminCorrection correction) {
+        User employee = correction.getTaskResponse().getEmployee();
+        String taskName = correction.getTaskResponse().getTask().getName();
+        String reason = correction.getReason();
+        send(employee, "CORRECTION_MADE",
+            "Your \"" + taskName + "\" response was corrected",
+            reason != null && !reason.isBlank()
+                ? "Reason: " + reason
+                : "Your response was reviewed and corrected by the store admin.",
+            "/history");
+    }
+
+    @Transactional
+    public void createForStoreStatus(Store store, User owner, boolean active) {
+        send(owner,
+            active ? "STORE_REACTIVATED" : "STORE_DEACTIVATED",
+            store.getName() + (active ? " has been reactivated" : " has been deactivated"),
+            active
+                ? "Your store has been reactivated by a Super Admin. You can now access it."
+                : "Your store has been deactivated by a Super Admin.",
+            active ? "/home" : null);
+    }
+
+    @Transactional
+    public void createForAccountStatus(User owner, boolean active) {
+        send(owner,
+            active ? "ACCOUNT_REACTIVATED" : "ACCOUNT_DEACTIVATED",
+            active ? "Your account has been reactivated" : "Your account has been deactivated",
+            active
+                ? "Your NForce account has been reactivated by a Super Admin."
+                : "Your NForce account has been deactivated by a Super Admin.",
+            active ? "/home" : null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> list(Long userId) {
+        return notificationRepository
+            .findByRecipientUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, MAX_NOTIFICATIONS))
+            .stream()
+            .map(NotificationResponse::from)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Long> unreadCount(Long userId) {
+        return Map.of("count", notificationRepository.countByRecipientUserIdAndReadFalse(userId));
+    }
+
+    @Transactional
+    public NotificationResponse markRead(Long notificationId, Long userId) {
+        Notification n = notificationRepository.findByIdAndRecipientUserId(notificationId, userId)
+            .orElseThrow(() -> new IssueNotFoundException("Notification not found"));
+        n.setRead(true);
+        return NotificationResponse.from(notificationRepository.save(n));
+    }
+
+    @Transactional
+    public void markAllRead(Long userId) {
+        notificationRepository.markAllReadByRecipientUserId(userId);
+    }
+
+    @Transactional
+    public void delete(Long notificationId, Long userId) {
+        Notification n = notificationRepository.findByIdAndRecipientUserId(notificationId, userId)
+            .orElseThrow(() -> new IssueNotFoundException("Notification not found"));
+        notificationRepository.delete(n);
+    }
+}
