@@ -121,6 +121,17 @@ function App() {
     setRestoringSession(false)
   }, [restoringSession, meState.isLoading])
 
+  // Fresh-login avatar hydration. The session-restore effect above is gated on
+  // restoringSession so it never fires for a normal login. When meState.me
+  // arrives after the user has just signed in, copy avatarUrl into state so
+  // the header shows the photo immediately without requiring a Profile visit.
+  useEffect(() => {
+    if (restoringSession || !user || user.role === 'SUPER_ADMIN') return
+    if (!meState.me?.avatarUrl) return
+    setAvatarUrl(meState.me.avatarUrl)
+    setStoredAvatarUrl(meState.me.avatarUrl)
+  }, [meState.me?.avatarUrl, restoringSession, user])
+
   // Single global session-management mechanism: an inactivity timer plus a
   // 401 watcher, both scoped to the lifetime of an authenticated session.
   // No page or shell owns any of this logic individually.

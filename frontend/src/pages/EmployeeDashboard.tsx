@@ -496,7 +496,7 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
           aria-label="Raise an issue with the owner"
         >
           <MessageSquareWarning size={18} />
-          <span className="raise-with-owner-fab-label">Raise with Owner</span>
+          <span className="raise-with-owner-fab-label">Raise an Issue</span>
         </button>,
         document.body,
       )}
