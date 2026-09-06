@@ -8,6 +8,7 @@ import com.nforce.retailops.dto.ReassignableStoreResponse;
 import com.nforce.retailops.dto.UpdateOwnerRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
@@ -17,8 +18,10 @@ import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
+import com.nforce.retailops.security.SuperAdminUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +46,7 @@ public class OwnerManagementService {
     private final StoreCodeGenerator storeCodeGenerator;
     private final OwnerProvisioningService ownerProvisioningService;
     private final NotificationService notificationService;
+    private final SuperAdminAlertService superAdminAlertService;
 
     public OwnerManagementService(
         UserRepository userRepository,
@@ -51,7 +55,8 @@ public class OwnerManagementService {
         MailService mailService,
         StoreCodeGenerator storeCodeGenerator,
         OwnerProvisioningService ownerProvisioningService,
-        NotificationService notificationService
+        NotificationService notificationService,
+        SuperAdminAlertService superAdminAlertService
     ) {
         this.userRepository = userRepository;
         this.storeRepository = storeRepository;
@@ -60,6 +65,7 @@ public class OwnerManagementService {
         this.storeCodeGenerator = storeCodeGenerator;
         this.ownerProvisioningService = ownerProvisioningService;
         this.notificationService = notificationService;
+        this.superAdminAlertService = superAdminAlertService;
     }
 
     @Transactional(readOnly = true)
@@ -125,6 +131,16 @@ public class OwnerManagementService {
         try {
             mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
         } catch (EmailDeliveryException ex) {
+            // Notify the creating Super Admin before compensating, so the alert
+            // is persisted even if compensation also fails.
+            try {
+                Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                if (principal instanceof SuperAdminUserDetails saDetails) {
+                    superAdminAlertService.notifyOwnerEmailDeliveryFailed(saDetails.getSuperAdmin(), provisioned.fullName());
+                }
+            } catch (RuntimeException notifEx) {
+                log.warn("Could not send OWNER_EMAIL_FAILED notification for owner {}", provisioned.ownerId(), notifEx);
+            }
             try {
                 ownerProvisioningService.deleteUnreachableOwner(provisioned);
             } catch (RuntimeException cleanupEx) {

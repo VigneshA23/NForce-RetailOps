@@ -20,11 +20,13 @@ import AppShell from '../layouts/AppShell';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 import Settings from '../pages/Settings';
+import Notifications from '../pages/Notifications';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
 import SuperAdminHome from '../pages/SuperAdminHome';
 import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import { getInitials } from '../utils/initials';
+import { useUnreadCount } from '../hooks/useUnreadCount';
 import './SuperAdminDashboard.css';
 
 interface SuperAdminDashboardProps {
@@ -84,7 +86,22 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const { count: unreadCount, setCount } = useUnreadCount();
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
+
+  function handleNotificationsCountChange(value: number) {
+    if (value === 0) setCount(0);
+    else setCount((prev) => Math.max(0, prev + value));
+  }
+
+  function handleNotificationNavigate(path: string) {
+    switch (path) {
+      case '/checklist': setActiveTab('checklist'); setShowNotifications(false); break;
+      default: setShowNotifications(true); break;
+    }
+  }
 
   function applyOwnerUpdates(updated: OwnerSummary[]) {
     const updatedByKey = new Map(updated.map((o) => [`${o.ownerId}-${o.storeId}`, o]));
@@ -243,19 +260,36 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         setShowProfile(false);
         setShowHelp(false);
         setShowSettings(false);
+        setShowNotifications(false);
         setActiveTab(key);
       }}
-      title={showProfile ? 'My Profile' : showHelp ? 'Help & Guidance' : showSettings ? 'Settings' : SUPER_ADMIN_PAGE_TITLES[activeTab]}
-      contentKey={showProfile ? 'profile' : showHelp ? 'help' : showSettings ? 'settings' : activeTab}
+      title={
+        showProfile ? 'My Profile'
+        : showHelp ? 'Help & Guidance'
+        : showSettings ? 'Settings'
+        : showNotifications ? 'Notifications'
+        : SUPER_ADMIN_PAGE_TITLES[activeTab]
+      }
+      contentKey={
+        showProfile ? 'profile'
+        : showHelp ? 'help'
+        : showSettings ? 'settings'
+        : showNotifications ? 'notifications'
+        : activeTab
+      }
       logoSrc="/nforce-logo.png"
       hideLogoOnDesktop
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
       avatarUrl={avatarUrl}
-      onProfileClick={() => { setShowHelp(false); setShowSettings(false); setShowProfile(true); }}
-      onHelpClick={() => { setShowProfile(false); setShowSettings(false); setShowHelp(true); }}
-      onSettingsClick={() => { setShowProfile(false); setShowHelp(false); setShowSettings(true); }}
+      onProfileClick={() => { setShowHelp(false); setShowSettings(false); setShowNotifications(false); setShowProfile(true); }}
+      onHelpClick={() => { setShowProfile(false); setShowSettings(false); setShowNotifications(false); setShowHelp(true); }}
+      onSettingsClick={() => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowSettings(true); }}
+      onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowSettings(false); setShowNotifications(true); }}
+      onNotificationNavigate={handleNotificationNavigate}
+      notificationUnreadCount={unreadCount}
+      onNotificationsCountChange={handleNotificationsCountChange}
       mobileNav="bottom-tabs"
     >
       {showProfile ? (
@@ -264,6 +298,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <Help />
       ) : showSettings ? (
         <Settings />
+      ) : showNotifications ? (
+        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
       ) : activeTab === 'checklist' ? (
         <SuperAdminChecklist nav={checklistNav} />
       ) : activeTab === 'home' ? (

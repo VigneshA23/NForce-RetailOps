@@ -8,8 +8,10 @@ import {
   ClipboardList,
   Clock,
   ListPlus,
+  MailX,
   PenLine,
   Store,
+  TriangleAlert,
   UserCheck,
   UserMinus,
   UserPlus,
@@ -77,6 +79,12 @@ function categoryMeta(category: string): CategoryMeta {
       return { icon: UserPlus, bgVar: '--color-badge-icon-success-bg', fgVar: '--color-badge-icon-success-fg' };
     case 'EMPLOYEE_REMOVED':
       return { icon: UserMinus, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
+    case 'STORE_ZERO_ACTIVITY':
+      return { icon: TriangleAlert, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
+    case 'ISSUES_OVERDUE':
+      return { icon: Clock, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
+    case 'OWNER_EMAIL_FAILED':
+      return { icon: MailX, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
     default:
       return { icon: Bell, bgVar: '--color-badge-icon-info-bg', fgVar: '--color-badge-icon-info-fg' };
   }

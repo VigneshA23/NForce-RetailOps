@@ -5,6 +5,7 @@ import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.Notification;
 import com.nforce.retailops.entity.RaisedIssue;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.IssueNotFoundException;
 import com.nforce.retailops.repository.NotificationRepository;
@@ -39,6 +40,10 @@ public class NotificationService {
         PRIORITY_BY_CATEGORY.put("CATEGORY_ADDED",                "LOW");
         PRIORITY_BY_CATEGORY.put("EMPLOYEE_ASSIGNED",             "LOW");
         PRIORITY_BY_CATEGORY.put("NEW_EMPLOYEE_JOINED",           "LOW");
+        // Super Admin categories
+        PRIORITY_BY_CATEGORY.put("STORE_ZERO_ACTIVITY",           "HIGH");
+        PRIORITY_BY_CATEGORY.put("OWNER_EMAIL_FAILED",            "HIGH");
+        PRIORITY_BY_CATEGORY.put("ISSUES_OVERDUE",                "MEDIUM");
     }
 
     private final NotificationRepository notificationRepository;
@@ -59,6 +64,26 @@ public class NotificationService {
         n.setLinkPath(linkPath);
         n.setPriority(PRIORITY_BY_CATEGORY.getOrDefault(category, "MEDIUM"));
         notificationRepository.save(n);
+    }
+
+    // Super Admin targeted notification — separate from user notifications because
+    // Super Admins have their own identity table and are not in the users table.
+    @Transactional
+    public void sendToSuperAdmin(SuperAdmin recipient, String category, String title, String message, String linkPath, String dedupKey) {
+        Notification n = new Notification();
+        n.setRecipientSuperAdmin(recipient);
+        n.setCategory(category);
+        n.setTitle(title);
+        n.setMessage(message);
+        n.setLinkPath(linkPath);
+        n.setDedupKey(dedupKey);
+        n.setPriority(PRIORITY_BY_CATEGORY.getOrDefault(category, "MEDIUM"));
+        notificationRepository.save(n);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean superAdminNotificationExists(Long superAdminId, String dedupKey) {
+        return notificationRepository.existsByRecipientSuperAdminIdAndDedupKey(superAdminId, dedupKey);
     }
 
     // ISSUE_RAISED kept separate: sets the relatedIssue FK used by the detail
@@ -173,6 +198,41 @@ public class NotificationService {
     @Transactional
     public void delete(Long notificationId, Long userId) {
         Notification n = notificationRepository.findByIdAndRecipientUserId(notificationId, userId)
+            .orElseThrow(() -> new IssueNotFoundException("Notification not found"));
+        notificationRepository.delete(n);
+    }
+
+    // Super Admin variants of the same read/list operations
+    @Transactional(readOnly = true)
+    public List<NotificationResponse> listForSuperAdmin(Long superAdminId) {
+        return notificationRepository
+            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(superAdminId, PageRequest.of(0, MAX_NOTIFICATIONS))
+            .stream()
+            .map(NotificationResponse::from)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Long> unreadCountForSuperAdmin(Long superAdminId) {
+        return Map.of("count", notificationRepository.countByRecipientSuperAdminIdAndReadFalse(superAdminId));
+    }
+
+    @Transactional
+    public NotificationResponse markReadForSuperAdmin(Long notificationId, Long superAdminId) {
+        Notification n = notificationRepository.findByIdAndRecipientSuperAdminId(notificationId, superAdminId)
+            .orElseThrow(() -> new IssueNotFoundException("Notification not found"));
+        n.setRead(true);
+        return NotificationResponse.from(notificationRepository.save(n));
+    }
+
+    @Transactional
+    public void markAllReadForSuperAdmin(Long superAdminId) {
+        notificationRepository.markAllReadByRecipientSuperAdminId(superAdminId);
+    }
+
+    @Transactional
+    public void deleteForSuperAdmin(Long notificationId, Long superAdminId) {
+        Notification n = notificationRepository.findByIdAndRecipientSuperAdminId(notificationId, superAdminId)
             .orElseThrow(() -> new IssueNotFoundException("Notification not found"));
         notificationRepository.delete(n);
     }

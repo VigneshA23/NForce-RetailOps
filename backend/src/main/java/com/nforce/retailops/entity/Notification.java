@@ -22,8 +22,12 @@ public class Notification {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recipient_user_id", nullable = false)
+    @JoinColumn(name = "recipient_user_id")
     private User recipientUser;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_super_admin_id")
+    private SuperAdmin recipientSuperAdmin;
 
     @Column(nullable = false, length = 200)
     private String title;
@@ -43,6 +47,9 @@ public class Notification {
     @Column(name = "read", nullable = false)
     private boolean read = false;
 
+    @Column(name = "dedup_key", length = 120)
+    private String dedupKey;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "related_issue_id")
     private RaisedIssue relatedIssue;
@@ -59,6 +66,9 @@ public class Notification {
 
     public User getRecipientUser() { return recipientUser; }
     public void setRecipientUser(User recipientUser) { this.recipientUser = recipientUser; }
+
+    public SuperAdmin getRecipientSuperAdmin() { return recipientSuperAdmin; }
+    public void setRecipientSuperAdmin(SuperAdmin recipientSuperAdmin) { this.recipientSuperAdmin = recipientSuperAdmin; }
 
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
@@ -80,6 +90,9 @@ public class Notification {
 
     public RaisedIssue getRelatedIssue() { return relatedIssue; }
     public void setRelatedIssue(RaisedIssue relatedIssue) { this.relatedIssue = relatedIssue; }
+
+    public String getDedupKey() { return dedupKey; }
+    public void setDedupKey(String dedupKey) { this.dedupKey = dedupKey; }
 
     public OffsetDateTime getCreatedAt() { return createdAt; }
 }

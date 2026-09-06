@@ -23,4 +23,6 @@ public interface RaisedIssueRepository extends JpaRepository<RaisedIssue, Long> 
     List<RaisedIssue> findByStoreIdAndEmployeeUserIdOrderByCreatedAtDesc(@Param("storeId") Long storeId, @Param("employeeUserId") Long employeeUserId);
 
     long countByStoreIdAndStatus(Long storeId, String status);
+
+    long countByStoreIdAndStatusAndCreatedAtBefore(Long storeId, String status, java.time.OffsetDateTime cutoff);
 }
