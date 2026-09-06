@@ -15,7 +15,6 @@ public record MeResponse(
     String employeeType,
     String phone,
     // Base64-encoded profile photo (data: URL). Null when not set.
-    // SuperAdmins always get null (no users table row).
     String avatarUrl
 ) {
 }

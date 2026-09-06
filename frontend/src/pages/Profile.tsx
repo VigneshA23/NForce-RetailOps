@@ -266,7 +266,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
   if (fetchError || !me) return <div className="profile-page__empty">{fetchError ?? 'Profile unavailable.'}</div>;
 
   const displayInitials = getInitials(me.fullName) || initials;
-  const canUploadAvatar = me.role !== 'SUPER_ADMIN';
+  const canUploadAvatar = true;
 
   return (
     <div className="profile-page">
@@ -494,8 +494,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
       </section>
 
       {/* ── Security / Change password ───────────────────────────────────── */}
-      {me.role !== 'SUPER_ADMIN' && (
-        <section className="profile-section">
+      <section className="profile-section">
           <div className="profile-section__header">
             <h3 className="profile-section__title">
               <ShieldCheck size={15} />
@@ -617,7 +616,6 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
             </div>
           )}
         </section>
-      )}
     </div>
   );
 }
