@@ -75,6 +75,23 @@
   color: var(--color-text-muted);
 }
 
+.sct__store-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-primary, #2563eb);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sct__store-link:hover {
+  opacity: 0.75;
+}
+
 .sct__loading,
 .sct__empty {
   padding: var(--space-lg);

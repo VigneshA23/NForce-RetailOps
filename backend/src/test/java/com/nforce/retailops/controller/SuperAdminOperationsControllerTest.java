@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -241,6 +242,37 @@ class SuperAdminOperationsControllerTest {
                 .param("date", LocalDate.now().minusYears(10).toString()))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.platformCompletionPercent").value(0));
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanViewChecklistDetail() throws Exception {
+        superAdmin("sa-chk-admin-f@nforce.test");
+        User owner = ownerUser("sa-chk-owner-f@nforce.test");
+        Store storeF = store("Store Felix", 9210L);
+        linkOwnerToStore(owner, storeF);
+
+        String token = login("sa-chk-admin-f@nforce.test");
+
+        mockMvc.perform(get("/api/checklist-history/detail")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", String.valueOf(storeF.getId()))
+                .param("date", LocalDate.now().toString()))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @Transactional
+    void superAdminCannotCorrectChecklistResponse() throws Exception {
+        superAdmin("sa-chk-admin-g@nforce.test");
+        String token = login("sa-chk-admin-g@nforce.test");
+
+        // Any responseId -- auth check fires before DB lookup for SA
+        mockMvc.perform(patch("/api/checklist-history/responses/99999/correct")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isForbidden());
     }
 
     record LoginPayload(String email, String password) {}

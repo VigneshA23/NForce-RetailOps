@@ -10,9 +10,10 @@ import './SuperAdminHome.css';
 interface SuperAdminHomeProps {
   owners: OwnerSummary[];
   ownersLoading: boolean;
+  onStoreClick?: (storeId: number) => void;
 }
 
-function SuperAdminHome({ owners, ownersLoading }: SuperAdminHomeProps) {
+function SuperAdminHome({ owners, ownersLoading, onStoreClick }: SuperAdminHomeProps) {
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [overview, setOverview] = useState<StoreOperationsSummary[] | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
@@ -107,6 +108,7 @@ function SuperAdminHome({ owners, ownersLoading }: SuperAdminHomeProps) {
       <StoreComparisonTable
         stores={overview ?? []}
         isLoading={overviewLoading}
+        onStoreClick={onStoreClick}
       />
     </div>
   );

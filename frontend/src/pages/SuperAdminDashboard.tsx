@@ -12,8 +12,6 @@ import OwnerFormModal from '../components/OwnerFormModal';
 import OwnerEditModal from '../components/OwnerEditModal';
 import AssignStoreModal from '../components/AssignStoreModal';
 import TemporaryPasswordPopup from '../components/TemporaryPasswordPopup';
-import ChecklistHistoryDetailModal from '../components/ChecklistHistoryDetailModal';
-import type { ChecklistHistoryDetailTarget } from '../components/ChecklistHistoryDetailModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
 import SearchInput from '../components/SearchInput';
@@ -25,6 +23,7 @@ import Settings from '../pages/Settings';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
 import SuperAdminHome from '../pages/SuperAdminHome';
+import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import { getInitials } from '../utils/initials';
 import './SuperAdminDashboard.css';
 
@@ -68,8 +67,16 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [assignStoreError, setAssignStoreError] = useState<string | null>(null);
   const [isAssigningStore, setIsAssigningStore] = useState(false);
 
-  // View checklist
-  const [storeChecklistTarget, setStoreChecklistTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
+  // Checklist tab navigation: storeId + monotone ts so re-navigation to the same store fires
+  const [checklistNav, setChecklistNav] = useState<ChecklistNav | null>(null);
+
+  function navigateToChecklist(storeId: number) {
+    setChecklistNav({ storeId, ts: Date.now() });
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowSettings(false);
+    setActiveTab('checklist');
+  }
 
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
   const [searchValue, setSearchValue] = useState('');
@@ -257,10 +264,12 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <Help />
       ) : showSettings ? (
         <Settings />
+      ) : activeTab === 'checklist' ? (
+        <SuperAdminChecklist nav={checklistNav} />
       ) : activeTab === 'home' ? (
-        <SuperAdminHome owners={owners} ownersLoading={isLoading} />
+        <SuperAdminHome owners={owners} ownersLoading={isLoading} onStoreClick={navigateToChecklist} />
       ) : activeTab === 'stores' ? (
-        <SuperAdminStores />
+        <SuperAdminStores onNavigateToChecklist={navigateToChecklist} />
       ) : activeTab === 'employees' ? (
         <SuperAdminEmployees />
       ) : (
@@ -363,12 +372,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                   setAssignStoreTarget(owner);
                 }}
                 onViewChecklist={(store) => {
-                  if (store.storeId == null || store.storeName == null) return;
-                  setStoreChecklistTarget({
-                    storeId: store.storeId,
-                    storeName: store.storeName,
-                    date: new Date().toISOString().slice(0, 10),
-                  });
+                  if (store.storeId == null) return;
+                  navigateToChecklist(store.storeId);
                 }}
               />
               </div>
@@ -453,11 +458,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         danger={storeStatusTarget?.storeActive ?? true}
         onConfirm={handleConfirmStoreStatusChange}
         onCancel={() => setStoreStatusTarget(null)}
-      />
-
-      <ChecklistHistoryDetailModal
-        target={storeChecklistTarget}
-        onClose={() => setStoreChecklistTarget(null)}
       />
 
       <TemporaryPasswordPopup

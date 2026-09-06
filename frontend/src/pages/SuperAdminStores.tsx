@@ -4,7 +4,6 @@ import { nfToast } from '../utils/toast';
 import { createStandaloneStore, deleteStore, getAllStores, updateStoreStatus } from '../api/superAdminStores';
 import type { CreateStoreValues, SuperAdminStore } from '../types/superAdminStore';
 import SuperAdminStoreTable from '../components/SuperAdminStoreTable';
-import SuperAdminStoreDetail from './SuperAdminStoreDetail';
 import AddStoreModal from '../components/AddStoreModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
@@ -29,11 +28,14 @@ function matchesCount(count: number, comparator: CountComparator, rawValue: stri
   return count === value;
 }
 
-function SuperAdminStores() {
+interface SuperAdminStoresProps {
+  onNavigateToChecklist: (storeId: number) => void;
+}
+
+function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
   const [stores, setStores] = useState<SuperAdminStore[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [selectedStore, setSelectedStore] = useState<SuperAdminStore | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -147,10 +149,6 @@ function SuperAdminStores() {
     () => stores.reduce((sum, store) => sum + store.employeeCount, 0),
     [stores],
   );
-
-  if (selectedStore) {
-    return <SuperAdminStoreDetail store={selectedStore} onBack={() => setSelectedStore(null)} />;
-  }
 
   return (
     <div className="super-admin-stores-page">
@@ -268,7 +266,7 @@ function SuperAdminStores() {
             stores={pagedStores}
             isLoading={isLoading}
             emptyMessage={stores.length === 0 ? 'No stores yet.' : 'No stores match your filters.'}
-            onViewDetails={setSelectedStore}
+            onViewDetails={(store) => onNavigateToChecklist(store.storeId)}
             onToggleStatus={handleToggleStatus}
             onDelete={(store) => {
               setDeleteError(null);

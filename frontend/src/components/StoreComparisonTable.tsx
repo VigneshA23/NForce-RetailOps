@@ -4,6 +4,7 @@ import './StoreComparisonTable.css';
 interface StoreComparisonTableProps {
   stores: StoreOperationsSummary[];
   isLoading: boolean;
+  onStoreClick?: (storeId: number) => void;
 }
 
 function completionTone(percent: number): string {
@@ -23,7 +24,7 @@ function relativeTime(isoString: string | null): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function StoreComparisonTable({ stores, isLoading }: StoreComparisonTableProps) {
+function StoreComparisonTable({ stores, isLoading, onStoreClick }: StoreComparisonTableProps) {
   if (isLoading) {
     return <div className="sct__loading">Loading stores…</div>;
   }
@@ -49,7 +50,19 @@ function StoreComparisonTable({ stores, isLoading }: StoreComparisonTableProps) 
             const tone = completionTone(store.completionPercent);
             return (
               <tr key={store.storeId} className="sct__row">
-                <td className="sct__td sct__td--name">{store.storeName}</td>
+                <td className="sct__td sct__td--name">
+                  {onStoreClick ? (
+                    <button
+                      type="button"
+                      className="sct__store-link"
+                      onClick={() => onStoreClick(store.storeId)}
+                    >
+                      {store.storeName}
+                    </button>
+                  ) : (
+                    store.storeName
+                  )}
+                </td>
                 <td className="sct__td sct__td--owner">{store.ownerName}</td>
                 <td className="sct__td sct__td--center">
                   <span className={`sct__badge sct__badge--${tone}`}>
