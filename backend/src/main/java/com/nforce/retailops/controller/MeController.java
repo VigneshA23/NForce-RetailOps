@@ -176,6 +176,19 @@ public class MeController {
         return ResponseEntity.ok(taskService.undoResponse(userDetails.getUser().getId(), taskId, storeId, responseId));
     }
 
+    // Employee-facing: list issues raised by this employee for one of their stores.
+    @GetMapping("/issues")
+    public ResponseEntity<List<IssueResponse>> myIssues(
+        @AuthenticationPrincipal UserDetails principal,
+        @RequestParam Long storeId
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(raisedIssueService.listForEmployee(userDetails.getUser().getId(), storeId));
+    }
+
     // Employee-facing: raise a store issue to the owner.
     // requireAssignedStore (called inside RaisedIssueService) ensures the
     // employee is actually assigned to the given store.

@@ -25,6 +25,8 @@ public class NotificationService {
     static {
         PRIORITY_BY_CATEGORY = new HashMap<>();
         PRIORITY_BY_CATEGORY.put("ISSUE_RAISED",                  "HIGH");
+        PRIORITY_BY_CATEGORY.put("ISSUE_RESOLVED",               "HIGH");
+        PRIORITY_BY_CATEGORY.put("ISSUE_ACKNOWLEDGED",           "MEDIUM");
         PRIORITY_BY_CATEGORY.put("STORE_DEACTIVATED",             "HIGH");
         PRIORITY_BY_CATEGORY.put("ACCOUNT_DEACTIVATED",           "HIGH");
         PRIORITY_BY_CATEGORY.put("EMPLOYEE_ACCOUNT_DEACTIVATED",  "HIGH");
@@ -79,6 +81,33 @@ public class NotificationService {
         notificationRepository.save(n);
     }
 
+    // Notifies the employee who raised the issue when the admin acknowledges or resolves it.
+    // Scoped to the single reporter — never fan-out to all store employees.
+    @Transactional
+    public void createForIssueUpdate(RaisedIssue issue, String newStatus) {
+        User employee = issue.getEmployeeUser();
+        String storeName = issue.getStore().getName();
+        String notePreview = issue.getNote().length() > 60
+            ? issue.getNote().substring(0, 60) + "…"
+            : issue.getNote();
+
+        if ("ACKNOWLEDGED".equals(newStatus)) {
+            send(employee, "ISSUE_ACKNOWLEDGED",
+                "Your issue at " + storeName + " was acknowledged",
+                "The admin has seen your issue: \"" + notePreview + "\"",
+                null);
+        } else if ("RESOLVED".equals(newStatus)) {
+            String responseText = issue.getResponseText();
+            String msg = (responseText != null && !responseText.isBlank())
+                ? "Response: " + responseText
+                : "The admin has resolved your issue: \"" + notePreview + "\"";
+            send(employee, "ISSUE_RESOLVED",
+                "Your issue at " + storeName + " has been resolved",
+                msg,
+                null);
+        }
+    }
+
     @Transactional
     public void createForCorrection(AdminCorrection correction) {
         User employee = correction.getTaskResponse().getEmployee();
@@ -89,7 +118,7 @@ public class NotificationService {
             reason != null && !reason.isBlank()
                 ? "Reason: " + reason
                 : "Your response was reviewed and corrected by the store admin.",
-            "/history");
+            "/audit");
     }
 
     @Transactional

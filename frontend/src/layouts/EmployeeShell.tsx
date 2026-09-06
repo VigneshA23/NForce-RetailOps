@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CalendarCheck, Inbox, Store as StoreIcon } from 'lucide-react'
+import { CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
@@ -9,8 +9,8 @@ import { useUnreadCount } from '../hooks/useUnreadCount'
 import AppShell from './AppShell'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
+import EmployeeIssues from '../pages/EmployeeIssues'
 import Notifications from '../pages/Notifications'
-import PlaceholderPage from '../components/PlaceholderPage'
 import Profile from '../pages/Profile'
 import Help from '../pages/Help'
 import Settings from '../pages/Settings'
@@ -28,11 +28,12 @@ interface EmployeeShellProps {
 }
 
 const NAV_ITEMS: EmployeeNavItem[] = [
-  { key: 'today', label: 'Today', icon: CalendarCheck },
-  { key: 'audits', label: 'Audits & Inbox', icon: Inbox },
+  { key: 'today', label: 'Home', icon: CalendarCheck },
+  { key: 'audits', label: 'Audit', icon: ClipboardList },
+  { key: 'issues', label: 'My Issues', icon: MessageSquareWarning },
 ]
 
-type Overlay = 'profile' | 'help' | 'history' | 'settings' | 'notifications' | null
+type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null
 
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, employeeId = null }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
@@ -51,7 +52,8 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   function handleNotificationNavigate(path: string) {
     switch (path) {
       case '/checklist': setActiveTab('today'); setOverlay(null); break
-      case '/history': setOverlay('history'); break
+      case '/audit': setActiveTab('audits'); setOverlay(null); break
+      case '/issues': setActiveTab('issues'); setOverlay(null); break
       default: setOverlay('notifications'); break
     }
   }
@@ -61,7 +63,9 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       case 'today':
         return <EmployeeDashboard store={store} onLogout={onLogout} loggingOut={false} employeeId={employeeId} />
       case 'audits':
-        return <PlaceholderPage title="Audits & Inbox" icon={Inbox} />
+        return <EmployeeHistory store={store} stores={stores} />
+      case 'issues':
+        return <EmployeeIssues store={store} />
       default: {
         const _exhaustive: never = activeTab
         return _exhaustive
@@ -71,7 +75,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
 
   const contextLabel = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
-    : overlay === 'history' ? 'History'
     : overlay === 'settings' ? 'Settings'
     : store.name
 
@@ -97,7 +100,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
-      onHistoryClick={() => setOverlay('history')}
       onSettingsClick={() => setOverlay('settings')}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
@@ -123,8 +125,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         ? <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
         : overlay === 'help'
         ? <Help />
-        : overlay === 'history'
-        ? <EmployeeHistory store={store} stores={stores} />
         : overlay === 'settings'
         ? <Settings />
         : overlay === 'notifications'

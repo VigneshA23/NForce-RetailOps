@@ -32,9 +32,10 @@ public class IssueController {
     @GetMapping
     public ResponseEntity<List<IssueResponse>> listIssues(
         @AuthenticationPrincipal AppUserDetails principal,
-        @RequestParam Long storeId
+        @RequestParam Long storeId,
+        @RequestParam(required = false) String status
     ) {
-        return ResponseEntity.ok(raisedIssueService.listForOwner(principal.getUser().getId(), storeId));
+        return ResponseEntity.ok(raisedIssueService.listForOwner(principal.getUser().getId(), storeId, status));
     }
 
     @PatchMapping("/{issueId}/status")

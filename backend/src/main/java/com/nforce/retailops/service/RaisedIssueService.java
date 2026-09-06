@@ -71,16 +71,25 @@ public class RaisedIssueService {
     }
 
     @Transactional(readOnly = true)
-    public List<IssueResponse> listForOwner(Long ownerId, Long storeId) {
+    public List<IssueResponse> listForEmployee(Long employeeUserId, Long storeId) {
+        userProfileService.requireAssignedStore(employeeUserId, storeId);
+        return raisedIssueRepository.findByStoreIdAndEmployeeUserIdOrderByCreatedAtDesc(storeId, employeeUserId)
+            .stream().map(IssueResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<IssueResponse> listForOwner(Long ownerId, Long storeId, String status) {
         storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return raisedIssueRepository.findByStoreIdOrderByCreatedAtDesc(storeId)
-            .stream().map(IssueResponse::from).toList();
+        List<RaisedIssue> issues = (status != null && !status.isBlank())
+            ? raisedIssueRepository.findByStoreIdAndStatusOrderByCreatedAtDesc(storeId, status)
+            : raisedIssueRepository.findByStoreIdOrderByCreatedAtDesc(storeId);
+        return issues.stream().map(IssueResponse::from).toList();
     }
 
     @Transactional
     public IssueResponse updateStatus(Long issueId, Long ownerId, UpdateIssueStatusRequest request) {
-        RaisedIssue issue = raisedIssueRepository.findById(issueId)
+        RaisedIssue issue = raisedIssueRepository.findByIdWithEmployee(issueId)
             .orElseThrow(() -> new IssueNotFoundException("Issue not found"));
 
         storeOwnerRepository.findByStoreIdAndOwnerId(issue.getStore().getId(), ownerId)
@@ -97,6 +106,8 @@ public class RaisedIssueService {
             issue.setRespondedAt(OffsetDateTime.now());
         }
 
-        return IssueResponse.from(raisedIssueRepository.save(issue));
+        RaisedIssue saved = raisedIssueRepository.save(issue);
+        notificationService.createForIssueUpdate(saved, request.status());
+        return IssueResponse.from(saved);
     }
 }

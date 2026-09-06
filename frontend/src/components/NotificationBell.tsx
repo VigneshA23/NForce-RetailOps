@@ -3,8 +3,10 @@ import {
   AlertCircle,
   Bell,
   CheckCheck,
+  CheckCircle2,
   ChevronRight,
   ClipboardList,
+  Clock,
   ListPlus,
   PenLine,
   Store,
@@ -50,6 +52,10 @@ function categoryMeta(category: string): CategoryMeta {
   switch (category) {
     case 'ISSUE_RAISED':
       return { icon: AlertCircle, bgVar: '--color-badge-icon-primary-bg', fgVar: '--color-badge-icon-primary-fg' };
+    case 'ISSUE_ACKNOWLEDGED':
+      return { icon: Clock, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
+    case 'ISSUE_RESOLVED':
+      return { icon: CheckCircle2, bgVar: '--color-badge-icon-success-bg', fgVar: '--color-badge-icon-success-fg' };
     case 'CORRECTION_MADE':
       return { icon: PenLine, bgVar: '--color-badge-icon-info-bg', fgVar: '--color-badge-icon-info-fg' };
     case 'STORE_DEACTIVATED':

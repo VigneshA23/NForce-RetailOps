@@ -91,10 +91,21 @@ function IssueRow({ issue, onUpdateStatus }: IssueRowProps) {
   );
 }
 
+type Tab = 'active' | 'resolved' | 'all';
+
 function IssueList({ issues, onUpdateStatus }: IssueListProps) {
-  const open = issues.filter((i) => i.status === 'OPEN');
-  const acknowledged = issues.filter((i) => i.status === 'ACKNOWLEDGED');
+  const [tab, setTab] = useState<Tab>('active');
+
+  const active = issues.filter((i) => i.status === 'OPEN' || i.status === 'ACKNOWLEDGED');
   const resolved = issues.filter((i) => i.status === 'RESOLVED');
+
+  const visible = tab === 'active' ? active : tab === 'resolved' ? resolved : issues;
+
+  const tabs: { id: Tab; label: string; count: number }[] = [
+    { id: 'active', label: 'Active', count: active.length },
+    { id: 'resolved', label: 'Resolved', count: resolved.length },
+    { id: 'all', label: 'All', count: issues.length },
+  ];
 
   if (issues.length === 0) {
     return (
@@ -106,10 +117,35 @@ function IssueList({ issues, onUpdateStatus }: IssueListProps) {
   }
 
   return (
-    <div className="issue-list">
-      {[...open, ...acknowledged, ...resolved].map((issue) => (
-        <IssueRow key={issue.id} issue={issue} onUpdateStatus={onUpdateStatus} />
-      ))}
+    <div>
+      <div className="issue-tabs" role="tablist">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            className={`issue-tab${tab === t.id ? ' issue-tab--active' : ''}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}
+            {t.count > 0 && <span className="issue-tab__count">{t.count}</span>}
+          </button>
+        ))}
+      </div>
+
+      {visible.length === 0 ? (
+        <div className="issue-list-empty">
+          <CheckCircle2 size={24} className="issue-list-empty__icon" />
+          <p>No {tab === 'active' ? 'active' : 'resolved'} issues.</p>
+        </div>
+      ) : (
+        <div className="issue-list">
+          {visible.map((issue) => (
+            <IssueRow key={issue.id} issue={issue} onUpdateStatus={onUpdateStatus} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

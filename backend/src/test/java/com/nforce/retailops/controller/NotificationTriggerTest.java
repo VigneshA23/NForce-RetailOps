@@ -380,5 +380,118 @@ class NotificationTriggerTest {
         assertThat(notifications.get(0).isRead()).isFalse();
     }
 
+    @Test
+    @Transactional
+    void resolveIssueCreatesNotificationForReporterOnly() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("trig-owner-h@nforce.test", ownerRole);
+        User employee = user("trig-emp-h@nforce.test", empRole);
+        User otherEmployee = user("trig-emp-h2@nforce.test", empRole);
+        Store store = store();
+        linkOwner(owner, store);
+        linkEmployee(employee, store);
+        linkEmployee(otherEmployee, store);
+
+        // Employee raises an issue
+        String empToken = login("trig-emp-h@nforce.test");
+        String createJson = mockMvc.perform(post("/api/me/issues")
+                .header("Authorization", "Bearer " + empToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"note\":\"Broken shelf\"}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+        long issueId = objectMapper.readTree(createJson).get("id").asLong();
+
+        // Owner resolves it with a response
+        String ownerToken = login("trig-owner-h@nforce.test");
+        mockMvc.perform(patch("/api/issues/{id}/status", issueId)
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"RESOLVED\",\"responseText\":\"Shelf has been repaired\"}"))
+            .andExpect(status().isOk());
+
+        // Reporter receives the ISSUE_RESOLVED notification — check via response body for robustness
+        String empNotifBody = mockMvc.perform(get("/api/notifications")
+                .header("Authorization", "Bearer " + empToken))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        assertThat(objectMapper.readTree(empNotifBody).toString())
+            .contains("ISSUE_RESOLVED")
+            .contains("Shelf has been repaired");
+
+        // Other employee at the same store receives NO notification for this resolve
+        String otherEmpToken = login("trig-emp-h2@nforce.test");
+        String otherEmpNotifBody = mockMvc.perform(get("/api/notifications")
+                .header("Authorization", "Bearer " + otherEmpToken))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        assertThat(objectMapper.readTree(otherEmpNotifBody).toString())
+            .doesNotContain("Shelf has been repaired");
+    }
+
+    @Test
+    @Transactional
+    void acknowledgeIssueCreatesNotificationForReporter() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("trig-owner-i@nforce.test", ownerRole);
+        User employee = user("trig-emp-i@nforce.test", empRole);
+        Store store = store();
+        linkOwner(owner, store);
+        linkEmployee(employee, store);
+
+        String empToken = login("trig-emp-i@nforce.test");
+        String createJson = mockMvc.perform(post("/api/me/issues")
+                .header("Authorization", "Bearer " + empToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"note\":\"AC broken\"}"))
+            .andExpect(status().isCreated())
+            .andReturn().getResponse().getContentAsString();
+        long issueId = objectMapper.readTree(createJson).get("id").asLong();
+
+        String ownerToken = login("trig-owner-i@nforce.test");
+        mockMvc.perform(patch("/api/issues/{id}/status", issueId)
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"status\":\"ACKNOWLEDGED\",\"responseText\":null}"))
+            .andExpect(status().isOk());
+
+        String ackNotifBody = mockMvc.perform(get("/api/notifications")
+                .header("Authorization", "Bearer " + empToken))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        assertThat(objectMapper.readTree(ackNotifBody).toString())
+            .contains("ISSUE_ACKNOWLEDGED")
+            .contains("AC broken");
+    }
+
+    @Test
+    @Transactional
+    void employeeCanListTheirOwnIssues() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("trig-owner-j@nforce.test", ownerRole);
+        User employee = user("trig-emp-j@nforce.test", empRole);
+        Store store = store();
+        linkOwner(owner, store);
+        linkEmployee(employee, store);
+
+        String empToken = login("trig-emp-j@nforce.test");
+        mockMvc.perform(post("/api/me/issues")
+                .header("Authorization", "Bearer " + empToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"note\":\"Light bulb out\"}"))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/me/issues")
+                .header("Authorization", "Bearer " + empToken)
+                .param("storeId", String.valueOf(store.getId())))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].note").value("Light bulb out"))
+            .andExpect(jsonPath("$[0].status").value("OPEN"));
+    }
+
     private record LoginPayload(String email, String password) {}
 }

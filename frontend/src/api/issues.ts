@@ -9,6 +9,10 @@ export async function getIssues(storeId: number): Promise<Issue[]> {
   return apiRequest<Issue[]>(`/issues?storeId=${storeId}`);
 }
 
+export async function getMyIssues(storeId: number): Promise<Issue[]> {
+  return apiRequest<Issue[]>(`/me/issues?storeId=${storeId}`);
+}
+
 export async function updateIssueStatus(
   issueId: number,
   status: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED',
