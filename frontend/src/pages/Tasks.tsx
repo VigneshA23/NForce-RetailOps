@@ -252,7 +252,7 @@ function Tasks({
 
       <div className="filter-bar">
         <div className="filter filter--search">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search tasks" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search tasks" variant="filter" />
         </div>
 
         <Select

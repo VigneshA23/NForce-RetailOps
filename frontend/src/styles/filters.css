@@ -6,7 +6,12 @@
 .filter-bar {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
   margin-bottom: var(--space-md);
 }
 
@@ -15,8 +20,12 @@
   min-width: 0;
 }
 
+/* SearchInput variant="filter" renders its own styled box; the wrapper div
+   just controls the flex sizing and stretches the box to fill it. */
 .filter--search {
   flex: 1 1 45%;
+  display: flex;
+  align-items: stretch;
 }
 
 /* Narrow controls whose options are all short, e.g. Status. */
@@ -24,33 +33,15 @@
   flex-basis: 12%;
 }
 
-/* SearchInput defaults to the dark app-header variant; inside a filter bar it
-   needs to read as a card-surface rectangle matching the .select height. The
-   two-class specificity here also beats .search-input's own min-width: 220px,
-   which would otherwise stop the field shrinking on tablet. */
-.filter--search .search-input {
-  width: 100%;
-  min-width: 0;
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  color: var(--color-text-secondary);
-}
-
-.filter--search .search-input__field {
-  color: var(--color-text-primary);
-}
-
-.filter--search .search-input__field::placeholder {
-  color: var(--color-text-muted);
+/* Selects inside filter-bar sit recessed against the card surface */
+.filter-bar .select {
+  background: var(--color-bg-page);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
 }
 
 @media (--tablet-down) {
-  .filter-bar {
-    flex-wrap: wrap;
-  }
-
   .filter,
   .filter--search,
   .filter--narrow {
@@ -62,14 +53,6 @@
   }
 }
 
-/* At phone width, an odd number of 50%-basis filters wraps with the last one
-   alone on its own row -- flex-grow then stretches it to fill that row,
-   reading as an inconsistent "two half-width, one full-width" layout. One
-   filter per row avoids that asymmetry and keeps each control's own label
-   readable in the narrower space. */
-@media (--mobile) {
-  .filter,
-  .filter--narrow {
-    flex-basis: 100%;
-  }
-}
+/* On phones, selects stay at ~50% (two per row) matching the Notifications
+   toolbar pattern. A lone last select stretches to fill its row via flex-grow,
+   which is acceptable and matches the reference design. */

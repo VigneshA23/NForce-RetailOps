@@ -52,3 +52,40 @@
 .search-input--card .search-input__field::placeholder {
   color: var(--color-text-muted);
 }
+
+/* Filter-bar variant: matches nfp-toolbar__search exactly.
+   Uses a <div> + type="text" (not <label> + type="search") to avoid
+   iOS -webkit-appearance:searchfield overrides on mobile. */
+.search-input--filter {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1 1 180px;
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-width: 0;
+}
+
+.search-input--filter__icon {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.search-input--filter__field {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-input--filter__field::placeholder {
+  color: var(--color-text-muted);
+}

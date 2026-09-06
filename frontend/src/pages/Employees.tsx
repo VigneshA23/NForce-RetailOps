@@ -202,7 +202,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
 
       <div className="filter-bar">
         <div className="filter filter--search">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search employees" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search employees" variant="filter" />
         </div>
 
         <Select

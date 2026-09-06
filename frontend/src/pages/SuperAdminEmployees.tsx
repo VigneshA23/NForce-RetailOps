@@ -182,7 +182,7 @@ function SuperAdminEmployees() {
 
       <div className="filter-bar">
         <div className="filter filter--search">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search employees or owners" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search employees or owners" variant="filter" />
         </div>
 
         <select

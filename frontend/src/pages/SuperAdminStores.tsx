@@ -185,7 +185,7 @@ function SuperAdminStores() {
 
       <div className="filter-bar">
         <div className="filter filter--search">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search by store, ID, or owner" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search by store, ID, or owner" variant="filter" />
         </div>
 
         <select

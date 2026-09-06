@@ -304,38 +304,47 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
               </button>
             </div>
           ) : (
-            <div className="card">
-              <div className="card__header">
-                <h2 className="card__title">All Owners</h2>
-                <div className="card__toolbar">
+            <>
+              <div className="owners-page__header">
+                <p className="owners-page__summary">
+                  {isLoading
+                    ? 'Loading owners...'
+                    : `${uniqueOwnerCount} owner${uniqueOwnerCount === 1 ? '' : 's'} · ${totalStoreCount} store${totalStoreCount === 1 ? '' : 's'}`}
+                </p>
+                <SpecularButton
+                  size="sm"
+                  radius={999}
+                  tint="var(--color-badge-solid-bg)"
+                  tintOpacity={1}
+                  textColor="var(--color-badge-solid-text)"
+                  lineColor="#e11d33"
+                  baseColor="#e4e4e7"
+                  followMouse
+                  proximity={180}
+                  onClick={() => {
+                    setFormError(null);
+                    setIsFormOpen(true);
+                  }}
+                >
+                  <span className="owners-page__add-label">
+                    <Plus size={16} />
+                    Add Owner
+                  </span>
+                </SpecularButton>
+              </div>
+
+              <div className="filter-bar">
+                <div className="filter filter--search">
                   <SearchInput
-                    variant="card"
                     value={searchValue}
                     onChange={setSearchValue}
                     placeholder="Search by name, email, or store..."
+                    variant="filter"
                   />
-                  <SpecularButton
-                    size="sm"
-                    radius={999}
-                    tint="var(--color-badge-solid-bg)"
-                    tintOpacity={1}
-                    textColor="var(--color-badge-solid-text)"
-                    lineColor="#e11d33"
-                    baseColor="#e4e4e7"
-                    followMouse
-                    proximity={180}
-                    onClick={() => {
-                      setFormError(null);
-                      setIsFormOpen(true);
-                    }}
-                  >
-                    <span className="owners-page__add-label">
-                      <Plus size={16} />
-                      Add Owner
-                    </span>
-                  </SpecularButton>
                 </div>
               </div>
+
+              <div className="card">
               <OwnerTable
                 owners={filteredOwners}
                 isLoading={isLoading}
@@ -365,7 +374,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                   });
                 }}
               />
-            </div>
+              </div>
+            </>
           )}
         </div>
       )}
