@@ -126,6 +126,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
         setActiveTab(key);
       }}
       title={title}
+      subtitle={storesState.stores[0]?.name}
       contentKey={overlay ?? activeTab}
       logoSrc="/nforce-logo.png"
       hideLogoOnDesktop
