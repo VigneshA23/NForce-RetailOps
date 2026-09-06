@@ -110,6 +110,54 @@
   color: var(--color-accent);
 }
 
+
+/* Issues management panel */
+.home-page__issues-panel {
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  margin-bottom: var(--space-lg);
+  overflow: hidden;
+}
+
+.home-page__issues-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.home-page__issues-panel-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.home-page__issues-panel-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: rgba(225, 29, 51, 0.08);
+  color: var(--color-accent);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.home-page__issues-panel-close:hover {
+  background: rgba(225, 29, 51, 0.16);
+}
+
+
 @media (--mobile) {
   .home-page {
     padding: var(--space-md);

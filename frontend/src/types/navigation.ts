@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CheckSquare, ClipboardList, LayoutGrid, Store, Tags, Users } from 'lucide-react';
+import { Building2, CheckSquare, ClipboardList, LayoutGrid, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -37,7 +37,7 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   tasks: 'Tasks',
 };
 
-export type EmployeeNavTabKey = 'today' | 'audits';
+export type EmployeeNavTabKey = 'today' | 'audits' | 'issues';
 
 export interface EmployeeNavItem {
   key: EmployeeNavTabKey;
@@ -45,15 +45,17 @@ export interface EmployeeNavItem {
   icon: LucideIcon;
 }
 
-export type SuperAdminNavTabKey = 'owners' | 'stores' | 'employees';
+export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees';
 
 export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
+  { key: 'home', label: 'Home', icon: Home },
   { key: 'owners', label: 'Owners', icon: Building2 },
   { key: 'stores', label: 'Stores', icon: Store },
   { key: 'employees', label: 'Employees', icon: Users },
 ];
 
 export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
+  home: 'Home',
   owners: 'Owners',
   stores: 'Stores',
   employees: 'Employees',

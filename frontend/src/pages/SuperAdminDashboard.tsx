@@ -21,10 +21,10 @@ import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
-import History from '../pages/History';
 import Settings from '../pages/Settings';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
+import SuperAdminHome from '../pages/SuperAdminHome';
 import { getInitials } from '../utils/initials';
 import './SuperAdminDashboard.css';
 
@@ -73,10 +73,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
 
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
   const [searchValue, setSearchValue] = useState('');
-  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('owners');
+  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
@@ -236,32 +235,30 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onSelectTab={(key) => {
         setShowProfile(false);
         setShowHelp(false);
-        setShowHistory(false);
         setShowSettings(false);
         setActiveTab(key);
       }}
-      title={showProfile ? 'My Profile' : showHelp ? 'Help & Guidance' : showHistory ? 'History' : showSettings ? 'Settings' : SUPER_ADMIN_PAGE_TITLES[activeTab]}
-      contentKey={showProfile ? 'profile' : showHelp ? 'help' : showHistory ? 'history' : showSettings ? 'settings' : activeTab}
+      title={showProfile ? 'My Profile' : showHelp ? 'Help & Guidance' : showSettings ? 'Settings' : SUPER_ADMIN_PAGE_TITLES[activeTab]}
+      contentKey={showProfile ? 'profile' : showHelp ? 'help' : showSettings ? 'settings' : activeTab}
       logoSrc="/nforce-logo.png"
       hideLogoOnDesktop
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
       avatarUrl={avatarUrl}
-      onProfileClick={() => { setShowHelp(false); setShowHistory(false); setShowSettings(false); setShowProfile(true); }}
-      onHelpClick={() => { setShowProfile(false); setShowHistory(false); setShowSettings(false); setShowHelp(true); }}
-      onHistoryClick={() => { setShowProfile(false); setShowHelp(false); setShowSettings(false); setShowHistory(true); }}
-      onSettingsClick={() => { setShowProfile(false); setShowHelp(false); setShowHistory(false); setShowSettings(true); }}
+      onProfileClick={() => { setShowHelp(false); setShowSettings(false); setShowProfile(true); }}
+      onHelpClick={() => { setShowProfile(false); setShowSettings(false); setShowHelp(true); }}
+      onSettingsClick={() => { setShowProfile(false); setShowHelp(false); setShowSettings(true); }}
       mobileNav="bottom-tabs"
     >
       {showProfile ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : showHelp ? (
         <Help />
-      ) : showHistory ? (
-        <History />
       ) : showSettings ? (
         <Settings />
+      ) : activeTab === 'home' ? (
+        <SuperAdminHome owners={owners} ownersLoading={isLoading} />
       ) : activeTab === 'stores' ? (
         <SuperAdminStores />
       ) : activeTab === 'employees' ? (
