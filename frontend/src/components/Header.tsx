@@ -34,7 +34,6 @@ interface HeaderProps {
   avatarUrl?: string | null;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
-  onHistoryClick?: () => void;
   onSettingsClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
@@ -67,7 +66,6 @@ function Header({
   avatarUrl,
   onProfileClick,
   onHelpClick,
-  onHistoryClick,
   onSettingsClick,
   onLogout,
   loggingOut,
@@ -114,7 +112,6 @@ function Header({
           avatarUrl={avatarUrl}
           onProfileClick={onProfileClick}
           onHelpClick={onHelpClick}
-          onHistoryClick={onHistoryClick}
           onSettingsClick={onSettingsClick}
           onLogout={onLogout}
           loggingOut={loggingOut}

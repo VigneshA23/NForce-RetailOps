@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Clock, HelpCircle, LogOut, Settings, User as UserIcon } from 'lucide-react';
+import { HelpCircle, LogOut, Settings, User as UserIcon } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import ConfirmDialog from './ConfirmDialog';
 import './ProfileMenu.css';
@@ -9,7 +9,6 @@ interface ProfileMenuProps {
   avatarUrl?: string | null;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
-  onHistoryClick?: () => void;
   onSettingsClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
@@ -21,7 +20,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onHistoryClick, onSettingsClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onSettingsClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -94,20 +93,6 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onHisto
             >
               <HelpCircle size={14} />
               Help &amp; Guidance
-            </button>
-          )}
-          {onHistoryClick && (
-            <button
-              type="button"
-              role="menuitem"
-              className="profile-menu__item"
-              onClick={() => {
-                setIsOpen(false);
-                onHistoryClick();
-              }}
-            >
-              <Clock size={14} />
-              History
             </button>
           )}
           {onSettingsClick && (

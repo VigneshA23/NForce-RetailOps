@@ -27,7 +27,6 @@ interface AppShellProps<Key extends string = NavTabKey> {
   loggingOut?: boolean;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
-  onHistoryClick?: () => void;
   onSettingsClick?: () => void;
   onNotificationsClick?: () => void;
   onNotificationNavigate?: (path: string) => void;
@@ -67,7 +66,6 @@ function AppShell<Key extends string = NavTabKey>({
   loggingOut,
   onProfileClick,
   onHelpClick,
-  onHistoryClick,
   onSettingsClick,
   onNotificationsClick,
   onNotificationNavigate,
@@ -116,7 +114,6 @@ function AppShell<Key extends string = NavTabKey>({
             avatarUrl={avatarUrl}
             onProfileClick={onProfileClick}
             onHelpClick={onHelpClick}
-            onHistoryClick={onHistoryClick}
             onSettingsClick={onSettingsClick}
             onNotificationsClick={onNotificationsClick}
             onNotificationNavigate={onNotificationNavigate}

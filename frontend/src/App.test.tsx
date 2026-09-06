@@ -28,9 +28,20 @@ vi.mock('./api/me', () => ({
 
 vi.mock('./api/tasks', () => ({
   getDailyChecklist: vi.fn(),
-  raiseIssue: vi.fn(),
   submitTaskResponse: vi.fn(),
   undoTaskResponse: vi.fn(),
+}))
+
+vi.mock('./api/issues', () => ({
+  raiseIssue: vi.fn(),
+}))
+
+vi.mock('./api/notifications', () => ({
+  getUnreadCount: vi.fn().mockResolvedValue(0),
+  getNotifications: vi.fn().mockResolvedValue([]),
+  markNotificationRead: vi.fn(),
+  markAllRead: vi.fn(),
+  deleteNotification: vi.fn(),
 }))
 
 const mockLogin = vi.mocked(authApi.login)

@@ -1,5 +1,13 @@
+@import '../styles/breakpoints.css';
+
 .category-table__card {
   overflow: visible;
+}
+
+@media (--mobile) {
+  .table-card .data-table tbody td.category-table__drag-cell {
+    display: none;
+  }
 }
 
 .category-table__name {

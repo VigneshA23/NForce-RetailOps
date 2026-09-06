@@ -54,17 +54,35 @@ export function buildOperationsReportCsv(
 ): string {
   const lines: string[] = [];
 
-  lines.push(toCsvRow([`Daily Operations Summary (${startDate} to ${endDate})`]));
+  lines.push(toCsvRow([`Daily Operations Report — ${startDate === endDate ? startDate : `${startDate} to ${endDate}`}`]));
   lines.push('');
-  lines.push(toCsvRow(['SUMMARY']));
-  lines.push(toCsvRow(['Store', 'Scheduled Count', 'Completed Count', 'Completion %', 'Issues']));
+
+  // ── Store summary ──
+  lines.push(toCsvRow(['STORE SUMMARY']));
+  lines.push(toCsvRow(['Store', 'Scheduled', 'Completed', 'Completion %', 'Issues']));
   for (const row of summary) {
     lines.push(toCsvRow([row.storeName, row.scheduled, row.completed, `${completionPercent(row.scheduled, row.completed)}%`, row.issues]));
   }
 
+  // ── Category breakdown ──
   lines.push('');
-  lines.push(toCsvRow(['DETAILS']));
-  lines.push(toCsvRow(['Store', 'Date', 'Category', 'Task Title', 'Task Status', 'Response', 'User/Employee', 'Completion Timestamp']));
+  lines.push(toCsvRow(['CATEGORY BREAKDOWN']));
+  lines.push(toCsvRow(['Category', 'Completed', 'Total', 'Completion %']));
+  const categoryMap = new Map<string, { completed: number; total: number }>();
+  for (const row of details) {
+    const cat = categoryMap.get(row.categoryName) ?? { completed: 0, total: 0 };
+    cat.total += 1;
+    if (row.status === 'COMPLETED') cat.completed += 1;
+    categoryMap.set(row.categoryName, cat);
+  }
+  for (const [name, cat] of Array.from(categoryMap.entries()).sort(([a], [b]) => a.localeCompare(b))) {
+    lines.push(toCsvRow([name, cat.completed, cat.total, `${completionPercent(cat.total, cat.completed)}%`]));
+  }
+
+  // ── Task-level detail ──
+  lines.push('');
+  lines.push(toCsvRow(['TASK DETAIL']));
+  lines.push(toCsvRow(['Store', 'Date', 'Category', 'Task', 'Status', 'Response', 'Employee', 'Completed At']));
   for (const row of details) {
     lines.push(toCsvRow([
       row.storeName,

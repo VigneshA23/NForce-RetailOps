@@ -11,9 +11,21 @@
 }
 
 .store-detail-table__task-name {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.store-detail-table__repeat-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d97706;
+  flex-shrink: 0;
+  cursor: help;
 }
 
 .store-detail-table__task-meta {
@@ -40,4 +52,101 @@
    base rule in table.css, so the header lines up with the cell. */
 .data-table thead th.store-detail-table__status-cell {
   text-align: right;
+}
+
+/* Employee cell — line + action affordances */
+.store-detail-table__employee-line {
+  display: inline;
+}
+
+.store-detail-table__employee-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.store-detail-table__correct-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  opacity: 0.8;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.store-detail-table__correct-btn:hover,
+.store-detail-table__correct-btn:focus-visible {
+  opacity: 1;
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+  background: rgba(225, 29, 51, 0.06);
+}
+
+/* Amber "Corrected" badge + popover */
+.store-detail-table__corrected-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.store-detail-table__corrected-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge-icon-warning-bg, #fff3cd);
+  color: var(--color-badge-icon-warning-fg, #c8790a);
+  border: 1px solid rgba(200, 121, 10, 0.25);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.store-detail-table__corrected-badge:hover {
+  border-color: var(--color-badge-icon-warning-fg, #c8790a);
+}
+
+.store-detail-table__correction-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 200px;
+  max-width: 280px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: var(--space-sm) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.store-detail-table__correction-popover-row {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.store-detail-table__correction-popover-label {
+  font-weight: 700;
+  color: var(--color-text-muted);
+  min-width: 48px;
+  flex-shrink: 0;
 }

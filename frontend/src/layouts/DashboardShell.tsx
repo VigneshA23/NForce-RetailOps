@@ -10,7 +10,6 @@ import StoreDetail from '../pages/StoreDetail';
 import Tasks from '../pages/Tasks';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
-import History from '../pages/History';
 import Settings from '../pages/Settings';
 import Notifications from '../pages/Notifications';
 import { getInitials } from '../utils/initials';
@@ -27,7 +26,7 @@ interface DashboardShellProps {
   onAvatarChange?: (url: string | null) => void;
 }
 
-type Overlay = 'profile' | 'help' | 'history' | 'settings' | 'notifications' | null;
+type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null;
 
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
@@ -45,7 +44,6 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
 
   const title = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
-    : overlay === 'history' ? 'History'
     : overlay === 'settings' ? 'Settings'
     : PAGE_TITLES[activeTab];
 
@@ -57,9 +55,9 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
   function handleNotificationNavigate(path: string) {
     switch (path) {
       case '/home': setActiveTab('home'); setOverlay(null); break;
+      case '/store-detail': setActiveTab('store-detail'); setOverlay(null); break;
       case '/employees': setActiveTab('employees'); setOverlay(null); break;
       case '/tasks': setActiveTab('tasks'); setOverlay(null); break;
-      case '/history': setOverlay('history'); break;
       default: setOverlay('notifications'); break;
     }
   }
@@ -135,7 +133,6 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
-      onHistoryClick={() => setOverlay('history')}
       onSettingsClick={() => setOverlay('settings')}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
@@ -149,8 +146,6 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : overlay === 'help' ? (
         <Help />
-      ) : overlay === 'history' ? (
-        <History />
       ) : overlay === 'settings' ? (
         <Settings />
       ) : overlay === 'notifications' ? (

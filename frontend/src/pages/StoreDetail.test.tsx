@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import StoreDetail from './StoreDetail';
 import * as checklistHistoryApi from '../api/checklistHistory';
@@ -90,8 +90,15 @@ describe('StoreDetail progress indicator', () => {
 
     render(<StoreDetail storeId={1} />);
 
-    expect(await screen.findByText('Preparation 1/2')).toBeInTheDocument();
-    expect(screen.getByText('Cleaning 1/1')).toBeInTheDocument();
+    await waitFor(() => {
+      const cards = document.querySelectorAll('.cat-prog-card');
+      expect(cards.length).toBe(2);
+    });
+    const [prepCard, cleanCard] = document.querySelectorAll('.cat-prog-card');
+    expect(within(prepCard as HTMLElement).getByText('Preparation')).toBeInTheDocument();
+    expect(within(prepCard as HTMLElement).getByText('1/2')).toBeInTheDocument();
+    expect(within(cleanCard as HTMLElement).getByText('Cleaning')).toBeInTheDocument();
+    expect(within(cleanCard as HTMLElement).getByText('1/1')).toBeInTheDocument();
   });
 
   it('shows 0% with no scheduled tasks, without dividing by zero', async () => {
@@ -120,6 +127,11 @@ describe('StoreDetail progress indicator', () => {
     render(<StoreDetail storeId={1} />);
 
     expect(await screen.findByText('100%')).toBeInTheDocument();
-    expect(screen.getByText('Preparation 2/2')).toHaveClass('badge--success');
+    await waitFor(() => {
+      const cards = document.querySelectorAll('.cat-prog-card');
+      expect(cards.length).toBe(1);
+    });
+    const [doneCard] = document.querySelectorAll('.cat-prog-card');
+    expect(doneCard).toHaveClass('cat-prog-card--done');
   });
 });

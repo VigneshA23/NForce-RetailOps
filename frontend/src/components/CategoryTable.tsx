@@ -38,7 +38,7 @@ function CategoryTable({
   }
 
   return (
-    <div className="category-table__card">
+    <div className="category-table__card table-card">
       <div className="table-scroll">
         <table className="data-table">
           <thead>
@@ -75,9 +75,9 @@ function CategoryTable({
                     <GripVertical size={16} />
                   </td>
                 )}
-                <td className="category-table__name">{category.name}</td>
-                <td className="category-table__task-count">{category.taskCount}</td>
-                <td>
+                <td className="category-table__name" data-label="Category Name">{category.name}</td>
+                <td className="category-table__task-count" data-label="Tasks">{category.taskCount}</td>
+                <td data-label="Status">
                   <Toggle
                     checked={category.active}
                     onChange={(checked) => onToggleStatus(category, checked)}
