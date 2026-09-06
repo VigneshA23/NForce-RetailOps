@@ -13,9 +13,16 @@ import CategoryTable from '../components/CategoryTable';
 import CategoryFormModal from '../components/CategoryFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
+import Select from '../components/Select';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Categories.css';
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Status' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
@@ -150,6 +157,34 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
       {statusError && <div className="categories-page__error">{statusError}</div>}
       {reorderError && <div className="categories-page__error">{reorderError}</div>}
 
+      <div className="categories-page__header">
+        <p className="categories-page__summary">
+          {isLoading
+            ? 'Loading categories...'
+            : `${activeCount} active categor${activeCount === 1 ? 'y' : 'ies'} of ${categories.length} total`}
+        </p>
+        <SpecularButton
+          size="sm"
+          radius={999}
+          tint="var(--color-badge-solid-bg)"
+          tintOpacity={1}
+          textColor="var(--color-badge-solid-text)"
+          lineColor="#e11d33"
+          baseColor="#e4e4e7"
+          followMouse
+          proximity={180}
+          onClick={() => {
+            setFormError(null);
+            setFormModalState({ mode: 'create' });
+          }}
+        >
+          <span className="categories-page__add-label">
+            <Plus size={16} />
+            Add Category
+          </span>
+        </SpecularButton>
+      </div>
+
       {loadError ? (
         <div className="categories-page__error">
           {loadError}
@@ -158,47 +193,18 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
           </button>
         </div>
       ) : (
-        <div className="card">
-          <div className="card__header">
-            <h2 className="card__title">All Categories</h2>
-            <div className="card__toolbar">
-              <SpecularButton
-                size="sm"
-                radius={999}
-                tint="var(--color-badge-solid-bg)"
-                tintOpacity={1}
-                textColor="var(--color-badge-solid-text)"
-                lineColor="#e11d33"
-                baseColor="#e4e4e7"
-                followMouse
-                proximity={180}
-                onClick={() => {
-                  setFormError(null);
-                  setFormModalState({ mode: 'create' });
-                }}
-              >
-                <span className="categories-page__add-label">
-                  <Plus size={16} />
-                  Add Category
-                </span>
-              </SpecularButton>
+        <>
+          <div className="filter-bar">
+            <div className="filter filter--search">
+              <SearchInput value={search} onChange={setSearch} placeholder="Search categories" variant="filter" />
             </div>
-          </div>
-
-          <div className="categories-page__filter-bar">
-            <div className="categories-page__filter categories-page__filter--search">
-              <SearchInput value={search} onChange={setSearch} placeholder="Search categories" variant="card" />
-            </div>
-
-            <select
-              className="select categories-page__filter categories-page__filter--status"
+            <Select
+              className="filter filter--narrow"
+              options={STATUS_FILTER_OPTIONS}
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-            >
-              <option value="ALL">All Status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
+              onChange={(value) => setStatusFilter(value as StatusFilter)}
+              ariaLabel="Filter by status"
+            />
           </div>
 
           <CategoryTable
@@ -215,7 +221,7 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
             onToggleStatus={handleToggleStatus}
             onReorder={handleReorder}
           />
-        </div>
+        </>
       )}
 
       <CategoryFormModal

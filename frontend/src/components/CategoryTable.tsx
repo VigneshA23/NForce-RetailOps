@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { GripVertical } from 'lucide-react';
+import { GripVertical, Pencil, Trash2 } from 'lucide-react';
 import type { Category } from '../types/category';
-import RowActionsMenu from './RowActionsMenu';
 import Toggle from './Toggle';
 import './CategoryTable.css';
 
@@ -48,7 +47,7 @@ function CategoryTable({
               <th scope="col">Category Name</th>
               <th scope="col">Tasks</th>
               <th scope="col">Status</th>
-              <th scope="col" className="category-table__actions-cell">Actions</th>
+              <th scope="col" className="task-table__actions-header">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -79,19 +78,33 @@ function CategoryTable({
                 <td className="category-table__name">{category.name}</td>
                 <td className="category-table__task-count">{category.taskCount}</td>
                 <td>
-                  <div className="category-table__status">
-                    <span className={`badge ${category.active ? 'badge--solid' : 'badge--outline'}`}>
-                      {category.active ? 'Active' : 'Inactive'}
-                    </span>
-                    <Toggle
-                      checked={category.active}
-                      onChange={(checked) => onToggleStatus(category, checked)}
-                      label={`${category.active ? 'Deactivate' : 'Activate'} ${category.name}`}
-                    />
-                  </div>
+                  <Toggle
+                    checked={category.active}
+                    onChange={(checked) => onToggleStatus(category, checked)}
+                    label={`${category.active ? 'Deactivate' : 'Activate'} ${category.name}`}
+                  />
                 </td>
-                <td className="category-table__actions-cell">
-                  <RowActionsMenu onEdit={() => onEdit(category)} onDelete={() => onDelete(category)} />
+                <td className="table-actions-cell" data-label="Actions">
+                  <div className="table-row-actions">
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`Edit ${category.name}`}
+                      title="Edit"
+                      onClick={() => onEdit(category)}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn table-icon-btn--danger"
+                      aria-label={`Delete ${category.name}`}
+                      title="Delete"
+                      onClick={() => onDelete(category)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
