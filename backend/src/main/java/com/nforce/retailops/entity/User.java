@@ -37,6 +37,12 @@ public class User {
     @Column(name = "must_reset_password", nullable = false)
     private boolean mustResetPassword = false;
 
+    @Column(name = "phone", columnDefinition = "TEXT")
+    private String phone;
+
+    @Column(name = "gender", columnDefinition = "TEXT")
+    private String gender;
+
     @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
@@ -117,6 +123,22 @@ public class User {
 
     public Set<Role> getRoles() {
         return roles;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
     }
 
     public String getAvatarUrl() {

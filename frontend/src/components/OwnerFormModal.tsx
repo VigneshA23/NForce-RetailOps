@@ -6,6 +6,14 @@ import FormField from './FormField';
 import Select from './Select';
 import './OwnerFormModal.css';
 
+type OwnerGender = 'Male' | 'Female' | 'Non-binary';
+
+const GENDER_OPTIONS = [
+  { value: 'Male', label: 'Male' },
+  { value: 'Female', label: 'Female' },
+  { value: 'Non-binary', label: 'Non-binary' },
+];
+
 interface OwnerFormModalProps {
   isOpen: boolean;
   errorMessage?: string | null;
@@ -17,6 +25,8 @@ interface OwnerFormModalProps {
 interface FormState {
   ownerName: string;
   ownerEmail: string;
+  ownerPhone: string;
+  ownerGender: OwnerGender | '';
   storeMode: OwnerStoreMode;
   storeName: string;
   storeLocation: string;
@@ -26,6 +36,8 @@ interface FormState {
 const EMPTY_VALUES: FormState = {
   ownerName: '',
   ownerEmail: '',
+  ownerPhone: '',
+  ownerGender: '',
   storeMode: 'new',
   storeName: '',
   storeLocation: '',
@@ -71,8 +83,10 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
 
   function validate(): Partial<Record<keyof FormState, string>> {
     const nextErrors: Partial<Record<keyof FormState, string>> = {};
-    if (!values.ownerName.trim()) nextErrors.ownerName = 'Owner name is required';
-    if (!values.ownerEmail.trim()) nextErrors.ownerEmail = 'Owner email is required';
+    if (!values.ownerName.trim()) nextErrors.ownerName = 'Name is required';
+    if (!values.ownerEmail.trim()) nextErrors.ownerEmail = 'Email is required';
+    if (!values.ownerPhone.trim()) nextErrors.ownerPhone = 'Contact number is required';
+    if (!values.ownerGender) nextErrors.ownerGender = 'Gender is required';
     if (values.storeMode === 'new') {
       if (!values.storeName.trim()) nextErrors.storeName = 'Store name is required';
       if (!values.storeLocation.trim()) nextErrors.storeLocation = 'Store location is required';
@@ -94,6 +108,8 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
     const payload: AddOwnerValues = {
       ownerName: values.ownerName.trim(),
       ownerEmail: values.ownerEmail.trim(),
+      ownerPhone: values.ownerPhone.trim(),
+      ownerGender: values.ownerGender as OwnerGender,
     };
     if (values.storeMode === 'new') {
       payload.storeName = values.storeName.trim();
@@ -123,7 +139,7 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
     >
       <form id="owner-form" onSubmit={handleSubmit} noValidate>
         <div className="owner-form__grid">
-          <FormField label="Owner Name" htmlFor="owner-name" error={errors.ownerName}>
+          <FormField label="Name" htmlFor="owner-name" required error={errors.ownerName}>
             <input
               id="owner-name"
               className="input"
@@ -133,13 +149,43 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
             />
           </FormField>
 
-          <FormField label="Owner Email" htmlFor="owner-email" error={errors.ownerEmail}>
+          <FormField label="Email" htmlFor="owner-email" required error={errors.ownerEmail}>
             <input
               id="owner-email"
               type="email"
               className="input"
               value={values.ownerEmail}
               onChange={(event) => updateField('ownerEmail', event.target.value)}
+            />
+          </FormField>
+
+          <FormField label="Contact" htmlFor="owner-phone" required error={errors.ownerPhone}>
+            <input
+              id="owner-phone"
+              type="tel"
+              className="input"
+              value={values.ownerPhone}
+              onChange={(event) => updateField('ownerPhone', event.target.value)}
+              placeholder="e.g. +1 555 000 0000"
+            />
+          </FormField>
+
+          <FormField label="Gender" htmlFor="owner-gender" required error={errors.ownerGender}>
+            <Select
+              id="owner-gender"
+              value={values.ownerGender}
+              onChange={(value) => updateField('ownerGender', value as OwnerGender)}
+              options={[{ value: '', label: 'Select gender' }, ...GENDER_OPTIONS]}
+            />
+          </FormField>
+
+          <FormField label="Owner ID" htmlFor="owner-id">
+            <input
+              id="owner-id"
+              className="input"
+              value="Auto-assigned on save"
+              disabled
+              readOnly
             />
           </FormField>
 
