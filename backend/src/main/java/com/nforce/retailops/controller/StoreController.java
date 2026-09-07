@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.AssignStoreOwnerRequest;
 import com.nforce.retailops.dto.CreateStoreRequest;
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
@@ -71,5 +72,16 @@ public class StoreController {
         @Valid @RequestBody UpdateStoreStatusRequest request
     ) {
         return ResponseEntity.ok(storeService.setStoreActive(id, request.active()));
+    }
+
+    // Assigns or reassigns which owner manages a store.
+    // Guard: target owner must not already manage a different active store.
+    @PatchMapping("/{id}/assign-owner")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<SuperAdminStoreResponse> assignOwner(
+        @PathVariable Long id,
+        @Valid @RequestBody AssignStoreOwnerRequest request
+    ) {
+        return ResponseEntity.ok(storeService.assignOwnerToStore(id, request.ownerId()));
     }
 }

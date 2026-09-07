@@ -1,10 +1,11 @@
-import { Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import type { OwnerSummary } from '../types/owner';
 import './OwnerTable.css';
 
 export interface GroupedOwner {
   ownerId: number;
+  adminCode: string;
   ownerName: string;
   ownerEmail: string;
   ownerActive: boolean;
@@ -25,6 +26,7 @@ function groupOwners(owners: OwnerSummary[]): GroupedOwner[] {
     } else {
       groups.set(row.ownerId, {
         ownerId: row.ownerId,
+        adminCode: row.adminCode,
         ownerName: row.ownerName,
         ownerEmail: row.ownerEmail,
         ownerActive: row.ownerActive,
@@ -44,7 +46,7 @@ interface OwnerTableProps {
   onToggleStatus: (owner: GroupedOwner) => void;
   onDeactivate: (owner: GroupedOwner) => void;
   onAddStore: (owner: GroupedOwner) => void;
-  onViewChecklist: (store: OwnerSummary) => void;
+  onView: (owner: GroupedOwner) => void;
 }
 
 function OwnerTable({
@@ -55,7 +57,7 @@ function OwnerTable({
   onToggleStatus,
   onDeactivate,
   onAddStore,
-  onViewChecklist,
+  onView,
 }: OwnerTableProps) {
   const grouped = useMemo(() => groupOwners(owners), [owners]);
 
@@ -77,7 +79,7 @@ function OwnerTable({
             {grouped.map((owner) => (
               <tr key={owner.ownerId}>
                 <td data-label="ID">
-                  <span className="owner-table__id">#{owner.ownerId}</span>
+                  <span className="owner-table__id">{owner.adminCode}</span>
                 </td>
                 <td className="owner-table__name" data-label="Name">
                   {owner.ownerName}
@@ -122,6 +124,15 @@ function OwnerTable({
                     <button
                       type="button"
                       className="table-icon-btn"
+                      aria-label={`View details for ${owner.ownerName}`}
+                      title="View details"
+                      onClick={() => onView(owner)}
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn"
                       aria-label={`Edit ${owner.ownerName}`}
                       title="Edit owner"
                       onClick={() => onEdit(owner)}
@@ -148,16 +159,6 @@ function OwnerTable({
                       >
                         <StoreIcon size={14} />
                         <span>Add Store</span>
-                      </button>
-                    )}
-                    {owner.activeStore && (
-                      <button
-                        type="button"
-                        className="table-icon-btn table-icon-btn--text"
-                        aria-label={`View checklist for ${owner.activeStore.storeName ?? owner.ownerName}`}
-                        onClick={() => onViewChecklist(owner.activeStore!)}
-                      >
-                        View
                       </button>
                     )}
                   </div>

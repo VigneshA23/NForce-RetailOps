@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { Eye, Trash2, UserRoundCog } from 'lucide-react';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import './SuperAdminStoreTable.css';
 
@@ -8,6 +8,7 @@ interface SuperAdminStoreTableProps {
   emptyMessage?: string;
   onViewDetails: (store: SuperAdminStore) => void;
   onToggleStatus: (store: SuperAdminStore) => void;
+  onAssignOwner: (store: SuperAdminStore) => void;
   onDelete: (store: SuperAdminStore) => void;
 }
 
@@ -17,6 +18,7 @@ function SuperAdminStoreTable({
   emptyMessage = 'No stores match your filters.',
   onViewDetails,
   onToggleStatus,
+  onAssignOwner,
   onDelete,
 }: SuperAdminStoreTableProps) {
   return (
@@ -28,7 +30,6 @@ function SuperAdminStoreTable({
               <th scope="col">Store</th>
               <th scope="col">Owner</th>
               <th scope="col">Employees</th>
-              <th scope="col">Tasks</th>
               <th scope="col">Status</th>
               <th scope="col">Actions</th>
             </tr>
@@ -50,7 +51,6 @@ function SuperAdminStoreTable({
                   {store.ownerAccessActive ? store.ownerName : <span className="badge badge--outline">Unassigned</span>}
                 </td>
                 <td data-label="Employees">{store.employeeCount}</td>
-                <td data-label="Tasks">{store.taskCount}</td>
                 <td data-label="Status">
                   <label
                     className="status-toggle"
@@ -71,11 +71,21 @@ function SuperAdminStoreTable({
                   <div className="table-row-actions">
                     <button
                       type="button"
-                      className="table-icon-btn table-icon-btn--text"
+                      className="table-icon-btn"
                       aria-label={`View ${store.storeName}`}
+                      title="View checklist"
                       onClick={() => onViewDetails(store)}
                     >
-                      View
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`Assign owner to ${store.storeName}`}
+                      title="Assign owner"
+                      onClick={() => onAssignOwner(store)}
+                    >
+                      <UserRoundCog size={16} />
                     </button>
                     <button
                       type="button"

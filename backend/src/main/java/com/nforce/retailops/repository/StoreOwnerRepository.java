@@ -17,6 +17,10 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     boolean existsByOwnerIdAndActiveTrue(Long ownerId);
 
+    // Used when reassigning a store's owner -- checks if the target owner already
+    // manages a DIFFERENT store (excluding the store being reassigned).
+    boolean existsByOwnerIdAndActiveTrueAndStoreIdNot(Long ownerId, Long storeId);
+
     // Batched form of findByOwnerId, for listing many owners at once without one
     // query per owner.
     @Query("select so from StoreOwner so join fetch so.store join fetch so.owner where so.owner.id in :ownerIds")

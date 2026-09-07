@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CircleCheck, Plus, Store as StoreIcon, Users } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { createStandaloneStore, deleteStore, getAllStores, updateStoreStatus } from '../api/superAdminStores';
+import { assignStoreOwner, createStandaloneStore, deleteStore, getAllStores, updateStoreStatus } from '../api/superAdminStores';
+import { getOwners } from '../api/owners';
+import type { OwnerSummary } from '../types/owner';
 import type { CreateStoreValues, SuperAdminStore } from '../types/superAdminStore';
 import SuperAdminStoreTable from '../components/SuperAdminStoreTable';
 import AddStoreModal from '../components/AddStoreModal';
+import AssignStoreOwnerModal from '../components/AssignStoreOwnerModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
@@ -13,20 +16,8 @@ import StatCard from '../components/StatCard';
 import './SuperAdminStores.css';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
-type CountComparator = 'ANY' | 'GT' | 'LT' | 'EQ';
 
 const PAGE_SIZE = 10;
-
-// Any comparator whose value box is empty or non-numeric doesn't filter --
-// only an actually-entered number narrows the results.
-function matchesCount(count: number, comparator: CountComparator, rawValue: string): boolean {
-  if (comparator === 'ANY') return true;
-  const value = Number(rawValue);
-  if (rawValue.trim() === '' || Number.isNaN(value)) return true;
-  if (comparator === 'GT') return count > value;
-  if (comparator === 'LT') return count < value;
-  return count === value;
-}
 
 interface SuperAdminStoresProps {
   onNavigateToChecklist: (storeId: number) => void;
@@ -43,12 +34,14 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
   const [deleteTarget, setDeleteTarget] = useState<SuperAdminStore | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // Assign-owner modal
+  const [assignTarget, setAssignTarget] = useState<SuperAdminStore | null>(null);
+  const [allOwners, setAllOwners] = useState<OwnerSummary[]>([]);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [isAssigning, setIsAssigning] = useState(false);
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
-  const [employeeComparator, setEmployeeComparator] = useState<CountComparator>('ANY');
-  const [employeeValue, setEmployeeValue] = useState('');
-  const [taskComparator, setTaskComparator] = useState<CountComparator>('ANY');
-  const [taskValue, setTaskValue] = useState('');
   const [page, setPage] = useState(1);
 
   function loadStores() {
@@ -62,6 +55,7 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
 
   useEffect(() => {
     loadStores();
+    getOwners().then(setAllOwners).catch(() => {});
   }, []);
 
   async function handleFormSubmit(values: CreateStoreValues) {
@@ -84,7 +78,6 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
   async function handleToggleStatus(store: SuperAdminStore) {
     setStatusError(null);
     const nextActive = !store.storeActive;
-    // Optimistic update so the toggle responds immediately; reverted below on failure.
     setStores((current) =>
       current.map((s) => (s.storeId === store.storeId ? { ...s, storeActive: nextActive } : s)),
     );
@@ -116,6 +109,33 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
     }
   }
 
+  // Owners available to assign: those without an active store.
+  // A store with storeActive=null means there's no active StoreOwner record for that owner.
+  const availableOwners = useMemo(
+    () => allOwners.filter((o) => o.ownerActive && (o.storeId === null || o.storeActive !== true)),
+    [allOwners],
+  );
+
+  async function handleAssignOwner(ownerId: number) {
+    if (!assignTarget) return;
+    setAssignError(null);
+    setIsAssigning(true);
+    try {
+      const updated = await assignStoreOwner(assignTarget.storeId, ownerId);
+      setStores((current) => current.map((s) => (s.storeId === updated.storeId ? updated : s)));
+      // Refresh owners list so the just-assigned owner no longer shows as available.
+      getOwners().then(setAllOwners).catch(() => {});
+      setAssignTarget(null);
+      nfToast.success(`Owner assigned to "${updated.storeName}".`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to assign owner';
+      setAssignError(msg);
+      nfToast.error(msg);
+    } finally {
+      setIsAssigning(false);
+    }
+  }
+
   const filteredStores = useMemo(() => {
     const query = search.trim().toLowerCase();
     return stores.filter((store) => {
@@ -129,21 +149,18 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
       }
       if (statusFilter === 'ACTIVE' && !store.storeActive) return false;
       if (statusFilter === 'INACTIVE' && store.storeActive) return false;
-      if (!matchesCount(store.employeeCount, employeeComparator, employeeValue)) return false;
-      if (!matchesCount(store.taskCount, taskComparator, taskValue)) return false;
       return true;
     });
-  }, [stores, search, statusFilter, employeeComparator, employeeValue, taskComparator, taskValue]);
+  }, [stores, search, statusFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, employeeComparator, employeeValue, taskComparator, taskValue]);
+  }, [search, statusFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredStores.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
   const pagedStores = filteredStores.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  // Stat cards always summarize every store, not just the filtered/paged subset.
   const activeCount = useMemo(() => stores.filter((store) => store.storeActive).length, [stores]);
   const totalEmployeeCount = useMemo(
     () => stores.reduce((sum, store) => sum + store.employeeCount, 0),
@@ -196,53 +213,6 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
           <option value="INACTIVE">Inactive</option>
         </select>
 
-        <div className="filter super-admin-stores-page__count-filter">
-          <select
-            className="select"
-            value={employeeComparator}
-            onChange={(event) => setEmployeeComparator(event.target.value as CountComparator)}
-            aria-label="Employees filter"
-          >
-            <option value="ANY">Employees: Any</option>
-            <option value="GT">Employees &gt;</option>
-            <option value="LT">Employees &lt;</option>
-            <option value="EQ">Employees =</option>
-          </select>
-          <input
-            type="number"
-            min={0}
-            className="input"
-            value={employeeValue}
-            onChange={(event) => setEmployeeValue(event.target.value)}
-            disabled={employeeComparator === 'ANY'}
-            placeholder="0"
-            aria-label="Employees count"
-          />
-        </div>
-
-        <div className="filter super-admin-stores-page__count-filter">
-          <select
-            className="select"
-            value={taskComparator}
-            onChange={(event) => setTaskComparator(event.target.value as CountComparator)}
-            aria-label="Tasks filter"
-          >
-            <option value="ANY">Tasks: Any</option>
-            <option value="GT">Tasks &gt;</option>
-            <option value="LT">Tasks &lt;</option>
-            <option value="EQ">Tasks =</option>
-          </select>
-          <input
-            type="number"
-            min={0}
-            className="input"
-            value={taskValue}
-            onChange={(event) => setTaskValue(event.target.value)}
-            disabled={taskComparator === 'ANY'}
-            placeholder="0"
-            aria-label="Tasks count"
-          />
-        </div>
       </div>
 
       {statusError && (
@@ -268,6 +238,10 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
             emptyMessage={stores.length === 0 ? 'No stores yet.' : 'No stores match your filters.'}
             onViewDetails={(store) => onNavigateToChecklist(store.storeId)}
             onToggleStatus={handleToggleStatus}
+            onAssignOwner={(store) => {
+              setAssignError(null);
+              setAssignTarget(store);
+            }}
             onDelete={(store) => {
               setDeleteError(null);
               setDeleteTarget(store);
@@ -289,6 +263,18 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
         isSubmitting={isSubmitting}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
+      />
+
+      <AssignStoreOwnerModal
+        store={assignTarget}
+        availableOwners={availableOwners}
+        isSubmitting={isAssigning}
+        errorMessage={assignError}
+        onClose={() => {
+          setAssignError(null);
+          setAssignTarget(null);
+        }}
+        onSubmit={handleAssignOwner}
       />
 
       <ConfirmDialog
