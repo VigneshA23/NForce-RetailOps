@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, Building2, CircleCheck, Percent, Store as StoreIcon } from 'lucide-react';
-import { getPlatformStats, getOperationsOverview } from '../api/superAdminOperations';
-import type { PlatformStats, StoreOperationsSummary } from '../api/superAdminOperations';
+import { getPlatformStats, getOperationsOverview, getPlatformTrend } from '../api/superAdminOperations';
+import type { PlatformStats, StoreOperationsSummary, TrendDataPoint } from '../api/superAdminOperations';
 import type { OwnerSummary } from '../types/owner';
 import StatCard from '../components/StatCard';
 import StoreComparisonTable from '../components/StoreComparisonTable';
+import StoreComparisonDetailModal from '../components/StoreComparisonDetailModal';
+import TrendChart from '../components/TrendChart';
 import './SuperAdminHome.css';
 
 interface SuperAdminHomeProps {
@@ -13,10 +15,19 @@ interface SuperAdminHomeProps {
   onStoreClick?: (storeId: number) => void;
 }
 
+const TREND_PERIODS = [
+  { label: '7d', days: 7 },
+  { label: '30d', days: 30 },
+] as const;
+
 function SuperAdminHome({ owners, ownersLoading, onStoreClick }: SuperAdminHomeProps) {
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [overview, setOverview] = useState<StoreOperationsSummary[] | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
+  const [trendDays, setTrendDays] = useState<7 | 30>(30);
+  const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
+  const [trendLoading, setTrendLoading] = useState(true);
+  const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -37,6 +48,15 @@ function SuperAdminHome({ owners, ownersLoading, onStoreClick }: SuperAdminHomeP
 
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    setTrendLoading(true);
+    getPlatformTrend(trendDays)
+      .then((data) => { if (active) { setTrendData(data); setTrendLoading(false); } })
+      .catch(() => { if (active) setTrendLoading(false); });
+    return () => { active = false; };
+  }, [trendDays]);
 
   const uniqueOwnerCount = useMemo(
     () => new Set(owners.map((o) => o.ownerId)).size,
@@ -90,6 +110,25 @@ function SuperAdminHome({ owners, ownersLoading, onStoreClick }: SuperAdminHomeP
         )}
       </div>
 
+      <div className="sa-home__trend-section">
+        <div className="sa-home__trend-header">
+          <h2 className="sa-home__section-title" style={{ margin: 0 }}>Platform Completion Trend</h2>
+          <div className="sa-home__trend-toggle">
+            {TREND_PERIODS.map((p) => (
+              <button
+                key={p.days}
+                type="button"
+                className={`sa-home__trend-btn${trendDays === p.days ? ' sa-home__trend-btn--active' : ''}`}
+                onClick={() => setTrendDays(p.days as 7 | 30)}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <TrendChart data={trendData} loading={trendLoading} height={200} />
+      </div>
+
       {needsAttention.length > 0 && (
         <div className="sa-home__attention">
           <h3 className="sa-home__attention-title">Needs Attention</h3>
@@ -109,6 +148,12 @@ function SuperAdminHome({ owners, ownersLoading, onStoreClick }: SuperAdminHomeP
         stores={overview ?? []}
         isLoading={overviewLoading}
         onStoreClick={onStoreClick}
+        onViewDetail={setDetailStore}
+      />
+
+      <StoreComparisonDetailModal
+        store={detailStore}
+        onClose={() => setDetailStore(null)}
       />
     </div>
   );

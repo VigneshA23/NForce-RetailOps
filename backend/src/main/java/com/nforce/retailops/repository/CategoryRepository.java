@@ -1,6 +1,7 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.Category;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -37,4 +38,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     boolean existsByOwnerIdAndNameIgnoreCaseAndIdNot(Long ownerId, String name, Long id);
 
     int countByOwnerId(Long ownerId);
+
+    @Query("select c from Category c where c.owner.id = :ownerId "
+        + "and lower(c.name) like lower(concat('%', :q, '%')) order by c.name")
+    List<Category> searchByOwnerIdAndName(@Param("ownerId") Long ownerId, @Param("q") String q, Pageable pageable);
 }

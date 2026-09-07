@@ -2,10 +2,12 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.PlatformStatsResponse;
 import com.nforce.retailops.dto.StoreOperationsSummaryResponse;
+import com.nforce.retailops.dto.TrendDataPoint;
 import com.nforce.retailops.service.SuperAdminOperationsService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,5 +38,18 @@ public class SuperAdminOperationsController {
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         return service.getPlatformStats(date != null ? date : LocalDate.now());
+    }
+
+    @GetMapping("/platform-trend")
+    public List<TrendDataPoint> getPlatformTrend(@RequestParam(defaultValue = "30") int days) {
+        return service.getPlatformTrend(days);
+    }
+
+    @GetMapping("/stores/{storeId}/trend")
+    public List<TrendDataPoint> getStoreTrend(
+        @PathVariable long storeId,
+        @RequestParam(defaultValue = "30") int days
+    ) {
+        return service.getStoreTrend(storeId, days);
     }
 }

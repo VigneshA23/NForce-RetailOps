@@ -27,3 +27,16 @@ export async function getPlatformStats(date?: string): Promise<PlatformStats> {
   const params = date ? `?date=${date}` : '';
   return apiRequest<PlatformStats>(`/super-admin/platform-stats${params}`);
 }
+
+export interface TrendDataPoint {
+  date: string;
+  completionPercent: number;
+}
+
+export async function getPlatformTrend(days: number): Promise<TrendDataPoint[]> {
+  return apiRequest<TrendDataPoint[]>(`/super-admin/platform-trend?days=${days}`);
+}
+
+export async function getStoreTrend(storeId: number, days: number): Promise<TrendDataPoint[]> {
+  return apiRequest<TrendDataPoint[]>(`/super-admin/stores/${storeId}/trend?days=${days}`);
+}
