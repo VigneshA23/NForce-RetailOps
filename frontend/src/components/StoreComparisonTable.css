@@ -82,7 +82,7 @@
   margin: 0;
   font: inherit;
   font-weight: 600;
-  color: var(--color-primary, #2563eb);
+  color: #2563eb;
   cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;

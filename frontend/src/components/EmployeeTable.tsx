@@ -1,5 +1,7 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import type { Employee } from '../types/employee';
+import UserAvatar from './UserAvatar';
+import { getInitials } from '../utils/initials';
 import './EmployeeTable.css';
 
 interface EmployeeTableProps {
@@ -48,7 +50,12 @@ function EmployeeTable({
                     {employee.empId}
                   </button>
                 </td>
-                <td className="employee-table__name" data-label="Employee Name">{employee.name}</td>
+                <td className="employee-table__name" data-label="Employee Name">
+                  <div className="employee-table__name-cell">
+                    <UserAvatar initials={getInitials(employee.name)} src={employee.avatarUrl} size={28} />
+                    <span>{employee.name}</span>
+                  </div>
+                </td>
                 <td data-label="Contact">{employee.phone}</td>
                 <td data-label="Status">
                   <label
@@ -68,6 +75,15 @@ function EmployeeTable({
                 </td>
                 <td className="table-actions-cell" data-label="Actions">
                   <div className="table-row-actions">
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`View ${employee.name}`}
+                      title="View details"
+                      onClick={() => onViewDetails(employee)}
+                    >
+                      <Eye size={16} />
+                    </button>
                     <button
                       type="button"
                       className="table-icon-btn"

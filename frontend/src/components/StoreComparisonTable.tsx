@@ -1,3 +1,4 @@
+import { Eye } from 'lucide-react';
 import type { StoreOperationsSummary } from '../api/superAdminOperations';
 import './StoreComparisonTable.css';
 
@@ -5,6 +6,7 @@ interface StoreComparisonTableProps {
   stores: StoreOperationsSummary[];
   isLoading: boolean;
   onStoreClick?: (storeId: number) => void;
+  onViewDetail?: (store: StoreOperationsSummary) => void;
 }
 
 function completionTone(percent: number): string {
@@ -24,7 +26,7 @@ function relativeTime(isoString: string | null): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
-function StoreComparisonTable({ stores, isLoading, onStoreClick }: StoreComparisonTableProps) {
+function StoreComparisonTable({ stores, isLoading, onStoreClick, onViewDetail }: StoreComparisonTableProps) {
   if (isLoading) {
     return <div className="sct__loading">Loading stores…</div>;
   }
@@ -43,6 +45,7 @@ function StoreComparisonTable({ stores, isLoading, onStoreClick }: StoreComparis
             <th className="sct__th sct__th--center">Today's Completion</th>
             <th className="sct__th sct__th--center">Open Issues</th>
             <th className="sct__th sct__th--right">Last Activity</th>
+            {onViewDetail && <th className="sct__th sct__th--center" aria-label="Actions" />}
           </tr>
         </thead>
         <tbody>
@@ -79,6 +82,19 @@ function StoreComparisonTable({ stores, isLoading, onStoreClick }: StoreComparis
                 <td className="sct__td sct__td--right sct__td--muted">
                   {relativeTime(store.lastActivityAt)}
                 </td>
+                {onViewDetail && (
+                  <td className="sct__td sct__td--center">
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`View category detail for ${store.storeName}`}
+                      title="View category detail"
+                      onClick={() => onViewDetail(store)}
+                    >
+                      <Eye size={15} />
+                    </button>
+                  </td>
+                )}
               </tr>
             );
           })}

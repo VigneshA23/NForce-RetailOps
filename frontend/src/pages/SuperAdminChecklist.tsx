@@ -3,10 +3,15 @@ import { Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clipboa
 import SearchInput from '../components/SearchInput';
 import Select, { type SelectOption } from '../components/Select';
 import StatCard from '../components/StatCard';
+import UserAvatar from '../components/UserAvatar';
 import { getInitials } from '../utils/initials';
 import { getChecklistHistoryDetail } from '../api/checklistHistory';
+import type { ChecklistHistoryResponseEntry } from '../types/checklistHistory';
+import { getStoreTrend } from '../api/superAdminOperations';
+import type { TrendDataPoint } from '../api/superAdminOperations';
 import type { ChecklistHistoryDetail } from '../types/checklistHistory';
 import StoreDetailTable, { type StoreDetailRow } from '../components/StoreDetailTable';
+import TrendChart from '../components/TrendChart';
 import CalendarPopover from '../components/CalendarPopover';
 import ExportMenu from '../components/ExportMenu';
 import { taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, formatDateNavLabel } from '../utils/checklistHistoryOptions';
@@ -46,6 +51,10 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [filter, setFilter] = useState<FilterKey>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+
+  const [storeTrendDays, setStoreTrendDays] = useState<7 | 30>(30);
+  const [storeTrendData, setStoreTrendData] = useState<TrendDataPoint[]>([]);
+  const [storeTrendLoading, setStoreTrendLoading] = useState(false);
 
   const isToday = date === todayDate();
 
@@ -93,6 +102,16 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStoreId, date, isToday]);
+
+  useEffect(() => {
+    if (selectedStoreId === null) { setStoreTrendData([]); return; }
+    let active = true;
+    setStoreTrendLoading(true);
+    getStoreTrend(selectedStoreId, storeTrendDays)
+      .then((data) => { if (active) { setStoreTrendData(data); setStoreTrendLoading(false); } })
+      .catch(() => { if (active) setStoreTrendLoading(false); });
+    return () => { active = false; };
+  }, [selectedStoreId, storeTrendDays]);
 
   const rows = useMemo<StoreDetailRow[]>(() => {
     if (!detail) return [];
@@ -201,14 +220,14 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
 
   const employeeContributions = useMemo(() => {
     if (!detail) return [];
-    type EmpData = { totalResponses: number; issueCount: number; byCategory: Map<string, number> };
+    type EmpData = { totalResponses: number; issueCount: number; byCategory: Map<string, number>; avatarUrl?: string | null };
     const byEmployee = new Map<string, EmpData>();
     for (const category of detail.categories) {
       for (const task of category.tasks) {
         for (const response of task.responses) {
           const name = response.employeeFullName;
           if (!byEmployee.has(name)) {
-            byEmployee.set(name, { totalResponses: 0, issueCount: 0, byCategory: new Map() });
+            byEmployee.set(name, { totalResponses: 0, issueCount: 0, byCategory: new Map(), avatarUrl: response.employeeAvatarUrl });
           }
           const emp = byEmployee.get(name)!;
           emp.totalResponses += 1;
@@ -222,6 +241,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     return Array.from(byEmployee.entries())
       .map(([name, data]) => ({
         name,
+        avatarUrl: data.avatarUrl,
         totalResponses: data.totalResponses,
         issueCount: data.issueCount,
         categoryBreakdown: Array.from(data.byCategory.entries()).map(([categoryName, count]) => ({
@@ -261,6 +281,23 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
       });
   }, [rows, isToday]);
 
+  function handleResponseCorrected(taskId: number, updatedResponse: ChecklistHistoryResponseEntry) {
+    setDetail((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        categories: prev.categories.map((category) => ({
+          ...category,
+          tasks: category.tasks.map((task) =>
+            task.id !== taskId
+              ? task
+              : { ...task, responses: task.responses.map((r) => (r.id === updatedResponse.id ? updatedResponse : r)) },
+          ),
+        })),
+      };
+    });
+  }
+
   const [outstandingOpen, setOutstandingOpen] = useState(false);
   useEffect(() => {
     setOutstandingOpen(counts.issues > 0);
@@ -288,89 +325,75 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
 
   return (
     <div className="sa-checklist">
-      {/* Store selector */}
-      <div className="sa-checklist__selector-bar">
-        <label htmlFor="sa-store-select" className="sa-checklist__selector-label">
-          Store
-        </label>
-        <select
-          id="sa-store-select"
-          className="select sa-checklist__store-select"
-          value={selectedStoreId ?? ''}
-          onChange={(e) => {
-            const val = e.target.value;
-            setSelectedStoreId(val ? Number(val) : null);
-          }}
-          disabled={storesLoading}
-        >
-          <option value="">Select a store…</option>
-          {storeOptions.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {selectedStoreId === null ? (
-        <div className="sa-checklist__empty-state">
-          <ClipboardList size={40} className="sa-checklist__empty-icon" />
-          <p>Select a store above to view its checklist.</p>
-        </div>
-      ) : (
-        <div className="store-detail-page">
-          <div className="store-detail-page__header">
-            <div className="store-detail-page__heading-row">
-              <div className="store-detail-page__heading-left">
-                <h1 className="store-detail-page__heading">Daily checklist</h1>
-                {isToday ? (
-                  <span className="store-detail-page__mode-badge store-detail-page__mode-badge--live">
-                    ● Live
-                  </span>
-                ) : (
-                  <span className="store-detail-page__mode-badge store-detail-page__mode-badge--historical">
-                    📋 Historical
-                  </span>
-                )}
-              </div>
+      <div className="store-detail-page">
+        <div className="store-detail-page__filters">
+          <div className="store-detail-page__date-nav-row sa-checklist__top-row">
+            {/* Date nav — LEFT */}
+            <div className="store-detail-page__date-nav">
+              <button
+                type="button"
+                className="store-detail-page__date-arrow"
+                onClick={() => setDate(stepDate(date, -1))}
+                aria-label="Previous day"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                ref={dateTriggerRef}
+                type="button"
+                className="store-detail-page__date-display"
+                onClick={() => setPickerOpen((v) => !v)}
+                aria-expanded={pickerOpen}
+                aria-label="Pick a date"
+              >
+                <Calendar size={13} />
+                {formatDateNavLabel(date)}
+              </button>
+              <button
+                type="button"
+                className="store-detail-page__date-arrow"
+                onClick={() => setDate(stepDate(date, 1))}
+                disabled={date >= todayDate()}
+                aria-label="Next day"
+              >
+                <ChevronRight size={16} />
+              </button>
             </div>
-            <p className="store-detail-page__subheading">Every task for this store, with who recorded it.</p>
+            {/* Live / Historical badge — same logic as Admin's checklist */}
+            {isToday ? (
+              <span className="store-detail-page__mode-badge store-detail-page__mode-badge--live">
+                ● Live
+              </span>
+            ) : (
+              <span className="store-detail-page__mode-badge store-detail-page__mode-badge--historical">
+                📋 Historical
+              </span>
+            )}
+            {/* Spacer pushes store selector to the right */}
+            <div style={{ flex: 1 }} />
+            {/* Store selector — RIGHT, amber accent when no store selected */}
+            <select
+              id="sa-store-select"
+              className={`select sa-checklist__store-select${selectedStoreId === null ? ' sa-checklist__store-select--unselected' : ''}`}
+              value={selectedStoreId !== null ? String(selectedStoreId) : ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedStoreId(val ? Number(val) : null);
+              }}
+              disabled={storesLoading}
+            >
+              {storesLoading && selectedStoreId !== null
+                ? <option value={String(selectedStoreId)}>Loading stores…</option>
+                : <option value="">Select a store…</option>
+              }
+              {storeOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            {selectedStoreId !== null && <ExportMenu storeId={selectedStoreId} date={date} />}
           </div>
-
-          <div className="store-detail-page__filters">
-            <div className="store-detail-page__date-nav-row">
-              <div className="store-detail-page__date-nav">
-                <button
-                  type="button"
-                  className="store-detail-page__date-arrow"
-                  onClick={() => setDate(stepDate(date, -1))}
-                  aria-label="Previous day"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  ref={dateTriggerRef}
-                  type="button"
-                  className="store-detail-page__date-display"
-                  onClick={() => setPickerOpen((v) => !v)}
-                  aria-expanded={pickerOpen}
-                  aria-label="Pick a date"
-                >
-                  <Calendar size={13} />
-                  {formatDateNavLabel(date)}
-                </button>
-                <button
-                  type="button"
-                  className="store-detail-page__date-arrow"
-                  onClick={() => setDate(stepDate(date, 1))}
-                  disabled={date >= todayDate()}
-                  aria-label="Next day"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-              <ExportMenu storeId={selectedStoreId} date={date} />
-            </div>
             <CalendarPopover
               value={date}
               max={todayDate()}
@@ -406,7 +429,8 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             </div>
           </div>
 
-          <div className="stat-card-row store-detail-page__stat-row">
+          {/* Stat tiles always visible — zero values before store selected */}
+          <><div className="stat-card-row store-detail-page__stat-row">
             <StatCard icon={ClipboardList} label="Total Tasks" value={counts.total} tone="info" />
             <StatCard icon={CheckCircle2} label="Completed" value={counts.completed} tone="success" />
             <StatCard icon={Clock} label="No Response" value={counts.open} tone="warning" />
@@ -437,7 +461,28 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             </p>
           )}
 
-          {employeeContributions.length > 0 && (
+          {selectedStoreId !== null && (
+            <div className="sa-checklist__trend-section">
+              <div className="sa-checklist__trend-header">
+                <span className="sa-checklist__trend-title">Store Completion Trend</span>
+                <div className="sa-checklist__trend-toggle">
+                  {([7, 30] as const).map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`sa-checklist__trend-btn${storeTrendDays === d ? ' sa-checklist__trend-btn--active' : ''}`}
+                      onClick={() => setStoreTrendDays(d)}
+                    >
+                      {d}d
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <TrendChart data={storeTrendData} loading={storeTrendLoading} height={140} compact />
+            </div>
+          )}
+
+          {selectedStoreId !== null && employeeContributions.length > 0 && (
             <div className="store-detail-page__contributions">
               <h2 className="store-detail-page__contributions-title">Employee Contributions</h2>
               {employeeContributions.map((emp) => {
@@ -451,9 +496,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                       onClick={() => toggleEmployeeExpanded(emp.name)}
                       aria-expanded={isExpanded}
                     >
-                      <span className="store-detail-contrib__avatar" aria-hidden="true">
-                        {getInitials(emp.name)}
-                      </span>
+                      <UserAvatar initials={getInitials(emp.name)} src={emp.avatarUrl} size={28} />
                       <span className="store-detail-contrib__name">{emp.name}</span>
                       <span className="store-detail-contrib__bar-wrap" aria-hidden="true">
                         <span
@@ -488,7 +531,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             </div>
           )}
 
-          {isToday && outstandingRows.length > 0 && (
+          {selectedStoreId !== null && isToday && outstandingRows.length > 0 && (
             <div className="store-detail-outstanding">
               <button
                 type="button"
@@ -573,7 +616,13 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             )}
           </div>
 
-          {detailError ? (
+          {selectedStoreId === null ? (
+            <div className="table-card">
+              <div className="table-card__empty sa-checklist__no-store-msg">
+                Select a store above to view its daily checklist.
+              </div>
+            </div>
+          ) : detailError ? (
             <div className="store-detail-page__error">
               {detailError}
               <button
@@ -585,17 +634,16 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
               </button>
             </div>
           ) : (
-            /* Intentionally no onResponseCorrected — Super Admin is view-only for corrections.
-               The pencil button in StoreDetailTable is gated by that prop's presence. */
             <StoreDetailTable
               rows={filteredRows}
               isLoading={detailLoading}
               hasChecklist={detail?.hasChecklist ?? false}
               repeatOffenderMap={repeatOffenderMap}
+              onResponseCorrected={handleResponseCorrected}
+              onResponseFlagged={handleResponseCorrected}
             />
-          )}
-        </div>
-      )}
+          )}</>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 @import '../styles/breakpoints.css';
 
 .employee-table__emp-id {
-  color: var(--color-accent);
+  color: var(--color-text-primary);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
@@ -21,4 +21,35 @@
 .employee-table__name {
   font-weight: 600;
   color: var(--color-text-primary);
+}
+
+.employee-table__name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.employee-table__name-cell .user-avatar {
+  flex-shrink: 0;
+}
+
+.employee-table__store-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.employee-table__store-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+  white-space: nowrap;
+}
+
+.employee-table__no-stores {
+  color: var(--color-text-muted);
 }
