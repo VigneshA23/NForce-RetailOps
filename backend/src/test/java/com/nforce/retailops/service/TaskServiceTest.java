@@ -14,6 +14,7 @@ import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.CategoryInactiveException;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
 import com.nforce.retailops.exception.TaskAlreadyCompletedException;
 import com.nforce.retailops.exception.TaskHasHistoryException;
@@ -218,6 +219,49 @@ class TaskServiceTest {
         TaskResponse response = taskService.createTask(OWNER_ID, request);
 
         assertThat(response.displayOrder()).isEqualTo(7);
+    }
+
+    @Test
+    void creatingATaskWithAnInactiveCategoryIsRejected() {
+        category.setActive(false);
+        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+
+        assertThatThrownBy(() -> taskService.createTask(OWNER_ID, requestWithResponseType(ResponseType.YES_NO, null)))
+            .isInstanceOf(CategoryInactiveException.class);
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void updatingATaskToADifferentInactiveCategoryIsRejected() {
+        category.setActive(false);
+        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", 9L);
+        Category previousCategory = new Category();
+        ReflectionTestUtils.setField(previousCategory, "id", 999L);
+        task.setCategory(previousCategory);
+        when(taskRepository.findByIdAndOwnerId(9L, OWNER_ID)).thenReturn(Optional.of(task));
+
+        assertThatThrownBy(() -> taskService.updateTask(OWNER_ID, 9L, requestWithResponseType(ResponseType.YES_NO, null)))
+            .isInstanceOf(CategoryInactiveException.class);
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void updatingATaskWithoutChangingItsInactiveCategorySucceeds() {
+        category.setActive(false);
+        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", 9L);
+        task.setCategory(category);
+        when(taskRepository.findByIdAndOwnerId(9L, OWNER_ID)).thenReturn(Optional.of(task));
+
+        TaskResponse response = taskService.updateTask(OWNER_ID, 9L, requestWithResponseType(ResponseType.YES_NO, null));
+
+        assertThat(response.categoryId()).isEqualTo(CATEGORY_ID);
     }
 
     @Test

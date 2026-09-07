@@ -266,6 +266,7 @@ function App() {
           setActiveStoreId(store.id)
           setActiveStore(store)
         }}
+        onReload={reloadStores}
         onLogout={handleLogout}
         loggingOut={loggingOut}
       />

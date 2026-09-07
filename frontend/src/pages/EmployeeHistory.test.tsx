@@ -14,7 +14,7 @@ const mockGetShiftHistory = vi.mocked(historyApi.getShiftHistory)
 const STORE: StoreSummary = { id: 1, name: 'Downtown', location: null, status: 'Open' }
 
 function emptyHistory(storeId: number, date: string): ShiftHistory {
-  return { date, storeId, hasChecklist: false, categories: [] }
+  return { date, storeId, hasChecklist: false, categories: [], issues: [] }
 }
 
 // Mirrors EmployeeHistory's own formatDateLabel exactly, rather than
@@ -91,6 +91,7 @@ describe('EmployeeHistory task responder list', () => {
       date: '2026-09-02',
       storeId: 1,
       hasChecklist: true,
+      issues: [],
       categories: [
         {
           id: 10,
@@ -126,6 +127,7 @@ describe('EmployeeHistory task responder list', () => {
       date: '2026-09-02',
       storeId: 1,
       hasChecklist: true,
+      issues: [],
       categories: [
         {
           id: 10,
@@ -150,5 +152,66 @@ describe('EmployeeHistory task responder list', () => {
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
 
     expect(await screen.findByText('Alice Caller · 2:00 PM')).toBeInTheDocument()
+  })
+})
+
+// Proves the fix for "Raise with Owner" appearing in same-day History: an
+// issue raised for a date shows up in that date's history view, independent
+// of (and even in the absence of) any checklist task activity.
+describe('EmployeeHistory raised issues', () => {
+  it('renders an open issue with no checklist activity that day', async () => {
+    mockGetShiftHistory.mockResolvedValue({
+      date: '2026-09-02',
+      storeId: 1,
+      hasChecklist: false,
+      categories: [],
+      issues: [
+        {
+          id: 1,
+          note: 'Freezer #2 is not cooling properly.',
+          status: 'OPEN',
+          responseText: null,
+          respondedByName: null,
+          respondedAt: null,
+          raisedAt: '9:00 AM',
+        },
+      ],
+    })
+
+    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+
+    expect(await screen.findByText('Raised Issues')).toBeInTheDocument()
+    expect(screen.getByText('Freezer #2 is not cooling properly.')).toBeInTheDocument()
+    expect(screen.getByText('Open')).toBeInTheDocument()
+    expect(screen.getByText('Raised at 9:00 AM')).toBeInTheDocument()
+    // No checklist activity at all this day -- the empty state must not show
+    // once an issue counts as activity.
+    expect(screen.queryByText('Nothing logged yet')).not.toBeInTheDocument()
+  })
+
+  it("renders an owner's response once resolved", async () => {
+    mockGetShiftHistory.mockResolvedValue({
+      date: '2026-09-02',
+      storeId: 1,
+      hasChecklist: false,
+      categories: [],
+      issues: [
+        {
+          id: 1,
+          note: 'Freezer #2 is not cooling properly.',
+          status: 'RESOLVED',
+          responseText: "We've scheduled a repair for tomorrow.",
+          respondedByName: 'Store Owner',
+          respondedAt: '10:00 AM',
+          raisedAt: '9:00 AM',
+        },
+      ],
+    })
+
+    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+
+    expect(await screen.findByText('Resolved')).toBeInTheDocument()
+    expect(screen.getByText("We've scheduled a repair for tomorrow.")).toBeInTheDocument()
+    expect(screen.getByText('Store Owner · 10:00 AM')).toBeInTheDocument()
   })
 })

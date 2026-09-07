@@ -352,7 +352,7 @@ public class ChecklistHistoryService {
             ))
             .toList();
 
-        return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories);
+        return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories, List.of());
     }
 
     static AdminCorrectionEntry toCorrectionEntry(AdminCorrection c) {

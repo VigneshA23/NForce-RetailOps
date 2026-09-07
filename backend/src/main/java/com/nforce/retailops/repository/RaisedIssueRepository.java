@@ -22,6 +22,9 @@ public interface RaisedIssueRepository extends JpaRepository<RaisedIssue, Long> 
     @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser LEFT JOIN FETCH r.respondedByUser WHERE r.store.id = :storeId AND r.employeeUser.id = :employeeUserId ORDER BY r.createdAt DESC")
     List<RaisedIssue> findByStoreIdAndEmployeeUserIdOrderByCreatedAtDesc(@Param("storeId") Long storeId, @Param("employeeUserId") Long employeeUserId);
 
+    @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser LEFT JOIN FETCH r.respondedByUser WHERE r.store.id = :storeId AND r.employeeUser.id = :employeeUserId AND r.raisedDate = :raisedDate ORDER BY r.createdAt DESC")
+    List<RaisedIssue> findByStoreIdAndEmployeeIdAndRaisedDateOrderByCreatedAtDesc(@Param("storeId") Long storeId, @Param("employeeUserId") Long employeeUserId, @Param("raisedDate") java.time.LocalDate raisedDate);
+
     long countByStoreIdAndStatus(Long storeId, String status);
 
     long countByStoreIdAndStatusAndCreatedAtBefore(Long storeId, String status, java.time.OffsetDateTime cutoff);

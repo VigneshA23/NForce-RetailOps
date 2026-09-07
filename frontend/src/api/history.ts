@@ -1,4 +1,4 @@
-import type { HistoryCategoryEntry, HistoryTaskDetail, ShiftHistory, TaskStatus } from '../types/history';
+import type { HistoryCategoryEntry, HistoryIssueEntry, HistoryTaskDetail, IssueStatus, ShiftHistory, TaskStatus } from '../types/history';
 import { authHeaders } from '../utils/authStorage';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
 import { fetchWithTimeout } from './client';
@@ -46,12 +46,23 @@ interface RawCategory {
   tasks: RawTaskItem[];
 }
 
+interface RawIssue {
+  id: number;
+  note: string;
+  status: IssueStatus;
+  responseText: string | null;
+  respondedByName: string | null;
+  respondedAt: string | null;
+  createdAt: string;
+}
+
 interface RawDetail {
   storeId: number;
   storeName: string;
   date: string;
   hasChecklist: boolean;
   categories: RawCategory[];
+  issues: RawIssue[];
 }
 
 // The backend doesn't guarantee response order, so the most recent one (by
@@ -102,6 +113,18 @@ function toHistoryCategory(category: RawCategory): HistoryCategoryEntry {
   };
 }
 
+function toHistoryIssue(issue: RawIssue): HistoryIssueEntry {
+  return {
+    id: issue.id,
+    note: issue.note,
+    status: issue.status,
+    responseText: issue.responseText,
+    respondedByName: issue.respondedByName,
+    respondedAt: issue.respondedAt ? formatTimeLabel(issue.respondedAt) : null,
+    raisedAt: formatTimeLabel(issue.createdAt),
+  };
+}
+
 export async function getShiftHistory(storeId: number, date: string): Promise<ShiftHistory> {
   const query = new URLSearchParams({ storeId: String(storeId), date });
   const response = await fetchWithTimeout(`${API_BASE_URL}/me/history/detail?${query}`, {
@@ -118,5 +141,6 @@ export async function getShiftHistory(storeId: number, date: string): Promise<Sh
     storeId: raw.storeId,
     hasChecklist: raw.hasChecklist,
     categories: raw.categories.map(toHistoryCategory),
+    issues: raw.issues.map(toHistoryIssue),
   };
 }

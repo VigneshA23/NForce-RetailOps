@@ -45,6 +45,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(CategoryInactiveException.class)
+    public ResponseEntity<Map<String, String>> handleCategoryInactive(CategoryInactiveException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(CategoryNameExistsException.class)
     public ResponseEntity<Map<String, String>> handleCategoryNameExists(CategoryNameExistsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
@@ -159,5 +164,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(LoginRateLimitException.class)
     public ResponseEntity<Map<String, String>> handleLoginRateLimit(LoginRateLimitException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(NotificationNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleNotificationNotFound(NotificationNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 }
