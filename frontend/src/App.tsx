@@ -55,7 +55,7 @@ function App() {
     error: storesError,
     reload: reloadStores,
   } = useAssignedStores(Boolean(isEmployee))
-  const meState = useMe(restoringSession || (user !== null && user.role !== 'SUPER_ADMIN'))
+  const meState = useMe(restoringSession || user !== null)
 
   // The one place that ends an authenticated session, for any reason: manual
   // logout, inactivity timeout, or a 401 from any API call. Every protected
@@ -126,7 +126,7 @@ function App() {
   // arrives after the user has just signed in, copy avatarUrl into state so
   // the header shows the photo immediately without requiring a Profile visit.
   useEffect(() => {
-    if (restoringSession || !user || user.role === 'SUPER_ADMIN') return
+    if (restoringSession || !user) return
     if (!meState.me?.avatarUrl) return
     setAvatarUrl(meState.me.avatarUrl)
     setStoredAvatarUrl(meState.me.avatarUrl)

@@ -13,11 +13,12 @@
 
 .super-admin-store-table__name {
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #2563eb;
 }
 
 .super-admin-store-table__name-link:hover .super-admin-store-table__name {
   text-decoration: underline;
+  opacity: 0.8;
 }
 
 .super-admin-store-table__code {

@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import type { SuperAdminEmployee } from '../types/superAdminEmployee';
 import './EmployeeTable.css';
 
@@ -29,7 +29,7 @@ function SuperAdminEmployeeTable({
             <tr>
               <th scope="col">Emp ID</th>
               <th scope="col">Employee Name</th>
-              <th scope="col">Owner</th>
+              <th scope="col">Stores</th>
               <th scope="col">Contact</th>
               <th scope="col">Status</th>
               <th scope="col">Actions</th>
@@ -48,7 +48,17 @@ function SuperAdminEmployeeTable({
                   </button>
                 </td>
                 <td className="employee-table__name" data-label="Employee Name">{employee.name}</td>
-                <td data-label="Owner">{employee.ownerName}</td>
+                <td data-label="Stores">
+                  {employee.stores.length === 0 ? (
+                    <span className="employee-table__no-stores">—</span>
+                  ) : (
+                    <div className="employee-table__store-badges">
+                      {employee.stores.map((store) => (
+                        <span key={store.id} className="employee-table__store-badge">{store.name}</span>
+                      ))}
+                    </div>
+                  )}
+                </td>
                 <td data-label="Contact">{employee.phone}</td>
                 <td data-label="Status">
                   <label
@@ -68,6 +78,15 @@ function SuperAdminEmployeeTable({
                 </td>
                 <td className="table-actions-cell" data-label="Actions">
                   <div className="table-row-actions">
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`View details for ${employee.name}`}
+                      title="View details"
+                      onClick={() => onViewDetails(employee)}
+                    >
+                      <Eye size={16} />
+                    </button>
                     <button
                       type="button"
                       className="table-icon-btn"

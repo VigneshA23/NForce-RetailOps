@@ -35,3 +35,23 @@
   font-size: 13px;
   color: var(--color-text-secondary);
 }
+
+.employee-form__store-section {
+  margin-top: var(--space-sm);
+}
+
+.employee-form__store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.employee-form__store-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}

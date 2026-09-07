@@ -234,7 +234,19 @@ public class TaskService {
             .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, request.storeId(), today);
 
         if (task.getCompletionType() == CompletionType.SINGLE && !activeResponses.isEmpty()) {
-            throw new TaskAlreadyCompletedException("This task has already been completed for today");
+            // Allow resubmission if the one active response was flagged back to this employee.
+            // Deactivate the flagged response so the unique index allows the new submission.
+            boolean isFlaggedByMe = activeResponses.size() == 1
+                && activeResponses.get(0).isFlaggedNeedsCorrection()
+                && activeResponses.get(0).getEmployee().getId().equals(employeeUserId);
+            if (!isFlaggedByMe) {
+                throw new TaskAlreadyCompletedException("This task has already been completed for today");
+            }
+            TaskResponseEntry flagged = activeResponses.get(0);
+            flagged.setActive(false);
+            flagged.setUndoneAt(java.time.OffsetDateTime.now());
+            taskResponseEntryRepository.save(flagged);
+            taskResponseEntryRepository.flush();
         }
 
         TaskResponseEntry entry = new TaskResponseEntry();

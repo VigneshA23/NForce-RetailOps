@@ -78,6 +78,15 @@
 
   --color-toggle-on-bg: #1a9c5c;
   --color-toggle-off-bg: #e0384a;
+
+  /* Aliases used by components built after initial token set. */
+  --color-surface: var(--color-bg-page);
+  --color-surface-raised: var(--color-surface-card);
+  --color-surface-hovered: rgba(0, 0, 0, 0.04);
+  --color-background: var(--color-bg-page);
+  --color-primary: var(--color-accent);
+  --color-primary-alpha: rgba(225, 29, 51, 0.12);
+  --color-text-tertiary: var(--color-text-muted);
 }
 
 @media (--mobile) {
@@ -124,4 +133,6 @@
 
   --color-toggle-on-bg: #3ddc8b;
   --color-toggle-off-bg: #ff5a6a;
+
+  --color-surface-hovered: rgba(255, 255, 255, 0.06);
 }

@@ -44,10 +44,29 @@ function ensureFetchIsPatched() {
   fetchPatched = true;
 
   const originalFetch = window.fetch.bind(window);
+
+  // Endpoints that must not trigger logout on 401 — they're non-critical
+  // background fetches (search, trend) that can legitimately 401 during a
+  // rolling deploy when the new backend endpoint isn't live on Railway yet.
+  const SILENT_401_PATTERNS = [
+    /\/api\/super-admin\/search/,
+    /\/api\/search(\?|$)/,
+    /\/api\/super-admin\/platform-trend/,
+    /\/api\/super-admin\/stores\/\d+\/trend/,
+    /\/api\/me\/search/,
+  ];
+
   window.fetch = async (...args: Parameters<typeof fetch>) => {
     const response = await originalFetch(...args);
     if (response.status === 401) {
-      unauthorizedListeners.forEach((listener) => listener());
+      const url =
+        args[0] instanceof Request ? args[0].url
+        : typeof args[0] === 'string' ? args[0]
+        : String(args[0]);
+      const isSilent = SILENT_401_PATTERNS.some((p) => p.test(url));
+      if (!isSilent) {
+        unauthorizedListeners.forEach((listener) => listener());
+      }
     }
     return response;
   };

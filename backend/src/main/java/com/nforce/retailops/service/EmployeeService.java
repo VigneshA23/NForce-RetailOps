@@ -8,6 +8,7 @@ import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.StoreOptionResponse;
 import com.nforce.retailops.dto.SuperAdminEmployeeResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
+import com.nforce.retailops.dto.UpdateEmployeeStoresRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
@@ -18,6 +19,7 @@ import com.nforce.retailops.exception.EmployeeNotFoundException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,7 @@ public class EmployeeService {
 
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
+    private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final SessionService sessionService;
     private final MailService mailService;
@@ -50,6 +54,7 @@ public class EmployeeService {
     public EmployeeService(
         StoreEmployeeRepository storeEmployeeRepository,
         StoreOwnerRepository storeOwnerRepository,
+        StoreRepository storeRepository,
         UserRepository userRepository,
         SessionService sessionService,
         MailService mailService,
@@ -60,6 +65,7 @@ public class EmployeeService {
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
+        this.storeRepository = storeRepository;
         this.userRepository = userRepository;
         this.sessionService = sessionService;
         this.mailService = mailService;
@@ -168,8 +174,9 @@ public class EmployeeService {
     // an implicit rollback -- an employee must not be left unable to ever
     // learn their own password.
     public EmployeeCreationResponse createEmployee(EmployeeCreateRequest request) {
+        Set<Store> stores = resolveStores(request.storeIds());
         EmployeeProvisioningService.ProvisionedEmployee provisioned =
-            employeeProvisioningService.createEmployeeAccount(null, request, Set.of());
+            employeeProvisioningService.createEmployeeAccount(null, request, stores);
 
         try {
             mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
@@ -185,6 +192,24 @@ public class EmployeeService {
         }
 
         return new EmployeeCreationResponse(provisioned.response(), provisioned.temporaryPassword());
+    }
+
+    // Super-Admin-only: atomically replaces all store assignments for an employee.
+    @Transactional
+    public EmployeeResponse updateEmployeeStores(Long employeeId, UpdateEmployeeStoresRequest request) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found: " + employeeId));
+        storeEmployee.setStores(resolveStores(request.storeIds()));
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+        return EmployeeResponse.from(storeEmployee);
+    }
+
+    private Set<Store> resolveStores(List<Long> storeIds) {
+        if (storeIds == null || storeIds.isEmpty()) {
+            return Set.of();
+        }
+        List<Store> found = storeRepository.findAllById(storeIds);
+        return new HashSet<>(found);
     }
 
     // Cross-owner directory for the Owner's "Assign Employee" flow -- every

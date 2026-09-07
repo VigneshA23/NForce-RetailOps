@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClipboardList, CheckCircle2, CircleDot, Repeat2, Plus } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { createTask, deleteTask, getTasks, setTaskActive, TaskHasHistoryError, updateTask } from '../api/ownerTasks';
@@ -40,6 +40,7 @@ interface TasksProps {
   categoriesError: string | null;
   onRetryCategories: () => void;
   stores: OwnerStore[];
+  searchSeed?: { term: string; id: number };
 }
 
 function Tasks({
@@ -49,6 +50,7 @@ function Tasks({
   categoriesError,
   onRetryCategories,
   stores,
+  searchSeed,
 }: TasksProps) {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +61,15 @@ function Tasks({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [scheduleFilter, setScheduleFilter] = useState<ScheduleType | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
+
+  const appliedSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (searchSeed && searchSeed.id !== appliedSeedId.current) {
+      appliedSeedId.current = searchSeed.id;
+      setSearch(searchSeed.term);
+      setPage(1);
+    }
+  }, [searchSeed]);
 
   const [formModalState, setFormModalState] = useState<FormModalState>(null);
   const [formError, setFormError] = useState<string | null>(null);

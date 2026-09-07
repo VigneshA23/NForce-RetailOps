@@ -149,9 +149,9 @@ function TaskFormModal({
       }
     >
       <form id="task-form" onSubmit={handleSubmit} noValidate className="task-form">
-        <section className="task-form__section">
-          <h3 className="task-form__heading">Basic Information</h3>
 
+        {/* ── Basic Information ── */}
+        <section className="task-form__section">
           <FormField label="Task Name *" htmlFor="task-name" error={errors.name}>
             <input
               id="task-name"
@@ -162,119 +162,102 @@ function TaskFormModal({
               autoFocus
             />
           </FormField>
-
           <FormField label="Description / Instructions" htmlFor="task-description">
             <textarea
               id="task-description"
               className="input task-form__textarea"
               value={values.description}
               onChange={(event) => updateField('description', event.target.value)}
-              rows={4}
+              rows={3}
             />
           </FormField>
         </section>
 
+        {/* ── Category & Order ── */}
         <section className="task-form__section">
-          <h3 className="task-form__heading">Category</h3>
-          <FormField label="Category *" htmlFor="task-category" error={errors.categoryId}>
-            {!categoriesLoading && !categoriesError && categories.length === 0 ? (
-              <div className="task-form__empty-state">
-                No categories yet.
-                <button type="button" className="btn btn--secondary" onClick={onManageCategories}>
-                  Manage Categories
-                </button>
-              </div>
-            ) : (
-              <SearchableSelect
-                id="task-category"
-                placeholder="Select Category"
-                options={categories.map((category) => ({ id: category.id, label: category.name }))}
-                selectedIds={values.categoryId != null ? [values.categoryId] : []}
-                onChange={(ids) => updateField('categoryId', ids[0] ?? null)}
-                isLoading={categoriesLoading}
-                error={categoriesError}
-                onRetry={onRetryCategories}
+          <div className="task-form__grid-category">
+            <FormField label="Category *" htmlFor="task-category" error={errors.categoryId}>
+              {!categoriesLoading && !categoriesError && categories.length === 0 ? (
+                <div className="task-form__empty-state">
+                  No categories yet.
+                  <button type="button" className="btn btn--secondary" onClick={onManageCategories}>
+                    Manage Categories
+                  </button>
+                </div>
+              ) : (
+                <SearchableSelect
+                  id="task-category"
+                  placeholder="Select Category"
+                  options={categories.map((category) => ({ id: category.id, label: category.name }))}
+                  selectedIds={values.categoryId != null ? [values.categoryId] : []}
+                  onChange={(ids) => updateField('categoryId', ids[0] ?? null)}
+                  isLoading={categoriesLoading}
+                  error={categoriesError}
+                  onRetry={onRetryCategories}
+                />
+              )}
+            </FormField>
+            <FormField label="Order (optional)" htmlFor="task-display-order" error={errors.displayOrder}>
+              <input
+                id="task-display-order"
+                type="number"
+                className="input"
+                value={values.displayOrder}
+                onChange={(event) => updateField('displayOrder', event.target.value)}
+                placeholder="Auto"
               />
-            )}
-          </FormField>
-
-          <FormField
-            label="Display Order (optional)"
-            htmlFor="task-display-order"
-            error={errors.displayOrder}
-          >
-            <input
-              id="task-display-order"
-              type="number"
-              className="input"
-              value={values.displayOrder}
-              onChange={(event) => updateField('displayOrder', event.target.value)}
-              placeholder="Auto (added to end of category)"
-            />
-          </FormField>
-          <p className="task-form__hint">Controls the order this task appears in within its category on the Employee Checklist.</p>
-        </section>
-
-        <section className="task-form__section">
-          <h3 className="task-form__heading">Store</h3>
-          <div className="form-field">
-            <span className="form-field__label">Applicable store</span>
-            <p className="task-form__store-label">
-              {values.appliesToAllStores ? 'All stores' : (stores[0]?.name ?? '—')}
-            </p>
+            </FormField>
           </div>
+          <p className="task-form__hint">
+            Store: <strong>{values.appliesToAllStores ? 'All stores' : (stores[0]?.name ?? '—')}</strong>
+            {' · '}Order controls position within the category on the checklist.
+          </p>
         </section>
 
+        {/* ── Response & Completion ── */}
         <section className="task-form__section">
-          <h3 className="task-form__heading">Response</h3>
-          <FormField label="Response Type *" htmlFor="task-response-type" error={errors.responseType}>
-            <select
-              id="task-response-type"
-              className="select"
-              value={values.responseType ?? ''}
-              onChange={(event) => handleResponseTypeChange(event.target.value as ResponseType)}
-            >
-              <option value="" disabled>
-                Select Response Type
-              </option>
-              {RESPONSE_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </FormField>
+          <div className="task-form__grid-2">
+            <FormField label="Response Type *" htmlFor="task-response-type" error={errors.responseType}>
+              <select
+                id="task-response-type"
+                className="select"
+                value={values.responseType ?? ''}
+                onChange={(event) => handleResponseTypeChange(event.target.value as ResponseType)}
+              >
+                <option value="" disabled>Select…</option>
+                {RESPONSE_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </FormField>
+            <FormField label="Completion Type *" htmlFor="task-completion-type" error={errors.completionType}>
+              <select
+                id="task-completion-type"
+                className="select"
+                value={values.completionType ?? ''}
+                onChange={(event) => handleCompletionTypeChange(event.target.value as CompletionType)}
+              >
+                <option value="" disabled>Select…</option>
+                {COMPLETION_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+            </FormField>
+          </div>
 
           {values.responseType === 'NUMERIC' && (
             <div className="task-form__conditional task-form__grid-3">
               <FormField label="Unit" htmlFor="task-numeric-unit">
-                <input
-                  id="task-numeric-unit"
-                  className="input"
-                  value={values.numericUnit}
-                  onChange={(event) => updateField('numericUnit', event.target.value)}
-                  placeholder="°F"
-                />
+                <input id="task-numeric-unit" className="input" value={values.numericUnit}
+                  onChange={(event) => updateField('numericUnit', event.target.value)} placeholder="°F" />
               </FormField>
-              <FormField label="Minimum Value" htmlFor="task-numeric-min" error={errors.numericMin}>
-                <input
-                  id="task-numeric-min"
-                  type="number"
-                  className="input"
-                  value={values.numericMin}
-                  onChange={(event) => updateField('numericMin', event.target.value)}
-                  placeholder="32"
-                />
+              <FormField label="Min Value" htmlFor="task-numeric-min" error={errors.numericMin}>
+                <input id="task-numeric-min" type="number" className="input" value={values.numericMin}
+                  onChange={(event) => updateField('numericMin', event.target.value)} placeholder="32" />
               </FormField>
-              <FormField label="Maximum Value" htmlFor="task-numeric-max" error={errors.numericMax}>
-                <input
-                  id="task-numeric-max"
-                  type="number"
-                  className="input"
-                  value={values.numericMax}
-                  onChange={(event) => updateField('numericMax', event.target.value)}
-                  placeholder="40"
-                />
+              <FormField label="Max Value" htmlFor="task-numeric-max" error={errors.numericMax}>
+                <input id="task-numeric-max" type="number" className="input" value={values.numericMax}
+                  onChange={(event) => updateField('numericMax', event.target.value)} placeholder="40" />
               </FormField>
             </div>
           )}
@@ -282,43 +265,17 @@ function TaskFormModal({
           {values.responseType === 'TEXT' && (
             <div className="task-form__conditional">
               <FormField label="Short Text (optional)" htmlFor="task-response-note-text" error={errors.responseNote}>
-                <input
-                  id="task-response-note-text"
-                  className="input"
-                  value={values.responseNote}
-                  maxLength={25}
+                <input id="task-response-note-text" className="input" value={values.responseNote} maxLength={25}
                   onChange={(event) => updateField('responseNote', event.target.value.slice(0, 25))}
-                  placeholder="e.g. Temperature OK"
-                />
+                  placeholder="e.g. Temperature OK" />
               </FormField>
               <p className="task-form__hint task-form__char-count">{Math.min(responseNoteLength, 25)} / 25</p>
             </div>
           )}
         </section>
 
+        {/* ── Schedule & Dates ── */}
         <section className="task-form__section">
-          <h3 className="task-form__heading">Completion</h3>
-          <FormField label="Completion Type *" htmlFor="task-completion-type" error={errors.completionType}>
-            <select
-              id="task-completion-type"
-              className="select"
-              value={values.completionType ?? ''}
-              onChange={(event) => handleCompletionTypeChange(event.target.value as CompletionType)}
-            >
-              <option value="" disabled>
-                Select Completion Type
-              </option>
-              {COMPLETION_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </FormField>
-        </section>
-
-        <section className="task-form__section">
-          <h3 className="task-form__heading">Schedule</h3>
           <FormField label="Schedule *" htmlFor="task-schedule-type" error={errors.scheduleType}>
             <select
               id="task-schedule-type"
@@ -326,13 +283,9 @@ function TaskFormModal({
               value={values.scheduleType ?? ''}
               onChange={(event) => handleScheduleTypeChange(event.target.value as ScheduleType)}
             >
-              <option value="" disabled>
-                Select Schedule
-              </option>
+              <option value="" disabled>Select Schedule</option>
               {SCHEDULE_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
           </FormField>
@@ -343,11 +296,8 @@ function TaskFormModal({
               <div className="task-form__days">
                 {DAY_OPTIONS.map((day) => (
                   <label key={day.value} className="task-form__day">
-                    <input
-                      type="checkbox"
-                      checked={values.selectedDays.includes(day.value)}
-                      onChange={() => toggleSelectedDay(day.value)}
-                    />
+                    <input type="checkbox" checked={values.selectedDays.includes(day.value)}
+                      onChange={() => toggleSelectedDay(day.value)} />
                     {day.label}
                   </label>
                 ))}
@@ -355,48 +305,31 @@ function TaskFormModal({
               {errors.selectedDays && <span className="form-field__error">{errors.selectedDays}</span>}
             </div>
           )}
-        </section>
 
-        {values.scheduleType === 'ONE_TIME' ? (
-          <section className="task-form__section">
-            <h3 className="task-form__heading">Task Date</h3>
-            <FormField label="Date *" htmlFor="task-one-time-date" error={errors.oneTimeDate}>
-              <input
-                id="task-one-time-date"
-                type="date"
-                className="input"
-                value={values.oneTimeDate}
-                onChange={(event) => updateField('oneTimeDate', event.target.value)}
-              />
-            </FormField>
-            <p className="task-form__hint">This task will appear only on the selected date.</p>
-          </section>
-        ) : (
-          <section className="task-form__section">
-            <h3 className="task-form__heading">Date Range</h3>
-            <div className="task-form__grid-2">
-              <FormField label="Start Date *" htmlFor="task-start-date" error={errors.startDate}>
-                <input
-                  id="task-start-date"
-                  type="date"
-                  className="input"
-                  value={values.startDate}
-                  onChange={(event) => updateField('startDate', event.target.value)}
-                />
+          {values.scheduleType === 'ONE_TIME' ? (
+            <div className="task-form__conditional">
+              <FormField label="Date *" htmlFor="task-one-time-date" error={errors.oneTimeDate}>
+                <input id="task-one-time-date" type="date" className="input" value={values.oneTimeDate}
+                  onChange={(event) => updateField('oneTimeDate', event.target.value)} />
               </FormField>
-              <FormField label="End Date" htmlFor="task-end-date" error={errors.endDate}>
-                <input
-                  id="task-end-date"
-                  type="date"
-                  className="input"
-                  value={values.endDate}
-                  onChange={(event) => updateField('endDate', event.target.value)}
-                />
-              </FormField>
+              <p className="task-form__hint">Appears only on the selected date.</p>
             </div>
-            <p className="task-form__hint">Leave End Date empty for an ongoing task until it's deactivated.</p>
-          </section>
-        )}
+          ) : values.scheduleType && values.scheduleType !== 'SELECTED_DAYS' ? (
+            <div className="task-form__conditional">
+              <div className="task-form__grid-2">
+                <FormField label="Start Date *" htmlFor="task-start-date" error={errors.startDate}>
+                  <input id="task-start-date" type="date" className="input" value={values.startDate}
+                    onChange={(event) => updateField('startDate', event.target.value)} />
+                </FormField>
+                <FormField label="End Date" htmlFor="task-end-date" error={errors.endDate}>
+                  <input id="task-end-date" type="date" className="input" value={values.endDate}
+                    onChange={(event) => updateField('endDate', event.target.value)} />
+                </FormField>
+              </div>
+              <p className="task-form__hint">Leave End Date empty for an ongoing task.</p>
+            </div>
+          ) : null}
+        </section>
 
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>

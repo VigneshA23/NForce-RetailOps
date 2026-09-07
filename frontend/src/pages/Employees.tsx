@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { UserPlus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { Users, UserCheck, UserCog, UserX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { unassignEmployeeFromMyStore, setEmployeeStatus, updateEmployee } from '../api/employees';
 import type { Employee, EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName } from '../types/employee';
@@ -8,12 +8,12 @@ import { toEmployeeUpdateValues } from '../utils/employeeUtils';
 import EmployeeTable from '../components/EmployeeTable';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import EmployeeDetailModal from '../components/EmployeeDetailModal';
-import AssignEmployeeModal from '../components/AssignEmployeeModal';
+
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import Select from '../components/Select';
-import SpecularButton from '../components/SpecularButton';
+
 import StatCard from '../components/StatCard';
 import './Employees.css';
 
@@ -43,9 +43,10 @@ interface EmployeesProps {
   employeesLoading: boolean;
   employeesError: string | null;
   onRetryEmployees: () => void;
+  searchSeed?: { term: string; id: number };
 }
 
-function Employees({ employees, setEmployees, employeesLoading, employeesError, onRetryEmployees }: EmployeesProps) {
+function Employees({ employees, setEmployees, employeesLoading, employeesError, onRetryEmployees, searchSeed }: EmployeesProps) {
   const isLoading = employeesLoading;
   const loadError = employeesError;
 
@@ -55,7 +56,15 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [page, setPage] = useState(1);
 
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const appliedSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (searchSeed && searchSeed.id !== appliedSeedId.current) {
+      appliedSeedId.current = searchSeed.id;
+      setSearch(searchSeed.term);
+      setPage(1);
+    }
+  }, [searchSeed]);
+
   const [editTarget, setEditTarget] = useState<Employee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -181,23 +190,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
       <div className="employees-page__header">
         <p className="employees-page__summary">{summaryText}</p>
 
-        <SpecularButton
-          size="sm"
-          radius={999}
-          tint="var(--color-badge-solid-bg)"
-          tintOpacity={1}
-          textColor="var(--color-badge-solid-text)"
-          lineColor="#e11d33"
-          baseColor="#e4e4e7"
-          followMouse
-          proximity={180}
-          onClick={() => setIsAssignModalOpen(true)}
-        >
-          <span className="employees-page__add-label">
-            <UserPlus size={16} />
-            Assign Employee
-          </span>
-        </SpecularButton>
       </div>
 
       <div className="filter-bar">
@@ -269,11 +261,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
         </>
       )}
 
-      <AssignEmployeeModal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        onAssignmentChange={onRetryEmployees}
-      />
 
       <EmployeeFormModal
         isOpen={editTarget !== null}

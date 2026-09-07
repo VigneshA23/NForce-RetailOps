@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Plus, UserCheck, UserCog, UserX, Users } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { createEmployeeAsSuperAdmin, getAllEmployeesForSuperAdmin } from '../api/superAdminEmployees';
+import { createEmployeeAsSuperAdmin, getAllEmployeesForSuperAdmin, updateEmployeeStores } from '../api/superAdminEmployees';
+import { getAllStores } from '../api/superAdminStores';
 import { deleteEmployee, setEmployeeStatus, updateEmployee } from '../api/employees';
 import type { SuperAdminEmployee } from '../types/superAdminEmployee';
-import type { EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName } from '../types/employee';
+import type { EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName, StoreOption } from '../types/employee';
+import type { SuperAdminStore } from '../types/superAdminStore';
 import { toEmployeeUpdateValues } from '../utils/employeeUtils';
 import { EMPLOYEE_TYPE_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import SuperAdminEmployeeTable from '../components/SuperAdminEmployeeTable';
@@ -26,6 +28,13 @@ function SuperAdminEmployees() {
   const [employees, setEmployees] = useState<SuperAdminEmployee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [allStores, setAllStores] = useState<StoreOption[]>([]);
+  useEffect(() => {
+    getAllStores().then((stores: SuperAdminStore[]) =>
+      setAllStores(stores.filter((s) => s.storeActive).map((s) => ({ id: s.storeId, name: s.storeName })))
+    ).catch(() => { /* non-critical — picker just stays empty */ });
+  }, []);
 
   const [search, setSearch] = useState('');
   const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
@@ -63,7 +72,11 @@ function SuperAdminEmployees() {
     setIsSubmitting(true);
     try {
       if (editTarget) {
-        await updateEmployee(editTarget.id, values as EmployeeUpdateValues);
+        const { storeIds, ...updateValues } = values as EmployeeCreateValues;
+        await updateEmployee(editTarget.id, updateValues as EmployeeUpdateValues);
+        if (storeIds !== undefined) {
+          await updateEmployeeStores(editTarget.id, storeIds);
+        }
         setEditTarget(null);
         loadEmployees();
         nfToast.success(`"${(values as EmployeeUpdateValues).name}" employee updated.`);
@@ -269,6 +282,7 @@ function SuperAdminEmployees() {
       <EmployeeFormModal
         isOpen={isFormOpen}
         mode="create"
+        availableStores={allStores}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => setIsFormOpen(false)}
@@ -279,6 +293,8 @@ function SuperAdminEmployees() {
         isOpen={editTarget !== null}
         mode="edit"
         initialValues={editTarget ? toEmployeeUpdateValues(editTarget) : undefined}
+        availableStores={allStores}
+        initialStoreIds={editTarget ? editTarget.stores.map((s) => s.id) : undefined}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => setEditTarget(null)}

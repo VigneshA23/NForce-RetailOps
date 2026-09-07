@@ -49,3 +49,8 @@
   background: var(--color-nav-bg);
   color: var(--color-header-text);
 }
+
+.btn--warning {
+  background: #f59e0b;
+  color: #fff;
+}

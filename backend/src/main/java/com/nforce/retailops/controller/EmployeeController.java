@@ -7,6 +7,7 @@ import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.SuperAdminEmployeeResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
+import com.nforce.retailops.dto.UpdateEmployeeStoresRequest;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.EmployeeService;
 import jakarta.validation.Valid;
@@ -107,6 +108,15 @@ public class EmployeeController {
     ) {
         employeeService.resetEmployeePassword(principal.getUser().getId(), id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/stores")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<EmployeeResponse> updateStores(
+        @PathVariable Long id,
+        @RequestBody UpdateEmployeeStoresRequest request
+    ) {
+        return ResponseEntity.ok(employeeService.updateEmployeeStores(id, request));
     }
 
     @DeleteMapping("/{id}")

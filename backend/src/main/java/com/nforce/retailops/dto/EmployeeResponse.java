@@ -15,7 +15,8 @@ public record EmployeeResponse(
     String employeeType,
     String gender,
     boolean active,
-    List<StoreOptionResponse> stores
+    List<StoreOptionResponse> stores,
+    String avatarUrl
 ) {
     public static EmployeeResponse from(StoreEmployee storeEmployee) {
         List<StoreOptionResponse> stores = storeEmployee.getStores().stream()
@@ -43,7 +44,8 @@ public record EmployeeResponse(
             storeEmployee.getEmployeeType(),
             storeEmployee.getGender(),
             storeEmployee.getEmployee().isActive(),
-            sortedStores
+            sortedStores,
+            storeEmployee.getEmployee().getAvatarUrl()
         );
     }
 }

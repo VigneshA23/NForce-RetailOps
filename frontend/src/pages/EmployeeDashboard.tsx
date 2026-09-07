@@ -110,8 +110,14 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
 
   const totalTasks = useMemo(() => categories.reduce((sum, category) => sum + category.tasks.length, 0), [categories])
   const completedTasks = useMemo(
-    () => categories.reduce((sum, category) => sum + category.tasks.filter((task) => task.responses.length > 0).length, 0),
-    [categories],
+    () => categories.reduce((sum, category) => sum + category.tasks.filter((task) => {
+      if (task.responses.length === 0) return false
+      // A flagged response doesn't count as "done" — employee still needs to act
+      const mine = ownResponse(task, employeeId)
+      if (mine?.flaggedNeedsCorrection) return false
+      return true
+    }).length, 0),
+    [categories, employeeId],
   )
   const completionPercent = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100)
   const remainingTasks = totalTasks - completedTasks
@@ -121,7 +127,12 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
   )
 
   function categoryProgress(category: ChecklistCategory): { done: number; total: number } {
-    const done = category.tasks.filter((task) => task.responses.length > 0).length
+    const done = category.tasks.filter((task) => {
+      if (task.responses.length === 0) return false
+      const mine = ownResponse(task, employeeId)
+      if (mine?.flaggedNeedsCorrection) return false
+      return true
+    }).length
     return { done, total: category.tasks.length }
   }
 
@@ -292,13 +303,15 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
                   <div className="checklist-tasks">
                     {category.tasks.map((task) => {
                       const isPending = pendingTaskId === task.id
-                      const isSingleLocked = task.completionType === 'SINGLE' && task.responses.length > 0
+                      const mine = ownResponse(task, employeeId)
+                      const myResponseIsFlagged = mine?.flaggedNeedsCorrection === true
+                      // When MY response is flagged, unlock controls so I can resubmit.
+                      const isSingleLocked = task.completionType === 'SINGLE' && task.responses.length > 0 && !myResponseIsFlagged
                       // A SINGLE task someone else already answered: fully locked, no
                       // interactive control is rendered at all -- only Undo (gated on
                       // canUndo) can ever reopen it, and only for whoever owns it.
                       const isLockedByOther = isSingleLocked && !task.canUndo
                       const controlsDisabled = isPending || isSingleLocked
-                      const mine = ownResponse(task, employeeId)
                       const draft = drafts[task.id]
                       const taskError = taskErrors[task.id]
 
@@ -358,7 +371,12 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
                               )
                             ) : (
                               <p className="checklist-task-status">
-                                {task.responses.length > 0 ? (
+                                {myResponseIsFlagged ? (
+                                  <>
+                                    <MessageSquareWarning size={13} className="checklist-task-status-dot checklist-task-status-dot--flag" />
+                                    Needs correction
+                                  </>
+                                ) : task.responses.length > 0 ? (
                                   <>
                                     <CheckCircle2 size={13} className="checklist-task-status-dot checklist-task-status-dot--done" />
                                     {`Completed by ${task.responses[task.responses.length - 1].employeeFullName}`}
@@ -369,6 +387,12 @@ function EmployeeDashboard({ store, employeeId }: EmployeeDashboardProps) {
                                     Not Answered
                                   </>
                                 )}
+                              </p>
+                            )}
+                            {myResponseIsFlagged && mine?.flagReason && (
+                              <p className="checklist-task-flag-reason">
+                                <MessageSquareWarning size={12} />
+                                {mine.flagReason}
                               </p>
                             )}
                             {taskError && <p className="checklist-task-error">{taskError}</p>}

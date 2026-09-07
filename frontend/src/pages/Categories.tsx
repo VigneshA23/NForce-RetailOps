@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Tags, CircleCheck, CircleSlash } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
@@ -6,7 +6,6 @@ import {
   updateCategory,
   updateCategoryStatus,
   deleteCategory,
-  reorderCategories,
 } from '../api/categories';
 import type { Category, CategoryFormValues } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
@@ -33,18 +32,26 @@ interface CategoriesProps {
   isLoading: boolean;
   loadError: string | null;
   onRetry: () => void;
+  searchSeed?: { term: string; id: number };
 }
 
-function Categories({ categories, setCategories, isLoading, loadError, onRetry }: CategoriesProps) {
+function Categories({ categories, setCategories, isLoading, loadError, onRetry, searchSeed }: CategoriesProps) {
   const [formModalState, setFormModalState] = useState<FormModalState>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [reorderError, setReorderError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+
+  const appliedSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (searchSeed && searchSeed.id !== appliedSeedId.current) {
+      appliedSeedId.current = searchSeed.id;
+      setSearch(searchSeed.term);
+    }
+  }, [searchSeed]);
 
   async function handleFormSubmit(values: CategoryFormValues) {
     setFormError(null);
@@ -83,36 +90,6 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
       const msg = error instanceof Error ? error.message : 'Failed to update category status';
       setStatusError(msg);
       nfToast.error(msg);
-    }
-  }
-
-  // Places the dragged category immediately before the drop target, in the
-  // owner's FULL category list -- not the (possibly search/status-filtered)
-  // list the table is currently rendering -- so a drag made while filtered
-  // still produces a complete, unambiguous order for every category.
-  async function handleReorder(draggedId: number, targetId: number) {
-    setReorderError(null);
-    const previous = categories;
-    const ids = previous.map((c) => c.id);
-    const fromIndex = ids.indexOf(draggedId);
-    if (fromIndex === -1) return;
-    ids.splice(fromIndex, 1);
-    const insertAt = ids.indexOf(targetId);
-    if (insertAt === -1) return;
-    ids.splice(insertAt, 0, draggedId);
-
-    // Optimistic: re-sort the existing category objects into the new id
-    // order immediately, then reconcile with the server's own displayOrder
-    // once the request resolves.
-    const byId = new Map(previous.map((category) => [category.id, category]));
-    setCategories(ids.map((id) => byId.get(id)!));
-
-    try {
-      const updated = await reorderCategories(ids);
-      setCategories(updated);
-    } catch (error) {
-      setCategories(previous);
-      setReorderError(error instanceof Error ? error.message : 'Failed to save the new category order');
     }
   }
 
@@ -155,7 +132,6 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
 
       {deleteError && <div className="categories-page__error">{deleteError}</div>}
       {statusError && <div className="categories-page__error">{statusError}</div>}
-      {reorderError && <div className="categories-page__error">{reorderError}</div>}
 
       <div className="categories-page__header">
         <p className="categories-page__summary">
@@ -219,7 +195,6 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
               setDeleteTarget(category);
             }}
             onToggleStatus={handleToggleStatus}
-            onReorder={handleReorder}
           />
         </>
       )}

@@ -175,6 +175,8 @@ describe('Employee Checklist response type rendering', () => {
           numericValue: null,
           textValue: 'All clear',
           respondedAt: new Date().toISOString(),
+          flaggedNeedsCorrection: false,
+          flagReason: null,
         },
       ],
       completedByCount: 1,
@@ -247,6 +249,8 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
             numericValue: null,
             textValue: null,
             respondedAt: new Date().toISOString(),
+            flaggedNeedsCorrection: false,
+            flagReason: null,
           },
         ],
         canUndo: false,
@@ -357,6 +361,8 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
             numericValue: null,
             textValue: null,
             respondedAt: new Date().toISOString(),
+            flaggedNeedsCorrection: false,
+            flagReason: null,
           },
         ],
         canUndo: false,
@@ -402,6 +408,8 @@ const DONE_RESPONSE = {
   numericValue: null,
   textValue: null,
   respondedAt: new Date().toISOString(),
+  flaggedNeedsCorrection: false,
+  flagReason: null,
 }
 
 describe('Daily progress indicator', () => {

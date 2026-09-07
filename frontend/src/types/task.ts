@@ -12,6 +12,8 @@ export interface TaskResponseSummary {
   numericValue: number | null;
   textValue: string | null;
   respondedAt: string;
+  flaggedNeedsCorrection: boolean;
+  flagReason: string | null;
 }
 
 export interface ChecklistTask {
