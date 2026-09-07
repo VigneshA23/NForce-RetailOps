@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { HelpCircle, LogOut, User as UserIcon } from 'lucide-react';
+import { HelpCircle, LogOut, Settings, User as UserIcon } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import ConfirmDialog from './ConfirmDialog';
 import './ProfileMenu.css';
@@ -9,6 +9,7 @@ interface ProfileMenuProps {
   avatarUrl?: string | null;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
+  onSettingsClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
   // Employee pages only -- see Modal's `centered` prop.
@@ -19,7 +20,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onSettingsClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -61,7 +62,11 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onLogou
       </button>
       {isOpen && (
         <div className="profile-menu__dropdown" role="menu">
-          <div className="profile-menu__name">{fullName}</div>
+          <div className="profile-menu__inner">
+          <div className="profile-menu__name">
+            <span className="profile-menu__name-label">Signed in as</span>
+            <span className="profile-menu__name-text">{fullName}</span>
+          </div>
           {onProfileClick && (
             <button
               type="button"
@@ -90,6 +95,20 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onLogou
               Help &amp; Guidance
             </button>
           )}
+          {onSettingsClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onSettingsClick();
+              }}
+            >
+              <Settings size={14} />
+              Settings
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"
@@ -103,6 +122,7 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onLogou
             <LogOut size={14} />
             Log out
           </button>
+          </div>
         </div>
       )}
       <ConfirmDialog

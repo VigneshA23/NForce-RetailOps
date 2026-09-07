@@ -1,19 +1,19 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { UserPlus, Users, UserCheck, UserCog, UserX } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { Users, UserCheck, UserCog, UserX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { deleteEmployee, resetEmployeePassword, setEmployeeStatus, updateEmployee } from '../api/employees';
+import { unassignEmployeeFromMyStore, setEmployeeStatus, updateEmployee } from '../api/employees';
 import type { Employee, EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName } from '../types/employee';
 import { EMPLOYEE_TYPE_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import { toEmployeeUpdateValues } from '../utils/employeeUtils';
 import EmployeeTable from '../components/EmployeeTable';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import EmployeeDetailModal from '../components/EmployeeDetailModal';
-import AssignEmployeeModal from '../components/AssignEmployeeModal';
+
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import Select from '../components/Select';
-import SpecularButton from '../components/SpecularButton';
+
 import StatCard from '../components/StatCard';
 import './Employees.css';
 
@@ -43,27 +43,12 @@ interface EmployeesProps {
   employeesLoading: boolean;
   employeesError: string | null;
   onRetryEmployees: () => void;
-  /** Re-fetches the owner's employee list from the backend. Called after any
-   * mutation that can affect rows beyond the one the mutation call itself
-   * returned (e.g. a store reassignment elsewhere), so the list never drifts
-   * from the authoritative backend state. */
-  onEmployeesChanged: () => void;
+  searchSeed?: { term: string; id: number };
 }
 
-function Employees({
-  employees,
-  setEmployees,
-  employeesLoading,
-  employeesError,
-  onRetryEmployees,
-  onEmployeesChanged,
-}: EmployeesProps) {
-  const [storeOptions, setStoreOptions] = useState<StoreOption[]>([]);
-  const [storeOptionsLoading, setStoreOptionsLoading] = useState(true);
-  const [storeOptionsError, setStoreOptionsError] = useState<string | null>(null);
-
-  const isLoading = employeesLoading || storeOptionsLoading;
-  const loadError = employeesError ?? storeOptionsError;
+function Employees({ employees, setEmployees, employeesLoading, employeesError, onRetryEmployees, searchSeed }: EmployeesProps) {
+  const isLoading = employeesLoading;
+  const loadError = employeesError;
 
   const [search, setSearch] = useState('');
   const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
@@ -71,7 +56,15 @@ function Employees({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [page, setPage] = useState(1);
 
-  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const appliedSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (searchSeed && searchSeed.id !== appliedSeedId.current) {
+      appliedSeedId.current = searchSeed.id;
+      setSearch(searchSeed.term);
+      setPage(1);
+    }
+  }, [searchSeed]);
+
   const [editTarget, setEditTarget] = useState<Employee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,18 +72,7 @@ function Employees({
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<Employee | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [resetPasswordTarget, setResetPasswordTarget] = useState<Employee | null>(null);
-  const [resetPasswordError, setResetPasswordError] = useState<string | null>(null);
-  const [isResettingPassword, setIsResettingPassword] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
   const [detailTarget, setDetailTarget] = useState<Employee | null>(null);
-
-  useEffect(() => {
-    if (!successMessage) return;
-    const timer = window.setTimeout(() => setSuccessMessage(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [successMessage]);
 
   const filteredEmployees = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -128,21 +110,10 @@ function Employees({
     setFormError(null);
     setIsSubmitting(true);
     try {
-      if (formModalState?.mode === 'edit') {
-        const updated = await updateEmployee(formModalState.employee.id, values as EmployeeUpdateValues);
-        // Patched locally for an instant close, then reconciled against the
-        // backend -- a store reassignment elsewhere can affect rows beyond
-        // this one, so the local patch alone isn't a reliable source of truth.
-        setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
-        onEmployeesChanged();
-        nfToast.success(`"${updated.name}" employee updated.`);
-      } else {
-        const created = await createEmployee(values as EmployeeCreateValues);
-        setEmployees((current) => [...current, created]);
-        onEmployeesChanged();
-        nfToast.success(`"${created.name}" employee added.`);
-      }
-      setFormModalState(null);
+      const updated = await updateEmployee(editTarget.id, values as EmployeeUpdateValues);
+      setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
+      nfToast.success(`"${updated.name}" employee updated.`);
+      setEditTarget(null);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setFormError(msg);
@@ -156,14 +127,13 @@ function Employees({
     if (!deleteTarget) return;
     setDeleteError(null);
     try {
-      await deleteEmployee(deleteTarget.id);
+      await unassignEmployeeFromMyStore(deleteTarget.id);
       setEmployees((current) => current.filter((employee) => employee.id !== deleteTarget.id));
-      onEmployeesChanged();
-      const deletedName = deleteTarget.name;
+      const removedName = deleteTarget.name;
       setDeleteTarget(null);
-      nfToast.success(`"${deletedName}" employee removed.`);
+      nfToast.success(`"${removedName}" removed from your store.`);
     } catch (error) {
-      setDeleteError(error instanceof Error ? error.message : 'Failed to delete employee');
+      setDeleteError(error instanceof Error ? error.message : 'Failed to remove employee from store');
     }
   }
 
@@ -173,27 +143,11 @@ function Employees({
     try {
       const updated = await setEmployeeStatus(statusTarget.id, !statusTarget.active);
       setEmployees((current) => current.map((e) => (e.id === updated.id ? updated : e)));
-      onEmployeesChanged();
       setStatusTarget(null);
       nfToast.success(`"${updated.name}" employee ${updated.active ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
       setStatusTarget(null);
-    }
-  }
-
-  async function handleConfirmResetPassword() {
-    if (!resetPasswordTarget) return;
-    setResetPasswordError(null);
-    setIsResettingPassword(true);
-    try {
-      await resetEmployeePassword(resetPasswordTarget.id);
-      setSuccessMessage(`Reset password email sent to ${resetPasswordTarget.name}.`);
-      setResetPasswordTarget(null);
-    } catch (error) {
-      setResetPasswordError(error instanceof Error ? error.message : "Failed to reset the employee's password");
-    } finally {
-      setIsResettingPassword(false);
     }
   }
 
@@ -236,28 +190,11 @@ function Employees({
       <div className="employees-page__header">
         <p className="employees-page__summary">{summaryText}</p>
 
-        <SpecularButton
-          size="sm"
-          radius={999}
-          tint="var(--color-badge-solid-bg)"
-          tintOpacity={1}
-          textColor="var(--color-badge-solid-text)"
-          lineColor="#e11d33"
-          baseColor="#e4e4e7"
-          followMouse
-          proximity={180}
-          onClick={() => setIsAssignModalOpen(true)}
-        >
-          <span className="employees-page__add-label">
-            <UserPlus size={16} />
-            Assign Employee
-          </span>
-        </SpecularButton>
       </div>
 
       <div className="filter-bar">
         <div className="filter filter--search">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search employees" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search employees" variant="filter" />
         </div>
 
         <Select
@@ -313,10 +250,6 @@ function Employees({
               setStatusError(null);
               setStatusTarget(employee);
             }}
-            onResetPassword={(employee) => {
-              setResetPasswordError(null);
-              setResetPasswordTarget(employee);
-            }}
           />
           <Pagination
             page={currentPage}
@@ -328,11 +261,6 @@ function Employees({
         </>
       )}
 
-      <AssignEmployeeModal
-        isOpen={isAssignModalOpen}
-        onClose={() => setIsAssignModalOpen(false)}
-        onAssignmentChange={onRetryEmployees}
-      />
 
       <EmployeeFormModal
         isOpen={editTarget !== null}
@@ -348,14 +276,15 @@ function Employees({
 
       <ConfirmDialog
         isOpen={deleteTarget !== null}
-        title="Delete Employee"
+        title="Remove from Store"
         message={
           deleteTarget
-            ? `Are you sure you want to remove ${deleteTarget.name} (${deleteTarget.empId})? This cannot be undone.${
+            ? `Remove ${deleteTarget.name} (${deleteTarget.empId}) from your store? They will remain in the system and may still belong to other stores.${
                 deleteError ? ` ${deleteError}` : ''
               }`
             : ''
         }
+        confirmLabel="Remove from Store"
         onConfirm={handleConfirmDelete}
         onCancel={() => {
           setDeleteError(null);
@@ -379,24 +308,6 @@ function Employees({
         onCancel={() => setStatusTarget(null)}
       />
 
-      <ConfirmDialog
-        isOpen={resetPasswordTarget !== null}
-        title="Reset Password"
-        message={
-          resetPasswordTarget
-            ? `Reset the password for ${resetPasswordTarget.name} (${resetPasswordTarget.empId})? A new temporary password will be emailed to them and they will be signed out of any active session.${
-                resetPasswordError ? ` ${resetPasswordError}` : ''
-              }`
-            : ''
-        }
-        confirmLabel={isResettingPassword ? 'Sending...' : 'Send Reset Email'}
-        danger={false}
-        onConfirm={handleConfirmResetPassword}
-        onCancel={() => {
-          setResetPasswordError(null);
-          setResetPasswordTarget(null);
-        }}
-      />
     </div>
   );
 }

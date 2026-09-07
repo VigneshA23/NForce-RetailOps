@@ -86,6 +86,8 @@ public class OwnerProvisioningService {
         User owner = new User();
         owner.setFullName(request.ownerName());
         owner.setEmail(request.ownerEmail());
+        owner.setPhone(request.ownerPhone());
+        owner.setGender(request.ownerGender());
         owner.setPasswordHash(passwordEncoder.encode(temporaryPassword));
         owner.setMustResetPassword(true);
         owner.getRoles().add(ownerRole);

@@ -1,27 +1,25 @@
 import { apiRequest } from './client';
+import type { Issue } from '../types/issue';
 
-export type IssueStatus = 'OPEN' | 'RESOLVED';
-
-export interface Issue {
-  id: number;
-  storeId: number;
-  employeeUserId: number;
-  employeeName: string;
-  note: string;
-  status: IssueStatus;
-  responseText: string | null;
-  respondedByName: string | null;
-  respondedAt: string | null;
-  createdAt: string;
+export async function raiseIssue(storeId: number, note: string): Promise<Issue> {
+  return apiRequest<Issue>('/me/issues', { method: 'POST', body: { storeId, note } });
 }
 
-export async function getStoreIssues(storeId: number): Promise<Issue[]> {
-  return apiRequest<Issue[]>(`/stores/${storeId}/issues`);
+export async function getIssues(storeId: number): Promise<Issue[]> {
+  return apiRequest<Issue[]>(`/issues?storeId=${storeId}`);
 }
 
-export async function respondToIssue(storeId: number, issueId: number, responseText: string): Promise<Issue> {
-  return apiRequest<Issue>(`/stores/${storeId}/issues/${issueId}/respond`, {
-    method: 'POST',
-    body: { responseText },
+export async function getMyIssues(storeId: number): Promise<Issue[]> {
+  return apiRequest<Issue[]>(`/me/issues?storeId=${storeId}`);
+}
+
+export async function updateIssueStatus(
+  issueId: number,
+  status: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED',
+  responseText?: string
+): Promise<Issue> {
+  return apiRequest<Issue>(`/issues/${issueId}/status`, {
+    method: 'PATCH',
+    body: { status, responseText: responseText ?? null },
   });
 }

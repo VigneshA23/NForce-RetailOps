@@ -20,6 +20,7 @@ export function emptyTaskFormValues(): AdminTaskFormValues {
     completionType: null,
     scheduleType: null,
     selectedDays: [],
+    oneTimeDate: '',
     startDate: '',
     endDate: '',
     active: true,
@@ -82,12 +83,17 @@ export function validateTaskForm(values: AdminTaskFormValues): AdminTaskFormErro
     errors.selectedDays = 'Select at least one day';
   }
 
-  if (!values.startDate) {
-    errors.startDate = 'Start date is required';
-  }
-
-  if (values.startDate && values.endDate && values.endDate < values.startDate) {
-    errors.endDate = 'End date cannot be before start date';
+  if (values.scheduleType === 'ONE_TIME') {
+    if (!values.oneTimeDate) {
+      errors.oneTimeDate = 'Task date is required';
+    }
+  } else {
+    if (!values.startDate) {
+      errors.startDate = 'Start date is required';
+    }
+    if (values.startDate && values.endDate && values.endDate < values.startDate) {
+      errors.endDate = 'End date cannot be before start date';
+    }
   }
 
   return errors;

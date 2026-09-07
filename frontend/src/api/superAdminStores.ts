@@ -17,3 +17,11 @@ export async function createStandaloneStore(values: CreateStoreValues): Promise<
 export async function updateStoreStatus(id: number, active: boolean): Promise<SuperAdminStore> {
   return apiRequest<SuperAdminStore>(`/stores/${id}/status`, { method: 'PATCH', body: { active } });
 }
+
+export async function deleteStore(id: number): Promise<void> {
+  return apiRequest<void>(`/stores/${id}`, { method: 'DELETE' });
+}
+
+export async function assignStoreOwner(storeId: number, ownerId: number): Promise<SuperAdminStore> {
+  return apiRequest<SuperAdminStore>(`/stores/${storeId}/assign-owner`, { method: 'PATCH', body: { ownerId } });
+}

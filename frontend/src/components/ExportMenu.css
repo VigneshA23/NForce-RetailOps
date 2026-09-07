@@ -1,0 +1,119 @@
+.export-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.export-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+.export-menu__dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 200;
+  min-width: 210px;
+  max-width: calc(100vw - 24px);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dropdown, 0 8px 24px rgba(0, 0, 0, 0.12));
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.export-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 14px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s ease;
+}
+
+.export-menu__item:hover:not(:disabled) {
+  background: var(--color-bg-hover, rgba(0, 0, 0, 0.04));
+}
+
+.export-menu__item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.export-menu__divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 4px 0;
+}
+
+/* Inline range form */
+.export-menu__range-form {
+  padding: 8px 14px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-page);
+}
+
+.export-menu__range-row {
+  display: flex;
+  gap: 8px;
+}
+
+.export-menu__range-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+
+.export-menu__range-input {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  width: 100%;
+}
+
+.export-menu__range-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.export-menu__range-download {
+  width: 100%;
+  justify-content: center;
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
+@media (max-width: 480px) {
+  .export-menu__range-row {
+    flex-direction: column;
+  }
+}

@@ -18,9 +18,31 @@
 
 .app-shell__main {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
+  position: relative;
 }
 
-.app-shell__main--bottom-nav {
-  padding-bottom: calc(56px + env(safe-area-inset-bottom));
+/* Framer Motion page transition wrapper.
+   position:absolute + inset:0 makes entering/exiting pages OVERLAY each
+   other instead of stacking in the normal flow. Without this, mode="sync"
+   puts both pages in the DOM simultaneously; the scroll container grows to
+   their combined height, so the entering page's top is visible at the bottom
+   of the viewport if the user was scrolled down on the previous page. */
+.app-shell__page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  will-change: opacity, transform;
+}
+
+/* Bottom nav padding lives here (was on main; absolute page ignores parent padding) */
+.app-shell__main--bottom-nav .app-shell__page {
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-shell__page {
+    will-change: auto;
+  }
 }

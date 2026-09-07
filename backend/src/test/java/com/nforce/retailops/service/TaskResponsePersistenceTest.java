@@ -389,8 +389,9 @@ class TaskResponsePersistenceTest {
     @Test
     @Transactional
     void submittingForATaskNotScopedToTheEmployeesStoreIsRejected() {
+        // No linkOwnerToStore here — the owner already owns storeId; adding a second
+        // StoreOwner row for the same owner would cause findByOwnerId to return 2 rows.
         Store otherStore = saveStore(90501L + System.nanoTime() % 1000);
-        linkOwnerToStore(userRepository.getReferenceById(ownerId), otherStore);
 
         // Add the second store to employee1's existing assignment rather than creating
         // a second StoreEmployee row -- store_employees.user_id is unique per employee.

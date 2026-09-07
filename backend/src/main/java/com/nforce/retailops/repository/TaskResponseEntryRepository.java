@@ -61,4 +61,26 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     // an undone (active=false) response is still a historical fact that must block
     // deletion, per TaskResponseEntry's own preserve-history contract.
     boolean existsByTaskId(Long taskId);
+
+    // Backs the deleteStore history guard -- any response against a store (active
+    // or undone) is enough to block deletion, same rationale as existsByTaskId.
+    boolean existsByStoreId(Long storeId);
+
+    // Latest submission timestamp for a store on a given date — used by
+    // SuperAdminOperationsService to populate lastActivityAt per store.
+    @Query("SELECT MAX(tre.createdAt) FROM TaskResponseEntry tre "
+        + "WHERE tre.store.id = :storeId AND tre.responseDate = :responseDate AND tre.active = true")
+    java.time.OffsetDateTime findMaxCreatedAtByStoreIdAndResponseDate(
+        @Param("storeId") Long storeId, @Param("responseDate") java.time.LocalDate responseDate
+    );
+
+    // Returns (responseDate, storeId, taskId) tuples for trend computation — one
+    // round trip for the entire date range instead of one query per store per day.
+    @Query("SELECT tre.responseDate, tre.store.id, tre.task.id FROM TaskResponseEntry tre "
+        + "WHERE tre.store.id IN :storeIds AND tre.responseDate BETWEEN :startDate AND :endDate AND tre.active = true")
+    List<Object[]> findDateStoreTaskIdTuples(
+        @Param("storeIds") Collection<Long> storeIds,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
 }

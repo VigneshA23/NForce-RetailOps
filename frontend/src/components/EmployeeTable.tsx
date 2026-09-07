@@ -1,5 +1,7 @@
-import { Pencil, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import type { Employee } from '../types/employee';
+import UserAvatar from './UserAvatar';
+import { getInitials } from '../utils/initials';
 import './EmployeeTable.css';
 
 interface EmployeeTableProps {
@@ -12,7 +14,6 @@ interface EmployeeTableProps {
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
   onToggleStatus: (employee: Employee) => void;
-  onResetPassword: (employee: Employee) => void;
 }
 
 function EmployeeTable({
@@ -23,7 +24,6 @@ function EmployeeTable({
   onEdit,
   onDelete,
   onToggleStatus,
-  onResetPassword,
 }: EmployeeTableProps) {
   return (
     <div className="table-card employee-table__card">
@@ -50,7 +50,12 @@ function EmployeeTable({
                     {employee.empId}
                   </button>
                 </td>
-                <td className="employee-table__name" data-label="Employee Name">{employee.name}</td>
+                <td className="employee-table__name" data-label="Employee Name">
+                  <div className="employee-table__name-cell">
+                    <UserAvatar initials={getInitials(employee.name)} src={employee.avatarUrl} size={28} />
+                    <span>{employee.name}</span>
+                  </div>
+                </td>
                 <td data-label="Contact">{employee.phone}</td>
                 <td data-label="Status">
                   <label
@@ -73,20 +78,20 @@ function EmployeeTable({
                     <button
                       type="button"
                       className="table-icon-btn"
+                      aria-label={`View ${employee.name}`}
+                      title="View details"
+                      onClick={() => onViewDetails(employee)}
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn"
                       aria-label={`Edit ${employee.name}`}
                       title="Edit"
                       onClick={() => onEdit(employee)}
                     >
                       <Pencil size={16} />
-                    </button>
-                    <button
-                      type="button"
-                      className="table-icon-btn"
-                      aria-label={`Reset password for ${employee.name}`}
-                      title="Reset Password"
-                      onClick={() => onResetPassword(employee)}
-                    >
-                      <span className="icon-mask-reset-password" style={{ width: 16, height: 16 }} aria-hidden="true" />
                     </button>
                     <button
                       type="button"

@@ -1,54 +1,136 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { addOwner, assignStore, getOwners, setOwnerStatus, setStoreStatus } from '../api/owners';
-import type { AddOwnerValues, AssignStoreValues, OwnerSummary } from '../types/owner';
+import { addOwner, assignStore, getOwners, setOwnerStatus, setStoreStatus, updateOwner } from '../api/owners';
+import type { AddOwnerValues, AssignStoreValues, OwnerSummary, UpdateOwnerValues } from '../types/owner';
+import type { GroupedOwner } from '../components/OwnerTable';
 import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
 import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
-import OwnerList from '../components/OwnerList';
+import OwnerTable from '../components/OwnerTable';
+import OwnerDetailModal from '../components/OwnerDetailModal';
 import OwnerFormModal from '../components/OwnerFormModal';
+import OwnerEditModal from '../components/OwnerEditModal';
 import AssignStoreModal from '../components/AssignStoreModal';
 import TemporaryPasswordPopup from '../components/TemporaryPasswordPopup';
-import ChecklistHistoryDetailModal from '../components/ChecklistHistoryDetailModal';
-import type { ChecklistHistoryDetailTarget } from '../components/ChecklistHistoryDetailModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
+import SACommandPalette from '../components/SACommandPalette';
 import SearchInput from '../components/SearchInput';
 import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
 import Profile from '../pages/Profile';
+import Help from '../pages/Help';
+import Settings from '../pages/Settings';
+import Notifications from '../pages/Notifications';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
+import SuperAdminHome from '../pages/SuperAdminHome';
+import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import { getInitials } from '../utils/initials';
+import { useUnreadCount } from '../hooks/useUnreadCount';
 import './SuperAdminDashboard.css';
 
 interface SuperAdminDashboardProps {
   user: AuthUser;
   onLogout: () => void;
   loggingOut?: boolean;
+  avatarUrl?: string | null;
+  onAvatarChange?: (url: string | null) => void;
 }
 
-function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboardProps) {
+function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: SuperAdminDashboardProps) {
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Add owner
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusTarget, setStatusTarget] = useState<OwnerSummary | null>(null);
+
+  // Edit owner
+  const [editTarget, setEditTarget] = useState<GroupedOwner | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
+  // Status toggle (activate / deactivate via toggle switch)
+  const [statusTarget, setStatusTarget] = useState<GroupedOwner | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
+
+  // Deactivate (via trash icon — always deactivates, never activates)
+  const [deactivateTarget, setDeactivateTarget] = useState<GroupedOwner | null>(null);
+  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+
+  // Store status toggle
   const [storeStatusTarget, setStoreStatusTarget] = useState<OwnerSummary | null>(null);
   const [storeStatusError, setStoreStatusError] = useState<string | null>(null);
-  const [assignStoreTarget, setAssignStoreTarget] = useState<OwnerSummary | null>(null);
+
+  // Owner detail view
+  const [ownerDetailTarget, setOwnerDetailTarget] = useState<GroupedOwner | null>(null);
+
+  // Assign store
+  const [assignStoreTarget, setAssignStoreTarget] = useState<GroupedOwner | null>(null);
   const [assignStoreError, setAssignStoreError] = useState<string | null>(null);
   const [isAssigningStore, setIsAssigningStore] = useState(false);
-  const [storeChecklistTarget, setStoreChecklistTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
+
+  // Checklist tab navigation: storeId + monotone ts so re-navigation to the same store fires
+  const [checklistNav, setChecklistNav] = useState<ChecklistNav | null>(null);
+
+  function navigateToChecklist(storeId: number) {
+    setChecklistNav({ storeId, ts: Date.now() });
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowSettings(false);
+    setActiveTab('checklist');
+  }
+
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
   const [searchValue, setSearchValue] = useState('');
-  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('owners');
+  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
   const [showProfile, setShowProfile] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const { count: unreadCount, setCount } = useUnreadCount();
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
+
+  function handleNotificationsCountChange(value: number) {
+    if (value === 0) setCount(0);
+    else setCount((prev) => Math.max(0, prev + value));
+  }
+
+  function handleNotificationNavigate(path: string) {
+    switch (path) {
+      case '/checklist': setActiveTab('checklist'); setShowNotifications(false); break;
+      default: setShowNotifications(true); break;
+    }
+  }
+
+  function handleSearchNavigate(navTarget: string) {
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowSettings(false);
+    setShowNotifications(false);
+    if (navTarget.startsWith('checklist:')) {
+      const storeId = parseInt(navTarget.split(':')[1], 10);
+      if (!isNaN(storeId)) {
+        navigateToChecklist(storeId);
+      }
+    } else if (navTarget === 'owners') {
+      setActiveTab('owners');
+    } else if (navTarget === 'employees') {
+      setActiveTab('employees');
+    }
+  }
+
+  function applyOwnerUpdates(updated: OwnerSummary[]) {
+    const updatedByKey = new Map(updated.map((o) => [`${o.ownerId}-${o.storeId}`, o]));
+    setOwners((current) =>
+      current.map((o) => updatedByKey.get(`${o.ownerId}-${o.storeId}`) ?? o),
+    );
+  }
 
   function loadOwners() {
     setIsLoading(true);
@@ -69,9 +151,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
     try {
       const created = await addOwner(values);
       setIsFormOpen(false);
-      // Reloaded rather than appended locally: assigning an existing store
-      // moves it away from its previous (deactivated) owner, so a full
-      // refresh is the only way to keep that owner's row correct too.
       loadOwners();
       nfToast.success(`"${values.ownerName}" owner added.`);
       setTempPassword({ name: values.ownerName, password: created.temporaryPassword });
@@ -81,6 +160,24 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       nfToast.error(msg);
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleEditSubmit(values: UpdateOwnerValues) {
+    if (!editTarget) return;
+    setEditError(null);
+    setIsEditSubmitting(true);
+    try {
+      const updated = await updateOwner(editTarget.ownerId, values);
+      applyOwnerUpdates(updated);
+      nfToast.success(`"${values.ownerName}" updated.`);
+      setEditTarget(null);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to update owner';
+      setEditError(msg);
+      nfToast.error(msg);
+    } finally {
+      setIsEditSubmitting(false);
     }
   }
 
@@ -114,18 +211,30 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       const ownerName = statusTarget.ownerName;
       const isActivating = !statusTarget.ownerActive;
       const updated = await setOwnerStatus(statusTarget.ownerId, isActivating);
-      // Keyed by owner+store rather than bare storeId: several store-less
-      // owners would all carry storeId `null` and collide on that alone.
-      const updatedByKey = new Map(updated.map((owner) => [`${owner.ownerId}-${owner.storeId}`, owner]));
-      setOwners((current) =>
-        current.map((owner) => updatedByKey.get(`${owner.ownerId}-${owner.storeId}`) ?? owner),
-      );
+      applyOwnerUpdates(updated);
       setStatusTarget(null);
       nfToast.success(`"${ownerName}" owner ${isActivating ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setStatusTarget(null);
       const msg = error instanceof Error ? error.message : 'Failed to update owner status';
       setStatusError(msg);
+      nfToast.error(msg);
+    }
+  }
+
+  async function handleConfirmDeactivate() {
+    if (!deactivateTarget) return;
+    setDeactivateError(null);
+    try {
+      const ownerName = deactivateTarget.ownerName;
+      const updated = await setOwnerStatus(deactivateTarget.ownerId, false);
+      applyOwnerUpdates(updated);
+      setDeactivateTarget(null);
+      nfToast.success(`"${ownerName}" owner deactivated.`);
+    } catch (error) {
+      setDeactivateTarget(null);
+      const msg = error instanceof Error ? error.message : 'Failed to deactivate owner';
+      setDeactivateError(msg);
       nfToast.error(msg);
     }
   }
@@ -141,10 +250,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         storeStatusTarget.storeId,
         isActivating,
       );
-      const updatedByKey = new Map(updated.map((owner) => [`${owner.ownerId}-${owner.storeId}`, owner]));
-      setOwners((current) =>
-        current.map((owner) => updatedByKey.get(`${owner.ownerId}-${owner.storeId}`) ?? owner),
-      );
+      applyOwnerUpdates(updated);
       setStoreStatusTarget(null);
       nfToast.success(`"${storeName}" store ${isActivating ? 'activated' : 'deactivated'}.`);
     } catch (error) {
@@ -165,12 +271,12 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       )
     : owners;
 
-  const uniqueOwnerCount = useMemo(() => new Set(owners.map((owner) => owner.ownerId)).size, [owners]);
+  const uniqueOwnerCount = useMemo(() => new Set(owners.map((o) => o.ownerId)).size, [owners]);
   const activeOwnerCount = useMemo(
-    () => new Set(owners.filter((owner) => owner.ownerActive).map((owner) => owner.ownerId)).size,
+    () => new Set(owners.filter((o) => o.ownerActive).map((o) => o.ownerId)).size,
     [owners],
   );
-  const totalStoreCount = useMemo(() => owners.filter((owner) => owner.storeId != null).length, [owners]);
+  const totalStoreCount = useMemo(() => owners.filter((o) => o.storeId != null).length, [owners]);
 
   return (
     <AppShell<SuperAdminNavTabKey>
@@ -178,61 +284,103 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
       activeTab={activeTab}
       onSelectTab={(key) => {
         setShowProfile(false);
+        setShowHelp(false);
+        setShowSettings(false);
+        setShowNotifications(false);
         setActiveTab(key);
       }}
-      title={showProfile ? 'My Profile' : SUPER_ADMIN_PAGE_TITLES[activeTab]}
+      title={
+        showProfile ? 'My Profile'
+        : showHelp ? 'Help & Guidance'
+        : showSettings ? 'Settings'
+        : showNotifications ? 'Notifications'
+        : SUPER_ADMIN_PAGE_TITLES[activeTab]
+      }
+      contentKey={
+        showProfile ? 'profile'
+        : showHelp ? 'help'
+        : showSettings ? 'settings'
+        : showNotifications ? 'notifications'
+        : activeTab
+      }
+      logoSrc="/nforce-logo.png"
+      hideLogoOnDesktop
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
-      onProfileClick={() => setShowProfile(true)}
+      avatarUrl={avatarUrl}
+      onProfileClick={() => { setShowHelp(false); setShowSettings(false); setShowNotifications(false); setShowProfile(true); }}
+      onHelpClick={() => { setShowProfile(false); setShowSettings(false); setShowNotifications(false); setShowHelp(true); }}
+      onSettingsClick={() => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowSettings(true); }}
+      onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowSettings(false); setShowNotifications(true); }}
+      onNotificationNavigate={handleNotificationNavigate}
+      notificationUnreadCount={unreadCount}
+      onNotificationsCountChange={handleNotificationsCountChange}
+      mobileNav="bottom-tabs"
+      showSearch={false}
+      headerActions={<SACommandPalette onNavigate={handleSearchNavigate} />}
     >
       {showProfile ? (
-        <Profile initials={userInitials} />
+        <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
+      ) : showHelp ? (
+        <Help />
+      ) : showSettings ? (
+        <Settings />
+      ) : showNotifications ? (
+        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
+      ) : activeTab === 'checklist' ? (
+        <SuperAdminChecklist nav={checklistNav} />
+      ) : activeTab === 'home' ? (
+        <SuperAdminHome owners={owners} ownersLoading={isLoading} onStoreClick={navigateToChecklist} />
       ) : activeTab === 'stores' ? (
-        <SuperAdminStores />
+        <SuperAdminStores onNavigateToChecklist={navigateToChecklist} />
       ) : activeTab === 'employees' ? (
         <SuperAdminEmployees />
       ) : (
-      <div className="owners-page">
-        <div className="stat-card-row">
-          <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
-          <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
-          <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount} tone="info" />
-        </div>
-
-        {statusError && (
-          <div className="owners-page__error">
-            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-            <span className="owners-page__error-message">{statusError}</span>
+        <div className="owners-page">
+          <div className="stat-card-row">
+            <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
+            <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
+            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount} tone="info" />
           </div>
-        )}
 
-        {storeStatusError && (
-          <div className="owners-page__error">
-            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-            <span className="owners-page__error-message">{storeStatusError}</span>
-          </div>
-        )}
+          {statusError && (
+            <div className="owners-page__error">
+              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+              <span className="owners-page__error-message">{statusError}</span>
+            </div>
+          )}
 
-        {loadError ? (
-          <div className="owners-page__error">
-            <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-            <span className="owners-page__error-message">{loadError}</span>
-            <button type="button" className="btn btn--secondary" onClick={loadOwners}>
-              Retry
-            </button>
-          </div>
-        ) : (
-          <div className="card">
-            <div className="card__header">
-              <h2 className="card__title">All Owners</h2>
-              <div className="card__toolbar">
-                <SearchInput
-                  variant="card"
-                  value={searchValue}
-                  onChange={setSearchValue}
-                  placeholder="Search by owner, email, or store..."
-                />
+          {deactivateError && (
+            <div className="owners-page__error">
+              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+              <span className="owners-page__error-message">{deactivateError}</span>
+            </div>
+          )}
+
+          {storeStatusError && (
+            <div className="owners-page__error">
+              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+              <span className="owners-page__error-message">{storeStatusError}</span>
+            </div>
+          )}
+
+          {loadError ? (
+            <div className="owners-page__error">
+              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+              <span className="owners-page__error-message">{loadError}</span>
+              <button type="button" className="btn btn--secondary" onClick={loadOwners}>
+                Retry
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="owners-page__header">
+                <p className="owners-page__summary">
+                  {isLoading
+                    ? 'Loading owners...'
+                    : `${uniqueOwnerCount} owner${uniqueOwnerCount === 1 ? '' : 's'} · ${totalStoreCount} store${totalStoreCount === 1 ? '' : 's'}`}
+                </p>
                 <SpecularButton
                   size="sm"
                   radius={999}
@@ -254,33 +402,48 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
                   </span>
                 </SpecularButton>
               </div>
-            </div>
-            <OwnerList
-              owners={filteredOwners}
-              isLoading={isLoading}
-              onToggleStatus={setStatusTarget}
-              onAddStore={(owner) => {
-                setAssignStoreError(null);
-                setAssignStoreTarget(owner);
-              }}
-              onToggleStoreStatus={(store) => {
-                setStoreStatusError(null);
-                setStoreStatusTarget(store);
-              }}
-              onViewStoreChecklist={(store) => {
-                if (store.storeId == null || store.storeName == null) return;
-                setStoreChecklistTarget({
-                  storeId: store.storeId,
-                  storeName: store.storeName,
-                  date: new Date().toISOString().slice(0, 10),
-                });
-              }}
-            />
-          </div>
-        )}
-      </div>
+
+              <div className="filter-bar">
+                <div className="filter filter--search">
+                  <SearchInput
+                    value={searchValue}
+                    onChange={setSearchValue}
+                    placeholder="Search by name, email, or store..."
+                    variant="filter"
+                  />
+                </div>
+              </div>
+
+              <div className="card">
+              <OwnerTable
+                owners={filteredOwners}
+                isLoading={isLoading}
+                emptyMessage={owners.length === 0 ? 'No owners yet. Add one to get started.' : 'No owners match your search.'}
+                onEdit={(owner) => {
+                  setEditError(null);
+                  setEditTarget(owner);
+                }}
+                onToggleStatus={(owner) => {
+                  setStatusError(null);
+                  setStatusTarget(owner);
+                }}
+                onDeactivate={(owner) => {
+                  setDeactivateError(null);
+                  setDeactivateTarget(owner);
+                }}
+                onAddStore={(owner) => {
+                  setAssignStoreError(null);
+                  setAssignStoreTarget(owner);
+                }}
+                onView={(owner) => setOwnerDetailTarget(owner)}
+              />
+              </div>
+            </>
+          )}
+        </div>
       )}
 
+      {/* Add owner */}
       <OwnerFormModal
         isOpen={isFormOpen}
         errorMessage={formError}
@@ -289,6 +452,17 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         onSubmit={handleFormSubmit}
       />
 
+      {/* Edit owner */}
+      <OwnerEditModal
+        isOpen={editTarget !== null}
+        initialValues={editTarget ? { ownerName: editTarget.ownerName, ownerEmail: editTarget.ownerEmail } : undefined}
+        errorMessage={editError}
+        isSubmitting={isEditSubmitting}
+        onClose={() => setEditTarget(null)}
+        onSubmit={handleEditSubmit}
+      />
+
+      {/* Assign store */}
       <AssignStoreModal
         isOpen={assignStoreTarget !== null}
         ownerName={assignStoreTarget?.ownerName}
@@ -298,13 +472,20 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         onSubmit={handleAssignStoreSubmit}
       />
 
+      {/* Owner detail view */}
+      <OwnerDetailModal
+        owner={ownerDetailTarget}
+        onClose={() => setOwnerDetailTarget(null)}
+      />
+
+      {/* Toggle status confirm (activate or deactivate) */}
       <ConfirmDialog
         isOpen={statusTarget !== null}
         title={statusTarget?.ownerActive ? 'Deactivate Owner' : 'Activate Owner'}
         message={
           statusTarget
             ? statusTarget.ownerActive
-              ? `Are you sure you want to deactivate ${statusTarget.ownerName}? They will no longer be able to sign in.`
+              ? `Deactivate ${statusTarget.ownerName}? They will no longer be able to sign in.`
               : `Reactivate ${statusTarget.ownerName}? They will be able to sign in again.`
             : ''
         }
@@ -314,13 +495,29 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         onCancel={() => setStatusTarget(null)}
       />
 
+      {/* Deactivate via trash icon */}
+      <ConfirmDialog
+        isOpen={deactivateTarget !== null}
+        title="Deactivate Owner"
+        message={
+          deactivateTarget
+            ? `Deactivate ${deactivateTarget.ownerName}? They will no longer be able to sign in. You can reactivate them at any time using the status toggle.`
+            : ''
+        }
+        confirmLabel="Deactivate"
+        danger
+        onConfirm={handleConfirmDeactivate}
+        onCancel={() => setDeactivateTarget(null)}
+      />
+
+      {/* Store status toggle confirm */}
       <ConfirmDialog
         isOpen={storeStatusTarget !== null}
         title={storeStatusTarget?.storeActive ? 'Deactivate Store' : 'Activate Store'}
         message={
           storeStatusTarget
             ? storeStatusTarget.storeActive
-              ? `Are you sure you want to deactivate ${storeStatusTarget.storeName}? ${storeStatusTarget.ownerName} will no longer be able to manage this store, its employees, or its tasks.`
+              ? `Deactivate ${storeStatusTarget.storeName}? ${storeStatusTarget.ownerName} will no longer be able to manage this store, its employees, or its tasks.`
               : `Reactivate ${storeStatusTarget.storeName}? ${storeStatusTarget.ownerName} will be able to manage it again.`
             : ''
         }
@@ -328,11 +525,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut }: SuperAdminDashboard
         danger={storeStatusTarget?.storeActive ?? true}
         onConfirm={handleConfirmStoreStatusChange}
         onCancel={() => setStoreStatusTarget(null)}
-      />
-
-      <ChecklistHistoryDetailModal
-        target={storeChecklistTarget}
-        onClose={() => setStoreChecklistTarget(null)}
       />
 
       <TemporaryPasswordPopup

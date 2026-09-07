@@ -7,7 +7,6 @@ import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.dto.TodayChecklistResponse;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
-import com.nforce.retailops.entity.IssueStatus;
 import com.nforce.retailops.entity.RaisedIssue;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.ScheduleType;
@@ -560,9 +559,8 @@ class MeHistoryServiceTest {
 
         RaisedIssue issue = new RaisedIssue();
         issue.setStore(store);
-        issue.setEmployee(employee);
+        issue.setEmployeeUser(employee);
         issue.setNote("Freezer #2 is not cooling properly.");
-        issue.setStatus(IssueStatus.OPEN);
         raisedIssueRepository.save(issue);
 
         ChecklistHistoryDetailResponse detail = meHistoryService.getDetail(employeeId, storeId, LocalDate.now());
@@ -582,9 +580,8 @@ class MeHistoryServiceTest {
 
         RaisedIssue issue = new RaisedIssue();
         issue.setStore(store);
-        issue.setEmployee(employee);
+        issue.setEmployeeUser(employee);
         issue.setNote("Yesterday's issue");
-        issue.setStatus(IssueStatus.OPEN);
         issue.setRaisedDate(LocalDate.now().minusDays(1));
         raisedIssueRepository.save(issue);
 

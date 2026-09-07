@@ -1,4 +1,4 @@
-import type { AddOwnerValues, AssignStoreValues, OwnerCreationResult, OwnerSummary, ReassignableStore } from '../types/owner';
+import type { AddOwnerValues, AssignStoreValues, OwnerCreationResult, OwnerSummary, ReassignableStore, UpdateOwnerValues } from '../types/owner';
 import { authHeaders } from '../utils/authStorage';
 import { fetchWithTimeout } from './client';
 
@@ -49,6 +49,16 @@ export async function assignStore(ownerId: number, values: AssignStoreValues): P
     body: JSON.stringify(values),
   });
   if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to add store'));
+  return response.json();
+}
+
+export async function updateOwner(ownerId: number, values: UpdateOwnerValues): Promise<OwnerSummary[]> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/owners/${ownerId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(values),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to update owner'));
   return response.json();
 }
 

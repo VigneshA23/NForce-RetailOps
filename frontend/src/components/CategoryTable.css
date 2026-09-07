@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .category-table__card {
   overflow: visible;
 }
@@ -11,45 +13,8 @@
   color: var(--color-text-secondary);
 }
 
-.category-table__status {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-.category-table__actions-cell,
-/* Beats the higher-specificity `.data-table thead th { text-align: left }`
-   base rule in table.css, so the header lines up with the cell. */
-.data-table thead th.category-table__actions-cell {
-  text-align: left;
-}
-
 .category-table__empty {
   padding: var(--space-xl);
   text-align: center;
   color: var(--color-text-secondary);
-}
-
-.category-table__drag-cell {
-  width: 32px;
-  padding-right: 0 !important;
-  color: var(--color-text-muted);
-}
-
-.category-table__row {
-  cursor: grab;
-  transition: background 0.15s ease, opacity 0.15s ease;
-}
-
-.category-table__row:active {
-  cursor: grabbing;
-}
-
-.category-table__row--dragging {
-  opacity: 0.4;
-}
-
-.category-table__row--drag-over {
-  background: color-mix(in srgb, var(--color-accent) 8%, transparent);
-  box-shadow: inset 0 2px 0 var(--color-accent);
 }

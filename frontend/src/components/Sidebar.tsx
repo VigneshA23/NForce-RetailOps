@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PanelLeft } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
-import type { AuthUser, Role } from '../types/auth';
+import type { AuthUser } from '../types/auth';
 import { useIsMobile, useIsTabletDown } from '../hooks/useMediaQuery';
 import './Sidebar.css';
 
@@ -23,12 +23,6 @@ interface SidebarProps<Key extends string = NavTabKey> {
   user: AuthUser;
 }
 
-const ROLE_LABELS: Record<Role, string> = {
-  OWNER_ADMIN: 'Admin',
-  EMPLOYEE: 'Employee',
-  SUPER_ADMIN: 'Super Admin',
-};
-
 function Sidebar<Key extends string = NavTabKey>({
   items,
   activeKey,
@@ -37,7 +31,6 @@ function Sidebar<Key extends string = NavTabKey>({
   onToggleCollapsed,
   mobileOpen = false,
   onClose,
-  user,
 }: SidebarProps<Key>) {
   const isMobile = useIsMobile();
   const isTabletDown = useIsTabletDown();
@@ -132,14 +125,7 @@ function Sidebar<Key extends string = NavTabKey>({
             </ul>
           </nav>
         </div>
-        <div className="sidebar__footer">
-          <div className="sidebar__profile">
-            <div className="sidebar__profile-text sidebar__label">
-              <span className="sidebar__profile-name">{user.fullName}</span>
-              <span className="sidebar__profile-role">{ROLE_LABELS[user.role]}</span>
-            </div>
-          </div>
-        </div>
+
       </aside>
       {hoveredTooltip &&
         createPortal(

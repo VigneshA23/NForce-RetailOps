@@ -12,7 +12,10 @@ export interface EmployeeCreationResult {
   temporaryPassword: string;
 }
 
-// Created with no store -- an Owner assigns their own store to it afterward.
 export async function createEmployeeAsSuperAdmin(values: EmployeeCreateValues): Promise<EmployeeCreationResult> {
   return apiRequest<EmployeeCreationResult>('/employees', { method: 'POST', body: values });
+}
+
+export async function updateEmployeeStores(employeeId: number, storeIds: number[]): Promise<Employee> {
+  return apiRequest<Employee>(`/employees/${employeeId}/stores`, { method: 'PUT', body: { storeIds } });
 }

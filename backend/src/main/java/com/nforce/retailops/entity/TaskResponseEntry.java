@@ -65,6 +65,12 @@ public class TaskResponseEntry {
     @Column(name = "undone_at")
     private OffsetDateTime undoneAt;
 
+    @Column(name = "flagged_needs_correction", nullable = false)
+    private boolean flaggedNeedsCorrection = false;
+
+    @Column(name = "flag_reason", length = 500)
+    private String flagReason;
+
     public TaskResponseEntry() {
     }
 
@@ -169,5 +175,21 @@ public class TaskResponseEntry {
 
     public void setUndoneAt(OffsetDateTime undoneAt) {
         this.undoneAt = undoneAt;
+    }
+
+    public boolean isFlaggedNeedsCorrection() {
+        return flaggedNeedsCorrection;
+    }
+
+    public void setFlaggedNeedsCorrection(boolean flaggedNeedsCorrection) {
+        this.flaggedNeedsCorrection = flaggedNeedsCorrection;
+    }
+
+    public String getFlagReason() {
+        return flagReason;
+    }
+
+    public void setFlagReason(String flagReason) {
+        this.flagReason = flagReason;
     }
 }

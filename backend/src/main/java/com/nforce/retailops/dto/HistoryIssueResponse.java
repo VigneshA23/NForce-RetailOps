@@ -20,9 +20,9 @@ public record HistoryIssueResponse(
         return new HistoryIssueResponse(
             issue.getId(),
             issue.getNote(),
-            issue.getStatus().name(),
+            issue.getStatus(),
             issue.getResponseText(),
-            issue.getRespondedBy() != null ? issue.getRespondedBy().getFullName() : null,
+            issue.getRespondedByUser() != null ? issue.getRespondedByUser().getFullName() : null,
             issue.getRespondedAt(),
             issue.getCreatedAt()
         );

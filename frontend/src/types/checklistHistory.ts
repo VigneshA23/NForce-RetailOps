@@ -35,6 +35,20 @@ export interface ChecklistHistoryOperationsReport {
   details: ChecklistHistoryTaskDetailRow[];
 }
 
+export interface AdminCorrectionEntry {
+  id: number;
+  originalValueBoolean: boolean | null;
+  originalValueNumeric: number | null;
+  originalValueText: string | null;
+  correctedValueBoolean: boolean | null;
+  correctedValueNumeric: number | null;
+  correctedValueText: string | null;
+  correctedByFullName: string;
+  correctedAt: string;
+  reason: string | null;
+  correctionType: string; // 'DIRECT' | 'FLAG_TO_EMPLOYEE'
+}
+
 export interface ChecklistHistoryResponseEntry {
   id: number;
   employeeUserId: number;
@@ -46,6 +60,16 @@ export interface ChecklistHistoryResponseEntry {
   numericValue: number | null;
   textValue: string | null;
   respondedAt: string;
+  // Non-null when an admin has corrected this response at least once.
+  latestCorrection: AdminCorrectionEntry | null;
+  employeeAvatarUrl?: string | null;
+  flaggedNeedsCorrection: boolean;
+  flagReason: string | null;
+}
+
+export interface AdminCorrectionApplyResponse {
+  updatedResponse: ChecklistHistoryResponseEntry;
+  correction: AdminCorrectionEntry;
 }
 
 export interface ChecklistHistoryTaskItem {

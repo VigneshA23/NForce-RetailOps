@@ -1,4 +1,4 @@
-import { ChevronRight } from 'lucide-react';
+import { Eye, Trash2, UserRoundCog } from 'lucide-react';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import './SuperAdminStoreTable.css';
 
@@ -8,6 +8,8 @@ interface SuperAdminStoreTableProps {
   emptyMessage?: string;
   onViewDetails: (store: SuperAdminStore) => void;
   onToggleStatus: (store: SuperAdminStore) => void;
+  onAssignOwner: (store: SuperAdminStore) => void;
+  onDelete: (store: SuperAdminStore) => void;
 }
 
 function SuperAdminStoreTable({
@@ -16,6 +18,8 @@ function SuperAdminStoreTable({
   emptyMessage = 'No stores match your filters.',
   onViewDetails,
   onToggleStatus,
+  onAssignOwner,
+  onDelete,
 }: SuperAdminStoreTableProps) {
   return (
     <div className="table-card">
@@ -26,9 +30,8 @@ function SuperAdminStoreTable({
               <th scope="col">Store</th>
               <th scope="col">Owner</th>
               <th scope="col">Employees</th>
-              <th scope="col">Tasks</th>
               <th scope="col">Status</th>
-              <th scope="col" aria-hidden="true" />
+              <th scope="col">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -48,7 +51,6 @@ function SuperAdminStoreTable({
                   {store.ownerAccessActive ? store.ownerName : <span className="badge badge--outline">Unassigned</span>}
                 </td>
                 <td data-label="Employees">{store.employeeCount}</td>
-                <td data-label="Tasks">{store.taskCount}</td>
                 <td data-label="Status">
                   <label
                     className="status-toggle"
@@ -65,16 +67,36 @@ function SuperAdminStoreTable({
                     </span>
                   </label>
                 </td>
-                <td className="table-actions-cell" data-label="">
-                  <button
-                    type="button"
-                    className="table-icon-btn"
-                    aria-label={`View ${store.storeName}`}
-                    title="View details"
-                    onClick={() => onViewDetails(store)}
-                  >
-                    <ChevronRight size={16} />
-                  </button>
+                <td className="table-actions-cell" data-label="Actions">
+                  <div className="table-row-actions">
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`View ${store.storeName}`}
+                      title="View checklist"
+                      onClick={() => onViewDetails(store)}
+                    >
+                      <Eye size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`Assign owner to ${store.storeName}`}
+                      title="Assign owner"
+                      onClick={() => onAssignOwner(store)}
+                    >
+                      <UserRoundCog size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn table-icon-btn--danger"
+                      aria-label={`Delete ${store.storeName}`}
+                      title="Delete store"
+                      onClick={() => onDelete(store)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -54,7 +54,7 @@ class OwnerManagementServiceAddOwnerTest {
 
     @BeforeEach
     void setUp() {
-        request = new AddOwnerRequest("New Owner", "owner@nforce.test", null, null, null);
+        request = new AddOwnerRequest("New Owner", "owner@nforce.test", null, null, null, null, null);
         OwnerResponse response = OwnerResponse.withoutStore(newUser());
         provisioned = new OwnerProvisioningService.ProvisionedOwner(
             5L, "owner@nforce.test", "New Owner", "temp-pass-123", null, null, false, null, response
@@ -96,7 +96,7 @@ class OwnerManagementServiceAddOwnerTest {
 
     @Test
     void requestShapeValidationStillRunsBeforeAnyProvisioningCall() {
-        AddOwnerRequest conflicting = new AddOwnerRequest("New Owner", "owner@nforce.test", "Downtown", "Main St", 99L);
+        AddOwnerRequest conflicting = new AddOwnerRequest("New Owner", "owner@nforce.test", null, null, "Downtown", "Main St", 99L);
 
         assertThatThrownBy(() -> ownerManagementService.addOwner(conflicting))
             .isInstanceOf(InvalidOwnerRequestException.class);

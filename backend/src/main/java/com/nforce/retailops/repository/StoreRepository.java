@@ -1,6 +1,7 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.Store;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,6 +16,10 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     // relation in its own subquery (so no join fan-out) and join them all
     // together in one native query. Columns, in order: id, store_code, name,
     // active, employee_count, store_task_count, applies_all_count.
+    @Query("select s from Store s where lower(s.name) like lower(concat('%', :q, '%')) "
+        + "or (s.location is not null and lower(s.location) like lower(concat('%', :q, '%'))) order by s.name")
+    List<Store> searchByNameOrLocation(@Param("q") String q, Pageable pageable);
+
     @Query(value = """
         SELECT s.id, s.store_code, s.name, s.active,
                COALESCE(ec.employee_count, 0) AS employee_count,

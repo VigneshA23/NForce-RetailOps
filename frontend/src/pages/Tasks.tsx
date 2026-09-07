@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClipboardList, CheckCircle2, CircleDot, Repeat2, Plus } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { createTask, deleteTask, getTasks, setTaskActive, TaskHasHistoryError, updateTask } from '../api/ownerTasks';
 import type { Category } from '../types/category';
 import type { OwnerStore } from '../types/ownerStore';
 import type { AdminTask, AdminTaskFormValues, ScheduleType } from '../types/adminTask';
-import { SCHEDULE_TYPE_OPTIONS } from '../utils/adminTaskOptions';
+import { isOneTimeTask, SCHEDULE_TYPE_OPTIONS } from '../utils/adminTaskOptions';
 import TaskTable from '../components/TaskTable';
 import TaskFormModal from '../components/TaskFormModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
@@ -40,6 +40,7 @@ interface TasksProps {
   categoriesError: string | null;
   onRetryCategories: () => void;
   stores: OwnerStore[];
+  searchSeed?: { term: string; id: number };
 }
 
 function Tasks({
@@ -49,6 +50,7 @@ function Tasks({
   categoriesError,
   onRetryCategories,
   stores,
+  searchSeed,
 }: TasksProps) {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +61,15 @@ function Tasks({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [scheduleFilter, setScheduleFilter] = useState<ScheduleType | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
+
+  const appliedSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (searchSeed && searchSeed.id !== appliedSeedId.current) {
+      appliedSeedId.current = searchSeed.id;
+      setSearch(searchSeed.term);
+      setPage(1);
+    }
+  }, [searchSeed]);
 
   const [formModalState, setFormModalState] = useState<FormModalState>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -114,7 +125,10 @@ function Tasks({
       if (categoryFilter !== 'ALL' && task.categoryId !== categoryFilter) return false;
       if (statusFilter === 'ACTIVE' && !task.active) return false;
       if (statusFilter === 'INACTIVE' && task.active) return false;
-      if (scheduleFilter !== 'ALL' && task.scheduleType !== scheduleFilter) return false;
+      if (scheduleFilter !== 'ALL') {
+        const effective = isOneTimeTask(task) ? 'ONE_TIME' : task.scheduleType;
+        if (effective !== scheduleFilter) return false;
+      }
       return true;
     });
   }, [tasks, search, categoryFilter, statusFilter, scheduleFilter]);
@@ -266,7 +280,7 @@ function Tasks({
 
       <div className="filter-bar">
         <div className="filter filter--search">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search tasks" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search tasks" variant="filter" />
         </div>
 
         <Select

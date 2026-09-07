@@ -1,0 +1,45 @@
+.owner-table__id {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.owner-table__name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.owner-table__email {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.owner-table__store {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.owner-table__store svg {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.owner-table__store--inactive {
+  color: var(--color-text-secondary);
+}
+
+.owner-table__no-store {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.table-icon-btn--text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

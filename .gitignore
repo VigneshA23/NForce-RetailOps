@@ -43,3 +43,11 @@ Thumbs.db
 # --- Logs ---
 *.log
 logs/
+
+# --- Claude Code / skills ---
+.agents/
+skills-lock.json
+.claude/skills/
+
+# --- Test artifacts ---
+frontend/test-results/

@@ -2,19 +2,20 @@ package com.nforce.retailops.dto;
 
 import com.nforce.retailops.entity.RaisedIssue;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
-// Owner-facing shape (list + respond) -- carries the raiser's identity, unlike
-// HistoryIssueResponse which is already scoped to one employee by context.
 public record IssueResponse(
     Long id,
     Long storeId,
+    String storeName,
     Long employeeUserId,
-    String employeeName,
+    String employeeFullName,
     String note,
     String status,
+    LocalDate raisedDate,
     String responseText,
-    String respondedByName,
+    String respondedByFullName,
     OffsetDateTime respondedAt,
     OffsetDateTime createdAt
 ) {
@@ -22,12 +23,14 @@ public record IssueResponse(
         return new IssueResponse(
             issue.getId(),
             issue.getStore().getId(),
-            issue.getEmployee().getId(),
-            issue.getEmployee().getFullName(),
+            issue.getStore().getName(),
+            issue.getEmployeeUser().getId(),
+            issue.getEmployeeUser().getFullName(),
             issue.getNote(),
-            issue.getStatus().name(),
+            issue.getStatus(),
+            issue.getRaisedDate(),
             issue.getResponseText(),
-            issue.getRespondedBy() != null ? issue.getRespondedBy().getFullName() : null,
+            issue.getRespondedByUser() != null ? issue.getRespondedByUser().getFullName() : null,
             issue.getRespondedAt(),
             issue.getCreatedAt()
         );

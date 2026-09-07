@@ -6,6 +6,7 @@ import com.nforce.retailops.dto.NextStoreCodeResponse;
 import com.nforce.retailops.dto.OwnerCreationResponse;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.dto.ReassignableStoreResponse;
+import com.nforce.retailops.dto.UpdateOwnerRequest;
 import com.nforce.retailops.dto.UpdateOwnerStatusRequest;
 import com.nforce.retailops.dto.UpdateStoreStatusRequest;
 import com.nforce.retailops.service.OwnerManagementService;
@@ -54,6 +55,14 @@ public class SuperAdminController {
         @Valid @RequestBody AssignStoreRequest request
     ) {
         return ResponseEntity.status(HttpStatus.CREATED).body(ownerManagementService.assignStore(ownerId, request));
+    }
+
+    @PatchMapping("/owners/{ownerId}")
+    public ResponseEntity<List<OwnerResponse>> updateOwner(
+        @PathVariable Long ownerId,
+        @Valid @RequestBody UpdateOwnerRequest request
+    ) {
+        return ResponseEntity.ok(ownerManagementService.updateOwner(ownerId, request));
     }
 
     @PatchMapping("/owners/{ownerId}/status")

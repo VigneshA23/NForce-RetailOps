@@ -54,10 +54,3 @@ export async function undoTaskResponse(
     { method: 'POST' },
   );
 }
-
-export async function raiseIssue(storeId: number, note: string): Promise<void> {
-  await apiRequest<unknown>('/me/issues', {
-    method: 'POST',
-    body: { storeId, note },
-  });
-}

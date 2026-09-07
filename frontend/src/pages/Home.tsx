@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronRight, Users, Tags, Percent } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Users, Tags, Percent, X } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getChecklistHistoryDetail, getChecklistHistorySummary } from '../api/checklistHistory';
+import { getIssues, updateIssueStatus } from '../api/issues';
+import type { Issue } from '../types/issue';
 import type { OwnerStore } from '../types/ownerStore';
 import type { Employee } from '../types/employee';
 import type { Category } from '../types/category';
@@ -9,6 +11,7 @@ import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import StatCard from '../components/StatCard';
 import ChartCard from '../components/ChartCard';
 import CompletionRateCard from '../components/CompletionRateCard';
+import IssueList from '../components/IssueList';
 import './Home.css';
 
 interface HomeProps {
@@ -88,6 +91,10 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
   const [isLoading, setIsLoading] = useState(true);
   const [trendDays, setTrendDays] = useState(DEFAULT_TREND_DAYS);
 
+  // Issues state — null = not yet loaded (avoids false "All clear" before API resolves)
+  const [issues, setIssues] = useState<Issue[] | null>(null);
+  const [issuesPanelOpen, setIssuesPanelOpen] = useState(false);
+
   useEffect(() => {
     if (storesLoading) return;
     let active = true;
@@ -163,6 +170,25 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
     };
   }, [storesLoading, stores, trendDays]);
 
+  // Fetch issues for the owner's first store
+  useEffect(() => {
+    const storeId = stores[0]?.id;
+    if (!storeId) return;
+    getIssues(storeId)
+      .then(setIssues)
+      .catch(() => {});
+  }, [stores]);
+
+  async function handleIssueStatusUpdate(
+    issueId: number,
+    status: 'ACKNOWLEDGED' | 'RESOLVED',
+    responseText?: string,
+  ) {
+    const updated = await updateIssueStatus(issueId, status, responseText);
+    setIssues((prev) => prev ? prev.map((i) => (i.id === updated.id ? updated : i)) : prev);
+  }
+
+
   const storeName = stores[0]?.name ?? null;
   const todayCompletion = useMemo(() => {
     const totals = sumTasks(todayRows);
@@ -182,6 +208,10 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
     [todayCompletion],
   );
 
+  const issuesLoading = issues === null;
+  const openIssueCount = issues ? issues.filter((i) => i.status === 'OPEN').length : 0;
+  const hasOpenIssues = openIssueCount > 0;
+
   return (
     <div className="home-page">
       <h1 className="home-page__greeting">Welcome, {firstName(userName)}!</h1>
@@ -190,7 +220,40 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
         <StatCard icon={Users} label="Total Employees" value={employees.length} tone="info" />
         <StatCard icon={Tags} label="Categories" value={categories.length} tone="info" />
         <StatCard icon={Percent} label="Today's Completion" value={`${todayCompletion}%`} tone="warning" />
+        {issuesLoading ? (
+          <StatCard icon={AlertTriangle} label="Open Issues" value="—" tone="info" />
+        ) : (
+          <StatCard
+            icon={hasOpenIssues ? AlertTriangle : CheckCircle2}
+            label="Open Issues"
+            value={hasOpenIssues ? openIssueCount : 'All clear'}
+            tone={hasOpenIssues ? 'primary' : 'success'}
+            onClick={() => setIssuesPanelOpen((v) => !v)}
+            active={issuesPanelOpen}
+          />
+        )}
       </div>
+
+      {issuesPanelOpen && (
+        <div className="home-page__issues-panel">
+          <div className="home-page__issues-panel-header">
+            <h2 className="home-page__issues-panel-title">
+              {hasOpenIssues ? `Issues (${openIssueCount} open)` : 'Issues'}
+            </h2>
+            <button
+              type="button"
+              className="home-page__issues-panel-close"
+              onClick={() => setIssuesPanelOpen(false)}
+              aria-label="Close issues panel"
+            >
+              <X size={13} />
+              Close
+            </button>
+          </div>
+          <IssueList issues={issues ?? []} onUpdateStatus={handleIssueStatusUpdate} />
+        </div>
+      )}
+
       {storeName && <p className="home-page__store-label">{storeName}</p>}
 
       <div className="chart-card-row">
@@ -268,6 +331,7 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       </div>
 
       {isLoading && <p className="home-page__loading">Loading dashboard…</p>}
+
     </div>
   );
 }

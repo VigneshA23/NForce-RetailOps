@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
 import Header from '../components/Header';
@@ -26,11 +27,21 @@ interface AppShellProps<Key extends string = NavTabKey> {
   loggingOut?: boolean;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
+  onSettingsClick?: () => void;
   onNotificationsClick?: () => void;
-  notificationCount?: number;
+  onNotificationNavigate?: (path: string) => void;
+  notificationUnreadCount?: number;
+  onNotificationsCountChange?: (count: number) => void;
   avatarUrl?: string | null;
   // Extra page-specific header action(s), forwarded to Header's `actions` slot.
   headerActions?: ReactNode;
+  // Hide the default header search box — for shells that supply their own
+  // custom search component via headerActions.
+  showSearch?: boolean;
+  // When provided, AnimatePresence uses this as the key for the page content
+  // wrapper — changing the key triggers a cross-fade+slide transition between
+  // overlay states (Profile, History, Settings, Help) and tab content.
+  contentKey?: string;
   // 'drawer' (default): hamburger opens the sliding Sidebar on mobile, as
   // every shell has always worked. 'bottom-tabs': primary nav moves to a
   // fixed BottomNav on mobile instead (the Sidebar drawer trigger is hidden,
@@ -58,15 +69,21 @@ function AppShell<Key extends string = NavTabKey>({
   loggingOut,
   onProfileClick,
   onHelpClick,
+  onSettingsClick,
   onNotificationsClick,
-  notificationCount,
+  onNotificationNavigate,
+  notificationUnreadCount,
+  onNotificationsCountChange,
   avatarUrl,
   headerActions,
+  contentKey,
   mobileNav = 'drawer',
   bottomNavItems,
+  showSearch = true,
   children,
 }: AppShellProps<Key>) {
   const { isDarkTheme, toggleTheme } = useTheme();
+  const prefersReducedMotion = useReducedMotion();
   const [collapsed, setCollapsed] = useSidebarCollapsed();
   const [searchValue, setSearchValue] = useState('');
   const isMobile = useIsMobile();
@@ -93,6 +110,7 @@ function AppShell<Key extends string = NavTabKey>({
             logoSrc={logoSrc}
             hideLogoOnDesktop={hideLogoOnDesktop}
             centeredModals={centeredModals}
+            showSearch={showSearch}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             isDarkTheme={isDarkTheme}
@@ -101,8 +119,11 @@ function AppShell<Key extends string = NavTabKey>({
             avatarUrl={avatarUrl}
             onProfileClick={onProfileClick}
             onHelpClick={onHelpClick}
+            onSettingsClick={onSettingsClick}
             onNotificationsClick={onNotificationsClick}
-            notificationCount={notificationCount}
+            onNotificationNavigate={onNotificationNavigate}
+            notificationUnreadCount={notificationUnreadCount}
+            onNotificationsCountChange={onNotificationsCountChange}
             onLogout={onLogout}
             loggingOut={loggingOut}
             onMenuClick={isMobile && !useBottomTabs ? () => setMobileDrawerOpen(true) : undefined}
@@ -110,7 +131,18 @@ function AppShell<Key extends string = NavTabKey>({
           />
         </div>
         <main className={`app-shell__main${useBottomTabs ? ' app-shell__main--bottom-nav' : ''}`}>
-          {children}
+          <AnimatePresence mode="sync">
+            <motion.div
+              key={contentKey ?? 'static'}
+              className="app-shell__page"
+              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.992 }}
+              animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
+              exit={prefersReducedMotion ? {} : { opacity: 0, scale: 1.008 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
       {useBottomTabs && (

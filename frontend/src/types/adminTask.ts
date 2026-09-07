@@ -2,7 +2,7 @@ export type ResponseType = 'YES_NO' | 'DONE_NOT_DONE' | 'NUMERIC' | 'TEXT';
 
 export type CompletionType = 'SINGLE' | 'MULTIPLE';
 
-export type ScheduleType = 'EVERY_DAY' | 'WEEKDAYS' | 'WEEKENDS' | 'SELECTED_DAYS';
+export type ScheduleType = 'EVERY_DAY' | 'WEEKDAYS' | 'WEEKENDS' | 'SELECTED_DAYS' | 'ONE_TIME';
 
 export type TimeMode = 'ANYTIME' | 'WINDOW';
 
@@ -57,6 +57,7 @@ export interface AdminTaskFormValues {
   completionType: CompletionType | null;
   scheduleType: ScheduleType | null;
   selectedDays: DayCode[];
+  oneTimeDate: string;
   startDate: string;
   endDate: string;
   active: boolean;

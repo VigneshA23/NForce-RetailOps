@@ -146,6 +146,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(StoreHasHistoryException.class)
+    public ResponseEntity<Map<String, String>> handleStoreHasHistory(StoreHasHistoryException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidPasswordResetTokenException.class)
     public ResponseEntity<Map<String, String>> handleInvalidResetToken(InvalidPasswordResetTokenException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
@@ -154,6 +159,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IssueNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleIssueNotFound(IssueNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(LoginRateLimitException.class)
+    public ResponseEntity<Map<String, String>> handleLoginRateLimit(LoginRateLimitException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
     }
 
     @ExceptionHandler(NotificationNotFoundException.class)

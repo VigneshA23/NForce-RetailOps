@@ -222,6 +222,11 @@
   fill: none;
 }
 
+.checklist-task-status-dot--flag {
+  color: #d97706;
+  fill: none;
+}
+
 .checklist-task-completed-by {
   display: flex;
   align-items: center;
@@ -284,6 +289,26 @@
   font-size: 12px;
   color: var(--color-danger, #d92d20);
   margin: 4px 0 0;
+}
+
+.checklist-task-flag-reason {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 12px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+
+.checklist-task-flag-reason svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: #d97706;
 }
 
 .checklist-task-controls {
@@ -411,9 +436,9 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  background: var(--color-surface-card);
-  color: var(--color-text-primary);
-  border: 1px solid var(--color-border);
+  background: var(--color-badge-icon-warning-bg);
+  color: var(--color-badge-icon-warning-fg);
+  border: 1px solid rgba(200, 121, 10, 0.3);
   border-radius: var(--radius-pill);
   padding: 14px 22px;
   font-size: 13px;
@@ -424,21 +449,20 @@
 }
 
 .raise-with-owner-fab svg {
-  color: var(--color-accent);
+  color: var(--color-badge-icon-warning-fg);
 }
 
 .raise-with-owner-fab:hover {
-  border-color: var(--color-accent);
+  border-color: var(--color-badge-icon-warning-fg);
 }
 
 @media (--mobile) {
-  /* The Employee shell's bottom tab bar (~56px + safe-area inset) sits fixed
-     over this same corner -- without clearing it, the FAB was rendered right
-     underneath and effectively unreachable. Icon-only here too, since there
-     isn't room for the label next to the tab bar. */
+  /* The bottom nav sits at bottom: 16px + safe-area with height 64px, so its
+     top edge is at 80px + safe-area above the viewport. FAB bottom must be
+     above that: 16px (nav offset) + 64px (nav height) + 16px (gap) = 96px. */
   .raise-with-owner-fab {
     right: var(--space-md);
-    bottom: calc(56px + env(safe-area-inset-bottom) + var(--space-md));
+    bottom: calc(16px + 64px + var(--space-md) + env(safe-area-inset-bottom));
     padding: 14px;
   }
 

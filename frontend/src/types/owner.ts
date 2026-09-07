@@ -1,5 +1,6 @@
 export interface OwnerSummary {
   ownerId: number;
+  adminCode: string;
   ownerName: string;
   ownerEmail: string;
   ownerActive: boolean;
@@ -15,6 +16,8 @@ export type OwnerStoreMode = 'new' | 'existing' | 'none';
 export type AddOwnerValues = {
   ownerName: string;
   ownerEmail: string;
+  ownerPhone: string;
+  ownerGender: 'Male' | 'Female' | 'Non-binary';
   storeName?: string;
   storeLocation?: string;
   existingStoreId?: number;
@@ -37,4 +40,9 @@ export interface ReassignableStore {
 export interface OwnerCreationResult {
   owner: OwnerSummary;
   temporaryPassword: string;
+}
+
+export interface UpdateOwnerValues {
+  ownerName: string;
+  ownerEmail: string;
 }

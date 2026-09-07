@@ -8,6 +8,7 @@ import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.StoreOptionResponse;
 import com.nforce.retailops.dto.SuperAdminEmployeeResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
+import com.nforce.retailops.dto.UpdateEmployeeStoresRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
@@ -18,6 +19,7 @@ import com.nforce.retailops.exception.EmployeeNotFoundException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,31 +43,37 @@ public class EmployeeService {
 
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
+    private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final SessionService sessionService;
     private final MailService mailService;
     private final EmployeeProvisioningService employeeProvisioningService;
     private final PasswordEncoder passwordEncoder;
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
+    private final NotificationService notificationService;
 
     public EmployeeService(
         StoreEmployeeRepository storeEmployeeRepository,
         StoreOwnerRepository storeOwnerRepository,
+        StoreRepository storeRepository,
         UserRepository userRepository,
         SessionService sessionService,
         MailService mailService,
         EmployeeProvisioningService employeeProvisioningService,
         PasswordEncoder passwordEncoder,
-        TemporaryPasswordGenerator temporaryPasswordGenerator
+        TemporaryPasswordGenerator temporaryPasswordGenerator,
+        NotificationService notificationService
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
+        this.storeRepository = storeRepository;
         this.userRepository = userRepository;
         this.sessionService = sessionService;
         this.mailService = mailService;
         this.employeeProvisioningService = employeeProvisioningService;
         this.passwordEncoder = passwordEncoder;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
+        this.notificationService = notificationService;
     }
 
     private boolean ownsAnyStore(StoreEmployee storeEmployee, Long ownerId) {
@@ -166,8 +175,9 @@ public class EmployeeService {
     // an implicit rollback -- an employee must not be left unable to ever
     // learn their own password.
     public EmployeeCreationResponse createEmployee(EmployeeCreateRequest request) {
+        Set<Store> stores = resolveStores(request.storeIds());
         EmployeeProvisioningService.ProvisionedEmployee provisioned =
-            employeeProvisioningService.createEmployeeAccount(null, request, Set.of());
+            employeeProvisioningService.createEmployeeAccount(null, request, stores);
 
         try {
             mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
@@ -183,6 +193,24 @@ public class EmployeeService {
         }
 
         return new EmployeeCreationResponse(provisioned.response(), provisioned.temporaryPassword());
+    }
+
+    // Super-Admin-only: atomically replaces all store assignments for an employee.
+    @Transactional
+    public EmployeeResponse updateEmployeeStores(Long employeeId, UpdateEmployeeStoresRequest request) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found: " + employeeId));
+        storeEmployee.setStores(resolveStores(request.storeIds()));
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+        return EmployeeResponse.from(storeEmployee);
+    }
+
+    private Set<Store> resolveStores(List<Long> storeIds) {
+        if (storeIds == null || storeIds.isEmpty()) {
+            return Set.of();
+        }
+        List<Store> found = storeRepository.findAllById(storeIds);
+        return new HashSet<>(found);
     }
 
     // Cross-owner directory for the Owner's "Assign Employee" flow -- every
@@ -243,6 +271,17 @@ public class EmployeeService {
         storeEmployee.getStores().add(myStore);
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
 
+        User employee = storeEmployee.getEmployee();
+        User owner = userRepository.getReferenceById(ownerId);
+        notificationService.send(employee, "EMPLOYEE_ASSIGNED",
+            "You've been added to " + myStore.getName(),
+            "You now have access to the checklist for " + myStore.getName() + ".",
+            "/checklist");
+        notificationService.send(owner, "NEW_EMPLOYEE_JOINED",
+            employee.getFullName() + " joined your store",
+            employee.getFullName() + " has been added to " + myStore.getName() + " and can now access your checklist.",
+            "/employees");
+
         return EmployeeResponse.from(storeEmployee);
     }
 
@@ -254,6 +293,11 @@ public class EmployeeService {
 
         storeEmployee.getStores().removeIf(store -> store.getId().equals(myStore.getId()));
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        notificationService.send(storeEmployee.getEmployee(), "EMPLOYEE_REMOVED",
+            "You've been removed from " + myStore.getName(),
+            "Your access to the checklist for " + myStore.getName() + " has been removed.",
+            null);
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -296,6 +340,68 @@ public class EmployeeService {
             throw new EmployeeNotFoundException("Employee not found");
         }
 
+        User employee = storeEmployee.getEmployee();
+        sessionService.invalidateAllForUser(employee.getEmail());
+        storeEmployeeRepository.delete(storeEmployee);
+        userRepository.delete(employee);
+    }
+
+    @Transactional
+    public EmployeeResponse updateEmployeeAsSuperAdmin(Long id, EmployeeUpdateRequest request) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        String email = request.email().trim();
+        User employee = storeEmployee.getEmployee();
+        if (!employee.getEmail().equalsIgnoreCase(email)
+            && userRepository.findByEmailWithRoles(email).isPresent()) {
+            throw new EmailAlreadyExistsException("A user with this email already exists");
+        }
+
+        employee.setFullName(request.name().trim());
+        employee.setEmail(email);
+        userRepository.save(employee);
+
+        storeEmployee.setPhone(request.phone().trim());
+        storeEmployee.setShift(request.shift());
+        storeEmployee.setEmployeeType(request.employeeType());
+        storeEmployee.setGender(request.gender());
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        return EmployeeResponse.from(storeEmployee);
+    }
+
+    @Transactional
+    public EmployeeResponse setEmployeeActiveAsSuperAdmin(Long id, UpdateEmployeeStatusRequest request) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+
+        User employee = storeEmployee.getEmployee();
+        boolean active = request.active();
+        employee.setActive(active);
+        userRepository.save(employee);
+
+        if (!active) {
+            sessionService.invalidateAllForUser(employee.getEmail());
+        }
+
+        notificationService.send(employee,
+            active ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
+            active ? "Your account has been reactivated" : "Your account has been deactivated",
+            active
+                ? "Your NForce account has been reactivated by your store admin."
+                : "Your NForce account has been deactivated by your store admin.",
+            active ? "/checklist" : null);
+
+        return EmployeeResponse.from(storeEmployee);
+    }
+
+    // Super Admin path — no ownership check; endpoint is already guarded by
+    // @PreAuthorize("hasRole('SUPER_ADMIN')") at the controller level.
+    @Transactional
+    public void deleteEmployeeAsSuperAdmin(Long id) {
+        StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
+            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
         User employee = storeEmployee.getEmployee();
         sessionService.invalidateAllForUser(employee.getEmail());
         storeEmployeeRepository.delete(storeEmployee);
@@ -346,6 +452,14 @@ public class EmployeeService {
         if (!request.active()) {
             sessionService.invalidateAllForUser(employee.getEmail());
         }
+
+        notificationService.send(employee,
+            request.active() ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
+            request.active() ? "Your account has been reactivated" : "Your account has been deactivated",
+            request.active()
+                ? "Your NForce account has been reactivated."
+                : "Your NForce account has been deactivated.",
+            request.active() ? "/checklist" : null);
 
         return EmployeeResponse.from(storeEmployee);
     }

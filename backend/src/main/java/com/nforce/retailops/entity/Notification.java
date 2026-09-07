@@ -1,15 +1,18 @@
 package com.nforce.retailops.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 import java.time.OffsetDateTime;
 
-/**
- * An in-app notification for one recipient. Today the only producer is an
- * owner's response to a RaisedIssue, but category/priority/relatedIssue are
- * generic enough to carry a different notification kind later without a
- * schema change.
- */
 @Entity
 @Table(name = "notifications")
 public class Notification {
@@ -19,8 +22,12 @@ public class Notification {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "recipient_user_id", nullable = false)
-    private User recipient;
+    @JoinColumn(name = "recipient_user_id")
+    private User recipientUser;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "recipient_super_admin_id")
+    private SuperAdmin recipientSuperAdmin;
 
     @Column(nullable = false, length = 200)
     private String title;
@@ -28,16 +35,20 @@ public class Notification {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
-    private NotificationCategory category;
+    private String category;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
-    private NotificationPriority priority = NotificationPriority.NORMAL;
+    private String priority = "NORMAL";
 
-    @Column(nullable = false)
+    @Column(name = "link_path", length = 255)
+    private String linkPath;
+
+    @Column(name = "read", nullable = false)
     private boolean read = false;
+
+    @Column(name = "dedup_key", length = 120)
+    private String dedupKey;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "related_issue_id")
@@ -46,77 +57,42 @@ public class Notification {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    public Notification() {
-    }
-
     @PrePersist
-    protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = OffsetDateTime.now();
-        }
+    void prePersist() {
+        if (createdAt == null) createdAt = OffsetDateTime.now();
     }
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
 
-    public User getRecipient() {
-        return recipient;
-    }
+    public User getRecipientUser() { return recipientUser; }
+    public void setRecipientUser(User recipientUser) { this.recipientUser = recipientUser; }
 
-    public void setRecipient(User recipient) {
-        this.recipient = recipient;
-    }
+    public SuperAdmin getRecipientSuperAdmin() { return recipientSuperAdmin; }
+    public void setRecipientSuperAdmin(SuperAdmin recipientSuperAdmin) { this.recipientSuperAdmin = recipientSuperAdmin; }
 
-    public String getTitle() {
-        return title;
-    }
+    public String getTitle() { return title; }
+    public void setTitle(String title) { this.title = title; }
 
-    public void setTitle(String title) {
-        this.title = title;
-    }
+    public String getMessage() { return message; }
+    public void setMessage(String message) { this.message = message; }
 
-    public String getMessage() {
-        return message;
-    }
+    public String getCategory() { return category; }
+    public void setCategory(String category) { this.category = category; }
 
-    public void setMessage(String message) {
-        this.message = message;
-    }
+    public String getPriority() { return priority; }
+    public void setPriority(String priority) { this.priority = priority; }
 
-    public NotificationCategory getCategory() {
-        return category;
-    }
+    public boolean isRead() { return read; }
+    public void setRead(boolean read) { this.read = read; }
 
-    public void setCategory(NotificationCategory category) {
-        this.category = category;
-    }
+    public String getLinkPath() { return linkPath; }
+    public void setLinkPath(String linkPath) { this.linkPath = linkPath; }
 
-    public NotificationPriority getPriority() {
-        return priority;
-    }
+    public RaisedIssue getRelatedIssue() { return relatedIssue; }
+    public void setRelatedIssue(RaisedIssue relatedIssue) { this.relatedIssue = relatedIssue; }
 
-    public void setPriority(NotificationPriority priority) {
-        this.priority = priority;
-    }
+    public String getDedupKey() { return dedupKey; }
+    public void setDedupKey(String dedupKey) { this.dedupKey = dedupKey; }
 
-    public boolean isRead() {
-        return read;
-    }
-
-    public void setRead(boolean read) {
-        this.read = read;
-    }
-
-    public RaisedIssue getRelatedIssue() {
-        return relatedIssue;
-    }
-
-    public void setRelatedIssue(RaisedIssue relatedIssue) {
-        this.relatedIssue = relatedIssue;
-    }
-
-    public OffsetDateTime getCreatedAt() {
-        return createdAt;
-    }
+    public OffsetDateTime getCreatedAt() { return createdAt; }
 }

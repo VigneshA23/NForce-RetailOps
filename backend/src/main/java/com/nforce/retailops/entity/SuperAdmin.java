@@ -29,6 +29,9 @@ public class SuperAdmin {
     @Column(columnDefinition = "TEXT")
     private String phone;
 
+    @Column(name = "avatar_url", columnDefinition = "TEXT")
+    private String avatarUrl;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -86,6 +89,14 @@ public class SuperAdmin {
 
     public void setPhone(String phone) {
         this.phone = phone;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public OffsetDateTime getCreatedAt() {

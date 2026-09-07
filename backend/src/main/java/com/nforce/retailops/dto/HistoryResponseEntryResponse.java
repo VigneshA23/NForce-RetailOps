@@ -10,6 +10,12 @@ public record HistoryResponseEntryResponse(
     Boolean booleanValue,
     Double numericValue,
     String textValue,
-    OffsetDateTime respondedAt
+    OffsetDateTime respondedAt,
+    // Non-null when an admin has corrected this response at least once.
+    // Contains metadata about the most recent correction for inline display.
+    AdminCorrectionEntry latestCorrection,
+    String employeeAvatarUrl,
+    boolean flaggedNeedsCorrection,
+    String flagReason
 ) {
 }

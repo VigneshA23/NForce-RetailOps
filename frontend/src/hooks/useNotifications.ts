@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getNotifications, markAllNotificationsRead, markNotificationRead } from '../api/notifications';
-import type { NotificationItem } from '../api/notifications';
+import { getNotifications, markAllRead as markAllNotificationsRead, markNotificationRead } from '../api/notifications';
+import type { Notification as NotificationItem } from '../types/notification';
 
 interface NotificationsState {
   notifications: NotificationItem[];

@@ -67,6 +67,7 @@ public class TaskService {
     private final UserProfileService userProfileService;
     private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
+    private final NotificationService notificationService;
 
     public TaskService(
         TaskRepository taskRepository,
@@ -76,7 +77,8 @@ public class TaskService {
         UserRepository userRepository,
         UserProfileService userProfileService,
         TaskResponseEntryRepository taskResponseEntryRepository,
-        StoreEmployeeRepository storeEmployeeRepository
+        StoreEmployeeRepository storeEmployeeRepository,
+        NotificationService notificationService
     ) {
         this.taskRepository = taskRepository;
         this.categoryRepository = categoryRepository;
@@ -86,6 +88,7 @@ public class TaskService {
         this.userProfileService = userProfileService;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -119,6 +122,18 @@ public class TaskService {
         task.setOwner(userRepository.getReferenceById(ownerId));
         applyRequest(task, ownerId, request);
         task = taskRepository.save(task);
+
+        final String taskName = task.getName();
+        storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId).ifPresent(so -> {
+            storeEmployeeRepository
+                .findDistinctByStoresIdInOrderByIdAscFetchEmployee(List.of(so.getStore().getId()))
+                .forEach(se -> notificationService.send(
+                    se.getEmployee(), "TASK_ADDED",
+                    "New task: " + taskName,
+                    "A new task has been added to your store checklist.",
+                    "/checklist"));
+        });
+
         return TaskResponse.from(task);
     }
 
@@ -220,7 +235,19 @@ public class TaskService {
             .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, request.storeId(), today);
 
         if (task.getCompletionType() == CompletionType.SINGLE && !activeResponses.isEmpty()) {
-            throw new TaskAlreadyCompletedException("This task has already been completed for today");
+            // Allow resubmission if the one active response was flagged back to this employee.
+            // Deactivate the flagged response so the unique index allows the new submission.
+            boolean isFlaggedByMe = activeResponses.size() == 1
+                && activeResponses.get(0).isFlaggedNeedsCorrection()
+                && activeResponses.get(0).getEmployee().getId().equals(employeeUserId);
+            if (!isFlaggedByMe) {
+                throw new TaskAlreadyCompletedException("This task has already been completed for today");
+            }
+            TaskResponseEntry flagged = activeResponses.get(0);
+            flagged.setActive(false);
+            flagged.setUndoneAt(java.time.OffsetDateTime.now());
+            taskResponseEntryRepository.save(flagged);
+            taskResponseEntryRepository.flush();
         }
 
         TaskResponseEntry entry = new TaskResponseEntry();

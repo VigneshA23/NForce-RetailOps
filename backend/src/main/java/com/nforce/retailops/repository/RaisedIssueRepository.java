@@ -1,20 +1,31 @@
 package com.nforce.retailops.repository;
 
-import com.nforce.retailops.entity.IssueStatus;
 import com.nforce.retailops.entity.RaisedIssue;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 public interface RaisedIssueRepository extends JpaRepository<RaisedIssue, Long> {
 
-    List<RaisedIssue> findByStoreIdAndEmployeeIdAndRaisedDateOrderByCreatedAtDesc(Long storeId, Long employeeUserId, LocalDate raisedDate);
+    @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser JOIN FETCH r.store WHERE r.id = :id")
+    Optional<RaisedIssue> findByIdWithEmployee(@Param("id") Long id);
 
-    List<RaisedIssue> findByStoreIdOrderByCreatedAtDesc(Long storeId);
+    @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser LEFT JOIN FETCH r.respondedByUser WHERE r.store.id = :storeId ORDER BY r.createdAt DESC")
+    List<RaisedIssue> findByStoreIdOrderByCreatedAtDesc(@Param("storeId") Long storeId);
 
-    List<RaisedIssue> findByStoreIdAndStatusOrderByCreatedAtDesc(Long storeId, IssueStatus status);
+    @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser LEFT JOIN FETCH r.respondedByUser WHERE r.store.id = :storeId AND r.status = :status ORDER BY r.createdAt DESC")
+    List<RaisedIssue> findByStoreIdAndStatusOrderByCreatedAtDesc(@Param("storeId") Long storeId, @Param("status") String status);
 
-    Optional<RaisedIssue> findByIdAndStoreId(Long id, Long storeId);
+    @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser LEFT JOIN FETCH r.respondedByUser WHERE r.store.id = :storeId AND r.employeeUser.id = :employeeUserId ORDER BY r.createdAt DESC")
+    List<RaisedIssue> findByStoreIdAndEmployeeUserIdOrderByCreatedAtDesc(@Param("storeId") Long storeId, @Param("employeeUserId") Long employeeUserId);
+
+    @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser LEFT JOIN FETCH r.respondedByUser WHERE r.store.id = :storeId AND r.employeeUser.id = :employeeUserId AND r.raisedDate = :raisedDate ORDER BY r.createdAt DESC")
+    List<RaisedIssue> findByStoreIdAndEmployeeIdAndRaisedDateOrderByCreatedAtDesc(@Param("storeId") Long storeId, @Param("employeeUserId") Long employeeUserId, @Param("raisedDate") java.time.LocalDate raisedDate);
+
+    long countByStoreIdAndStatus(Long storeId, String status);
+
+    long countByStoreIdAndStatusAndCreatedAtBefore(Long storeId, String status, java.time.OffsetDateTime cutoff);
 }

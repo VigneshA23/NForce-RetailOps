@@ -7,6 +7,7 @@ import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.dto.SuperAdminEmployeeResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
+import com.nforce.retailops.dto.UpdateEmployeeStoresRequest;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.EmployeeService;
 import jakarta.validation.Valid;
@@ -75,20 +76,28 @@ public class EmployeeController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
     public ResponseEntity<EmployeeResponse> update(
         @AuthenticationPrincipal AppUserDetails principal,
         @PathVariable Long id,
         @Valid @RequestBody EmployeeUpdateRequest request
     ) {
+        if (isSuperAdmin(principal)) {
+            return ResponseEntity.ok(employeeService.updateEmployeeAsSuperAdmin(id, request));
+        }
         return ResponseEntity.ok(employeeService.updateEmployee(principal.getUser().getId(), id, request));
     }
 
     @PatchMapping("/{id}/status")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
     public ResponseEntity<EmployeeResponse> updateStatus(
         @AuthenticationPrincipal AppUserDetails principal,
         @PathVariable Long id,
         @Valid @RequestBody UpdateEmployeeStatusRequest request
     ) {
+        if (isSuperAdmin(principal)) {
+            return ResponseEntity.ok(employeeService.setEmployeeActiveAsSuperAdmin(id, request));
+        }
         return ResponseEntity.ok(employeeService.setEmployeeActive(principal.getUser().getId(), id, request));
     }
 
@@ -101,12 +110,24 @@ public class EmployeeController {
         return ResponseEntity.noContent().build();
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(
-        @AuthenticationPrincipal AppUserDetails principal,
-        @PathVariable Long id
+    @PutMapping("/{id}/stores")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<EmployeeResponse> updateStores(
+        @PathVariable Long id,
+        @RequestBody UpdateEmployeeStoresRequest request
     ) {
-        employeeService.deleteEmployee(principal.getUser().getId(), id);
+        return ResponseEntity.ok(employeeService.updateEmployeeStores(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        employeeService.deleteEmployeeAsSuperAdmin(id);
         return ResponseEntity.noContent().build();
+    }
+
+    private boolean isSuperAdmin(AppUserDetails principal) {
+        return principal.getAuthorities().stream()
+            .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
     }
 }

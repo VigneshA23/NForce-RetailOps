@@ -11,17 +11,39 @@ public record NotificationResponse(
     String category,
     String priority,
     boolean read,
+    String linkPath,
+    Long relatedIssueId,
+    String relatedIssueNote,
+    String relatedStoreName,
+    String relatedIssueStatus,
     OffsetDateTime createdAt
 ) {
-    public static NotificationResponse from(Notification notification) {
+    public static NotificationResponse from(Notification n) {
+        Long issueId = null;
+        String issueNote = null;
+        String storeName = null;
+        String issueStatus = null;
+
+        if (n.getRelatedIssue() != null) {
+            issueId = n.getRelatedIssue().getId();
+            issueNote = n.getRelatedIssue().getNote();
+            storeName = n.getRelatedIssue().getStore().getName();
+            issueStatus = n.getRelatedIssue().getStatus();
+        }
+
         return new NotificationResponse(
-            notification.getId(),
-            notification.getTitle(),
-            notification.getMessage(),
-            notification.getCategory().name(),
-            notification.getPriority().name(),
-            notification.isRead(),
-            notification.getCreatedAt()
+            n.getId(),
+            n.getTitle(),
+            n.getMessage(),
+            n.getCategory(),
+            n.getPriority(),
+            n.isRead(),
+            n.getLinkPath(),
+            issueId,
+            issueNote,
+            storeName,
+            issueStatus,
+            n.getCreatedAt()
         );
     }
 }

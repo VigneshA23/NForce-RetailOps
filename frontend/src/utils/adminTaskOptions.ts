@@ -1,4 +1,4 @@
-import type { CompletionType, DayCode, ResponseType, ScheduleType } from '../types/adminTask';
+import type { AdminTask, CompletionType, DayCode, ResponseType, ScheduleType } from '../types/adminTask';
 
 export const RESPONSE_TYPE_OPTIONS: { value: ResponseType; label: string; helper: string }[] = [
   { value: 'YES_NO', label: 'Yes / No', helper: 'e.g. "Is the refrigerator temperature within range?"' },
@@ -25,6 +25,7 @@ export const SCHEDULE_TYPE_OPTIONS: { value: ScheduleType; label: string }[] = [
   { value: 'WEEKDAYS', label: 'Weekdays' },
   { value: 'WEEKENDS', label: 'Weekends' },
   { value: 'SELECTED_DAYS', label: 'Selected Days' },
+  { value: 'ONE_TIME', label: 'One-time' },
 ];
 
 export const DAY_OPTIONS: { value: DayCode; label: string }[] = [
@@ -37,7 +38,14 @@ export const DAY_OPTIONS: { value: DayCode; label: string }[] = [
   { value: 'SUN', label: 'Sunday' },
 ];
 
-export function scheduleSummary(scheduleType: ScheduleType, selectedDays: DayCode[]): string {
+export function isOneTimeTask(task: AdminTask): boolean {
+  return task.scheduleType === 'EVERY_DAY' && task.endDate != null && task.startDate === task.endDate;
+}
+
+export function scheduleSummary(scheduleType: ScheduleType, selectedDays: DayCode[], startDate?: string, endDate?: string | null): string {
+  if (scheduleType === 'EVERY_DAY' && startDate && endDate != null && startDate === endDate) {
+    return `Once on ${formatTaskDate(startDate) ?? startDate}`;
+  }
   switch (scheduleType) {
     case 'EVERY_DAY':
       return 'Every day';
@@ -47,6 +55,8 @@ export function scheduleSummary(scheduleType: ScheduleType, selectedDays: DayCod
       return 'Weekends';
     case 'SELECTED_DAYS':
       return selectedDays.length > 0 ? selectedDays.join(', ') : 'Selected days';
+    case 'ONE_TIME':
+      return 'One-time';
     default:
       return scheduleType;
   }

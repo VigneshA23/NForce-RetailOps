@@ -15,11 +15,15 @@ interface StatCardProps {
   value: string | number;
   tone?: StatCardTone;
   trend?: StatCardTrend;
+  onClick?: () => void;
+  active?: boolean;
 }
 
-function StatCard({ icon: Icon, label, value, tone = 'primary', trend }: StatCardProps) {
-  return (
-    <div className="card stat-card">
+function StatCard({ icon: Icon, label, value, tone = 'primary', trend, onClick, active }: StatCardProps) {
+  const className = `stat-card stat-card--${tone}${active ? ' stat-card--active' : ''}`;
+
+  const inner = (
+    <>
       <div className="stat-card__body">
         <span className="stat-card__label">{label}</span>
         <span className="stat-card__value">{value}</span>
@@ -33,8 +37,17 @@ function StatCard({ icon: Icon, label, value, tone = 'primary', trend }: StatCar
       <span className={`stat-card__icon stat-card__icon--${tone}`}>
         <Icon size={22} />
       </span>
-    </div>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button type="button" className={className} onClick={onClick}>
+        {inner}
+      </button>
+    );
+  }
+  return <div className={className}>{inner}</div>;
 }
 
 export default StatCard;

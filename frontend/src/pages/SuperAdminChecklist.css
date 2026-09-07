@@ -1,0 +1,100 @@
+.sa-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.sa-checklist__top-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: nowrap;
+}
+
+.sa-checklist__store-select,
+.sa-checklist__top-row .sa-checklist__store-select {
+  width: auto;
+  min-width: 180px;
+  max-width: 260px;
+  flex-shrink: 0;
+}
+
+/* Amber accent until a store is chosen — signals required action without alarm-red.
+   Double-class specificity beats .select's single-class border shorthand. */
+.select.sa-checklist__store-select--unselected {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
+  color: #b45309;
+}
+
+.sa-checklist__no-store-msg {
+  padding: var(--space-xl) var(--space-md);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.sa-checklist__trend-section {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.sa-checklist__trend-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.sa-checklist__trend-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.sa-checklist__trend-toggle {
+  display: flex;
+  gap: 3px;
+}
+
+.sa-checklist__trend-btn {
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sa-checklist__trend-btn:hover {
+  background: var(--color-surface-hovered);
+}
+
+.sa-checklist__trend-btn--active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+@media (max-width: 600px) {
+  .sa-checklist__top-row {
+    flex-wrap: wrap;
+    row-gap: var(--space-sm);
+  }
+
+  .sa-checklist__store-select {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    order: -1;
+    flex-shrink: 1;
+  }
+}

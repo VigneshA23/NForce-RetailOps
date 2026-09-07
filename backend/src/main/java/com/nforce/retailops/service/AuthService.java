@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -60,6 +61,9 @@ public class AuthService {
 
         List<String> roleNames = user.getRoles().stream().map(Role::getName).toList();
         String primaryRole = roleNames.contains("OWNER_ADMIN") ? "OWNER_ADMIN" : "EMPLOYEE";
+
+        user.setLastLoginAt(OffsetDateTime.now());
+        userRepository.save(user);
 
         String token = jwtService.generateToken(user.getEmail(), roleNames);
         sessionService.createSession(jwtService.extractTokenId(token), user.getEmail());

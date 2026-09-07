@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Plus, UserCheck, UserCog, UserX, Users } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { createEmployeeAsSuperAdmin, getAllEmployeesForSuperAdmin } from '../api/superAdminEmployees';
+import { createEmployeeAsSuperAdmin, getAllEmployeesForSuperAdmin, updateEmployeeStores } from '../api/superAdminEmployees';
+import { getAllStores } from '../api/superAdminStores';
+import { deleteEmployee, setEmployeeStatus, updateEmployee } from '../api/employees';
 import type { SuperAdminEmployee } from '../types/superAdminEmployee';
-import type { EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName } from '../types/employee';
+import type { EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName, StoreOption } from '../types/employee';
+import type { SuperAdminStore } from '../types/superAdminStore';
+import { toEmployeeUpdateValues } from '../utils/employeeUtils';
 import { EMPLOYEE_TYPE_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
 import SuperAdminEmployeeTable from '../components/SuperAdminEmployeeTable';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import EmployeeDetailModal from '../components/EmployeeDetailModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import TemporaryPasswordPopup from '../components/TemporaryPasswordPopup';
 import SearchInput from '../components/SearchInput';
 import SpecularButton from '../components/SpecularButton';
@@ -24,6 +29,13 @@ function SuperAdminEmployees() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const [allStores, setAllStores] = useState<StoreOption[]>([]);
+  useEffect(() => {
+    getAllStores().then((stores: SuperAdminStore[]) =>
+      setAllStores(stores.filter((s) => s.storeActive).map((s) => ({ id: s.storeId, name: s.storeName })))
+    ).catch(() => { /* non-critical — picker just stays empty */ });
+  }, []);
+
   const [search, setSearch] = useState('');
   const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
   const [typeFilter, setTypeFilter] = useState<EmployeeType | 'ALL'>('ALL');
@@ -33,9 +45,14 @@ function SuperAdminEmployees() {
   const [detailTarget, setDetailTarget] = useState<SuperAdminEmployee | null>(null);
 
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<SuperAdminEmployee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SuperAdminEmployee | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [statusTarget, setStatusTarget] = useState<SuperAdminEmployee | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   function loadEmployees() {
     setIsLoading(true);
@@ -54,17 +71,57 @@ function SuperAdminEmployees() {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      const created = await createEmployeeAsSuperAdmin(values as EmployeeCreateValues);
-      setIsFormOpen(false);
-      loadEmployees();
-      nfToast.success(`"${created.employee.name}" employee added.`);
-      setTempPassword({ name: created.employee.name, password: created.temporaryPassword });
+      if (editTarget) {
+        const { storeIds, ...updateValues } = values as EmployeeCreateValues;
+        await updateEmployee(editTarget.id, updateValues as EmployeeUpdateValues);
+        if (storeIds !== undefined) {
+          await updateEmployeeStores(editTarget.id, storeIds);
+        }
+        setEditTarget(null);
+        loadEmployees();
+        nfToast.success(`"${(values as EmployeeUpdateValues).name}" employee updated.`);
+      } else {
+        const created = await createEmployeeAsSuperAdmin(values as EmployeeCreateValues);
+        setIsFormOpen(false);
+        loadEmployees();
+        nfToast.success(`"${created.employee.name}" employee added.`);
+        setTempPassword({ name: created.employee.name, password: created.temporaryPassword });
+      }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setFormError(msg);
       nfToast.error(msg);
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function handleConfirmStatusChange() {
+    if (!statusTarget) return;
+    setStatusError(null);
+    try {
+      await setEmployeeStatus(statusTarget.id, !statusTarget.active);
+      const nextActive = !statusTarget.active;
+      setStatusTarget(null);
+      loadEmployees();
+      nfToast.success(`"${statusTarget.name}" employee ${nextActive ? 'activated' : 'deactivated'}.`);
+    } catch (error) {
+      setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
+      setStatusTarget(null);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setDeleteError(null);
+    try {
+      await deleteEmployee(deleteTarget.id);
+      setEmployees((current) => current.filter((e) => e.id !== deleteTarget.id));
+      const deletedName = deleteTarget.name;
+      setDeleteTarget(null);
+      nfToast.success(`"${deletedName}" permanently deleted.`);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : 'Failed to delete employee');
     }
   }
 
@@ -138,7 +195,7 @@ function SuperAdminEmployees() {
 
       <div className="filter-bar">
         <div className="filter filter--search">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search employees or owners" />
+          <SearchInput value={search} onChange={setSearch} placeholder="Search employees or owners" variant="filter" />
         </div>
 
         <select
@@ -193,6 +250,18 @@ function SuperAdminEmployees() {
             isLoading={isLoading}
             emptyMessage={emptyMessage}
             onViewDetails={setDetailTarget}
+            onEdit={(employee) => {
+              setFormError(null);
+              setEditTarget(employee);
+            }}
+            onToggleStatus={(employee) => {
+              setStatusError(null);
+              setStatusTarget(employee);
+            }}
+            onDelete={(employee) => {
+              setDeleteError(null);
+              setDeleteTarget(employee);
+            }}
           />
           <Pagination
             page={currentPage}
@@ -213,10 +282,58 @@ function SuperAdminEmployees() {
       <EmployeeFormModal
         isOpen={isFormOpen}
         mode="create"
+        availableStores={allStores}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
+      />
+
+      <EmployeeFormModal
+        isOpen={editTarget !== null}
+        mode="edit"
+        initialValues={editTarget ? toEmployeeUpdateValues(editTarget) : undefined}
+        availableStores={allStores}
+        initialStoreIds={editTarget ? editTarget.stores.map((s) => s.id) : undefined}
+        errorMessage={formError}
+        isSubmitting={isSubmitting}
+        onClose={() => setEditTarget(null)}
+        onSubmit={handleFormSubmit}
+      />
+
+      <ConfirmDialog
+        isOpen={statusTarget !== null}
+        title={statusTarget?.active ? 'Deactivate Employee' : 'Activate Employee'}
+        message={
+          statusTarget
+            ? statusTarget.active
+              ? `Deactivate ${statusTarget.name} (${statusTarget.empId})? They will be signed out immediately and will not be able to sign in again until reactivated.${statusError ? ` ${statusError}` : ''}`
+              : `Reactivate ${statusTarget.name} (${statusTarget.empId})? They will be able to sign in again.`
+            : ''
+        }
+        confirmLabel={statusTarget?.active ? 'Deactivate' : 'Activate'}
+        danger={statusTarget?.active ?? true}
+        onConfirm={handleConfirmStatusChange}
+        onCancel={() => setStatusTarget(null)}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Permanently Delete Employee"
+        message={
+          deleteTarget
+            ? `This permanently deletes ${deleteTarget.name} (${deleteTarget.empId})'s account and removes them from all stores. This cannot be undone.${
+                deleteError ? ` ${deleteError}` : ''
+              }`
+            : ''
+        }
+        confirmLabel="Delete Permanently"
+        danger
+        onConfirm={handleConfirmDelete}
+        onCancel={() => {
+          setDeleteError(null);
+          setDeleteTarget(null);
+        }}
       />
 
       <TemporaryPasswordPopup

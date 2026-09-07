@@ -36,6 +36,9 @@ export function taskStatus(task: ChecklistHistoryTaskItem): ChecklistTaskStatus 
   const response = latestResponse(task);
   if (!response) return 'OPEN';
   if (task.responseType === 'YES_NO' && response.booleanValue === false) return 'ISSUE';
+  // Flagged responses need employee attention — treat as ISSUE so the status
+  // column updates immediately without waiting for the employee to re-submit.
+  if (response.flaggedNeedsCorrection) return 'ISSUE';
   return 'COMPLETE';
 }
 
@@ -57,8 +60,44 @@ export function checklistItemStatusBadgeClass(completed: boolean): string {
   return completed ? 'badge--success' : 'badge--outline';
 }
 
+function localDateString(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export function todayDate(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateString(new Date());
+}
+
+export function yesterday(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return localDateString(d);
+}
+
+export function daysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return localDateString(d);
+}
+
+export function lastWeekSameDay(date: string): string {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() - 7);
+  return d.toISOString().slice(0, 10);
+}
+
+export function stepDate(date: string, delta: number): string {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() + delta);
+  return d.toISOString().slice(0, 10);
+}
+
+export function formatDateNavLabel(date: string): string {
+  const parsed = new Date(`${date}T00:00:00`);
+  return parsed.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 export function formatDateLabel(date: string): string {

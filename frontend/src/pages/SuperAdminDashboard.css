@@ -4,6 +4,20 @@
   padding: var(--space-lg);
 }
 
+.owners-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.owners-page__summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
 .owners-page__add-label {
   display: inline-flex;
   align-items: center;
@@ -33,6 +47,14 @@
 }
 
 @media (--mobile) {
+  .owners-page__header {
+    flex-wrap: wrap;
+  }
+
+  .owners-page__header .specular-button {
+    margin-left: auto;
+  }
+
   .owners-page__error {
     flex-wrap: wrap;
   }

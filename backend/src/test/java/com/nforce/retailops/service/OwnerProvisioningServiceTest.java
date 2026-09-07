@@ -71,15 +71,15 @@ class OwnerProvisioningServiceTest {
     }
 
     private AddOwnerRequest requestWithNoStore() {
-        return new AddOwnerRequest("New Owner", "owner@nforce.test", null, null, null);
+        return new AddOwnerRequest("New Owner", "owner@nforce.test", null, null, null, null, null);
     }
 
     private AddOwnerRequest requestWithNewStore() {
-        return new AddOwnerRequest("New Owner", "owner@nforce.test", "Downtown", "Main St", null);
+        return new AddOwnerRequest("New Owner", "owner@nforce.test", null, null, "Downtown", "Main St", null);
     }
 
     private AddOwnerRequest requestWithExistingStore(Long existingStoreId) {
-        return new AddOwnerRequest("New Owner", "owner@nforce.test", null, null, existingStoreId);
+        return new AddOwnerRequest("New Owner", "owner@nforce.test", null, null, null, null, existingStoreId);
     }
 
     @Test

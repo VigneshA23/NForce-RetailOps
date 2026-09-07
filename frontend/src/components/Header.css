@@ -8,18 +8,17 @@
   height: var(--header-height);
   padding: 0 var(--space-lg);
   box-sizing: border-box;
-  background: linear-gradient(90deg, #050506 0%, #6B0C10 40%, #A01418 100%);
+  background: #0b090a;
   color: var(--color-header-text);
   border-bottom: 1px solid var(--color-header-border);
 }
 
-/* The avatar reads better against the header's busy red gradient with a
-   soft white ring around it -- scoped to the header so the same UserAvatar
-   used on the Profile page and in the Sidebar (both on flat backgrounds)
-   is unaffected. */
+/* Avatar ring gives the profile image definition against the dark header
+   background -- scoped so the same UserAvatar on the Profile page and in
+   the Sidebar (different backgrounds) is unaffected. */
 .header .user-avatar {
   box-sizing: border-box;
-  border: 2px solid rgba(255, 255, 255, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.38);
 }
 
 .header__left {
@@ -32,8 +31,8 @@
 
 .header__logo {
   flex-shrink: 0;
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -108,8 +107,8 @@
   }
 
   .header__logo {
-    width: 28px;
-    height: 28px;
+    width: 38px;
+    height: 38px;
   }
 
   .header__logo--hide-desktop {

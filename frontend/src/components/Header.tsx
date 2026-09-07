@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { Bell, Menu, Moon, Sun } from 'lucide-react';
+import { Menu, Moon, Sun } from 'lucide-react';
 import SearchInput from './SearchInput';
 import IconButton from './IconButton';
 import ProfileMenu from './ProfileMenu';
+import NotificationBell from './NotificationBell';
 import './Header.css';
 
 interface HeaderProps {
@@ -19,13 +20,12 @@ interface HeaderProps {
   // would otherwise be a redundant second copy. Ignored below the mobile
   // breakpoint, and has no effect when logoSrc isn't set.
   hideLogoOnDesktop?: boolean;
-  // Both default to true, so every existing caller (Admin/Super Admin/
-  // Employee dashboard) renders exactly as before. The Store Picker (no
-  // page content for either to act on yet) turns them off.
   showSearch?: boolean;
   showNotifications?: boolean;
+  notificationUnreadCount?: number;
+  onNotificationsCountChange?: (count: number) => void;
   onNotificationsClick?: () => void;
-  notificationCount?: number;
+  onNotificationNavigate?: (path: string) => void;
   searchValue: string;
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;
@@ -34,6 +34,7 @@ interface HeaderProps {
   avatarUrl?: string | null;
   onProfileClick?: () => void;
   onHelpClick?: () => void;
+  onSettingsClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
   // Employee pages only -- see Modal's `centered` prop. Forwarded down to the
@@ -53,8 +54,10 @@ function Header({
   hideLogoOnDesktop,
   showSearch = true,
   showNotifications = true,
+  notificationUnreadCount = 0,
+  onNotificationsCountChange,
   onNotificationsClick,
-  notificationCount,
+  onNotificationNavigate,
   searchValue,
   onSearchChange,
   isDarkTheme,
@@ -63,6 +66,7 @@ function Header({
   avatarUrl,
   onProfileClick,
   onHelpClick,
+  onSettingsClick,
   onLogout,
   loggingOut,
   centeredModals,
@@ -94,16 +98,21 @@ function Header({
           icon={isDarkTheme ? Sun : Moon}
           ariaLabel={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
           onClick={onToggleTheme}
-          variant="accent"
         />
-        {showNotifications && (
-          <IconButton icon={Bell} ariaLabel="Notifications" onClick={onNotificationsClick} badgeCount={notificationCount} />
+        {showNotifications && onNotificationsClick && (
+          <NotificationBell
+            unreadCount={notificationUnreadCount}
+            onCountChange={onNotificationsCountChange ?? (() => {})}
+            onViewAll={onNotificationsClick}
+            onNavigate={onNotificationNavigate}
+          />
         )}
         <ProfileMenu
           fullName={userName}
           avatarUrl={avatarUrl}
           onProfileClick={onProfileClick}
           onHelpClick={onHelpClick}
+          onSettingsClick={onSettingsClick}
           onLogout={onLogout}
           loggingOut={loggingOut}
           centeredModals={centeredModals}

@@ -5,8 +5,10 @@ import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerCreationResponse;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.dto.ReassignableStoreResponse;
+import com.nforce.retailops.dto.UpdateOwnerRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
@@ -16,8 +18,10 @@ import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
+import com.nforce.retailops.security.SuperAdminUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +45,8 @@ public class OwnerManagementService {
     private final MailService mailService;
     private final StoreCodeGenerator storeCodeGenerator;
     private final OwnerProvisioningService ownerProvisioningService;
+    private final NotificationService notificationService;
+    private final SuperAdminAlertService superAdminAlertService;
 
     public OwnerManagementService(
         UserRepository userRepository,
@@ -48,7 +54,9 @@ public class OwnerManagementService {
         StoreOwnerRepository storeOwnerRepository,
         MailService mailService,
         StoreCodeGenerator storeCodeGenerator,
-        OwnerProvisioningService ownerProvisioningService
+        OwnerProvisioningService ownerProvisioningService,
+        NotificationService notificationService,
+        SuperAdminAlertService superAdminAlertService
     ) {
         this.userRepository = userRepository;
         this.storeRepository = storeRepository;
@@ -56,6 +64,8 @@ public class OwnerManagementService {
         this.mailService = mailService;
         this.storeCodeGenerator = storeCodeGenerator;
         this.ownerProvisioningService = ownerProvisioningService;
+        this.notificationService = notificationService;
+        this.superAdminAlertService = superAdminAlertService;
     }
 
     @Transactional(readOnly = true)
@@ -121,6 +131,16 @@ public class OwnerManagementService {
         try {
             mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
         } catch (EmailDeliveryException ex) {
+            // Notify the creating Super Admin before compensating, so the alert
+            // is persisted even if compensation also fails.
+            try {
+                Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+                if (principal instanceof SuperAdminUserDetails saDetails) {
+                    superAdminAlertService.notifyOwnerEmailDeliveryFailed(saDetails.getSuperAdmin(), provisioned.fullName());
+                }
+            } catch (RuntimeException notifEx) {
+                log.warn("Could not send OWNER_EMAIL_FAILED notification for owner {}", provisioned.ownerId(), notifEx);
+            }
             try {
                 ownerProvisioningService.deleteUnreachableOwner(provisioned);
             } catch (RuntimeException cleanupEx) {
@@ -159,11 +179,27 @@ public class OwnerManagementService {
     }
 
     @Transactional
+    public List<OwnerResponse> updateOwner(Long ownerId, UpdateOwnerRequest request) {
+        User owner = userRepository.findById(ownerId)
+            .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+        owner.setFullName(request.ownerName());
+        owner.setEmail(request.ownerEmail());
+        userRepository.save(owner);
+
+        List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
+        if (storeOwners.isEmpty()) {
+            return List.of(OwnerResponse.withoutStore(owner));
+        }
+        return storeOwners.stream().map(OwnerResponse::from).toList();
+    }
+
+    @Transactional
     public List<OwnerResponse> setOwnerActive(Long ownerId, boolean active) {
         User owner = userRepository.findById(ownerId)
             .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
         owner.setActive(active);
         userRepository.save(owner);
+        notificationService.createForAccountStatus(owner, active);
 
         List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
         if (storeOwners.isEmpty()) {

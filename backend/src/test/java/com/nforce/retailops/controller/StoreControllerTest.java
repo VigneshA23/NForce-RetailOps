@@ -1,16 +1,25 @@
 package com.nforce.retailops.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nforce.retailops.entity.Category;
+import com.nforce.retailops.entity.CompletionType;
+import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Role;
+import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.Task;
+import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import java.time.LocalDate;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
@@ -39,6 +48,8 @@ class StoreControllerTest {
     @Autowired private UserRepository userRepository;
     @Autowired private StoreRepository storeRepository;
     @Autowired private StoreOwnerRepository storeOwnerRepository;
+    @Autowired private TaskRepository taskRepository;
+    @Autowired private CategoryRepository categoryRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -238,6 +249,43 @@ class StoreControllerTest {
 
     @Test
     @Transactional
+    void superAdminCannotDeleteStoreWithTaskHistory() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role superRole = role("SUPER_ADMIN");
+        User owner = user("store-history-owner@nforce.test", ownerRole);
+        user("store-history-super@nforce.test", superRole);
+        Store store = store("Store With History", 8011L);
+        linkOwnerToStore(owner, store);
+        taskForStore(owner, store);
+
+        String token = login("store-history-super@nforce.test");
+
+        mockMvc.perform(delete("/api/stores/" + store.getId())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value(
+                "This store has checklist history and cannot be deleted. Deactivate it instead."));
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanDeleteStoreWithNoHistory() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role superRole = role("SUPER_ADMIN");
+        User owner = user("store-nohistory-owner@nforce.test", ownerRole);
+        user("store-nohistory-super@nforce.test", superRole);
+        Store store = store("Store With No History", 8012L);
+        linkOwnerToStore(owner, store);
+
+        String token = login("store-nohistory-super@nforce.test");
+
+        mockMvc.perform(delete("/api/stores/" + store.getId())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @Transactional
     void ownerAdminCannotToggleStoreStatus() throws Exception {
         Role ownerRole = role("OWNER_ADMIN");
         User owner = user("store-status-denied@nforce.test", ownerRole);
@@ -288,6 +336,27 @@ class StoreControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.storeActive").value(true))
             .andExpect(jsonPath("$.ownerAccessActive").value(true));
+    }
+
+    private void taskForStore(User owner, Store store) {
+        Category category = new Category();
+        category.setName("Test Category " + store.getId());
+        category.setOwner(owner);
+        category.setDisplayOrder(1);
+        category = categoryRepository.save(category);
+
+        Task task = new Task();
+        task.setOwner(owner);
+        task.setCategory(category);
+        task.setName("Test Task");
+        task.setAppliesToAllStores(false);
+        task.setResponseType(ResponseType.YES_NO);
+        task.setCompletionType(CompletionType.SINGLE);
+        task.setScheduleType(ScheduleType.EVERY_DAY);
+        task.setTimeMode(TimeMode.ANYTIME);
+        task.setStartDate(LocalDate.now());
+        task.getStores().add(store);
+        taskRepository.save(task);
     }
 
     private Role role(String name) {

@@ -1,6 +1,7 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.StoreEmployee;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -55,4 +56,15 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
     List<StoreEmployee> findByEmployeeIdIn(Collection<Long> userIds);
 
     boolean existsByEmployeeIdAndStoresId(Long userId, Long storeId);
+
+    @Query("select se from StoreEmployee se join fetch se.employee u "
+        + "where lower(u.fullName) like lower(concat('%', :q, '%')) or lower(u.email) like lower(concat('%', :q, '%')) "
+        + "order by u.fullName")
+    List<StoreEmployee> searchByNameOrEmail(@Param("q") String q, Pageable pageable);
+
+    @Query("select se from StoreEmployee se join fetch se.employee u join se.stores s "
+        + "where s.id = :storeId "
+        + "and (lower(u.fullName) like lower(concat('%', :q, '%')) or lower(u.email) like lower(concat('%', :q, '%'))) "
+        + "order by u.fullName")
+    List<StoreEmployee> searchByNameOrEmailAndStoreId(@Param("storeId") Long storeId, @Param("q") String q, Pageable pageable);
 }

@@ -7,11 +7,16 @@ import com.nforce.retailops.dto.SuperAdminStoreResponse;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.OwnerNotFoundException;
+import com.nforce.retailops.exception.OwnerStoreConflictException;
+import com.nforce.retailops.exception.StoreHasHistoryException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
+import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.TaskRepository;
+import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,20 +35,29 @@ public class StoreService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final TaskRepository taskRepository;
+    private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final StoreCodeGenerator storeCodeGenerator;
+    private final NotificationService notificationService;
+    private final UserRepository userRepository;
 
     public StoreService(
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
         TaskRepository taskRepository,
-        StoreCodeGenerator storeCodeGenerator
+        TaskResponseEntryRepository taskResponseEntryRepository,
+        StoreCodeGenerator storeCodeGenerator,
+        NotificationService notificationService,
+        UserRepository userRepository
     ) {
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.taskRepository = taskRepository;
+        this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeCodeGenerator = storeCodeGenerator;
+        this.notificationService = notificationService;
+        this.userRepository = userRepository;
     }
 
     private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
@@ -158,6 +172,9 @@ public class StoreService {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         User owner = storeOwner.getOwner();
+        if (owner != null) {
+            notificationService.createForStoreStatus(store, owner, active);
+        }
         int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
         long taskCount = taskRepository.countByStoreId(store.getId())
             + (owner != null ? taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(owner.getId()) : 0);
@@ -182,8 +199,57 @@ public class StoreService {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
+        if (taskResponseEntryRepository.existsByStoreId(storeId)
+                || taskRepository.countByStoreId(storeId) > 0) {
+            throw new StoreHasHistoryException(
+                "This store has checklist history and cannot be deleted. Deactivate it instead.");
+        }
+
         storeOwnerRepository.delete(storeOwner);
         storeRepository.delete(storeOwner.getStore());
+    }
+
+    // Super Admin assigns or reassigns an owner to a store.
+    // Guard: the target owner must not already manage a DIFFERENT active store.
+    // Reassignment is reflected immediately in both the Stores and Owners tables
+    // because both read from the same store_owners row.
+    @Transactional
+    public SuperAdminStoreResponse assignOwnerToStore(Long storeId, Long newOwnerId) {
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+
+        User newOwner = userRepository.findById(newOwnerId)
+            .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+
+        Long currentOwnerId = storeOwner.getOwner() != null ? storeOwner.getOwner().getId() : null;
+        boolean changingOwner = !newOwnerId.equals(currentOwnerId);
+        if (changingOwner && storeOwnerRepository.existsByOwnerIdAndActiveTrueAndStoreIdNot(newOwnerId, storeId)) {
+            throw new OwnerStoreConflictException(
+                "This owner already manages an active store. Reassign or deactivate their current store first.");
+        }
+
+        storeOwner.setOwner(newOwner);
+        storeOwner.setActive(true);
+        storeOwner = storeOwnerRepository.save(storeOwner);
+
+        Store store = storeOwner.getStore();
+        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
+        long taskCount = taskRepository.countByStoreId(store.getId())
+            + taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(newOwner.getId());
+
+        return new SuperAdminStoreResponse(
+            store.getId(),
+            store.getStoreCode(),
+            store.getName(),
+            store.getLocation(),
+            store.isActive(),
+            newOwner.getId(),
+            newOwner.getFullName(),
+            newOwner.isActive(),
+            true,
+            employeeCount,
+            (int) taskCount
+        );
     }
 
     // Super Admin creates a store with no owner yet -- active = false on the

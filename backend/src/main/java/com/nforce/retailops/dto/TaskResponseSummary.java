@@ -11,7 +11,9 @@ public record TaskResponseSummary(
     Boolean booleanValue,
     Double numericValue,
     String textValue,
-    OffsetDateTime respondedAt
+    OffsetDateTime respondedAt,
+    boolean flaggedNeedsCorrection,
+    String flagReason
 ) {
     public static TaskResponseSummary from(TaskResponseEntry entry) {
         return new TaskResponseSummary(
@@ -21,7 +23,9 @@ public record TaskResponseSummary(
             entry.getValueBoolean(),
             entry.getValueNumeric(),
             entry.getValueText(),
-            entry.getCreatedAt()
+            entry.getCreatedAt(),
+            entry.isFlaggedNeedsCorrection(),
+            entry.getFlagReason()
         );
     }
 }

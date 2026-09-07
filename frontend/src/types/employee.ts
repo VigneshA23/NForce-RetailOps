@@ -20,6 +20,7 @@ export interface Employee {
   gender: Gender;
   active: boolean;
   stores: StoreOption[];
+  avatarUrl?: string | null;
 }
 
 export interface EmployeeFormValues {
@@ -35,8 +36,10 @@ export interface EmployeeFormValues {
 // directory assign/unassign actions, not this form.
 export type EmployeeUpdateValues = EmployeeFormValues;
 
-// Created by the Super Admin, with no store field at all.
-export type EmployeeCreateValues = EmployeeFormValues;
+// Created by the Super Admin. storeIds is optional initial assignment.
+export interface EmployeeCreateValues extends EmployeeFormValues {
+  storeIds?: number[];
+}
 
 // Owner-facing, cross-owner directory entry used to find an existing employee
 // and assign the caller's own store to them.

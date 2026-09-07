@@ -1,4 +1,11 @@
-import type { ChecklistHistoryDetail, ChecklistHistoryOperationsReport, ChecklistHistorySummaryRow } from '../types/checklistHistory';
+import type {
+  AdminCorrectionApplyResponse,
+  AdminCorrectionEntry,
+  ChecklistHistoryDetail,
+  ChecklistHistoryOperationsReport,
+  ChecklistHistoryResponseEntry,
+  ChecklistHistorySummaryRow,
+} from '../types/checklistHistory';
 import { authHeaders } from '../utils/authStorage';
 import { fetchWithTimeout } from './client';
 
@@ -83,6 +90,60 @@ export async function getChecklistHistoryDetail(storeId: number, date: string): 
 
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response, 'Failed to load checklist detail'));
+  }
+
+  return response.json();
+}
+
+export interface AdminCorrectionRequestBody {
+  correctedBooleanValue?: boolean | null;
+  correctedNumericValue?: number | null;
+  correctedTextValue?: string | null;
+  reason?: string | null;
+}
+
+export async function correctResponse(
+  responseId: number,
+  body: AdminCorrectionRequestBody,
+): Promise<AdminCorrectionApplyResponse> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/checklist-history/responses/${responseId}/correct`, {
+    method: 'PATCH',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to save correction'));
+  }
+
+  return response.json();
+}
+
+export async function flagResponse(
+  responseId: number,
+  reason: string,
+): Promise<ChecklistHistoryResponseEntry> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/checklist-history/responses/${responseId}/flag`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to flag response'));
+  }
+
+  return response.json();
+}
+
+export async function getCorrectionHistory(responseId: number): Promise<AdminCorrectionEntry[]> {
+  const response = await fetchWithTimeout(
+    `${API_BASE_URL}/checklist-history/responses/${responseId}/corrections`,
+    { headers: authHeaders() },
+  );
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to load correction history'));
   }
 
   return response.json();

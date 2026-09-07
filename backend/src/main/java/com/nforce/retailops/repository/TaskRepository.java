@@ -1,6 +1,7 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.Task;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
@@ -122,5 +123,15 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("storeIds") Collection<Long> storeIds,
         @org.springframework.data.repository.query.Param("startDate") LocalDate startDate,
         @org.springframework.data.repository.query.Param("endDate") LocalDate endDate
+    );
+
+    @org.springframework.data.jpa.repository.Query(
+        "select t from Task t join fetch t.category where t.owner.id = :ownerId "
+            + "and lower(t.name) like lower(concat('%', :q, '%')) order by t.name"
+    )
+    List<Task> searchByOwnerIdAndTitle(
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId,
+        @org.springframework.data.repository.query.Param("q") String q,
+        Pageable pageable
     );
 }

@@ -8,6 +8,8 @@ import com.nforce.retailops.exception.CategoryNameExistsException;
 import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.exception.InvalidCategoryOrderException;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.StoreEmployeeRepository;
+import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
@@ -24,15 +26,24 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
+    private final StoreOwnerRepository storeOwnerRepository;
+    private final StoreEmployeeRepository storeEmployeeRepository;
+    private final NotificationService notificationService;
 
     public CategoryService(
         CategoryRepository categoryRepository,
         UserRepository userRepository,
-        TaskRepository taskRepository
+        TaskRepository taskRepository,
+        StoreOwnerRepository storeOwnerRepository,
+        StoreEmployeeRepository storeEmployeeRepository,
+        NotificationService notificationService
     ) {
         this.categoryRepository = categoryRepository;
         this.userRepository = userRepository;
         this.taskRepository = taskRepository;
+        this.storeOwnerRepository = storeOwnerRepository;
+        this.storeEmployeeRepository = storeEmployeeRepository;
+        this.notificationService = notificationService;
     }
 
     private CategoryResponse toResponse(Category category) {
@@ -71,6 +82,17 @@ public class CategoryService {
         category.setName(name);
         category.setDisplayOrder(categoryRepository.countByOwnerId(ownerId));
         category = categoryRepository.save(category);
+
+        final String categoryName = category.getName();
+        storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId).ifPresent(so -> {
+            storeEmployeeRepository
+                .findDistinctByStoresIdInOrderByIdAscFetchEmployee(List.of(so.getStore().getId()))
+                .forEach(se -> notificationService.send(
+                    se.getEmployee(), "CATEGORY_ADDED",
+                    "New category: " + categoryName,
+                    "A new task category has been added to your store checklist.",
+                    "/checklist"));
+        });
 
         return toResponse(category);
     }

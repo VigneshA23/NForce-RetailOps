@@ -1,0 +1,236 @@
+/* Identical visual language to AdminSearchDropdown / SACommandPalette — dark
+   glass input on the always-dark header, light card dropdown, colour-coded
+   item badges per group type. */
+
+.edrop {
+  position: relative;
+  flex: 1;
+  min-width: 460px;
+  max-width: 640px;
+}
+
+.edrop__input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.edrop__search-icon {
+  position: absolute;
+  left: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+.edrop__input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 0.8125rem;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+}
+
+.edrop__input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.edrop__input:focus {
+  border-color: rgba(255, 255, 255, 0.55);
+  background: rgba(255, 255, 255, 0.24);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+.edrop__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='rgba(255,255,255,0.75)' d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: contain;
+  cursor: pointer;
+  margin-right: 2px;
+}
+
+.edrop__dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow:
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 12px 32px -4px rgba(0, 0, 0, 0.2),
+    0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  z-index: 300;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+/* ── Skeleton ──────────────────────────────────────────────────────── */
+
+@keyframes edrop-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.edrop__skeleton { padding: 6px 4px; }
+
+.edrop__skeleton-group-label {
+  height: 10px; width: 52px; border-radius: 4px; margin: 8px 8px 6px;
+  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-raised) 50%, var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: edrop-shimmer 1.3s infinite;
+}
+
+.edrop__skeleton-group-label--mt { margin-top: 14px; }
+
+.edrop__skeleton-row {
+  height: 44px; border-radius: 8px; margin: 3px 0;
+  background: linear-gradient(90deg, var(--color-surface) 25%, var(--color-surface-raised) 50%, var(--color-surface) 75%);
+  background-size: 200% 100%;
+  animation: edrop-shimmer 1.3s infinite;
+}
+
+.edrop__skeleton-row--wide { width: 100%; }
+.edrop__skeleton-row--mid  { width: 82%; }
+.edrop__skeleton-row--narrow { width: 68%; }
+
+/* ── Empty ─────────────────────────────────────────────────────────── */
+
+.edrop__empty {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 24px 16px; font-size: 0.8125rem; color: var(--color-text-tertiary); text-align: center;
+}
+.edrop__empty svg { opacity: 0.4; }
+
+/* ── Groups ────────────────────────────────────────────────────────── */
+
+.edrop__group { margin-bottom: 4px; }
+
+.edrop__group-label {
+  display: flex; align-items: center; gap: 5px; padding: 6px 8px 3px;
+  font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--color-text-tertiary);
+}
+
+.edrop__item {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 10px; border-radius: 8px; border: none;
+  background: transparent; cursor: pointer; text-align: left; transition: background 0.1s;
+}
+
+.edrop__item:hover, .edrop__item:focus-visible {
+  background: var(--color-surface-hovered); outline: none;
+}
+
+.edrop__item-badge {
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; width: 28px; height: 28px; border-radius: 7px;
+}
+
+.edrop__item-badge--task {
+  background: rgba(99, 102, 241, 0.12);
+  color: #6366f1;
+}
+
+.edrop__item-badge--issue {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+.edrop__item-text { display: flex; flex-direction: column; min-width: 0; }
+
+.edrop__item-label {
+  font-size: 0.8125rem; font-weight: 500; color: var(--color-text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.edrop__item-sub {
+  font-size: 0.75rem; color: var(--color-text-tertiary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* ── Mobile trigger ────────────────────────────────────────────────── */
+
+.edrop__mobile-trigger {
+  display: none; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 8px; border: none;
+  background: rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.85);
+  cursor: pointer; flex-shrink: 0; transition: background 0.15s, color 0.15s;
+}
+.edrop__mobile-trigger:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+
+/* ── Mobile overlay ────────────────────────────────────────────────── */
+
+.edrop__overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: var(--color-background);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+.edrop__overlay-header {
+  display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px;
+  background: #0b090a; border-bottom: 1px solid rgba(255, 255, 255, 0.1); flex-shrink: 0;
+}
+
+.edrop__overlay-back {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 8px; border: none;
+  background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.85);
+  cursor: pointer; flex-shrink: 0; transition: background 0.15s;
+}
+.edrop__overlay-back:hover { background: rgba(255, 255, 255, 0.18); }
+
+.edrop__overlay-input-wrap {
+  position: relative; flex: 1; display: flex; align-items: center;
+}
+
+.edrop__search-icon--overlay {
+  left: 10px; position: absolute;
+  color: rgba(255, 255, 255, 0.5); pointer-events: none;
+}
+
+.edrop__input--overlay {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  font-size: 16px; /* prevent iOS Safari auto-zoom */
+}
+
+.edrop__input--overlay:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
+}
+
+.edrop__overlay-body { flex: 1; overflow-y: auto; padding: 8px; }
+
+.edrop__overlay-hint {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 48px 24px; color: var(--color-text-tertiary); font-size: 0.875rem; text-align: center;
+}
+.edrop__overlay-hint svg { opacity: 0.35; }
+
+/* ── Responsive ────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .edrop { display: none; }
+  .edrop__mobile-trigger { display: flex; }
+}
+
+@media (min-width: 481px) {
+  .edrop__mobile-trigger { display: none; }
+}
+
+@media (max-width: 767px) {
+  .edrop__input { font-size: 16px; } /* prevent iOS Safari auto-zoom */
+}

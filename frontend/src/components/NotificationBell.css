@@ -1,0 +1,349 @@
+@import '../styles/breakpoints.css';
+
+/* ── Animations ──────────────────────────────────────────────────── */
+@keyframes bell-ring {
+  0%, 100% { transform: rotate(0); }
+  10%       { transform: rotate(14deg); }
+  25%       { transform: rotate(-11deg); }
+  40%       { transform: rotate(8deg); }
+  55%       { transform: rotate(-5deg); }
+  70%       { transform: rotate(3deg); }
+}
+
+@keyframes badge-pop {
+  0%   { transform: scale(0); }
+  70%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+@keyframes nb-slide-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes nb-dot-pulse {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40%           { opacity: 1;   transform: scale(1); }
+}
+
+/* ── Bell trigger ─────────────────────────────────────────────────── */
+.nb {
+  position: relative;
+}
+
+.nb__trigger {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-header-text);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+  flex-shrink: 0;
+}
+
+.nb__trigger:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.nb__trigger--open {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.nb__trigger--has-unread svg {
+  animation: bell-ring 0.7s ease-out 0.3s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nb__trigger--has-unread svg {
+    animation: none;
+  }
+}
+
+.nb__trigger:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ── Unread badge ─────────────────────────────────────────────────── */
+.nb__badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  background: var(--color-accent);
+  color: #ffffff;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  text-align: center;
+  pointer-events: none;
+  box-sizing: border-box;
+  border: 1.5px solid #0b090a;
+  animation: badge-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nb__badge {
+    animation: none;
+  }
+}
+
+/* ── Dropdown panel ───────────────────────────────────────────────── */
+.nb__dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 368px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07),
+              0 16px 48px -4px rgba(0, 0, 0, 0.16);
+  z-index: calc(var(--z-modal) + 100);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: nb-slide-in 180ms ease-out both;
+}
+
+/* ── Dropdown header ──────────────────────────────────────────────── */
+.nb__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nb__header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.nb__header-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--color-accent);
+  color: #fff;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.nb__mark-all {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.nb__mark-all:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+}
+
+/* ── Notification list ────────────────────────────────────────────── */
+.nb__list {
+  flex: 1;
+  max-height: 360px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* ── Loading dots ─────────────────────────────────────────────────── */
+.nb__loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: var(--space-xl) var(--space-md);
+}
+
+.nb__loading-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-text-muted);
+  animation: nb-dot-pulse 1.2s ease-in-out infinite;
+}
+
+.nb__loading-dot:nth-child(2) { animation-delay: 0.2s; }
+.nb__loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* ── Empty state ──────────────────────────────────────────────────── */
+.nb__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xl) var(--space-md);
+  color: var(--color-text-muted);
+}
+
+.nb__empty p {
+  margin: 0;
+  font-size: 13px;
+}
+
+.nb__empty svg {
+  opacity: 0.35;
+}
+
+/* ── Individual notification item ─────────────────────────────────── */
+.nb-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  transition: background 120ms ease;
+}
+
+.nb-item:last-child {
+  border-bottom: none;
+}
+
+.nb-item:hover {
+  background: var(--color-bg-page);
+}
+
+.nb-item--unread {
+  background: color-mix(in srgb, var(--color-accent) 4%, var(--color-surface-card));
+}
+
+.nb-item--unread:hover {
+  background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface-card));
+}
+
+/* ── Category icon badge ──────────────────────────────────────────── */
+.nb-item__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  margin-top: 1px;
+}
+
+.nb-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.nb-item__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 3px;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nb-item__msg {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0 0 4px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.nb-item__time {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* ── Unread dot ───────────────────────────────────────────────────── */
+.nb-item__dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  margin-top: 7px;
+}
+
+/* ── View all footer ──────────────────────────────────────────────── */
+.nb__view-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease;
+}
+
+.nb__view-all:hover {
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 5%, var(--color-bg-page));
+}
+
+/* ── Mobile: full-width slide-down panel ─────────────────────────── */
+@media (--mobile) {
+  .nb__dropdown {
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    width: 100%;
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+    border-top: none;
+    max-height: 70vh;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+
+  .nb__list {
+    max-height: calc(70vh - 106px);
+  }
+
+  .nb-item {
+    padding: 13px 16px;
+  }
+}

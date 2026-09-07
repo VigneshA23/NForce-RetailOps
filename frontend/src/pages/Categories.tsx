@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Tags, CircleCheck, CircleSlash } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
@@ -6,16 +6,22 @@ import {
   updateCategory,
   updateCategoryStatus,
   deleteCategory,
-  reorderCategories,
 } from '../api/categories';
 import type { Category, CategoryFormValues } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
 import CategoryFormModal from '../components/CategoryFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
+import Select from '../components/Select';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Categories.css';
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Status' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
@@ -26,18 +32,26 @@ interface CategoriesProps {
   isLoading: boolean;
   loadError: string | null;
   onRetry: () => void;
+  searchSeed?: { term: string; id: number };
 }
 
-function Categories({ categories, setCategories, isLoading, loadError, onRetry }: CategoriesProps) {
+function Categories({ categories, setCategories, isLoading, loadError, onRetry, searchSeed }: CategoriesProps) {
   const [formModalState, setFormModalState] = useState<FormModalState>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [reorderError, setReorderError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+
+  const appliedSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (searchSeed && searchSeed.id !== appliedSeedId.current) {
+      appliedSeedId.current = searchSeed.id;
+      setSearch(searchSeed.term);
+    }
+  }, [searchSeed]);
 
   async function handleFormSubmit(values: CategoryFormValues) {
     setFormError(null);
@@ -76,36 +90,6 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
       const msg = error instanceof Error ? error.message : 'Failed to update category status';
       setStatusError(msg);
       nfToast.error(msg);
-    }
-  }
-
-  // Places the dragged category immediately before the drop target, in the
-  // owner's FULL category list -- not the (possibly search/status-filtered)
-  // list the table is currently rendering -- so a drag made while filtered
-  // still produces a complete, unambiguous order for every category.
-  async function handleReorder(draggedId: number, targetId: number) {
-    setReorderError(null);
-    const previous = categories;
-    const ids = previous.map((c) => c.id);
-    const fromIndex = ids.indexOf(draggedId);
-    if (fromIndex === -1) return;
-    ids.splice(fromIndex, 1);
-    const insertAt = ids.indexOf(targetId);
-    if (insertAt === -1) return;
-    ids.splice(insertAt, 0, draggedId);
-
-    // Optimistic: re-sort the existing category objects into the new id
-    // order immediately, then reconcile with the server's own displayOrder
-    // once the request resolves.
-    const byId = new Map(previous.map((category) => [category.id, category]));
-    setCategories(ids.map((id) => byId.get(id)!));
-
-    try {
-      const updated = await reorderCategories(ids);
-      setCategories(updated);
-    } catch (error) {
-      setCategories(previous);
-      setReorderError(error instanceof Error ? error.message : 'Failed to save the new category order');
     }
   }
 
@@ -148,7 +132,34 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
 
       {deleteError && <div className="categories-page__error">{deleteError}</div>}
       {statusError && <div className="categories-page__error">{statusError}</div>}
-      {reorderError && <div className="categories-page__error">{reorderError}</div>}
+
+      <div className="categories-page__header">
+        <p className="categories-page__summary">
+          {isLoading
+            ? 'Loading categories...'
+            : `${activeCount} active categor${activeCount === 1 ? 'y' : 'ies'} of ${categories.length} total`}
+        </p>
+        <SpecularButton
+          size="sm"
+          radius={999}
+          tint="var(--color-badge-solid-bg)"
+          tintOpacity={1}
+          textColor="var(--color-badge-solid-text)"
+          lineColor="#e11d33"
+          baseColor="#e4e4e7"
+          followMouse
+          proximity={180}
+          onClick={() => {
+            setFormError(null);
+            setFormModalState({ mode: 'create' });
+          }}
+        >
+          <span className="categories-page__add-label">
+            <Plus size={16} />
+            Add Category
+          </span>
+        </SpecularButton>
+      </div>
 
       {loadError ? (
         <div className="categories-page__error">
@@ -158,47 +169,18 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
           </button>
         </div>
       ) : (
-        <div className="card">
-          <div className="card__header">
-            <h2 className="card__title">All Categories</h2>
-            <div className="card__toolbar">
-              <SpecularButton
-                size="sm"
-                radius={999}
-                tint="var(--color-badge-solid-bg)"
-                tintOpacity={1}
-                textColor="var(--color-badge-solid-text)"
-                lineColor="#e11d33"
-                baseColor="#e4e4e7"
-                followMouse
-                proximity={180}
-                onClick={() => {
-                  setFormError(null);
-                  setFormModalState({ mode: 'create' });
-                }}
-              >
-                <span className="categories-page__add-label">
-                  <Plus size={16} />
-                  Add Category
-                </span>
-              </SpecularButton>
+        <>
+          <div className="filter-bar">
+            <div className="filter filter--search">
+              <SearchInput value={search} onChange={setSearch} placeholder="Search categories" variant="filter" />
             </div>
-          </div>
-
-          <div className="categories-page__filter-bar">
-            <div className="categories-page__filter categories-page__filter--search">
-              <SearchInput value={search} onChange={setSearch} placeholder="Search categories" variant="card" />
-            </div>
-
-            <select
-              className="select categories-page__filter categories-page__filter--status"
+            <Select
+              className="filter filter--narrow"
+              options={STATUS_FILTER_OPTIONS}
               value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-            >
-              <option value="ALL">All Status</option>
-              <option value="ACTIVE">Active</option>
-              <option value="INACTIVE">Inactive</option>
-            </select>
+              onChange={(value) => setStatusFilter(value as StatusFilter)}
+              ariaLabel="Filter by status"
+            />
           </div>
 
           <CategoryTable
@@ -213,9 +195,8 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry }
               setDeleteTarget(category);
             }}
             onToggleStatus={handleToggleStatus}
-            onReorder={handleReorder}
           />
-        </div>
+        </>
       )}
 
       <CategoryFormModal
