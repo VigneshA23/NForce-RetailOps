@@ -45,20 +45,26 @@ public class AdminCorrectionService {
 
     @Transactional
     public AdminCorrectionApplyResponse correctResponse(
-        Long responseId, Long adminUserId, AdminCorrectionRequest request
+        Long responseId, Long adminUserId, String adminDisplayName, AdminCorrectionRequest request
     ) {
         TaskResponseEntry entry = taskResponseEntryRepository.findById(responseId)
             .filter(TaskResponseEntry::isActive)
             .orElseThrow(() -> new TaskResponseNotFoundException("Response not found"));
 
-        // Enforce: admin can only correct responses from their own store.
-        storeOwnerRepository.findByStoreIdAndOwnerId(entry.getStore().getId(), adminUserId)
-            .orElseThrow(() -> new UnauthorizedTaskResponseActionException(
-                "You can only correct responses belonging to your own store"));
+        // Super Admin (adminUserId == null) can correct any store. Owner/Admin is scoped to their own store.
+        if (adminUserId != null) {
+            storeOwnerRepository.findByStoreIdAndOwnerId(entry.getStore().getId(), adminUserId)
+                .orElseThrow(() -> new UnauthorizedTaskResponseActionException(
+                    "You can only correct responses belonging to your own store"));
+        }
 
         AdminCorrection correction = new AdminCorrection();
         correction.setTaskResponse(entry);
-        correction.setCorrectedBy(userRepository.getReferenceById(adminUserId));
+        if (adminUserId != null) {
+            correction.setCorrectedBy(userRepository.getReferenceById(adminUserId));
+        } else {
+            correction.setCorrectedByName(adminDisplayName);
+        }
         if (request.reason() != null && !request.reason().isBlank()) {
             String trimmed = request.reason().trim();
             if (trimmed.length() > 200) {
@@ -130,10 +136,72 @@ public class AdminCorrectionService {
             entry.getValueNumeric(),
             entry.getValueText(),
             entry.getCreatedAt(),
-            correctionDto
+            correctionDto,
+            entry.getEmployee().getAvatarUrl(),
+            entry.isFlaggedNeedsCorrection(),
+            entry.getFlagReason()
         );
 
         return new AdminCorrectionApplyResponse(updatedResponse, correctionDto);
+    }
+
+    @Transactional
+    public HistoryResponseEntryResponse flagResponse(Long responseId, Long adminUserId, String adminDisplayName, String reason) {
+        TaskResponseEntry entry = taskResponseEntryRepository.findById(responseId)
+            .filter(TaskResponseEntry::isActive)
+            .orElseThrow(() -> new TaskResponseNotFoundException("Response not found"));
+
+        if (adminUserId != null) {
+            storeOwnerRepository.findByStoreIdAndOwnerId(entry.getStore().getId(), adminUserId)
+                .orElseThrow(() -> new UnauthorizedTaskResponseActionException(
+                    "You can only flag responses belonging to your own store"));
+        }
+
+        if (reason == null || reason.isBlank()) {
+            throw new InvalidTaskResponseException("A reason is required when flagging a response");
+        }
+        String trimmedReason = reason.trim();
+        if (trimmedReason.length() > 500) {
+            throw new InvalidTaskResponseException("Reason must be 500 characters or fewer");
+        }
+
+        // Mark the response as needing correction (stays active so history/admin view still shows it).
+        entry.setFlaggedNeedsCorrection(true);
+        entry.setFlagReason(trimmedReason);
+        taskResponseEntryRepository.save(entry);
+
+        // Audit record — no corrected values since admin didn't edit the value directly.
+        AdminCorrection flag = new AdminCorrection();
+        flag.setTaskResponse(entry);
+        if (adminUserId != null) {
+            flag.setCorrectedBy(userRepository.getReferenceById(adminUserId));
+        } else {
+            flag.setCorrectedByName(adminDisplayName);
+        }
+        flag.setReason(trimmedReason);
+        flag.setCorrectionType("FLAG_TO_EMPLOYEE");
+        flag.setOriginalValueBoolean(entry.getValueBoolean());
+        flag.setOriginalValueNumeric(entry.getValueNumeric());
+        flag.setOriginalValueText(entry.getValueText());
+        AdminCorrection saved = adminCorrectionRepository.save(flag);
+
+        notificationService.createForFlag(saved);
+
+        AdminCorrectionEntry correctionDto = ChecklistHistoryService.toCorrectionEntry(saved);
+        return new HistoryResponseEntryResponse(
+            entry.getId(),
+            entry.getEmployee().getId(),
+            entry.getEmployee().getFullName(),
+            null,
+            entry.getValueBoolean(),
+            entry.getValueNumeric(),
+            entry.getValueText(),
+            entry.getCreatedAt(),
+            correctionDto,
+            entry.getEmployee().getAvatarUrl(),
+            true,
+            trimmedReason
+        );
     }
 
     @Transactional(readOnly = true)
@@ -141,9 +209,11 @@ public class AdminCorrectionService {
         TaskResponseEntry entry = taskResponseEntryRepository.findById(responseId)
             .orElseThrow(() -> new TaskResponseNotFoundException("Response not found"));
 
-        storeOwnerRepository.findByStoreIdAndOwnerId(entry.getStore().getId(), adminUserId)
-            .orElseThrow(() -> new UnauthorizedTaskResponseActionException(
-                "You can only view corrections for responses belonging to your own store"));
+        if (adminUserId != null) {
+            storeOwnerRepository.findByStoreIdAndOwnerId(entry.getStore().getId(), adminUserId)
+                .orElseThrow(() -> new UnauthorizedTaskResponseActionException(
+                    "You can only view corrections for responses belonging to your own store"));
+        }
 
         return adminCorrectionRepository
             .findByTaskResponseIdOrderByCorrectedAtDesc(responseId)

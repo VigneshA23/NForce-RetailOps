@@ -263,16 +263,16 @@ class SuperAdminOperationsControllerTest {
 
     @Test
     @Transactional
-    void superAdminCannotCorrectChecklistResponse() throws Exception {
+    void superAdminCorrectChecklistResponseReturnsNotFoundForMissingId() throws Exception {
         superAdmin("sa-chk-admin-g@nforce.test");
         String token = login("sa-chk-admin-g@nforce.test");
 
-        // Any responseId -- auth check fires before DB lookup for SA
+        // Super Admin is now allowed to correct; non-existent ID returns 404, not 403
         mockMvc.perform(patch("/api/checklist-history/responses/99999/correct")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
-            .andExpect(status().isForbidden());
+            .andExpect(status().isNotFound());
     }
 
     record LoginPayload(String email, String password) {}

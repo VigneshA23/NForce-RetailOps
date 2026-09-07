@@ -12,6 +12,8 @@ public record AdminCorrectionEntry(
     String correctedValueText,
     String correctedByFullName,
     OffsetDateTime correctedAt,
-    String reason
+    String reason,
+    // 'DIRECT' = admin edited value in place; 'FLAG_TO_EMPLOYEE' = sent back to employee for correction.
+    String correctionType
 ) {
 }

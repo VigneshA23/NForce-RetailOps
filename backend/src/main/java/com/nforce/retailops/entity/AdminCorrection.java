@@ -35,14 +35,22 @@ public class AdminCorrection {
     private String correctedValueText;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "corrected_by_user_id", nullable = false)
+    @JoinColumn(name = "corrected_by_user_id", nullable = true)
     private User correctedBy;
+
+    // Set when correctedBy is null (Super Admin, who has no row in the users table).
+    @Column(name = "corrected_by_name", columnDefinition = "TEXT")
+    private String correctedByName;
 
     @Column(name = "corrected_at", nullable = false)
     private OffsetDateTime correctedAt;
 
     @Column(name = "reason", length = 200)
     private String reason;
+
+    // 'DIRECT' = admin edited the value; 'FLAG_TO_EMPLOYEE' = flagged back for employee to re-answer.
+    @Column(name = "correction_type", nullable = false, length = 30)
+    private String correctionType = "DIRECT";
 
     public AdminCorrection() {
     }
@@ -80,9 +88,15 @@ public class AdminCorrection {
     public User getCorrectedBy() { return correctedBy; }
     public void setCorrectedBy(User correctedBy) { this.correctedBy = correctedBy; }
 
+    public String getCorrectedByName() { return correctedByName; }
+    public void setCorrectedByName(String correctedByName) { this.correctedByName = correctedByName; }
+
     public OffsetDateTime getCorrectedAt() { return correctedAt; }
     public void setCorrectedAt(OffsetDateTime correctedAt) { this.correctedAt = correctedAt; }
 
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
+
+    public String getCorrectionType() { return correctionType; }
+    public void setCorrectionType(String correctionType) { this.correctionType = correctionType; }
 }

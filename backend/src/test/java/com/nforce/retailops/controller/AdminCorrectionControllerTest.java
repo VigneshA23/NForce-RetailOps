@@ -14,11 +14,13 @@ import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -56,6 +58,7 @@ class AdminCorrectionControllerTest {
     @Autowired private TaskRepository taskRepository;
     @Autowired private TaskResponseEntryRepository taskResponseEntryRepository;
     @Autowired private StoreEmployeeRepository storeEmployeeRepository;
+    @Autowired private SuperAdminRepository superAdminRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -308,6 +311,173 @@ class AdminCorrectionControllerTest {
         mockMvc.perform(get("/api/checklist-history/responses/1/corrections")
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isForbidden());
+    }
+
+    // --- Flag-back-to-employee tests ---
+
+    @Test
+    @Transactional
+    void ownerCanFlagResponseBackToEmployee() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("flag-owner-a@nforce.test", ownerRole);
+        User employee = user("flag-emp-a@nforce.test", empRole);
+        Store store = store("Flag Store A");
+        linkOwnerToStore(owner, store);
+        Category cat = category(owner);
+        Task task = booleanTask(owner, cat);
+        storeEmployee(employee, store);
+        TaskResponseEntry response = booleanResponse(task, store, employee, true);
+
+        String token = login("flag-owner-a@nforce.test");
+
+        mockMvc.perform(post("/api/checklist-history/responses/{id}/flag", response.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"Please re-check — counter was still dirty\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.flaggedNeedsCorrection").value(true))
+            .andExpect(jsonPath("$.flagReason").value("Please re-check — counter was still dirty"))
+            .andExpect(jsonPath("$.latestCorrection.correctionType").value("FLAG_TO_EMPLOYEE"))
+            .andExpect(jsonPath("$.latestCorrection.reason").value("Please re-check — counter was still dirty"));
+    }
+
+    @Test
+    @Transactional
+    void flagWithoutReasonIsRejected() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("flag-owner-b@nforce.test", ownerRole);
+        User employee = user("flag-emp-b@nforce.test", empRole);
+        Store store = store("Flag Store B");
+        linkOwnerToStore(owner, store);
+        Category cat = category(owner);
+        Task task = booleanTask(owner, cat);
+        storeEmployee(employee, store);
+        TaskResponseEntry response = booleanResponse(task, store, employee, true);
+
+        String token = login("flag-owner-b@nforce.test");
+
+        mockMvc.perform(post("/api/checklist-history/responses/{id}/flag", response.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"  \"}"))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Transactional
+    void ownerCannotFlagResponseBelongingToDifferentStore() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User ownerA = user("flag-owner-c@nforce.test", ownerRole);
+        User ownerB = user("flag-owner-d@nforce.test", ownerRole);
+        User employee = user("flag-emp-c@nforce.test", empRole);
+
+        Store storeA = store("Flag Store C");
+        Store storeB = store("Flag Store D");
+        linkOwnerToStore(ownerA, storeA);
+        linkOwnerToStore(ownerB, storeB);
+
+        Category cat = category(ownerB);
+        Task task = booleanTask(ownerB, cat);
+        storeEmployee(employee, storeB);
+        TaskResponseEntry response = booleanResponse(task, storeB, employee, true);
+
+        String tokenA = login("flag-owner-c@nforce.test");
+
+        mockMvc.perform(post("/api/checklist-history/responses/{id}/flag", response.getId())
+                .header("Authorization", "Bearer " + tokenA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"Wrong answer\"}"))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void employeeCannotAccessFlagEndpoint() throws Exception {
+        Role empRole = role("EMPLOYEE");
+        user("flag-emp-d@nforce.test", empRole);
+        String token = login("flag-emp-d@nforce.test");
+
+        mockMvc.perform(post("/api/checklist-history/responses/1/flag")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"test\"}"))
+            .andExpect(status().isForbidden());
+    }
+
+    private SuperAdmin superAdmin(String email) {
+        SuperAdmin sa = new SuperAdmin();
+        sa.setName("Test Super Admin");
+        sa.setEmail(email);
+        sa.setPasswordHash(passwordEncoder.encode(PASSWORD));
+        return superAdminRepository.save(sa);
+    }
+
+    private String loginSuperAdmin(String email) throws Exception {
+        String body = objectMapper.writeValueAsString(new LoginPayload(email, PASSWORD));
+        String json = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        return objectMapper.readTree(json).get("token").asText();
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanCorrectResponseInAnyStore() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("sa-corr-owner-a@nforce.test", ownerRole);
+        User employee = user("sa-corr-emp-a@nforce.test", empRole);
+        Store store = store("SA Corr Store A");
+        linkOwnerToStore(owner, store);
+        Category cat = category(owner);
+        Task task = booleanTask(owner, cat);
+        storeEmployee(employee, store);
+        TaskResponseEntry response = booleanResponse(task, store, employee, false);
+
+        superAdmin("sa-corr-a@nforce.test");
+        String token = loginSuperAdmin("sa-corr-a@nforce.test");
+        AdminCorrectionRequest req = new AdminCorrectionRequest(true, null, null, "Super admin override");
+
+        mockMvc.perform(patch("/api/checklist-history/responses/{id}/correct", response.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.updatedResponse.booleanValue").value(true))
+            .andExpect(jsonPath("$.correction.correctedByFullName").value("Test Super Admin"))
+            .andExpect(jsonPath("$.correction.reason").value("Super admin override"));
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanFlagResponseInAnyStore() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("sa-flag-owner-a@nforce.test", ownerRole);
+        User employee = user("sa-flag-emp-a@nforce.test", empRole);
+        Store store = store("SA Flag Store A");
+        linkOwnerToStore(owner, store);
+        Category cat = category(owner);
+        Task task = booleanTask(owner, cat);
+        storeEmployee(employee, store);
+        TaskResponseEntry response = booleanResponse(task, store, employee, true);
+
+        superAdmin("sa-flag-a@nforce.test");
+        String token = loginSuperAdmin("sa-flag-a@nforce.test");
+
+        mockMvc.perform(post("/api/checklist-history/responses/{id}/flag", response.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"Super admin: re-check this\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.flaggedNeedsCorrection").value(true))
+            .andExpect(jsonPath("$.latestCorrection.correctionType").value("FLAG_TO_EMPLOYEE"))
+            .andExpect(jsonPath("$.latestCorrection.correctedByFullName").value("Test Super Admin"));
     }
 
     private record LoginPayload(String email, String password) {}
