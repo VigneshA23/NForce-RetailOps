@@ -2,6 +2,7 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.AssignedStoreResponse;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
+import com.nforce.retailops.dto.EmployeeSearchResponse;
 import com.nforce.retailops.dto.IssueResponse;
 import com.nforce.retailops.dto.MeResponse;
 import com.nforce.retailops.dto.RaiseIssueRequest;
@@ -16,6 +17,7 @@ import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.security.SuperAdminUserDetails;
+import com.nforce.retailops.service.EmployeeSearchService;
 import com.nforce.retailops.service.MeHistoryService;
 import com.nforce.retailops.service.RaisedIssueService;
 import com.nforce.retailops.service.TaskService;
@@ -47,13 +49,15 @@ public class MeController {
     private final MeHistoryService meHistoryService;
     private final RaisedIssueService raisedIssueService;
     private final SuperAdminRepository superAdminRepository;
+    private final EmployeeSearchService employeeSearchService;
 
-    public MeController(UserProfileService userProfileService, TaskService taskService, MeHistoryService meHistoryService, RaisedIssueService raisedIssueService, SuperAdminRepository superAdminRepository) {
+    public MeController(UserProfileService userProfileService, TaskService taskService, MeHistoryService meHistoryService, RaisedIssueService raisedIssueService, SuperAdminRepository superAdminRepository, EmployeeSearchService employeeSearchService) {
         this.userProfileService = userProfileService;
         this.taskService = taskService;
         this.meHistoryService = meHistoryService;
         this.raisedIssueService = raisedIssueService;
         this.superAdminRepository = superAdminRepository;
+        this.employeeSearchService = employeeSearchService;
     }
 
     private MeResponse superAdminMeResponse(SuperAdmin sa) {
@@ -203,6 +207,21 @@ public class MeController {
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
             .body(raisedIssueService.createIssue(userDetails.getUser().getId(), request));
+    }
+
+    // Employee-facing: lightweight search across today's tasks and raised issues,
+    // scoped to the caller's assigned store. Returns up to 5 results per group.
+    @GetMapping("/search")
+    public ResponseEntity<EmployeeSearchResponse> search(
+        @AuthenticationPrincipal UserDetails principal,
+        @RequestParam Long storeId,
+        @RequestParam String q
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            return ResponseEntity.ok(new EmployeeSearchResponse(List.of(), List.of()));
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(employeeSearchService.search(userDetails.getUser(), storeId, q));
     }
 
     // Employee-facing: a single day's checklist history (categories -> tasks ->

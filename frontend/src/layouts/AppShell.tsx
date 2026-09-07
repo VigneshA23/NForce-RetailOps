@@ -35,6 +35,9 @@ interface AppShellProps<Key extends string = NavTabKey> {
   avatarUrl?: string | null;
   // Extra page-specific header action(s), forwarded to Header's `actions` slot.
   headerActions?: ReactNode;
+  // Hide the default header search box — for shells that supply their own
+  // custom search component via headerActions.
+  showSearch?: boolean;
   // When provided, AnimatePresence uses this as the key for the page content
   // wrapper — changing the key triggers a cross-fade+slide transition between
   // overlay states (Profile, History, Settings, Help) and tab content.
@@ -76,6 +79,7 @@ function AppShell<Key extends string = NavTabKey>({
   contentKey,
   mobileNav = 'drawer',
   bottomNavItems,
+  showSearch = true,
   children,
 }: AppShellProps<Key>) {
   const { isDarkTheme, toggleTheme } = useTheme();
@@ -106,6 +110,7 @@ function AppShell<Key extends string = NavTabKey>({
             logoSrc={logoSrc}
             hideLogoOnDesktop={hideLogoOnDesktop}
             centeredModals={centeredModals}
+            showSearch={showSearch}
             searchValue={searchValue}
             onSearchChange={setSearchValue}
             isDarkTheme={isDarkTheme}

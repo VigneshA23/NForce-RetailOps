@@ -8,12 +8,14 @@ import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
 import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
 import OwnerTable from '../components/OwnerTable';
+import OwnerDetailModal from '../components/OwnerDetailModal';
 import OwnerFormModal from '../components/OwnerFormModal';
 import OwnerEditModal from '../components/OwnerEditModal';
 import AssignStoreModal from '../components/AssignStoreModal';
 import TemporaryPasswordPopup from '../components/TemporaryPasswordPopup';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
+import SACommandPalette from '../components/SACommandPalette';
 import SearchInput from '../components/SearchInput';
 import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
@@ -64,6 +66,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [storeStatusTarget, setStoreStatusTarget] = useState<OwnerSummary | null>(null);
   const [storeStatusError, setStoreStatusError] = useState<string | null>(null);
 
+  // Owner detail view
+  const [ownerDetailTarget, setOwnerDetailTarget] = useState<GroupedOwner | null>(null);
+
   // Assign store
   const [assignStoreTarget, setAssignStoreTarget] = useState<GroupedOwner | null>(null);
   const [assignStoreError, setAssignStoreError] = useState<string | null>(null);
@@ -100,6 +105,23 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     switch (path) {
       case '/checklist': setActiveTab('checklist'); setShowNotifications(false); break;
       default: setShowNotifications(true); break;
+    }
+  }
+
+  function handleSearchNavigate(navTarget: string) {
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowSettings(false);
+    setShowNotifications(false);
+    if (navTarget.startsWith('checklist:')) {
+      const storeId = parseInt(navTarget.split(':')[1], 10);
+      if (!isNaN(storeId)) {
+        navigateToChecklist(storeId);
+      }
+    } else if (navTarget === 'owners') {
+      setActiveTab('owners');
+    } else if (navTarget === 'employees') {
+      setActiveTab('employees');
     }
   }
 
@@ -291,6 +313,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       notificationUnreadCount={unreadCount}
       onNotificationsCountChange={handleNotificationsCountChange}
       mobileNav="bottom-tabs"
+      showSearch={false}
+      headerActions={<SACommandPalette onNavigate={handleSearchNavigate} />}
     >
       {showProfile ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
@@ -407,10 +431,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                   setAssignStoreError(null);
                   setAssignStoreTarget(owner);
                 }}
-                onViewChecklist={(store) => {
-                  if (store.storeId == null) return;
-                  navigateToChecklist(store.storeId);
-                }}
+                onView={(owner) => setOwnerDetailTarget(owner)}
               />
               </div>
             </>
@@ -445,6 +466,12 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         isSubmitting={isAssigningStore}
         onClose={() => setAssignStoreTarget(null)}
         onSubmit={handleAssignStoreSubmit}
+      />
+
+      {/* Owner detail view */}
+      <OwnerDetailModal
+        owner={ownerDetailTarget}
+        onClose={() => setOwnerDetailTarget(null)}
       />
 
       {/* Toggle status confirm (activate or deactivate) */}

@@ -14,6 +14,7 @@ import Notifications from '../pages/Notifications'
 import Profile from '../pages/Profile'
 import Help from '../pages/Help'
 import Settings from '../pages/Settings'
+import EmployeeSearchDropdown from '../components/EmployeeSearchDropdown'
 
 interface EmployeeShellProps {
   user: AuthUser
@@ -81,6 +82,11 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   const headerTitle = isMobile ? 'NForce RetailOps' : contextLabel
   const headerSubtitle = isMobile ? contextLabel : undefined
 
+  function handleSearchNavigate(target: 'today' | 'issues') {
+    setOverlay(null)
+    setActiveTab(target)
+  }
+
   return (
     <AppShell<EmployeeNavTabKey>
       navItems={NAV_ITEMS}
@@ -107,18 +113,22 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       onNotificationsCountChange={handleNotificationsCountChange}
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
+      showSearch={false}
       headerActions={
-        canSwitchStore && (
-          <button
-            type="button"
-            className="btn btn--secondary switch-store-btn"
-            onClick={onSwitchStore}
-            aria-label="Switch Store"
-          >
-            <StoreIcon size={16} />
-            <span className="switch-store-btn__label">Switch Store</span>
-          </button>
-        )
+        <>
+          <EmployeeSearchDropdown storeId={store.id} onNavigate={handleSearchNavigate} />
+          {canSwitchStore && (
+            <button
+              type="button"
+              className="btn btn--secondary switch-store-btn"
+              onClick={onSwitchStore}
+              aria-label="Switch Store"
+            >
+              <StoreIcon size={16} />
+              <span className="switch-store-btn__label">Switch Store</span>
+            </button>
+          )}
+        </>
       }
     >
       {overlay === 'profile'

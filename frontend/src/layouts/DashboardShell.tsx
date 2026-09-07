@@ -17,6 +17,7 @@ import { useOwnerStores } from '../hooks/useOwnerStores';
 import { useOwnerCategories } from '../hooks/useOwnerCategories';
 import { useOwnerEmployees } from '../hooks/useOwnerEmployees';
 import { useUnreadCount } from '../hooks/useUnreadCount';
+import AdminSearchDropdown from '../components/AdminSearchDropdown';
 
 interface DashboardShellProps {
   user: AuthUser;
@@ -31,6 +32,7 @@ type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null;
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
+  const [searchSeed, setSearchSeed] = useState<{ term: string; id: number } | undefined>(undefined);
 
   // Fetched once here (not per-page) and shared as props, so switching tabs
   // never re-fetches data that hasn't changed. See useAssignedStores.ts for
@@ -62,6 +64,14 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
     }
   }
 
+  function handleSearchNavigate(group: 'tasks' | 'categories' | 'employees', term: string) {
+    setOverlay(null);
+    setSearchSeed({ term, id: Date.now() });
+    if (group === 'tasks') setActiveTab('tasks');
+    else if (group === 'categories') setActiveTab('categories');
+    else if (group === 'employees') setActiveTab('employees');
+  }
+
   function renderActivePage() {
     switch (activeTab) {
       case 'home':
@@ -85,6 +95,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             employeesLoading={employeesState.isLoading}
             employeesError={employeesState.error}
             onRetryEmployees={employeesState.reload}
+            searchSeed={searchSeed}
           />
         );
       case 'categories':
@@ -95,6 +106,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             isLoading={categoriesState.isLoading}
             loadError={categoriesState.error}
             onRetry={categoriesState.reload}
+            searchSeed={searchSeed}
           />
         );
       case 'tasks':
@@ -106,6 +118,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             categoriesError={categoriesState.error}
             onRetryCategories={categoriesState.reload}
             stores={storesState.stores}
+            searchSeed={searchSeed}
           />
         );
       default: {
@@ -141,6 +154,8 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
       bottomNavItems={OWNER_BOTTOM_NAV_ITEMS}
+      showSearch={false}
+      headerActions={<AdminSearchDropdown onNavigate={handleSearchNavigate} />}
     >
       {overlay === 'profile' ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
