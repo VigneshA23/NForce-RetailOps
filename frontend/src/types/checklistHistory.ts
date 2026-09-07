@@ -46,6 +46,7 @@ export interface AdminCorrectionEntry {
   correctedByFullName: string;
   correctedAt: string;
   reason: string | null;
+  correctionType: string; // 'DIRECT' | 'FLAG_TO_EMPLOYEE'
 }
 
 export interface ChecklistHistoryResponseEntry {
@@ -61,6 +62,9 @@ export interface ChecklistHistoryResponseEntry {
   respondedAt: string;
   // Non-null when an admin has corrected this response at least once.
   latestCorrection: AdminCorrectionEntry | null;
+  employeeAvatarUrl?: string | null;
+  flaggedNeedsCorrection: boolean;
+  flagReason: string | null;
 }
 
 export interface AdminCorrectionApplyResponse {

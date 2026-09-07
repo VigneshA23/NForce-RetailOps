@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Pencil } from 'lucide-react';
+import { Flag, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 import { responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
 import CorrectionModal from './CorrectionModal';
+import FlagResponseModal from './FlagResponseModal';
+import UserAvatar from './UserAvatar';
+import { getInitials } from '../utils/initials';
 import './StoreDetailTable.css';
 
 export interface StoreDetailRow {
@@ -16,6 +19,7 @@ interface StoreDetailTableProps {
   isLoading?: boolean;
   hasChecklist: boolean;
   onResponseCorrected?: (taskId: number, updatedResponse: ChecklistHistoryResponseEntry) => void;
+  onResponseFlagged?: (taskId: number, updatedResponse: ChecklistHistoryResponseEntry) => void;
   repeatOffenderMap?: Map<number, number>;
 }
 
@@ -31,7 +35,7 @@ const STATUS_BADGE_CLASS: Record<ChecklistTaskStatus, string> = {
   ISSUE: 'badge--danger',
 };
 
-interface CorrectionTarget {
+interface ResponseTarget {
   responseEntry: ChecklistHistoryResponseEntry;
   task: ChecklistHistoryTaskItem;
 }
@@ -96,8 +100,9 @@ function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHisto
   );
 }
 
-function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCorrected, repeatOffenderMap }: StoreDetailTableProps) {
-  const [correctionTarget, setCorrectionTarget] = useState<CorrectionTarget | null>(null);
+function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCorrected, onResponseFlagged, repeatOffenderMap }: StoreDetailTableProps) {
+  const [correctionTarget, setCorrectionTarget] = useState<ResponseTarget | null>(null);
+  const [flagTarget, setFlagTarget] = useState<ResponseTarget | null>(null);
 
   return (
     <>
@@ -148,14 +153,20 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                         responders.map((responder) => (
                           <div key={responder.id} className="store-detail-table__employee-entry">
                             <span className="store-detail-table__employee-line">
+                              <UserAvatar initials={getInitials(responder.employeeFullName)} src={responder.employeeAvatarUrl} size={20} />
                               {responder.employeeFullName}
                               <span className="store-detail-table__response-time"> · {formatTimeLabel(responder.respondedAt)}</span>
                             </span>
                             <span className="store-detail-table__employee-actions">
-                              {responder.latestCorrection && (
+                              {responder.flaggedNeedsCorrection && (
+                                <span className="store-detail-table__flagged-badge" title={responder.flagReason ?? 'Flagged for correction'}>
+                                  Flagged
+                                </span>
+                              )}
+                              {responder.latestCorrection && !responder.flaggedNeedsCorrection && (
                                 <CorrectedBadge responseEntry={responder} task={task} />
                               )}
-                              {onResponseCorrected && (
+                              {onResponseCorrected && !responder.flaggedNeedsCorrection && (
                                 <button
                                   type="button"
                                   className="store-detail-table__correct-btn"
@@ -164,6 +175,17 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                                   title="Correct this response"
                                 >
                                   <Pencil size={12} />
+                                </button>
+                              )}
+                              {onResponseFlagged && !responder.flaggedNeedsCorrection && (
+                                <button
+                                  type="button"
+                                  className="store-detail-table__correct-btn store-detail-table__flag-btn"
+                                  onClick={() => setFlagTarget({ responseEntry: responder, task })}
+                                  aria-label="Flag this response for correction"
+                                  title="Flag back to employee"
+                                >
+                                  <Flag size={12} />
                                 </button>
                               )}
                             </span>
@@ -201,6 +223,18 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
           onSaved={(updatedResponse) => {
             onResponseCorrected?.(correctionTarget.task.id, updatedResponse);
             setCorrectionTarget(null);
+          }}
+        />
+      )}
+      {flagTarget && (
+        <FlagResponseModal
+          isOpen={flagTarget !== null}
+          onClose={() => setFlagTarget(null)}
+          responseEntry={flagTarget.responseEntry}
+          task={flagTarget.task}
+          onFlagged={(updatedResponse) => {
+            onResponseFlagged?.(flagTarget.task.id, updatedResponse);
+            setFlagTarget(null);
           }}
         />
       )}

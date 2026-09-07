@@ -13,6 +13,9 @@ public record HistoryResponseEntryResponse(
     OffsetDateTime respondedAt,
     // Non-null when an admin has corrected this response at least once.
     // Contains metadata about the most recent correction for inline display.
-    AdminCorrectionEntry latestCorrection
+    AdminCorrectionEntry latestCorrection,
+    String employeeAvatarUrl,
+    boolean flaggedNeedsCorrection,
+    String flagReason
 ) {
 }

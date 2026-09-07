@@ -14,6 +14,8 @@ function responseEntry(overrides: Partial<ChecklistHistoryResponseEntry>): Check
     textValue: null,
     respondedAt: '2026-09-03T14:00:00Z',
     latestCorrection: null,
+    flaggedNeedsCorrection: false,
+    flagReason: null,
     ...overrides,
   };
 }

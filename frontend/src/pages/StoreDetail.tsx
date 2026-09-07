@@ -3,6 +3,7 @@ import { Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Clipboa
 import SearchInput from '../components/SearchInput';
 import Select, { type SelectOption } from '../components/Select';
 import StatCard from '../components/StatCard';
+import UserAvatar from '../components/UserAvatar';
 import { getInitials } from '../utils/initials';
 import { getChecklistHistoryDetail } from '../api/checklistHistory';
 import type { ChecklistHistoryDetail, ChecklistHistoryResponseEntry } from '../types/checklistHistory';
@@ -200,14 +201,14 @@ function StoreDetail({ storeId }: StoreDetailProps) {
   // response). Issue count = YES_NO responses where booleanValue is false.
   const employeeContributions = useMemo(() => {
     if (!detail) return [];
-    type EmpData = { totalResponses: number; issueCount: number; byCategory: Map<string, number> };
+    type EmpData = { totalResponses: number; issueCount: number; byCategory: Map<string, number>; avatarUrl?: string | null };
     const byEmployee = new Map<string, EmpData>();
     for (const category of detail.categories) {
       for (const task of category.tasks) {
         for (const response of task.responses) {
           const name = response.employeeFullName;
           if (!byEmployee.has(name)) {
-            byEmployee.set(name, { totalResponses: 0, issueCount: 0, byCategory: new Map() });
+            byEmployee.set(name, { totalResponses: 0, issueCount: 0, byCategory: new Map(), avatarUrl: response.employeeAvatarUrl });
           }
           const emp = byEmployee.get(name)!;
           emp.totalResponses += 1;
@@ -221,6 +222,7 @@ function StoreDetail({ storeId }: StoreDetailProps) {
     return Array.from(byEmployee.entries())
       .map(([name, data]) => ({
         name,
+        avatarUrl: data.avatarUrl,
         totalResponses: data.totalResponses,
         issueCount: data.issueCount,
         categoryBreakdown: Array.from(data.byCategory.entries()).map(([categoryName, count]) => ({
@@ -429,9 +431,7 @@ function StoreDetail({ storeId }: StoreDetailProps) {
                   onClick={() => toggleEmployeeExpanded(emp.name)}
                   aria-expanded={isExpanded}
                 >
-                  <span className="store-detail-contrib__avatar" aria-hidden="true">
-                    {getInitials(emp.name)}
-                  </span>
+                  <UserAvatar initials={getInitials(emp.name)} src={emp.avatarUrl} size={28} />
                   <span className="store-detail-contrib__name">{emp.name}</span>
                   <span className="store-detail-contrib__bar-wrap" aria-hidden="true">
                     <span
@@ -568,6 +568,7 @@ function StoreDetail({ storeId }: StoreDetailProps) {
           isLoading={detailLoading}
           hasChecklist={detail?.hasChecklist ?? false}
           onResponseCorrected={handleResponseCorrected}
+          onResponseFlagged={handleResponseCorrected}
           repeatOffenderMap={repeatOffenderMap}
         />
       )}

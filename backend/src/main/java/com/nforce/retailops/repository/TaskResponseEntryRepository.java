@@ -73,4 +73,14 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     java.time.OffsetDateTime findMaxCreatedAtByStoreIdAndResponseDate(
         @Param("storeId") Long storeId, @Param("responseDate") java.time.LocalDate responseDate
     );
+
+    // Returns (responseDate, storeId, taskId) tuples for trend computation — one
+    // round trip for the entire date range instead of one query per store per day.
+    @Query("SELECT tre.responseDate, tre.store.id, tre.task.id FROM TaskResponseEntry tre "
+        + "WHERE tre.store.id IN :storeIds AND tre.responseDate BETWEEN :startDate AND :endDate AND tre.active = true")
+    List<Object[]> findDateStoreTaskIdTuples(
+        @Param("storeIds") Collection<Long> storeIds,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
 }

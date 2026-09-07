@@ -36,6 +36,9 @@ export function taskStatus(task: ChecklistHistoryTaskItem): ChecklistTaskStatus 
   const response = latestResponse(task);
   if (!response) return 'OPEN';
   if (task.responseType === 'YES_NO' && response.booleanValue === false) return 'ISSUE';
+  // Flagged responses need employee attention — treat as ISSUE so the status
+  // column updates immediately without waiting for the employee to re-submit.
+  if (response.flaggedNeedsCorrection) return 'ISSUE';
   return 'COMPLETE';
 }
 

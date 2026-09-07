@@ -656,6 +656,15 @@
   flex-shrink: 0;
 }
 
+/* UserAvatar inside the contributions section uses badge colors, not accent-red.
+   The .store-detail-contrib__avatar class is unused legacy; this selector is the real fix. */
+.store-detail-contrib__header .user-avatar {
+  background: var(--color-badge-solid-bg);
+  color: var(--color-badge-solid-text);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
 .store-detail-contrib__name {
   font-size: 13px;
   font-weight: 700;

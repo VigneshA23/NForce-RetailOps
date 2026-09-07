@@ -364,9 +364,10 @@ public class ChecklistHistoryService {
             c.getCorrectedValueBoolean(),
             c.getCorrectedValueNumeric(),
             c.getCorrectedValueText(),
-            c.getCorrectedBy().getFullName(),
+            c.getCorrectedBy() != null ? c.getCorrectedBy().getFullName() : c.getCorrectedByName(),
             c.getCorrectedAt(),
-            c.getReason()
+            c.getReason(),
+            c.getCorrectionType()
         );
     }
 
@@ -386,7 +387,10 @@ public class ChecklistHistoryService {
                     entry.getValueNumeric(),
                     entry.getValueText(),
                     entry.getCreatedAt(),
-                    correction != null ? toCorrectionEntry(correction) : null
+                    correction != null ? toCorrectionEntry(correction) : null,
+                    entry.getEmployee().getAvatarUrl(),
+                    entry.isFlaggedNeedsCorrection(),
+                    entry.getFlagReason()
                 );
             })
             .toList();

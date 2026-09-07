@@ -6,7 +6,10 @@ import com.nforce.retailops.dto.AdminCorrectionRequest;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
 import com.nforce.retailops.dto.ChecklistHistoryOperationsReportResponse;
 import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
+import com.nforce.retailops.dto.FlagResponseRequest;
+import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.security.AppUserDetails;
+import com.nforce.retailops.security.SuperAdminUserDetails;
 import com.nforce.retailops.service.AdminCorrectionService;
 import com.nforce.retailops.service.ChecklistHistoryService;
 import org.springframework.http.ResponseEntity;
@@ -60,22 +63,53 @@ public class ChecklistHistoryController {
     }
 
     @PatchMapping("/responses/{responseId}/correct")
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<AdminCorrectionApplyResponse> correctResponse(
-        @AuthenticationPrincipal AppUserDetails principal,
+        Authentication authentication,
         @PathVariable Long responseId,
         @RequestBody AdminCorrectionRequest request
     ) {
+        Long adminUserId = null;
+        String adminDisplayName = null;
+        if (authentication.getPrincipal() instanceof AppUserDetails appUserDetails) {
+            adminUserId = appUserDetails.getUser().getId();
+        } else if (authentication.getPrincipal() instanceof SuperAdminUserDetails superAdminDetails) {
+            adminDisplayName = superAdminDetails.getSuperAdmin().getName();
+        }
         return ResponseEntity.ok(
-            adminCorrectionService.correctResponse(responseId, principal.getUser().getId(), request));
+            adminCorrectionService.correctResponse(responseId, adminUserId, adminDisplayName, request));
+    }
+
+    @PostMapping("/responses/{responseId}/flag")
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<HistoryResponseEntryResponse> flagResponse(
+        Authentication authentication,
+        @PathVariable Long responseId,
+        @RequestBody FlagResponseRequest request
+    ) {
+        Long adminUserId = null;
+        String adminDisplayName = null;
+        if (authentication.getPrincipal() instanceof AppUserDetails appUserDetails) {
+            adminUserId = appUserDetails.getUser().getId();
+        } else if (authentication.getPrincipal() instanceof SuperAdminUserDetails superAdminDetails) {
+            adminDisplayName = superAdminDetails.getSuperAdmin().getName();
+        }
+        return ResponseEntity.ok(
+            adminCorrectionService.flagResponse(responseId, adminUserId, adminDisplayName, request.reason()));
     }
 
     @GetMapping("/responses/{responseId}/corrections")
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<AdminCorrectionEntry>> correctionHistory(
-        @AuthenticationPrincipal AppUserDetails principal,
+        Authentication authentication,
         @PathVariable Long responseId
     ) {
+        Long adminUserId = null;
+        if (authentication.getPrincipal() instanceof AppUserDetails appUserDetails) {
+            adminUserId = appUserDetails.getUser().getId();
+        }
         return ResponseEntity.ok(
-            adminCorrectionService.getCorrectionHistory(responseId, principal.getUser().getId()));
+            adminCorrectionService.getCorrectionHistory(responseId, adminUserId));
     }
 
     // Super Admin can view any store's checklist by looking up the store's actual owner.

@@ -33,6 +33,7 @@ public class NotificationService {
         PRIORITY_BY_CATEGORY.put("EMPLOYEE_ACCOUNT_DEACTIVATED",  "HIGH");
         PRIORITY_BY_CATEGORY.put("EMPLOYEE_REMOVED",              "HIGH");
         PRIORITY_BY_CATEGORY.put("CORRECTION_MADE",               "MEDIUM");
+        PRIORITY_BY_CATEGORY.put("RESPONSE_NEEDS_ATTENTION",      "HIGH");
         PRIORITY_BY_CATEGORY.put("STORE_REACTIVATED",             "MEDIUM");
         PRIORITY_BY_CATEGORY.put("ACCOUNT_REACTIVATED",           "MEDIUM");
         PRIORITY_BY_CATEGORY.put("EMPLOYEE_ACCOUNT_REACTIVATED",  "MEDIUM");
@@ -131,6 +132,19 @@ public class NotificationService {
                 msg,
                 null);
         }
+    }
+
+    @Transactional
+    public void createForFlag(AdminCorrection correction) {
+        User employee = correction.getTaskResponse().getEmployee();
+        String taskName = correction.getTaskResponse().getTask().getName();
+        String reason = correction.getReason();
+        send(employee, "RESPONSE_NEEDS_ATTENTION",
+            "Your \"" + taskName + "\" response needs correction",
+            reason != null && !reason.isBlank()
+                ? "Admin feedback: " + reason
+                : "The store admin has flagged your response for correction.",
+            "/checklist");
     }
 
     @Transactional
