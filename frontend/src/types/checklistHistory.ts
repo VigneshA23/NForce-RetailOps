@@ -49,6 +49,18 @@ export interface AdminCorrectionEntry {
   correctionType: string; // 'DIRECT' | 'FLAG_TO_EMPLOYEE'
 }
 
+export interface ResubmissionHistoryEntry {
+  responseId: number;
+  booleanValue: boolean | null;
+  numericValue: number | null;
+  textValue: string | null;
+  respondedAt: string;
+  employeeFullName: string;
+  flagReason: string | null;
+  flaggedByName: string | null;
+  flaggedAt: string | null;
+}
+
 export interface ChecklistHistoryResponseEntry {
   id: number;
   employeeUserId: number;
@@ -65,6 +77,9 @@ export interface ChecklistHistoryResponseEntry {
   employeeAvatarUrl?: string | null;
   flaggedNeedsCorrection: boolean;
   flagReason: string | null;
+  // Oldest-first chain of flagged responses this one replaced via a
+  // flag -> resubmit cycle. Empty when it never replaced a flagged response.
+  resubmissionHistory: ResubmissionHistoryEntry[];
 }
 
 export interface AdminCorrectionApplyResponse {

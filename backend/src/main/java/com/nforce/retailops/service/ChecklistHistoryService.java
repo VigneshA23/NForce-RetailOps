@@ -8,6 +8,7 @@ import com.nforce.retailops.dto.ChecklistHistoryTaskDetailRow;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
+import com.nforce.retailops.dto.ResponseHistoryEntry;
 import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Store;
@@ -28,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -355,6 +357,46 @@ public class ChecklistHistoryService {
         return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories, List.of());
     }
 
+    // Walks a response's supersededResponseId chain back to its origin, pairing each
+    // hop with the FLAG_TO_EMPLOYEE admin_corrections row that caused it (for the
+    // flag reason / flagged-by / flagged-at) -- oldest first. Shared by
+    // ChecklistHistoryService, MeHistoryService, and AdminCorrectionService, the
+    // same way toCorrectionEntry already is, rather than duplicating this walk in
+    // each of them.
+    static List<ResponseHistoryEntry> buildResubmissionHistory(
+        TaskResponseEntry entry,
+        TaskResponseEntryRepository responseRepository,
+        AdminCorrectionRepository correctionRepository
+    ) {
+        List<ResponseHistoryEntry> chain = new ArrayList<>();
+        Long supersededId = entry.getSupersededResponseId();
+        while (supersededId != null) {
+            TaskResponseEntry historical = responseRepository.findById(supersededId).orElse(null);
+            if (historical == null) {
+                break;
+            }
+            AdminCorrection flag = correctionRepository.findByTaskResponseIdOrderByCorrectedAtDesc(historical.getId())
+                .stream()
+                .filter(c -> "FLAG_TO_EMPLOYEE".equals(c.getCorrectionType()))
+                .findFirst()
+                .orElse(null);
+            chain.add(new ResponseHistoryEntry(
+                historical.getId(),
+                historical.getValueBoolean(),
+                historical.getValueNumeric(),
+                historical.getValueText(),
+                historical.getCreatedAt(),
+                historical.getEmployee().getFullName(),
+                flag != null ? flag.getReason() : historical.getFlagReason(),
+                flag != null ? (flag.getCorrectedBy() != null ? flag.getCorrectedBy().getFullName() : flag.getCorrectedByName()) : null,
+                flag != null ? flag.getCorrectedAt() : null
+            ));
+            supersededId = historical.getSupersededResponseId();
+        }
+        Collections.reverse(chain);
+        return chain;
+    }
+
     static AdminCorrectionEntry toCorrectionEntry(AdminCorrection c) {
         return new AdminCorrectionEntry(
             c.getId(),
@@ -390,7 +432,8 @@ public class ChecklistHistoryService {
                     correction != null ? toCorrectionEntry(correction) : null,
                     entry.getEmployee().getAvatarUrl(),
                     entry.isFlaggedNeedsCorrection(),
-                    entry.getFlagReason()
+                    entry.getFlagReason(),
+                    buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository)
                 );
             })
             .toList();

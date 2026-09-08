@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Flag,
   HelpCircle,
+  History as HistoryIcon,
   MessageSquareWarning,
   MoonStar,
   Store as StoreIcon,
@@ -90,6 +91,9 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
   // Which category cards are expanded, independently of one another -- a
   // Set rather than a single id, so opening one no longer closes the rest.
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
+  // Which tasks' resubmission-history panels are open -- independent of the
+  // category expand/collapse state above, keyed the same "store:id" way.
+  const [expandedHistoryKeys, setExpandedHistoryKeys] = useState<Set<string>>(new Set())
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const calendarButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -162,6 +166,18 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
 
   function toggleCategory(key: string) {
     setExpandedKeys((current) => {
+      const next = new Set(current)
+      if (next.has(key)) {
+        next.delete(key)
+      } else {
+        next.add(key)
+      }
+      return next
+    })
+  }
+
+  function toggleHistory(key: string) {
+    setExpandedHistoryKeys((current) => {
       const next = new Set(current)
       if (next.has(key)) {
         next.delete(key)
@@ -331,6 +347,8 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
                         {category.tasks.map((task) => {
                           const meta = TASK_STATUS_META[task.status]
                           const StatusIcon = meta.icon
+                          const historyKey = categoryKey(entryStore.id, task.id)
+                          const isHistoryExpanded = expandedHistoryKeys.has(historyKey)
                           return (
                             <div key={task.id} className="employee-history-task">
                               <div className="employee-history-task-info">
@@ -350,6 +368,48 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
                                       ? `${task.completedBy.name}${task.completedAt ? ` · ${task.completedAt}` : ''}`
                                       : 'No staff recorded'}
                                   </p>
+                                )}
+                                {task.responseValue && (
+                                  <p className="employee-history-task-value">{task.responseValue}</p>
+                                )}
+                                {task.resubmissionHistory.length > 0 && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="employee-history-task-history-toggle"
+                                      onClick={() => toggleHistory(historyKey)}
+                                      aria-expanded={isHistoryExpanded}
+                                    >
+                                      <HistoryIcon size={12} />
+                                      {isHistoryExpanded ? 'Hide' : 'View'} response history ({task.resubmissionHistory.length})
+                                    </button>
+                                    {isHistoryExpanded && (
+                                      <div className="employee-history-task-history-list">
+                                        {task.resubmissionHistory.map((transition, index) => (
+                                          <div key={index} className="employee-history-task-history-item">
+                                            <p className="employee-history-task-history-change">
+                                              {transition.fromValue ?? '—'} → {transition.toValue ?? '—'}
+                                            </p>
+                                            <p className="employee-history-task-history-meta">
+                                              {transition.kind === 'DIRECT_CORRECTION' ? 'Corrected by' : 'Flagged by'}{' '}
+                                              {transition.flaggedByName ?? 'Owner'}
+                                              {transition.flaggedAt ? ` · ${transition.flaggedAt}` : ''}
+                                            </p>
+                                            {transition.flagReason && (
+                                              <p className="employee-history-task-history-reason">
+                                                &ldquo;{transition.flagReason}&rdquo;
+                                              </p>
+                                            )}
+                                            {transition.kind === 'FLAG_RESUBMIT' && (
+                                              <p className="employee-history-task-history-meta">
+                                                Resubmitted by {transition.resubmittedByName} · {transition.resubmittedAt}
+                                              </p>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </>
                                 )}
                               </div>
                               <span className={`badge ${meta.badgeClass} employee-history-task-status`}>

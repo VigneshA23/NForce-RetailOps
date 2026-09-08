@@ -238,6 +238,7 @@ public class TaskService {
         List<TaskResponseEntry> activeResponses = taskResponseEntryRepository
             .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, request.storeId(), today);
 
+        Long supersededResponseId = null;
         if (task.getCompletionType() == CompletionType.SINGLE && !activeResponses.isEmpty()) {
             // Allow resubmission if the one active response was flagged back to this employee.
             // Deactivate the flagged response so the unique index allows the new submission.
@@ -252,6 +253,10 @@ public class TaskService {
             flagged.setUndoneAt(java.time.OffsetDateTime.now());
             taskResponseEntryRepository.save(flagged);
             taskResponseEntryRepository.flush();
+            // Links the new response back to the one it replaces so the flag/comment
+            // and original value stay reachable from history (see
+            // ChecklistHistoryService.buildResubmissionHistory).
+            supersededResponseId = flagged.getId();
         }
 
         TaskResponseEntry entry = new TaskResponseEntry();
@@ -261,6 +266,7 @@ public class TaskService {
         entry.setResponseDate(today);
         entry.setResponseType(task.getResponseType());
         entry.setCompletionType(task.getCompletionType());
+        entry.setSupersededResponseId(supersededResponseId);
         applyValue(entry, task.getResponseType(), request);
 
         // The above pre-check is only a fast path (avoids a DB round trip for the common
