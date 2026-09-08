@@ -12,6 +12,7 @@ import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -109,5 +110,52 @@ public class RaisedIssueService {
         RaisedIssue saved = raisedIssueRepository.save(issue);
         notificationService.createForIssueUpdate(saved, request.status());
         return IssueResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<IssueResponse> listAllForSuperAdmin(String status) {
+        List<RaisedIssue> issues = (status != null && !status.isBlank())
+            ? raisedIssueRepository.findAllByStatusOrderByCreatedAtDesc(status)
+            : raisedIssueRepository.findAllOrderByCreatedAtDesc();
+        return issues.stream().map(IssueResponse::from).toList();
+    }
+
+    @Transactional
+    public IssueResponse updateStatusForSuperAdmin(Long issueId, UpdateIssueStatusRequest request) {
+        RaisedIssue issue = raisedIssueRepository.findByIdWithEmployee(issueId)
+            .orElseThrow(() -> new IssueNotFoundException("Issue not found"));
+
+        issue.setStatus(request.status());
+        if (request.responseText() != null && !request.responseText().isBlank()) {
+            issue.setResponseText(request.responseText().trim());
+        }
+        if ("RESOLVED".equals(request.status()) || "ACKNOWLEDGED".equals(request.status())) {
+            issue.setRespondedAt(OffsetDateTime.now());
+        }
+
+        RaisedIssue saved = raisedIssueRepository.save(issue);
+        notificationService.createForIssueUpdate(saved, request.status());
+        return IssueResponse.from(saved);
+    }
+
+    @Transactional
+    public void nudgeOwner(Long issueId) {
+        RaisedIssue issue = raisedIssueRepository.findByIdWithEmployee(issueId)
+            .orElseThrow(() -> new IssueNotFoundException("Issue not found"));
+
+        if ("RESOLVED".equals(issue.getStatus())) {
+            throw new IllegalStateException("Issue is already resolved");
+        }
+
+        storeOwnerRepository.findByStoreIdAndActiveTrue(issue.getStore().getId())
+            .map(so -> so.getOwner())
+            .ifPresent(owner -> notificationService.nudgeOwnerForIssue(issue, owner));
+    }
+
+    @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void purgeOldResolvedIssues() {
+        OffsetDateTime cutoff = OffsetDateTime.now().minusDays(7);
+        raisedIssueRepository.deleteResolvedBefore(cutoff);
     }
 }

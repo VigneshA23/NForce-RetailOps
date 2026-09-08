@@ -2,8 +2,6 @@
 
 .employee-history {
   width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
   padding: var(--space-lg) var(--space-lg) 80px;
 }
 

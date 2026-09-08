@@ -164,12 +164,25 @@
 }
 
 .sidebar__icon {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   width: 20px;
   height: 20px;
+}
+
+.sidebar__badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid var(--color-nav-bg);
+  pointer-events: none;
 }
 
 .sidebar__icon svg {

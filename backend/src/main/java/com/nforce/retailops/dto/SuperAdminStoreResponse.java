@@ -9,6 +9,7 @@ public record SuperAdminStoreResponse(
     // Null for a store that has never had an owner.
     Long ownerId,
     String ownerName,
+    String ownerAvatarUrl,
     Boolean ownerActive,
     // False both when there's no owner at all, and when an owner is/was
     // assigned but their access to this specific store has been revoked --

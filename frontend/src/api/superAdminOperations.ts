@@ -4,6 +4,7 @@ export interface StoreOperationsSummary {
   storeId: number;
   storeName: string;
   ownerName: string;
+  ownerAvatarUrl?: string | null;
   totalTasks: number;
   completedTasks: number;
   completionPercent: number;

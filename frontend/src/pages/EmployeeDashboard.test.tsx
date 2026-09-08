@@ -162,7 +162,11 @@ describe('Employee Checklist response type rendering', () => {
       totalActiveEmployees: 1,
       completedByNames: [],
     }
-    mockGetDailyChecklist.mockResolvedValue(checklistWith(task))
+    mockGetDailyChecklist.mockResolvedValue([{
+      id: 1,
+      name: 'Category',
+      tasks: [task, progressTask({ id: 98, name: 'Pending task', responseType: 'YES_NO' })],
+    }])
     mockSubmitTaskResponse.mockResolvedValue({
       taskId: 5,
       canUndo: true,
@@ -192,7 +196,8 @@ describe('Employee Checklist response type rendering', () => {
     await user.tab()
 
     expect(mockSubmitTaskResponse).toHaveBeenCalledWith(5, { storeId: 1, textValue: 'All clear' })
-    expect(await screen.findByText('Completed by Test Employee')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox')).toHaveValue('All clear')
   })
 })
 
@@ -220,48 +225,57 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
     )
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText('Not Answered')).toBeInTheDocument()
-    expect(screen.queryByText(/Completed By/)).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Mark as Done' })).toBeInTheDocument()
+    expect(screen.queryByText(/responded/)).not.toBeInTheDocument()
     // The old per-response name + time list must no longer render for MULTIPLE tasks.
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
 
   it('shows the X/Y Completed By count and info icon for a MULTIPLE task with at least one active response', async () => {
-    mockGetDailyChecklist.mockResolvedValue(
-      checklistWith({
-        id: 7,
-        name: 'Wipe tables',
-        description: null,
-        responseType: 'DONE_NOT_DONE',
-        responseNote: null,
-        numericUnit: null,
-        numericMin: null,
-        numericMax: null,
-        textMaxLength: null,
-        completionType: 'MULTIPLE',
-        maxCompletions: null,
-        responses: [
-          {
-            id: 1,
-            employeeUserId: 100,
-            employeeFullName: 'Alex Employee',
-            booleanValue: true,
-            numericValue: null,
-            textValue: null,
-            respondedAt: new Date().toISOString(),
-            flaggedNeedsCorrection: false,
-            flagReason: null,
-          },
-        ],
-        canUndo: false,
-        completedByCount: 2,
-        totalActiveEmployees: 4,
-        completedByNames: ['Alex Employee', 'Jordan Employee'],
-      }),
-    )
+    mockGetDailyChecklist.mockResolvedValue([{
+      id: 1, name: 'Category',
+      tasks: [
+        {
+          id: 7,
+          name: 'Wipe tables',
+          description: null,
+          responseType: 'DONE_NOT_DONE',
+          responseNote: null,
+          numericUnit: null,
+          numericMin: null,
+          numericMax: null,
+          textMaxLength: null,
+          completionType: 'MULTIPLE',
+          maxCompletions: null,
+          responses: [
+            {
+              id: 1,
+              employeeUserId: 100,
+              employeeFullName: 'Alex Employee',
+              booleanValue: true,
+              numericValue: null,
+              textValue: null,
+              respondedAt: new Date().toISOString(),
+              flaggedNeedsCorrection: false,
+              flagReason: null,
+            },
+          ],
+          canUndo: false,
+          completedByCount: 2,
+          totalActiveEmployees: 4,
+          completedByNames: ['Alex Employee', 'Jordan Employee'],
+        },
+        // flagged task keeps completedTasks < totalTasks so All Done card doesn't appear
+        progressTask({
+          id: 99,
+          responses: [{ ...DONE_RESPONSE, id: 2, flaggedNeedsCorrection: true, flagReason: 'Redo' }],
+          canUndo: false,
+        }),
+      ],
+    }])
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText(/2\/4 Completed By/)).toBeInTheDocument()
+    expect(await screen.findByText(/2\/4 responded/)).toBeInTheDocument()
     // Old status text and the old responder name + time list must not also render.
     expect(screen.queryByText('Not Answered')).not.toBeInTheDocument()
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
@@ -339,42 +353,47 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
   })
 
   it('never shows the X/Y count for a SINGLE task, and shows the completing employee\'s name instead', async () => {
-    mockGetDailyChecklist.mockResolvedValue(
-      checklistWith({
-        id: 8,
-        name: 'Unlock front door',
-        description: null,
-        responseType: 'DONE_NOT_DONE',
-        responseNote: null,
-        numericUnit: null,
-        numericMin: null,
-        numericMax: null,
-        textMaxLength: null,
-        completionType: 'SINGLE',
-        maxCompletions: null,
-        responses: [
-          {
-            id: 1,
-            employeeUserId: 100,
-            employeeFullName: 'Alex Employee',
-            booleanValue: true,
-            numericValue: null,
-            textValue: null,
-            respondedAt: new Date().toISOString(),
-            flaggedNeedsCorrection: false,
-            flagReason: null,
-          },
-        ],
-        canUndo: false,
-        completedByCount: 1,
-        totalActiveEmployees: 4,
-        completedByNames: ['Alex Employee'],
-      }),
-    )
+    mockGetDailyChecklist.mockResolvedValue([{
+      id: 1, name: 'Category',
+      tasks: [
+        {
+          id: 8,
+          name: 'Unlock front door',
+          description: null,
+          responseType: 'DONE_NOT_DONE',
+          responseNote: null,
+          numericUnit: null,
+          numericMin: null,
+          numericMax: null,
+          textMaxLength: null,
+          completionType: 'SINGLE',
+          maxCompletions: null,
+          responses: [
+            {
+              id: 1,
+              employeeUserId: 100,
+              employeeFullName: 'Alex Employee',
+              booleanValue: true,
+              numericValue: null,
+              textValue: null,
+              respondedAt: new Date().toISOString(),
+              flaggedNeedsCorrection: false,
+              flagReason: null,
+            },
+          ],
+          canUndo: false,
+          completedByCount: 1,
+          totalActiveEmployees: 4,
+          completedByNames: ['Alex Employee'],
+        },
+        // open task keeps completedTasks < totalTasks so All Done card doesn't appear
+        progressTask({ id: 99, name: 'Pending task' }),
+      ],
+    }])
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText('Completed by Alex Employee')).toBeInTheDocument()
-    expect(screen.queryByText(/Completed By/)).not.toBeInTheDocument()
+    expect(await screen.findByText('Done by Alex Employee')).toBeInTheDocument()
+    expect(screen.queryByText(/responded/)).not.toBeInTheDocument()
   })
 })
 
@@ -426,7 +445,7 @@ describe('Daily progress indicator', () => {
     ])
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText('Overall: 1/2 - 50%')).toBeInTheDocument()
+    expect(await screen.findByText('50%')).toBeInTheDocument()
   })
 
   it('shows each category\'s own completed/total sub-fraction', async () => {
@@ -450,17 +469,18 @@ describe('Daily progress indicator', () => {
     ])
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText('Preparation')).toBeInTheDocument()
-    expect(screen.getByText('1/2')).toBeInTheDocument()
-    expect(screen.getByText('Cleaning')).toBeInTheDocument()
-    expect(screen.getByText('2/2')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Preparation' })).toBeInTheDocument()
+    // Fraction appears in both the overview strip and the accordion count badge
+    expect(screen.getAllByText('1/2').length).toBeGreaterThan(0)
+    expect(screen.getByRole('heading', { name: 'Cleaning' })).toBeInTheDocument()
+    expect(screen.getAllByText('2/2').length).toBeGreaterThan(0)
   })
 
   it('shows 0/0 - 0% with no scheduled tasks, without dividing by zero', async () => {
     mockGetDailyChecklist.mockResolvedValue([])
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText('Overall: 0/0 - 0%')).toBeInTheDocument()
+    expect(await screen.findByText('0%')).toBeInTheDocument()
   })
 
   it('shows 100% when every scheduled task is completed', async () => {
@@ -476,7 +496,7 @@ describe('Daily progress indicator', () => {
     ])
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText('Overall: 2/2 - 100%')).toBeInTheDocument()
+    expect(await screen.findByText('100%')).toBeInTheDocument()
   })
 
   it('updates the overall and category counts immediately after a task submission, with no page reload', async () => {
@@ -484,7 +504,10 @@ describe('Daily progress indicator', () => {
       {
         id: 1,
         name: 'Preparation',
-        tasks: [progressTask({ id: 1, name: 'Wipe counters' })],
+        tasks: [
+          progressTask({ id: 1, name: 'Wipe counters' }),
+          progressTask({ id: 2, name: 'Check supplies', responseType: 'YES_NO' }),
+        ],
       },
     ])
     mockSubmitTaskResponse.mockResolvedValue({
@@ -498,13 +521,14 @@ describe('Daily progress indicator', () => {
 
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText('Overall: 0/1 - 0%')).toBeInTheDocument()
-    expect(screen.getByText('0/1')).toBeInTheDocument() // category sub-fraction
+    expect(await screen.findByText('0%')).toBeInTheDocument()
+    // Fraction appears in both the overview strip and the accordion count badge
+    expect(screen.getAllByText('0/2').length).toBeGreaterThan(0)
 
     await userEvent.click(screen.getByRole('button', { name: /done/i }))
 
-    expect(await screen.findByText('Overall: 1/1 - 100%')).toBeInTheDocument()
-    expect(screen.getByText('1/1')).toBeInTheDocument()
+    expect(await screen.findByText('50%')).toBeInTheDocument()
+    expect(screen.getAllByText('1/2').length).toBeGreaterThan(0)
     // Exactly one submit call -- no duplicate/stale count from a second request.
     expect(mockSubmitTaskResponse).toHaveBeenCalledTimes(1)
   })
@@ -514,7 +538,7 @@ describe('Daily progress indicator', () => {
       { id: 1, name: 'Preparation', tasks: [progressTask({ id: 1, responses: [DONE_RESPONSE] })] },
     ])
     const { unmount } = render(<EmployeeDashboard store={{ ...STORE, id: 1 }} onLogout={() => {}} employeeId={99} />)
-    expect(await screen.findByText('Overall: 1/1 - 100%')).toBeInTheDocument()
+    expect(await screen.findByText('100%')).toBeInTheDocument()
     expect(mockGetDailyChecklist).toHaveBeenCalledWith(1)
     unmount()
 
@@ -522,7 +546,100 @@ describe('Daily progress indicator', () => {
       { id: 1, name: 'Preparation', tasks: [progressTask({ id: 2 })] },
     ])
     render(<EmployeeDashboard store={{ ...STORE, id: 2 }} onLogout={() => {}} employeeId={99} />)
-    expect(await screen.findByText('Overall: 0/1 - 0%')).toBeInTheDocument()
+    expect(await screen.findByText('0%')).toBeInTheDocument()
     expect(mockGetDailyChecklist).toHaveBeenCalledWith(2)
+  })
+})
+
+describe('Text draft persistence', () => {
+  const TEXT_TASK: ChecklistCategory['tasks'][number] = {
+    id: 20,
+    name: 'Log issue',
+    description: null,
+    responseType: 'TEXT',
+    responseNote: null,
+    numericUnit: null,
+    numericMin: null,
+    numericMax: null,
+    textMaxLength: 100,
+    completionType: 'SINGLE',
+    maxCompletions: null,
+    responses: [],
+    canUndo: false,
+    completedByCount: 0,
+    totalActiveEmployees: 1,
+    completedByNames: [],
+  }
+
+  function todayKey(): string {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('seeds a text task draft from localStorage on mount when no confirmed response exists', async () => {
+    const key = `draft:1:20:${todayKey()}`
+    localStorage.setItem(key, 'partial notes')
+    mockGetDailyChecklist.mockResolvedValue([{
+      id: 1, name: 'Category',
+      tasks: [TEXT_TASK, progressTask({ id: 99, name: 'Open task', responseType: 'YES_NO' })],
+    }])
+
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
+
+    const input = await screen.findByRole('textbox')
+    expect(input).toHaveValue('partial notes')
+  })
+
+  it('does not seed a draft when the key belongs to a different date (date-scoping validation)', async () => {
+    const yesterday = (() => {
+      const d = new Date()
+      d.setDate(d.getDate() - 1)
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    })()
+    localStorage.setItem(`draft:1:20:${yesterday}`, 'old draft from yesterday')
+    mockGetDailyChecklist.mockResolvedValue([{
+      id: 1, name: 'Category',
+      tasks: [TEXT_TASK, progressTask({ id: 99, name: 'Open task', responseType: 'YES_NO' })],
+    }])
+
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
+
+    const input = await screen.findByRole('textbox')
+    // Yesterday's draft must not reappear — key includes today's date so old keys are ignored
+    expect(input).toHaveValue('')
+  })
+
+  it('does not seed draft when task already has a confirmed response', async () => {
+    const key = `draft:1:20:${todayKey()}`
+    localStorage.setItem(key, 'stale draft')
+    const taskWithResponse = {
+      ...TEXT_TASK,
+      responses: [{
+        id: 1,
+        employeeUserId: 99,
+        employeeFullName: 'Test Employee',
+        booleanValue: null,
+        numericValue: null,
+        textValue: 'confirmed value',
+        respondedAt: new Date().toISOString(),
+        flaggedNeedsCorrection: false,
+        flagReason: null,
+      }],
+      canUndo: true,
+    }
+    mockGetDailyChecklist.mockResolvedValue([{
+      id: 1, name: 'Category',
+      tasks: [taskWithResponse, progressTask({ id: 99, name: 'Open task', responseType: 'YES_NO' })],
+    }])
+
+    render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
+
+    const input = await screen.findByRole('textbox')
+    // Confirmed response value wins; stale draft from localStorage must not override it
+    expect(input).toHaveValue('confirmed value')
   })
 })

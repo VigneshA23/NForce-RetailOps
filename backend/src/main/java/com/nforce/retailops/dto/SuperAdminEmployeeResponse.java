@@ -17,7 +17,8 @@ public record SuperAdminEmployeeResponse(
     boolean active,
     List<StoreOptionResponse> stores,
     Long ownerId,
-    String ownerName
+    String ownerName,
+    String avatarUrl
 ) {
     // Owner attribution comes from StoreEmployee.createdByOwner, which is null
     // for every employee going forward (Super-Admin-only creation, no owner
@@ -41,7 +42,8 @@ public record SuperAdminEmployeeResponse(
             storeEmployee.getEmployee().isActive(),
             sortedStores,
             ownerId,
-            ownerName
+            ownerName,
+            storeEmployee.getEmployee().getAvatarUrl()
         );
     }
 }

@@ -21,6 +21,18 @@
   opacity: 0.8;
 }
 
+.sa-store-table__owner-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.sa-store-table__owner-cell .user-avatar {
+  flex-shrink: 0;
+}
+
 .super-admin-store-table__code {
   font-size: 12px;
   color: var(--color-text-secondary);

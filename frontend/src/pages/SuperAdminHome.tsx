@@ -13,6 +13,7 @@ interface SuperAdminHomeProps {
   owners: OwnerSummary[];
   ownersLoading: boolean;
   onStoreClick?: (storeId: number) => void;
+  onIssuesClick?: () => void;
 }
 
 const TREND_PERIODS = [
@@ -20,11 +21,11 @@ const TREND_PERIODS = [
   { label: '30d', days: 30 },
 ] as const;
 
-function SuperAdminHome({ owners, ownersLoading, onStoreClick }: SuperAdminHomeProps) {
+function SuperAdminHome({ owners, ownersLoading, onStoreClick, onIssuesClick }: SuperAdminHomeProps) {
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [overview, setOverview] = useState<StoreOperationsSummary[] | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
-  const [trendDays, setTrendDays] = useState<7 | 30>(30);
+  const [trendDays, setTrendDays] = useState<7 | 30>(7);
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
   const [trendLoading, setTrendLoading] = useState(true);
   const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
@@ -95,7 +96,7 @@ function SuperAdminHome({ owners, ownersLoading, onStoreClick }: SuperAdminHomeP
         {platformStats === null ? (
           <>
             <StatCard icon={Percent} label="Platform Completion" value="—" tone="warning" />
-            <StatCard icon={AlertTriangle} label="Open Issues" value="—" tone="info" />
+            <StatCard icon={AlertTriangle} label="Open Issues" value="—" tone="info" onClick={onIssuesClick} />
           </>
         ) : (
           <>
@@ -105,6 +106,7 @@ function SuperAdminHome({ owners, ownersLoading, onStoreClick }: SuperAdminHomeP
               label="Open Issues"
               value={platformStats.totalOpenIssues > 0 ? platformStats.totalOpenIssues : 'All clear'}
               tone={platformStats.totalOpenIssues > 0 ? 'primary' : 'success'}
+              onClick={onIssuesClick}
             />
           </>
         )}

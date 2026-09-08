@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getUnreadCount } from '../api/notifications';
 
-const POLL_INTERVAL_MS = 30_000;
+const POLL_INTERVAL_MS = 60_000;
 
 export function useUnreadCount() {
   const [count, setCount] = useState(0);

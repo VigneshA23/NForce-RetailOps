@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .store-detail-table__card {
   overflow: visible;
 }
@@ -43,8 +45,15 @@
   color: var(--color-text-muted);
 }
 
+.store-detail-table__employee-entry {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
 .store-detail-table__employee-entry:not(:last-child) {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .store-detail-table__status-cell,
@@ -54,17 +63,41 @@
   text-align: right;
 }
 
-/* Employee cell — line + action affordances */
+/* Employee cell */
 .store-detail-table__employee-line {
-  display: inline;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.store-detail-table__employee-actions {
-  display: inline-flex;
+.store-detail-table__employee-name {
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Inline actions — only shown on mobile, hidden on desktop */
+.store-detail-table__inline-actions {
+  display: none;
+}
+
+/* Manager Actions column */
+.store-detail-table__actions-cell,
+.data-table thead th.store-detail-table__actions-cell {
+  text-align: center;
+  white-space: nowrap;
+}
+
+.store-detail-table__actions-entry {
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
-  margin-left: 6px;
-  vertical-align: middle;
+  min-height: 28px;
 }
 
 .store-detail-table__correct-btn {
@@ -172,4 +205,100 @@
   color: #d97706 !important;
   border-color: #d97706 !important;
   background: rgba(217, 119, 6, 0.08) !important;
+}
+
+@media (--mobile) {
+  /* Kill horizontal scroll — card layout doesn't need it */
+  .store-detail-table__card .table-scroll {
+    overflow-x: visible;
+  }
+
+  /* Value side of every card row must not overflow the card */
+  .store-detail-table__card .data-table tbody td > * {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Employee containers must shrink */
+  .store-detail-table__employee-entry,
+  .store-detail-table__employee-line {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  /* Allow employee name to wrap — don't force a single line */
+  .store-detail-table__employee-name {
+    white-space: normal;
+    word-break: break-word;
+    overflow: visible;
+    text-overflow: unset;
+  }
+
+  /* Task name and meta wrap naturally */
+  .store-detail-table__task-name {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .store-detail-table__task-meta {
+    white-space: normal;
+  }
+
+  /* Category label row: allow text to wrap */
+  .store-detail-table__category {
+    text-align: right;
+    max-width: 60%;
+  }
+
+  /* Status aligned right */
+  .store-detail-table__status-cell,
+  .data-table thead th.store-detail-table__status-cell {
+    text-align: right;
+  }
+
+  /* Hide the desktop Manager Actions column — actions move inline with each responder */
+  .store-detail-table__desktop-actions {
+    display: none !important;
+  }
+
+  /* Responders list: stacks multiple employees vertically on the right side of the label */
+  .store-detail-table__responders-list {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+  }
+
+  /* Each employee entry stacks vertically: name+time on top, action buttons below */
+  .store-detail-table__employee-entry {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    padding-bottom: 6px;
+    width: auto;
+  }
+
+  .store-detail-table__employee-entry:not(:last-child) {
+    border-bottom: 1px dashed var(--color-border);
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+  }
+
+  /* Show inline action buttons on mobile */
+  .store-detail-table__inline-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Actions row: align right — kept for fallback */
+  .store-detail-table__actions-cell,
+  .data-table thead th.store-detail-table__actions-cell {
+    text-align: right;
+    justify-content: flex-end;
+  }
+
+  .store-detail-table__actions-entry {
+    justify-content: flex-end;
+  }
 }

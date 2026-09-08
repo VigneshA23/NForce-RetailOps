@@ -141,6 +141,6 @@ export async function getShiftHistory(storeId: number, date: string): Promise<Sh
     storeId: raw.storeId,
     hasChecklist: raw.hasChecklist,
     categories: raw.categories.map(toHistoryCategory),
-    issues: raw.issues.map(toHistoryIssue),
+    issues: (raw.issues ?? []).map(toHistoryIssue),
   };
 }

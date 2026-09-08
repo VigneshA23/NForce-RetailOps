@@ -34,6 +34,7 @@ vi.mock('./api/tasks', () => ({
 
 vi.mock('./api/issues', () => ({
   raiseIssue: vi.fn(),
+  getMyIssues: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('./api/notifications', () => ({

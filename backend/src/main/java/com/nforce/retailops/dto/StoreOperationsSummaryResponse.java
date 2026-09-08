@@ -6,6 +6,7 @@ public record StoreOperationsSummaryResponse(
     Long storeId,
     String storeName,
     String ownerName,
+    String ownerAvatarUrl,
     int totalTasks,
     int completedTasks,
     int completionPercent,

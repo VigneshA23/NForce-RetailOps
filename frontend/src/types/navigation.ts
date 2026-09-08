@@ -6,7 +6,8 @@ export type NavTabKey =
   | 'store-detail'
   | 'employees'
   | 'categories'
-  | 'tasks';
+  | 'tasks'
+  | 'issues';
 
 export interface NavItem<Key extends string = NavTabKey> {
   key: Key;
@@ -22,9 +23,9 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
 ];
 
-// Mobile bottom tab bar for the Owner/Admin shell: a subset of OWNER_NAV_ITEMS
-// (no History/Settings) so the floating pill stays legible at phone width.
-const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['home', 'employees', 'categories', 'tasks', 'store-detail'];
+// Mobile bottom tab bar: home, daily checklist, tasks, employees.
+// Issues is accessible via the Home page tile and the profile menu.
+const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['home', 'store-detail', 'tasks', 'employees'];
 export const OWNER_BOTTOM_NAV_ITEMS: NavItem[] = OWNER_BOTTOM_NAV_ORDER.map(
   (key) => OWNER_NAV_ITEMS.find((item) => item.key === key)!,
 );
@@ -35,6 +36,7 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   employees: 'Employees',
   categories: 'Categories',
   tasks: 'Tasks',
+  issues: 'Issues',
 };
 
 export type EmployeeNavTabKey = 'today' | 'audits' | 'issues';
@@ -45,7 +47,7 @@ export interface EmployeeNavItem {
   icon: LucideIcon;
 }
 
-export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'checklist';
+export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'checklist' | 'issues';
 
 export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'home', label: 'Home', icon: Home },
@@ -61,4 +63,5 @@ export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
   stores: 'Stores',
   employees: 'Employees',
   checklist: 'Daily Checklist',
+  issues: 'Issues',
 };

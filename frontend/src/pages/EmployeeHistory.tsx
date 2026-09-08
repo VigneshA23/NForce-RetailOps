@@ -3,22 +3,19 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
-  Clock,
+  ClipboardList,
   Flag,
   HelpCircle,
-  Lock,
   MessageSquareWarning,
   MoonStar,
-  Sparkles,
   Store as StoreIcon,
-  Sunrise,
 } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { getShiftHistory } from '../api/history'
 import type { StoreSummary } from '../types/store'
-import type { ShiftHistory, TaskStatus } from '../types/history'
+import type { ShiftHistory } from '../types/history'
 import SearchableSelect from '../components/SearchableSelect'
 import CalendarPopover from '../components/CalendarPopover'
+import StatCard from '../components/StatCard'
 import './EmployeeHistory.css'
 
 interface EmployeeHistoryProps {
@@ -28,23 +25,7 @@ interface EmployeeHistoryProps {
   stores: StoreSummary[]
 }
 
-// Keyed by category name (lowercased) rather than id -- unlike the old mock,
-// real categories are owner-defined with arbitrary numeric ids, so only the
-// name is a stable enough hook for a themed icon/tone. Falls back to Clock
-// and a neutral tone below for anything an owner names outside these three.
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  preparation: Sunrise,
-  cleaning: Sparkles,
-  closing: Lock,
-}
-
-const CATEGORY_TONES: Record<string, string> = {
-  preparation: 'warning',
-  cleaning: 'success',
-  closing: 'purple',
-}
-
-const TASK_STATUS_META: Record<TaskStatus, { label: string; badgeClass: string; icon: LucideIcon }> = {
+const TASK_STATUS_META = {
   YES: { label: 'Complete', badgeClass: 'badge--success', icon: CheckCircle2 },
   NO: { label: 'Flagged', badgeClass: 'badge--warning', icon: Flag },
   NOT_ANSWERED: { label: 'Not answered', badgeClass: 'badge--outline', icon: HelpCircle },
@@ -164,10 +145,20 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
   // history is actually being shown at once -- a single-store selection (the
   // default) never renders it, keeping that view exactly as before.
   const showStoreHeadings = entriesWithActivity.length > 1
-  const emptyStateScope =
-    selectedStoreId === ALL_STORES_VALUE
-      ? 'any of your stores'
-      : (availableStores.find((candidate) => candidate.id === selectedStoreId)?.name ?? store.name)
+
+  const historyStats = useMemo(() => {
+    let complete = 0, flagged = 0, notAnswered = 0
+    for (const { history } of entriesWithActivity) {
+      for (const cat of history.categories) {
+        for (const task of cat.tasks) {
+          if (task.status === 'YES') complete++
+          else if (task.status === 'NO') flagged++
+          else notAnswered++
+        }
+      }
+    }
+    return { complete, flagged, notAnswered }
+  }, [entriesWithActivity])
 
   function toggleCategory(key: string) {
     setExpandedKeys((current) => {
@@ -252,10 +243,16 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
       {!loading && !error && !hasActivity && (
         <div className="employee-history-empty">
           <MoonStar size={28} />
-          <h3>Nothing logged yet</h3>
-          <p>
-            No checklist activity recorded for {emptyStateScope} on {formatDateLabel(selectedDate)}.
-          </p>
+          <h3>No activity recorded</h3>
+          <p>No activity recorded for this date. Tasks only appear here after at least one response has been submitted.</p>
+        </div>
+      )}
+
+      {!loading && !error && hasActivity && (
+        <div className="stat-card-row" style={{ marginBottom: 'var(--space-lg)' }}>
+          <StatCard icon={CheckCircle2} label="Tasks Complete" value={historyStats.complete} tone="success" />
+          <StatCard icon={Flag} label="Flagged" value={historyStats.flagged} tone="warning" />
+          <StatCard icon={HelpCircle} label="Not Answered" value={historyStats.notAnswered} tone="primary" />
         </div>
       )}
 
@@ -274,12 +271,12 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
                           <MessageSquareWarning size={16} />
                         </span>
                         <p className="employee-history-issue-note">{issue.note}</p>
-                        <span className={`badge ${issue.status === 'RESOLVED' ? 'badge--success' : 'badge--warning'}`}>
-                          {issue.status === 'RESOLVED' ? 'Resolved' : 'Open'}
+                        <span className={`badge ${issue.status === 'RESOLVED' ? 'badge--success' : issue.status === 'ACKNOWLEDGED' ? 'badge--info' : 'badge--warning'}`}>
+                          {issue.status === 'RESOLVED' ? 'Resolved' : issue.status === 'ACKNOWLEDGED' ? 'Acknowledged' : 'Open'}
                         </span>
                       </div>
                       <p className="employee-history-issue-meta">Raised at {issue.raisedAt}</p>
-                      {issue.status === 'RESOLVED' && issue.responseText && (
+                      {(issue.status === 'RESOLVED' || issue.status === 'ACKNOWLEDGED') && issue.responseText && (
                         <div className="employee-history-issue-response">
                           <p className="employee-history-issue-response-text">{issue.responseText}</p>
                           <p className="employee-history-issue-meta">
@@ -293,8 +290,8 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
                 </div>
               )}
               {history.categories.map((category) => {
-                const Icon = CATEGORY_ICONS[category.name.toLowerCase()] ?? Clock
-                const tone = CATEGORY_TONES[category.name.toLowerCase()] ?? 'outline'
+                const Icon = ClipboardList
+                const tone = 'info'
                 const isComplete = category.tasksTotal > 0 && category.tasksCompleted === category.tasksTotal
                 const key = categoryKey(entryStore.id, category.id)
                 const isExpanded = expandedKeys.has(key)

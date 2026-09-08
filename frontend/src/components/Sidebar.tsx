@@ -21,6 +21,7 @@ interface SidebarProps<Key extends string = NavTabKey> {
   mobileOpen?: boolean;
   onClose?: () => void;
   user: AuthUser;
+  tabBadges?: Partial<Record<string, boolean>>;
 }
 
 function Sidebar<Key extends string = NavTabKey>({
@@ -31,6 +32,7 @@ function Sidebar<Key extends string = NavTabKey>({
   onToggleCollapsed,
   mobileOpen = false,
   onClose,
+  tabBadges,
 }: SidebarProps<Key>) {
   const isMobile = useIsMobile();
   const isTabletDown = useIsTabletDown();
@@ -116,6 +118,7 @@ function Sidebar<Key extends string = NavTabKey>({
                     >
                       <span className="sidebar__icon">
                         <Icon size={20} />
+                        {tabBadges?.[item.key] && <span className="sidebar__badge" aria-label="Unread" />}
                       </span>
                       <span className="sidebar__label">{item.label}</span>
                     </button>

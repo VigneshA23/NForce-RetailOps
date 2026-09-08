@@ -1,5 +1,7 @@
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import type { SuperAdminEmployee } from '../types/superAdminEmployee';
+import UserAvatar from './UserAvatar';
+import { getInitials } from '../utils/initials';
 import './EmployeeTable.css';
 
 interface SuperAdminEmployeeTableProps {
@@ -47,7 +49,16 @@ function SuperAdminEmployeeTable({
                     {employee.empId}
                   </button>
                 </td>
-                <td className="employee-table__name" data-label="Employee Name">{employee.name}</td>
+                <td className="employee-table__name" data-label="Employee Name">
+                  <div className="employee-table__name-cell">
+                    <UserAvatar
+                      initials={getInitials(employee.name)}
+                      src={employee.avatarUrl}
+                      size={32}
+                    />
+                    <span>{employee.name}</span>
+                  </div>
+                </td>
                 <td data-label="Stores">
                   {employee.stores.length === 0 ? (
                     <span className="employee-table__no-stores">—</span>

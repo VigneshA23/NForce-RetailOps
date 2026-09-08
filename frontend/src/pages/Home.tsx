@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronRight, Users, Tags, Percent, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronRight, Users, Tags, Percent } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getChecklistHistoryDetail, getChecklistHistorySummary } from '../api/checklistHistory';
-import { getIssues, updateIssueStatus } from '../api/issues';
+import { getIssues } from '../api/issues';
 import type { Issue } from '../types/issue';
 import type { OwnerStore } from '../types/ownerStore';
 import type { Employee } from '../types/employee';
@@ -11,7 +11,6 @@ import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import StatCard from '../components/StatCard';
 import ChartCard from '../components/ChartCard';
 import CompletionRateCard from '../components/CompletionRateCard';
-import IssueList from '../components/IssueList';
 import './Home.css';
 
 interface HomeProps {
@@ -21,6 +20,7 @@ interface HomeProps {
   employees: Employee[];
   categories: Category[];
   onViewStoreDetail: () => void;
+  onViewIssues?: () => void;
 }
 
 function firstName(fullName: string): string {
@@ -43,22 +43,6 @@ function isoDateDaysAgo(daysAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
   return toLocalIsoDate(date);
-}
-
-function addDaysIso(isoDate: string, days: number): string {
-  const date = new Date(`${isoDate}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return toLocalIsoDate(date);
-}
-
-// Monday of the calendar week containing today. getDay() is 0=Sun..6=Sat, so
-// (day + 6) % 7 is how many days to step back to reach that week's Monday
-// (0 when today already is Monday).
-function mondayOfThisWeekIso(): string {
-  const today = new Date();
-  const back = (today.getDay() + 6) % 7;
-  today.setDate(today.getDate() - back);
-  return toLocalIsoDate(today);
 }
 
 // Weekday name at a glance for a short window; "Mon"/"Tue" repeats and gets
@@ -84,7 +68,7 @@ function sumTasks(rows: ChecklistHistorySummaryRow[]): { totalTasks: number; com
   );
 }
 
-function Home({ userName, stores, storesLoading, employees, categories, onViewStoreDetail }: HomeProps) {
+function Home({ userName, stores, storesLoading, employees, categories, onViewStoreDetail, onViewIssues }: HomeProps) {
   const [todayRows, setTodayRows] = useState<ChecklistHistorySummaryRow[]>([]);
   const [trend, setTrend] = useState<{ day: string; completion: number }[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<{ id: number; name: string; completed: number; total: number }[]>([]);
@@ -93,7 +77,6 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
 
   // Issues state — null = not yet loaded (avoids false "All clear" before API resolves)
   const [issues, setIssues] = useState<Issue[] | null>(null);
-  const [issuesPanelOpen, setIssuesPanelOpen] = useState(false);
 
   useEffect(() => {
     if (storesLoading) return;
@@ -113,18 +96,9 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       }
 
       const today = isoDateDaysAgo(0);
-      // The 7-day view is pinned to the current Mon-Sun calendar week (so the
-      // axis always reads Mon,Tue,Wed,Thu,Fri,Sat,Sun) rather than a rolling
-      // "last 7 days" window, whose start weekday would drift with today's
-      // date. Longer periods stay a rolling window, where a fixed weekday
-      // order doesn't apply anyway. Only fetched through today, not the
-      // week's future days -- those simply have no data yet.
-      const weekStart = mondayOfThisWeekIso();
-      const trendStartDate = trendDays === 7 ? weekStart : isoDateDaysAgo(trendDays - 1);
-      const trendDates =
-        trendDays === 7
-          ? Array.from({ length: 7 }, (_, index) => addDaysIso(weekStart, index))
-          : Array.from({ length: trendDays }, (_, index) => isoDateDaysAgo(trendDays - 1 - index));
+      // Rolling window: oldest day on the left, today on the right.
+      const trendStartDate = isoDateDaysAgo(trendDays - 1);
+      const trendDates = Array.from({ length: trendDays }, (_, index) => isoDateDaysAgo(trendDays - 1 - index));
 
       const [todaySummary, trendSummary, details] = await Promise.all([
         getChecklistHistorySummary({ storeIds, startDate: today, endDate: today }),
@@ -170,7 +144,7 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
     };
   }, [storesLoading, stores, trendDays]);
 
-  // Fetch issues for the owner's first store
+  // Fetch open issue count for the stat tile indicator
   useEffect(() => {
     const storeId = stores[0]?.id;
     if (!storeId) return;
@@ -178,16 +152,6 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       .then(setIssues)
       .catch(() => {});
   }, [stores]);
-
-  async function handleIssueStatusUpdate(
-    issueId: number,
-    status: 'ACKNOWLEDGED' | 'RESOLVED',
-    responseText?: string,
-  ) {
-    const updated = await updateIssueStatus(issueId, status, responseText);
-    setIssues((prev) => prev ? prev.map((i) => (i.id === updated.id ? updated : i)) : prev);
-  }
-
 
   const storeName = stores[0]?.name ?? null;
   const todayCompletion = useMemo(() => {
@@ -228,31 +192,10 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
             label="Open Issues"
             value={hasOpenIssues ? openIssueCount : 'All clear'}
             tone={hasOpenIssues ? 'primary' : 'success'}
-            onClick={() => setIssuesPanelOpen((v) => !v)}
-            active={issuesPanelOpen}
+            onClick={onViewIssues}
           />
         )}
       </div>
-
-      {issuesPanelOpen && (
-        <div className="home-page__issues-panel">
-          <div className="home-page__issues-panel-header">
-            <h2 className="home-page__issues-panel-title">
-              {hasOpenIssues ? `Issues (${openIssueCount} open)` : 'Issues'}
-            </h2>
-            <button
-              type="button"
-              className="home-page__issues-panel-close"
-              onClick={() => setIssuesPanelOpen(false)}
-              aria-label="Close issues panel"
-            >
-              <X size={13} />
-              Close
-            </button>
-          </div>
-          <IssueList issues={issues ?? []} onUpdateStatus={handleIssueStatusUpdate} />
-        </div>
-      )}
 
       {storeName && <p className="home-page__store-label">{storeName}</p>}
 

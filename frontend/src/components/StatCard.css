@@ -309,6 +309,8 @@ button.stat-card {
   .stat-card-row .stat-card {
     padding: 8px 10px;
     gap: 4px;
+    min-width: 0;
+    overflow: hidden;
   }
 
   .stat-card-row .stat-card__icon {

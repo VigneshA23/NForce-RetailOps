@@ -5,9 +5,10 @@ interface BottomNavProps<Key extends string = NavTabKey> {
   items: NavItem<Key>[];
   activeKey: Key;
   onSelect: (key: Key) => void;
+  tabBadges?: Partial<Record<string, boolean>>;
 }
 
-function BottomNav<Key extends string = NavTabKey>({ items, activeKey, onSelect }: BottomNavProps<Key>) {
+function BottomNav<Key extends string = NavTabKey>({ items, activeKey, onSelect, tabBadges }: BottomNavProps<Key>) {
   const activeIndex = items.findIndex((item) => item.key === activeKey);
 
   return (
@@ -34,6 +35,7 @@ function BottomNav<Key extends string = NavTabKey>({ items, activeKey, onSelect 
           >
             <span className="bottom-nav__icon">
               <Icon size={22} strokeWidth={isActive ? 2.25 : 1.75} />
+              {tabBadges?.[item.key] && <span className="bottom-nav__badge" aria-label="Unread" />}
             </span>
             <span className="bottom-nav__label">{item.label}</span>
           </button>

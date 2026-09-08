@@ -113,7 +113,7 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     // depends on each task's own startDate/endDate, store scoping and schedule type)
     // can be evaluated in memory without re-querying the DB once per store.
     @org.springframework.data.jpa.repository.Query(
-        "select t from Task t where t.owner.id = :ownerId and t.active = true and t.category.active = true "
+        "select t from Task t join fetch t.category where t.owner.id = :ownerId and t.active = true and t.category.active = true "
             + "and (t.appliesToAllStores = true or exists (select s.id from t.stores s where s.id in :storeIds)) "
             + "and t.startDate <= :endDate and (t.endDate is null or t.endDate >= :startDate) "
             + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"

@@ -35,6 +35,7 @@ interface HeaderProps {
   onProfileClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
+  onIssuesClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
   // Employee pages only -- see Modal's `centered` prop. Forwarded down to the
@@ -67,6 +68,7 @@ function Header({
   onProfileClick,
   onHelpClick,
   onSettingsClick,
+  onIssuesClick,
   onLogout,
   loggingOut,
   centeredModals,
@@ -113,6 +115,7 @@ function Header({
           onProfileClick={onProfileClick}
           onHelpClick={onHelpClick}
           onSettingsClick={onSettingsClick}
+          onIssuesClick={onIssuesClick}
           onLogout={onLogout}
           loggingOut={loggingOut}
           centeredModals={centeredModals}

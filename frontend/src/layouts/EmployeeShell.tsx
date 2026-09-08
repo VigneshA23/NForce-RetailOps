@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
@@ -6,6 +6,7 @@ import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
 import { getInitials } from '../utils/initials'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { useUnreadCount } from '../hooks/useUnreadCount'
+import { useIssueUnreadBadge } from '../hooks/useIssueUnreadBadge'
 import AppShell from './AppShell'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
@@ -29,9 +30,9 @@ interface EmployeeShellProps {
 }
 
 const NAV_ITEMS: EmployeeNavItem[] = [
-  { key: 'today', label: 'Home', icon: CalendarCheck },
-  { key: 'audits', label: 'Audit', icon: ClipboardList },
-  { key: 'issues', label: 'My Issues', icon: MessageSquareWarning },
+  { key: 'today', label: 'Checklist', icon: CalendarCheck },
+  { key: 'audits', label: 'History', icon: ClipboardList },
+  { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
 ]
 
 type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null
@@ -39,9 +40,26 @@ type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, employeeId = null }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const [overlay, setOverlay] = useState<Overlay>(null)
+  const [mountedTabs, setMountedTabs] = useState<Set<EmployeeNavTabKey>>(new Set(['today']))
+  const prevTab = useRef<EmployeeNavTabKey>('today')
+  useEffect(() => {
+    if (prevTab.current === activeTab) return
+    prevTab.current = activeTab
+    setMountedTabs((prev) => {
+      if (prev.has(activeTab)) return prev
+      const next = new Set(prev)
+      next.add(activeTab)
+      return next
+    })
+  }, [activeTab])
   const isMobile = useIsMobile()
   const { count: unreadCount, setCount } = useUnreadCount()
+  const { hasUnread: issuesBadge, markSeen: markIssuesSeen } = useIssueUnreadBadge(employeeId ?? null, store.id)
   const canSwitchStore = stores.length > 1
+
+  useEffect(() => {
+    if (activeTab === 'issues') markIssuesSeen()
+  }, [activeTab])
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName])
 
@@ -59,20 +77,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     }
   }
 
-  function renderActivePage() {
-    switch (activeTab) {
-      case 'today':
-        return <EmployeeDashboard store={store} onLogout={onLogout} loggingOut={false} employeeId={employeeId} />
-      case 'audits':
-        return <EmployeeHistory store={store} stores={stores} />
-      case 'issues':
-        return <EmployeeIssues store={store} />
-      default: {
-        const _exhaustive: never = activeTab
-        return _exhaustive
-      }
-    }
-  }
+  const ALL_EMPLOYEE_TABS: EmployeeNavTabKey[] = ['today', 'audits', 'issues']
 
   const contextLabel = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
@@ -87,10 +92,16 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     setActiveTab(target)
   }
 
+  const tabBadges = useMemo(
+    () => (issuesBadge ? { issues: true as const } : {}),
+    [issuesBadge],
+  )
+
   return (
     <AppShell<EmployeeNavTabKey>
       navItems={NAV_ITEMS}
       activeTab={activeTab}
+      tabBadges={tabBadges}
       onSelectTab={(key) => {
         setOverlay(null)
         setActiveTab(key)
@@ -139,7 +150,24 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         ? <Settings />
         : overlay === 'notifications'
         ? <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
-        : renderActivePage()
+        : ALL_EMPLOYEE_TABS.map((tab) =>
+            mountedTabs.has(tab) ? (
+              <div key={tab} style={activeTab !== tab ? { display: 'none' } : undefined}>
+                {tab === 'today' && (
+                  <EmployeeDashboard
+                    store={store}
+                    onLogout={onLogout}
+                    loggingOut={false}
+                    employeeId={employeeId}
+                    employeeName={user.fullName}
+                    onNavigate={(t) => { setOverlay(null); setActiveTab(t) }}
+                  />
+                )}
+                {tab === 'audits' && <EmployeeHistory store={store} stores={stores} />}
+                {tab === 'issues' && <EmployeeIssues store={store} />}
+              </div>
+            ) : null,
+          )
       }
     </AppShell>
   )

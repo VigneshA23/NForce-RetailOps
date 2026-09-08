@@ -74,7 +74,7 @@ public class MeHistoryService {
     public ChecklistHistoryDetailResponse getDetail(Long employeeUserId, Long storeId, LocalDate date) {
         userProfileService.requireAssignedStore(employeeUserId, storeId);
 
-        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndActiveTrue(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         Store store = storeOwner.getStore();
         Long ownerId = storeOwner.getOwner().getId();

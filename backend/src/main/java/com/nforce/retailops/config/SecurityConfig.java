@@ -70,7 +70,8 @@ public class SecurityConfig {
                     "/api/auth/session-config",
                     "/api/auth/forgot-password",
                     "/api/auth/forgot-password/confirm",
-                    "/actuator/health"
+                    "/actuator/health",
+                    "/error"
                 ).permitAll()
                 // Explicit rather than left to the anyRequest() catch-all below: every
                 // /api/me/** endpoint (including /api/me/history/**) requires the same
