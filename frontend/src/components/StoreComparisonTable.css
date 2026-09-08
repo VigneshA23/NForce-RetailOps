@@ -40,7 +40,19 @@
 .sct__td--right { text-align: right; }
 .sct__td--muted { color: var(--color-text-secondary); font-size: 13px; }
 .sct__td--name { font-weight: 600; }
-.sct__td--owner { color: var(--color-text-secondary); font-size: 13px; }
+.sct__td--owner { font-size: 13px; }
+
+.sct__owner-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.sct__owner-cell .user-avatar {
+  flex-shrink: 0;
+}
 
 .sct__badge {
   display: inline-block;
@@ -98,6 +110,97 @@
   color: var(--color-text-secondary);
   font-size: 14px;
   text-align: center;
+}
+
+@media (max-width: 640px) {
+  .sct {
+    overflow-x: visible;
+  }
+
+  .sct__table,
+  .sct__table thead,
+  .sct__table tbody,
+  .sct__table tr,
+  .sct__table th,
+  .sct__table td {
+    display: block;
+    width: 100%;
+  }
+
+  .sct__table thead {
+    display: none;
+  }
+
+  /* Card per row */
+  .sct__row {
+    position: relative;
+    padding: 14px var(--space-md);
+    padding-right: 44px; /* room for eye button */
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .sct__row:not(:last-child) .sct__td {
+    border-bottom: none;
+  }
+
+  /* Eye button: absolute top-right — needs high specificity to beat display:block */
+  .sct__table .sct__td[data-label=""] {
+    position: absolute;
+    top: 14px;
+    right: var(--space-md);
+    width: auto;
+    padding: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  /* All data rows: label left, value right */
+  .sct__table .sct__td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    text-align: left;
+    font-size: 13px;
+    width: 100%;
+  }
+
+  .sct__table .sct__td--center,
+  .sct__table .sct__td--right {
+    text-align: left;
+  }
+
+  .sct__table .sct__td[data-label]::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+
+  /* Store name row: full width, no label prefix */
+  .sct__table .sct__td[data-label="Store"] {
+    font-size: 15px;
+    font-weight: 600;
+    padding-bottom: 8px;
+    padding-right: 0;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 6px;
+  }
+
+  .sct__table .sct__td[data-label="Store"]::before {
+    display: none;
+  }
+
+  /* Owner name: dark colour */
+  .sct__table .sct__td--owner {
+    color: var(--color-text-primary);
+    font-size: 13px;
+    font-weight: 500;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

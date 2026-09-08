@@ -1,5 +1,7 @@
 import { Eye } from 'lucide-react';
 import type { StoreOperationsSummary } from '../api/superAdminOperations';
+import UserAvatar from './UserAvatar';
+import { getInitials } from '../utils/initials';
 import './StoreComparisonTable.css';
 
 interface StoreComparisonTableProps {
@@ -53,7 +55,7 @@ function StoreComparisonTable({ stores, isLoading, onStoreClick, onViewDetail }:
             const tone = completionTone(store.completionPercent);
             return (
               <tr key={store.storeId} className="sct__row">
-                <td className="sct__td sct__td--name">
+                <td className="sct__td sct__td--name" data-label="Store">
                   {onStoreClick ? (
                     <button
                       type="button"
@@ -66,24 +68,33 @@ function StoreComparisonTable({ stores, isLoading, onStoreClick, onViewDetail }:
                     store.storeName
                   )}
                 </td>
-                <td className="sct__td sct__td--owner">{store.ownerName}</td>
-                <td className="sct__td sct__td--center">
+                <td className="sct__td sct__td--owner" data-label="Owner">
+                  <div className="sct__owner-cell">
+                    <UserAvatar
+                      initials={getInitials(store.ownerName)}
+                      src={store.ownerAvatarUrl}
+                      size={24}
+                    />
+                    <span>{store.ownerName}</span>
+                  </div>
+                </td>
+                <td className="sct__td sct__td--center" data-label="Today's Completion">
                   <span className={`sct__badge sct__badge--${tone}`}>
                     {store.completionPercent}%
                   </span>
                 </td>
-                <td className="sct__td sct__td--center">
+                <td className="sct__td sct__td--center" data-label="Open Issues">
                   {store.openIssues > 0 ? (
                     <span className="sct__badge sct__badge--issue">{store.openIssues}</span>
                   ) : (
                     <span className="sct__none">—</span>
                   )}
                 </td>
-                <td className="sct__td sct__td--right sct__td--muted">
+                <td className="sct__td sct__td--right sct__td--muted" data-label="Last Activity">
                   {relativeTime(store.lastActivityAt)}
                 </td>
                 {onViewDetail && (
-                  <td className="sct__td sct__td--center">
+                  <td className="sct__td sct__td--center" data-label="">
                     <button
                       type="button"
                       className="table-icon-btn"

@@ -4,6 +4,7 @@ export interface OwnerSummary {
   ownerName: string;
   ownerEmail: string;
   ownerActive: boolean;
+  avatarUrl?: string | null;
   storeId: number | null;
   storeCode: number | null;
   storeName: string | null;

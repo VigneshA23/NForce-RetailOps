@@ -1,5 +1,7 @@
 import { Eye, Trash2, UserRoundCog } from 'lucide-react';
 import type { SuperAdminStore } from '../types/superAdminStore';
+import UserAvatar from './UserAvatar';
+import { getInitials } from '../utils/initials';
 import './SuperAdminStoreTable.css';
 
 interface SuperAdminStoreTableProps {
@@ -48,7 +50,18 @@ function SuperAdminStoreTable({
                   </button>
                 </td>
                 <td data-label="Owner">
-                  {store.ownerAccessActive ? store.ownerName : <span className="badge badge--outline">Unassigned</span>}
+                  {store.ownerAccessActive && store.ownerName ? (
+                    <div className="sa-store-table__owner-cell">
+                      <UserAvatar
+                        initials={getInitials(store.ownerName)}
+                        src={store.ownerAvatarUrl}
+                        size={28}
+                      />
+                      <span>{store.ownerName}</span>
+                    </div>
+                  ) : (
+                    <span className="badge badge--outline">Unassigned</span>
+                  )}
                 </td>
                 <td data-label="Employees">{store.employeeCount}</td>
                 <td data-label="Status">

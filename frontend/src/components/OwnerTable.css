@@ -9,6 +9,21 @@
   color: var(--color-text-primary);
 }
 
+.owner-table__name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.owner-table__name-cell .user-avatar {
+  flex-shrink: 0;
+}
+
+.owner-table__name-cell span {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
 .owner-table__email {
   font-size: 13px;
   color: var(--color-text-secondary);

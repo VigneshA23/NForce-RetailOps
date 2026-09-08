@@ -235,6 +235,7 @@ public class SuperAdminOperationsService {
             storeId,
             link.getStore().getName(),
             link.getOwner().getFullName(),
+            link.getOwner().getAvatarUrl(),
             total,
             completed,
             percent,

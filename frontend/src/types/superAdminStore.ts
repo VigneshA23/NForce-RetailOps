@@ -7,6 +7,7 @@ export interface SuperAdminStore {
   // Null for a store that has never had an owner.
   ownerId: number | null;
   ownerName: string | null;
+  ownerAvatarUrl?: string | null;
   ownerActive: boolean | null;
   // False when there's no owner at all, or when an owner is/was assigned but
   // their access to this specific store has been revoked.

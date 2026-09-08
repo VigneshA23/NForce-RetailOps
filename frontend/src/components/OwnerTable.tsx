@@ -1,6 +1,8 @@
 import { Eye, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import type { OwnerSummary } from '../types/owner';
+import UserAvatar from './UserAvatar';
+import { getInitials } from '../utils/initials';
 import './OwnerTable.css';
 
 export interface GroupedOwner {
@@ -9,6 +11,7 @@ export interface GroupedOwner {
   ownerName: string;
   ownerEmail: string;
   ownerActive: boolean;
+  avatarUrl?: string | null;
   activeStore: OwnerSummary | null;
   anyStore: OwnerSummary | null;
 }
@@ -30,6 +33,7 @@ function groupOwners(owners: OwnerSummary[]): GroupedOwner[] {
         ownerName: row.ownerName,
         ownerEmail: row.ownerEmail,
         ownerActive: row.ownerActive,
+        avatarUrl: row.avatarUrl,
         activeStore: row.storeId != null && row.storeActive ? row : null,
         anyStore: row.storeId != null ? row : null,
       });
@@ -82,7 +86,14 @@ function OwnerTable({
                   <span className="owner-table__id">{owner.adminCode}</span>
                 </td>
                 <td className="owner-table__name" data-label="Name">
-                  {owner.ownerName}
+                  <div className="owner-table__name-cell">
+                    <UserAvatar
+                      initials={getInitials(owner.ownerName)}
+                      src={owner.avatarUrl}
+                      size={32}
+                    />
+                    <span>{owner.ownerName}</span>
+                  </div>
                 </td>
                 <td data-label="Email">
                   <span className="owner-table__email">{owner.ownerEmail}</span>
