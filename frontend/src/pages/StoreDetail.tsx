@@ -42,10 +42,31 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   function loadDetail(id: number, forDate: string, silent = false) {
     if (!silent) setDetailLoading(true);
     if (!silent) setDetailError(null);
-    getChecklistHistoryDetail(id, forDate)
-      .then(setDetail)
-      .catch((error: Error) => { if (!silent) setDetailError(error.message); })
-      .finally(() => { if (!silent) setDetailLoading(false); });
+
+    function attempt(isRetry: boolean) {
+      getChecklistHistoryDetail(id, forDate)
+        .then((result) => {
+          setDetail(result);
+          if (!silent) setDetailLoading(false);
+        })
+        .catch((error: Error) => {
+          // A transient failure (e.g. this page's other background requests --
+          // yesterday's %, the repeat-offender scan -- competing for the same
+          // origin's connection limit right as it mounts) usually succeeds on
+          // an immediate retry, exactly like clicking "Retry" does today. Try
+          // once automatically before bothering the user with an error.
+          if (!silent && !isRetry) {
+            attempt(true);
+            return;
+          }
+          if (!silent) {
+            setDetailError(error.message);
+            setDetailLoading(false);
+          }
+        });
+    }
+
+    attempt(false);
   }
 
   useEffect(() => {
@@ -125,23 +146,36 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
     if (storeId === null) return;
     const cached = repeatOffenderCache.get(storeId);
     if (cached) { setRepeatOffenderMap(cached); return; }
+    let cancelled = false;
     const dates = Array.from({ length: 7 }, (_, i) => daysAgo(i + 1));
-    Promise.allSettled(dates.map((d) => getChecklistHistoryDetail(storeId, d))).then((results) => {
+
+    // Sequential, not parallel: 7 requests firing at once alongside the main
+    // detail load and yesterday's % could saturate the browser's per-origin
+    // connection limit and make the (user-visible) main load fail on a slow
+    // or cold backend. One at a time never competes with it.
+    (async () => {
       const tally = new Map<number, number>();
-      for (const result of results) {
-        if (result.status !== 'fulfilled') continue;
-        for (const category of result.value.categories) {
-          for (const task of category.tasks) {
-            const s = taskStatus(task);
-            if (s === 'OPEN' || s === 'ISSUE') {
-              tally.set(task.id, (tally.get(task.id) ?? 0) + 1);
+      for (const d of dates) {
+        try {
+          const dayDetail = await getChecklistHistoryDetail(storeId, d);
+          for (const category of dayDetail.categories) {
+            for (const task of category.tasks) {
+              const s = taskStatus(task);
+              if (s === 'OPEN' || s === 'ISSUE') {
+                tally.set(task.id, (tally.get(task.id) ?? 0) + 1);
+              }
             }
           }
+        } catch {
+          // Best-effort trend data -- a failed day is simply left out of the tally.
         }
       }
+      if (cancelled) return;
       repeatOffenderCache.set(storeId, tally);
       setRepeatOffenderMap(tally);
-    });
+    })();
+
+    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId]);
 
