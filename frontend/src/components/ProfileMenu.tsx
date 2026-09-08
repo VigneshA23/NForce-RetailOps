@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { HelpCircle, LogOut, Settings, User as UserIcon } from 'lucide-react';
+import { AlertTriangle, HelpCircle, LogOut, Settings, User as UserIcon } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import ConfirmDialog from './ConfirmDialog';
 import './ProfileMenu.css';
@@ -10,6 +10,7 @@ interface ProfileMenuProps {
   onProfileClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
+  onIssuesClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
   // Employee pages only -- see Modal's `centered` prop.
@@ -20,7 +21,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onSettingsClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onSettingsClick, onIssuesClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -107,6 +108,20 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onHelpClick, onSetti
             >
               <Settings size={14} />
               Settings
+            </button>
+          )}
+          {onIssuesClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onIssuesClick();
+              }}
+            >
+              <AlertTriangle size={14} />
+              Issues
             </button>
           )}
           <button

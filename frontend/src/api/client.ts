@@ -37,9 +37,10 @@ export async function fetchWithTimeout(
 interface RequestOptions {
   method?: string;
   body?: unknown;
+  timeoutMs?: number;
 }
 
-export async function apiRequest<T>(path: string, { method = 'GET', body }: RequestOptions = {}): Promise<T> {
+export async function apiRequest<T>(path: string, { method = 'GET', body, timeoutMs }: RequestOptions = {}): Promise<T> {
   const response = await fetchWithTimeout(`${API_BASE_URL}${path}`, {
     method,
     headers: {
@@ -47,7 +48,7 @@ export async function apiRequest<T>(path: string, { method = 'GET', body }: Requ
       ...authHeaders(),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  }, timeoutMs);
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null);

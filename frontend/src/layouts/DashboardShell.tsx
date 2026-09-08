@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { NavTabKey } from '../types/navigation';
 import { OWNER_BOTTOM_NAV_ITEMS, OWNER_NAV_ITEMS, PAGE_TITLES } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
@@ -8,6 +8,7 @@ import Categories from '../pages/Categories';
 import Home from '../pages/Home';
 import StoreDetail from '../pages/StoreDetail';
 import Tasks from '../pages/Tasks';
+import AdminIssues from '../pages/AdminIssues';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 import Settings from '../pages/Settings';
@@ -33,6 +34,16 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [searchSeed, setSearchSeed] = useState<{ term: string; id: number } | undefined>(undefined);
+  // Lazy-mount: tabs mount on first visit and stay alive — no refetch on tab switch.
+  const [mountedTabs, setMountedTabs] = useState<Set<NavTabKey>>(new Set(['home']));
+  useEffect(() => {
+    setMountedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   // Fetched once here (not per-page) and shared as props, so switching tabs
   // never re-fetches data that hasn't changed. See useAssignedStores.ts for
@@ -60,6 +71,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       case '/store-detail': setActiveTab('store-detail'); setOverlay(null); break;
       case '/employees': setActiveTab('employees'); setOverlay(null); break;
       case '/tasks': setActiveTab('tasks'); setOverlay(null); break;
+      case '/issues': setActiveTab('issues'); setOverlay(null); break;
       default: setOverlay('notifications'); break;
     }
   }
@@ -72,8 +84,10 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
     else if (group === 'employees') setActiveTab('employees');
   }
 
-  function renderActivePage() {
-    switch (activeTab) {
+  const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues'];
+
+  function renderTab(tab: NavTabKey) {
+    switch (tab) {
       case 'home':
         return (
           <Home
@@ -83,10 +97,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             employees={employeesState.employees}
             categories={categoriesState.categories}
             onViewStoreDetail={() => setActiveTab('store-detail')}
+            onViewIssues={() => setActiveTab('issues')}
           />
         );
       case 'store-detail':
-        return <StoreDetail storeId={storesState.stores[0]?.id ?? null} />;
+        return <StoreDetail storeId={storesState.stores[0]?.id ?? null} storeName={storesState.stores[0]?.name ?? null} />;
       case 'employees':
         return (
           <Employees
@@ -121,10 +136,8 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             searchSeed={searchSeed}
           />
         );
-      default: {
-        const _exhaustive: never = activeTab;
-        return _exhaustive;
-      }
+      case 'issues':
+        return <AdminIssues storeId={storesState.stores[0]?.id ?? null} />;
     }
   }
 
@@ -147,6 +160,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
       onSettingsClick={() => setOverlay('settings')}
+      onIssuesClick={() => { setOverlay(null); setActiveTab('issues'); }}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}
@@ -166,7 +180,13 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       ) : overlay === 'notifications' ? (
         <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
       ) : (
-        renderActivePage()
+        ALL_TABS.map((tab) =>
+          mountedTabs.has(tab) ? (
+            <div key={tab} style={activeTab !== tab ? { display: 'none' } : undefined}>
+              {renderTab(tab)}
+            </div>
+          ) : null,
+        )
       )}
     </AppShell>
   );

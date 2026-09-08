@@ -45,6 +45,7 @@ public class NotificationService {
         PRIORITY_BY_CATEGORY.put("STORE_ZERO_ACTIVITY",           "HIGH");
         PRIORITY_BY_CATEGORY.put("OWNER_EMAIL_FAILED",            "HIGH");
         PRIORITY_BY_CATEGORY.put("ISSUES_OVERDUE",                "MEDIUM");
+        PRIORITY_BY_CATEGORY.put("ISSUE_NUDGE",                   "HIGH");
     }
 
     private final NotificationRepository notificationRepository;
@@ -132,6 +133,18 @@ public class NotificationService {
                 msg,
                 null);
         }
+    }
+
+    @Transactional
+    public void nudgeOwnerForIssue(RaisedIssue issue, User owner) {
+        String storeName = issue.getStore().getName();
+        String notePreview = issue.getNote().length() > 80
+            ? issue.getNote().substring(0, 80) + "…"
+            : issue.getNote();
+        send(owner, "ISSUE_NUDGE",
+            "Action required: unresolved issue at " + storeName,
+            "A Super Admin is requesting you resolve this issue: \"" + notePreview + "\"",
+            "/issues");
     }
 
     @Transactional

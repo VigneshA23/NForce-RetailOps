@@ -1,0 +1,170 @@
+.sa-issues-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+}
+
+
+/* ── Table cell content ─────────────────────────────── */
+
+.sa-issues-page__store-name {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.sa-issues-page__note {
+  display: block;
+  color: var(--color-text-primary);
+  max-width: 320px;
+  line-height: 1.45;
+}
+
+.sa-issues-page__response {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 3px;
+  max-width: 320px;
+}
+
+.sa-issues-page__date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.sa-issues-page__time {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ── Action column ──────────────────────────────────── */
+
+.sa-issues-page__action-col {
+  white-space: nowrap;
+  width: 1%;
+}
+
+.data-table thead th.sa-issues-page__action-col {
+  text-align: left;
+}
+
+.sa-issues-page__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.sa-issues-page__nudge-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sa-issues-page__resolved-label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* ── Group header rows (grouped view) ───────────────── */
+
+.issues-group-header-row td {
+  padding: 12px 12px 6px;
+  background: var(--color-bg-page);
+  border-bottom: none;
+}
+
+.issues-group-header-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.issues-group-count {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: 100px;
+  padding: 0 7px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+/* ── Resolve modal (shared class with AdminIssues) ──── */
+
+.issues-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-md);
+}
+
+.issues-modal {
+  background: var(--color-surface-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-lg);
+  width: min(480px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.issues-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.issues-modal__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.issues-modal__close {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.issues-modal__close:hover {
+  color: var(--color-text-primary);
+  background: var(--color-bg-page);
+}
+
+.issues-modal__note {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.issues-modal__input {
+  resize: vertical;
+  min-height: 72px;
+  font-size: 13px;
+}
+
+.issues-modal__footer {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}

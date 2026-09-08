@@ -54,6 +54,7 @@ function ensureFetchIsPatched() {
     /\/api\/super-admin\/platform-trend/,
     /\/api\/super-admin\/stores\/\d+\/trend/,
     /\/api\/me\/search/,
+    /\/api\/admin\/issues/,
   ];
 
   window.fetch = async (...args: Parameters<typeof fetch>) => {

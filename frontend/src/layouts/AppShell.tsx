@@ -28,6 +28,7 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onProfileClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
+  onIssuesClick?: () => void;
   onNotificationsClick?: () => void;
   onNotificationNavigate?: (path: string) => void;
   notificationUnreadCount?: number;
@@ -52,6 +53,8 @@ interface AppShellProps<Key extends string = NavTabKey> {
   // `navItems` when omitted, so existing 'bottom-tabs' callers (Employee)
   // are unaffected.
   bottomNavItems?: NavItem<Key>[];
+  // Optional per-tab badge dots (e.g. issues badge). Key is the nav tab key.
+  tabBadges?: Partial<Record<string, boolean>>;
   children: ReactNode;
 }
 
@@ -70,6 +73,7 @@ function AppShell<Key extends string = NavTabKey>({
   onProfileClick,
   onHelpClick,
   onSettingsClick,
+  onIssuesClick,
   onNotificationsClick,
   onNotificationNavigate,
   notificationUnreadCount,
@@ -79,6 +83,7 @@ function AppShell<Key extends string = NavTabKey>({
   contentKey,
   mobileNav = 'drawer',
   bottomNavItems,
+  tabBadges,
   showSearch = true,
   children,
 }: AppShellProps<Key>) {
@@ -101,6 +106,7 @@ function AppShell<Key extends string = NavTabKey>({
         mobileOpen={isMobile && mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
         user={user}
+        tabBadges={tabBadges}
       />
       <div className="app-shell__content">
         <div className="app-shell__header">
@@ -120,6 +126,7 @@ function AppShell<Key extends string = NavTabKey>({
             onProfileClick={onProfileClick}
             onHelpClick={onHelpClick}
             onSettingsClick={onSettingsClick}
+            onIssuesClick={onIssuesClick}
             onNotificationsClick={onNotificationsClick}
             onNotificationNavigate={onNotificationNavigate}
             notificationUnreadCount={notificationUnreadCount}
@@ -146,7 +153,7 @@ function AppShell<Key extends string = NavTabKey>({
         </main>
       </div>
       {useBottomTabs && (
-        <BottomNav<Key> items={bottomNavItems ?? navItems} activeKey={activeTab} onSelect={onSelectTab} />
+        <BottomNav<Key> items={bottomNavItems ?? navItems} activeKey={activeTab} onSelect={onSelectTab} tabBadges={tabBadges} />
       )}
     </div>
   );

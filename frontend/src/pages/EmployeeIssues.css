@@ -1,10 +1,20 @@
+@import '../styles/breakpoints.css';
+
 .emp-issues-page {
-  padding: 24px 20px 40px;
-  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
 }
 
-.emp-issues-page__header {
-  margin-bottom: 20px;
+/* ── Header row: title + Raise Issue button ── */
+
+.emp-issues-page__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
 }
 
 .emp-issues-page__heading {
@@ -20,10 +30,19 @@
   margin: 0;
 }
 
+/* ── Total count line ── */
+
+.emp-issues-page__total {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ── Loading / error / empty ── */
+
 .emp-issues-page__loading {
   color: var(--color-text-secondary);
   font-size: 0.9rem;
-  margin: 32px 0;
 }
 
 .emp-issues-page__error {
@@ -36,7 +55,6 @@
   border-radius: 10px;
   color: #dc2626;
   font-size: 0.875rem;
-  margin-top: 16px;
 }
 
 .emp-issues-page__empty {
@@ -67,251 +85,43 @@
   opacity: 0.6;
 }
 
-/* Tabs */
+/* ── Table cell content ── */
 
-.emp-issues-tabs {
-  display: flex;
-  gap: 6px;
-  margin-bottom: 18px;
-  flex-wrap: wrap;
-}
-
-.emp-issues-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1px solid var(--color-border, #e5e7eb);
-  background: var(--color-surface-card, #fff);
-  color: var(--color-text-secondary);
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
-}
-
-.emp-issues-tab:hover {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-primary);
-}
-
-.emp-issues-tab--active {
-  background: var(--color-primary, #2563eb);
-  border-color: var(--color-primary, #2563eb);
-  color: #fff;
-}
-
-.emp-issues-tab--active:hover {
-  background: var(--color-primary-hover, #1d4ed8);
-  color: #fff;
-}
-
-.emp-issues-tab__count {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.25);
-  color: inherit;
-  font-size: 0.7rem;
-  font-weight: 700;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: 9px;
-}
-
-.emp-issues-tab:not(.emp-issues-tab--active) .emp-issues-tab__count {
-  background: var(--color-surface-hover, #f3f4f6);
-  color: var(--color-text-secondary);
-}
-
-/* Issue list */
-
-.emp-issues-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-/* Issue card */
-
-.emp-issue-card {
-  background: var(--color-surface-card, #fff);
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 12px;
-  padding: 16px 18px;
-  transition: box-shadow 0.15s;
-}
-
-.emp-issue-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-}
-
-.emp-issue-card--resolved {
-  border-left: 3px solid #16a34a;
-}
-
-.emp-issue-card--acknowledged {
-  border-left: 3px solid #d97706;
-}
-
-.emp-issue-card--open {
-  border-left: 3px solid #ef4444;
-}
-
-.emp-issue-card__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-  gap: 12px;
-}
-
-.emp-issue-card__date {
-  font-size: 0.78rem;
-  color: var(--color-text-secondary);
-}
-
-.emp-issue-card__note {
-  font-size: 0.9rem;
-  color: var(--color-text-primary);
-  margin: 0 0 10px;
-  line-height: 1.5;
-}
-
-.emp-issue-card__note:last-child {
-  margin-bottom: 0;
-}
-
-/* Status badges */
-
-.emp-issue-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 9px;
-  border-radius: 12px;
-  font-size: 0.72rem;
-  font-weight: 600;
+.emp-issues-page__date-cell {
   white-space: nowrap;
-}
-
-.emp-issue-badge--open {
-  background: rgba(239, 68, 68, 0.1);
-  color: #dc2626;
-}
-
-.emp-issue-badge--acknowledged {
-  background: rgba(217, 119, 6, 0.1);
-  color: #b45309;
-}
-
-.emp-issue-badge--resolved {
-  background: rgba(22, 163, 74, 0.1);
-  color: #15803d;
-}
-
-/* Resolution block */
-
-.emp-issue-card__resolution {
-  margin-top: 10px;
-  padding: 10px 12px;
-  background: rgba(22, 163, 74, 0.06);
-  border: 1px solid rgba(22, 163, 74, 0.15);
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.emp-issue-card__resolution-label {
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #15803d;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.emp-issue-card__resolution-text {
-  font-size: 0.875rem;
-  color: var(--color-text-primary);
-  line-height: 1.45;
-}
-
-.emp-issue-card__resolution-text--none {
   color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.emp-issues-page__note {
+  display: block;
+  color: var(--color-text-primary);
+}
+
+.emp-issues-page__response {
+  display: block;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  max-width: 260px;
+}
+
+.emp-issues-page__response-by {
+  color: var(--color-text-muted);
+}
+
+.emp-issues-page__response--hint {
+  color: var(--color-text-muted);
   font-style: italic;
 }
 
-.emp-issue-card__resolution-by {
-  font-size: 0.78rem;
-  color: var(--color-text-secondary);
-}
-
-.emp-issue-card__acknowledged-hint {
-  font-size: 0.8rem;
-  color: #b45309;
-  margin: 8px 0 0;
+.emp-issues-page__response--none {
+  color: var(--color-text-muted);
 }
 
 /* Dark mode */
-
-[data-theme='dark'] .emp-issues-tab {
-  background: var(--color-surface-card);
-  border-color: var(--color-border, rgba(255, 255, 255, 0.1));
-  color: var(--color-text-secondary);
-}
-
-[data-theme='dark'] .emp-issues-tab:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-[data-theme='dark'] .emp-issues-tab--active {
-  background: var(--color-primary, #3b82f6);
-  border-color: var(--color-primary, #3b82f6);
-  color: #fff;
-}
-
-[data-theme='dark'] .emp-issue-card {
-  background: var(--color-surface-card);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-
-[data-theme='dark'] .emp-issue-badge--open {
-  background: rgba(239, 68, 68, 0.15);
-  color: #f87171;
-}
-
-[data-theme='dark'] .emp-issue-badge--acknowledged {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fbbf24;
-}
-
-[data-theme='dark'] .emp-issue-badge--resolved {
-  background: rgba(34, 197, 94, 0.15);
-  color: #4ade80;
-}
-
-[data-theme='dark'] .emp-issue-card__resolution {
-  background: rgba(34, 197, 94, 0.08);
-  border-color: rgba(34, 197, 94, 0.2);
-}
-
-[data-theme='dark'] .emp-issue-card__resolution-label {
-  color: #4ade80;
-}
-
-[data-theme='dark'] .emp-issue-card__acknowledged-hint {
-  color: #fbbf24;
-}
 
 [data-theme='dark'] .emp-issues-page__error {
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.25);
   color: #f87171;
-}
-
-[data-theme='dark'] .emp-issues-tab__count {
-  background: rgba(255, 255, 255, 0.08);
 }
