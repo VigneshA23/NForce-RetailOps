@@ -85,7 +85,11 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
     const nextErrors: Partial<Record<keyof FormState, string>> = {};
     if (!values.ownerName.trim()) nextErrors.ownerName = 'Name is required';
     if (!values.ownerEmail.trim()) nextErrors.ownerEmail = 'Email is required';
-    if (!values.ownerPhone.trim()) nextErrors.ownerPhone = 'Contact number is required';
+    if (!values.ownerPhone.trim()) {
+      nextErrors.ownerPhone = 'Contact number is required';
+    } else if (!/^\d{10}$/.test(values.ownerPhone.trim())) {
+      nextErrors.ownerPhone = 'Contact number must be exactly 10 digits';
+    }
     if (!values.ownerGender) nextErrors.ownerGender = 'Gender is required';
     if (values.storeMode === 'new') {
       if (!values.storeName.trim()) nextErrors.storeName = 'Store name is required';
@@ -163,10 +167,12 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
             <input
               id="owner-phone"
               type="tel"
+              inputMode="numeric"
+              maxLength={10}
               className="input"
               value={values.ownerPhone}
               onChange={(event) => updateField('ownerPhone', event.target.value)}
-              placeholder="e.g. +1 555 000 0000"
+              placeholder="e.g. 5550000000"
             />
           </FormField>
 
