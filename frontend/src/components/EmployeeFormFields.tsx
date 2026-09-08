@@ -20,7 +20,12 @@ export function emptyEmployeeFormValues(): EmployeeFormValues {
 
 export function employeeFormValuesFromUpdate(initialValues: EmployeeUpdateValues): EmployeeFormValues {
   const { countryCode, phone } = parsePhoneForForm(initialValues.phone);
-  return { ...initialValues, phone, countryCode };
+  return {
+    ...initialValues,
+    phone,
+    countryCode,
+    employeeType: initialValues.employeeType ?? EMPLOYEE_TYPE_OPTIONS[0],
+  };
 }
 
 interface EmployeeFormFieldsProps {

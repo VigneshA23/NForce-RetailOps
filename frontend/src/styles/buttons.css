@@ -54,3 +54,15 @@
   background: #f59e0b;
   color: #fff;
 }
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+.btn--ghost:hover:not(:disabled) {
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  opacity: 1;
+}

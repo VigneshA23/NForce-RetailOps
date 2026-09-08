@@ -9,6 +9,7 @@ import type { ChecklistCategory, TaskResponseSummary } from '../types/task';
 export async function getDailyChecklist(storeId: number): Promise<ChecklistCategory[]> {
   const result = await apiRequest<{ storeId: number; date: string; categories: ChecklistCategory[] }>(
     `/me/tasks/today?storeId=${storeId}`,
+    { timeoutMs: 30_000 },
   );
   return result.categories;
 }

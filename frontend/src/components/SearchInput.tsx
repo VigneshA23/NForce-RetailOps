@@ -14,7 +14,7 @@ function SearchInput({ value, onChange, placeholder = 'Search...', variant = 'he
       <div className="search-input--filter">
         <Search size={14} className="search-input--filter__icon" aria-hidden="true" />
         <input
-          type="text"
+          type="search"
           className="search-input--filter__field"
           value={value}
           onChange={(event) => onChange(event.target.value)}
