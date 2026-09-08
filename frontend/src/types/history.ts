@@ -40,7 +40,7 @@ export interface HistoryCategoryEntry {
   tasks: HistoryTaskDetail[];
 }
 
-export type IssueStatus = 'OPEN' | 'RESOLVED';
+export type IssueStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
 
 export interface HistoryIssueEntry {
   id: number;
