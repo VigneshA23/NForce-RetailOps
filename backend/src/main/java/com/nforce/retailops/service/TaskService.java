@@ -148,6 +148,10 @@ public class TaskService {
     @Transactional
     public TaskResponse setActive(Long ownerId, Long taskId, boolean active) {
         Task task = requireOwnedTask(ownerId, taskId);
+        if (active && !task.getCategory().isActive()) {
+            throw new CategoryInactiveException(
+                "This task's category is inactive -- activate the category first");
+        }
         task.setActive(active);
         task = taskRepository.save(task);
         return TaskResponse.from(task);
