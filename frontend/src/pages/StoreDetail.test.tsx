@@ -45,6 +45,7 @@ function respondedYes(id: number) {
       latestCorrection: null,
       flaggedNeedsCorrection: false,
       flagReason: null,
+      resubmissionHistory: [],
     },
   ];
 }

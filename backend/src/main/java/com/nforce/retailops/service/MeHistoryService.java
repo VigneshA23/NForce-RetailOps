@@ -5,11 +5,13 @@ import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryIssueResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
+import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.repository.AdminCorrectionRepository;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -53,6 +55,7 @@ public class MeHistoryService {
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final UserProfileService userProfileService;
     private final RaisedIssueRepository raisedIssueRepository;
+    private final AdminCorrectionRepository adminCorrectionRepository;
 
     public MeHistoryService(
         TaskRepository taskRepository,
@@ -60,7 +63,8 @@ public class MeHistoryService {
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
         UserProfileService userProfileService,
-        RaisedIssueRepository raisedIssueRepository
+        RaisedIssueRepository raisedIssueRepository,
+        AdminCorrectionRepository adminCorrectionRepository
     ) {
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
@@ -68,6 +72,7 @@ public class MeHistoryService {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.userProfileService = userProfileService;
         this.raisedIssueRepository = raisedIssueRepository;
+        this.adminCorrectionRepository = adminCorrectionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -132,6 +137,14 @@ public class MeHistoryService {
                     storeEmployee -> "EMP-" + String.format("%03d", storeEmployee.getId())
                 ));
 
+        // An owner's DIRECT value-edit (as opposed to a flag -> resubmit cycle) is now
+        // shown to the employee too -- same latestCorrection lookup the owner-facing
+        // ChecklistHistoryService.getDetail already does.
+        List<Long> responseIds = responses.stream().map(TaskResponseEntry::getId).toList();
+        Map<Long, AdminCorrection> latestCorrectionByResponseId = responseIds.isEmpty()
+            ? Map.of()
+            : adminCorrectionRepository.findLatestByResponseIds(responseIds);
+
         LinkedHashMap<Long, List<Task>> tasksByCategory = new LinkedHashMap<>();
         for (Task task : allTasks) {
             tasksByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(task);
@@ -142,7 +155,9 @@ public class MeHistoryService {
                 tasks.get(0).getCategory().getId(),
                 tasks.get(0).getCategory().getName(),
                 tasks.stream()
-                    .map(task -> toHistoryTaskItem(task, responsesByTask.getOrDefault(task.getId(), List.of()), empIdByUserId))
+                    .map(task -> toHistoryTaskItem(
+                        task, responsesByTask.getOrDefault(task.getId(), List.of()),
+                        empIdByUserId, latestCorrectionByResponseId))
                     .toList()
             ))
             .toList();
@@ -156,23 +171,33 @@ public class MeHistoryService {
     }
 
     private HistoryTaskItemResponse toHistoryTaskItem(
-        Task task, List<TaskResponseEntry> responses, Map<Long, String> empIdByUserId
+        Task task, List<TaskResponseEntry> responses, Map<Long, String> empIdByUserId,
+        Map<Long, AdminCorrection> latestCorrectionByResponseId
     ) {
         List<HistoryResponseEntryResponse> responseDtos = responses.stream()
-            .map(entry -> new HistoryResponseEntryResponse(
-                entry.getId(),
-                entry.getEmployee().getId(),
-                entry.getEmployee().getFullName(),
-                empIdByUserId.get(entry.getEmployee().getId()),
-                entry.getValueBoolean(),
-                entry.getValueNumeric(),
-                entry.getValueText(),
-                entry.getCreatedAt(),
-                null,  // employees viewing their own history never see admin correction metadata
-                entry.getEmployee().getAvatarUrl(),
-                entry.isFlaggedNeedsCorrection(),
-                entry.getFlagReason()
-            ))
+            .map(entry -> {
+                AdminCorrection correction = latestCorrectionByResponseId.get(entry.getId());
+                return new HistoryResponseEntryResponse(
+                    entry.getId(),
+                    entry.getEmployee().getId(),
+                    entry.getEmployee().getFullName(),
+                    empIdByUserId.get(entry.getEmployee().getId()),
+                    entry.getValueBoolean(),
+                    entry.getValueNumeric(),
+                    entry.getValueText(),
+                    entry.getCreatedAt(),
+                    // Previously hidden from employees; now shown, same as the owner-facing
+                    // view -- the employee's own previous -> edited value, the owner's
+                    // comment, who edited it, and when.
+                    correction != null ? ChecklistHistoryService.toCorrectionEntry(correction) : null,
+                    entry.getEmployee().getAvatarUrl(),
+                    entry.isFlaggedNeedsCorrection(),
+                    entry.getFlagReason(),
+                    // The flag -> resubmit history is also shown to the employee: it's their
+                    // own prior answer, the owner's comment on it, and what they resubmitted.
+                    ChecklistHistoryService.buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository)
+                );
+            })
             .toList();
 
         return new HistoryTaskItemResponse(

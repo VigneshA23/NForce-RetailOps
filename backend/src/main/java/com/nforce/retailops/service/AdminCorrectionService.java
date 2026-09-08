@@ -139,7 +139,8 @@ public class AdminCorrectionService {
             correctionDto,
             entry.getEmployee().getAvatarUrl(),
             entry.isFlaggedNeedsCorrection(),
-            entry.getFlagReason()
+            entry.getFlagReason(),
+            ChecklistHistoryService.buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository)
         );
 
         return new AdminCorrectionApplyResponse(updatedResponse, correctionDto);
@@ -200,7 +201,8 @@ public class AdminCorrectionService {
             correctionDto,
             entry.getEmployee().getAvatarUrl(),
             true,
-            trimmedReason
+            trimmedReason,
+            ChecklistHistoryService.buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository)
         );
     }
 

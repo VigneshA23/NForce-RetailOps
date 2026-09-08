@@ -151,7 +151,13 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       }}
       title={title}
       subtitle={storesState.stores[0]?.name}
-      contentKey={overlay ?? activeTab}
+      // A stable key (not activeTab) while no overlay is open: AppShell keys
+      // its content wrapper on this and remounts on every change, which would
+      // otherwise blow away the "lazy-mount, stay alive" tabs below on every
+      // ordinary tab switch -- refiring each tab's full data-fetch burst
+      // (e.g. Daily Checklist's ~9 concurrent history requests) every time,
+      // not just once per session.
+      contentKey={overlay ?? 'tabs'}
       logoSrc="/nforce-logo.png"
       hideLogoOnDesktop
       user={user}

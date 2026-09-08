@@ -1,8 +1,12 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.AdminCorrectionEntry;
+import com.nforce.retailops.dto.AdminCorrectionRequest;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
+import com.nforce.retailops.dto.ResponseHistoryEntry;
+import com.nforce.retailops.dto.TaskResponseStateResponse;
 import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.dto.TodayChecklistResponse;
 import com.nforce.retailops.entity.Category;
@@ -70,6 +74,8 @@ class MeHistoryServiceTest {
     private TaskResponseEntryRepository taskResponseEntryRepository;
     @Autowired
     private RaisedIssueRepository raisedIssueRepository;
+    @Autowired
+    private AdminCorrectionService adminCorrectionService;
 
     private Long ownerId;
     private Long categoryId;
@@ -588,5 +594,86 @@ class MeHistoryServiceTest {
         ChecklistHistoryDetailResponse detail = meHistoryService.getDetail(employeeId, storeId, LocalDate.now());
 
         assertThat(detail.issues()).isEmpty();
+    }
+
+    // 8. Flag -> resubmit end-to-end: the owner's flag comment, who flagged it,
+    // when, and the employee's original (now-superseded) answer must all survive
+    // and surface in the employee's own History via resubmissionHistory -- the
+    // full TaskService.submitResponse -> AdminCorrectionService.flagResponse ->
+    // TaskService.submitResponse -> MeHistoryService.getDetail path, not just the
+    // buildResubmissionHistory helper in isolation. The original response row
+    // itself must also survive untouched (never overwritten/deleted).
+    @Test
+    @Transactional
+    void historyResubmissionChainPreservesOriginalValueOwnerCommentAndTimestamps() {
+        Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
+        LocalDate today = LocalDate.now();
+
+        TaskResponseStateResponse firstSubmit =
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+        Long originalResponseId = firstSubmit.responses().get(0).id();
+
+        adminCorrectionService.flagResponse(originalResponseId, ownerId, null, "Please recheck the lock");
+
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+
+        ChecklistHistoryDetailResponse history = meHistoryService.getDetail(employeeId, storeId, today);
+        HistoryTaskItemResponse item = history.categories().get(0).tasks().get(0);
+        assertThat(item.responses()).hasSize(1);
+
+        HistoryResponseEntryResponse current = item.responses().get(0);
+        assertThat(current.id()).isNotEqualTo(originalResponseId);
+        assertThat(current.booleanValue()).isTrue();
+        assertThat(current.flaggedNeedsCorrection()).isFalse();
+
+        assertThat(current.resubmissionHistory()).hasSize(1);
+        ResponseHistoryEntry hop = current.resubmissionHistory().get(0);
+        assertThat(hop.responseId()).isEqualTo(originalResponseId);
+        assertThat(hop.booleanValue()).isFalse();
+        assertThat(hop.flagReason()).isEqualTo("Please recheck the lock");
+        assertThat(hop.flaggedByName()).isEqualTo("Test history-owner");
+        assertThat(hop.flaggedAt()).isNotNull();
+
+        TaskResponseEntry originalRow = taskResponseEntryRepository.findById(originalResponseId).orElseThrow();
+        assertThat(originalRow.isActive()).isFalse();
+        assertThat(originalRow.getValueBoolean()).isFalse();
+    }
+
+    // 9. DIRECT correction end-to-end: when the owner edits a response's value in
+    // place (as opposed to flagging it back), the employee's own History must show
+    // the original value -> corrected value, the owner's comment, who corrected it,
+    // and when -- the full TaskService.submitResponse -> AdminCorrectionService.
+    // correctResponse -> MeHistoryService.getDetail path.
+    @Test
+    @Transactional
+    void historyShowsDirectCorrectionWithOriginalValueCommentAndEditor() {
+        Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
+        LocalDate today = LocalDate.now();
+
+        TaskResponseStateResponse submitted =
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+        Long responseId = submitted.responses().get(0).id();
+
+        adminCorrectionService.correctResponse(
+            responseId, ownerId, null, new AdminCorrectionRequest(true, null, null, "Verified in person"));
+
+        ChecklistHistoryDetailResponse history = meHistoryService.getDetail(employeeId, storeId, today);
+        HistoryTaskItemResponse item = history.categories().get(0).tasks().get(0);
+        assertThat(item.responses()).hasSize(1);
+
+        HistoryResponseEntryResponse current = item.responses().get(0);
+        // The row is edited in place -- same id, new value.
+        assertThat(current.id()).isEqualTo(responseId);
+        assertThat(current.booleanValue()).isTrue();
+        assertThat(current.resubmissionHistory()).isEmpty();
+
+        AdminCorrectionEntry correction = current.latestCorrection();
+        assertThat(correction).isNotNull();
+        assertThat(correction.originalValueBoolean()).isFalse();
+        assertThat(correction.correctedValueBoolean()).isTrue();
+        assertThat(correction.reason()).isEqualTo("Verified in person");
+        assertThat(correction.correctedByFullName()).isEqualTo("Test history-owner");
+        assertThat(correction.correctedAt()).isNotNull();
+        assertThat(correction.correctionType()).isEqualTo("DIRECT");
     }
 }

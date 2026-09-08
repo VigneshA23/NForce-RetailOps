@@ -308,6 +308,38 @@ class TaskServiceTest {
     }
 
     @Test
+    void reactivatingATaskUnderAnInactiveCategoryIsRejected() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.setActive(false);
+        category.setActive(false);
+        task.setCategory(category);
+        when(taskRepository.findByIdAndOwnerId(taskId, OWNER_ID)).thenReturn(Optional.of(task));
+
+        assertThatThrownBy(() -> taskService.setActive(OWNER_ID, taskId, true))
+            .isInstanceOf(CategoryInactiveException.class);
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void deactivatingATaskIsAlwaysAllowedRegardlessOfCategoryStatus() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.setActive(true);
+        category.setActive(false);
+        task.setCategory(category);
+        when(taskRepository.findByIdAndOwnerId(taskId, OWNER_ID)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse response = taskService.setActive(OWNER_ID, taskId, false);
+
+        assertThat(response.active()).isFalse();
+    }
+
+    @Test
     void deleteTaskIsRejectedWhenTaskHasCheckedHistory() {
         Long taskId = 9L;
         var task = new Task();

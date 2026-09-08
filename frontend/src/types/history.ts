@@ -17,10 +17,39 @@ export interface HistoryResponderEntry extends HistoryResponder {
   respondedAt: string;
 }
 
+// One change to a response's value already resolved into the two values it
+// connects, so the page can render it directly without re-deriving anything.
+// Two kinds share this shape:
+//  - FLAG_RESUBMIT: the owner flagged a response with a comment, the employee
+//    resubmitted a new one (fromValue -> toValue are two different response rows).
+//  - DIRECT_CORRECTION: the owner edited the response's value in place
+//    (fromValue -> toValue are the same row, before/after the edit).
+export interface HistoryResubmissionTransition {
+  kind: 'FLAG_RESUBMIT' | 'DIRECT_CORRECTION';
+  fromValue: string | null;
+  toValue: string | null;
+  // The owner's comment/reason for the change, if any.
+  flagReason: string | null;
+  // Who made the change (flagged it, or directly edited it).
+  flaggedByName: string | null;
+  // Formatted local date+time, or null if unknown -- same convention as
+  // completedAt/respondedAt elsewhere in this file.
+  flaggedAt: string | null;
+  // Only meaningful for FLAG_RESUBMIT: who/when the employee resubmitted.
+  // Same as flaggedByName/flaggedAt for DIRECT_CORRECTION (no separate
+  // resubmission event -- the owner's edit IS the new value).
+  resubmittedByName: string;
+  resubmittedAt: string;
+}
+
 export interface HistoryTaskDetail {
   id: number;
   name: string;
   status: TaskStatus;
+  // The actual value the employee submitted (Yes/No, Done/Not done, a number
+  // [+ unit], or free text) -- derived client-side from the backend's raw
+  // booleanValue/numericValue/textValue, null when nothing was ever answered.
+  responseValue: string | null;
   completedBy: HistoryResponder | null;
   // Formatted local time (e.g. "2:30 PM") of the response used to derive
   // `status`/`completedBy` -- derived client-side from the backend's
@@ -30,6 +59,9 @@ export interface HistoryTaskDetail {
   // first. For a SINGLE-completion task this is at most one entry (same as
   // completedBy); a MULTIPLE-completion task can have several.
   completedByAll: HistoryResponderEntry[];
+  // Oldest-first: one entry per flag -> resubmit cycle or direct owner edit
+  // this task's current answer has been through. Empty when never changed.
+  resubmissionHistory: HistoryResubmissionTransition[];
 }
 
 export interface HistoryCategoryEntry {

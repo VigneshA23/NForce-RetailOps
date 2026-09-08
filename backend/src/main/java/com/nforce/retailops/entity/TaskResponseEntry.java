@@ -71,6 +71,13 @@ public class TaskResponseEntry {
     @Column(name = "flag_reason", length = 500)
     private String flagReason;
 
+    // Id of the flagged response this row replaced on resubmission, or null for a
+    // response that has never been through a flag -> resubmit cycle. Plain id
+    // (not a @ManyToOne) since it's only ever walked by id lookups in
+    // ChecklistHistoryService.buildResubmissionHistory, never joined/fetched eagerly.
+    @Column(name = "superseded_response_id")
+    private Long supersededResponseId;
+
     public TaskResponseEntry() {
     }
 
@@ -191,5 +198,13 @@ public class TaskResponseEntry {
 
     public void setFlagReason(String flagReason) {
         this.flagReason = flagReason;
+    }
+
+    public Long getSupersededResponseId() {
+        return supersededResponseId;
+    }
+
+    public void setSupersededResponseId(Long supersededResponseId) {
+        this.supersededResponseId = supersededResponseId;
     }
 }
