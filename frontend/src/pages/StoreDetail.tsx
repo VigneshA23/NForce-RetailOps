@@ -21,9 +21,10 @@ const repeatOffenderCache = new Map<number, Map<number, number>>();
 
 interface StoreDetailProps {
   storeId: number | null;
+  storeName?: string | null;
 }
 
-function StoreDetail({ storeId }: StoreDetailProps) {
+function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   const [date, setDate] = useState(todayDate);
   const [pickerOpen, setPickerOpen] = useState(false);
   const dateTriggerRef = useRef<HTMLButtonElement>(null);
@@ -348,7 +349,7 @@ function StoreDetail({ storeId }: StoreDetailProps) {
               <ChevronRight size={16} />
             </button>
           </div>
-          <ExportMenu storeId={storeId} date={date} />
+          <ExportMenu storeId={storeId} date={date} storeName={storeName} />
         </div>
         <CalendarPopover
           value={date}
