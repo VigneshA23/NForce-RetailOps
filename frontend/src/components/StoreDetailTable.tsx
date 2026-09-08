@@ -115,6 +115,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                 <th scope="col">Task</th>
                 <th scope="col">Response</th>
                 <th scope="col">Employee</th>
+                <th scope="col" className="store-detail-table__actions-cell">Manager Actions</th>
                 <th scope="col" className="store-detail-table__status-cell">
                   Status
                 </th>
@@ -150,14 +151,18 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                     </td>
                     <td data-label="Employee">
                       {responders.length > 0 ? (
-                        responders.map((responder) => (
+                        <div className="store-detail-table__responders-list">
+                        {responders.map((responder) => (
                           <div key={responder.id} className="store-detail-table__employee-entry">
                             <span className="store-detail-table__employee-line">
                               <UserAvatar initials={getInitials(responder.employeeFullName)} src={responder.employeeAvatarUrl} size={20} />
-                              {responder.employeeFullName}
-                              <span className="store-detail-table__response-time"> · {formatTimeLabel(responder.respondedAt)}</span>
+                              <span className="store-detail-table__employee-name">
+                                {responder.employeeFullName}
+                                <span className="store-detail-table__response-time"> · {formatTimeLabel(responder.respondedAt)}</span>
+                              </span>
                             </span>
-                            <span className="store-detail-table__employee-actions">
+                            {/* Mobile-only: action buttons inline with each responder */}
+                            <div className="store-detail-table__inline-actions">
                               {responder.flaggedNeedsCorrection && (
                                 <span className="store-detail-table__flagged-badge" title={responder.flagReason ?? 'Flagged for correction'}>
                                   Flagged
@@ -188,7 +193,48 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                                   <Flag size={12} />
                                 </button>
                               )}
-                            </span>
+                            </div>
+                          </div>
+                        ))}
+                        </div>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td data-label="Manager Actions" className="store-detail-table__actions-cell store-detail-table__desktop-actions">
+                      {responders.length > 0 ? (
+                        responders.map((responder) => (
+                          <div key={responder.id} className="store-detail-table__actions-entry">
+                            {responder.flaggedNeedsCorrection && (
+                              <span className="store-detail-table__flagged-badge" title={responder.flagReason ?? 'Flagged for correction'}>
+                                Flagged
+                              </span>
+                            )}
+                            {responder.latestCorrection && !responder.flaggedNeedsCorrection && (
+                              <CorrectedBadge responseEntry={responder} task={task} />
+                            )}
+                            {onResponseCorrected && !responder.flaggedNeedsCorrection && (
+                              <button
+                                type="button"
+                                className="store-detail-table__correct-btn"
+                                onClick={() => setCorrectionTarget({ responseEntry: responder, task })}
+                                aria-label="Correct this response"
+                                title="Correct this response"
+                              >
+                                <Pencil size={12} />
+                              </button>
+                            )}
+                            {onResponseFlagged && !responder.flaggedNeedsCorrection && (
+                              <button
+                                type="button"
+                                className="store-detail-table__correct-btn store-detail-table__flag-btn"
+                                onClick={() => setFlagTarget({ responseEntry: responder, task })}
+                                aria-label="Flag this response for correction"
+                                title="Flag back to employee"
+                              >
+                                <Flag size={12} />
+                              </button>
+                            )}
                           </div>
                         ))
                       ) : (
