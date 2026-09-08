@@ -196,7 +196,8 @@ describe('Employee Checklist response type rendering', () => {
     await user.tab()
 
     expect(mockSubmitTaskResponse).toHaveBeenCalledWith(5, { storeId: 1, textValue: 'All clear' })
-    expect(await screen.findByText('Completed by Test Employee')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Undo' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox')).toHaveValue('All clear')
   })
 })
 
@@ -224,8 +225,8 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
     )
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText('Not Answered')).toBeInTheDocument()
-    expect(screen.queryByText(/Completed By/)).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Mark as Done' })).toBeInTheDocument()
+    expect(screen.queryByText(/responded/)).not.toBeInTheDocument()
     // The old per-response name + time list must no longer render for MULTIPLE tasks.
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
   })
@@ -274,7 +275,7 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
     }])
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText(/2\/4 Completed By/)).toBeInTheDocument()
+    expect(await screen.findByText(/2\/4 responded/)).toBeInTheDocument()
     // Old status text and the old responder name + time list must not also render.
     expect(screen.queryByText('Not Answered')).not.toBeInTheDocument()
     expect(screen.queryByRole('list')).not.toBeInTheDocument()
@@ -391,8 +392,8 @@ describe('Employee Checklist "X/Y Completed By" display', () => {
     }])
     render(<EmployeeDashboard store={STORE} onLogout={() => {}} employeeId={99} />)
 
-    expect(await screen.findByText('Completed by Alex Employee')).toBeInTheDocument()
-    expect(screen.queryByText(/Completed By/)).not.toBeInTheDocument()
+    expect(await screen.findByText('Done by Alex Employee')).toBeInTheDocument()
+    expect(screen.queryByText(/responded/)).not.toBeInTheDocument()
   })
 })
 
