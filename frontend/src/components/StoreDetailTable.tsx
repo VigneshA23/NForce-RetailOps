@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Flag, History as HistoryIcon, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 import { responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
@@ -42,27 +43,119 @@ interface ResponseTarget {
 }
 
 // Shared open/close wiring for the "Corrected" and "History" detail popovers:
-// desktop/tablet reveal on hover (mouse over the wrapping span, which also
-// covers the popover itself so moving the pointer into it doesn't close it) or
-// keyboard focus; mobile has no real hover, so it toggles on tap instead.
-// `onShow` runs right before the popover opens (e.g. to compute its position).
-function useDisclosure(isMobile: boolean, onShow?: () => void) {
-  const [open, setOpen] = useState(false);
-  function show() {
-    onShow?.();
-    setOpen(true);
+// desktop/tablet reveal on hover or keyboard focus; mobile has no real hover,
+// so it toggles on tap instead. The popover is rendered in a portal (see
+// BadgePopover below), so it's no longer a DOM descendant of the trigger --
+// hover state is tracked separately for the trigger and the popover itself
+// (`open` is true while either is hovered) so moving the pointer from the
+// badge into the popover doesn't close it.
+function useDisclosure(isMobile: boolean) {
+  const [hoverTrigger, setHoverTrigger] = useState(false);
+  const [hoverPopover, setHoverPopover] = useState(false);
+  const [tapOpen, setTapOpen] = useState(false);
+  const open = isMobile ? tapOpen : hoverTrigger || hoverPopover;
+
+  const triggerHandlers = isMobile
+    ? { onClick: () => setTapOpen((current) => !current) }
+    : {
+        onMouseEnter: () => setHoverTrigger(true),
+        onMouseLeave: () => setHoverTrigger(false),
+        onFocus: () => setHoverTrigger(true),
+        onBlur: () => setHoverTrigger(false),
+      };
+  const popoverHandlers = isMobile
+    ? {}
+    : { onMouseEnter: () => setHoverPopover(true), onMouseLeave: () => setHoverPopover(false) };
+
+  return { open, triggerHandlers, popoverHandlers };
+}
+
+const POPOVER_GAP = 8;
+const POPOVER_MARGIN = 8;
+const POPOVER_DEFAULT_WIDTH = 260;
+
+function computePopoverPosition(anchorRect: DOMRect, width: number, height: number) {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  const spaceRight = viewportWidth - anchorRect.right - POPOVER_GAP;
+  const spaceLeft = anchorRect.left - POPOVER_GAP;
+  let left: number;
+  if (spaceRight >= width) {
+    left = anchorRect.right + POPOVER_GAP;
+  } else if (spaceLeft >= width) {
+    left = anchorRect.left - width - POPOVER_GAP;
+  } else {
+    // Neither side has room (narrow viewport) -- fall back to directly under the badge.
+    left = anchorRect.left;
   }
-  function hide() {
-    setOpen(false);
-  }
-  const wrapHandlers = isMobile ? {} : { onMouseEnter: show, onMouseLeave: hide };
-  const triggerHandlers = isMobile ? { onClick: () => (open ? hide() : show()) } : { onFocus: show, onBlur: hide };
-  return { open, wrapHandlers, triggerHandlers };
+  left = Math.max(POPOVER_MARGIN, Math.min(left, viewportWidth - width - POPOVER_MARGIN));
+
+  let top = anchorRect.top;
+  top = Math.min(top, viewportHeight - height - POPOVER_MARGIN);
+  top = Math.max(POPOVER_MARGIN, top);
+
+  return { top, left };
+}
+
+// Renders a popover beside its trigger via a `document.body` portal, so it
+// escapes the table's scroll/overflow clipping and any ancestor stacking
+// context entirely (the table sits inside `.table-scroll`, whose
+// `overflow-x: auto` also clips `overflow-y` per the CSS spec, and on mobile
+// each row's card can otherwise paint over an absolutely-positioned popover
+// from an earlier row). Position is computed from the trigger's own bounding
+// rect after the popover has mounted (still before paint) so its real size is
+// known -- placed directly beside the badge (right, or left if there's no
+// room) and vertically aligned with it, then clamped on both axes so it can
+// never render outside the viewport.
+function BadgePopover({
+  open,
+  anchorRef,
+  popoverHandlers,
+  className,
+  children,
+}: {
+  open: boolean;
+  anchorRef: React.RefObject<HTMLElement>;
+  popoverHandlers: { onMouseEnter?: () => void; onMouseLeave?: () => void };
+  className: string;
+  children: React.ReactNode;
+}) {
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPosition(null);
+      return;
+    }
+    const anchorRect = anchorRef.current?.getBoundingClientRect();
+    if (!anchorRect) return;
+    const width = popoverRef.current?.offsetWidth ?? POPOVER_DEFAULT_WIDTH;
+    const height = popoverRef.current?.offsetHeight ?? 0;
+    setPosition(computePopoverPosition(anchorRect, width, height));
+  }, [open, anchorRef]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      ref={popoverRef}
+      className={className}
+      role="tooltip"
+      style={{ top: position?.top ?? 0, left: position?.left ?? 0, visibility: position ? 'visible' : 'hidden' }}
+      {...popoverHandlers}
+    >
+      {children}
+    </div>,
+    document.body,
+  );
 }
 
 function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHistoryResponseEntry; task: ChecklistHistoryTaskItem }) {
   const isMobile = useIsMobile();
-  const { open, wrapHandlers, triggerHandlers } = useDisclosure(isMobile);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const { open, triggerHandlers, popoverHandlers } = useDisclosure(isMobile);
   const c = responseEntry.latestCorrection!;
   const correctedAt = `${formatDateLabel(c.correctedAt.slice(0, 10))} ${formatTimeLabel(c.correctedAt)}`;
 
@@ -85,8 +178,9 @@ function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHisto
         : (c.correctedValueText ?? '—');
 
   return (
-    <span className="store-detail-table__corrected-wrap" {...wrapHandlers}>
+    <span className="store-detail-table__corrected-wrap">
       <button
+        ref={triggerRef}
         type="button"
         className="store-detail-table__corrected-badge"
         {...triggerHandlers}
@@ -95,28 +189,31 @@ function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHisto
       >
         Corrected
       </button>
-      {open && (
-        <span className="store-detail-table__correction-popover">
-          <span className="store-detail-table__correction-popover-row">
-            <span className="store-detail-table__correction-popover-label">By</span>
-            {c.correctedByFullName}
-          </span>
-          <span className="store-detail-table__correction-popover-row">
-            <span className="store-detail-table__correction-popover-label">When</span>
-            {correctedAt}
-          </span>
-          <span className="store-detail-table__correction-popover-row">
-            <span className="store-detail-table__correction-popover-label">Change</span>
-            {originalVal} → {correctedVal}
-          </span>
-          {c.reason && (
-            <span className="store-detail-table__correction-popover-row">
-              <span className="store-detail-table__correction-popover-label">Reason</span>
-              <em>{c.reason}</em>
-            </span>
-          )}
+      <BadgePopover
+        open={open}
+        anchorRef={triggerRef}
+        popoverHandlers={popoverHandlers}
+        className="store-detail-table__correction-popover"
+      >
+        <span className="store-detail-table__correction-popover-row">
+          <span className="store-detail-table__correction-popover-label">By</span>
+          {c.correctedByFullName}
         </span>
-      )}
+        <span className="store-detail-table__correction-popover-row">
+          <span className="store-detail-table__correction-popover-label">When</span>
+          {correctedAt}
+        </span>
+        <span className="store-detail-table__correction-popover-row">
+          <span className="store-detail-table__correction-popover-label">Change</span>
+          {originalVal} → {correctedVal}
+        </span>
+        {c.reason && (
+          <span className="store-detail-table__correction-popover-row">
+            <span className="store-detail-table__correction-popover-label">Reason</span>
+            <em>{c.reason}</em>
+          </span>
+        )}
+      </BadgePopover>
     </span>
   );
 }
@@ -139,83 +236,19 @@ function formatHistoryValue(entry: HistoryValueLike, task: ChecklistHistoryTaskI
   return '—';
 }
 
-// Width the popover renders at (matches the CSS class) -- the horizontal
-// clamp/flip logic below needs this before the popover has actually rendered
-// (its very first open), and falls back to its own measured offsetWidth once
-// it has.
-const HISTORY_POPOVER_WIDTH = 260;
-const HISTORY_POPOVER_MARGIN = 12;
-const HISTORY_POPOVER_GAP = 8;
-
 // "History" badge — shown once a response has been through at least one
 // flag -> resubmit cycle (StoreDetailTable.resubmissionHistory), independent of
 // whether it's currently flagged again or already resubmitted. Desktop/tablet:
-// hover/focus. Mobile: tap (see useDisclosure). Positioned with `position:
-// fixed` (not the usual `position: absolute`) from the trigger's own bounding
-// rect -- the table sits inside a horizontally scrolling container
-// (`.table-scroll`), whose `overflow-x: auto` also clips `overflow-y` per the
-// CSS spec, so an absolutely-positioned popover here would get cut off by
-// that ancestor instead of showing in full.
+// hover/focus. Mobile: tap (see useDisclosure). Rendered via BadgePopover
+// (a `document.body` portal), positioned directly beside this badge.
 function ResubmissionHistoryBadge({ responseEntry, task }: { responseEntry: ChecklistHistoryResponseEntry; task: ChecklistHistoryTaskItem }) {
   const isMobile = useIsMobile();
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const popoverRef = useRef<HTMLSpanElement>(null);
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
-  const { open, wrapHandlers, triggerHandlers } = useDisclosure(isMobile);
+  const { open, triggerHandlers, popoverHandlers } = useDisclosure(isMobile);
   const history = responseEntry.resubmissionHistory;
 
-  // Runs after the popover has mounted (still before paint) so its real
-  // rendered size is known -- placed directly beside the badge (to the right,
-  // or the left if there's no room), vertically aligned with it, and then
-  // clamped on both axes so it can never render outside the viewport.
-  useLayoutEffect(() => {
-    if (!open) {
-      setPosition(null);
-      return;
-    }
-    const triggerRect = triggerRef.current?.getBoundingClientRect();
-    if (!triggerRect) return;
-    const popoverWidth = popoverRef.current?.offsetWidth ?? HISTORY_POPOVER_WIDTH;
-    const popoverHeight = popoverRef.current?.offsetHeight ?? 0;
-
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-
-    const spaceRight = viewportWidth - triggerRect.right - HISTORY_POPOVER_GAP;
-    const spaceLeft = triggerRect.left - HISTORY_POPOVER_GAP;
-    let left: number;
-    if (spaceRight >= popoverWidth) {
-      left = triggerRect.right + HISTORY_POPOVER_GAP;
-    } else if (spaceLeft >= popoverWidth) {
-      left = triggerRect.left - popoverWidth - HISTORY_POPOVER_GAP;
-    } else {
-      // Neither side has room (narrow viewport) -- center it under the badge instead.
-      left = triggerRect.left + triggerRect.width / 2 - popoverWidth / 2;
-    }
-    left = Math.max(HISTORY_POPOVER_MARGIN, Math.min(left, viewportWidth - popoverWidth - HISTORY_POPOVER_MARGIN));
-
-    let top = triggerRect.top;
-    top = Math.min(top, viewportHeight - popoverHeight - HISTORY_POPOVER_MARGIN);
-    top = Math.max(HISTORY_POPOVER_MARGIN, top);
-
-    // `position: fixed` is normally viewport-relative, but any ancestor with
-    // `transform`/`filter`/`will-change: transform` (etc.) hijacks it into
-    // being relative to THAT ancestor instead (this app's page-transition
-    // wrapper, .app-shell__page, sets `will-change: opacity, transform`
-    // permanently) -- offsetParent already tells us which element is actually
-    // acting as the containing block, so the viewport-relative coordinates
-    // above are converted into that element's coordinate space before being
-    // applied. When nothing hijacks it, offsetParent is null and this is a
-    // no-op (subtracting {0, 0}).
-    const containingBlock = popoverRef.current?.offsetParent?.getBoundingClientRect();
-    setPosition({
-      top: top - (containingBlock?.top ?? 0),
-      left: left - (containingBlock?.left ?? 0),
-    });
-  }, [open]);
-
   return (
-    <span className="store-detail-table__corrected-wrap" {...wrapHandlers}>
+    <span className="store-detail-table__corrected-wrap">
       <button
         ref={triggerRef}
         type="button"
@@ -227,14 +260,13 @@ function ResubmissionHistoryBadge({ responseEntry, task }: { responseEntry: Chec
         <HistoryIcon size={10} />
         History
       </button>
-      {open && (
-        <span
-          ref={popoverRef}
-          className="store-detail-table__history-popover"
-          role="tooltip"
-          style={{ top: position?.top ?? 0, left: position?.left ?? 0, visibility: position ? 'visible' : 'hidden' }}
-        >
-          {history.map((hop, index) => {
+      <BadgePopover
+        open={open}
+        anchorRef={triggerRef}
+        popoverHandlers={popoverHandlers}
+        className="store-detail-table__history-popover"
+      >
+        {history.map((hop, index) => {
             const next = index + 1 < history.length ? history[index + 1] : responseEntry;
             const nextRespondedAt = index + 1 < history.length ? history[index + 1].respondedAt : responseEntry.respondedAt;
             const nextEmployeeName = index + 1 < history.length ? history[index + 1].employeeFullName : responseEntry.employeeFullName;
@@ -261,9 +293,8 @@ function ResubmissionHistoryBadge({ responseEntry, task }: { responseEntry: Chec
                 </span>
               </span>
             );
-          })}
-        </span>
-      )}
+        })}
+      </BadgePopover>
     </span>
   );
 }
@@ -271,6 +302,54 @@ function ResubmissionHistoryBadge({ responseEntry, task }: { responseEntry: Chec
 function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCorrected, onResponseFlagged, repeatOffenderMap }: StoreDetailTableProps) {
   const [correctionTarget, setCorrectionTarget] = useState<ResponseTarget | null>(null);
   const [flagTarget, setFlagTarget] = useState<ResponseTarget | null>(null);
+
+  // Shared by the mobile inline-actions cell and the desktop Manager Actions
+  // cell: badges (Flagged/Corrected/History) sit in a fixed-width slot ahead
+  // of the edit/flag icons so the icons land at the same x position on every
+  // row, whether a row has zero, one, or two badges.
+  function renderManagerActions(responder: ChecklistHistoryResponseEntry, task: ChecklistHistoryTaskItem) {
+    return (
+      <>
+        <span className="store-detail-table__badges">
+          {responder.flaggedNeedsCorrection && (
+            <span className="store-detail-table__flagged-badge" title={responder.flagReason ?? 'Flagged for correction'}>
+              Flagged
+            </span>
+          )}
+          {responder.latestCorrection && !responder.flaggedNeedsCorrection && (
+            <CorrectedBadge responseEntry={responder} task={task} />
+          )}
+          {responder.resubmissionHistory.length > 0 && (
+            <ResubmissionHistoryBadge responseEntry={responder} task={task} />
+          )}
+        </span>
+        <span className="store-detail-table__action-icons">
+          {onResponseCorrected && !responder.flaggedNeedsCorrection && (
+            <button
+              type="button"
+              className="store-detail-table__correct-btn"
+              onClick={() => setCorrectionTarget({ responseEntry: responder, task })}
+              aria-label="Correct this response"
+              title="Correct this response"
+            >
+              <Pencil size={12} />
+            </button>
+          )}
+          {onResponseFlagged && !responder.flaggedNeedsCorrection && (
+            <button
+              type="button"
+              className="store-detail-table__correct-btn store-detail-table__flag-btn"
+              onClick={() => setFlagTarget({ responseEntry: responder, task })}
+              aria-label="Flag this response for correction"
+              title="Flag back to employee"
+            >
+              <Flag size={12} />
+            </button>
+          )}
+        </span>
+      </>
+    );
+  }
 
   return (
     <>
@@ -331,39 +410,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                             </span>
                             {/* Mobile-only: action buttons inline with each responder */}
                             <div className="store-detail-table__inline-actions">
-                              {responder.flaggedNeedsCorrection && (
-                                <span className="store-detail-table__flagged-badge" title={responder.flagReason ?? 'Flagged for correction'}>
-                                  Flagged
-                                </span>
-                              )}
-                              {responder.latestCorrection && !responder.flaggedNeedsCorrection && (
-                                <CorrectedBadge responseEntry={responder} task={task} />
-                              )}
-                              {responder.resubmissionHistory.length > 0 && (
-                                <ResubmissionHistoryBadge responseEntry={responder} task={task} />
-                              )}
-                              {onResponseCorrected && !responder.flaggedNeedsCorrection && (
-                                <button
-                                  type="button"
-                                  className="store-detail-table__correct-btn"
-                                  onClick={() => setCorrectionTarget({ responseEntry: responder, task })}
-                                  aria-label="Correct this response"
-                                  title="Correct this response"
-                                >
-                                  <Pencil size={12} />
-                                </button>
-                              )}
-                              {onResponseFlagged && !responder.flaggedNeedsCorrection && (
-                                <button
-                                  type="button"
-                                  className="store-detail-table__correct-btn store-detail-table__flag-btn"
-                                  onClick={() => setFlagTarget({ responseEntry: responder, task })}
-                                  aria-label="Flag this response for correction"
-                                  title="Flag back to employee"
-                                >
-                                  <Flag size={12} />
-                                </button>
-                              )}
+                              {renderManagerActions(responder, task)}
                             </div>
                           </div>
                         ))}
@@ -376,39 +423,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                       {responders.length > 0 ? (
                         responders.map((responder) => (
                           <div key={responder.id} className="store-detail-table__actions-entry">
-                            {responder.flaggedNeedsCorrection && (
-                              <span className="store-detail-table__flagged-badge" title={responder.flagReason ?? 'Flagged for correction'}>
-                                Flagged
-                              </span>
-                            )}
-                            {responder.latestCorrection && !responder.flaggedNeedsCorrection && (
-                              <CorrectedBadge responseEntry={responder} task={task} />
-                            )}
-                            {responder.resubmissionHistory.length > 0 && (
-                              <ResubmissionHistoryBadge responseEntry={responder} task={task} />
-                            )}
-                            {onResponseCorrected && !responder.flaggedNeedsCorrection && (
-                              <button
-                                type="button"
-                                className="store-detail-table__correct-btn"
-                                onClick={() => setCorrectionTarget({ responseEntry: responder, task })}
-                                aria-label="Correct this response"
-                                title="Correct this response"
-                              >
-                                <Pencil size={12} />
-                              </button>
-                            )}
-                            {onResponseFlagged && !responder.flaggedNeedsCorrection && (
-                              <button
-                                type="button"
-                                className="store-detail-table__correct-btn store-detail-table__flag-btn"
-                                onClick={() => setFlagTarget({ responseEntry: responder, task })}
-                                aria-label="Flag this response for correction"
-                                title="Flag back to employee"
-                              >
-                                <Flag size={12} />
-                              </button>
-                            )}
+                            {renderManagerActions(responder, task)}
                           </div>
                         ))
                       ) : (

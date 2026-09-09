@@ -96,8 +96,29 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 6px;
   min-height: 28px;
+}
+
+/* Fixed-width slot for the Flagged/Corrected/History badges, always rendered
+   (even when empty) so the edit/flag icons that follow it land at the same x
+   position on every row regardless of which badge(s) — if any — are present.
+   `flex-wrap` lets two badges (e.g. Corrected + History together) stack onto
+   a second line instead of growing the slot and shifting the icons. */
+.store-detail-table__badges {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  width: 78px;
+  flex-shrink: 0;
+}
+
+.store-detail-table__action-icons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .store-detail-table__correct-btn {
@@ -152,13 +173,16 @@
   border-color: var(--color-badge-icon-warning-fg, #c8790a);
 }
 
+/* Rendered via a `document.body` portal (see BadgePopover in
+   StoreDetailTable.tsx) with inline `top`/`left` computed from the trigger's
+   own position -- `position: fixed` so it escapes the table's scroll
+   clipping and any row's stacking context instead of being positioned
+   relative to its (now unrelated) DOM parent. */
 .store-detail-table__correction-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 20;
+  position: fixed;
+  z-index: 30;
   min-width: 200px;
-  max-width: 280px;
+  max-width: calc(100vw - 24px);
   background: var(--color-surface-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -167,6 +191,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .store-detail-table__correction-popover-row {
@@ -224,16 +250,12 @@
 }
 
 /* Hover/focus (desktop/tablet) or tap (mobile) tooltip for the "History"
-   badge -- a dedicated class (not the .store-detail-table__correction-popover
-   above, which stays position:absolute for the "Corrected" badge). `top`/
-   `left` are set inline from a JS-computed, viewport-relative point (see
-   ResubmissionHistoryBadge) because this element uses `position: fixed`: the
-   table sits inside `.table-scroll` (`overflow-x: auto`, which per the CSS
-   spec forces `overflow-y` to clip too), so a `position: absolute` popover
-   here would get cut off by that ancestor instead of showing in full. A fixed
-   width (not max-content) plus `overflow-wrap` below ensures long values/
-   reasons wrap onto multiple lines within that width instead of overflowing
-   the box; `max-width` is still a viewport-safe fallback. */
+   badge -- rendered via the same `document.body`-portaled BadgePopover as
+   .store-detail-table__correction-popover above, `position: fixed` with
+   inline `top`/`left`. A fixed width (not max-content) plus `overflow-wrap`
+   below ensures long values/reasons wrap onto multiple lines within that
+   width instead of overflowing the box; `max-width` is still a
+   viewport-safe fallback. */
 .store-detail-table__history-popover {
   position: fixed;
   z-index: 30;
@@ -246,13 +268,6 @@
   padding: var(--space-sm) var(--space-md);
   display: flex;
   flex-direction: column;
-  /* Reset the inherited `white-space: nowrap` from the ancestor
-     .store-detail-table__actions-cell -- CSS inheritance follows the DOM
-     tree, not visual position, so this fixed-position popover still inherits
-     it from its actual DOM parent (the actions <td>) despite rendering
-     elsewhere on screen. Without this, overflow-wrap below has no effect:
-     nowrap suppresses line breaks entirely, so long reasons/values spill out
-     of the box instead of wrapping. */
   white-space: normal;
   gap: 4px;
   overflow-wrap: anywhere;
@@ -358,11 +373,18 @@
     padding-bottom: 6px;
   }
 
-  /* Show inline action buttons on mobile */
+  /* Show inline action buttons on mobile -- each responder gets its own row
+     here (unlike the shared desktop column), so the fixed-width badges slot
+     isn't needed for alignment; let it size to content and right-align. */
   .store-detail-table__inline-actions {
     display: flex;
     align-items: center;
-    gap: 4px;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  .store-detail-table__inline-actions .store-detail-table__badges {
+    width: auto;
   }
 
   /* Actions row: align right — kept for fallback */
