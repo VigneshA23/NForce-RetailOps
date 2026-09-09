@@ -1,0 +1,708 @@
+@import '../styles/breakpoints.css';
+
+/* ─── Shell ──────────────────────────────────────────────────────────────── */
+.loginw-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  /* Full-page pale-teal wash on mobile (where the form column is the whole
+     screen) so there's no flat white expanse below a short/centered card,
+     regardless of viewport height. */
+  background: radial-gradient(120% 60% at 50% 0%, #cdeef2 0%, #eafaf9 45%, #f5fbfb 100%);
+  font-family: 'Inter', 'Open Sans', sans-serif;
+  color: #16161a;
+}
+
+@media (--tablet-up) {
+  .loginw-shell {
+    grid-template-columns: 1fr 1fr;
+    background: #ffffff;
+  }
+}
+
+/* ─── Form column ────────────────────────────────────────────────────────── */
+.loginw-form-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+@media (--tablet-up) {
+  .loginw-form-col {
+    padding: 56px;
+    order: 2;
+  }
+
+  .loginw-art-col {
+    order: 1;
+  }
+}
+
+/* The 50/50 grid split leaves each column quite narrow right at the low end
+   of --tablet-up (e.g. iPad Mini portrait, 768px) -- trim the column padding
+   and heading size there so "Welcome back" and the meta row don't wrap. */
+@media (min-width: 768px) and (max-width: 900px) {
+  .loginw-form-col {
+    padding: 32px 24px;
+  }
+
+  .loginw-heading {
+    font-size: 24px;
+  }
+
+  .loginw-art-col {
+    padding: 28px;
+  }
+}
+
+.loginw-form-wrap {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 380px;
+}
+
+/* Soft decorative shopping chips pinned just outside the card's top corners
+   -- echoes the desktop illustration in miniature so mobile isn't a flat,
+   undecorated page. Anchored to the card content itself (not the viewport)
+   so they stay put regardless of how the column is vertically centered. */
+.loginw-mobile-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@media (--tablet-up) {
+  .loginw-mobile-decor {
+    display: none;
+  }
+}
+
+.loginw-mobile-chip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f9aa3;
+  box-shadow: 0 8px 16px -8px rgba(15, 154, 163, 0.5), 0 0 0 1px rgba(15, 154, 163, 0.14);
+}
+
+.loginw-mobile-chip--store {
+  top: 64px;
+  left: -14px;
+  width: 40px;
+  height: 40px;
+}
+
+.loginw-mobile-chip--gift {
+  top: 64px;
+  right: -14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: #0f9aa3;
+}
+
+.loginw-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.loginw-brand-logo-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #16161a;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.loginw-brand-logo {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.loginw-brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #16161a;
+}
+
+/* ─── Form card ──────────────────────────────────────────────────────────── */
+/* A floating white card with a red-tinted glow at every breakpoint -- this
+   mirrors the target design's card treatment rather than blending into the
+   page background on desktop. */
+.loginw-form-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 22px;
+  padding: 32px 26px 34px;
+  box-shadow: 0 30px 60px -30px rgba(225, 29, 51, 0.4), 0 10px 24px -16px rgba(15, 23, 24, 0.12),
+    0 0 0 1px rgba(15, 23, 24, 0.04);
+}
+
+@media (--tablet-up) {
+  .loginw-form-card {
+    padding: 44px 40px 46px;
+  }
+}
+
+.loginw-heading {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px;
+  color: #16161a;
+}
+
+.loginw-subheading {
+  font-size: 14px;
+  color: #6b6b70;
+  margin: 0 0 28px;
+}
+
+/* ─── Fields ─────────────────────────────────────────────────────────────── */
+.loginw-field {
+  margin-bottom: 18px;
+}
+
+.loginw-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #33333a;
+  margin-bottom: 6px;
+}
+
+.loginw-input-wrap {
+  position: relative;
+}
+
+.loginw-input-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9a9aa0;
+  pointer-events: none;
+}
+
+.loginw-input {
+  width: 100%;
+  background: #f1f2fa;
+  border: 1px solid #e6e7f2;
+  border-radius: 10px;
+  padding: 12px 14px 12px 40px;
+  font-family: inherit;
+  /* 16px minimum -- iOS Safari auto-zooms on any input focused below this size */
+  font-size: 16px;
+  color: #16161a;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.loginw-input::placeholder {
+  color: #a4a5b8;
+}
+
+.loginw-input:focus {
+  background: #ffffff;
+  border-color: #e11d33;
+  box-shadow: 0 0 0 3px rgba(225, 29, 51, 0.12);
+}
+
+.loginw-toggle-visibility {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #9a9aa0;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+.loginw-toggle-visibility:hover {
+  color: #26262b;
+}
+
+/* ─── Meta row ───────────────────────────────────────────────────────────── */
+.loginw-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 4px 0 24px;
+}
+
+.loginw-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b4b52;
+  cursor: pointer;
+}
+
+.loginw-remember input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: #e11d33;
+  cursor: pointer;
+}
+
+.loginw-forgot-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e11d33;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.loginw-forgot-link:hover {
+  text-decoration: underline;
+}
+
+/* ─── Feedback ───────────────────────────────────────────────────────────── */
+.loginw-notice {
+  font-size: 13px;
+  color: #9a5b00;
+  background: #fef2e0;
+  border: 1px solid #f0d9a8;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 18px;
+}
+
+.loginw-error {
+  font-size: 13px;
+  color: #b3101f;
+  background: #fde8ea;
+  border: 1px solid #f5b8bf;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 18px;
+}
+
+/* ─── Submit ─────────────────────────────────────────────────────────────── */
+.loginw-submit {
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #ff5064 0%, #e11d33 55%, #c8172a 100%);
+  box-shadow: 0 14px 24px -12px rgba(225, 29, 51, 0.55);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.loginw-submit:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.loginw-submit:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.loginw-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ─── Illustration column ────────────────────────────────────────────────── */
+.loginw-art-col {
+  display: none;
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  padding: 48px;
+  overflow: hidden;
+  background: radial-gradient(120% 120% at 50% 0%, #1cc3c9 0%, #0f9aa3 55%, #0b7f8a 100%);
+}
+
+@media (--tablet-up) {
+  .loginw-art-col {
+    display: flex;
+  }
+}
+
+.loginw-art {
+  position: relative;
+  width: min(400px, 88%);
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
+}
+
+.loginw-art-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 82%;
+  aspect-ratio: 1 / 1;
+  transform: translate(-50%, -50%);
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+  border-radius: 50%;
+}
+
+/* ─── Phone mockup ───────────────────────────────────────────────────────── */
+.loginw-phone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 34%;
+  aspect-ratio: 172 / 340;
+  background: #16232b;
+  border-radius: 22px;
+  box-shadow: 0 24px 48px -16px rgba(0, 0, 0, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px;
+  box-sizing: border-box;
+}
+
+.loginw-phone-awning {
+  width: 100%;
+  height: 14%;
+  display: flex;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.loginw-phone-awning span {
+  flex: 1;
+}
+
+.loginw-awning-red {
+  background: #e11d33;
+}
+
+.loginw-awning-white {
+  background: #f5f5f7;
+}
+
+.loginw-phone-screen {
+  flex: 1;
+  width: 100%;
+  margin-top: 6%;
+  border-radius: 6px;
+  background: linear-gradient(160deg, #cdeef2 0%, #a9dde3 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loginw-phone-badge {
+  width: 44%;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: #f4b81f;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 18px -8px rgba(0, 0, 0, 0.35);
+  animation: loginw-pulse 2.6s ease-in-out infinite;
+}
+
+.loginw-phone-home {
+  width: 30%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.5);
+  margin-top: 6%;
+  flex-shrink: 0;
+}
+
+/* ─── Floating icon chips ────────────────────────────────────────────────── */
+.loginw-float {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  box-shadow: 0 10px 20px -10px rgba(0, 0, 0, 0.35);
+}
+
+.loginw-float--store {
+  top: 10%;
+  left: 8%;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #0f9aa3;
+}
+
+.loginw-float--cart-sm {
+  top: 4%;
+  left: 34%;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.loginw-float--gift {
+  top: 4%;
+  left: 52%;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+}
+
+.loginw-float--discount {
+  top: 14%;
+  left: 76%;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+}
+
+.loginw-float--bag-top {
+  top: 26%;
+  left: 94%;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: #f4b81f;
+  color: #16232b;
+  border-color: transparent;
+}
+
+.loginw-float--basket {
+  top: 32%;
+  left: 4%;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+}
+
+.loginw-float--cart-lg {
+  top: 54%;
+  left: 2%;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+}
+
+.loginw-float--bag-bottom {
+  top: 76%;
+  left: 14%;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f9aa3;
+  border-color: transparent;
+}
+
+.loginw-float--dollar-sm {
+  top: 38%;
+  left: 92%;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+.loginw-float--dollar-lg {
+  top: 58%;
+  left: 96%;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #0f9aa3;
+}
+
+.loginw-float--store-tag {
+  top: 46%;
+  left: 100%;
+  width: auto;
+  height: auto;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.loginw-float--globe {
+  top: 72%;
+  left: 88%;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.loginw-float--percent {
+  top: 94%;
+  left: 48%;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+/* ─── Copy under illustration ────────────────────────────────────────────── */
+.loginw-art-copy {
+  position: relative;
+  text-align: center;
+  max-width: 380px;
+  color: #ffffff;
+}
+
+.loginw-art-copy h2 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0 0 8px;
+}
+
+.loginw-art-copy p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0;
+}
+
+/* ─── Mobile copy ────────────────────────────────────────────────────────── */
+/* Desktop shows the tagline inside the illustration column (.loginw-art-copy,
+   hidden below tablet-up); mobile has no illustration column at all, so the
+   same copy is repeated here, styled for the pale gradient page background. */
+.loginw-mobile-copy {
+  text-align: center;
+  max-width: 340px;
+  margin: 28px auto 0;
+}
+
+@media (--tablet-up) {
+  .loginw-mobile-copy {
+    display: none;
+  }
+}
+
+.loginw-mobile-copy h2 {
+  font-size: 17px;
+  font-weight: 800;
+  color: #0b7f8a;
+  margin: 0 0 6px;
+}
+
+.loginw-mobile-copy p {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #5c6870;
+  margin: 0;
+}
+
+/* ─── Animation ──────────────────────────────────────────────────────────── */
+@keyframes loginw-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes loginw-bob {
+  0%,
+  100% {
+    transform: translate(-50%, -50%) translateY(0);
+  }
+  50% {
+    transform: translate(-50%, -50%) translateY(-8px);
+  }
+}
+
+@keyframes loginw-pulse {
+  0%,
+  100% {
+    box-shadow: 0 10px 18px -8px rgba(0, 0, 0, 0.35), 0 0 0 0 rgba(244, 184, 31, 0.45);
+  }
+  50% {
+    box-shadow: 0 10px 18px -8px rgba(0, 0, 0, 0.35), 0 0 0 12px rgba(244, 184, 31, 0);
+  }
+}
+
+.loginw-art-ring {
+  animation: loginw-spin 48s linear infinite;
+}
+
+.loginw-float {
+  animation: loginw-bob 4.2s ease-in-out infinite;
+}
+
+.loginw-float--store {
+  animation-delay: 0s;
+}
+.loginw-float--cart-sm {
+  animation-delay: 0.3s;
+}
+.loginw-float--gift {
+  animation-delay: 0.6s;
+}
+.loginw-float--discount {
+  animation-delay: 0.9s;
+}
+.loginw-float--bag-top {
+  animation-delay: 1.2s;
+}
+.loginw-float--basket {
+  animation-delay: 1.5s;
+}
+.loginw-float--cart-lg {
+  animation-delay: 1.8s;
+}
+.loginw-float--bag-bottom {
+  animation-delay: 2.1s;
+}
+.loginw-float--dollar-sm {
+  animation-delay: 2.4s;
+}
+.loginw-float--dollar-lg {
+  animation-delay: 2.7s;
+}
+.loginw-float--store-tag {
+  animation-delay: 3s;
+}
+.loginw-float--globe {
+  animation-delay: 3.3s;
+}
+.loginw-float--percent {
+  animation-delay: 3.6s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loginw-art-ring,
+  .loginw-float,
+  .loginw-phone-badge {
+    animation: none;
+  }
+}
