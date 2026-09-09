@@ -109,10 +109,9 @@ public class OwnerManagementService {
     // Deliberately NOT @Transactional: the account (and any store change) is
     // persisted in its own short-lived transaction (OwnerProvisioningService),
     // so the mail send below never holds a pooled DB connection for the
-    // duration of that external HTTP call. If mail delivery fails, the account
-    // and any store change are explicitly compensated away (in a second short
-    // transaction) rather than relying on an implicit rollback -- an owner
-    // must not be left unable to ever learn their own password.
+    // duration of that external HTTP call. Email failure does not roll back
+    // the account -- the caller receives emailSent=false and can share the
+    // temporary password shown in the UI directly with the new owner.
     public OwnerCreationResponse addOwner(AddOwnerRequest request) {
         boolean hasNewStoreName = request.storeName() != null && !request.storeName().isBlank();
         boolean hasNewStoreLocation = request.storeLocation() != null && !request.storeLocation().isBlank();
@@ -128,11 +127,12 @@ public class OwnerManagementService {
         OwnerProvisioningService.ProvisionedOwner provisioned =
             ownerProvisioningService.createOwnerAccount(request, hasNewStore, hasExistingStore);
 
+        boolean emailSent = false;
         try {
             mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
+            emailSent = true;
         } catch (EmailDeliveryException ex) {
-            // Notify the creating Super Admin before compensating, so the alert
-            // is persisted even if compensation also fails.
+            log.warn("Welcome email failed for owner {} ({}); account still created", provisioned.fullName(), provisioned.ownerId(), ex);
             try {
                 Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
                 if (principal instanceof SuperAdminUserDetails saDetails) {
@@ -141,17 +141,9 @@ public class OwnerManagementService {
             } catch (RuntimeException notifEx) {
                 log.warn("Could not send OWNER_EMAIL_FAILED notification for owner {}", provisioned.ownerId(), notifEx);
             }
-            try {
-                ownerProvisioningService.deleteUnreachableOwner(provisioned);
-            } catch (RuntimeException cleanupEx) {
-                log.error("Failed to clean up owner {} after a mail delivery failure -- account may be orphaned",
-                    provisioned.ownerId(), cleanupEx);
-                ex.addSuppressed(cleanupEx);
-            }
-            throw ex;
         }
 
-        return new OwnerCreationResponse(provisioned.response(), provisioned.temporaryPassword());
+        return new OwnerCreationResponse(provisioned.response(), provisioned.temporaryPassword(), emailSent);
     }
 
     @Transactional

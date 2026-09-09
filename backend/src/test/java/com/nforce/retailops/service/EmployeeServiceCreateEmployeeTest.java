@@ -17,7 +17,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -27,10 +26,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 // Proves createEmployee's decoupled-from-the-transaction mail flow (see
-// EmployeeProvisioningService): on mail success nothing is cleaned up and the
-// provisioned response passes through unchanged; on mail failure the account
-// is compensated away and the original EmailDeliveryException still surfaces
-// to the caller exactly as it did when this was one @Transactional method.
+// EmployeeProvisioningService): on mail success emailSent=true and nothing is
+// cleaned up; on mail failure the account SURVIVES (no compensation/rollback)
+// and the response carries emailSent=false so the caller can share the
+// temporary password directly with the new employee.
 @ExtendWith(MockitoExtension.class)
 class EmployeeServiceCreateEmployeeTest {
 
@@ -46,6 +45,8 @@ class EmployeeServiceCreateEmployeeTest {
     private MailService mailService;
     @Mock
     private EmployeeProvisioningService employeeProvisioningService;
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private EmployeeService employeeService;
@@ -65,24 +66,26 @@ class EmployeeServiceCreateEmployeeTest {
     }
 
     @Test
-    void onMailSuccessTheProvisionedResponsePassesThroughAndNothingIsCleanedUp() {
+    void onMailSuccessTheProvisionedResponsePassesThroughWithEmailSentTrue() {
         EmployeeCreationResponse result = employeeService.createEmployee(request);
 
         assertThat(result.employee()).isEqualTo(provisioned.response());
         assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.emailSent()).isTrue();
         verify(mailService).sendTemporaryPassword("jane@nforce.test", "Jane Doe", "temp-pass-123");
         verify(employeeProvisioningService, never()).deleteUnreachableEmployee(any(), any());
     }
 
     @Test
-    void onMailFailureTheAccountIsCleanedUpAndTheOriginalExceptionSurfacesUnchanged() {
+    void onMailFailureTheAccountSurvivesAndResponseIndicatesEmailNotSent() {
         doThrow(new EmailDeliveryException("boom")).when(mailService)
             .sendTemporaryPassword("jane@nforce.test", "Jane Doe", "temp-pass-123");
 
-        assertThatThrownBy(() -> employeeService.createEmployee(request))
-            .isInstanceOf(EmailDeliveryException.class)
-            .hasMessage("boom");
+        EmployeeCreationResponse result = employeeService.createEmployee(request);
 
-        verify(employeeProvisioningService).deleteUnreachableEmployee(7L, 42L);
+        assertThat(result.employee()).isEqualTo(provisioned.response());
+        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.emailSent()).isFalse();
+        verify(employeeProvisioningService, never()).deleteUnreachableEmployee(any(), any());
     }
 }

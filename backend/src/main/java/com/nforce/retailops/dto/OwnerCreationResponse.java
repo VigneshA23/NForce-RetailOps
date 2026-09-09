@@ -5,6 +5,7 @@ package com.nforce.retailops.dto;
 // this one response, right after it was generated and hashed.
 public record OwnerCreationResponse(
     OwnerResponse owner,
-    String temporaryPassword
+    String temporaryPassword,
+    boolean emailSent
 ) {
 }

@@ -5,6 +5,7 @@ package com.nforce.retailops.dto;
 // response, right after it was generated and hashed.
 public record EmployeeCreationResponse(
     EmployeeResponse employee,
-    String temporaryPassword
+    String temporaryPassword,
+    boolean emailSent
 ) {
 }

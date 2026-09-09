@@ -1,22 +1,23 @@
 import { useEffect } from 'react';
-import { Copy } from 'lucide-react';
+import { Copy, Mail, MailX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import Modal from './Modal';
 import './TemporaryPasswordPopup.css';
 
-const AUTO_CLOSE_MS = 15_000;
+const AUTO_CLOSE_MS = 20_000;
 
 interface TemporaryPasswordPopupProps {
   isOpen: boolean;
   name?: string;
   password: string | null;
+  emailSent?: boolean;
   onClose: () => void;
 }
 
 // Shown once, right after the Super Admin creates an Owner or Employee --
 // the only moment this password is ever visible outside the account's own
 // inbox. Auto-closes so it doesn't linger on screen indefinitely.
-function TemporaryPasswordPopup({ isOpen, name, password, onClose }: TemporaryPasswordPopupProps) {
+function TemporaryPasswordPopup({ isOpen, name, password, emailSent, onClose }: TemporaryPasswordPopupProps) {
   useEffect(() => {
     if (!isOpen || !password) return;
     const timer = window.setTimeout(onClose, AUTO_CLOSE_MS);
@@ -34,11 +35,13 @@ function TemporaryPasswordPopup({ isOpen, name, password, onClose }: TemporaryPa
     }
   }
 
+  const emailStatusKnown = emailSent !== undefined;
+
   return (
     <Modal
       isOpen={isOpen && password != null}
       onClose={onClose}
-      title="Temporary Password"
+      title="Account Created"
       subtitle={name ? `For ${name}` : undefined}
       centered
       footer={
@@ -47,9 +50,6 @@ function TemporaryPasswordPopup({ isOpen, name, password, onClose }: TemporaryPa
         </button>
       }
     >
-      <p className="temp-password-popup__hint">
-        Share this with them now -- it also went out by email, but this dialog will close on its own shortly.
-      </p>
       <div className="temp-password-popup__value-row">
         <code className="temp-password-popup__value">{password}</code>
         <button type="button" className="btn btn--secondary temp-password-popup__copy" onClick={handleCopy}>
@@ -57,6 +57,24 @@ function TemporaryPasswordPopup({ isOpen, name, password, onClose }: TemporaryPa
           Copy
         </button>
       </div>
+
+      {emailStatusKnown ? (
+        emailSent ? (
+          <div className="temp-password-popup__email-status temp-password-popup__email-status--sent">
+            <Mail size={14} />
+            Welcome email sent — they'll receive it shortly.
+          </div>
+        ) : (
+          <div className="temp-password-popup__email-status temp-password-popup__email-status--failed">
+            <MailX size={14} />
+            Email delivery failed. Copy and share this password with them directly.
+          </div>
+        )
+      ) : (
+        <p className="temp-password-popup__hint">
+          Share this with them now. This dialog will close on its own shortly.
+        </p>
+      )}
     </Modal>
   );
 }

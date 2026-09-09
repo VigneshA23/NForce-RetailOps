@@ -10,6 +10,7 @@ export async function getAllEmployeesForSuperAdmin(): Promise<SuperAdminEmployee
 export interface EmployeeCreationResult {
   employee: Employee;
   temporaryPassword: string;
+  emailSent: boolean;
 }
 
 export async function createEmployeeAsSuperAdmin(values: EmployeeCreateValues): Promise<EmployeeCreationResult> {

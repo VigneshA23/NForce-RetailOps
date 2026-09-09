@@ -170,29 +170,23 @@ public class EmployeeService {
     // Deliberately NOT @Transactional: the account is persisted in its own
     // short-lived transaction (EmployeeProvisioningService), so the mail send
     // below never holds a pooled DB connection for the duration of that
-    // external HTTP call. If mail delivery fails, the account is explicitly
-    // compensated away (in a second short transaction) rather than relying on
-    // an implicit rollback -- an employee must not be left unable to ever
-    // learn their own password.
+    // external HTTP call. Email failure does not roll back the account --
+    // the caller receives emailSent=false and can share the temporary password
+    // shown in the UI directly with the new employee.
     public EmployeeCreationResponse createEmployee(EmployeeCreateRequest request) {
         Set<Store> stores = resolveStores(request.storeIds());
         EmployeeProvisioningService.ProvisionedEmployee provisioned =
             employeeProvisioningService.createEmployeeAccount(null, request, stores);
 
+        boolean emailSent = false;
         try {
             mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
+            emailSent = true;
         } catch (EmailDeliveryException ex) {
-            try {
-                employeeProvisioningService.deleteUnreachableEmployee(provisioned.storeEmployeeId(), provisioned.userId());
-            } catch (RuntimeException cleanupEx) {
-                log.error("Failed to clean up employee {} after a mail delivery failure -- account may be orphaned",
-                    provisioned.userId(), cleanupEx);
-                ex.addSuppressed(cleanupEx);
-            }
-            throw ex;
+            log.warn("Welcome email failed for employee {} ({}); account still created", provisioned.fullName(), provisioned.userId(), ex);
         }
 
-        return new EmployeeCreationResponse(provisioned.response(), provisioned.temporaryPassword());
+        return new EmployeeCreationResponse(provisioned.response(), provisioned.temporaryPassword(), emailSent);
     }
 
     // Super-Admin-only: atomically replaces all store assignments for an employee.

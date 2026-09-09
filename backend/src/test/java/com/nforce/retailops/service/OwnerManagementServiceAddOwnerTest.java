@@ -25,11 +25,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 // Proves addOwner's decoupled-from-the-transaction mail flow (see
-// OwnerProvisioningService): on mail success nothing is cleaned up and the
-// provisioned response passes through unchanged; on mail failure the account
-// (and any store change) is compensated away and the original
-// EmailDeliveryException still surfaces to the caller exactly as it did when
-// this was one @Transactional method.
+// OwnerProvisioningService): on mail success emailSent=true and nothing is
+// cleaned up; on mail failure the account SURVIVES (no compensation/rollback)
+// and the response carries emailSent=false so the caller can share the
+// temporary password directly with the new owner.
 @ExtendWith(MockitoExtension.class)
 class OwnerManagementServiceAddOwnerTest {
 
@@ -45,6 +44,10 @@ class OwnerManagementServiceAddOwnerTest {
     private StoreCodeGenerator storeCodeGenerator;
     @Mock
     private OwnerProvisioningService ownerProvisioningService;
+    @Mock
+    private SuperAdminAlertService superAdminAlertService;
+    @Mock
+    private NotificationService notificationService;
 
     @InjectMocks
     private OwnerManagementService ownerManagementService;
@@ -70,28 +73,30 @@ class OwnerManagementServiceAddOwnerTest {
     }
 
     @Test
-    void onMailSuccessTheProvisionedResponsePassesThroughAndNothingIsCleanedUp() {
+    void onMailSuccessTheProvisionedResponsePassesThroughWithEmailSentTrue() {
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
 
         OwnerCreationResponse result = ownerManagementService.addOwner(request);
 
         assertThat(result.owner()).isEqualTo(provisioned.response());
         assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.emailSent()).isTrue();
         verify(mailService).sendTemporaryPassword("owner@nforce.test", "New Owner", "temp-pass-123");
         verify(ownerProvisioningService, never()).deleteUnreachableOwner(any());
     }
 
     @Test
-    void onMailFailureTheAccountIsCleanedUpAndTheOriginalExceptionSurfacesUnchanged() {
+    void onMailFailureTheAccountSurvivesAndResponseIndicatesEmailNotSent() {
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
         doThrow(new EmailDeliveryException("boom")).when(mailService)
             .sendTemporaryPassword("owner@nforce.test", "New Owner", "temp-pass-123");
 
-        assertThatThrownBy(() -> ownerManagementService.addOwner(request))
-            .isInstanceOf(EmailDeliveryException.class)
-            .hasMessage("boom");
+        OwnerCreationResponse result = ownerManagementService.addOwner(request);
 
-        verify(ownerProvisioningService).deleteUnreachableOwner(provisioned);
+        assertThat(result.owner()).isEqualTo(provisioned.response());
+        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.emailSent()).isFalse();
+        verify(ownerProvisioningService, never()).deleteUnreachableOwner(any());
     }
 
     @Test

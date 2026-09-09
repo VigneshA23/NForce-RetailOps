@@ -138,8 +138,8 @@ public class SuperAdminAlertService {
     /**
      * Fires OWNER_EMAIL_FAILED to the given SA — called from OwnerManagementService
      * when Resend returns an error during owner provisioning.
-     * The owner account is compensated (deleted) before this call returns,
-     * so the notification serves as a persistent record of the failed attempt.
+     * The account is kept; the temporary password shown in the creation dialog
+     * can be shared with the new owner manually.
      */
     @Transactional
     public void notifyOwnerEmailDeliveryFailed(SuperAdmin sa, String ownerName) {
@@ -149,7 +149,7 @@ public class SuperAdminAlertService {
             "OWNER_EMAIL_FAILED",
             "Owner account email delivery failed",
             "Temporary password could not be emailed to " + ownerName
-                + ". The account was rolled back — please try again.",
+                + ". The account was created — share the temporary password with them manually.",
             null,
             null
         );

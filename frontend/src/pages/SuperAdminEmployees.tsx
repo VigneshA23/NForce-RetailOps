@@ -48,7 +48,7 @@ function SuperAdminEmployees() {
   const [editTarget, setEditTarget] = useState<SuperAdminEmployee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ name: string; password: string; emailSent: boolean } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SuperAdminEmployee | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<SuperAdminEmployee | null>(null);
@@ -85,7 +85,7 @@ function SuperAdminEmployees() {
         setIsFormOpen(false);
         loadEmployees();
         nfToast.success(`"${created.employee.name}" employee added.`);
-        setTempPassword({ name: created.employee.name, password: created.temporaryPassword });
+        setTempPassword({ name: created.employee.name, password: created.temporaryPassword, emailSent: created.emailSent });
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
@@ -340,6 +340,7 @@ function SuperAdminEmployees() {
         isOpen={tempPassword !== null}
         name={tempPassword?.name}
         password={tempPassword?.password ?? null}
+        emailSent={tempPassword?.emailSent}
         onClose={() => setTempPassword(null)}
       />
     </div>

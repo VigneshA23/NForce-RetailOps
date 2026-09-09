@@ -86,7 +86,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setActiveTab('checklist');
   }
 
-  const [tempPassword, setTempPassword] = useState<{ name: string; password: string } | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ name: string; password: string; emailSent: boolean } | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
   const [showProfile, setShowProfile] = useState(false);
@@ -154,7 +154,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       setIsFormOpen(false);
       loadOwners();
       nfToast.success(`"${values.ownerName}" owner added.`);
-      setTempPassword({ name: values.ownerName, password: created.temporaryPassword });
+      setTempPassword({ name: values.ownerName, password: created.temporaryPassword, emailSent: created.emailSent });
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setFormError(msg);
@@ -534,6 +534,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         isOpen={tempPassword !== null}
         name={tempPassword?.name}
         password={tempPassword?.password ?? null}
+        emailSent={tempPassword?.emailSent}
         onClose={() => setTempPassword(null)}
       />
     </AppShell>
