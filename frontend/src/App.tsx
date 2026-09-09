@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import Login from './pages/Login'
-import ForgotPassword from './pages/ForgotPassword'
 import SetNewPassword from './pages/SetNewPassword'
 import ResetPasswordRequired from './pages/ResetPasswordRequired'
 import StorePicker from './pages/StorePicker'
@@ -27,7 +26,7 @@ import { getSessionConfig, logout } from './api/auth'
 import { useAssignedStores } from './hooks/useAssignedStores'
 import { useMe } from './hooks/useMe'
 
-type View = 'login' | 'forgot-password' | 'set-new-password'
+type View = 'login' | 'set-new-password'
 
 const INACTIVITY_MESSAGE = 'Your session has expired due to inactivity. Please log in again.'
 const INVALID_SESSION_MESSAGE = 'Your session has expired or is invalid. Please log in again.'
@@ -209,12 +208,9 @@ function App() {
         />
       )
     }
-    return view === 'forgot-password' ? (
-      <ForgotPassword onBackToSignIn={() => setView('login')} />
-    ) : (
+    return (
       <Login
         onLoginSuccess={handleLoginSuccess}
-        onForgotPassword={() => setView('forgot-password')}
         notice={sessionMessage}
       />
     )

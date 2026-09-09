@@ -116,7 +116,7 @@ function Select({ id, options, value, onChange, ariaLabel, className }: SelectPr
             ref={panelRef}
             className="custom-select__panel"
             role="listbox"
-            style={{ top: position.top, left: position.left, width: position.width }}
+            style={{ top: position.top, left: position.left, minWidth: position.width }}
           >
             {options.map((option) => (
               <button
