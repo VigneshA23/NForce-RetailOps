@@ -128,6 +128,7 @@
 .login3-panel-inner {
   width: 100%;
   max-width: 400px;
+  min-height: 480px;
   margin: 0 auto;
   background: rgba(20, 12, 14, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -136,6 +137,8 @@
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
 }
 
 /* ─── Mobile brand lockup ────────────────────────────────────────────────── */
@@ -328,6 +331,63 @@
   margin-bottom: 14px;
 }
 
+/* ─── Forgot password success state ─────────────────────────────────────── */
+.login3-sent-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px 0 8px;
+  gap: 0;
+}
+
+.login3-sent-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.12);
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #22c55e;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.login3-sent-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 8px;
+}
+
+.login3-sent-body {
+  font-size: 13.5px;
+  color: #555;
+  line-height: 1.6;
+  margin: 0 0 6px;
+  text-align: center;
+}
+
+.login3-sent-email {
+  display: block;
+  font-weight: 700;
+  color: #111;
+  font-size: 14px;
+  margin: 4px 0 12px;
+  word-break: break-all;
+}
+
+.login3-sent-hint {
+  font-size: 12.5px;
+  color: #888;
+  margin: 0 0 28px;
+  text-align: center;
+}
+
 /* ─── Submit button ──────────────────────────────────────────────────────── */
 .login3-submit {
   position: relative;
@@ -422,6 +482,12 @@
 
 /* Text colours: dark on white card */
 @media (--tablet-up) {
+  /* Success block on desktop white card — colours already dark by default (base rules above) */
+  .login3-sent-icon {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.25);
+  }
+
   .login3-heading { color: #0a0a0b; }
   .login3-heading-underline {
     background: linear-gradient(135deg, #ff4d5e 0%, #e11d33 100%);
@@ -796,5 +862,22 @@
 
   .login3-error {
     color: #ff6b7a;
+  }
+
+  /* Success block: light colours on dark mobile canvas */
+  .login3-sent-title {
+    color: #f2f2f4;
+  }
+
+  .login3-sent-body {
+    color: rgba(242, 242, 244, 0.6);
+  }
+
+  .login3-sent-email {
+    color: #ffffff;
+  }
+
+  .login3-sent-hint {
+    color: rgba(242, 242, 244, 0.38);
   }
 }

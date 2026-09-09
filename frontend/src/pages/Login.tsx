@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect, type FormEvent } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowLeft, Check, Eye, EyeOff, Lock, Mail } from 'lucide-react'
+import { ArrowLeft, Check, CheckCircle2, Eye, EyeOff, Lock, Mail } from 'lucide-react'
 import { login, requestPasswordReset } from '../api/auth'
 import type { AuthUser } from '../types/auth'
 import { useScrambleText } from '../hooks/useScrambleText'
@@ -340,24 +340,39 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.22 }}
+                    style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
                   >
-                    <h1 className="login3-heading">Reset Password</h1>
-                    <span className="login3-heading-underline" aria-hidden="true" />
-                    <p className="login3-subheading">
-                      Enter your organisational email and we'll send reset instructions.
-                    </p>
-
-                    {forgotSubmitted ? (
+                    {!forgotSubmitted && (
                       <>
-                        <p className="login3-success" role="status">
-                          If an account exists for {forgotEmail}, reset instructions are on their way.
-                        </p>
-                        <p className="login3-access-note">
-                          <button type="button" className="login3-forgot-link" onClick={backToSignIn}>
-                            <ArrowLeft size={13} aria-hidden="true" /> Back to sign in
-                          </button>
+                        <h1 className="login3-heading">Reset Password</h1>
+                        <span className="login3-heading-underline" aria-hidden="true" />
+                        <p className="login3-subheading">
+                          Enter your organisational email and we'll send reset instructions.
                         </p>
                       </>
+                    )}
+
+                    {forgotSubmitted ? (
+                      <div className="login3-sent-block" role="status">
+                        <div className="login3-sent-icon" aria-hidden="true">
+                          <CheckCircle2 size={32} strokeWidth={1.6} />
+                        </div>
+                        <p className="login3-sent-title">Check your inbox</p>
+                        <p className="login3-sent-body">Reset instructions sent to:</p>
+                        <p className="login3-sent-email">{forgotEmail}</p>
+                        <p className="login3-sent-hint">Didn't see it? Check your spam folder.</p>
+                        <motion.button
+                          type="button"
+                          className="login3-submit"
+                          onClick={backToSignIn}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <span className="nf1-btn-sweep" aria-hidden="true" />
+                          <ArrowLeft size={14} style={{ marginRight: 6, verticalAlign: 'middle' }} aria-hidden="true" />
+                          Back to sign in
+                        </motion.button>
+                      </div>
                     ) : (
                       <form onSubmit={handleForgotSubmit} noValidate>
                         <div className="login3-field">
