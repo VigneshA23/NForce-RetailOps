@@ -48,7 +48,7 @@ interface OwnerTableProps {
   emptyMessage?: string;
   onEdit: (owner: GroupedOwner) => void;
   onToggleStatus: (owner: GroupedOwner) => void;
-  onDeactivate: (owner: GroupedOwner) => void;
+  onDelete: (owner: GroupedOwner) => void;
   onAddStore: (owner: GroupedOwner) => void;
   onView: (owner: GroupedOwner) => void;
 }
@@ -59,7 +59,7 @@ function OwnerTable({
   emptyMessage = 'No owners match your filters.',
   onEdit,
   onToggleStatus,
-  onDeactivate,
+  onDelete,
   onAddStore,
   onView,
 }: OwnerTableProps) {
@@ -153,10 +153,9 @@ function OwnerTable({
                     <button
                       type="button"
                       className="table-icon-btn table-icon-btn--danger"
-                      aria-label={`Deactivate ${owner.ownerName}`}
-                      title={owner.ownerActive ? 'Deactivate owner' : 'Owner already inactive'}
-                      disabled={!owner.ownerActive}
-                      onClick={() => onDeactivate(owner)}
+                      aria-label={`Delete ${owner.ownerName}`}
+                      title="Delete owner permanently"
+                      onClick={() => onDelete(owner)}
                     >
                       <Trash2 size={16} />
                     </button>

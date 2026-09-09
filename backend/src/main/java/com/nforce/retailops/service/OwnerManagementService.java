@@ -47,6 +47,7 @@ public class OwnerManagementService {
     private final OwnerProvisioningService ownerProvisioningService;
     private final NotificationService notificationService;
     private final SuperAdminAlertService superAdminAlertService;
+    private final SessionService sessionService;
 
     public OwnerManagementService(
         UserRepository userRepository,
@@ -56,7 +57,8 @@ public class OwnerManagementService {
         StoreCodeGenerator storeCodeGenerator,
         OwnerProvisioningService ownerProvisioningService,
         NotificationService notificationService,
-        SuperAdminAlertService superAdminAlertService
+        SuperAdminAlertService superAdminAlertService,
+        SessionService sessionService
     ) {
         this.userRepository = userRepository;
         this.storeRepository = storeRepository;
@@ -66,6 +68,7 @@ public class OwnerManagementService {
         this.ownerProvisioningService = ownerProvisioningService;
         this.notificationService = notificationService;
         this.superAdminAlertService = superAdminAlertService;
+        this.sessionService = sessionService;
     }
 
     @Transactional(readOnly = true)
@@ -211,5 +214,15 @@ public class OwnerManagementService {
         return storeOwnerRepository.findByOwnerId(ownerId).stream()
             .map(OwnerResponse::from)
             .toList();
+    }
+
+    @Transactional
+    public void deleteOwner(Long ownerId) {
+        User owner = userRepository.findById(ownerId)
+            .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+        // Token stops working immediately; DB cascade/set-null (V42) handles
+        // the FK cleanup when the user row is deleted below.
+        sessionService.invalidateAllForUser(owner.getEmail());
+        userRepository.delete(owner);
     }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { addOwner, assignStore, getOwners, setOwnerStatus, setStoreStatus, updateOwner } from '../api/owners';
+import { addOwner, assignStore, deleteOwner, getOwners, setOwnerStatus, setStoreStatus, updateOwner } from '../api/owners';
 import type { AddOwnerValues, AssignStoreValues, OwnerSummary, UpdateOwnerValues } from '../types/owner';
 import type { GroupedOwner } from '../components/OwnerTable';
 import type { AuthUser } from '../types/auth';
@@ -59,9 +59,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [statusTarget, setStatusTarget] = useState<GroupedOwner | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
 
-  // Deactivate (via trash icon — always deactivates, never activates)
-  const [deactivateTarget, setDeactivateTarget] = useState<GroupedOwner | null>(null);
-  const [deactivateError, setDeactivateError] = useState<string | null>(null);
+  // Hard delete (via trash icon — permanently removes owner from DB)
+  const [deleteTarget, setDeleteTarget] = useState<GroupedOwner | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Store status toggle
   const [storeStatusTarget, setStoreStatusTarget] = useState<OwnerSummary | null>(null);
@@ -223,19 +223,19 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     }
   }
 
-  async function handleConfirmDeactivate() {
-    if (!deactivateTarget) return;
-    setDeactivateError(null);
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setDeleteError(null);
     try {
-      const ownerName = deactivateTarget.ownerName;
-      const updated = await setOwnerStatus(deactivateTarget.ownerId, false);
-      applyOwnerUpdates(updated);
-      setDeactivateTarget(null);
-      nfToast.success(`"${ownerName}" owner deactivated.`);
+      const ownerName = deleteTarget.ownerName;
+      await deleteOwner(deleteTarget.ownerId);
+      setOwners((current) => current.filter((o) => o.ownerId !== deleteTarget.ownerId));
+      setDeleteTarget(null);
+      nfToast.success(`"${ownerName}" permanently deleted.`);
     } catch (error) {
-      setDeactivateTarget(null);
-      const msg = error instanceof Error ? error.message : 'Failed to deactivate owner';
-      setDeactivateError(msg);
+      setDeleteTarget(null);
+      const msg = error instanceof Error ? error.message : 'Failed to delete owner';
+      setDeleteError(msg);
       nfToast.error(msg);
     }
   }
@@ -354,10 +354,10 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
             </div>
           )}
 
-          {deactivateError && (
+          {deleteError && (
             <div className="owners-page__error">
               <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-              <span className="owners-page__error-message">{deactivateError}</span>
+              <span className="owners-page__error-message">{deleteError}</span>
             </div>
           )}
 
@@ -430,9 +430,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                   setStatusError(null);
                   setStatusTarget(owner);
                 }}
-                onDeactivate={(owner) => {
-                  setDeactivateError(null);
-                  setDeactivateTarget(owner);
+                onDelete={(owner) => {
+                  setDeleteError(null);
+                  setDeleteTarget(owner);
                 }}
                 onAddStore={(owner) => {
                   setAssignStoreError(null);
@@ -498,19 +498,19 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         onCancel={() => setStatusTarget(null)}
       />
 
-      {/* Deactivate via trash icon */}
+      {/* Hard delete via trash icon */}
       <ConfirmDialog
-        isOpen={deactivateTarget !== null}
-        title="Deactivate Owner"
+        isOpen={deleteTarget !== null}
+        title="Delete Owner"
         message={
-          deactivateTarget
-            ? `Deactivate ${deactivateTarget.ownerName}? They will no longer be able to sign in. You can reactivate them at any time using the status toggle.`
+          deleteTarget
+            ? `Permanently delete ${deleteTarget.ownerName}? This removes their account from the database entirely and cannot be undone. Their assigned stores will become reassignable.`
             : ''
         }
-        confirmLabel="Deactivate"
+        confirmLabel="Delete Permanently"
         danger
-        onConfirm={handleConfirmDeactivate}
-        onCancel={() => setDeactivateTarget(null)}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
       />
 
       {/* Store status toggle confirm */}

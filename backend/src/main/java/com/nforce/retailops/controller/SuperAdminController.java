@@ -81,4 +81,10 @@ public class SuperAdminController {
     ) {
         return ResponseEntity.ok(ownerManagementService.setStoreActive(ownerId, storeId, request.active()));
     }
+
+    @DeleteMapping("/owners/{ownerId}")
+    public ResponseEntity<Void> deleteOwner(@PathVariable Long ownerId) {
+        ownerManagementService.deleteOwner(ownerId);
+        return ResponseEntity.noContent().build();
+    }
 }

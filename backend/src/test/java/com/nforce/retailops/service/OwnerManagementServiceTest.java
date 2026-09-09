@@ -9,6 +9,9 @@ import com.nforce.retailops.exception.OwnerStoreConflictException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
+import com.nforce.retailops.service.NotificationService;
+import com.nforce.retailops.service.SessionService;
+import com.nforce.retailops.service.SuperAdminAlertService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +49,8 @@ class OwnerManagementServiceTest {
     private NotificationService notificationService;
     @Mock
     private SuperAdminAlertService superAdminAlertService;
+    @Mock
+    private SessionService sessionService;
 
     private OwnerManagementService ownerManagementService;
 
@@ -53,7 +58,7 @@ class OwnerManagementServiceTest {
     void setUp() {
         ownerManagementService = new OwnerManagementService(
             userRepository, storeRepository, storeOwnerRepository,
-            mailService, storeCodeGenerator, ownerProvisioningService, notificationService, superAdminAlertService
+            mailService, storeCodeGenerator, ownerProvisioningService, notificationService, superAdminAlertService, sessionService
         );
     }
 

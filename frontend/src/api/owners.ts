@@ -72,6 +72,14 @@ export async function setOwnerStatus(ownerId: number, active: boolean): Promise<
   return response.json();
 }
 
+export async function deleteOwner(ownerId: number): Promise<void> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/owners/${ownerId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!response.ok) throw new Error(await parseErrorMessage(response, 'Failed to delete owner'));
+}
+
 export async function setStoreStatus(ownerId: number, storeId: number, active: boolean): Promise<OwnerSummary[]> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/owners/${ownerId}/stores/${storeId}/status`, {
     method: 'PATCH',
