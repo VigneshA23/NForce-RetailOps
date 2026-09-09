@@ -703,6 +703,176 @@
   }
 }
 
+/* ─── Tilt wrapper (motion.div that holds rotateX/Y) ─────────────────────── */
+.nf1-tilt-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* ─── Card glow: radial crimson bloom behind the white card ──────────────── */
+/* GPU-composited via opacity animation only. Hidden on mobile. */
+.nf1-card-glow {
+  display: none;
+  position: absolute;
+  inset: -28px;
+  background: radial-gradient(
+    ellipse 80% 55% at 50% 55%,
+    rgba(220, 28, 46, 0.2) 0%,
+    transparent 68%
+  );
+  border-radius: 52px;
+  pointer-events: none;
+}
+
+@media (--tablet-up) {
+  .nf1-card-glow {
+    display: block;
+  }
+}
+
+/* ─── Beam border overlay ─────────────────────────────────────────────────── */
+/* 1px larger than card on all sides; beams travel within it. Hidden on mobile. */
+.nf1-beams-overlay {
+  display: none;
+  position: absolute;
+  inset: -1px;
+  border-radius: 25px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@media (--tablet-up) {
+  .nf1-beams-overlay {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nf1-beams-overlay {
+    display: none;
+  }
+}
+
+/* Individual beams */
+.nf1-beam {
+  position: absolute;
+  filter: blur(2px);
+}
+
+.nf1-beam--top {
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 45%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(220, 28, 46, 0.85),
+    rgba(255, 190, 190, 0.45),
+    rgba(220, 28, 46, 0.85),
+    transparent
+  );
+}
+
+.nf1-beam--right {
+  top: 0;
+  right: 0;
+  width: 3px;
+  height: 45%;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(220, 28, 46, 0.85),
+    rgba(255, 190, 190, 0.45),
+    rgba(220, 28, 46, 0.85),
+    transparent
+  );
+}
+
+.nf1-beam--bottom {
+  bottom: 0;
+  right: 0;
+  height: 3px;
+  width: 45%;
+  background: linear-gradient(
+    to left,
+    transparent,
+    rgba(220, 28, 46, 0.85),
+    rgba(255, 190, 190, 0.45),
+    rgba(220, 28, 46, 0.85),
+    transparent
+  );
+}
+
+.nf1-beam--left {
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  height: 45%;
+  background: linear-gradient(
+    to top,
+    transparent,
+    rgba(220, 28, 46, 0.85),
+    rgba(255, 190, 190, 0.45),
+    rgba(220, 28, 46, 0.85),
+    transparent
+  );
+}
+
+/* Corner glow dots */
+.nf1-corner {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(220, 28, 46, 0.9);
+  filter: blur(1.5px);
+}
+
+.nf1-corner--tl {
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+}
+
+.nf1-corner--tr {
+  top: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+}
+
+.nf1-corner--br {
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+}
+
+.nf1-corner--bl {
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+}
+
+/* ─── Input focus layoutId highlight ──────────────────────────────────────── */
+/* Absolutely fills input-wrap; z-index 0 keeps it behind text/icons. */
+.nf1-input-highlight {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(220, 28, 46, 0.045);
+  pointer-events: none;
+  z-index: 0;
+}
+
+@media (max-width: 767px) {
+  .nf1-input-highlight {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
 /* ─── Mobile overrides ───────────────────────────────────────────────────── */
 /* All overrides come AFTER base rules so cascade wins. Goal: full-bleed dark
    canvas on mobile — no white card, no letterbox, notch/home-bar aware. */
