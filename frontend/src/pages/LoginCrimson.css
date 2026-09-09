@@ -370,6 +370,273 @@
   cursor: not-allowed;
 }
 
+/* ─── Desktop redesign additions ─────────────────────────────────────────── */
+/* All rules below are scoped to --tablet-up so mobile is NEVER affected.
+   These come before the mobile overrides so cascade order is preserved. */
+
+/* Override bg-overlay to neutral dark on desktop — previous red-tinted gradient
+   was for the old dark hero; teal panel now covers the left column entirely. */
+@media (--tablet-up) {
+  .login3-bg-overlay {
+    background: rgba(5, 6, 8, 0.72);
+  }
+}
+
+/* Hero column: flush — LoginHeroPanel fills it entirely */
+@media (--tablet-up) {
+  .login3-hero {
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* Grid: slightly more balanced split */
+@media (--tablet-up) {
+  .login3-grid {
+    grid-template-columns: 49% 51%;
+  }
+}
+
+/* Panel column background on desktop (dark, card floats on it) */
+@media (--tablet-up) {
+  .login3-panel {
+    background: #09090b;
+  }
+}
+
+/* White card on desktop */
+@media (--tablet-up) {
+  .login3-panel-inner {
+    background: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.06),
+      0 32px 72px rgba(0, 0, 0, 0.28),
+      0 8px 20px rgba(0, 0, 0, 0.14);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transform-style: flat;
+    will-change: transform;
+  }
+}
+
+/* Text colours: dark on white card */
+@media (--tablet-up) {
+  .login3-heading { color: #0a0a0b; }
+  .login3-heading-underline {
+    background: linear-gradient(135deg, #ff4d5e 0%, #e11d33 100%);
+  }
+  .login3-subheading { color: rgba(10, 10, 11, 0.55); }
+  .login3-label { color: rgba(10, 10, 11, 0.72); }
+  .login3-label-required { color: #e11d33; }
+  .login3-remember { color: rgba(10, 10, 11, 0.62); }
+  .login3-remember input[type='checkbox'] { accent-color: #e11d33; }
+  .login3-forgot-link { color: #e11d33; }
+  .login3-error { color: #c0121f; }
+
+  .login3-input-icon { color: rgba(10, 10, 11, 0.35); }
+  .login3-toggle-visibility { color: rgba(10, 10, 11, 0.35); }
+  .login3-toggle-visibility:hover { color: rgba(10, 10, 11, 0.7); }
+
+  /* Input field: keep as-is (already light bg, dark text) */
+  .login3-input:focus {
+    border-color: #e11d33;
+    box-shadow: 0 0 0 3px rgba(220, 28, 46, 0.13);
+  }
+}
+
+/* ---- Desktop card decorations -------------------------------- */
+
+/* Card wrapper: relative container for spin border + card */
+.nf1-card-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Spinning conic gradient border — hidden on mobile */
+.nf1-spin-border {
+  display: none;
+}
+
+@media (--tablet-up) {
+  .nf1-spin-border {
+    display: block;
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 26px;
+    padding: 1.5px;
+    background: conic-gradient(
+      from 0deg,
+      #10A3A8 0deg,
+      #DC1C2E 90deg,
+      rgba(255, 255, 255, 0.1) 180deg,
+      rgba(255, 255, 255, 0.05) 270deg,
+      #10A3A8 360deg
+    );
+    /* Reveal only the border (padding area) using mask */
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+    animation: nf1-spin-border 9s linear infinite;
+  }
+}
+
+@keyframes nf1-spin-border {
+  to { transform: rotate(360deg); }
+}
+
+/* Top highlight line — white shimmer across card top */
+.nf1-card-highlight {
+  display: none;
+}
+
+@media (--tablet-up) {
+  .nf1-card-highlight {
+    display: block;
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0),
+      rgba(255, 255, 255, 0.9),
+      rgba(255, 255, 255, 0)
+    );
+    border-radius: 1px;
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+/* Sweep shimmer: crimson line that sweeps across the card top */
+.nf1-card-sweep {
+  display: none;
+}
+
+@media (--tablet-up) {
+  .nf1-card-sweep {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 38%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      rgba(220, 28, 46, 0) 0%,
+      rgba(220, 28, 46, 0.32) 50%,
+      rgba(220, 28, 46, 0) 100%
+    );
+    pointer-events: none;
+    z-index: 2;
+    animation: nf1-sweep 9s ease-in-out infinite;
+  }
+}
+
+@keyframes nf1-sweep {
+  0% { transform: translateX(-120%); }
+  55%, 100% { transform: translateX(240%); }
+}
+
+/* Desktop brand lockup inside card */
+.nf1-card-header {
+  display: none;
+}
+
+@media (--tablet-up) {
+  .nf1-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+}
+
+.nf1-card-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.nf1-card-wordmark {
+  font-size: 20px;
+  font-weight: 800;
+  color: #e11d33;
+  letter-spacing: -0.02em;
+}
+
+/* ---- Password toggle cross-fade ----------------------------- */
+/* Both icons always mounted; opacity/scale transition handles the swap.
+   Do NOT set position here — button inherits position:absolute from
+   login3-toggle-visibility and must remain in that flow. */
+.nf1-pw-toggle {
+  overflow: visible;
+}
+
+/* ---- Button ------------------------------------------------- */
+/* Wrapper so confetti is positioned relative to it */
+.nf1-btn-wrap {
+  position: relative;
+}
+
+/* CSS sweep shimmer on the submit button */
+.nf1-btn-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 32%;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.24) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
+  animation: nf1-sweep 6.5s ease-in-out infinite 1.5s;
+}
+
+.login3-submit--success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 12px 24px -8px rgba(34, 197, 94, 0.45);
+  cursor: default;
+}
+
+/* ---- Confetti ----------------------------------------------- */
+.nf1-confetti-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: nf1-confetti 0.65s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes nf1-confetti {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(1);
+    opacity: 0;
+  }
+}
+
 /* ─── Mobile overrides ───────────────────────────────────────────────────── */
 /* All overrides come AFTER base rules so cascade wins. Goal: full-bleed dark
    canvas on mobile — no white card, no letterbox, notch/home-bar aware. */

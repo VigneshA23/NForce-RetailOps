@@ -195,6 +195,12 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
         <p className="employee-history-subheading">Review past shifts and completed tasks.</p>
       </div>
 
+      <div className="stat-card-row" style={{ marginBottom: 'var(--space-lg)' }}>
+        <StatCard icon={CheckCircle2} label="Tasks Complete" value={historyStats.complete} tone="success" />
+        <StatCard icon={Flag} label="Flagged" value={historyStats.flagged} tone="warning" />
+        <StatCard icon={HelpCircle} label="Not Answered" value={historyStats.notAnswered} tone="primary" />
+      </div>
+
       <div className="employee-history-filters">
         <div className="employee-history-store-select">
           <span className="employee-history-store-select-icon">
@@ -261,14 +267,6 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
           <MoonStar size={28} />
           <h3>No activity recorded</h3>
           <p>No activity recorded for this date. Tasks only appear here after at least one response has been submitted.</p>
-        </div>
-      )}
-
-      {!loading && !error && hasActivity && (
-        <div className="stat-card-row" style={{ marginBottom: 'var(--space-lg)' }}>
-          <StatCard icon={CheckCircle2} label="Tasks Complete" value={historyStats.complete} tone="success" />
-          <StatCard icon={Flag} label="Flagged" value={historyStats.flagged} tone="warning" />
-          <StatCard icon={HelpCircle} label="Not Answered" value={historyStats.notAnswered} tone="primary" />
         </div>
       )}
 

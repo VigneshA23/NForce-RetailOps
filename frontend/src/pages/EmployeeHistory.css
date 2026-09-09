@@ -531,20 +531,21 @@
 
 @media (--tablet-up) {
   .employee-history {
-    max-width: 880px;
+    width: 100%;
   }
 
   .employee-history-filters {
     flex-direction: row;
     align-items: center;
+    max-width: 600px;
   }
 
   .employee-history-store-select {
-    flex: 0 0 260px;
+    flex: 0 0 300px;
   }
 
   .employee-history-date-trigger-wrap {
     flex: 1;
-    max-width: 260px;
+    max-width: 280px;
   }
 }
