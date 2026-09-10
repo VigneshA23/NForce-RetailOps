@@ -31,41 +31,6 @@ const CONFETTI_DOTS = Array.from({ length: 18 }, (_, i) => {
   }
 })
 
-// Beam config: each travels one edge of the card clockwise
-const BEAM_DEFS = [
-  {
-    key: 'top',
-    cls: 'nf1-beam nf1-beam--top',
-    anim: { x: ['-110%', '250%'] } as Record<string, string[]>,
-    delay: 0,
-  },
-  {
-    key: 'right',
-    cls: 'nf1-beam nf1-beam--right',
-    anim: { y: ['-110%', '250%'] } as Record<string, string[]>,
-    delay: 0.62,
-  },
-  {
-    key: 'bottom',
-    cls: 'nf1-beam nf1-beam--bottom',
-    anim: { x: ['110%', '-250%'] } as Record<string, string[]>,
-    delay: 1.24,
-  },
-  {
-    key: 'left',
-    cls: 'nf1-beam nf1-beam--left',
-    anim: { y: ['110%', '-250%'] } as Record<string, string[]>,
-    delay: 1.86,
-  },
-]
-
-const CORNER_DEFS = [
-  { key: 'tl', cls: 'nf1-corner nf1-corner--tl', dur: 2.0, delay: 0 },
-  { key: 'tr', cls: 'nf1-corner nf1-corner--tr', dur: 2.4, delay: 0.5 },
-  { key: 'br', cls: 'nf1-corner nf1-corner--br', dur: 2.2, delay: 1.0 },
-  { key: 'bl', cls: 'nf1-corner nf1-corner--bl', dur: 2.3, delay: 1.5 },
-]
-
 function Login({ onLoginSuccess, notice }: LoginProps) {
   const [loginView, setLoginView] = useState<'sign-in' | 'forgot'>('sign-in')
 
@@ -162,7 +127,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
       <div className="login3-bg-overlay" aria-hidden="true" />
 
       <div className="login3-grid">
-        <div className="login3-hero">
+        <div className="login3-hero login3-hero--illustrated">
           <LoginHeroPanel />
         </div>
 
@@ -186,34 +151,6 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                 />
               )}
 
-              {/* Traveling light-beam border (4 edges, clockwise stagger) */}
-              {!prefersReducedMotion && (
-                <div className="nf1-beams-overlay" aria-hidden="true">
-                  {BEAM_DEFS.map(b => (
-                    <motion.div
-                      key={b.key}
-                      className={b.cls}
-                      animate={b.anim}
-                      transition={{
-                        duration: 2.5,
-                        ease: 'easeInOut',
-                        repeat: Infinity,
-                        repeatDelay: 1,
-                        delay: b.delay,
-                      }}
-                    />
-                  ))}
-                  {CORNER_DEFS.map(c => (
-                    <motion.div
-                      key={c.key}
-                      className={c.cls}
-                      animate={{ opacity: [0.2, 0.8, 0.2] }}
-                      transition={{ duration: c.dur, repeat: Infinity, repeatType: 'mirror', delay: c.delay }}
-                    />
-                  ))}
-                </div>
-              )}
-
               {/* The white card */}
               <motion.div
                 className="login3-panel-inner"
@@ -222,7 +159,6 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                 transition={{ duration: 0.5, ease: [0.16, 0.84, 0.3, 1] }}
               >
                 <div className="nf1-card-highlight" aria-hidden="true" />
-                <div className="nf1-card-sweep" aria-hidden="true" />
 
                 <div className="login3-mobile-brand">
                   <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
