@@ -1,11 +1,15 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.AdHocShortageRequest;
 import com.nforce.retailops.dto.AssignedStoreResponse;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
+import com.nforce.retailops.dto.DailyStockCheckItemResponse;
 import com.nforce.retailops.dto.EmployeeSearchResponse;
 import com.nforce.retailops.dto.IssueResponse;
 import com.nforce.retailops.dto.MeResponse;
 import com.nforce.retailops.dto.RaiseIssueRequest;
+import com.nforce.retailops.dto.StockCheckResponse;
+import com.nforce.retailops.dto.StockCheckSubmitRequest;
 import com.nforce.retailops.dto.TaskResponseStateResponse;
 import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.dto.TodayChecklistResponse;
@@ -20,6 +24,7 @@ import com.nforce.retailops.security.SuperAdminUserDetails;
 import com.nforce.retailops.service.EmployeeSearchService;
 import com.nforce.retailops.service.MeHistoryService;
 import com.nforce.retailops.service.RaisedIssueService;
+import com.nforce.retailops.service.StockCheckService;
 import com.nforce.retailops.service.TaskService;
 import com.nforce.retailops.service.UserProfileService;
 import jakarta.validation.Valid;
@@ -50,14 +55,16 @@ public class MeController {
     private final RaisedIssueService raisedIssueService;
     private final SuperAdminRepository superAdminRepository;
     private final EmployeeSearchService employeeSearchService;
+    private final StockCheckService stockCheckService;
 
-    public MeController(UserProfileService userProfileService, TaskService taskService, MeHistoryService meHistoryService, RaisedIssueService raisedIssueService, SuperAdminRepository superAdminRepository, EmployeeSearchService employeeSearchService) {
+    public MeController(UserProfileService userProfileService, TaskService taskService, MeHistoryService meHistoryService, RaisedIssueService raisedIssueService, SuperAdminRepository superAdminRepository, EmployeeSearchService employeeSearchService, StockCheckService stockCheckService) {
         this.userProfileService = userProfileService;
         this.taskService = taskService;
         this.meHistoryService = meHistoryService;
         this.raisedIssueService = raisedIssueService;
         this.superAdminRepository = superAdminRepository;
         this.employeeSearchService = employeeSearchService;
+        this.stockCheckService = stockCheckService;
     }
 
     private MeResponse superAdminMeResponse(SuperAdmin sa) {
@@ -240,5 +247,49 @@ public class MeController {
 
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(meHistoryService.getDetail(userDetails.getUser().getId(), storeId, date));
+    }
+
+    // Employee-facing: today's Daily Stock Check list for one of the caller's
+    // assigned stores. requireAssignedStore (called inside StockCheckService)
+    // enforces the store belongs to this employee.
+    @GetMapping("/inventory")
+    public ResponseEntity<List<DailyStockCheckItemResponse>> todayStockCheck(
+        @AuthenticationPrincipal UserDetails principal,
+        @RequestParam Long storeId
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(stockCheckService.getTodayChecklist(userDetails.getUser().getId(), storeId));
+    }
+
+    // Employee-facing: submit today's physical count for one store item.
+    @PostMapping("/inventory/stock-checks")
+    public ResponseEntity<StockCheckResponse> submitStockCheck(
+        @AuthenticationPrincipal UserDetails principal,
+        @Valid @RequestBody StockCheckSubmitRequest request
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(stockCheckService.submitCheck(userDetails.getUser().getId(), request));
+    }
+
+    // Employee-facing: raise a shortage directly to the order list, outside
+    // the scheduled stock check.
+    @PostMapping("/inventory/ad-hoc")
+    public ResponseEntity<Void> reportAdHocShortage(
+        @AuthenticationPrincipal UserDetails principal,
+        @RequestParam Long storeId,
+        @Valid @RequestBody AdHocShortageRequest request
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        stockCheckService.reportAdHocShortage(userDetails.getUser().getId(), storeId, request);
+        return ResponseEntity.noContent().build();
     }
 }

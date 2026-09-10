@@ -28,6 +28,7 @@ import SuperAdminEmployees from '../pages/SuperAdminEmployees';
 import SuperAdminHome from '../pages/SuperAdminHome';
 import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import SuperAdminIssues from '../pages/SuperAdminIssues';
+import SuperAdminInventory from '../pages/SuperAdminInventory';
 import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 import './SuperAdminDashboard.css';
@@ -339,6 +340,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminEmployees />
       ) : activeTab === 'issues' ? (
         <SuperAdminIssues />
+      ) : activeTab === 'inventory' ? (
+        <SuperAdminInventory />
       ) : (
         <div className="owners-page">
           <div className="stat-card-row">
