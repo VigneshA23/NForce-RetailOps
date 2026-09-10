@@ -188,14 +188,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setIsAssigningStore(true);
     try {
       const ownerName = assignStoreTarget.ownerName;
-      await assignStore(assignStoreTarget.ownerId, values);
+      const assigned = await assignStore(assignStoreTarget.ownerId, values);
       // Reloaded rather than appended locally: assigning an existing store
       // moves it away from its previous (deactivated) owner, same as Add
       // Owner's existing-store path above -- only a full refresh keeps that
       // other owner's row correct too.
       loadOwners();
       setAssignStoreTarget(null);
-      nfToast.success(`"${values.storeName}" store assigned to ${ownerName}.`);
+      nfToast.success(`"${assigned.storeName}" store assigned to ${ownerName}.`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setAssignStoreError(msg);

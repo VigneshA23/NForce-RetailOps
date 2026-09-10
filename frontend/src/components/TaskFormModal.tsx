@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { Category } from '../types/category';
 import type { OwnerStore } from '../types/ownerStore';
 import type { AdminTask, AdminTaskFormValues, CompletionType, DayCode, ResponseType, ScheduleType } from '../types/adminTask';
-import { emptyTaskFormValues, validateTaskForm, type AdminTaskFormErrors } from '../utils/adminTaskValidation';
+import { emptyTaskFormValues, getTodayDateString, validateTaskForm, type AdminTaskFormErrors } from '../utils/adminTaskValidation';
 import { COMPLETION_TYPE_OPTIONS, DAY_OPTIONS, RESPONSE_TYPE_OPTIONS, SCHEDULE_TYPE_OPTIONS } from '../utils/adminTaskOptions';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -114,7 +114,7 @@ function TaskFormModal({
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const validationErrors = validateTaskForm(values);
+    const validationErrors = validateTaskForm(values, mode);
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       return;
@@ -319,6 +319,7 @@ function TaskFormModal({
               <div className="task-form__grid-2">
                 <FormField label="Start Date *" htmlFor="task-start-date" error={errors.startDate}>
                   <input id="task-start-date" type="date" className="input" value={values.startDate}
+                    min={mode === 'create' ? getTodayDateString() : undefined}
                     onChange={(event) => updateField('startDate', event.target.value)} />
                 </FormField>
                 <FormField label="End Date" htmlFor="task-end-date" error={errors.endDate}>

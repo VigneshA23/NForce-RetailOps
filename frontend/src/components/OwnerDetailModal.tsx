@@ -12,7 +12,7 @@ function OwnerDetailModal({ owner, onClose }: OwnerDetailModalProps) {
 
   const storeDisplay = owner.activeStore
     ? owner.activeStore.storeName
-    : owner.anyStore
+    : owner.ownerActive && owner.anyStore
       ? `${owner.anyStore.storeName} (Inactive)`
       : 'No store assigned';
 

@@ -117,7 +117,7 @@ class OwnerManagementServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
         when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(1L)).thenReturn(true);
 
-        assertThatThrownBy(() -> ownerManagementService.assignStore(1L, new AssignStoreRequest("New Store", "Main St")))
+        assertThatThrownBy(() -> ownerManagementService.assignStore(1L, new AssignStoreRequest("New Store", "Main St", null)))
             .isInstanceOf(OwnerStoreConflictException.class)
             .hasMessageContaining("active store assigned");
     }
@@ -135,7 +135,7 @@ class OwnerManagementServiceTest {
         });
         when(storeOwnerRepository.save(any(StoreOwner.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        OwnerResponse response = ownerManagementService.assignStore(1L, new AssignStoreRequest("New Store", "Main St"));
+        OwnerResponse response = ownerManagementService.assignStore(1L, new AssignStoreRequest("New Store", "Main St", null));
 
         assertThat(response.ownerId()).isEqualTo(1L);
         assertThat(response.storeId()).isEqualTo(20L);
