@@ -86,6 +86,11 @@
   border: 1px solid var(--color-border);
 }
 
+.store-detail-page__last-updated {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
 .store-detail-page__empty {
   padding: var(--space-xl);
   text-align: center;

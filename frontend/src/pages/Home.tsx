@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronRight, Users, Tags, Percent } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, Users, Tags, Percent } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getChecklistHistoryDetail, getChecklistHistorySummary } from '../api/checklistHistory';
 import { getIssues } from '../api/issues';
@@ -74,6 +74,8 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
   const [categoryBreakdown, setCategoryBreakdown] = useState<{ id: number; name: string; completed: number; total: number }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [trendDays, setTrendDays] = useState(DEFAULT_TREND_DAYS);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryTick, setRetryTick] = useState(0);
 
   // Issues state — null = not yet loaded (avoids false "All clear" before API resolves)
   const [issues, setIssues] = useState<Issue[] | null>(null);
@@ -84,6 +86,7 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
     if (storesLoading) return;
     let active = true;
     setIsLoading(true);
+    setLoadError(null);
 
     const storeIds = stores.map((store) => store.id);
 
@@ -117,14 +120,18 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       setCategoryBreakdown(
         Array.from(categoryTotals.entries()).map(([id, totals]) => ({ id, ...totals })),
       );
-    })().finally(() => {
-      if (active) setIsLoading(false);
-    });
+    })()
+      .catch((error: Error) => {
+        if (active) setLoadError(error.message);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
 
     return () => {
       active = false;
     };
-  }, [storesLoading, stores]);
+  }, [storesLoading, stores, retryTick]);
 
   // Trend series: depends on trendDays too, but only re-fetches the trend
   // summary itself, not today's summary/category breakdown above.
@@ -143,27 +150,31 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
     const trendStartDate = isoDateDaysAgo(trendDays - 1);
     const trendDates = Array.from({ length: trendDays }, (_, index) => isoDateDaysAgo(trendDays - 1 - index));
 
-    getChecklistHistorySummary({ storeIds, startDate: trendStartDate, endDate: today }).then((trendSummary) => {
-      if (!active) return;
-      const trendTotalsByDate = new Map<string, { totalTasks: number; completedTasks: number }>();
-      trendSummary.forEach((row) => {
-        const existing = trendTotalsByDate.get(row.date) ?? { totalTasks: 0, completedTasks: 0 };
-        existing.totalTasks += row.totalTasks;
-        existing.completedTasks += row.completedTasks;
-        trendTotalsByDate.set(row.date, existing);
+    getChecklistHistorySummary({ storeIds, startDate: trendStartDate, endDate: today })
+      .then((trendSummary) => {
+        if (!active) return;
+        const trendTotalsByDate = new Map<string, { totalTasks: number; completedTasks: number }>();
+        trendSummary.forEach((row) => {
+          const existing = trendTotalsByDate.get(row.date) ?? { totalTasks: 0, completedTasks: 0 };
+          existing.totalTasks += row.totalTasks;
+          existing.completedTasks += row.completedTasks;
+          trendTotalsByDate.set(row.date, existing);
+        });
+        setTrend(
+          trendDates.map((date) => {
+            const totals = trendTotalsByDate.get(date) ?? { totalTasks: 0, completedTasks: 0 };
+            return { day: formatDayLabel(date, trendDays), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
+          }),
+        );
+      })
+      .catch((error: Error) => {
+        if (active) setLoadError(error.message);
       });
-      setTrend(
-        trendDates.map((date) => {
-          const totals = trendTotalsByDate.get(date) ?? { totalTasks: 0, completedTasks: 0 };
-          return { day: formatDayLabel(date, trendDays), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
-        }),
-      );
-    });
 
     return () => {
       active = false;
     };
-  }, [storesLoading, stores, trendDays]);
+  }, [storesLoading, stores, trendDays, retryTick]);
 
   // Fetch open issue count for the stat tile indicator
   useEffect(() => {
@@ -200,6 +211,16 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
   return (
     <div className="home-page">
       <h1 className="home-page__greeting">Welcome, {firstName(userName)}!</h1>
+
+      {loadError && (
+        <div className="home-page__error">
+          <AlertCircle size={18} aria-hidden="true" />
+          <span>{loadError}</span>
+          <button type="button" className="btn btn--secondary" onClick={() => setRetryTick((t) => t + 1)}>
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className="stat-card-row">
         <StatCard icon={Users} label="Total Employees" value={employees.length} tone="info" />

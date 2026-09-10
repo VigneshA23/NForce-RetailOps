@@ -48,13 +48,16 @@ function ensureFetchIsPatched() {
   // Endpoints that must not trigger logout on 401 — they're non-critical
   // background fetches (search, trend) that can legitimately 401 during a
   // rolling deploy when the new backend endpoint isn't live on Railway yet.
+  // Deliberately does NOT include /api/admin/issues: that's Super Admin
+  // Issues' main data load, not a background fetch, and exempting it left a
+  // real session expiry there stuck on a dead-end error banner instead of
+  // forcing re-login like every other page.
   const SILENT_401_PATTERNS = [
     /\/api\/super-admin\/search/,
     /\/api\/search(\?|$)/,
     /\/api\/super-admin\/platform-trend/,
     /\/api\/super-admin\/stores\/\d+\/trend/,
     /\/api\/me\/search/,
-    /\/api\/admin\/issues/,
   ];
 
   window.fetch = async (...args: Parameters<typeof fetch>) => {
