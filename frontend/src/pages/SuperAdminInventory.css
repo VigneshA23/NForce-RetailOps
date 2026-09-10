@@ -1,0 +1,79 @@
+@import '../styles/breakpoints.css';
+
+.super-admin-inventory-page__subtabs {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.super-admin-inventory-page__subtab {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.super-admin-inventory-page__subtab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+.super-admin-inventory-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.super-admin-inventory-page__summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.super-admin-inventory-page__add-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.super-admin-inventory-page__assign-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.super-admin-inventory-page__assign-row .custom-select {
+  flex: 1;
+  max-width: 360px;
+}
+
+.super-admin-inventory-page__actions-header {
+  text-align: center;
+}
+
+.super-admin-inventory-page__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+@media (--mobile) {
+  .super-admin-inventory-page__header {
+    flex-wrap: wrap;
+  }
+
+  .super-admin-inventory-page__assign-row {
+    flex-wrap: wrap;
+  }
+}
