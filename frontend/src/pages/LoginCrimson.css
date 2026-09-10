@@ -44,7 +44,7 @@
 
 @media (--tablet-up) {
   .login3-grid {
-    grid-template-columns: 46% 54%;
+    grid-template-columns: 55% 45%;
   }
 }
 
@@ -469,10 +469,10 @@
   }
 }
 
-/* Grid: slightly more balanced split */
+/* Grid: 60% hero illustration / 40% form */
 @media (--tablet-up) {
   .login3-grid {
-    grid-template-columns: 49% 51%;
+    grid-template-columns: 55% 45%;
   }
 }
 
