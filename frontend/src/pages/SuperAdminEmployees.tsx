@@ -73,16 +73,19 @@ function SuperAdminEmployees() {
     try {
       if (editTarget) {
         const { storeIds, ...updateValues } = values as EmployeeCreateValues;
-        await updateEmployee(editTarget.id, updateValues as EmployeeUpdateValues);
+        let updated = await updateEmployee(editTarget.id, updateValues as EmployeeUpdateValues);
         if (storeIds !== undefined) {
-          await updateEmployeeStores(editTarget.id, storeIds);
+          updated = await updateEmployeeStores(editTarget.id, storeIds);
         }
+        setEmployees((current) => current.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)));
         setEditTarget(null);
-        loadEmployees();
-        nfToast.success(`"${(values as EmployeeUpdateValues).name}" employee updated.`);
+        nfToast.success(`"${updated.name}" employee updated.`);
       } else {
         const created = await createEmployeeAsSuperAdmin(values as EmployeeCreateValues);
         setIsFormOpen(false);
+        // Full refetch here (not a local patch): the creation response has no
+        // ownerId/ownerName, which this cross-owner table needs and which can
+        // only be resolved server-side from the employee's new store assignment.
         loadEmployees();
         nfToast.success(`"${created.employee.name}" employee added.`);
         setTempPassword({ name: created.employee.name, password: created.temporaryPassword, emailSent: created.emailSent });
@@ -100,11 +103,10 @@ function SuperAdminEmployees() {
     if (!statusTarget) return;
     setStatusError(null);
     try {
-      await setEmployeeStatus(statusTarget.id, !statusTarget.active);
-      const nextActive = !statusTarget.active;
+      const updated = await setEmployeeStatus(statusTarget.id, !statusTarget.active);
+      setEmployees((current) => current.map((e) => (e.id === updated.id ? { ...e, ...updated } : e)));
       setStatusTarget(null);
-      loadEmployees();
-      nfToast.success(`"${statusTarget.name}" employee ${nextActive ? 'activated' : 'deactivated'}.`);
+      nfToast.success(`"${updated.name}" employee ${updated.active ? 'activated' : 'deactivated'}.`);
     } catch (error) {
       setStatusError(error instanceof Error ? error.message : 'Failed to update employee status');
       setStatusTarget(null);

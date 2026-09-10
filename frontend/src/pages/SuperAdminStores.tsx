@@ -123,8 +123,22 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
     try {
       const updated = await assignStoreOwner(assignTarget.storeId, ownerId);
       setStores((current) => current.map((s) => (s.storeId === updated.storeId ? updated : s)));
-      // Refresh owners list so the just-assigned owner no longer shows as available.
-      getOwners().then(setAllOwners).catch(() => {});
+      // Patch the assigned owner's store fields locally (rather than refetching the
+      // whole owners list) so they no longer show as available.
+      setAllOwners((current) =>
+        current.map((o) =>
+          o.ownerId === ownerId
+            ? {
+                ...o,
+                storeId: updated.storeId,
+                storeCode: updated.storeCode,
+                storeName: updated.storeName,
+                storeLocation: updated.storeLocation,
+                storeActive: updated.storeActive,
+              }
+            : o,
+        ),
+      );
       setAssignTarget(null);
       nfToast.success(`Owner assigned to "${updated.storeName}".`);
     } catch (error) {

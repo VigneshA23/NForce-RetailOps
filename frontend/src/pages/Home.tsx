@@ -78,6 +78,8 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
   // Issues state — null = not yet loaded (avoids false "All clear" before API resolves)
   const [issues, setIssues] = useState<Issue[] | null>(null);
 
+  // Today's summary + per-category breakdown: depends only on the store list,
+  // not on the trend window, so toggling 7d/30d below doesn't re-fetch this.
   useEffect(() => {
     if (storesLoading) return;
     let active = true;
@@ -89,39 +91,19 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       if (storeIds.length === 0) {
         if (active) {
           setTodayRows([]);
-          setTrend([]);
           setCategoryBreakdown([]);
         }
         return;
       }
 
       const today = isoDateDaysAgo(0);
-      // Rolling window: oldest day on the left, today on the right.
-      const trendStartDate = isoDateDaysAgo(trendDays - 1);
-      const trendDates = Array.from({ length: trendDays }, (_, index) => isoDateDaysAgo(trendDays - 1 - index));
-
-      const [todaySummary, trendSummary, details] = await Promise.all([
+      const [todaySummary, details] = await Promise.all([
         getChecklistHistorySummary({ storeIds, startDate: today, endDate: today }),
-        getChecklistHistorySummary({ storeIds, startDate: trendStartDate, endDate: today }),
         Promise.all(storeIds.map((id) => getChecklistHistoryDetail(id, today))),
       ]);
 
       if (!active) return;
       setTodayRows(todaySummary);
-
-      const trendTotalsByDate = new Map<string, { totalTasks: number; completedTasks: number }>();
-      trendSummary.forEach((row) => {
-        const existing = trendTotalsByDate.get(row.date) ?? { totalTasks: 0, completedTasks: 0 };
-        existing.totalTasks += row.totalTasks;
-        existing.completedTasks += row.completedTasks;
-        trendTotalsByDate.set(row.date, existing);
-      });
-      setTrend(
-        trendDates.map((date) => {
-          const totals = trendTotalsByDate.get(date) ?? { totalTasks: 0, completedTasks: 0 };
-          return { day: formatDayLabel(date, trendDays), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
-        }),
-      );
 
       const categoryTotals = new Map<number, { name: string; completed: number; total: number }>();
       details.forEach((detail) => {
@@ -137,6 +119,45 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       );
     })().finally(() => {
       if (active) setIsLoading(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [storesLoading, stores]);
+
+  // Trend series: depends on trendDays too, but only re-fetches the trend
+  // summary itself, not today's summary/category breakdown above.
+  useEffect(() => {
+    if (storesLoading) return;
+    let active = true;
+
+    const storeIds = stores.map((store) => store.id);
+    if (storeIds.length === 0) {
+      setTrend([]);
+      return;
+    }
+
+    const today = isoDateDaysAgo(0);
+    // Rolling window: oldest day on the left, today on the right.
+    const trendStartDate = isoDateDaysAgo(trendDays - 1);
+    const trendDates = Array.from({ length: trendDays }, (_, index) => isoDateDaysAgo(trendDays - 1 - index));
+
+    getChecklistHistorySummary({ storeIds, startDate: trendStartDate, endDate: today }).then((trendSummary) => {
+      if (!active) return;
+      const trendTotalsByDate = new Map<string, { totalTasks: number; completedTasks: number }>();
+      trendSummary.forEach((row) => {
+        const existing = trendTotalsByDate.get(row.date) ?? { totalTasks: 0, completedTasks: 0 };
+        existing.totalTasks += row.totalTasks;
+        existing.completedTasks += row.completedTasks;
+        trendTotalsByDate.set(row.date, existing);
+      });
+      setTrend(
+        trendDates.map((date) => {
+          const totals = trendTotalsByDate.get(date) ?? { totalTasks: 0, completedTasks: 0 };
+          return { day: formatDayLabel(date, trendDays), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
+        }),
+      );
     });
 
     return () => {
