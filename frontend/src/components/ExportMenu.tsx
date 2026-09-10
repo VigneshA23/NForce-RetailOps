@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import { getChecklistHistoryOperationsReport } from '../api/checklistHistory';
 import { buildOperationsReportCsv, summarizeByStore } from '../utils/operationsReportExport';
 import { downloadCsv } from '../utils/csv';
+import { nfToast } from '../utils/toast';
 import { MAX_RANGE_DAYS, todayDate } from '../utils/checklistHistoryOptions';
 import './ExportMenu.css';
 
@@ -51,6 +52,8 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
       const csv = buildOperationsReportCsv(summary, report.details, date, date);
       downloadCsv(`checklist-${date}.csv`, csv);
       setMenuOpen(false);
+    } catch (err) {
+      nfToast.error(err instanceof Error ? err.message : 'Export failed. Please try again.');
     } finally {
       setExporting(false);
     }
@@ -197,6 +200,8 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
       doc.text(`Generated ${new Date().toLocaleString()}`, margin, y);
 
       doc.save(`checklist-${date}.pdf`);
+    } catch (err) {
+      nfToast.error(err instanceof Error ? err.message : 'Export failed. Please try again.');
     } finally {
       setPdfExporting(false);
     }
