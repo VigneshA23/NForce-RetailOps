@@ -1,0 +1,527 @@
+/* ===================================================================
+   LoginHeroPanel — desktop left panel (teal, animated)
+   All classes prefixed lhp__ (login-hero-panel)
+   Shown only inside the login3-hero wrapper which is hidden on mobile
+=================================================================== */
+
+/* ---- Panel base ------------------------------------------ */
+.lhp__panel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(145deg, #0E9198 0%, #10A3A8 42%, #0C8A90 72%, #0A7A7F 100%);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 52px;
+}
+
+/* ---- Grain ----------------------------------------------- */
+.lhp__grain {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0.038;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* ---- Aurora blobs ---------------------------------------- */
+.lhp__aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.lhp__aurora-a,
+.lhp__aurora-b,
+.lhp__aurora-c {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform;
+  filter: blur(90px);
+}
+
+.lhp__aurora-a {
+  width: 72%;
+  aspect-ratio: 1;
+  top: -20%;
+  left: -18%;
+  background: radial-gradient(circle, rgba(6,180,190,0.55) 0%, rgba(6,180,190,0) 70%);
+  animation: nf1-aurora-a 14s ease-in-out infinite;
+}
+
+.lhp__aurora-b {
+  width: 60%;
+  aspect-ratio: 1;
+  top: 30%;
+  right: -22%;
+  background: radial-gradient(circle, rgba(4,160,170,0.45) 0%, rgba(4,160,170,0) 70%);
+  animation: nf1-aurora-b 18s ease-in-out infinite 2s;
+}
+
+.lhp__aurora-c {
+  width: 55%;
+  aspect-ratio: 1;
+  bottom: -15%;
+  left: 10%;
+  background: radial-gradient(circle, rgba(8,140,150,0.38) 0%, rgba(8,140,150,0) 70%);
+  animation: nf1-aurora-c 22s ease-in-out infinite 5s;
+}
+
+@keyframes nf1-aurora-a {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(12%, 8%) scale(1.1); }
+  66% { transform: translate(-6%, 14%) scale(0.95); }
+}
+
+@keyframes nf1-aurora-b {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40% { transform: translate(-10%, 6%) scale(1.08); }
+  70% { transform: translate(5%, -10%) scale(0.92); }
+}
+
+@keyframes nf1-aurora-c {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  30% { transform: translate(8%, -12%) scale(1.12); }
+  65% { transform: translate(-5%, 6%) scale(0.97); }
+}
+
+/* ---- Dust particles -------------------------------------- */
+.lhp__dust-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+}
+
+.lhp__dust {
+  position: absolute;
+  border-radius: 50%;
+  animation: nf1-dust-rise linear infinite;
+}
+
+@keyframes nf1-dust-rise {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 1; }
+  80% { opacity: 0.6; }
+  100% { transform: translateY(-85vh) translateX(18px); opacity: 0; }
+}
+
+/* ---- Radial light + vignette ----------------------------- */
+.lhp__radial-light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(ellipse 68% 55% at 50% 40%, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0) 70%);
+}
+
+.lhp__vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background:
+    radial-gradient(ellipse 100% 100% at 0% 0%, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0) 55%),
+    radial-gradient(ellipse 100% 100% at 100% 100%, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0) 55%);
+}
+
+/* ---- Orbit container ------------------------------------- */
+.lhp__orbit-container {
+  position: relative;
+  width: min(88%, 560px);
+  aspect-ratio: 1 / 1.08;
+  flex-shrink: 0;
+  z-index: 5;
+  margin-bottom: 20px;
+}
+
+/* ---- Atmospheric clock ----------------------------------- */
+.lhp__clock {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  animation: nf1-clock-spin 60s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes nf1-clock-spin {
+  to { transform: rotate(360deg); }
+}
+
+.lhp__clock-hand {
+  transform-origin: 50px 50px;
+  animation: nf1-tick 1s steps(60) infinite;
+}
+
+@keyframes nf1-tick {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Orbit ring ------------------------------------------ */
+.lhp__orbit-ring {
+  position: absolute;
+  inset: 4.5%;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 255, 255, 0.15);
+  animation: nf1-orbit-spin 120s linear infinite;
+}
+
+@keyframes nf1-orbit-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Pulse glow ------------------------------------------ */
+.lhp__pulse-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 28%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 70%);
+  animation: nf1-pulse 3s ease-in-out infinite;
+}
+
+@keyframes nf1-pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
+  50% { transform: translate(-50%, -50%) scale(1.35); opacity: 0; }
+}
+
+/* ---- Phone mockup --------------------------------------- */
+.lhp__phone {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 30%;
+  aspect-ratio: 9 / 19.2;
+  border-radius: 28px;
+  background: #1C2B30;
+  padding: 8px 7px 10px;
+  box-shadow:
+    0 0 0 1.5px rgba(255,255,255,0.12),
+    0 22px 55px rgba(0,0,0,0.38),
+    0 8px 20px rgba(0,0,0,0.22);
+}
+
+.lhp__phone-inner {
+  height: 100%;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #CBE8EA;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Stripe bar */
+.lhp__phone-stripes {
+  display: flex;
+  height: 14%;
+  flex-shrink: 0;
+}
+
+.lhp__stripe {
+  flex: 1;
+}
+
+.lhp__stripe--red { background: #DC1C2E; }
+.lhp__stripe--white { background: #F2F2F3; }
+
+/* Screen content area */
+.lhp__phone-content {
+  flex: 1;
+  margin: 7px 6px 0;
+  border-radius: 11px;
+  background: linear-gradient(180deg, #D8EEEF 0%, #BEE0E3 100%);
+  padding: 9px 8px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.lhp__phone-header {
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #0A6B70;
+  letter-spacing: 0.02em;
+  margin-bottom: 3px;
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif;
+}
+
+.lhp__task-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lhp__checkbox {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.lhp__tick-path {
+  animation: nf1-draw 0.38s ease-out forwards;
+}
+
+@keyframes nf1-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.lhp__task-label {
+  font-size: 7.5px;
+  color: #194D52;
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif;
+  transition: opacity 0.3s, text-decoration 0.3s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lhp__task-label--done {
+  opacity: 0.6;
+  text-decoration: line-through;
+  text-decoration-color: rgba(14,154,160,0.55);
+}
+
+.lhp__all-done {
+  margin-top: 4px;
+  font-size: 7.5px;
+  font-weight: 700;
+  color: #0A6B70;
+  text-align: center;
+  background: rgba(14,154,160,0.15);
+  border-radius: 6px;
+  padding: 3px 0;
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif;
+}
+
+/* Home indicator */
+.lhp__phone-home {
+  width: 34%;
+  height: 3px;
+  background: rgba(25, 77, 82, 0.35);
+  border-radius: 2px;
+  margin: 5px auto 6px;
+  flex-shrink: 0;
+}
+
+/* ---- Parallax layers ------------------------------------- */
+.lhp__layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* ---- Floating icon cards --------------------------------- */
+.lhp__icon {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  color: rgba(255,255,255,0.92);
+  pointer-events: none;
+}
+
+.lhp__icon--circle { border-radius: 50%; }
+.lhp__icon--rounded { border-radius: 22%; }
+
+.lhp__icon--glass {
+  background: rgba(255,255,255,0.14);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.22);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.14);
+}
+
+.lhp__icon--solid-white {
+  background: #ffffff;
+  color: #10A3A8;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.16);
+}
+
+.lhp__icon--solid-gold {
+  background: #F2C13C;
+  color: #7A5300;
+  box-shadow: 0 6px 22px rgba(0,0,0,0.16);
+}
+
+.lhp__icon--label {
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.95);
+  aspect-ratio: unset;
+  white-space: nowrap;
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif;
+}
+
+.lhp__icon--dollar {
+  font-size: 1.3em;
+  font-weight: 800;
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif;
+}
+
+/* Floating + drift animations */
+.lhp__float {
+  animation: nf1-float 8s ease-in-out infinite;
+}
+
+@keyframes nf1-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.lhp__drift-a {
+  animation: nf1-drift-a 11s ease-in-out infinite;
+}
+
+.lhp__drift-b {
+  animation: nf1-drift-b 13s ease-in-out infinite 1.5s;
+}
+
+.lhp__drift-c {
+  animation: nf1-drift-c 9.5s ease-in-out infinite 3s;
+}
+
+@keyframes nf1-drift-a {
+  0%, 100% { transform: translate(0, 0); }
+  30% { transform: translate(6px, -9px); }
+  65% { transform: translate(-4px, 5px); }
+}
+
+@keyframes nf1-drift-b {
+  0%, 100% { transform: translate(0, 0); }
+  35% { transform: translate(-7px, 8px); }
+  70% { transform: translate(5px, -6px); }
+}
+
+@keyframes nf1-drift-c {
+  0%, 100% { transform: translate(0, 0); }
+  40% { transform: translate(4px, 10px); }
+  75% { transform: translate(-6px, -4px); }
+}
+
+/* ---- Metric tiles ---------------------------------------- */
+.lhp__metric-tiles {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0 24px;
+  margin-bottom: 18px;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.lhp__metric-tile {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,0.14);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.9);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif;
+}
+
+.lhp__metric-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.6);
+  flex-shrink: 0;
+}
+
+/* ---- Tagline --------------------------------------------- */
+.lhp__tagline-wrap {
+  text-align: center;
+  padding: 0 32px;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.lhp__tagline {
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+  margin: 0 0 7px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.18);
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif;
+}
+
+.lhp__tagline-sub {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.55;
+  margin: 0 0 14px;
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif;
+}
+
+.lhp__shift-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(255,255,255,0.16);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.28);
+  border-radius: 999px;
+  padding: 5px 13px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.92);
+  font-family: 'Open Sans', 'Inter', system-ui, sans-serif;
+}
+
+/* ---- Reduced motion -------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .lhp__aurora-a,
+  .lhp__aurora-b,
+  .lhp__aurora-c,
+  .lhp__clock,
+  .lhp__clock-hand,
+  .lhp__orbit-ring,
+  .lhp__pulse-glow,
+  .lhp__dust,
+  .lhp__float,
+  .lhp__drift-a,
+  .lhp__drift-b,
+  .lhp__drift-c,
+  .lhp__tick-path {
+    animation: none !important;
+  }
+
+  .lhp__layer {
+    will-change: auto;
+  }
+}

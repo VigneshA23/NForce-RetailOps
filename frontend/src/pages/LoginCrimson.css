@@ -6,7 +6,7 @@
   min-height: 100dvh;
   display: flex;
   font-family: 'Open Sans', 'Inter', sans-serif;
-  background: #0d0d0f;
+  background: #ffffff;
   overflow: hidden;
   color: #f2f2f4;
 }
@@ -50,11 +50,7 @@
 
 /* ─── Hero column (desktop only) ─────────────────────────────────────────── */
 .login3-hero {
-  /* Scales with the hero column's own rendered width instead of a fixed px
-     value, so the logo (and the text indent tied to it below) shrink to
-     free up room at narrower window widths, rather than always eating the
-     same fixed amount of space regardless of how much is actually available. */
-  --hero-logo-size: clamp(110px, 32cqw, 260px);
+  --hero-logo-size: 260px;
   display: none;
   position: relative;
   flex-direction: column;
@@ -62,7 +58,13 @@
   padding: 56px 48px 56px 96px;
   overflow: hidden;
   color: #f2f2f4;
-  container-type: inline-size;
+  /* Fallback for pages that render plain hero content here instead of the
+     illustrated <LoginHeroPanel /> (e.g. ResetPasswordRequired, SetNewPassword)
+     -- the same teal used inside LoginHeroPanel, so those pages match the main
+     login page's branding instead of a leftover dark half. LoginHeroPanel is
+     fully opaque and paints over this on the main login page, so it never
+     shows there. */
+  background: linear-gradient(145deg, #0E9198 0%, #10A3A8 42%, #0C8A90 72%, #0A7A7F 100%);
 }
 
 @media (--tablet-up) {
@@ -100,25 +102,28 @@
   z-index: 1;
   text-align: left;
   margin-left: calc(var(--hero-logo-size) / 2);
-  container-type: inline-size;
 }
 
-/* Sized off the hero column's own rendered width (via container query units)
-   rather than a fixed px/viewport value -- the hero column's actual width
-   varies with both viewport size and the 46/54 grid split, so this is what
-   keeps the tagline on one line at any window size instead of wrapping once
-   the fixed-size heading text no longer fits. */
 .login3-hero-heading {
-  font-size: clamp(11px, 7.2cqw, 26px);
+  font-size: 26px;
   font-weight: 700;
   line-height: 1.3;
   margin: 0;
   color: #ffffff;
-  white-space: nowrap;
 }
 
 .login3-hero-accent {
-  color: #ff4d5e;
+  color: #ffffff;
+}
+
+.login3-hero-copy {
+  position: relative;
+  z-index: 1;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.78);
+  margin: 10px 0 0;
+  max-width: 360px;
 }
 
 /* ─── Panel (form column) ────────────────────────────────────────────────── */
@@ -140,6 +145,7 @@
 .login3-panel-inner {
   width: 100%;
   max-width: 400px;
+  min-height: 480px;
   margin: 0 auto;
   background: rgba(20, 12, 14, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -148,6 +154,8 @@
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
   box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
 }
 
 /* ─── Mobile brand lockup ────────────────────────────────────────────────── */
@@ -340,6 +348,63 @@
   margin-bottom: 14px;
 }
 
+/* ─── Forgot password success state ─────────────────────────────────────── */
+.login3-sent-block {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 16px 0 8px;
+  gap: 0;
+}
+
+.login3-sent-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.12);
+  border: 2px solid rgba(34, 197, 94, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #22c55e;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+
+.login3-sent-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111;
+  margin: 0 0 8px;
+}
+
+.login3-sent-body {
+  font-size: 13.5px;
+  color: #555;
+  line-height: 1.6;
+  margin: 0 0 6px;
+  text-align: center;
+}
+
+.login3-sent-email {
+  display: block;
+  font-weight: 700;
+  color: #111;
+  font-size: 14px;
+  margin: 4px 0 12px;
+  word-break: break-all;
+}
+
+.login3-sent-hint {
+  font-size: 12.5px;
+  color: #888;
+  margin: 0 0 28px;
+  text-align: center;
+}
+
 /* ─── Submit button ──────────────────────────────────────────────────────── */
 .login3-submit {
   position: relative;
@@ -382,17 +447,306 @@
   cursor: not-allowed;
 }
 
+/* ─── Desktop redesign additions ─────────────────────────────────────────── */
+/* All rules below are scoped to --tablet-up so mobile is NEVER affected.
+   These come before the mobile overrides so cascade order is preserved. */
+
+/* Override bg-overlay to neutral dark on desktop — previous red-tinted gradient
+   was for the old dark hero; teal panel now covers the left column entirely. */
+@media (--tablet-up) {
+  .login3-bg-overlay {
+    background: rgba(5, 6, 8, 0.72);
+  }
+}
+
+/* Hero column: flush — LoginHeroPanel fills it entirely. Scoped to the
+   illustrated variant only (Login.tsx) -- ResetPasswordRequired/SetNewPassword
+   use plain hero text and need the base padding kept. */
+@media (--tablet-up) {
+  .login3-hero--illustrated {
+    padding: 0;
+    overflow: hidden;
+  }
+}
+
+/* Grid: slightly more balanced split */
+@media (--tablet-up) {
+  .login3-grid {
+    grid-template-columns: 49% 51%;
+  }
+}
+
+/* Panel column background on desktop -- a soft teal wash, echoing the
+   hero's colour so the whole page reads as one cohesive teal scene instead
+   of a two-tone split. Radiates from the seam between the two columns. */
+@media (--tablet-up) {
+  .login3-panel {
+    background: radial-gradient(140% 100% at 0% 50%, #b9e8e5 0%, #cdeeec 35%, #e2f6f4 70%, #f2fbfa 100%);
+  }
+}
+
+/* Card on desktop -- carries the same teal wash (lighter than the panel's
+   peak, so it still reads as an elevated surface via shadow + a touch of
+   tonal contrast, not stark white-on-colour). */
+@media (--tablet-up) {
+  .login3-panel-inner {
+    background: linear-gradient(165deg, #f8fdfc 0%, #eaf7f6 100%);
+    border: 1px solid rgba(10, 10, 11, 0.08);
+    box-shadow:
+      0 0 0 1px rgba(10, 10, 11, 0.05),
+      0 32px 72px rgba(10, 10, 11, 0.14),
+      0 8px 20px rgba(10, 10, 11, 0.08);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    transform-style: flat;
+    will-change: transform;
+  }
+}
+
+/* Text colours: dark on white card */
+@media (--tablet-up) {
+  /* Success block on desktop white card — colours already dark by default (base rules above) */
+  .login3-sent-icon {
+    background: rgba(34, 197, 94, 0.08);
+    border-color: rgba(34, 197, 94, 0.25);
+  }
+
+  .login3-heading { color: #0a0a0b; }
+  .login3-heading-underline {
+    background: linear-gradient(135deg, #ff4d5e 0%, #e11d33 100%);
+  }
+  .login3-subheading { color: rgba(10, 10, 11, 0.55); }
+  .login3-label { color: rgba(10, 10, 11, 0.72); }
+  .login3-label-required { color: #e11d33; }
+  .login3-remember { color: rgba(10, 10, 11, 0.62); }
+  .login3-remember input[type='checkbox'] { accent-color: #e11d33; }
+  .login3-forgot-link { color: #e11d33; }
+  .login3-error { color: #c0121f; }
+
+  .login3-input-icon { color: rgba(10, 10, 11, 0.35); }
+  .login3-toggle-visibility { color: rgba(10, 10, 11, 0.35); }
+  .login3-toggle-visibility:hover { color: rgba(10, 10, 11, 0.7); }
+
+  /* Input field: keep as-is (already light bg, dark text) */
+  .login3-input:focus {
+    border-color: #e11d33;
+    box-shadow: 0 0 0 3px rgba(220, 28, 46, 0.13);
+  }
+}
+
+/* ---- Desktop card decorations -------------------------------- */
+
+/* Card wrapper: relative container for spin border + card */
+.nf1-card-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* Spinning conic gradient border — hidden on mobile */
+.nf1-spin-border {
+  display: none;
+}
+
+@media (--tablet-up) {
+  .nf1-spin-border {
+    display: block;
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 26px;
+    padding: 1.5px;
+    background: conic-gradient(
+      from 0deg,
+      #10A3A8 0deg,
+      #6FE0DC 90deg,
+      rgba(255, 255, 255, 0.1) 180deg,
+      rgba(255, 255, 255, 0.05) 270deg,
+      #10A3A8 360deg
+    );
+    /* Reveal only the border (padding area) using mask */
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 0;
+    animation: nf1-spin-border 9s linear infinite;
+  }
+}
+
+@keyframes nf1-spin-border {
+  to { transform: rotate(360deg); }
+}
+
+/* Top highlight line — white shimmer across card top */
+.nf1-card-highlight {
+  display: none;
+}
+
+@media (--tablet-up) {
+  .nf1-card-highlight {
+    display: block;
+    position: absolute;
+    left: 20px;
+    right: 20px;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0),
+      rgba(255, 255, 255, 0.9),
+      rgba(255, 255, 255, 0)
+    );
+    border-radius: 1px;
+    pointer-events: none;
+    z-index: 1;
+  }
+}
+
+@keyframes nf1-sweep {
+  0% { transform: translateX(-120%); }
+  55%, 100% { transform: translateX(240%); }
+}
+
+/* Desktop brand lockup inside card */
+.nf1-card-header {
+  display: none;
+}
+
+@media (--tablet-up) {
+  .nf1-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+}
+
+.nf1-card-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.nf1-card-wordmark {
+  font-size: 20px;
+  font-weight: 800;
+  color: #e11d33;
+  letter-spacing: -0.02em;
+}
+
+/* ---- Password toggle cross-fade ----------------------------- */
+/* Both icons always mounted; opacity/scale transition handles the swap.
+   Do NOT set position here — button inherits position:absolute from
+   login3-toggle-visibility and must remain in that flow. */
+.nf1-pw-toggle {
+  overflow: visible;
+}
+
+/* ---- Button ------------------------------------------------- */
+/* Wrapper so confetti is positioned relative to it */
+.nf1-btn-wrap {
+  position: relative;
+}
+
+/* CSS sweep shimmer on the submit button */
+.nf1-btn-sweep {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 32%;
+  background: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.24) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  pointer-events: none;
+  animation: nf1-sweep 6.5s ease-in-out infinite 1.5s;
+}
+
+.login3-submit--success {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 12px 24px -8px rgba(34, 197, 94, 0.45);
+  cursor: default;
+}
+
+/* ---- Confetti ----------------------------------------------- */
+.nf1-confetti-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: nf1-confetti 0.65s ease-out forwards;
+  opacity: 0;
+}
+
+@keyframes nf1-confetti {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(1);
+    opacity: 0;
+  }
+}
+
+/* ─── Tilt wrapper (motion.div that holds rotateX/Y) ─────────────────────── */
+.nf1-tilt-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+/* ─── Card glow: radial teal bloom behind the card ────────────────────────── */
+/* GPU-composited via opacity animation only. Hidden on mobile. */
+.nf1-card-glow {
+  display: none;
+  position: absolute;
+  inset: -28px;
+  background: radial-gradient(
+    ellipse 80% 55% at 50% 55%,
+    rgba(16, 163, 168, 0.28) 0%,
+    transparent 68%
+  );
+  border-radius: 52px;
+  pointer-events: none;
+}
+
+@media (--tablet-up) {
+  .nf1-card-glow {
+    display: block;
+  }
+}
+
+/* ─── Input focus layoutId highlight ──────────────────────────────────────── */
+/* Absolutely fills input-wrap; z-index 0 keeps it behind text/icons. */
+.nf1-input-highlight {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(220, 28, 46, 0.045);
+  pointer-events: none;
+  z-index: 0;
+}
+
 /* ─── Mobile overrides ───────────────────────────────────────────────────── */
-/* All overrides come AFTER base rules so cascade wins. Goal: full-bleed dark
-   canvas on mobile — no white card, no letterbox, notch/home-bar aware. */
+/* All overrides come AFTER base rules so cascade wins. Goal: full-bleed white
+   canvas on mobile — no card, no letterbox, notch/home-bar aware. */
 @media (max-width: 767px) {
-  /* Signature element: a crimson radial glow from below, like a spotlight
-     aimed up at the screen. References the idea of the app illuminating your
-     store operations. Static, not animated — auth screens need calm. */
+  /* Same soft teal wash as the desktop panel, echoing the brand's teal
+     rather than an unrelated hue. */
   .login3-shell {
-    background:
-      radial-gradient(ellipse 130% 52% at 50% 112%, rgba(177, 17, 22, 0.22) 0%, transparent 65%),
-      linear-gradient(185deg, #0a0a0c 0%, #100c0e 100%);
+    background: radial-gradient(120% 60% at 50% 0%, #b9e8e5 0%, #cdeeec 40%, #e2f6f4 75%, #f2fbfa 100%);
   }
 
   .login3-bg-photo {
@@ -417,7 +771,7 @@
     width: 100%;
   }
 
-  /* Strip the card — the dark gradient screen IS the canvas.
+  /* Strip the card — the white page IS the canvas.
      No background, no border, no radius, no shadow. */
   .login3-panel-inner {
     background: transparent;
@@ -449,81 +803,81 @@
   .login3-mobile-wordmark {
     font-size: 22px;
     font-weight: 800;
-    color: #ffffff;
+    color: #0a0a0b;
     letter-spacing: -0.01em;
   }
 
   .login3-mobile-tagline {
     display: block;
     font-size: 13px;
-    color: rgba(242, 242, 244, 0.5);
+    color: rgba(10, 10, 11, 0.5);
     margin: -4px 0 0;
     letter-spacing: 0.02em;
   }
 
   .login3-mobile-tagline-accent {
-    color: #ff4d5e;
+    color: #e11d33;
   }
 
-  /* Form headings on dark */
+  /* Form headings on white */
   .login3-heading {
-    color: #f2f2f4;
+    color: #0a0a0b;
     font-size: 22px;
   }
 
   .login3-subheading {
-    color: rgba(242, 242, 244, 0.55);
+    color: rgba(10, 10, 11, 0.55);
     font-size: 13px;
     margin: 0 0 24px;
   }
 
   /* Labels: uppercase, spaced, quiet */
   .login3-label {
-    color: rgba(242, 242, 244, 0.65);
+    color: rgba(10, 10, 11, 0.65);
     text-transform: uppercase;
     font-size: 11px;
     letter-spacing: 0.07em;
   }
 
-  /* Inputs: frosted dark glass, not white */
+  /* Inputs: light neutral fill, not frosted glass */
   .login3-input {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.13);
-    color: #f2f2f4;
+    background: #f6f6f8;
+    border: 1px solid #e4e4e7;
+    color: #16161a;
     font-size: 16px;
   }
 
   .login3-input::placeholder {
-    color: rgba(242, 242, 244, 0.3);
+    color: #b0b0b6;
   }
 
   .login3-input:focus {
-    background: rgba(255, 255, 255, 0.10);
+    background: #ffffff;
     border-color: #e11d33;
-    box-shadow: 0 0 0 3px rgba(225, 29, 51, 0.18);
+    box-shadow: 0 0 0 3px rgba(225, 29, 51, 0.13);
   }
 
   .login3-input-icon {
-    color: rgba(242, 242, 244, 0.38);
+    color: rgba(10, 10, 11, 0.35);
   }
 
   .login3-toggle-visibility {
-    color: rgba(242, 242, 244, 0.38);
+    color: rgba(10, 10, 11, 0.35);
   }
 
   .login3-toggle-visibility:hover {
-    color: rgba(242, 242, 244, 0.75);
+    color: rgba(10, 10, 11, 0.7);
   }
 
   .login3-remember {
-    color: rgba(242, 242, 244, 0.6);
+    color: rgba(10, 10, 11, 0.62);
   }
 
   .login3-forgot-link {
-    color: #ff4d5e;
+    color: #e11d33;
   }
 
-  /* Red gradient CTA on mobile too — not the old black override */
+  /* Red gradient CTA on mobile too */
   .login3-submit {
     background: linear-gradient(135deg, #ff4d5e 0%, #e11d33 100%);
     box-shadow: 0 12px 24px -8px rgba(225, 29, 51, 0.40);
@@ -536,10 +890,27 @@
   }
 
   .login3-success {
-    color: #3ddc8b;
+    color: #16a34a;
   }
 
   .login3-error {
-    color: #ff6b7a;
+    color: #c0121f;
+  }
+
+  /* Success block: dark colours on white mobile canvas */
+  .login3-sent-title {
+    color: #0a0a0b;
+  }
+
+  .login3-sent-body {
+    color: rgba(10, 10, 11, 0.6);
+  }
+
+  .login3-sent-email {
+    color: #0a0a0b;
+  }
+
+  .login3-sent-hint {
+    color: rgba(10, 10, 11, 0.4);
   }
 }
