@@ -4,6 +4,11 @@ export type AdminTaskFormErrors = Partial<Record<keyof AdminTaskFormValues, stri
 
 const ALPHANUMERIC_WITH_SPACES = /^[A-Za-z0-9 ]*$/;
 
+export function getTodayDateString(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 export function emptyTaskFormValues(): AdminTaskFormValues {
   return {
     name: '',
@@ -21,13 +26,13 @@ export function emptyTaskFormValues(): AdminTaskFormValues {
     scheduleType: null,
     selectedDays: [],
     oneTimeDate: '',
-    startDate: '',
+    startDate: getTodayDateString(),
     endDate: '',
     active: true,
   };
 }
 
-export function validateTaskForm(values: AdminTaskFormValues): AdminTaskFormErrors {
+export function validateTaskForm(values: AdminTaskFormValues, mode: 'create' | 'edit' = 'create'): AdminTaskFormErrors {
   const errors: AdminTaskFormErrors = {};
 
   if (!values.name.trim()) {
@@ -90,6 +95,8 @@ export function validateTaskForm(values: AdminTaskFormValues): AdminTaskFormErro
   } else {
     if (!values.startDate) {
       errors.startDate = 'Start date is required';
+    } else if (mode === 'create' && values.startDate < getTodayDateString()) {
+      errors.startDate = 'Start date cannot be in the past';
     }
     if (values.startDate && values.endDate && values.endDate < values.startDate) {
       errors.endDate = 'End date cannot be before start date';

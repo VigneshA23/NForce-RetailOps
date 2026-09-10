@@ -25,8 +25,9 @@ export type AddOwnerValues = {
 };
 
 export type AssignStoreValues = {
-  storeName: string;
-  storeLocation: string;
+  storeName?: string;
+  storeLocation?: string;
+  existingStoreId?: number;
 };
 
 export interface ReassignableStore {

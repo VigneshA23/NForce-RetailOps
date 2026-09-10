@@ -1,0 +1,130 @@
+@import '../styles/breakpoints.css';
+
+.employee-stock-check-page {
+  padding: var(--space-lg);
+}
+
+.employee-stock-check-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  color: var(--color-text-secondary);
+}
+
+.employee-stock-check-page__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.employee-stock-check-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.employee-stock-check-page__summary {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.employee-stock-check-page__header .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.employee-stock-check-page__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.employee-stock-check-page__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.employee-stock-check-page__row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.employee-stock-check-page__row-name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.employee-stock-check-page__row-meta {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.employee-stock-check-page__row-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.employee-stock-check-page__count-input {
+  width: 76px;
+  text-align: center;
+}
+
+.employee-stock-check-page__unit {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.employee-stock-check-page__row-needed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 56px;
+  flex-shrink: 0;
+}
+
+.employee-stock-check-page__needed-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.employee-stock-check-page__needed-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.employee-stock-check-page__needed-value--shortage {
+  color: var(--color-accent);
+}
+
+@media (--mobile) {
+  .employee-stock-check-page {
+    padding: var(--space-md);
+  }
+
+  .employee-stock-check-page__row {
+    flex-wrap: wrap;
+  }
+
+  .employee-stock-check-page__row-info {
+    width: 100%;
+  }
+}

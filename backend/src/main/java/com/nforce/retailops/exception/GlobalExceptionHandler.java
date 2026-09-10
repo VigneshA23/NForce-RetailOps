@@ -175,15 +175,41 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
-    // Catch-all for anything not explicitly mapped above (e.g. a dropped/dead
-    // DB connection surfacing as a SQLException) -- without this, such an
-    // exception falls through to Spring Boot's default error handling: a body
-    // shape inconsistent with every other error in this API, and no log line
-    // pointing at the actual cause.
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<Map<String, String>> handleUnexpected(Exception ex) {
-        log.error("Unhandled exception", ex);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(Map.of("message", "Something went wrong. Please try again."));
+    @ExceptionHandler(InventoryCategoryNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryCategoryNotFound(InventoryCategoryNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InventoryItemNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryItemNotFound(InventoryItemNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(SupplierNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleSupplierNotFound(SupplierNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    // The row exists but belongs to another owner's store -- 403, not 404,
+    // matching UnauthorizedTaskResponseActionException's precedent for
+    // cross-store access on an otherwise-real resource.
+    @ExceptionHandler(StoreInventoryItemNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleStoreInventoryItemNotFound(StoreInventoryItemNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InventoryItemNotAssignedException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryItemNotAssigned(InventoryItemNotAssignedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InventoryItemAlreadyAssignedException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryItemAlreadyAssigned(InventoryItemAlreadyAssignedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(OrderListEntryNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleOrderListEntryNotFound(OrderListEntryNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 }

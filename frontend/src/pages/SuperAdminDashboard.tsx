@@ -28,6 +28,7 @@ import SuperAdminEmployees from '../pages/SuperAdminEmployees';
 import SuperAdminHome from '../pages/SuperAdminHome';
 import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import SuperAdminIssues from '../pages/SuperAdminIssues';
+import SuperAdminInventory from '../pages/SuperAdminInventory';
 import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 import './SuperAdminDashboard.css';
@@ -188,14 +189,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setIsAssigningStore(true);
     try {
       const ownerName = assignStoreTarget.ownerName;
-      await assignStore(assignStoreTarget.ownerId, values);
+      const assigned = await assignStore(assignStoreTarget.ownerId, values);
       // Reloaded rather than appended locally: assigning an existing store
       // moves it away from its previous (deactivated) owner, same as Add
       // Owner's existing-store path above -- only a full refresh keeps that
       // other owner's row correct too.
       loadOwners();
       setAssignStoreTarget(null);
-      nfToast.success(`"${values.storeName}" store assigned to ${ownerName}.`);
+      nfToast.success(`"${assigned.storeName}" store assigned to ${ownerName}.`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setAssignStoreError(msg);
@@ -339,6 +340,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminEmployees />
       ) : activeTab === 'issues' ? (
         <SuperAdminIssues />
+      ) : activeTab === 'inventory' ? (
+        <SuperAdminInventory />
       ) : (
         <div className="owners-page">
           <div className="stat-card-row">
