@@ -1,6 +1,8 @@
 package com.nforce.retailops.entity;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Fetch;
+import org.hibernate.annotations.FetchMode;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -74,7 +76,11 @@ public class Task {
     @Column(name = "schedule_type", nullable = false, length = 20)
     private ScheduleType scheduleType;
 
+    // SUBSELECT: loads selectedDays for every Task in the current result set with one
+    // follow-up query, instead of Hibernate's default of one query per Task row (the
+    // N+1 an EAGER @ElementCollection incurs with no batching configured).
     @ElementCollection(fetch = FetchType.EAGER)
+    @Fetch(FetchMode.SUBSELECT)
     @CollectionTable(name = "task_selected_days", joinColumns = @JoinColumn(name = "task_id"))
     @Column(name = "day_of_week", length = 10)
     @Enumerated(EnumType.STRING)

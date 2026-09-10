@@ -5,9 +5,11 @@ import com.nforce.retailops.dto.CreateStoreRequest;
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.dto.SuperAdminStoreResponse;
+import com.nforce.retailops.dto.SupplierResponse;
 import com.nforce.retailops.dto.UpdateStoreStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.StoreService;
+import com.nforce.retailops.service.SupplierService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,14 +25,23 @@ import java.util.List;
 public class StoreController {
 
     private final StoreService storeService;
+    private final SupplierService supplierService;
 
-    public StoreController(StoreService storeService) {
+    public StoreController(StoreService storeService, SupplierService supplierService) {
         this.storeService = storeService;
+        this.supplierService = supplierService;
     }
 
     @GetMapping
     public ResponseEntity<List<StoreResponse>> list(@AuthenticationPrincipal AppUserDetails principal) {
         return ResponseEntity.ok(storeService.listStores(principal.getUser().getId()));
+    }
+
+    // Read-only global supplier directory, so an owner can pick a preferred/order
+    // supplier without needing Super Admin's supplier-management access.
+    @GetMapping("/suppliers")
+    public ResponseEntity<List<SupplierResponse>> listSuppliers() {
+        return ResponseEntity.ok(supplierService.listSuppliers());
     }
 
     // Read-only, cross-owner directory for the Super Admin's Stores page.

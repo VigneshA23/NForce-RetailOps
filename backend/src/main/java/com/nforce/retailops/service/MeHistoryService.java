@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryIssueResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
+import com.nforce.retailops.dto.ResponseHistoryEntry;
 import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
@@ -144,6 +145,9 @@ public class MeHistoryService {
         Map<Long, AdminCorrection> latestCorrectionByResponseId = responseIds.isEmpty()
             ? Map.of()
             : adminCorrectionRepository.findLatestByResponseIds(responseIds);
+        Map<Long, List<ResponseHistoryEntry>> resubmissionHistoriesByResponseId = responses.isEmpty()
+            ? Map.of()
+            : ChecklistHistoryService.buildResubmissionHistories(responses, taskResponseEntryRepository, adminCorrectionRepository);
 
         LinkedHashMap<Long, List<Task>> tasksByCategory = new LinkedHashMap<>();
         for (Task task : allTasks) {
@@ -157,7 +161,7 @@ public class MeHistoryService {
                 tasks.stream()
                     .map(task -> toHistoryTaskItem(
                         task, responsesByTask.getOrDefault(task.getId(), List.of()),
-                        empIdByUserId, latestCorrectionByResponseId))
+                        empIdByUserId, latestCorrectionByResponseId, resubmissionHistoriesByResponseId))
                     .toList()
             ))
             .toList();
@@ -172,7 +176,8 @@ public class MeHistoryService {
 
     private HistoryTaskItemResponse toHistoryTaskItem(
         Task task, List<TaskResponseEntry> responses, Map<Long, String> empIdByUserId,
-        Map<Long, AdminCorrection> latestCorrectionByResponseId
+        Map<Long, AdminCorrection> latestCorrectionByResponseId,
+        Map<Long, List<ResponseHistoryEntry>> resubmissionHistoriesByResponseId
     ) {
         List<HistoryResponseEntryResponse> responseDtos = responses.stream()
             .map(entry -> {
@@ -195,7 +200,7 @@ public class MeHistoryService {
                     entry.getFlagReason(),
                     // The flag -> resubmit history is also shown to the employee: it's their
                     // own prior answer, the owner's comment on it, and what they resubmitted.
-                    ChecklistHistoryService.buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository)
+                    resubmissionHistoriesByResponseId.getOrDefault(entry.getId(), List.of())
                 );
             })
             .toList();

@@ -1,0 +1,44 @@
+@import '../styles/breakpoints.css';
+
+.order-dashboard-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  color: var(--color-text-secondary);
+}
+
+.order-dashboard-page__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.order-dashboard-page__actions-header {
+  text-align: center;
+}
+
+.order-dashboard-page__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.order-dashboard-page__filter-bar {
+  margin-bottom: 0;
+}
+
+.order-dashboard-page__header .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+@media (--mobile) {
+  .order-dashboard-page__header {
+    flex-wrap: wrap;
+  }
+}

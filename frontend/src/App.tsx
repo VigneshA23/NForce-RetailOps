@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Login from './pages/Login'
 import SetNewPassword from './pages/SetNewPassword'
 import ResetPasswordRequired from './pages/ResetPasswordRequired'
@@ -55,6 +55,9 @@ function App() {
     reload: reloadStores,
   } = useAssignedStores(Boolean(isEmployee))
   const meState = useMe(restoringSession || user !== null)
+  // Bounds the one-shot auto-retry in the session-restore effect below to a
+  // single attempt, so a persistently-failing backend doesn't retry forever.
+  const restoreRetried = useRef(false)
 
   // The one place that ends an authenticated session, for any reason: manual
   // logout, inactivity timeout, or a 401 from any API call. Every protected
@@ -100,7 +103,10 @@ function App() {
   // Rehydrate the session on boot. The token outlives a page load, so ask the
   // server who it belongs to rather than trusting anything cached locally; a
   // token that is expired, revoked, or belongs to a deactivated account fails
-  // here and is cleared.
+  // here and is cleared. A failure that ISN'T a real 401 (a timeout, a cold-
+  // start 500, a network blip) does not prove the token is bad, so it must
+  // not be treated the same way -- retry once before giving up, and never
+  // wipe a token we can't actually confirm is invalid.
   useEffect(() => {
     if (!restoringSession || meState.isLoading) return
 
@@ -112,13 +118,28 @@ function App() {
         setAvatarUrl(meState.me.avatarUrl)
         setStoredAvatarUrl(meState.me.avatarUrl)
       }
-    } else {
-      clearAuthToken()
-      clearActiveStoreId()
+      setRestoringSession(false)
+      return
     }
 
-    setRestoringSession(false)
-  }, [restoringSession, meState.isLoading])
+    if (meState.isUnauthorized) {
+      clearAuthToken()
+      clearActiveStoreId()
+      setRestoringSession(false)
+      return
+    }
+
+    if (meState.error) {
+      if (!restoreRetried.current) {
+        restoreRetried.current = true
+        meState.reload()
+        return
+      }
+      // Retry also failed and it's still not a confirmed-invalid session --
+      // fall back to Login with the token left intact rather than guessing.
+      setRestoringSession(false)
+    }
+  }, [restoringSession, meState.isLoading, meState.me, meState.isUnauthorized, meState.error, meState.reload])
 
   // Fresh-login avatar hydration. The session-restore effect above is gated on
   // restoringSession so it never fires for a normal login. When meState.me
