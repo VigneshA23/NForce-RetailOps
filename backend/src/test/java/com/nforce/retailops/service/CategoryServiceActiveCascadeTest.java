@@ -4,7 +4,6 @@ import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.TaskRepository;
-import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -25,13 +24,10 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class CategoryServiceActiveCascadeTest {
 
-    private static final Long OWNER_ID = 1L;
     private static final Long CATEGORY_ID = 5L;
 
     @Mock
     private CategoryRepository categoryRepository;
-    @Mock
-    private UserRepository userRepository;
     @Mock
     private TaskRepository taskRepository;
 
@@ -45,7 +41,7 @@ class CategoryServiceActiveCascadeTest {
         category = new Category();
         ReflectionTestUtils.setField(category, "id", CATEGORY_ID);
         category.setName("Cleaning");
-        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(categoryRepository.findById(CATEGORY_ID)).thenReturn(Optional.of(category));
         when(categoryRepository.save(category)).thenReturn(category);
     }
 
@@ -62,7 +58,7 @@ class CategoryServiceActiveCascadeTest {
         Task alreadyInactiveTask = task(11L, false);
         when(taskRepository.findByCategoryId(CATEGORY_ID)).thenReturn(List.of(activeTask, alreadyInactiveTask));
 
-        categoryService.setActive(OWNER_ID, CATEGORY_ID, false);
+        categoryService.setActiveAsSuperAdmin(CATEGORY_ID, false);
 
         assertThat(category.isActive()).isFalse();
         assertThat(activeTask.isActive()).isFalse();
@@ -79,7 +75,7 @@ class CategoryServiceActiveCascadeTest {
         Task inactiveTask = task(10L, false);
         when(taskRepository.findByCategoryId(CATEGORY_ID)).thenReturn(List.of(inactiveTask));
 
-        categoryService.setActive(OWNER_ID, CATEGORY_ID, true);
+        categoryService.setActiveAsSuperAdmin(CATEGORY_ID, true);
 
         assertThat(category.isActive()).isTrue();
         assertThat(inactiveTask.isActive()).isTrue();

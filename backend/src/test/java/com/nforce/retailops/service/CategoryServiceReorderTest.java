@@ -1,11 +1,10 @@
 package com.nforce.retailops.service;
 
-import com.nforce.retailops.dto.CategoryResponse;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.exception.InvalidCategoryOrderException;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.TaskRepository;
-import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,7 +17,9 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -29,9 +30,9 @@ class CategoryServiceReorderTest {
     @Mock
     private CategoryRepository categoryRepository;
     @Mock
-    private UserRepository userRepository;
-    @Mock
     private TaskRepository taskRepository;
+    @Mock
+    private StoreOwnerRepository storeOwnerRepository;
 
     @InjectMocks
     private CategoryService categoryService;
@@ -47,6 +48,8 @@ class CategoryServiceReorderTest {
     @BeforeEach
     void setUp() {
         lenient().when(taskRepository.countByCategoryId(anyLong())).thenReturn(0);
+        lenient().when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
+        lenient().when(categoryRepository.findVisibleToOwner(eq(OWNER_ID), anyList())).thenReturn(List.of());
     }
 
     @Test
@@ -56,7 +59,6 @@ class CategoryServiceReorderTest {
         Category third = category(3L, 2);
         when(categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(OWNER_ID))
             .thenReturn(List.of(first, second, third));
-        when(categoryRepository.findOwnerCategorySummaryRows(OWNER_ID)).thenReturn(List.of());
 
         categoryService.reorderCategories(OWNER_ID, List.of(3L, 1L, 2L));
 
