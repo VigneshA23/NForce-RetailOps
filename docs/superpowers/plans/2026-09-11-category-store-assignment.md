@@ -25,7 +25,7 @@
 ## Task 1: Migration + `Category` entity
 
 **Files:**
-- Create: `backend/src/main/resources/db/migration/V51__category_store_assignment.sql`
+- Create: `backend/src/main/resources/db/migration/V52__category_store_assignment.sql`
 - Modify: `backend/src/main/java/com/nforce/retailops/entity/Category.java`
 
 **Interfaces:**
@@ -95,7 +95,7 @@ Expected: SUCCESS (this entity change alone doesn't break any existing caller â€
 - [ ] **Step 4: Commit**
 
 ```bash
-git add backend/src/main/resources/db/migration/V51__category_store_assignment.sql backend/src/main/java/com/nforce/retailops/entity/Category.java
+git add backend/src/main/resources/db/migration/V52__category_store_assignment.sql backend/src/main/java/com/nforce/retailops/entity/Category.java
 git commit -m "Add store assignment columns to Category entity"
 ```
 
