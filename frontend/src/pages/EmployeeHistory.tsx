@@ -9,21 +9,16 @@ import {
   History as HistoryIcon,
   MessageSquareWarning,
   MoonStar,
-  Store as StoreIcon,
 } from 'lucide-react'
 import { getShiftHistory } from '../api/history'
 import type { StoreSummary } from '../types/store'
 import type { ShiftHistory } from '../types/history'
-import SearchableSelect from '../components/SearchableSelect'
 import CalendarPopover from '../components/CalendarPopover'
 import StatCard from '../components/StatCard'
 import './EmployeeHistory.css'
 
 interface EmployeeHistoryProps {
   store: StoreSummary
-  // The same server-scoped list the shell was given, so history can only ever
-  // be viewed for a store the employee is assigned to.
-  stores: StoreSummary[]
 }
 
 const TASK_STATUS_META = {
@@ -32,17 +27,9 @@ const TASK_STATUS_META = {
   NOT_ANSWERED: { label: 'Not answered', badgeClass: 'badge--outline', icon: HelpCircle },
 }
 
-const ALL_STORES_VALUE = 'all'
-type StoreFilter = number | typeof ALL_STORES_VALUE
-
-interface StoreHistoryEntry {
-  store: StoreSummary
-  history: ShiftHistory | null
-}
-
-function entryHasActivity(entry: StoreHistoryEntry): entry is StoreHistoryEntry & { history: ShiftHistory } {
-  if (!entry.history) return false
-  return (entry.history.hasChecklist && entry.history.categories.length > 0) || entry.history.issues.length > 0
+function hasActivity(history: ShiftHistory | null): history is ShiftHistory {
+  if (!history) return false
+  return (history.hasChecklist && history.categories.length > 0) || history.issues.length > 0
 }
 
 // YYYY-MM-DD from the Date object's own LOCAL calendar fields -- deliberately
@@ -71,29 +58,20 @@ function formatDateLabel(date: string): string {
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-// Categories are owner-wide, so the same category id can legitimately appear
-// under more than one store -- expand/collapse state (and list keys) for the
-// "All" view are namespaced per store to keep them independent.
-function categoryKey(storeId: number, categoryId: number): string {
-  return `${storeId}:${categoryId}`
-}
-
-function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
-  const availableStores = stores.length > 0 ? stores : [store]
-  const [selectedStoreId, setSelectedStoreId] = useState<StoreFilter>(store.id)
+function EmployeeHistory({ store }: EmployeeHistoryProps) {
   // Defaults to yesterday: a shift's checklist is realistically only fully
   // wrapped up (and worth reviewing) once the day is over, so that's the more
   // useful starting point than an in-progress "today".
   const [selectedDate, setSelectedDate] = useState(yesterdayDate)
-  const [historyEntries, setHistoryEntries] = useState<StoreHistoryEntry[]>([])
+  const [history, setHistory] = useState<ShiftHistory | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // Which category cards are expanded, independently of one another -- a
   // Set rather than a single id, so opening one no longer closes the rest.
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set())
+  const [expandedKeys, setExpandedKeys] = useState<Set<number>>(new Set())
   // Which tasks' resubmission-history panels are open -- independent of the
-  // category expand/collapse state above, keyed the same "store:id" way.
-  const [expandedHistoryKeys, setExpandedHistoryKeys] = useState<Set<string>>(new Set())
+  // category expand/collapse state above.
+  const [expandedHistoryKeys, setExpandedHistoryKeys] = useState<Set<number>>(new Set())
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const calendarButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -102,31 +80,17 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
     setLoading(true)
     setError(null)
 
-    const targetStores =
-      selectedStoreId === ALL_STORES_VALUE
-        ? availableStores
-        : availableStores.filter((candidate) => candidate.id === selectedStoreId)
-
-    Promise.all(
-      targetStores.map((target) =>
-        getShiftHistory(target.id, selectedDate).then((history): StoreHistoryEntry => ({ store: target, history })),
-      ),
-    )
-      .then((results) => {
+    getShiftHistory(store.id, selectedDate)
+      .then((result) => {
         if (!active) return
-        setHistoryEntries(results)
+        setHistory(result)
 
-        const firstWithActivity = results.find(entryHasActivity)
-        const firstCategoryId = firstWithActivity?.history.categories[0]?.id
-        setExpandedKeys(
-          firstWithActivity && firstCategoryId !== undefined
-            ? new Set([categoryKey(firstWithActivity.store.id, firstCategoryId)])
-            : new Set(),
-        )
+        const firstCategoryId = hasActivity(result) ? result.categories[0]?.id : undefined
+        setExpandedKeys(firstCategoryId !== undefined ? new Set([firstCategoryId]) : new Set())
       })
       .catch((err: Error) => {
         if (!active) return
-        setHistoryEntries([])
+        setHistory(null)
         setError(err.message)
       })
       .finally(() => {
@@ -141,18 +105,11 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
     const cancel = loadHistory()
     return cancel
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStoreId, selectedDate])
-
-  const entriesWithActivity = useMemo(() => historyEntries.filter(entryHasActivity), [historyEntries])
-  const hasActivity = entriesWithActivity.length > 0
-  // The per-store heading is only useful once more than one store's worth of
-  // history is actually being shown at once -- a single-store selection (the
-  // default) never renders it, keeping that view exactly as before.
-  const showStoreHeadings = entriesWithActivity.length > 1
+  }, [store.id, selectedDate])
 
   const historyStats = useMemo(() => {
     let complete = 0, flagged = 0, notAnswered = 0
-    for (const { history } of entriesWithActivity) {
+    if (hasActivity(history)) {
       for (const cat of history.categories) {
         for (const task of cat.tasks) {
           if (task.status === 'YES') complete++
@@ -162,9 +119,9 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
       }
     }
     return { complete, flagged, notAnswered }
-  }, [entriesWithActivity])
+  }, [history])
 
-  function toggleCategory(key: string) {
+  function toggleCategory(key: number) {
     setExpandedKeys((current) => {
       const next = new Set(current)
       if (next.has(key)) {
@@ -176,7 +133,7 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
     })
   }
 
-  function toggleHistory(key: string) {
+  function toggleHistory(key: number) {
     setExpandedHistoryKeys((current) => {
       const next = new Set(current)
       if (next.has(key)) {
@@ -202,24 +159,6 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
       </div>
 
       <div className="employee-history-filters">
-        <div className="employee-history-store-select">
-          <span className="employee-history-store-select-icon">
-            <StoreIcon size={16} />
-          </span>
-          <SearchableSelect
-            id="employee-history-store"
-            options={availableStores.map((option) => ({ id: option.id, label: option.name }))}
-            selectedIds={selectedStoreId === ALL_STORES_VALUE ? [] : [selectedStoreId]}
-            onChange={(ids) => setSelectedStoreId(ids[0] ?? ALL_STORES_VALUE)}
-            placeholder="Select a store"
-            allOption={{
-              label: 'All Stores',
-              selected: selectedStoreId === ALL_STORES_VALUE,
-              onToggle: () => setSelectedStoreId(ALL_STORES_VALUE),
-            }}
-          />
-        </div>
-
         <div className="employee-history-date-trigger-wrap">
           <button
             ref={calendarButtonRef}
@@ -262,7 +201,7 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
         </div>
       )}
 
-      {!loading && !error && !hasActivity && (
+      {!loading && !error && !hasActivity(history) && (
         <div className="employee-history-empty">
           <MoonStar size={28} />
           <h3>No activity recorded</h3>
@@ -270,160 +209,155 @@ function EmployeeHistory({ store, stores }: EmployeeHistoryProps) {
         </div>
       )}
 
-      {!loading && !error && hasActivity && (
+      {!loading && !error && hasActivity(history) && (
         <div className="employee-history-list">
-          {entriesWithActivity.map(({ store: entryStore, history }) => (
-            <div key={entryStore.id} className="employee-history-store-group">
-              {showStoreHeadings && <h2 className="employee-history-store-group-heading">{entryStore.name}</h2>}
-              {history.issues.length > 0 && (
-                <div className="employee-history-issues">
-                  <h3 className="employee-history-issues-heading">Raised Issues</h3>
-                  {history.issues.map((issue) => (
-                    <div key={issue.id} className="employee-history-issue-card">
-                      <div className="employee-history-issue-card-top">
-                        <span className="employee-history-issue-card-icon" aria-hidden="true">
-                          <MessageSquareWarning size={16} />
-                        </span>
-                        <p className="employee-history-issue-note">{issue.note}</p>
-                        <span className={`badge ${issue.status === 'RESOLVED' ? 'badge--success' : issue.status === 'ACKNOWLEDGED' ? 'badge--info' : 'badge--warning'}`}>
-                          {issue.status === 'RESOLVED' ? 'Resolved' : issue.status === 'ACKNOWLEDGED' ? 'Acknowledged' : 'Open'}
-                        </span>
-                      </div>
-                      <p className="employee-history-issue-meta">Raised at {issue.raisedAt}</p>
-                      {(issue.status === 'RESOLVED' || issue.status === 'ACKNOWLEDGED') && issue.responseText && (
-                        <div className="employee-history-issue-response">
-                          <p className="employee-history-issue-response-text">{issue.responseText}</p>
-                          <p className="employee-history-issue-meta">
-                            {issue.respondedByName ? `${issue.respondedByName} · ` : ''}
-                            {issue.respondedAt}
-                          </p>
-                        </div>
-                      )}
+          <div className="employee-history-store-group">
+            {history.issues.length > 0 && (
+              <div className="employee-history-issues">
+                <h3 className="employee-history-issues-heading">Raised Issues</h3>
+                {history.issues.map((issue) => (
+                  <div key={issue.id} className="employee-history-issue-card">
+                    <div className="employee-history-issue-card-top">
+                      <span className="employee-history-issue-card-icon" aria-hidden="true">
+                        <MessageSquareWarning size={16} />
+                      </span>
+                      <p className="employee-history-issue-note">{issue.note}</p>
+                      <span className={`badge ${issue.status === 'RESOLVED' ? 'badge--success' : issue.status === 'ACKNOWLEDGED' ? 'badge--info' : 'badge--warning'}`}>
+                        {issue.status === 'RESOLVED' ? 'Resolved' : issue.status === 'ACKNOWLEDGED' ? 'Acknowledged' : 'Open'}
+                      </span>
                     </div>
-                  ))}
-                </div>
-              )}
-              {history.categories.map((category) => {
-                const Icon = ClipboardList
-                const tone = 'info'
-                const isComplete = category.tasksTotal > 0 && category.tasksCompleted === category.tasksTotal
-                const key = categoryKey(entryStore.id, category.id)
-                const isExpanded = expandedKeys.has(key)
-
-                return (
-                  <div
-                    key={key}
-                    className={`employee-history-card${isComplete ? ' employee-history-card--complete' : ''}${isExpanded ? ' employee-history-card--expanded' : ''}`}
-                  >
-                    <button
-                      type="button"
-                      className="employee-history-card-header"
-                      onClick={() => toggleCategory(key)}
-                      aria-expanded={isExpanded}
-                    >
-                      <span className={`employee-history-card-icon employee-history-card-icon--${tone}`}>
-                        <Icon size={18} />
-                        {isComplete && (
-                          <span className="employee-history-card-icon-check" aria-hidden="true">
-                            <CheckCircle2 size={12} />
-                          </span>
-                        )}
-                      </span>
-                      <span className="employee-history-card-heading">
-                        <span className="employee-history-card-name">{category.name}</span>
-                      </span>
-                      <span className="employee-history-card-meta">
-                        <span className="employee-history-card-count">
-                          {category.tasksCompleted}/{category.tasksTotal}
-                        </span>
-                        <ChevronDown size={18} className="employee-history-card-chevron" />
-                      </span>
-                    </button>
-
-                    <div className="employee-history-card-body">
-                      <div className="employee-history-card-body-inner">
-                        {category.tasks.map((task) => {
-                          const meta = TASK_STATUS_META[task.status]
-                          const StatusIcon = meta.icon
-                          const historyKey = categoryKey(entryStore.id, task.id)
-                          const isHistoryExpanded = expandedHistoryKeys.has(historyKey)
-                          return (
-                            <div key={task.id} className="employee-history-task">
-                              <div className="employee-history-task-info">
-                                <p className="employee-history-task-name">{task.name}</p>
-                                {task.completedByAll.length > 1 ? (
-                                  task.completedByAll.map((responder) => (
-                                    <p
-                                      key={responder.employeeUserId}
-                                      className="employee-history-task-detail"
-                                    >
-                                      {`${responder.name} · ${responder.respondedAt}`}
-                                    </p>
-                                  ))
-                                ) : (
-                                  <p className="employee-history-task-detail">
-                                    {task.completedBy
-                                      ? `${task.completedBy.name}${task.completedAt ? ` · ${task.completedAt}` : ''}`
-                                      : 'No staff recorded'}
-                                  </p>
-                                )}
-                                {task.responseValue && (
-                                  <p className="employee-history-task-value">{task.responseValue}</p>
-                                )}
-                                {task.resubmissionHistory.length > 0 && (
-                                  <>
-                                    <button
-                                      type="button"
-                                      className="employee-history-task-history-toggle"
-                                      onClick={() => toggleHistory(historyKey)}
-                                      aria-expanded={isHistoryExpanded}
-                                    >
-                                      <HistoryIcon size={12} />
-                                      {isHistoryExpanded ? 'Hide' : 'View'} response history ({task.resubmissionHistory.length})
-                                    </button>
-                                    {isHistoryExpanded && (
-                                      <div className="employee-history-task-history-list">
-                                        {task.resubmissionHistory.map((transition, index) => (
-                                          <div key={index} className="employee-history-task-history-item">
-                                            <p className="employee-history-task-history-change">
-                                              {transition.fromValue ?? '—'} → {transition.toValue ?? '—'}
-                                            </p>
-                                            <p className="employee-history-task-history-meta">
-                                              {transition.kind === 'DIRECT_CORRECTION' ? 'Corrected by' : 'Flagged by'}{' '}
-                                              {transition.flaggedByName ?? 'Owner'}
-                                              {transition.flaggedAt ? ` · ${transition.flaggedAt}` : ''}
-                                            </p>
-                                            {transition.flagReason && (
-                                              <p className="employee-history-task-history-reason">
-                                                &ldquo;{transition.flagReason}&rdquo;
-                                              </p>
-                                            )}
-                                            {transition.kind === 'FLAG_RESUBMIT' && (
-                                              <p className="employee-history-task-history-meta">
-                                                Resubmitted by {transition.resubmittedByName} · {transition.resubmittedAt}
-                                              </p>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                              <span className={`badge ${meta.badgeClass} employee-history-task-status`}>
-                                <StatusIcon size={14} />
-                                {meta.label}
-                              </span>
-                            </div>
-                          )
-                        })}
+                    <p className="employee-history-issue-meta">Raised at {issue.raisedAt}</p>
+                    {(issue.status === 'RESOLVED' || issue.status === 'ACKNOWLEDGED') && issue.responseText && (
+                      <div className="employee-history-issue-response">
+                        <p className="employee-history-issue-response-text">{issue.responseText}</p>
+                        <p className="employee-history-issue-meta">
+                          {issue.respondedByName ? `${issue.respondedByName} · ` : ''}
+                          {issue.respondedAt}
+                        </p>
                       </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {history.categories.map((category) => {
+              const Icon = ClipboardList
+              const tone = 'info'
+              const isComplete = category.tasksTotal > 0 && category.tasksCompleted === category.tasksTotal
+              const isExpanded = expandedKeys.has(category.id)
+
+              return (
+                <div
+                  key={category.id}
+                  className={`employee-history-card${isComplete ? ' employee-history-card--complete' : ''}${isExpanded ? ' employee-history-card--expanded' : ''}`}
+                >
+                  <button
+                    type="button"
+                    className="employee-history-card-header"
+                    onClick={() => toggleCategory(category.id)}
+                    aria-expanded={isExpanded}
+                  >
+                    <span className={`employee-history-card-icon employee-history-card-icon--${tone}`}>
+                      <Icon size={18} />
+                      {isComplete && (
+                        <span className="employee-history-card-icon-check" aria-hidden="true">
+                          <CheckCircle2 size={12} />
+                        </span>
+                      )}
+                    </span>
+                    <span className="employee-history-card-heading">
+                      <span className="employee-history-card-name">{category.name}</span>
+                    </span>
+                    <span className="employee-history-card-meta">
+                      <span className="employee-history-card-count">
+                        {category.tasksCompleted}/{category.tasksTotal}
+                      </span>
+                      <ChevronDown size={18} className="employee-history-card-chevron" />
+                    </span>
+                  </button>
+
+                  <div className="employee-history-card-body">
+                    <div className="employee-history-card-body-inner">
+                      {category.tasks.map((task) => {
+                        const meta = TASK_STATUS_META[task.status]
+                        const StatusIcon = meta.icon
+                        const isHistoryExpanded = expandedHistoryKeys.has(task.id)
+                        return (
+                          <div key={task.id} className="employee-history-task">
+                            <div className="employee-history-task-info">
+                              <p className="employee-history-task-name">{task.name}</p>
+                              {task.completedByAll.length > 1 ? (
+                                task.completedByAll.map((responder) => (
+                                  <p
+                                    key={responder.employeeUserId}
+                                    className="employee-history-task-detail"
+                                  >
+                                    {`${responder.name} · ${responder.respondedAt}`}
+                                  </p>
+                                ))
+                              ) : (
+                                <p className="employee-history-task-detail">
+                                  {task.completedBy
+                                    ? `${task.completedBy.name}${task.completedAt ? ` · ${task.completedAt}` : ''}`
+                                    : 'No staff recorded'}
+                                </p>
+                              )}
+                              {task.responseValue && (
+                                <p className="employee-history-task-value">{task.responseValue}</p>
+                              )}
+                              {task.resubmissionHistory.length > 0 && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="employee-history-task-history-toggle"
+                                    onClick={() => toggleHistory(task.id)}
+                                    aria-expanded={isHistoryExpanded}
+                                  >
+                                    <HistoryIcon size={12} />
+                                    {isHistoryExpanded ? 'Hide' : 'View'} response history ({task.resubmissionHistory.length})
+                                  </button>
+                                  {isHistoryExpanded && (
+                                    <div className="employee-history-task-history-list">
+                                      {task.resubmissionHistory.map((transition, index) => (
+                                        <div key={index} className="employee-history-task-history-item">
+                                          <p className="employee-history-task-history-change">
+                                            {transition.fromValue ?? '—'} → {transition.toValue ?? '—'}
+                                          </p>
+                                          <p className="employee-history-task-history-meta">
+                                            {transition.kind === 'DIRECT_CORRECTION' ? 'Corrected by' : 'Flagged by'}{' '}
+                                            {transition.flaggedByName ?? 'Owner'}
+                                            {transition.flaggedAt ? ` · ${transition.flaggedAt}` : ''}
+                                          </p>
+                                          {transition.flagReason && (
+                                            <p className="employee-history-task-history-reason">
+                                              &ldquo;{transition.flagReason}&rdquo;
+                                            </p>
+                                          )}
+                                          {transition.kind === 'FLAG_RESUBMIT' && (
+                                            <p className="employee-history-task-history-meta">
+                                              Resubmitted by {transition.resubmittedByName} · {transition.resubmittedAt}
+                                            </p>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                            <span className={`badge ${meta.badgeClass} employee-history-task-status`}>
+                              <StatusIcon size={14} />
+                              {meta.label}
+                            </span>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
-                )
-              })}
-            </div>
-          ))}
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>

@@ -57,15 +57,20 @@ export async function getChecklistHistorySummary(
 export interface ChecklistHistoryOperationsReportParams {
   startDate: string;
   endDate: string;
+  // Ignored server-side for an Owner/Admin caller (the backend always resolves
+  // their own authorized store(s)) -- required for a Super Admin caller, who
+  // has no "own stores" and must specify which store's report to fetch.
+  storeId?: number;
 }
 
-// Daily Operations Summary report -- deliberately takes no storeId/storeIds:
-// the backend always resolves the caller's own authorized store(s), so the
-// frontend cannot request (and does not need a picker for) another store.
+// Daily Operations Summary report.
 export async function getChecklistHistoryOperationsReport(
   params: ChecklistHistoryOperationsReportParams,
 ): Promise<ChecklistHistoryOperationsReport> {
   const query = new URLSearchParams({ startDate: params.startDate, endDate: params.endDate });
+  if (params.storeId !== undefined) {
+    query.set('storeId', String(params.storeId));
+  }
 
   const response = await fetchWithTimeout(`${API_BASE_URL}/checklist-history/operations-summary?${query}`, {
     headers: authHeaders(),

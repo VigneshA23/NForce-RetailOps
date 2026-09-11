@@ -49,7 +49,7 @@ describe('EmployeeHistory date selection', () => {
     vi.stubEnv('TZ', 'Asia/Kolkata')
     vi.setSystemTime(new Date('2026-09-02T20:00:00Z')) // 2026-09-03 01:30 IST
 
-    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    render(<EmployeeHistory store={STORE} />)
 
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
     expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-02')
@@ -59,7 +59,7 @@ describe('EmployeeHistory date selection', () => {
     vi.stubEnv('TZ', 'Asia/Kolkata')
     vi.setSystemTime(new Date('2026-09-02T20:00:00Z')) // local 2026-09-03, so default is 2026-09-02
 
-    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    render(<EmployeeHistory store={STORE} />)
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
 
     expect(screen.getByRole('button', { name: 'Pick a date' })).toHaveTextContent(formatDateLabel('2026-09-02'))
@@ -69,7 +69,7 @@ describe('EmployeeHistory date selection', () => {
     vi.stubEnv('TZ', 'Asia/Kolkata')
     vi.setSystemTime(new Date('2026-09-02T20:00:00Z')) // local 2026-09-03
 
-    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    render(<EmployeeHistory store={STORE} />)
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-02'))
     mockGetShiftHistory.mockClear()
 
@@ -117,7 +117,7 @@ describe('EmployeeHistory task responder list', () => {
       ],
     })
 
-    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    render(<EmployeeHistory store={STORE} />)
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
 
     expect(await screen.findByText('Alice Caller · 2:00 PM')).toBeInTheDocument()
@@ -152,7 +152,7 @@ describe('EmployeeHistory task responder list', () => {
       ],
     })
 
-    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    render(<EmployeeHistory store={STORE} />)
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
 
     expect(await screen.findByText('Alice Caller · 2:00 PM')).toBeInTheDocument()
@@ -182,7 +182,7 @@ describe('EmployeeHistory raised issues', () => {
       ],
     })
 
-    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    render(<EmployeeHistory store={STORE} />)
 
     expect(await screen.findByText('Raised Issues')).toBeInTheDocument()
     expect(screen.getByText('Freezer #2 is not cooling properly.')).toBeInTheDocument()
@@ -212,7 +212,7 @@ describe('EmployeeHistory raised issues', () => {
       ],
     })
 
-    render(<EmployeeHistory store={STORE} stores={[STORE]} />)
+    render(<EmployeeHistory store={STORE} />)
 
     expect(await screen.findByText('Resolved')).toBeInTheDocument()
     expect(screen.getByText("We've scheduled a repair for tomorrow.")).toBeInTheDocument()
