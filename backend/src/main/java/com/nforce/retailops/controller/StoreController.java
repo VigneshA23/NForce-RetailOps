@@ -59,11 +59,11 @@ public class StoreController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<StoreResponse> rename(
+    public ResponseEntity<SuperAdminStoreResponse> update(
         @PathVariable Long id,
         @Valid @RequestBody StoreRequest request
     ) {
-        return ResponseEntity.ok(storeService.renameStore(id, request));
+        return ResponseEntity.ok(storeService.updateStore(id, request));
     }
 
     @DeleteMapping("/{id}")

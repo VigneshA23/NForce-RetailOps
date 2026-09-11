@@ -68,14 +68,6 @@ public class StoreService {
         return counts;
     }
 
-    private StoreResponse toResponse(StoreOwner storeOwner, Long ownerId) {
-        Store store = storeOwner.getStore();
-        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
-        long taskCount = taskRepository.countByStoreId(store.getId())
-            + (ownerId != null ? taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId) : 0);
-        return new StoreResponse(store.getId(), store.getStoreCode(), store.getName(), storeOwner.isActive(), employeeCount, (int) taskCount);
-    }
-
     @Transactional(readOnly = true)
     public List<StoreResponse> listStores(Long ownerId) {
         return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
@@ -146,17 +138,40 @@ public class StoreService {
             .toList();
     }
 
+    // Super Admin edits a store's own details -- name and, optionally, location.
+    // Location is optional in the request so a name-only rename doesn't wipe
+    // out an existing location.
     @Transactional
-    public StoreResponse renameStore(Long storeId, StoreRequest request) {
+    public SuperAdminStoreResponse updateStore(Long storeId, StoreRequest request) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
         Store store = storeOwner.getStore();
         store.setName(request.name().trim());
-        storeRepository.save(store);
+        if (request.location() != null) {
+            store.setLocation(request.location().trim());
+        }
+        store = storeRepository.save(store);
 
-        Long ownerId = storeOwner.getOwner() != null ? storeOwner.getOwner().getId() : null;
-        return toResponse(storeOwner, ownerId);
+        User owner = storeOwner.getOwner();
+        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
+        long taskCount = taskRepository.countByStoreId(store.getId())
+            + (owner != null ? taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(owner.getId()) : 0);
+
+        return new SuperAdminStoreResponse(
+            store.getId(),
+            store.getStoreCode(),
+            store.getName(),
+            store.getLocation(),
+            store.isActive(),
+            owner != null ? owner.getId() : null,
+            owner != null ? owner.getFullName() : null,
+            owner != null ? owner.getAvatarUrl() : null,
+            owner != null ? owner.isActive() : null,
+            owner != null && storeOwner.isActive(),
+            employeeCount,
+            (int) taskCount
+        );
     }
 
     // Super Admin toggles the store's OWN open/closed status -- distinct from

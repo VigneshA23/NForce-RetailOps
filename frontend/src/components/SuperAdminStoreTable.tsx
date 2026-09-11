@@ -1,4 +1,4 @@
-import { Eye, Trash2, UserRoundCog } from 'lucide-react';
+import { Eye, Pencil, Trash2, UserRoundCog } from 'lucide-react';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
@@ -10,6 +10,7 @@ interface SuperAdminStoreTableProps {
   emptyMessage?: string;
   onViewDetails: (store: SuperAdminStore) => void;
   onToggleStatus: (store: SuperAdminStore) => void;
+  onEdit: (store: SuperAdminStore) => void;
   onAssignOwner: (store: SuperAdminStore) => void;
   onDelete: (store: SuperAdminStore) => void;
 }
@@ -20,6 +21,7 @@ function SuperAdminStoreTable({
   emptyMessage = 'No stores match your filters.',
   onViewDetails,
   onToggleStatus,
+  onEdit,
   onAssignOwner,
   onDelete,
 }: SuperAdminStoreTableProps) {
@@ -90,6 +92,15 @@ function SuperAdminStoreTable({
                       onClick={() => onViewDetails(store)}
                     >
                       <Eye size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      className="table-icon-btn"
+                      aria-label={`Edit ${store.storeName}`}
+                      title="Edit store"
+                      onClick={() => onEdit(store)}
+                    >
+                      <Pencil size={16} />
                     </button>
                     <button
                       type="button"
