@@ -209,9 +209,15 @@ function AdminIssues({ storeId }: AdminIssuesProps) {
   return (
     <div className="admin-issues-page">
       <div className="stat-card-row">
-        <StatCard icon={AlertTriangle} label="Open" value={openCount} tone="primary" />
-        <StatCard icon={Clock} label="Acknowledged" value={acknowledgedCount} tone="warning" />
-        <StatCard icon={CheckCircle2} label="Resolved" value={resolvedCount} tone="success" />
+        <StatCard icon={AlertTriangle} label="Open" value={openCount} tone="primary"
+          onClick={() => setStatusFilter(statusFilter === 'OPEN' ? null : 'OPEN')}
+          active={statusFilter === 'OPEN'} />
+        <StatCard icon={Clock} label="Acknowledged" value={acknowledgedCount} tone="warning"
+          onClick={() => setStatusFilter(statusFilter === 'ACKNOWLEDGED' ? null : 'ACKNOWLEDGED')}
+          active={statusFilter === 'ACKNOWLEDGED'} />
+        <StatCard icon={CheckCircle2} label="Resolved" value={resolvedCount} tone="success"
+          onClick={() => setStatusFilter(statusFilter === 'RESOLVED' ? null : 'RESOLVED')}
+          active={statusFilter === 'RESOLVED'} />
       </div>
 
       {loadError && (
