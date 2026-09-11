@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CheckSquare, ClipboardList, LayoutGrid, Store, Tags, Users, Home } from 'lucide-react';
+import { Boxes, Building2, CheckSquare, ClipboardList, LayoutGrid, Package, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -7,7 +7,9 @@ export type NavTabKey =
   | 'employees'
   | 'categories'
   | 'tasks'
-  | 'issues';
+  | 'issues'
+  | 'inventory'
+  | 'orders';
 
 export interface NavItem<Key extends string = NavTabKey> {
   key: Key;
@@ -21,6 +23,8 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
+  { key: 'inventory', label: 'Inventory', icon: Boxes },
+  { key: 'orders', label: 'Orders', icon: ShoppingCart },
 ];
 
 // Mobile bottom tab bar: home, daily checklist, tasks, employees.
@@ -37,9 +41,11 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   categories: 'Categories',
   tasks: 'Tasks',
   issues: 'Issues',
+  inventory: 'Inventory',
+  orders: 'Orders',
 };
 
-export type EmployeeNavTabKey = 'today' | 'audits' | 'issues';
+export type EmployeeNavTabKey = 'today' | 'audits' | 'issues' | 'stock-check';
 
 export interface EmployeeNavItem {
   key: EmployeeNavTabKey;
@@ -47,14 +53,16 @@ export interface EmployeeNavItem {
   icon: LucideIcon;
 }
 
-export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'checklist' | 'issues';
+export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'checklist' | 'issues' | 'inventory';
 
 export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'home', label: 'Home', icon: Home },
   { key: 'owners', label: 'Owners', icon: Building2 },
   { key: 'stores', label: 'Stores', icon: Store },
   { key: 'employees', label: 'Employees', icon: Users },
+  { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
+  { key: 'inventory', label: 'Inventory', icon: Package },
 ];
 
 export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
@@ -62,6 +70,8 @@ export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
   owners: 'Owners',
   stores: 'Stores',
   employees: 'Employees',
+  categories: 'Categories',
   checklist: 'Daily Checklist',
   issues: 'Issues',
+  inventory: 'Inventory',
 };

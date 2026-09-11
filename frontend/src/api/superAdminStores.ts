@@ -12,6 +12,11 @@ export async function createStandaloneStore(values: CreateStoreValues): Promise<
   return apiRequest<SuperAdminStore>('/stores', { method: 'POST', body: values });
 }
 
+// Edits an existing store's name and location.
+export async function updateStore(id: number, values: CreateStoreValues): Promise<SuperAdminStore> {
+  return apiRequest<SuperAdminStore>(`/stores/${id}`, { method: 'PUT', body: values });
+}
+
 // Toggles the store's OWN active/inactive status -- distinct from an owner's
 // access to the store (setStoreStatus in api/owners.ts).
 export async function updateStoreStatus(id: number, active: boolean): Promise<SuperAdminStore> {

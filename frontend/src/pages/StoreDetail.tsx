@@ -32,6 +32,11 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   const [detail, setDetail] = useState<ChecklistHistoryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  // Tracked so the silent 60s refresh's failures (previously swallowed with no
+  // trace at all) are visible: when it can't refresh, the on-screen data is
+  // frozen at whatever loaded last, and the user should be able to tell.
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
+  const [refreshStale, setRefreshStale] = useState(false);
 
   const [filter, setFilter] = useState<FilterKey>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -47,6 +52,8 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
       getChecklistHistoryDetail(id, forDate)
         .then((result) => {
           setDetail(result);
+          setLastUpdatedAt(new Date());
+          setRefreshStale(false);
           if (!silent) setDetailLoading(false);
         })
         .catch((error: Error) => {
@@ -59,10 +66,14 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
             attempt(true);
             return;
           }
-          if (!silent) {
-            setDetailError(error.message);
-            setDetailLoading(false);
+          if (silent) {
+            // Previously swallowed entirely -- the table would silently go
+            // stale with no indication a refresh had failed.
+            setRefreshStale(true);
+            return;
           }
+          setDetailError(error.message);
+          setDetailLoading(false);
         });
     }
 
@@ -344,6 +355,14 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
             ) : (
               <span className="store-detail-page__mode-badge store-detail-page__mode-badge--historical">
                 📋 Historical
+              </span>
+            )}
+            {isToday && lastUpdatedAt && (
+              <span className="store-detail-page__last-updated">
+                {refreshStale
+                  ? "Couldn't refresh — showing data from " +
+                    lastUpdatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  : 'Updated ' + lastUpdatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
           </div>

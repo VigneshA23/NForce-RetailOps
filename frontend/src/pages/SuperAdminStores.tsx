@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CircleCheck, Plus, Store as StoreIcon, Users } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { assignStoreOwner, createStandaloneStore, deleteStore, getAllStores, updateStoreStatus } from '../api/superAdminStores';
+import { assignStoreOwner, createStandaloneStore, deleteStore, getAllStores, updateStore, updateStoreStatus } from '../api/superAdminStores';
 import { getOwners } from '../api/owners';
 import type { OwnerSummary } from '../types/owner';
 import type { CreateStoreValues, SuperAdminStore } from '../types/superAdminStore';
 import SuperAdminStoreTable from '../components/SuperAdminStoreTable';
 import AddStoreModal from '../components/AddStoreModal';
+import EditStoreModal from '../components/EditStoreModal';
 import AssignStoreOwnerModal from '../components/AssignStoreOwnerModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
@@ -33,6 +34,11 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
   const [statusError, setStatusError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SuperAdminStore | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // Edit-store modal
+  const [editTarget, setEditTarget] = useState<SuperAdminStore | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
 
   // Assign-owner modal
   const [assignTarget, setAssignTarget] = useState<SuperAdminStore | null>(null);
@@ -95,6 +101,24 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
     }
   }
 
+  async function handleEditSubmit(values: CreateStoreValues) {
+    if (!editTarget) return;
+    setEditError(null);
+    setIsEditing(true);
+    try {
+      const updated = await updateStore(editTarget.storeId, values);
+      setStores((current) => current.map((s) => (s.storeId === updated.storeId ? updated : s)));
+      setEditTarget(null);
+      nfToast.success(`"${updated.storeName}" store updated.`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to update store';
+      setEditError(msg);
+      nfToast.error(msg);
+    } finally {
+      setIsEditing(false);
+    }
+  }
+
   async function handleConfirmDelete() {
     if (!deleteTarget) return;
     setDeleteError(null);
@@ -123,8 +147,22 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
     try {
       const updated = await assignStoreOwner(assignTarget.storeId, ownerId);
       setStores((current) => current.map((s) => (s.storeId === updated.storeId ? updated : s)));
-      // Refresh owners list so the just-assigned owner no longer shows as available.
-      getOwners().then(setAllOwners).catch(() => {});
+      // Patch the assigned owner's store fields locally (rather than refetching the
+      // whole owners list) so they no longer show as available.
+      setAllOwners((current) =>
+        current.map((o) =>
+          o.ownerId === ownerId
+            ? {
+                ...o,
+                storeId: updated.storeId,
+                storeCode: updated.storeCode,
+                storeName: updated.storeName,
+                storeLocation: updated.storeLocation,
+                storeActive: updated.storeActive,
+              }
+            : o,
+        ),
+      );
       setAssignTarget(null);
       nfToast.success(`Owner assigned to "${updated.storeName}".`);
     } catch (error) {
@@ -238,6 +276,10 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
             emptyMessage={stores.length === 0 ? 'No stores yet.' : 'No stores match your filters.'}
             onViewDetails={(store) => onNavigateToChecklist(store.storeId)}
             onToggleStatus={handleToggleStatus}
+            onEdit={(store) => {
+              setEditError(null);
+              setEditTarget(store);
+            }}
             onAssignOwner={(store) => {
               setAssignError(null);
               setAssignTarget(store);
@@ -263,6 +305,18 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
         isSubmitting={isSubmitting}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}
+      />
+
+      <EditStoreModal
+        isOpen={editTarget !== null}
+        initialValues={editTarget ? { name: editTarget.storeName, location: editTarget.storeLocation ?? '' } : undefined}
+        errorMessage={editError}
+        isSubmitting={isEditing}
+        onClose={() => {
+          setEditError(null);
+          setEditTarget(null);
+        }}
+        onSubmit={handleEditSubmit}
       />
 
       <AssignStoreOwnerModal

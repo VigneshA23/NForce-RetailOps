@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
+import { Boxes, CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
@@ -11,6 +11,7 @@ import AppShell from './AppShell'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
 import EmployeeIssues from '../pages/EmployeeIssues'
+import EmployeeStockCheck from '../pages/EmployeeStockCheck'
 import Notifications from '../pages/Notifications'
 import Profile from '../pages/Profile'
 import Help from '../pages/Help'
@@ -33,6 +34,7 @@ const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'today', label: 'Checklist', icon: CalendarCheck },
   { key: 'audits', label: 'History', icon: ClipboardList },
   { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
+  { key: 'stock-check', label: 'Stock Check', icon: Boxes },
 ]
 
 type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null
@@ -77,7 +79,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     }
   }
 
-  const ALL_EMPLOYEE_TABS: EmployeeNavTabKey[] = ['today', 'audits', 'issues']
+  const ALL_EMPLOYEE_TABS: EmployeeNavTabKey[] = ['today', 'audits', 'issues', 'stock-check']
 
   const contextLabel = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
@@ -165,6 +167,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                 )}
                 {tab === 'audits' && <EmployeeHistory store={store} stores={stores} />}
                 {tab === 'issues' && <EmployeeIssues store={store} />}
+                {tab === 'stock-check' && <EmployeeStockCheck store={store} />}
               </div>
             ) : null,
           )

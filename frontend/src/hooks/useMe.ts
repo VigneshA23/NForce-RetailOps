@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { getMe, type MeResponse } from '../api/me';
+import { ApiError } from '../api/client';
 
 interface MeState {
   me: MeResponse | null;
   isLoading: boolean;
   error: string | null;
+  // True only for a real 401 (invalid/expired/revoked session) -- distinct
+  // from a timeout/network/5xx failure, which must NOT be treated as proof
+  // the session itself is bad (see App.tsx's session-restore effect).
+  isUnauthorized: boolean;
   reload: () => void;
   setMe: (me: MeResponse) => void;
 }
@@ -21,6 +26,7 @@ export function useMe(enabled: boolean): MeState {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
+  const [isUnauthorized, setIsUnauthorized] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
 
   const reload = useCallback(() => setReloadToken((token) => token + 1), []);
@@ -30,19 +36,23 @@ export function useMe(enabled: boolean): MeState {
       setMe(null);
       setIsLoading(false);
       setError(null);
+      setIsUnauthorized(false);
       return;
     }
 
     let active = true;
     setIsLoading(true);
     setError(null);
+    setIsUnauthorized(false);
 
     getMe()
       .then((result) => {
         if (active) setMe(result);
       })
       .catch((cause: unknown) => {
-        if (active) setError(cause instanceof Error ? cause.message : 'Failed to load your profile');
+        if (!active) return;
+        setError(cause instanceof Error ? cause.message : 'Failed to load your profile');
+        setIsUnauthorized(cause instanceof ApiError && cause.status === 401);
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -53,5 +63,5 @@ export function useMe(enabled: boolean): MeState {
     };
   }, [enabled, reloadToken]);
 
-  return { me, isLoading, error, reload, setMe };
+  return { me, isLoading, error, isUnauthorized, reload, setMe };
 }

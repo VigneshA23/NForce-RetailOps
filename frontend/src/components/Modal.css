@@ -110,8 +110,9 @@
     padding-bottom: max(var(--space-md), env(safe-area-inset-bottom));
   }
 
-  /* Employee pages opt into this via Modal's `centered` prop -- keeps the
-     dialog centered like desktop instead of docking to the bottom edge. */
+  /* Opt into this via Modal's `centered` prop -- keeps the dialog centered
+     like desktop instead of docking to the bottom edge. Used by the logout
+     confirmation dialog across all three shells. */
   .modal-overlay--centered {
     padding: var(--space-md);
     align-items: center;

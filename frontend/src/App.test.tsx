@@ -6,6 +6,7 @@ import * as authApi from './api/auth'
 import * as storesApi from './api/stores'
 import * as meApi from './api/me'
 import * as tasksApi from './api/tasks'
+import { ApiError } from './api/client'
 import type { StoreSummary } from './types/store'
 
 const TOKEN_KEY = 'nforce-retailops-auth-token'
@@ -199,9 +200,9 @@ describe('sign-out', () => {
     expect(mockLogout).toHaveBeenCalledTimes(1)
   })
 
-  it('clears a stale token and returns to login when the stored session is rejected', async () => {
+  it('clears a stale token and returns to login when the stored session is rejected with a 401', async () => {
     localStorage.setItem(TOKEN_KEY, 'stale-token-from-before-logout')
-    mockGetMe.mockRejectedValue(new Error('Unauthorized'))
+    mockGetMe.mockRejectedValue(new ApiError(401, 'Unauthorized'))
 
     render(<App />)
 
@@ -254,6 +255,43 @@ describe('session restore', () => {
     render(<App />)
 
     await screen.findByText(/select your store/i)
+  })
+
+  it('retries once and keeps the token when the restore check fails transiently (not a 401)', async () => {
+    localStorage.setItem(TOKEN_KEY, 'still-valid-token')
+    localStorage.setItem(ACTIVE_STORE_KEY, String(STORE_1.id))
+    mockGetMe.mockRejectedValueOnce(new Error('The request timed out. Please check your connection and try again.'))
+    mockGetMe.mockResolvedValueOnce({
+      id: 7,
+      fullName: 'Jane Doe',
+      email: 'jane@nforceone.com',
+      role: 'EMPLOYEE',
+      storeNames: ['Store 1', 'Store 2'],
+      mustResetPassword: false,
+      shift: null,
+      employeeType: null,
+      phone: null,
+      avatarUrl: null,
+    })
+
+    render(<App />)
+
+    // Recovers on the automatic retry instead of bouncing to Login.
+    await screen.findByRole('heading', { name: /today's tasks/i })
+    expect(mockGetMe).toHaveBeenCalledTimes(2)
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('still-valid-token')
+  })
+
+  it('falls back to login without clearing the token when the restore check keeps failing transiently', async () => {
+    localStorage.setItem(TOKEN_KEY, 'still-valid-token')
+    mockGetMe.mockRejectedValue(new Error('The request timed out. Please check your connection and try again.'))
+
+    render(<App />)
+
+    await screen.findByText(/welcome back/i)
+    expect(mockGetMe).toHaveBeenCalledTimes(2)
+    // Not a confirmed-invalid session -- the token is left in place.
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('still-valid-token')
   })
 })
 

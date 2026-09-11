@@ -1,0 +1,17 @@
+.store-inventory-page__error {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  color: var(--color-text-secondary);
+}
+
+.store-inventory-page__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+.store-inventory-page__actions-header {
+  text-align: center;
+}

@@ -154,21 +154,48 @@ public class OwnerManagementService {
         User owner = userRepository.findById(ownerId)
             .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
 
+        if (!owner.isActive()) {
+            throw new InvalidOwnerRequestException("Cannot assign a store to a deactivated owner");
+        }
+
         if (storeOwnerRepository.existsByOwnerIdAndActiveTrue(ownerId)) {
             throw new OwnerStoreConflictException(
                 "This owner already has an active store assigned. Deactivate their current store first before assigning a new one.");
         }
 
-        Store store = new Store();
-        store.setName(request.storeName());
-        store.setLocation(request.storeLocation());
-        store.setStoreCode(storeCodeGenerator.next());
-        store = storeRepository.save(store);
+        boolean hasNewStoreName = request.storeName() != null && !request.storeName().isBlank();
+        boolean hasNewStoreLocation = request.storeLocation() != null && !request.storeLocation().isBlank();
+        if (hasNewStoreName != hasNewStoreLocation) {
+            throw new InvalidOwnerRequestException("Provide both store name and location, or leave both blank");
+        }
+        boolean hasNewStore = hasNewStoreName;
+        boolean hasExistingStore = request.existingStoreId() != null;
+        if (hasNewStore == hasExistingStore) {
+            throw new InvalidOwnerRequestException("Choose either a new store or an existing store");
+        }
 
-        StoreOwner storeOwner = new StoreOwner();
-        storeOwner.setStore(store);
-        storeOwner.setOwner(owner);
-        storeOwner = storeOwnerRepository.save(storeOwner);
+        StoreOwner storeOwner;
+        if (hasNewStore) {
+            Store store = new Store();
+            store.setName(request.storeName());
+            store.setLocation(request.storeLocation());
+            store.setStoreCode(storeCodeGenerator.next());
+            store = storeRepository.save(store);
+
+            storeOwner = new StoreOwner();
+            storeOwner.setStore(store);
+            storeOwner.setOwner(owner);
+            storeOwner = storeOwnerRepository.save(storeOwner);
+        } else {
+            storeOwner = storeOwnerRepository.findByStoreId(request.existingStoreId())
+                .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+            if (storeOwner.isActive()) {
+                throw new InvalidOwnerRequestException("That store is not available for reassignment");
+            }
+            storeOwner.setOwner(owner);
+            storeOwner.setActive(true);
+            storeOwner = storeOwnerRepository.save(storeOwner);
+        }
 
         return OwnerResponse.from(storeOwner);
     }
@@ -197,6 +224,23 @@ public class OwnerManagementService {
         notificationService.createForAccountStatus(owner, active);
 
         List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
+        if (!active) {
+            // Deactivating the owner fully releases their store link(s) --
+            // same shape as a never-owned store (owner=null, active=false),
+            // not just a per-store toggle (setStoreActive(false) keeps the
+            // owner reference). This is what makes the store surface as
+            // "unassigned" in findAllWithRevokedAccess, and stops it from
+            // silently reappearing against this owner (even as "Inactive")
+            // if/when they're reactivated -- reactivation must never
+            // auto-restore a previous assignment, only an explicit Add Store
+            // pick can.
+            storeOwners.forEach(storeOwner -> {
+                storeOwner.setActive(false);
+                storeOwner.setOwner(null);
+            });
+            storeOwnerRepository.saveAll(storeOwners);
+            return List.of(OwnerResponse.withoutStore(owner));
+        }
         if (storeOwners.isEmpty()) {
             return List.of(OwnerResponse.withoutStore(owner));
         }

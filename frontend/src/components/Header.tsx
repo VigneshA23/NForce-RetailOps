@@ -38,8 +38,8 @@ interface HeaderProps {
   onIssuesClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
-  // Employee pages only -- see Modal's `centered` prop. Forwarded down to the
-  // logout confirmation dialog inside ProfileMenu.
+  // See Modal's `centered` prop. Forwarded down to the logout confirmation
+  // dialog inside ProfileMenu.
   centeredModals?: boolean;
   onMenuClick?: () => void;
   // Extra page-specific action(s) rendered before the search box (e.g. the

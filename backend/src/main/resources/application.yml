@@ -8,6 +8,12 @@ spring:
     password: ${DATABASE_PASSWORD:postgres}
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      # Neon drops idle server-side connections faster than Hikari's untuned
+      # defaults expect; without a keepalive, a dead pooled connection is only
+      # discovered when a request tries to use it (an uncaught SQLException).
+      connection-timeout: 20000
+      keepalive-time: 240000
+      max-lifetime: 1700000
 
   jpa:
     hibernate:

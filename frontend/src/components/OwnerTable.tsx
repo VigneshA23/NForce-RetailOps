@@ -104,7 +104,10 @@ function OwnerTable({
                       <StoreIcon size={13} aria-hidden="true" />
                       {owner.activeStore.storeName}
                     </span>
-                  ) : owner.anyStore ? (
+                  ) : owner.ownerActive && owner.anyStore ? (
+                    // Only surfaced while the owner is active -- a deactivated
+                    // owner's revoked store link (see setOwnerActive) isn't a
+                    // manual per-store toggle worth flagging here, just noise.
                     <span className="owner-table__store owner-table__store--inactive">
                       <StoreIcon size={13} aria-hidden="true" />
                       {owner.anyStore.storeName}
@@ -159,7 +162,7 @@ function OwnerTable({
                     >
                       <Trash2 size={16} />
                     </button>
-                    {!owner.activeStore && (
+                    {owner.ownerActive && !owner.activeStore && (
                       <button
                         type="button"
                         className="table-icon-btn table-icon-btn--text"

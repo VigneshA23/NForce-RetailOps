@@ -25,12 +25,16 @@ import Settings from '../pages/Settings';
 import Notifications from '../pages/Notifications';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
+import SuperAdminCategories from '../pages/SuperAdminCategories';
 import SuperAdminHome from '../pages/SuperAdminHome';
 import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import SuperAdminIssues from '../pages/SuperAdminIssues';
+import SuperAdminInventory from '../pages/SuperAdminInventory';
 import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 import './SuperAdminDashboard.css';
+
+type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 interface SuperAdminDashboardProps {
   user: AuthUser;
@@ -88,6 +92,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
 
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string; emailSent: boolean } | null>(null);
   const [searchValue, setSearchValue] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -188,14 +193,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setIsAssigningStore(true);
     try {
       const ownerName = assignStoreTarget.ownerName;
-      await assignStore(assignStoreTarget.ownerId, values);
+      const assigned = await assignStore(assignStoreTarget.ownerId, values);
       // Reloaded rather than appended locally: assigning an existing store
       // moves it away from its previous (deactivated) owner, same as Add
       // Owner's existing-store path above -- only a full refresh keeps that
       // other owner's row correct too.
       loadOwners();
       setAssignStoreTarget(null);
-      nfToast.success(`"${values.storeName}" store assigned to ${ownerName}.`);
+      nfToast.success(`"${assigned.storeName}" store assigned to ${ownerName}.`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setAssignStoreError(msg);
@@ -263,14 +268,19 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   }
 
   const query = searchValue.trim().toLowerCase();
-  const filteredOwners = query
-    ? owners.filter(
-        (owner) =>
-          owner.ownerName.toLowerCase().includes(query) ||
-          owner.ownerEmail.toLowerCase().includes(query) ||
-          (owner.storeName?.toLowerCase().includes(query) ?? false),
-      )
-    : owners;
+  const filteredOwners = owners.filter((owner) => {
+    if (
+      query &&
+      !owner.ownerName.toLowerCase().includes(query) &&
+      !owner.ownerEmail.toLowerCase().includes(query) &&
+      !(owner.storeName?.toLowerCase().includes(query) ?? false)
+    ) {
+      return false;
+    }
+    if (statusFilter === 'ACTIVE' && !owner.ownerActive) return false;
+    if (statusFilter === 'INACTIVE' && owner.ownerActive) return false;
+    return true;
+  });
 
   const uniqueOwnerCount = useMemo(() => new Set(owners.map((o) => o.ownerId)).size, [owners]);
   const activeOwnerCount = useMemo(
@@ -306,6 +316,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       }
       logoSrc="/nforce-logo.png"
       hideLogoOnDesktop
+      centeredModals
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
@@ -337,8 +348,12 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminStores onNavigateToChecklist={navigateToChecklist} />
       ) : activeTab === 'employees' ? (
         <SuperAdminEmployees />
+      ) : activeTab === 'categories' ? (
+        <SuperAdminCategories />
       ) : activeTab === 'issues' ? (
         <SuperAdminIssues />
+      ) : activeTab === 'inventory' ? (
+        <SuperAdminInventory />
       ) : (
         <div className="owners-page">
           <div className="stat-card-row">
@@ -415,6 +430,16 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                     variant="filter"
                   />
                 </div>
+
+                <select
+                  className="select filter filter--narrow"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
               </div>
 
               <div className="card">

@@ -29,12 +29,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -336,6 +339,9 @@ public class ChecklistHistoryService {
         Map<Long, AdminCorrection> latestCorrectionByResponseId = responseIds.isEmpty()
             ? Map.of()
             : adminCorrectionRepository.findLatestByResponseIds(responseIds);
+        Map<Long, List<ResponseHistoryEntry>> resubmissionHistoriesByResponseId = responses.isEmpty()
+            ? Map.of()
+            : buildResubmissionHistories(responses, taskResponseEntryRepository, adminCorrectionRepository);
 
         LinkedHashMap<Long, List<Task>> tasksByCategory = new LinkedHashMap<>();
         for (Task task : allTasks) {
@@ -349,7 +355,7 @@ public class ChecklistHistoryService {
                 tasks.stream()
                     .map(task -> toHistoryTaskItem(
                         task, responsesByTask.getOrDefault(task.getId(), List.of()),
-                        empIdByUserId, latestCorrectionByResponseId))
+                        empIdByUserId, latestCorrectionByResponseId, resubmissionHistoriesByResponseId))
                     .toList()
             ))
             .toList();
@@ -368,33 +374,76 @@ public class ChecklistHistoryService {
         TaskResponseEntryRepository responseRepository,
         AdminCorrectionRepository correctionRepository
     ) {
-        List<ResponseHistoryEntry> chain = new ArrayList<>();
-        Long supersededId = entry.getSupersededResponseId();
-        while (supersededId != null) {
-            TaskResponseEntry historical = responseRepository.findById(supersededId).orElse(null);
-            if (historical == null) {
-                break;
+        return buildResubmissionHistories(List.of(entry), responseRepository, correctionRepository)
+            .getOrDefault(entry.getId(), List.of());
+    }
+
+    // Batched form of the above: resolves every response's supersededResponseId chain
+    // with a small, fixed number of round trips across ALL responses at once (one
+    // findAllById + one correction lookup per "hop depth"), instead of one findById plus
+    // one correction query per hop, per response. Used when rendering a whole page of
+    // responses at once (checklist history detail); the single-response overload above
+    // still serves the one-off admin correction/flag actions in AdminCorrectionService.
+    static Map<Long, List<ResponseHistoryEntry>> buildResubmissionHistories(
+        Collection<TaskResponseEntry> responses,
+        TaskResponseEntryRepository responseRepository,
+        AdminCorrectionRepository correctionRepository
+    ) {
+        Map<Long, TaskResponseEntry> resolved = new LinkedHashMap<>();
+        Set<Long> frontier = responses.stream()
+            .map(TaskResponseEntry::getSupersededResponseId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        while (!frontier.isEmpty()) {
+            Set<Long> nextFrontier = new LinkedHashSet<>();
+            for (TaskResponseEntry historical : responseRepository.findAllById(frontier)) {
+                resolved.put(historical.getId(), historical);
+                Long next = historical.getSupersededResponseId();
+                if (next != null && !resolved.containsKey(next)) {
+                    nextFrontier.add(next);
+                }
             }
-            AdminCorrection flag = correctionRepository.findByTaskResponseIdOrderByCorrectedAtDesc(historical.getId())
-                .stream()
-                .filter(c -> "FLAG_TO_EMPLOYEE".equals(c.getCorrectionType()))
-                .findFirst()
-                .orElse(null);
-            chain.add(new ResponseHistoryEntry(
-                historical.getId(),
-                historical.getValueBoolean(),
-                historical.getValueNumeric(),
-                historical.getValueText(),
-                historical.getCreatedAt(),
-                historical.getEmployee().getFullName(),
-                flag != null ? flag.getReason() : historical.getFlagReason(),
-                flag != null ? (flag.getCorrectedBy() != null ? flag.getCorrectedBy().getFullName() : flag.getCorrectedByName()) : null,
-                flag != null ? flag.getCorrectedAt() : null
-            ));
-            supersededId = historical.getSupersededResponseId();
+            frontier = nextFrontier;
         }
-        Collections.reverse(chain);
-        return chain;
+
+        Map<Long, AdminCorrection> latestFlagByResponseId = resolved.isEmpty()
+            ? Map.of()
+            : correctionRepository.findByTaskResponseIdIn(resolved.keySet()).stream()
+                .filter(c -> "FLAG_TO_EMPLOYEE".equals(c.getCorrectionType()))
+                .collect(Collectors.toMap(
+                    c -> c.getTaskResponse().getId(),
+                    c -> c,
+                    (a, b) -> a.getCorrectedAt().isAfter(b.getCorrectedAt()) ? a : b
+                ));
+
+        Map<Long, List<ResponseHistoryEntry>> result = new LinkedHashMap<>();
+        for (TaskResponseEntry entry : responses) {
+            List<ResponseHistoryEntry> chain = new ArrayList<>();
+            Long supersededId = entry.getSupersededResponseId();
+            while (supersededId != null) {
+                TaskResponseEntry historical = resolved.get(supersededId);
+                if (historical == null) {
+                    break;
+                }
+                AdminCorrection flag = latestFlagByResponseId.get(historical.getId());
+                chain.add(new ResponseHistoryEntry(
+                    historical.getId(),
+                    historical.getValueBoolean(),
+                    historical.getValueNumeric(),
+                    historical.getValueText(),
+                    historical.getCreatedAt(),
+                    historical.getEmployee().getFullName(),
+                    flag != null ? flag.getReason() : historical.getFlagReason(),
+                    flag != null ? (flag.getCorrectedBy() != null ? flag.getCorrectedBy().getFullName() : flag.getCorrectedByName()) : null,
+                    flag != null ? flag.getCorrectedAt() : null
+                ));
+                supersededId = historical.getSupersededResponseId();
+            }
+            Collections.reverse(chain);
+            result.put(entry.getId(), chain);
+        }
+        return result;
     }
 
     static AdminCorrectionEntry toCorrectionEntry(AdminCorrection c) {
@@ -415,7 +464,8 @@ public class ChecklistHistoryService {
 
     private HistoryTaskItemResponse toHistoryTaskItem(
         Task task, List<TaskResponseEntry> responses, Map<Long, String> empIdByUserId,
-        Map<Long, AdminCorrection> latestCorrectionByResponseId
+        Map<Long, AdminCorrection> latestCorrectionByResponseId,
+        Map<Long, List<ResponseHistoryEntry>> resubmissionHistoriesByResponseId
     ) {
         List<HistoryResponseEntryResponse> responseDtos = responses.stream()
             .map(entry -> {
@@ -433,7 +483,7 @@ public class ChecklistHistoryService {
                     entry.getEmployee().getAvatarUrl(),
                     entry.isFlaggedNeedsCorrection(),
                     entry.getFlagReason(),
-                    buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository)
+                    resubmissionHistoriesByResponseId.getOrDefault(entry.getId(), List.of())
                 );
             })
             .toList();

@@ -16,7 +16,11 @@ export async function login(email: string, password: string): Promise<LoginResul
   })
 
   if (!response.ok) {
-    throw new Error('Invalid email or password')
+    const payload = await response.json().catch(() => null)
+    const message =
+      (payload && typeof payload === 'object' && 'message' in payload && String(payload.message)) ||
+      'Invalid email or password'
+    throw new Error(message)
   }
 
   return response.json()
