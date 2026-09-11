@@ -122,6 +122,27 @@ class StoreControllerTest {
 
     @Test
     @Transactional
+    void superAdminCanEditStoreNameAndLocation() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role superRole = role("SUPER_ADMIN");
+        User owner = user("store-edit-owner@nforce.test", ownerRole);
+        user("store-edit-super@nforce.test", superRole);
+        Store store = store("Edit Me Store", 8013L);
+        linkOwnerToStore(owner, store);
+
+        String token = login("store-edit-super@nforce.test");
+
+        mockMvc.perform(put("/api/stores/" + store.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Edited Name\",\"location\":\"New Location\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.storeName").value("Edited Name"))
+            .andExpect(jsonPath("$.storeLocation").value("New Location"));
+    }
+
+    @Test
+    @Transactional
     void superAdminCanDeleteStore() throws Exception {
         Role ownerRole = role("OWNER_ADMIN");
         Role superRole = role("SUPER_ADMIN");
