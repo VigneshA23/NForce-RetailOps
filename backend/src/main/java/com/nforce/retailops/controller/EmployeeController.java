@@ -14,7 +14,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -76,19 +75,19 @@ public class EmployeeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.createEmployee(request));
     }
 
-    // Uses Authentication (not @AuthenticationPrincipal AppUserDetails) because Super
-    // Admin uses SuperAdminUserDetails -- a different principal type -- and
-    // @AuthenticationPrincipal with a typed parameter binds to null when the type
-    // doesn't match, which NPEs on principal.getUser() for a real Super Admin.
-    // Same idiom as ChecklistHistoryController's detail()/correctionHistory().
+    // @AuthenticationPrincipal Object (not AppUserDetails) because Super Admin
+    // authenticates as SuperAdminUserDetails -- a different principal type --
+    // and a typed @AuthenticationPrincipal silently binds to null when the
+    // type doesn't match, which NPEs on principal.getUser() for a real Super
+    // Admin. Same idiom as ChecklistHistoryController and NotificationController.
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
     public ResponseEntity<EmployeeResponse> update(
-        Authentication authentication,
+        @AuthenticationPrincipal Object principal,
         @PathVariable Long id,
         @Valid @RequestBody EmployeeUpdateRequest request
     ) {
-        if (authentication.getPrincipal() instanceof AppUserDetails appUserDetails) {
+        if (principal instanceof AppUserDetails appUserDetails) {
             return ResponseEntity.ok(employeeService.updateEmployee(appUserDetails.getUser().getId(), id, request));
         }
         return ResponseEntity.ok(employeeService.updateEmployeeAsSuperAdmin(id, request));
@@ -97,11 +96,11 @@ public class EmployeeController {
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
     public ResponseEntity<EmployeeResponse> updateStatus(
-        Authentication authentication,
+        @AuthenticationPrincipal Object principal,
         @PathVariable Long id,
         @Valid @RequestBody UpdateEmployeeStatusRequest request
     ) {
-        if (authentication.getPrincipal() instanceof AppUserDetails appUserDetails) {
+        if (principal instanceof AppUserDetails appUserDetails) {
             return ResponseEntity.ok(employeeService.setEmployeeActive(appUserDetails.getUser().getId(), id, request));
         }
         return ResponseEntity.ok(employeeService.setEmployeeActiveAsSuperAdmin(id, request));
@@ -131,5 +130,4 @@ public class EmployeeController {
         employeeService.deleteEmployeeAsSuperAdmin(id);
         return ResponseEntity.noContent().build();
     }
-
 }
