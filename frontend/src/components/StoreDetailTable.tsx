@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Flag, History as HistoryIcon, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
-import { responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
+import { responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import CorrectionModal from './CorrectionModal';
 import FlagResponseModal from './FlagResponseModal';
@@ -24,12 +24,6 @@ interface StoreDetailTableProps {
   onResponseFlagged?: (taskId: number, updatedResponse: ChecklistHistoryResponseEntry) => void;
   repeatOffenderMap?: Map<number, number>;
 }
-
-const STATUS_LABELS: Record<ChecklistTaskStatus, string> = {
-  OPEN: 'Open',
-  COMPLETE: 'Complete',
-  ISSUE: 'Issue',
-};
 
 const STATUS_BADGE_CLASS: Record<ChecklistTaskStatus, string> = {
   OPEN: 'badge--outline',
@@ -431,7 +425,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                       )}
                     </td>
                     <td data-label="Status" className="store-detail-table__status-cell">
-                      <span className={`badge ${STATUS_BADGE_CLASS[status]}`}>{STATUS_LABELS[status]}</span>
+                      <span className={`badge ${STATUS_BADGE_CLASS[status]}`}>{TASK_STATUS_LABELS[status]}</span>
                     </td>
                   </tr>
                 );

@@ -1,4 +1,5 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import StoreDetail from './StoreDetail';
 import * as checklistHistoryApi from '../api/checklistHistory';
@@ -48,6 +49,38 @@ function respondedYes(id: number) {
       resubmissionHistory: [],
     },
   ];
+}
+
+function respondedWith(id: number, employeeFullName: string, booleanValue: boolean) {
+  return [
+    {
+      id,
+      employeeUserId: id,
+      employeeFullName,
+      empId: `EMP-00${id}`,
+      booleanValue,
+      numericValue: null,
+      textValue: null,
+      respondedAt: `${todayDate()}T08:00:00Z`,
+      latestCorrection: null,
+      flaggedNeedsCorrection: false,
+      flagReason: null,
+      resubmissionHistory: [],
+    },
+  ];
+}
+
+function searchSampleDetail(): ChecklistHistoryDetail {
+  return detail(1, 'Downtown', [
+    {
+      id: 1,
+      name: 'Opening Checks',
+      tasks: [
+        taskItem({ id: 1, name: 'Check float cash in till', responses: respondedWith(1, 'Jane Doe', true) }),
+        taskItem({ id: 2, name: 'Clean restrooms', responses: respondedWith(2, 'John Smith', false) }),
+      ],
+    },
+  ]);
 }
 
 beforeEach(() => {
@@ -136,5 +169,43 @@ describe('StoreDetail progress indicator', () => {
     });
     const [doneCard] = document.querySelectorAll('.cat-prog-card');
     expect(doneCard).toHaveClass('cat-prog-card--done');
+  });
+});
+
+describe('StoreDetail search', () => {
+  it('matches rows by employee name', async () => {
+    mockGetDetail.mockResolvedValue(searchSampleDetail());
+    render(<StoreDetail storeId={1} />);
+    await screen.findByText('Check float cash in till');
+
+    await userEvent.type(screen.getByRole('searchbox'), 'Jane');
+
+    const table = within(screen.getByRole('table'));
+    expect(table.getByText('Check float cash in till')).toBeInTheDocument();
+    expect(table.queryByText('Clean restrooms')).not.toBeInTheDocument();
+  });
+
+  it('matches rows by response value', async () => {
+    mockGetDetail.mockResolvedValue(searchSampleDetail());
+    render(<StoreDetail storeId={1} />);
+    await screen.findByText('Check float cash in till');
+
+    await userEvent.type(screen.getByRole('searchbox'), 'No');
+
+    const table = within(screen.getByRole('table'));
+    expect(table.getByText('Clean restrooms')).toBeInTheDocument();
+    expect(table.queryByText('Check float cash in till')).not.toBeInTheDocument();
+  });
+
+  it('matches rows by status label', async () => {
+    mockGetDetail.mockResolvedValue(searchSampleDetail());
+    render(<StoreDetail storeId={1} />);
+    await screen.findByText('Check float cash in till');
+
+    await userEvent.type(screen.getByRole('searchbox'), 'Issue');
+
+    const table = within(screen.getByRole('table'));
+    expect(table.getByText('Clean restrooms')).toBeInTheDocument();
+    expect(table.queryByText('Check float cash in till')).not.toBeInTheDocument();
   });
 });
