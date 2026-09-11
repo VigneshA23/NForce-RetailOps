@@ -1,24 +1,27 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { CategoryFormValues } from '../types/category';
+import type { CategoryFormValues, CategoryStoreOption } from '../types/category';
 import Modal from './Modal';
 import FormField from './FormField';
+import CategoryStorePicker from './CategoryStorePicker';
 
 interface CategoryFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
   initialValues?: CategoryFormValues;
+  availableStores: CategoryStoreOption[];
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
   onSubmit: (values: CategoryFormValues) => void;
 }
 
-const EMPTY_VALUES: CategoryFormValues = { name: '' };
+const EMPTY_VALUES: CategoryFormValues = { name: '', appliesToAllStores: true, storeIds: [] };
 
 function CategoryFormModal({
   isOpen,
   mode,
   initialValues,
+  availableStores,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -40,7 +43,11 @@ function CategoryFormModal({
       setValidationError('Name is required');
       return;
     }
-    onSubmit({ name: values.name.trim() });
+    if (!values.appliesToAllStores && values.storeIds.length === 0) {
+      setValidationError('Select at least one store, or choose All Stores');
+      return;
+    }
+    onSubmit({ ...values, name: values.name.trim() });
   }
 
   return (
@@ -65,9 +72,16 @@ function CategoryFormModal({
             id="category-name"
             className="input"
             value={values.name}
-            onChange={(event) => setValues({ name: event.target.value })}
+            onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
             placeholder="e.g. Opening, Cleaning, Closing"
             autoFocus
+          />
+        </FormField>
+        <FormField label="Applies To" htmlFor="category-stores">
+          <CategoryStorePicker
+            stores={availableStores}
+            value={{ appliesToAllStores: values.appliesToAllStores, storeIds: values.storeIds }}
+            onChange={(next) => setValues((current) => ({ ...current, ...next }))}
           />
         </FormField>
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
