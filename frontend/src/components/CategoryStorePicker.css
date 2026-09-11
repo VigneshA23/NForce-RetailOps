@@ -1,0 +1,31 @@
+.category-store-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.category-store-picker__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.category-store-picker__option--all {
+  font-weight: 600;
+}
+
+.category-store-picker__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2xs, 4px);
+  padding-left: var(--space-sm);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.category-store-picker__empty {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}

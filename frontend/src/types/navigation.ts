@@ -53,13 +53,14 @@ export interface EmployeeNavItem {
   icon: LucideIcon;
 }
 
-export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'checklist' | 'issues' | 'inventory';
+export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'checklist' | 'issues' | 'inventory';
 
 export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'home', label: 'Home', icon: Home },
   { key: 'owners', label: 'Owners', icon: Building2 },
   { key: 'stores', label: 'Stores', icon: Store },
   { key: 'employees', label: 'Employees', icon: Users },
+  { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
   { key: 'inventory', label: 'Inventory', icon: Package },
 ];
@@ -69,6 +70,7 @@ export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
   owners: 'Owners',
   stores: 'Stores',
   employees: 'Employees',
+  categories: 'Categories',
   checklist: 'Daily Checklist',
   issues: 'Issues',
   inventory: 'Inventory',
