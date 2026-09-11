@@ -307,6 +307,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       }
       logoSrc="/nforce-logo.png"
       hideLogoOnDesktop
+      centeredModals
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
