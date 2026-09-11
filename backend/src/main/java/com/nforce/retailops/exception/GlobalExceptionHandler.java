@@ -212,4 +212,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleOrderListEntryNotFound(OrderListEntryNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
+
+    // Catch-all for anything not explicitly mapped above (e.g. a dropped/dead
+    // DB connection surfacing as a SQLException) -- without this, such an
+    // exception falls through to Spring Boot's default error handling: a body
+    // shape inconsistent with every other error in this API, and no log line
+    // pointing at the actual cause.
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, String>> handleUnexpected(Exception ex) {
+        log.error("Unhandled exception", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(Map.of("message", "Something went wrong. Please try again."));
+    }
 }
