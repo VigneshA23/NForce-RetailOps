@@ -75,6 +75,11 @@ public class EmployeeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.createEmployee(request));
     }
 
+    // @AuthenticationPrincipal Object (not AppUserDetails) because Super Admin
+    // authenticates as SuperAdminUserDetails -- a different principal type --
+    // and a typed @AuthenticationPrincipal silently binds to null when the
+    // type doesn't match, which NPEs on principal.getUser() for a real Super
+    // Admin. Same idiom as ChecklistHistoryController and NotificationController.
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
     public ResponseEntity<EmployeeResponse> update(

@@ -6,39 +6,57 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
+    // Used only by the pre-existing, untouched reorderCategories (Owner-Admin-
+    // only, scoped to categories that owner personally created).
     List<Category> findByOwnerIdOrderByDisplayOrderAsc(Long ownerId);
 
-    // Single-round-trip form of listCategories: pre-aggregates the task count
-    // in its own subquery (so no join fan-out) rather than a separate batched
-    // count query after fetching the categories. Columns, in order: id, name,
-    // display_order, active, task_count.
-    @Query(value = """
-        SELECT c.id, c.name, c.display_order, c.active,
-               COALESCE(tc.task_count, 0) AS task_count
-        FROM categories c
-        LEFT JOIN (
-            SELECT category_id, COUNT(*) AS task_count
-            FROM tasks
-            GROUP BY category_id
-        ) tc ON tc.category_id = c.id
-        WHERE c.owner_id = :ownerId
-        ORDER BY c.display_order ASC
-        """, nativeQuery = true)
-    List<Object[]> findOwnerCategorySummaryRows(@Param("ownerId") Long ownerId);
+    List<Category> findAllByOrderByNameAsc();
 
-    Optional<Category> findByIdAndOwnerId(Long id, Long ownerId);
+    List<Category> findByNameIgnoreCase(String name);
 
-    boolean existsByOwnerIdAndNameIgnoreCase(Long ownerId, String name);
+    List<Category> findByNameIgnoreCaseAndIdNot(String name, Long id);
 
-    boolean existsByOwnerIdAndNameIgnoreCaseAndIdNot(Long ownerId, String name, Long id);
+    // Visible to an Owner Admin (read-only): they created it themselves
+    // (regardless of its store assignment -- preserves every category an
+    // owner already had before this feature existed), OR it has a store they
+    // own, OR it's "all stores" and Super Admin created it (owner IS NULL).
+    @Query("""
+        select distinct c from Category c
+        left join c.stores s
+        where c.owner.id = :ownerId
+           or s.id in (:storeIds)
+           or (c.appliesToAllStores = true and c.owner is null)
+        order by c.name asc
+        """)
+    List<Category> findVisibleToOwner(@Param("ownerId") Long ownerId, @Param("storeIds") List<Long> storeIds);
 
-    int countByOwnerId(Long ownerId);
+    // Single-category form of findVisibleToOwner -- used by TaskService to
+    // validate that a category an owner is attaching a task to is one they can
+    // actually see.
+    @Query("""
+        select distinct c from Category c
+        left join c.stores s
+        where c.id = :id
+          and (c.owner.id = :ownerId
+               or s.id in (:storeIds)
+               or (c.appliesToAllStores = true and c.owner is null))
+        """)
+    Optional<Category> findVisibleToOwnerById(
+        @Param("id") Long id, @Param("ownerId") Long ownerId, @Param("storeIds") List<Long> storeIds);
 
+    // Batched form for listing many categories at once without one query per
+    // category -- mirrors TaskRepository.findStoreRowsGroupedByTaskIds.
+    @Query("select c.id, s.id, s.name from Category c join c.stores s where c.id in :categoryIds order by s.name asc")
+    List<Object[]> findStoreRowsGroupedByCategoryIds(@Param("categoryIds") Collection<Long> categoryIds);
+
+    // Owner Admin quick-search (AdminSearchService) -- searches only categories
+    // that owner personally created, unrelated to store-based visibility.
     @Query("select c from Category c where c.owner.id = :ownerId "
         + "and lower(c.name) like lower(concat('%', :q, '%')) order by c.name")
     List<Category> searchByOwnerIdAndName(@Param("ownerId") Long ownerId, @Param("q") String q, Pageable pageable);

@@ -25,6 +25,7 @@ import Settings from '../pages/Settings';
 import Notifications from '../pages/Notifications';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
+import SuperAdminCategories from '../pages/SuperAdminCategories';
 import SuperAdminHome from '../pages/SuperAdminHome';
 import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import SuperAdminIssues from '../pages/SuperAdminIssues';
@@ -315,6 +316,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       }
       logoSrc="/nforce-logo.png"
       hideLogoOnDesktop
+      centeredModals
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
@@ -346,6 +348,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminStores onNavigateToChecklist={navigateToChecklist} />
       ) : activeTab === 'employees' ? (
         <SuperAdminEmployees />
+      ) : activeTab === 'categories' ? (
+        <SuperAdminCategories />
       ) : activeTab === 'issues' ? (
         <SuperAdminIssues />
       ) : activeTab === 'inventory' ? (

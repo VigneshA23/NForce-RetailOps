@@ -1,19 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { Plus, Tags, CircleCheck, CircleSlash } from 'lucide-react';
-import { nfToast } from '../utils/toast';
-import {
-  createCategory,
-  updateCategory,
-  updateCategoryStatus,
-  deleteCategory,
-} from '../api/categories';
-import type { Category, CategoryFormValues } from '../types/category';
+import { Tags, CircleCheck, CircleSlash } from 'lucide-react';
+import type { Category } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
-import CategoryFormModal from '../components/CategoryFormModal';
-import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
-import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Categories.css';
 
@@ -24,7 +14,6 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
-type FormModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
 
 interface CategoriesProps {
   categories: Category[];
@@ -35,13 +24,10 @@ interface CategoriesProps {
   searchSeed?: { term: string; id: number };
 }
 
-function Categories({ categories, setCategories, isLoading, loadError, onRetry, searchSeed }: CategoriesProps) {
-  const [formModalState, setFormModalState] = useState<FormModalState>(null);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [statusError, setStatusError] = useState<string | null>(null);
+// Read-only for Owner Admin: category creation, editing, activation, and
+// deletion are Super-Admin-only. This page shows whichever categories apply
+// to this owner's store(s), including ones Super Admin created and assigned.
+function Categories({ categories, isLoading, loadError, onRetry, searchSeed }: CategoriesProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
@@ -52,63 +38,6 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry, 
       setSearch(searchSeed.term);
     }
   }, [searchSeed]);
-
-  async function handleFormSubmit(values: CategoryFormValues) {
-    setFormError(null);
-    setIsSubmitting(true);
-    try {
-      if (formModalState?.mode === 'edit') {
-        const updated = await updateCategory(formModalState.category.id, values);
-        setCategories((current) => current.map((c) => (c.id === updated.id ? updated : c)));
-        nfToast.success(`"${updated.name}" category updated.`);
-      } else {
-        const created = await createCategory(values);
-        setCategories((current) => [...current, created]);
-        nfToast.success(`"${created.name}" category added.`);
-      }
-      setFormModalState(null);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Something went wrong';
-      setFormError(msg);
-      nfToast.error(msg);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  async function handleToggleStatus(category: Category, active: boolean) {
-    setStatusError(null);
-    // Optimistic: the toggle should feel instant, and reverting on failure is
-    // cheap since we still have the prior value in closure.
-    setCategories((current) => current.map((c) => (c.id === category.id ? { ...c, active } : c)));
-    try {
-      const updated = await updateCategoryStatus(category.id, active);
-      setCategories((current) => current.map((c) => (c.id === updated.id ? updated : c)));
-      nfToast.success(`"${category.name}" category ${active ? 'activated' : 'deactivated'}.`);
-    } catch (error) {
-      setCategories((current) => current.map((c) => (c.id === category.id ? category : c)));
-      const msg = error instanceof Error ? error.message : 'Failed to update category status';
-      setStatusError(msg);
-      nfToast.error(msg);
-    }
-  }
-
-  async function handleConfirmDelete() {
-    if (!deleteTarget) return;
-    setDeleteError(null);
-    try {
-      await deleteCategory(deleteTarget.id);
-      setCategories((current) => current.filter((c) => c.id !== deleteTarget.id));
-      const deletedName = deleteTarget.name;
-      setDeleteTarget(null);
-      nfToast.success(`"${deletedName}" category deleted.`);
-    } catch (error) {
-      setDeleteTarget(null);
-      const msg = error instanceof Error ? error.message : 'Failed to delete category';
-      setDeleteError(msg);
-      nfToast.error(msg);
-    }
-  }
 
   const activeCount = useMemo(() => categories.filter((category) => category.active).length, [categories]);
 
@@ -130,35 +59,12 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry, 
         <StatCard icon={CircleSlash} label="Inactive" value={categories.length - activeCount} tone="warning" />
       </div>
 
-      {deleteError && <div className="categories-page__error">{deleteError}</div>}
-      {statusError && <div className="categories-page__error">{statusError}</div>}
-
       <div className="categories-page__header">
         <p className="categories-page__summary">
           {isLoading
             ? 'Loading categories...'
             : `${activeCount} active categor${activeCount === 1 ? 'y' : 'ies'} of ${categories.length} total`}
         </p>
-        <SpecularButton
-          size="sm"
-          radius={999}
-          tint="var(--color-badge-solid-bg)"
-          tintOpacity={1}
-          textColor="var(--color-badge-solid-text)"
-          lineColor="#e11d33"
-          baseColor="#e4e4e7"
-          followMouse
-          proximity={180}
-          onClick={() => {
-            setFormError(null);
-            setFormModalState({ mode: 'create' });
-          }}
-        >
-          <span className="categories-page__add-label">
-            <Plus size={16} />
-            Add Category
-          </span>
-        </SpecularButton>
       </div>
 
       {loadError ? (
@@ -183,43 +89,9 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry, 
             />
           </div>
 
-          <CategoryTable
-            categories={filteredCategories}
-            isLoading={isLoading}
-            onEdit={(category) => {
-              setFormError(null);
-              setFormModalState({ mode: 'edit', category });
-            }}
-            onDelete={(category) => {
-              setDeleteError(null);
-              setDeleteTarget(category);
-            }}
-            onToggleStatus={handleToggleStatus}
-          />
+          <CategoryTable categories={filteredCategories} canManage={false} isLoading={isLoading} />
         </>
       )}
-
-      <CategoryFormModal
-        isOpen={formModalState !== null}
-        mode={formModalState?.mode ?? 'create'}
-        initialValues={formModalState?.mode === 'edit' ? { name: formModalState.category.name } : undefined}
-        errorMessage={formError}
-        isSubmitting={isSubmitting}
-        onClose={() => setFormModalState(null)}
-        onSubmit={handleFormSubmit}
-      />
-
-      <ConfirmDialog
-        isOpen={deleteTarget !== null}
-        title="Delete Category"
-        message={
-          deleteTarget
-            ? `Are you sure you want to delete ${deleteTarget.name}? This cannot be undone.`
-            : ''
-        }
-        onConfirm={handleConfirmDelete}
-        onCancel={() => setDeleteTarget(null)}
-      />
     </div>
   );
 }
