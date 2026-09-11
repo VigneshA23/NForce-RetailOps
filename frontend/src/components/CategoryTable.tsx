@@ -33,7 +33,7 @@ function CategoryTable({
           <thead>
             <tr>
               <th scope="col">Category Name</th>
-              <th scope="col">Stores</th>
+              {canManage && <th scope="col">Stores</th>}
               <th scope="col">Tasks</th>
               <th scope="col">Status</th>
               {canManage && <th scope="col" className="task-table__actions-header">Actions</th>}
@@ -43,7 +43,9 @@ function CategoryTable({
             {categories.map((category) => (
               <tr key={category.id} className="category-table__row">
                 <td className="category-table__name" data-label="Category Name">{category.name}</td>
-                <td className="category-table__stores" data-label="Stores">{storesLabel(category)}</td>
+                {canManage && (
+                  <td className="category-table__stores" data-label="Stores">{storesLabel(category)}</td>
+                )}
                 <td className="category-table__task-count" data-label="Tasks">{category.taskCount}</td>
                 <td data-label="Status">
                   {canManage && onToggleStatus ? (
