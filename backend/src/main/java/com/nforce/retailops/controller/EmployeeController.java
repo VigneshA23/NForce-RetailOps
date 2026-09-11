@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -75,30 +76,35 @@ public class EmployeeController {
         return ResponseEntity.status(HttpStatus.CREATED).body(employeeService.createEmployee(request));
     }
 
+    // Uses Authentication (not @AuthenticationPrincipal AppUserDetails) because Super
+    // Admin uses SuperAdminUserDetails -- a different principal type -- and
+    // @AuthenticationPrincipal with a typed parameter binds to null when the type
+    // doesn't match, which NPEs on principal.getUser() for a real Super Admin.
+    // Same idiom as ChecklistHistoryController's detail()/correctionHistory().
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
     public ResponseEntity<EmployeeResponse> update(
-        @AuthenticationPrincipal AppUserDetails principal,
+        Authentication authentication,
         @PathVariable Long id,
         @Valid @RequestBody EmployeeUpdateRequest request
     ) {
-        if (isSuperAdmin(principal)) {
-            return ResponseEntity.ok(employeeService.updateEmployeeAsSuperAdmin(id, request));
+        if (authentication.getPrincipal() instanceof AppUserDetails appUserDetails) {
+            return ResponseEntity.ok(employeeService.updateEmployee(appUserDetails.getUser().getId(), id, request));
         }
-        return ResponseEntity.ok(employeeService.updateEmployee(principal.getUser().getId(), id, request));
+        return ResponseEntity.ok(employeeService.updateEmployeeAsSuperAdmin(id, request));
     }
 
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'OWNER_ADMIN')")
     public ResponseEntity<EmployeeResponse> updateStatus(
-        @AuthenticationPrincipal AppUserDetails principal,
+        Authentication authentication,
         @PathVariable Long id,
         @Valid @RequestBody UpdateEmployeeStatusRequest request
     ) {
-        if (isSuperAdmin(principal)) {
-            return ResponseEntity.ok(employeeService.setEmployeeActiveAsSuperAdmin(id, request));
+        if (authentication.getPrincipal() instanceof AppUserDetails appUserDetails) {
+            return ResponseEntity.ok(employeeService.setEmployeeActive(appUserDetails.getUser().getId(), id, request));
         }
-        return ResponseEntity.ok(employeeService.setEmployeeActive(principal.getUser().getId(), id, request));
+        return ResponseEntity.ok(employeeService.setEmployeeActiveAsSuperAdmin(id, request));
     }
 
     @PostMapping("/{id}/reset-password")
@@ -126,8 +132,4 @@ public class EmployeeController {
         return ResponseEntity.noContent().build();
     }
 
-    private boolean isSuperAdmin(AppUserDetails principal) {
-        return principal.getAuthorities().stream()
-            .anyMatch(a -> "ROLE_SUPER_ADMIN".equals(a.getAuthority()));
-    }
 }
