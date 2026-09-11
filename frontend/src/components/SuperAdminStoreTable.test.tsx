@@ -23,7 +23,7 @@ function baseStore(overrides: Partial<SuperAdminStore> = {}): SuperAdminStore {
 
 function renderTable(stores: SuperAdminStore[], props: Partial<Parameters<typeof SuperAdminStoreTable>[0]> = {}) {
   return render(
-    <SuperAdminStoreTable stores={stores} onViewDetails={vi.fn()} onToggleStatus={vi.fn()} onAssignOwner={vi.fn()} onDelete={vi.fn()} {...props} />,
+    <SuperAdminStoreTable stores={stores} onViewDetails={vi.fn()} onToggleStatus={vi.fn()} onEdit={vi.fn()} onAssignOwner={vi.fn()} onDelete={vi.fn()} {...props} />,
   );
 }
 
@@ -79,6 +79,16 @@ describe('SuperAdminStoreTable', () => {
     await userEvent.click(screen.getByRole('button', { name: /view downtown store/i }));
 
     expect(onViewDetails).toHaveBeenCalledWith(store);
+  });
+
+  it('calls onEdit when the edit action is clicked', async () => {
+    const onEdit = vi.fn();
+    const store = baseStore();
+    renderTable([store], { onEdit });
+
+    await userEvent.click(screen.getByRole('button', { name: /edit downtown store/i }));
+
+    expect(onEdit).toHaveBeenCalledWith(store);
   });
 
   it('renders the supplied empty message when there are no rows', () => {
