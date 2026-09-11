@@ -33,6 +33,8 @@ import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 import './SuperAdminDashboard.css';
 
+type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
+
 interface SuperAdminDashboardProps {
   user: AuthUser;
   onLogout: () => void;
@@ -89,6 +91,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
 
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string; emailSent: boolean } | null>(null);
   const [searchValue, setSearchValue] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
@@ -264,14 +267,19 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   }
 
   const query = searchValue.trim().toLowerCase();
-  const filteredOwners = query
-    ? owners.filter(
-        (owner) =>
-          owner.ownerName.toLowerCase().includes(query) ||
-          owner.ownerEmail.toLowerCase().includes(query) ||
-          (owner.storeName?.toLowerCase().includes(query) ?? false),
-      )
-    : owners;
+  const filteredOwners = owners.filter((owner) => {
+    if (
+      query &&
+      !owner.ownerName.toLowerCase().includes(query) &&
+      !owner.ownerEmail.toLowerCase().includes(query) &&
+      !(owner.storeName?.toLowerCase().includes(query) ?? false)
+    ) {
+      return false;
+    }
+    if (statusFilter === 'ACTIVE' && !owner.ownerActive) return false;
+    if (statusFilter === 'INACTIVE' && owner.ownerActive) return false;
+    return true;
+  });
 
   const uniqueOwnerCount = useMemo(() => new Set(owners.map((o) => o.ownerId)).size, [owners]);
   const activeOwnerCount = useMemo(
@@ -418,6 +426,16 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                     variant="filter"
                   />
                 </div>
+
+                <select
+                  className="select filter filter--narrow"
+                  value={statusFilter}
+                  onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
               </div>
 
               <div className="card">
