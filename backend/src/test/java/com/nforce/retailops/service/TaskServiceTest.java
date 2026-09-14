@@ -342,6 +342,20 @@ class TaskServiceTest {
     }
 
     @Test
+    void deactivateTasksPastEndDateDelegatesToRepositoryWithToday() {
+        taskService.deactivateTasksPastEndDate();
+
+        verify(taskRepository).deactivateTasksPastEndDate(LocalDate.now());
+    }
+
+    @Test
+    void deactivateTasksPastEndDateOnStartupRunsTheSameSweep() {
+        taskService.deactivateTasksPastEndDateOnStartup();
+
+        verify(taskRepository).deactivateTasksPastEndDate(LocalDate.now());
+    }
+
+    @Test
     void deleteTaskIsRejectedWhenTaskHasCheckedHistory() {
         Long taskId = 9L;
         var task = new Task();

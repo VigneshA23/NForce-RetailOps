@@ -134,4 +134,16 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("q") String q,
         Pageable pageable
     );
+
+    // Any task -- one-time or recurring (EVERY_DAY/WEEKDAYS/WEEKENDS/SELECTED_DAYS),
+    // schedule type doesn't matter -- whose end date has passed is done for good and
+    // can never appear on a checklist again. The daily checklist already excludes it
+    // via findActiveForStoreAndDate's date range check, so this only affects the Task
+    // record's own active flag (and thus the Admin Tasks page), not what employees see.
+    // Tasks with no endDate (open-ended recurring tasks) are untouched.
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query(
+        "update Task t set t.active = false where t.active = true and t.endDate < :today"
+    )
+    int deactivateTasksPastEndDate(@org.springframework.data.repository.query.Param("today") LocalDate today);
 }

@@ -38,7 +38,10 @@ import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import com.nforce.retailops.repository.UserRepository;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -155,6 +158,28 @@ public class TaskService {
         task.setActive(active);
         task = taskRepository.save(task);
         return TaskResponse.from(task);
+    }
+
+    // Nightly sweep: any task -- one-time or recurring, schedule type doesn't matter --
+    // whose end date has passed is already excluded from every employee's checklist by
+    // the date-range check in findActiveForStoreAndDate, but nothing else ever flips its
+    // active flag, so it would otherwise keep showing as "Active" on the Admin Tasks page
+    // forever. Open-ended recurring tasks (no endDate) are untouched.
+    @Scheduled(cron = "0 0 3 * * *")
+    @Transactional
+    public void deactivateTasksPastEndDate() {
+        taskRepository.deactivateTasksPastEndDate(LocalDate.now());
+    }
+
+    // Runs the same sweep once right after startup: without this, a task whose end date
+    // already passed while the backend was down stays active=true until the next 3 AM
+    // run. @Transactional here (rather than on just the target method) is required
+    // because this calls deactivateTasksPastEndDate() via self-invocation, which
+    // bypasses the proxy that @Scheduled/@Transactional above rely on.
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional
+    public void deactivateTasksPastEndDateOnStartup() {
+        deactivateTasksPastEndDate();
     }
 
     @Transactional
