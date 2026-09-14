@@ -20,7 +20,9 @@ interface AppShellProps<Key extends string = NavTabKey> {
   subtitle?: string;
   logoSrc?: string;
   hideLogoOnDesktop?: boolean;
-  // Employee pages only -- see Modal's `centered` prop.
+  // See Modal's `centered` prop. Passed by all three shells (Employee,
+  // Owner/Admin, Super Admin) so their logout confirmation dialog stays
+  // centered on mobile instead of docking to the bottom edge.
   centeredModals?: boolean;
   user: AuthUser;
   onLogout: () => void;

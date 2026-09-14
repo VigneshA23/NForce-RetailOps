@@ -5,11 +5,13 @@ import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +26,9 @@ import org.springframework.transaction.annotation.Transactional;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,6 +45,7 @@ class EmployeeControllerTest {
     @Autowired private StoreEmployeeRepository storeEmployeeRepository;
     @Autowired private StoreRepository storeRepository;
     @Autowired private StoreOwnerRepository storeOwnerRepository;
+    @Autowired private SuperAdminRepository superAdminRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -229,6 +234,155 @@ class EmployeeControllerTest {
             .andExpect(jsonPath("$.stores[*].name", hasItem("Shared Store B")));
     }
 
+    @Test
+    @Transactional
+    void superAdminCanUpdateAnEmployeeWithTheExactPayloadShapeTheEditFormSends() throws Exception {
+        // A real Super Admin (SuperAdmin/super_admins, not a User with a
+        // SUPER_ADMIN role) -- this is the principal type that authenticates
+        // in production and is what actually exercises the SUPER_ADMIN branch
+        // of EmployeeController.update().
+        superAdmin("update-super@nforce.test");
+        Role employeeRole = role("EMPLOYEE");
+
+        User employeeUser = user("update-target-worker@nforce.test", employeeRole);
+        employeeUser.setFullName("Ananya Reddy");
+        userRepository.save(employeeUser);
+        StoreEmployee storeEmployee = new StoreEmployee();
+        storeEmployee.setEmployee(employeeUser);
+        storeEmployee.setPhone("+1 2145550100");
+        storeEmployee.setShift("Morning");
+        storeEmployee.setEmployeeType("Full Time");
+        storeEmployee.setGender("Female");
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        String token = login("update-super@nforce.test");
+
+        // Exact field set / shape EmployeeFormModal.handleSubmit sends for an edit
+        // (storeIds is destructured off client-side before this call, so it's
+        // never part of this request body).
+        mockMvc.perform(put("/api/employees/" + storeEmployee.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"name":"Ananya Reddy","email":"ananya.reddy@kedsicecream.com",\
+                    "phone":"+1 2145550101","shift":"Morning","employeeType":"Full Time",\
+                    "gender":"Female"}"""))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.phone").value("+1 2145550101"));
+    }
+
+    @Test
+    @Transactional
+    void superAdminChangingOnlyTheEmployeeNameSucceedsAndLeavesEverythingElseUnchanged() throws Exception {
+        // Real SuperAdmin fixture (see comment on the test above) -- this is
+        // the regression test for the NullPointerException that
+        // @AuthenticationPrincipal AppUserDetails caused for a genuine Super
+        // Admin (SuperAdminUserDetails is a different principal type, so the
+        // typed argument silently bound to null and NPE'd on principal.getUser()).
+        superAdmin("rename-super@nforce.test");
+        Role employeeRole = role("EMPLOYEE");
+
+        User employeeUser = user("rename-target-worker@nforce.test", employeeRole);
+        employeeUser.setFullName("Ananya Reddy");
+        userRepository.save(employeeUser);
+
+        Store assignedStore = store("Rename Test Store", 8103L);
+
+        StoreEmployee storeEmployee = new StoreEmployee();
+        storeEmployee.setEmployee(employeeUser);
+        storeEmployee.setPhone("2145550101");
+        storeEmployee.setShift("Morning");
+        storeEmployee.setEmployeeType("Full Time");
+        storeEmployee.setGender("Female");
+        storeEmployee.getStores().add(assignedStore);
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        String token = login("rename-super@nforce.test");
+
+        // Every field except name is sent back exactly as it already is in the
+        // DB -- this is what the edit form actually sends when the user only
+        // touches the Name field.
+        mockMvc.perform(put("/api/employees/" + storeEmployee.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"name":"Ananya R. Reddy","email":"rename-target-worker@nforce.test",\
+                    "phone":"2145550101","shift":"Morning","employeeType":"Full Time",\
+                    "gender":"Female"}"""))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Ananya R. Reddy"))
+            .andExpect(jsonPath("$.stores[*].name", hasItem("Rename Test Store")));
+    }
+
+    // Documents the actual response shape for a field-validation failure on this
+    // endpoint: { field: message }, not { message: "..." }. The frontend's
+    // employees.ts parseErrorMessage() must handle this shape -- see
+    // frontend/src/api/employees.test.ts for that half of the contract.
+    @Test
+    @Transactional
+    void updatingAnEmployeeWithABlankRequiredFieldReturnsAFieldValidationErrorNotAGenericFailure() throws Exception {
+        superAdmin("update-super-invalid@nforce.test");
+        Role employeeRole = role("EMPLOYEE");
+
+        User employeeUser = user("update-target-invalid@nforce.test", employeeRole);
+        StoreEmployee storeEmployee = new StoreEmployee();
+        storeEmployee.setEmployee(employeeUser);
+        storeEmployee.setPhone("555-0100");
+        storeEmployee.setShift("Morning");
+        storeEmployee.setEmployeeType("Full Time");
+        storeEmployee.setGender("Female");
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        String token = login("update-super-invalid@nforce.test");
+
+        // employeeType left blank -- reproduces what the edit form sends when a
+        // legacy/mismatched Type value leaves the field unset.
+        mockMvc.perform(put("/api/employees/" + storeEmployee.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                    {"name":"Test User","email":"update-target-invalid@nforce.test",\
+                    "phone":"555-0100","shift":"Morning","employeeType":"",\
+                    "gender":"Female"}"""))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.employeeType").value("Employment type is required"));
+    }
+
+    // Same bug, same fix, same endpoint pair: PATCH /{id}/status went through
+    // the identical @AuthenticationPrincipal AppUserDetails NPE for a real
+    // Super Admin trying to activate/deactivate an employee.
+    @Test
+    @Transactional
+    void superAdminCanDeactivateAndReactivateAnEmployee() throws Exception {
+        superAdmin("status-super@nforce.test");
+        Role employeeRole = role("EMPLOYEE");
+
+        User employeeUser = user("status-target-worker@nforce.test", employeeRole);
+        StoreEmployee storeEmployee = new StoreEmployee();
+        storeEmployee.setEmployee(employeeUser);
+        storeEmployee.setPhone("555-0300");
+        storeEmployee.setShift("Morning");
+        storeEmployee.setEmployeeType("Full Time");
+        storeEmployee.setGender("Female");
+        storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        String token = login("status-super@nforce.test");
+
+        mockMvc.perform(patch("/api/employees/" + storeEmployee.getId() + "/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\":false}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.active").value(false));
+
+        mockMvc.perform(patch("/api/employees/" + storeEmployee.getId() + "/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\":true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.active").value(true));
+    }
+
     private Store store(String name, long storeCode) {
         Store store = new Store();
         store.setName(name);
@@ -260,6 +414,18 @@ class EmployeeControllerTest {
         user.setFullName("Test User");
         user.getRoles().add(role);
         return userRepository.save(user);
+    }
+
+    // The real Super Admin principal (super_admins table / SuperAdminUserDetails),
+    // as opposed to a User row with a SUPER_ADMIN Role -- the two are NOT
+    // interchangeable in this codebase (see AppUserDetailsService), and using
+    // the wrong one masks the exact NPE this test file guards against.
+    private SuperAdmin superAdmin(String email) {
+        SuperAdmin superAdmin = new SuperAdmin();
+        superAdmin.setName("Test Super Admin");
+        superAdmin.setEmail(email);
+        superAdmin.setPasswordHash(passwordEncoder.encode(PASSWORD));
+        return superAdminRepository.save(superAdmin);
     }
 
     private String login(String email) throws Exception {

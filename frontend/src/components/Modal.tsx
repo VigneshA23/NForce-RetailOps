@@ -11,9 +11,9 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   size?: 'md' | 'lg';
-  // Employee pages only: keeps the dialog centered on mobile instead of the
-  // default bottom-sheet layout. Off by default, so every existing caller
-  // (Owner/Admin included) renders exactly as before.
+  // Keeps the dialog centered on mobile instead of the default bottom-sheet
+  // layout. Off by default; the logout confirmation dialog opts in across
+  // all three shells (Employee, Owner/Admin, Super Admin).
   centered?: boolean;
 }
 

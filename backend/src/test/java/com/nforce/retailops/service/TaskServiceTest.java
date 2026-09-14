@@ -41,7 +41,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -109,7 +111,7 @@ class TaskServiceTest {
     }
 
     private void stubCategoryAndSave() {
-        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
         when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(userRepository.getReferenceById(anyLong())).thenReturn(null);
     }
@@ -140,7 +142,7 @@ class TaskServiceTest {
 
     @Test
     void shortTextResponseRejectsMoreThan25Characters() {
-        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
         String twentySixChars = "12345678901234567890123456";
         assertThat(twentySixChars).hasSize(26);
         TaskRequest request = requestWithResponseType(ResponseType.TEXT, twentySixChars);
@@ -151,7 +153,7 @@ class TaskServiceTest {
 
     @Test
     void numericMinGreaterThanMaxIsRejected() {
-        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
         TaskRequest request = new TaskRequest(
             "Record temperature",
             null,
@@ -183,7 +185,7 @@ class TaskServiceTest {
 
     @Test
     void responseTypeRoundTripsThroughUpdate() {
-        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
         when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         var task = new com.nforce.retailops.entity.Task();
         ReflectionTestUtils.setField(task, "id", 9L);
@@ -224,7 +226,7 @@ class TaskServiceTest {
     @Test
     void creatingATaskWithAnInactiveCategoryIsRejected() {
         category.setActive(false);
-        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
 
         assertThatThrownBy(() -> taskService.createTask(OWNER_ID, requestWithResponseType(ResponseType.YES_NO, null)))
             .isInstanceOf(CategoryInactiveException.class);
@@ -235,7 +237,7 @@ class TaskServiceTest {
     @Test
     void updatingATaskToADifferentInactiveCategoryIsRejected() {
         category.setActive(false);
-        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
         var task = new Task();
         ReflectionTestUtils.setField(task, "id", 9L);
         Category previousCategory = new Category();
@@ -252,7 +254,7 @@ class TaskServiceTest {
     @Test
     void updatingATaskWithoutChangingItsInactiveCategorySucceeds() {
         category.setActive(false);
-        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
         when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         var task = new Task();
         ReflectionTestUtils.setField(task, "id", 9L);
@@ -266,7 +268,7 @@ class TaskServiceTest {
 
     @Test
     void editingATaskWithoutTouchingOrderPreservesItsExistingOrder() {
-        when(categoryRepository.findByIdAndOwnerId(CATEGORY_ID, OWNER_ID)).thenReturn(Optional.of(category));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
         when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         var task = new com.nforce.retailops.entity.Task();
         ReflectionTestUtils.setField(task, "id", 9L);

@@ -371,7 +371,8 @@ public class TaskService {
     }
 
     private void applyRequest(Task task, Long ownerId, TaskRequest request) {
-        Category category = categoryRepository.findByIdAndOwnerId(request.categoryId(), ownerId)
+        Category category = categoryRepository
+            .findVisibleToOwnerById(request.categoryId(), ownerId, ownerStoreIdsOrSentinel(ownerId))
             .orElseThrow(() -> new CategoryNotFoundException("Category not found"));
 
         // Inactive categories can't be picked for a task -- except leaving an
@@ -459,6 +460,18 @@ public class TaskService {
         }
 
         task.setActive(request.active());
+    }
+
+    // Used to validate that a category id an owner submits on a TaskRequest is
+    // one they're actually allowed to see (see CategoryRepository.findVisibleToOwnerById).
+    // A sentinel (-1L) keeps the JPQL "in (:storeIds)" clause valid when the
+    // owner currently has no active store.
+    private List<Long> ownerStoreIdsOrSentinel(Long ownerId) {
+        List<Long> ids = storeOwnerRepository.findByOwnerId(ownerId).stream()
+            .filter(StoreOwner::isActive)
+            .map(so -> so.getStore().getId())
+            .toList();
+        return ids.isEmpty() ? List.of(-1L) : ids;
     }
 
     private Set<Store> resolveStores(Long ownerId, TaskRequest request) {

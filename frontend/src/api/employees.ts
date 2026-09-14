@@ -4,10 +4,31 @@ import { fetchWithTimeout } from './client';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
+// A field-validation failure (e.g. @Valid on EmployeeUpdateRequest) comes back
+// as { field: message } with no top-level "message" key -- GlobalExceptionHandler's
+// generic shape for domain errors (EmployeeNotFoundException, etc.) is the only
+// one with `message`. Without this fallback, any blank/invalid field on save
+// surfaced as the generic `fallback` text instead of the actual reason (e.g.
+// "Employment type is required"), leaving the user with no way to tell what to
+// fix.
+//
+// The field-map extraction is scoped to 400 responses only -- that's the one
+// status GlobalExceptionHandler's validation handler ever returns this shape
+// with. An unhandled 500 falls through to Spring Boot's own default error body
+// ({timestamp, status, error, path}, no "message"), which is *also* a plain
+// object of string values; without this guard those framework-internal fields
+// would get displayed to the user as if they were the failure reason.
 async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const body = await response.json();
-    return body.message ?? fallback;
+    if (body && typeof body === 'object') {
+      if (typeof body.message === 'string') return body.message;
+      if (response.status === 400) {
+        const fieldMessages = Object.values(body).filter((value): value is string => typeof value === 'string');
+        if (fieldMessages.length > 0) return fieldMessages.join(' ');
+      }
+    }
+    return fallback;
   } catch {
     return fallback;
   }

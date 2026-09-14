@@ -13,7 +13,7 @@ interface ProfileMenuProps {
   onIssuesClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
-  // Employee pages only -- see Modal's `centered` prop.
+  // See Modal's `centered` prop.
   centeredModals?: boolean;
 }
 

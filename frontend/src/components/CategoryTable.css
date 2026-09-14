@@ -18,3 +18,24 @@
   text-align: center;
   color: var(--color-text-secondary);
 }
+
+.category-table__stores {
+  color: var(--color-text-secondary);
+}
+
+.category-table__status-badge {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.category-table__status-badge.is-active {
+  background: var(--color-badge-success-bg, #dcfce7);
+  color: var(--color-badge-success-text, #166534);
+}
+
+.category-table__status-badge.is-inactive {
+  background: var(--color-badge-neutral-bg, #f4f4f5);
+  color: var(--color-badge-neutral-text, #71717a);
+}

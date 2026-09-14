@@ -265,19 +265,19 @@ class NotificationTriggerTest {
     @Test
     @Transactional
     void categoryCreationNotifiesStoreEmployees() throws Exception {
-        Role ownerRole = role("OWNER_ADMIN");
         Role empRole = role("EMPLOYEE");
-        User owner = user("trig-owner-d@nforce.test", ownerRole);
         User employee = user("trig-emp-d@nforce.test", empRole);
         Store store = store();
-        linkOwner(owner, store);
         linkEmployee(employee, store);
 
-        String ownerToken = login("trig-owner-d@nforce.test");
+        // Category creation is Super-Admin-only now -- notifying the store's
+        // employees still happens, just from the Super Admin's create path.
+        superAdmin("trig-superadmin-d@nforce.test");
+        String superAdminToken = login("trig-superadmin-d@nforce.test");
         mockMvc.perform(post("/api/categories")
-                .header("Authorization", "Bearer " + ownerToken)
+                .header("Authorization", "Bearer " + superAdminToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"New Category Trigger\"}"))
+                .content("{\"name\":\"New Category Trigger\",\"appliesToAllStores\":false,\"storeIds\":[" + store.getId() + "]}"))
             .andExpect(status().isCreated());
 
         String empToken = login("trig-emp-d@nforce.test");

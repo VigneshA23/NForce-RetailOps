@@ -166,6 +166,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       contentKey={overlay ?? 'tabs'}
       logoSrc="/nforce-logo.png"
       hideLogoOnDesktop
+      centeredModals
       user={user}
       onLogout={onLogout}
       loggingOut={loggingOut}
