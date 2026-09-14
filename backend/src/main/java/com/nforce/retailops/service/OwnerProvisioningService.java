@@ -8,6 +8,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
+import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -98,6 +99,10 @@ public class OwnerProvisioningService {
         boolean reassignedExistingStore = false;
         Long previousOwnerId = null;
         if (hasNewStore) {
+            if (storeRepository.existsByNameAndLocationIgnoreCase(request.storeName(), request.storeLocation())) {
+                throw new StoreAlreadyExistsException(
+                    "A store with this name and location already exists");
+            }
             Store store = new Store();
             store.setName(request.storeName());
             store.setLocation(request.storeLocation());

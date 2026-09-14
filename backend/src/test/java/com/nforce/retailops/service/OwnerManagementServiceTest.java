@@ -6,6 +6,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.OwnerStoreConflictException;
+import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -140,6 +141,20 @@ class OwnerManagementServiceTest {
         assertThat(response.ownerId()).isEqualTo(1L);
         assertThat(response.storeId()).isEqualTo(20L);
         assertThat(response.storeName()).isEqualTo("New Store");
+    }
+
+    @Test
+    void assignStoreRejectsDuplicateNameAndLocation() {
+        User owner = user(1L, "Alice Owner");
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(1L)).thenReturn(false);
+        when(storeRepository.existsByNameAndLocationIgnoreCase("New Store", "Main St")).thenReturn(true);
+
+        assertThatThrownBy(() -> ownerManagementService.assignStore(1L, new AssignStoreRequest("New Store", "Main St", null)))
+            .isInstanceOf(StoreAlreadyExistsException.class)
+            .hasMessageContaining("already exists");
+
+        verify(storeRepository, times(0)).save(any(Store.class));
     }
 
     // Regression test for the unbounded-listing fix: the response is capped at

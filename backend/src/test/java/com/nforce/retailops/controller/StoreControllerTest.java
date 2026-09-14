@@ -270,6 +270,64 @@ class StoreControllerTest {
 
     @Test
     @Transactional
+    void superAdminCannotCreateAStoreWithADuplicateNameAndLocation() throws Exception {
+        Role superRole = role("SUPER_ADMIN");
+        user("store-dup-super@nforce.test", superRole);
+        store("Duplicate Store", 8020L, "Riverside");
+
+        String token = login("store-dup-super@nforce.test");
+
+        // Same name and location (different casing/whitespace) as the existing store above.
+        mockMvc.perform(post("/api/stores")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\" duplicate store \",\"location\":\" RIVERSIDE \"}"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value("A store with this name and location already exists"));
+    }
+
+    @Test
+    @Transactional
+    void superAdminCannotRenameAStoreToMatchAnotherStoresNameAndLocation() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role superRole = role("SUPER_ADMIN");
+        User owner = user("store-rename-dup-owner@nforce.test", ownerRole);
+        user("store-rename-dup-super@nforce.test", superRole);
+        store("Existing Store", 8021L, "Lakeside");
+        Store storeToRename = store("Renamable Store", 8022L, "Hillside");
+        linkOwnerToStore(owner, storeToRename);
+
+        String token = login("store-rename-dup-super@nforce.test");
+
+        mockMvc.perform(put("/api/stores/" + storeToRename.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\" existing store \",\"location\":\" LAKESIDE \"}"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value("A store with this name and location already exists"));
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanRenameAStoreBackToItsOwnCurrentNameAndLocation() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role superRole = role("SUPER_ADMIN");
+        User owner = user("store-rename-self-owner@nforce.test", ownerRole);
+        user("store-rename-self-super@nforce.test", superRole);
+        Store storeToRename = store("Self Store", 8023L, "Eastside");
+        linkOwnerToStore(owner, storeToRename);
+
+        String token = login("store-rename-self-super@nforce.test");
+
+        mockMvc.perform(put("/api/stores/" + storeToRename.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Self Store\",\"location\":\"Eastside\"}"))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @Transactional
     void superAdminCannotDeleteStoreWithTaskHistory() throws Exception {
         Role ownerRole = role("OWNER_ADMIN");
         Role superRole = role("SUPER_ADMIN");
@@ -399,8 +457,13 @@ class StoreControllerTest {
     }
 
     private Store store(String name, long storeCode) {
+        return store(name, storeCode, null);
+    }
+
+    private Store store(String name, long storeCode, String location) {
         Store store = new Store();
         store.setName(name);
+        store.setLocation(location);
         store.setStoreCode(storeCode);
         store.setActive(true);
         return storeRepository.save(store);

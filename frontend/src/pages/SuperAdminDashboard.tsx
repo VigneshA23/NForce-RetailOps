@@ -131,11 +131,19 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     }
   }
 
-  function applyOwnerUpdates(updated: OwnerSummary[]) {
-    const updatedByKey = new Map(updated.map((o) => [`${o.ownerId}-${o.storeId}`, o]));
-    setOwners((current) =>
-      current.map((o) => updatedByKey.get(`${o.ownerId}-${o.storeId}`) ?? o),
-    );
+  // `updated` is always the complete, current set of rows for `ownerId` --
+  // not necessarily matched 1:1 with the owner's existing rows by storeId
+  // (e.g. setOwnerActive(false) collapses a store-linked owner down to a
+  // single storeId=null row). So we splice out every existing row for that
+  // owner and replace it with `updated`, rather than merging row-by-row.
+  function applyOwnerUpdates(ownerId: number, updated: OwnerSummary[]) {
+    setOwners((current) => {
+      const firstIndex = current.findIndex((o) => o.ownerId === ownerId);
+      if (firstIndex === -1) return [...current, ...updated];
+      const insertAt = current.slice(0, firstIndex).filter((o) => o.ownerId !== ownerId).length;
+      const remaining = current.filter((o) => o.ownerId !== ownerId);
+      return [...remaining.slice(0, insertAt), ...updated, ...remaining.slice(insertAt)];
+    });
   }
 
   function loadOwners() {
@@ -145,6 +153,19 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       .then(setOwners)
       .catch((error: Error) => setLoadError(error.message))
       .finally(() => setIsLoading(false));
+  }
+
+  // The Owners page and the Stores page each hold their own independently
+  // fetched copy of the owner/store data. A store rename or owner
+  // (re)assignment made on the Stores page mutates only ITS OWN local
+  // state -- since Owners isn't unmounted when switching tabs (it's the
+  // default view rendered by this component, not a separate routed page),
+  // it would otherwise keep showing pre-edit data until a full reload.
+  // Re-fetching here (without toggling isLoading, so the table doesn't
+  // flash to a loading state) keeps it in sync without over-engineering a
+  // shared cache for a 2-store-scale app.
+  function refreshOwnersSilently() {
+    getOwners().then(setOwners).catch(() => {});
   }
 
   useEffect(() => {
@@ -175,7 +196,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setIsEditSubmitting(true);
     try {
       const updated = await updateOwner(editTarget.ownerId, values);
-      applyOwnerUpdates(updated);
+      applyOwnerUpdates(editTarget.ownerId, updated);
       nfToast.success(`"${values.ownerName}" updated.`);
       setEditTarget(null);
     } catch (error) {
@@ -217,7 +238,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       const ownerName = statusTarget.ownerName;
       const isActivating = !statusTarget.ownerActive;
       const updated = await setOwnerStatus(statusTarget.ownerId, isActivating);
-      applyOwnerUpdates(updated);
+      applyOwnerUpdates(statusTarget.ownerId, updated);
       setStatusTarget(null);
       nfToast.success(`"${ownerName}" owner ${isActivating ? 'activated' : 'deactivated'}.`);
     } catch (error) {
@@ -256,7 +277,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         storeStatusTarget.storeId,
         isActivating,
       );
-      applyOwnerUpdates(updated);
+      applyOwnerUpdates(storeStatusTarget.ownerId, updated);
       setStoreStatusTarget(null);
       nfToast.success(`"${storeName}" store ${isActivating ? 'activated' : 'deactivated'}.`);
     } catch (error) {
@@ -345,7 +366,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       ) : activeTab === 'home' ? (
         <SuperAdminHome owners={owners} ownersLoading={isLoading} onStoreClick={navigateToChecklist} onIssuesClick={() => setActiveTab('issues')} />
       ) : activeTab === 'stores' ? (
-        <SuperAdminStores onNavigateToChecklist={navigateToChecklist} />
+        <SuperAdminStores onNavigateToChecklist={navigateToChecklist} onOwnersDataStale={refreshOwnersSilently} />
       ) : activeTab === 'employees' ? (
         <SuperAdminEmployees />
       ) : activeTab === 'categories' ? (

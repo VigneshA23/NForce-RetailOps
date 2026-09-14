@@ -59,6 +59,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(StoreAlreadyExistsException.class)
+    public ResponseEntity<Map<String, String>> handleStoreAlreadyExists(StoreAlreadyExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidCategoryOrderException.class)
     public ResponseEntity<Map<String, String>> handleInvalidCategoryOrder(InvalidCategoryOrderException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));

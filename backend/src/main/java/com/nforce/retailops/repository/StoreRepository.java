@@ -10,6 +10,25 @@ import java.util.List;
 
 public interface StoreRepository extends JpaRepository<Store, Long> {
 
+    // Case-insensitive, trimmed name+location match -- used to reject
+    // creating a new store that duplicates an existing one (active or not;
+    // a deactivated store's name/location should be reassigned via the
+    // reassignable-stores flow, not recreated as a near-identical new store).
+    @Query("select (count(s) > 0) from Store s "
+        + "where lower(trim(s.name)) = lower(trim(:name)) "
+        + "and lower(trim(s.location)) = lower(trim(:location))")
+    boolean existsByNameAndLocationIgnoreCase(@Param("name") String name, @Param("location") String location);
+
+    // Same match, excluding the store being edited -- so renaming a store
+    // back to its own current name/location isn't rejected as a duplicate
+    // of itself.
+    @Query("select (count(s) > 0) from Store s "
+        + "where s.id <> :excludedStoreId "
+        + "and lower(trim(s.name)) = lower(trim(:name)) "
+        + "and lower(trim(s.location)) = lower(trim(:location))")
+    boolean existsByNameAndLocationIgnoreCaseAndIdNot(
+        @Param("name") String name, @Param("location") String location, @Param("excludedStoreId") Long excludedStoreId);
+
     // Single-round-trip form of listStores: rather than one query for the
     // owner's stores plus a separate batched count query per relation
     // (employee count, task count, applies-to-all count), pre-aggregate each
