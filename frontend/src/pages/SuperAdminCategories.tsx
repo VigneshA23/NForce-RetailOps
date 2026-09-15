@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, Tags, CircleCheck, CircleSlash } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { createCategory, updateCategory, updateCategoryStatus, deleteCategory } from '../api/categories';
-import { getOwners } from '../api/owners';
+import { getAllStores } from '../api/superAdminStores';
 import { useSuperAdminCategories } from '../hooks/useSuperAdminCategories';
 import type { Category, CategoryFormValues, CategoryStoreOption } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
@@ -28,15 +28,13 @@ function SuperAdminCategories() {
   const [allStores, setAllStores] = useState<CategoryStoreOption[]>([]);
 
   useEffect(() => {
-    getOwners()
-      .then((owners) => {
-        const byId = new Map<number, CategoryStoreOption>();
-        owners.forEach((owner) => {
-          if (owner.storeId != null && owner.storeName != null) {
-            byId.set(owner.storeId, { id: owner.storeId, name: owner.storeName });
-          }
-        });
-        setAllStores(Array.from(byId.values()));
+    getAllStores()
+      .then((stores) => {
+        setAllStores(
+          stores
+            .filter((store) => store.storeActive)
+            .map((store) => ({ id: store.storeId, name: store.storeName })),
+        );
       })
       .catch(() => setAllStores([]));
   }, []);

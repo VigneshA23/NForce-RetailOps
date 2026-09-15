@@ -5,6 +5,7 @@ import CategoryStorePicker from './CategoryStorePicker';
 const STORES = [
   { id: 1, name: 'Downtown' },
   { id: 2, name: 'Uptown' },
+  { id: 3, name: 'Midtown' },
 ];
 
 describe('CategoryStorePicker', () => {
@@ -23,7 +24,7 @@ describe('CategoryStorePicker', () => {
     expect(onChange).toHaveBeenCalledWith({ appliesToAllStores: true, storeIds: [] });
   });
 
-  it('adds a store id when its checkbox is checked', () => {
+  it('adds a store id when its checkbox is checked, without promoting to All Stores yet', () => {
     const onChange = vi.fn();
     render(
       <CategoryStorePicker
@@ -36,5 +37,21 @@ describe('CategoryStorePicker', () => {
     fireEvent.click(screen.getByLabelText('Uptown'));
 
     expect(onChange).toHaveBeenCalledWith({ appliesToAllStores: false, storeIds: [1, 2] });
+  });
+
+  it('promotes to All Stores when every individual store ends up checked', () => {
+    const onChange = vi.fn();
+    render(
+      <CategoryStorePicker
+        stores={STORES}
+        value={{ appliesToAllStores: false, storeIds: [1, 2] }}
+        onChange={onChange}
+      />,
+    );
+
+    // Checking the last remaining store completes the full set.
+    fireEvent.click(screen.getByLabelText('Midtown'));
+
+    expect(onChange).toHaveBeenCalledWith({ appliesToAllStores: true, storeIds: [] });
   });
 });
