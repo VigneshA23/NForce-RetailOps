@@ -36,7 +36,8 @@ export interface ChecklistHistoryOperationsReport {
 }
 
 export interface AdminCorrectionEntry {
-  id: number;
+  // Null for a synthesized RESUBMISSION entry (no admin_corrections row backs it).
+  id: number | null;
   originalValueBoolean: boolean | null;
   originalValueNumeric: number | null;
   originalValueText: string | null;
@@ -46,7 +47,10 @@ export interface AdminCorrectionEntry {
   correctedByFullName: string;
   correctedAt: string;
   reason: string | null;
-  correctionType: string; // 'DIRECT' | 'FLAG_TO_EMPLOYEE'
+  // 'DIRECT' | 'FLAG_TO_EMPLOYEE' = an admin action, `correctedByFullName` is the admin.
+  // 'RESUBMISSION' = the employee resubmitted a new answer that replaced their own
+  // previous one, `correctedByFullName` is the employee.
+  correctionType: string;
 }
 
 export interface ResubmissionHistoryEntry {

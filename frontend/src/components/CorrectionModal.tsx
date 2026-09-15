@@ -225,9 +225,10 @@ function CorrectionModal({ isOpen, onClose, responseEntry, task, onSaved }: Corr
           )}
           {history !== null && history.length > 0 && (
             <ul className="correction-modal__history-list">
-              {history.map((entry) => (
-                <li key={entry.id} className="correction-modal__history-entry">
+              {history.map((entry, index) => (
+                <li key={entry.id ?? `resubmission-${index}`} className="correction-modal__history-entry">
                   <span className="correction-modal__history-meta">
+                    {entry.correctionType === 'RESUBMISSION' ? 'Resubmitted by ' : 'Corrected by '}
                     {entry.correctedByFullName} · {formatDateLabel(entry.correctedAt.slice(0, 10))} {formatTimeLabel(entry.correctedAt)}
                   </span>
                   <span className="correction-modal__history-change">

@@ -9,8 +9,6 @@ import java.util.stream.Collectors;
 
 public interface AdminCorrectionRepository extends JpaRepository<AdminCorrection, Long> {
 
-    List<AdminCorrection> findByTaskResponseIdOrderByCorrectedAtDesc(Long taskResponseId);
-
     List<AdminCorrection> findByTaskResponseIdIn(Iterable<Long> taskResponseIds);
 
     default Map<Long, AdminCorrection> findLatestByResponseIds(Iterable<Long> responseIds) {

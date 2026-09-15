@@ -55,11 +55,13 @@ export default defineConfig({
           if (id.includes('node_modules/exceljs')) {
             return 'vendor-exceljs'
           }
-          if (id.includes('node_modules/jspdf')) {
-            return 'vendor-jspdf'
-          }
-          if (id.includes('node_modules/html2canvas')) {
-            return 'vendor-html2canvas'
+          // jspdf and html2canvas are only ever dynamically imported (on export
+          // click). Returning undefined here lets Rollup create a natural lazy
+          // chunk for them — the catch-all below must not absorb them into
+          // vendor-misc, which would undo the lazy split and restore the eager
+          // preload (Vite emits a static preload-helper import for named chunks).
+          if (id.includes('node_modules/jspdf') || id.includes('node_modules/html2canvas')) {
+            return undefined
           }
           if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) {
             return 'vendor-motion'

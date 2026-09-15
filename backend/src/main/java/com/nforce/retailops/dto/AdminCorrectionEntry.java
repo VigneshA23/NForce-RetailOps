@@ -13,7 +13,9 @@ public record AdminCorrectionEntry(
     String correctedByFullName,
     OffsetDateTime correctedAt,
     String reason,
-    // 'DIRECT' = admin edited value in place; 'FLAG_TO_EMPLOYEE' = sent back to employee for correction.
+    // 'DIRECT' = admin edited value in place; 'FLAG_TO_EMPLOYEE' = sent back to employee
+    // for correction; 'RESUBMISSION' = synthesized (no admin_corrections row / id) --
+    // the employee resubmitted a new answer that replaced their previous one.
     String correctionType
 ) {
 }

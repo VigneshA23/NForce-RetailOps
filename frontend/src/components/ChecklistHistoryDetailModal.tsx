@@ -247,12 +247,12 @@ function CorrectionHistoryPanel({ responseId, onClose }: { responseId: number; o
       )}
       {history && history.length > 0 && (
         <div className="checklist-history-detail__correction-history">
-          {history.map((entry) => (
-            <div key={entry.id} className="checklist-history-detail__correction-history-item">
+          {history.map((entry, index) => (
+            <div key={entry.id ?? `resubmission-${index}`} className="checklist-history-detail__correction-history-item">
               <strong>{formatOriginalValue(entry)}</strong>
               {' → '}
               <strong>{formatCorrectedValue(entry)}</strong>
-              {' by '}
+              {entry.correctionType === 'RESUBMISSION' ? ' resubmitted by ' : ' by '}
               {entry.correctedByFullName}
               {' at '}
               {new Date(entry.correctedAt).toLocaleString()}

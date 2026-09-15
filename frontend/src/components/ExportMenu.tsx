@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Calendar, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react';
-import { jsPDF } from 'jspdf';
 import { getChecklistHistoryOperationsReport } from '../api/checklistHistory';
 import { buildOperationsReportWorkbook, summarizeByStore } from '../utils/operationsReportExport';
 import { downloadWorkbook } from '../utils/xlsx';
@@ -49,7 +48,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     try {
       const report = await getChecklistHistoryOperationsReport({ startDate: date, endDate: date, storeId: storeId ?? undefined });
       const summary = summarizeByStore(report.summary);
-      const workbook = buildOperationsReportWorkbook(summary, report.details, date, date);
+      const workbook = await buildOperationsReportWorkbook(summary, report.details, date, date);
       await downloadWorkbook(`checklist-${date}.xlsx`, workbook);
       setMenuOpen(false);
     } catch (err) {
@@ -74,7 +73,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     try {
       const report = await getChecklistHistoryOperationsReport({ startDate: rangeStart, endDate: rangeEnd, storeId: storeId ?? undefined });
       const summary = summarizeByStore(report.summary);
-      const workbook = buildOperationsReportWorkbook(summary, report.details, rangeStart, rangeEnd);
+      const workbook = await buildOperationsReportWorkbook(summary, report.details, rangeStart, rangeEnd);
       await downloadWorkbook(`checklist-${rangeStart}_to_${rangeEnd}.xlsx`, workbook);
       setMenuOpen(false);
       setMode('idle');
@@ -105,6 +104,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
       const open = total - completed;
       const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
 
+      const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const pageW = doc.internal.pageSize.getWidth();
       const margin = 14;
