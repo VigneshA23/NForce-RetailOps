@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getChecklistHistoryDetail } from '../api/checklistHistory';
+import { getChecklistHistoryDetail, getCorrectionHistory } from '../api/checklistHistory';
 import { getAllStores } from '../api/superAdminStores';
 import type { ShiftHistory } from '../types/history';
 import { toShiftHistory } from '../utils/checklistHistoryToShiftHistory';
@@ -90,6 +90,7 @@ function SuperAdminHistory() {
       maxDate={todayDate()}
       searchQuery={searchQuery}
       onSearchQueryChange={setSearchQuery}
+      getCorrectionHistory={getCorrectionHistory}
       extraFilters={
         <div className="employee-history-extra-filter">
           <SearchableSelect

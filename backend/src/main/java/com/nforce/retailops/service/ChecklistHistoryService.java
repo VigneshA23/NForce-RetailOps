@@ -530,6 +530,61 @@ public class ChecklistHistoryService {
         return result;
     }
 
+    // Full correction/resubmission audit trail for one response, walking the entire
+    // supersededResponseId chain (this response, then each one it replaced, oldest
+    // last) so a correction/flag logged against an earlier link -- before a
+    // flag->resubmit or a MULTIPLE-task resubmission -- doesn't disappear once that
+    // row is superseded. Shared by AdminCorrectionService (owner/admin) and
+    // MeHistoryService (employee) so both surfaces return the identical trail; only
+    // the caller-side authorization differs.
+    static List<AdminCorrectionEntry> buildCorrectionHistory(
+        TaskResponseEntry entry,
+        TaskResponseEntryRepository taskResponseEntryRepository,
+        AdminCorrectionRepository adminCorrectionRepository
+    ) {
+        List<TaskResponseEntry> chain = new ArrayList<>();
+        chain.add(entry);
+        TaskResponseEntry current = entry;
+        while (current.getSupersededResponseId() != null) {
+            TaskResponseEntry prior = taskResponseEntryRepository.findById(current.getSupersededResponseId())
+                .orElse(null);
+            if (prior == null) {
+                break;
+            }
+            chain.add(prior);
+            current = prior;
+        }
+
+        List<Long> chainIds = chain.stream().map(TaskResponseEntry::getId).toList();
+        List<AdminCorrectionEntry> combined = new ArrayList<>(
+            adminCorrectionRepository.findByTaskResponseIdIn(chainIds).stream()
+                .map(ChecklistHistoryService::toCorrectionEntry)
+                .toList()
+        );
+
+        // One synthesized entry per hop: the employee's own act of resubmitting a new
+        // answer that replaced the previous one. Distinct from a DIRECT admin edit or a
+        // FLAG_TO_EMPLOYEE action (both already captured above from admin_corrections),
+        // so "all changes" -- not just admin-made ones -- show up in one merged history.
+        for (int i = 0; i < chain.size() - 1; i++) {
+            TaskResponseEntry newer = chain.get(i);
+            TaskResponseEntry older = chain.get(i + 1);
+            combined.add(new AdminCorrectionEntry(
+                null,
+                older.getValueBoolean(), older.getValueNumeric(), older.getValueText(),
+                newer.getValueBoolean(), newer.getValueNumeric(), newer.getValueText(),
+                newer.getEmployee().getFullName(),
+                newer.getCreatedAt(),
+                null,
+                "RESUBMISSION"
+            ));
+        }
+
+        return combined.stream()
+            .sorted(Comparator.comparing(AdminCorrectionEntry::correctedAt).reversed())
+            .toList();
+    }
+
     static AdminCorrectionEntry toCorrectionEntry(AdminCorrection c) {
         return new AdminCorrectionEntry(
             c.getId(),

@@ -264,6 +264,41 @@ class TaskResponsePersistenceTest {
             .isInstanceOf(InvalidTaskResponseException.class);
     }
 
+    // 5b. A task configured with numericMin/numericMax (or textMaxLength) must
+    // enforce that same limit on an employee's own submission -- previously only
+    // AdminCorrectionService.correctResponse validated these, so an employee could
+    // submit e.g. 15 for a task whose Admin-configured limit was "below 10", and an
+    // Admin editing the same response afterward would hit the rejection the
+    // employee never did.
+    @Test
+    @Transactional
+    void submissionOutsideTasksConfiguredNumericOrTextLimitIsRejected() {
+        TaskResponse numericTask = taskService.createTask(ownerId, new TaskRequest(
+            "Prepare waffle cones - morning batch", null, categoryId, null, true, null,
+            ResponseType.NUMERIC, null, "batches", 0.0, 10.0, null,
+            CompletionType.SINGLE, null, ScheduleType.EVERY_DAY, null, LocalDate.now(), null,
+            TimeMode.ANYTIME, null, null, true));
+        TaskResponse textTask = taskService.createTask(ownerId, new TaskRequest(
+            "Log fridge temperature note", null, categoryId, null, true, null,
+            ResponseType.TEXT, "", null, null, null, null,
+            CompletionType.SINGLE, null, ScheduleType.EVERY_DAY, null, LocalDate.now(), null,
+            TimeMode.ANYTIME, null, null, true));
+
+        assertThatThrownBy(() -> taskService.submitResponse(
+            employee1Id, numericTask.id(), new TaskResponseSubmitRequest(storeId, null, 15.0, null)))
+            .isInstanceOf(InvalidTaskResponseException.class);
+        // TEXT tasks always carry the fixed 25-character Short Text limit
+        // (TaskService.SHORT_TEXT_MAX_LENGTH) once applyRequest saves them.
+        assertThatThrownBy(() -> taskService.submitResponse(
+            employee1Id, textTask.id(), new TaskResponseSubmitRequest(storeId, null, null, "this response text is deliberately far longer than the limit")))
+            .isInstanceOf(InvalidTaskResponseException.class);
+
+        // A value within the configured limit is accepted.
+        TaskResponseStateResponse state = taskService.submitResponse(
+            employee1Id, numericTask.id(), new TaskResponseSubmitRequest(storeId, null, 8.0, null));
+        assertThat(state.responses().get(0).numericValue()).isEqualTo(8.0);
+    }
+
     // 6. SINGLE: first active response blocks another employee.
     @Test
     @Transactional
@@ -380,6 +415,41 @@ class TaskResponsePersistenceTest {
 
         TaskResponseEntry latest = taskResponseEntryRepository.findById(afterSecond.responses().get(0).id()).orElseThrow();
         assertThat(latest.getSupersededResponseId()).isEqualTo(firstResponseId);
+    }
+
+    // 11b. Undo-then-resubmit must preserve the chain, the same way flag->resubmit and
+    // a live MULTIPLE resubmission already do: Undo only deactivates a response (it
+    // never links forward), so without this, the undone value would be permanently
+    // unreachable from history once the employee submits again. Covers both SINGLE
+    // (undo frees the task for anyone, but THIS employee's own history must still
+    // chain) and MULTIPLE.
+    @Test
+    @Transactional
+    void undoThenResubmitBySameEmployeePreservesTheChain() {
+        Long singleTaskId = createTask(ResponseType.NUMERIC, CompletionType.SINGLE);
+        TaskResponseStateResponse firstSubmit = taskService.submitResponse(
+            employee1Id, singleTaskId, new TaskResponseSubmitRequest(storeId, null, 8.0, null));
+        Long firstResponseId = firstSubmit.responses().get(0).id();
+
+        taskService.undoResponse(employee1Id, singleTaskId, storeId, firstResponseId);
+        TaskResponseStateResponse afterResubmit = taskService.submitResponse(
+            employee1Id, singleTaskId, new TaskResponseSubmitRequest(storeId, null, 5.0, null));
+
+        assertThat(afterResubmit.responses()).hasSize(1);
+        TaskResponseEntry latest = taskResponseEntryRepository.findById(afterResubmit.responses().get(0).id()).orElseThrow();
+        assertThat(latest.getSupersededResponseId()).isEqualTo(firstResponseId);
+
+        Long multipleTaskId = createTask(ResponseType.NUMERIC, CompletionType.MULTIPLE);
+        TaskResponseStateResponse multiFirst = taskService.submitResponse(
+            employee1Id, multipleTaskId, new TaskResponseSubmitRequest(storeId, null, 3.0, null));
+        Long multiFirstId = multiFirst.responses().get(0).id();
+
+        taskService.undoResponse(employee1Id, multipleTaskId, storeId, multiFirstId);
+        TaskResponseStateResponse multiResubmit = taskService.submitResponse(
+            employee1Id, multipleTaskId, new TaskResponseSubmitRequest(storeId, null, 6.0, null));
+
+        TaskResponseEntry multiLatest = taskResponseEntryRepository.findById(multiResubmit.responses().get(0).id()).orElseThrow();
+        assertThat(multiLatest.getSupersededResponseId()).isEqualTo(multiFirstId);
     }
 
     // 12a. Store assignment validation is enforced: an employee not assigned to the

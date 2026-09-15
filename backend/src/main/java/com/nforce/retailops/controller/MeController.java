@@ -1,6 +1,7 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.AdHocShortageRequest;
+import com.nforce.retailops.dto.AdminCorrectionEntry;
 import com.nforce.retailops.dto.AssignedStoreResponse;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
 import com.nforce.retailops.dto.DailyStockCheckItemResponse;
@@ -247,6 +248,24 @@ public class MeController {
 
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(meHistoryService.getDetail(userDetails.getUser().getId(), storeId, date));
+    }
+
+    // Employee-facing: the full correction/resubmission audit trail for one of the
+    // caller's own task responses -- the same "Correction History" Owner/Admin and
+    // Super Admin get via GET /api/checklist-history/responses/{responseId}/corrections,
+    // scoped instead to a store this employee is assigned to (requireAssignedStore,
+    // called inside MeHistoryService).
+    @GetMapping("/history/responses/{responseId}/corrections")
+    public ResponseEntity<List<AdminCorrectionEntry>> historyCorrections(
+        @AuthenticationPrincipal UserDetails principal,
+        @PathVariable Long responseId
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(meHistoryService.getCorrectionHistory(userDetails.getUser().getId(), responseId));
     }
 
     // Employee-facing: today's Daily Stock Check list for one of the caller's

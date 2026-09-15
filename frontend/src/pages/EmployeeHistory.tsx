@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getShiftHistory } from '../api/history'
+import { getCorrectionHistory, getShiftHistory } from '../api/history'
 import type { StoreSummary } from '../types/store'
 import type { ShiftHistory } from '../types/history'
 import ChecklistDayHistoryView from '../components/ChecklistDayHistoryView'
@@ -76,6 +76,7 @@ function EmployeeHistory({ store }: EmployeeHistoryProps) {
       selectedDate={selectedDate}
       onSelectDate={setSelectedDate}
       maxDate={todayDate()}
+      getCorrectionHistory={getCorrectionHistory}
     />
   )
 }

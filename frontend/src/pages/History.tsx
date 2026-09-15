@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { getChecklistHistoryDetail } from '../api/checklistHistory';
+import { getChecklistHistoryDetail, getCorrectionHistory } from '../api/checklistHistory';
 import type { ShiftHistory } from '../types/history';
 import { toShiftHistory } from '../utils/checklistHistoryToShiftHistory';
 import ChecklistDayHistoryView from '../components/ChecklistDayHistoryView';
@@ -78,6 +78,7 @@ function History({ storeId }: HistoryProps) {
       maxDate={todayDate()}
       searchQuery={searchQuery}
       onSearchQueryChange={setSearchQuery}
+      getCorrectionHistory={getCorrectionHistory}
     />
   );
 }

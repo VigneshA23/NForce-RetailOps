@@ -8,6 +8,7 @@ import type {
 import type {
   HistoryCategoryEntry,
   HistoryIssueEntry,
+  HistoryResponderEntry,
   HistoryResubmissionTransition,
   HistoryTaskDetail,
   ShiftHistory,
@@ -100,27 +101,45 @@ function buildDirectCorrectionTransition(
   };
 }
 
+// Every response currently visible, plus each one's own resubmission-chain hops
+// (the same-day submissions it superseded) -- without this, a MULTIPLE-completion
+// task answered several times by the SAME employee would only ever show their
+// latest submission here, since task.responses is already collapsed to one row
+// per employee. employeeUserId on a historical hop is the same employee as the
+// response it hangs off of (a resubmission chain is always one employee
+// superseding their own prior answer), so it's safe to reuse for that purpose.
+function buildCompletedByAll(responses: ChecklistHistoryTaskItem['responses']): HistoryResponderEntry[] {
+  return responses
+    .flatMap((entry) => [
+      ...entry.resubmissionHistory.map((hop) => ({
+        employeeUserId: entry.employeeUserId,
+        name: hop.employeeFullName,
+        respondedAtRaw: hop.respondedAt,
+      })),
+      { employeeUserId: entry.employeeUserId, name: entry.employeeFullName, respondedAtRaw: entry.respondedAt },
+    ])
+    .sort((a, b) => new Date(a.respondedAtRaw).getTime() - new Date(b.respondedAtRaw).getTime())
+    .map((item) => ({
+      employeeUserId: item.employeeUserId,
+      name: item.name,
+      respondedAt: formatTimeLabel(item.respondedAtRaw),
+    }));
+}
+
 function toHistoryTask(task: ChecklistHistoryTaskItem): HistoryTaskDetail {
   const latest = latestResponse(task);
   const directCorrection = latest ? buildDirectCorrectionTransition(latest, task.responseType) : null;
-  // Backend doesn't guarantee response order -- sort oldest-first for display,
-  // same defensive sort api/history.ts's converter applies.
-  const completedByAll = [...task.responses]
-    .sort((a, b) => new Date(a.respondedAt).getTime() - new Date(b.respondedAt).getTime())
-    .map((entry) => ({
-      employeeUserId: entry.employeeUserId,
-      name: entry.employeeFullName,
-      respondedAt: formatTimeLabel(entry.respondedAt),
-    }));
 
   return {
     id: task.id,
+    responseId: latest?.id ?? null,
+    responseType: task.responseType,
     name: task.name,
     status: toTaskStatus(task),
     responseValue: latest ? formatValue(latest, task.responseType) : null,
     completedBy: latest ? { employeeUserId: latest.employeeUserId, name: latest.employeeFullName } : null,
     completedAt: latest ? formatTimeLabel(latest.respondedAt) : null,
-    completedByAll,
+    completedByAll: buildCompletedByAll(task.responses),
     resubmissionHistory: latest
       ? [...buildResubmissionTransitions(latest, task.responseType), ...(directCorrection ? [directCorrection] : [])]
       : [],

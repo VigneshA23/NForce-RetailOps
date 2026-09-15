@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.AdminCorrectionEntry;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryIssueResponse;
@@ -12,6 +13,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.exception.TaskResponseNotFoundException;
 import com.nforce.retailops.repository.AdminCorrectionRepository;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
@@ -172,6 +174,22 @@ public class MeHistoryService {
             .toList();
 
         return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories, issues);
+    }
+
+    // Employee-facing equivalent of AdminCorrectionService.getCorrectionHistory: the
+    // Employee History page only ever showed the single latestCorrection inline
+    // (above), silently dropping any earlier corrections once superseded by a newer
+    // one -- this returns the full chain the same "Correction History" view already
+    // gives Owner/Admin and Super Admin, scoped to a store this employee is assigned to.
+    @Transactional(readOnly = true)
+    public List<AdminCorrectionEntry> getCorrectionHistory(Long employeeUserId, Long responseId) {
+        TaskResponseEntry entry = taskResponseEntryRepository.findById(responseId)
+            .orElseThrow(() -> new TaskResponseNotFoundException("Response not found"));
+
+        userProfileService.requireAssignedStore(employeeUserId, entry.getStore().getId());
+
+        return ChecklistHistoryService.buildCorrectionHistory(
+            entry, taskResponseEntryRepository, adminCorrectionRepository);
     }
 
     private HistoryTaskItemResponse toHistoryTaskItem(
