@@ -133,7 +133,8 @@ function SearchableSelect({
     // Simplest robust fix for a portal-rendered panel: close on scroll rather
     // than tracking the trigger's position continuously (relevant here since
     // the trigger typically lives inside a scrollable modal body).
-    function handleScrollOrResize() {
+    function handleScrollOrResize(event: Event) {
+      if (panelRef.current?.contains(event.target as Node)) return;
       setIsOpen(false);
     }
 
