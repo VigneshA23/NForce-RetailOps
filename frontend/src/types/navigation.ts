@@ -27,9 +27,9 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'orders', label: 'Orders', icon: ShoppingCart },
 ];
 
-// Mobile bottom tab bar: home, daily checklist, tasks, employees.
+// Mobile bottom tab bar: home, daily checklist, categories, tasks, employees.
 // Issues is accessible via the Home page tile and the profile menu.
-const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['home', 'store-detail', 'tasks', 'employees'];
+const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['home', 'store-detail', 'categories', 'tasks', 'employees'];
 export const OWNER_BOTTOM_NAV_ITEMS: NavItem[] = OWNER_BOTTOM_NAV_ORDER.map(
   (key) => OWNER_NAV_ITEMS.find((item) => item.key === key)!,
 );
