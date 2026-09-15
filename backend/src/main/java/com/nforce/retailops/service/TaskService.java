@@ -314,7 +314,7 @@ public class TaskService {
         entry.setResponseType(task.getResponseType());
         entry.setCompletionType(task.getCompletionType());
         entry.setSupersededResponseId(supersededResponseId);
-        applyValue(entry, task.getResponseType(), request);
+        applyValue(entry, task, request);
 
         // The above pre-check is only a fast path (avoids a DB round trip for the common
         // case) -- it can't stop two concurrent submits from both passing it before either
@@ -389,8 +389,11 @@ public class TaskService {
         return task;
     }
 
-    private void applyValue(TaskResponseEntry entry, ResponseType responseType, TaskResponseSubmitRequest request) {
-        switch (responseType) {
+    // Same response-type rules AdminCorrectionService.correctResponse enforces on an
+    // admin's edit -- numericMin/numericMax and textMaxLength must be validated
+    // wherever a response value is written, not only when an admin corrects it.
+    private void applyValue(TaskResponseEntry entry, Task task, TaskResponseSubmitRequest request) {
+        switch (task.getResponseType()) {
             case YES_NO, DONE_NOT_DONE -> {
                 if (request.booleanValue() == null) {
                     throw new InvalidTaskResponseException("A Yes/No response is required");
@@ -401,11 +404,23 @@ public class TaskService {
                 if (request.numericValue() == null) {
                     throw new InvalidTaskResponseException("A numeric response is required");
                 }
+                Double min = task.getNumericMin();
+                Double max = task.getNumericMax();
+                if (min != null && request.numericValue() < min) {
+                    throw new InvalidTaskResponseException("Value must be at least " + min);
+                }
+                if (max != null && request.numericValue() > max) {
+                    throw new InvalidTaskResponseException("Value must be at most " + max);
+                }
                 entry.setValueNumeric(request.numericValue());
             }
             case TEXT -> {
                 if (request.textValue() == null) {
                     throw new InvalidTaskResponseException("A text response is required");
+                }
+                Integer maxLen = task.getTextMaxLength();
+                if (maxLen != null && request.textValue().length() > maxLen) {
+                    throw new InvalidTaskResponseException("Text must be " + maxLen + " characters or fewer");
                 }
                 entry.setValueText(request.textValue());
             }
