@@ -1,0 +1,15 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://nforce-retailops-production.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "git": {
+    "deploymentEnabled": false
+  }
+}
