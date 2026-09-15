@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Boxes, Building2, CheckSquare, ClipboardList, LayoutGrid, Package, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
+import { Building2, CheckSquare, ClipboardList, LayoutGrid, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -23,16 +23,17 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
-  { key: 'inventory', label: 'Inventory', icon: Boxes },
-  { key: 'orders', label: 'Orders', icon: ShoppingCart },
 ];
 
-// Mobile bottom tab bar: home, daily checklist, tasks, employees.
+// Mobile bottom tab bar: home, daily checklist, tasks, employees, categories.
 // Issues is accessible via the Home page tile and the profile menu.
-const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['home', 'store-detail', 'tasks', 'employees'];
-export const OWNER_BOTTOM_NAV_ITEMS: NavItem[] = OWNER_BOTTOM_NAV_ORDER.map(
-  (key) => OWNER_NAV_ITEMS.find((item) => item.key === key)!,
-);
+// 'store-detail' uses a shorter label on mobile — "Checklist" vs "Daily Checklist" on desktop —
+// because 5 tabs at 375px gives ~60px text width; "Daily Checklist" truncates, "Checklist" fits.
+const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['home', 'store-detail', 'tasks', 'employees', 'categories'];
+export const OWNER_BOTTOM_NAV_ITEMS: NavItem[] = OWNER_BOTTOM_NAV_ORDER.map((key) => {
+  const item = OWNER_NAV_ITEMS.find((i) => i.key === key)!;
+  return key === 'store-detail' ? { ...item, label: 'Checklist' } : item;
+});
 
 export const PAGE_TITLES: Record<NavTabKey, string> = {
   home: 'Home',
@@ -62,7 +63,6 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
-  { key: 'inventory', label: 'Inventory', icon: Package },
 ];
 
 export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
