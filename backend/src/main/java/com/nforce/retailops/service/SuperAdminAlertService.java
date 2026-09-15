@@ -150,7 +150,7 @@ public class SuperAdminAlertService {
             "Owner account email delivery failed",
             "Temporary password could not be emailed to " + ownerName
                 + ". The account was created — share the temporary password with them manually.",
-            null,
+            "/owners",
             null
         );
     }

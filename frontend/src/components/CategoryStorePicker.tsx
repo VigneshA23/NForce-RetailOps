@@ -21,6 +21,16 @@ function CategoryStorePicker({ stores, value, onChange }: CategoryStorePickerPro
     const next = checked
       ? [...value.storeIds, storeId]
       : value.storeIds.filter((id) => id !== storeId);
+
+    // Checking every individual store by hand is the same intent as checking
+    // "All Stores" -- promote to it so the category also covers stores added
+    // later, rather than freezing today's full list as a fixed set.
+    const everyStoreSelected = stores.length > 0 && stores.every((store) => next.includes(store.id));
+    if (everyStoreSelected) {
+      onChange({ appliesToAllStores: true, storeIds: [] });
+      return;
+    }
+
     onChange({ appliesToAllStores: false, storeIds: next });
   }
 
