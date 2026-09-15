@@ -77,6 +77,7 @@ class CategoryServiceStoreAssignmentTest {
     @BeforeEach
     void setUp() {
         lenient().when(taskRepository.countByCategoryId(anyLong())).thenReturn(0);
+        lenient().when(categoryRepository.findMaxDisplayOrder()).thenReturn(-1);
         lenient().when(categoryRepository.save(any(Category.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
     }

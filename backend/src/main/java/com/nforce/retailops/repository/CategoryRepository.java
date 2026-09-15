@@ -12,27 +12,29 @@ import java.util.Optional;
 
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    // Used only by the pre-existing, untouched reorderCategories (Owner-Admin-
-    // only, scoped to categories that owner personally created).
-    List<Category> findByOwnerIdOrderByDisplayOrderAsc(Long ownerId);
-
     List<Category> findAllByOrderByNameAsc();
 
     List<Category> findByNameIgnoreCase(String name);
 
     List<Category> findByNameIgnoreCaseAndIdNot(String name, Long id);
 
-    // Visible to an Owner Admin (read-only): they created it themselves
-    // (regardless of its store assignment -- preserves every category an
-    // owner already had before this feature existed), OR it has a store they
-    // own, OR it's "all stores" and Super Admin created it (owner IS NULL).
+    // Highest displayOrder currently in use, so a newly created category can
+    // append to the end of the configured order instead of jumping to the top.
+    @Query("select coalesce(max(c.displayOrder), -1) from Category c")
+    Integer findMaxDisplayOrder();
+
+    // Visible to an Owner Admin: they created it themselves (regardless of
+    // its store assignment -- preserves every category an owner already had
+    // before this feature existed), OR it has a store they own, OR it's "all
+    // stores" and Super Admin created it (owner IS NULL). Ordered by the
+    // configured display order (reorderable by the owner), tie-broken by name.
     @Query("""
         select distinct c from Category c
         left join c.stores s
         where c.owner.id = :ownerId
            or s.id in (:storeIds)
            or (c.appliesToAllStores = true and c.owner is null)
-        order by c.name asc
+        order by c.displayOrder asc, c.name asc
         """)
     List<Category> findVisibleToOwner(@Param("ownerId") Long ownerId, @Param("storeIds") List<Long> storeIds);
 

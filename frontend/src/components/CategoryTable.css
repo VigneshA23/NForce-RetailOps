@@ -39,3 +39,28 @@
   background: var(--color-badge-neutral-bg, #f4f4f5);
   color: var(--color-badge-neutral-text, #71717a);
 }
+
+.category-table__drag-header,
+.category-table__drag-cell {
+  width: 40px;
+}
+
+.category-table__drag-handle {
+  cursor: grab;
+  touch-action: none;
+}
+
+.category-table__drag-handle:active {
+  cursor: grabbing;
+}
+
+.category-table__row--dragging {
+  background: var(--color-badge-outline-bg);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+@media (--mobile) {
+  .category-table__drag-cell {
+    display: none;
+  }
+}
