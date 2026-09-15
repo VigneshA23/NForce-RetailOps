@@ -354,20 +354,32 @@ class TaskResponsePersistenceTest {
             .containsExactlyInAnyOrder(employee1Id, employee2Id);
     }
 
-    // 11. MULTIPLE: same employee can submit repeatedly.
+    // 11. MULTIPLE: same employee can submit repeatedly, but only their latest
+    // submission stays active/visible -- the resubmission supersedes their own prior
+    // response (same chain mechanism SINGLE uses for flag -> resubmit), so an admin
+    // never sees more than one current row per employee for the same task/day.
     @Test
     @Transactional
-    void multipleAllowsSameEmployeeToSubmitRepeatedly() {
+    void multipleResubmissionByTheSameEmployeeSupersedesTheirPriorResponse() {
         Long taskId = createTask(ResponseType.NUMERIC, CompletionType.MULTIPLE);
 
-        taskService.submitResponse(employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 10.0, null));
+        TaskResponseStateResponse afterFirst = taskService.submitResponse(
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 10.0, null));
+        Long firstResponseId = afterFirst.responses().get(0).id();
+
         TaskResponseStateResponse afterSecond = taskService.submitResponse(
             employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 20.0, null));
 
-        assertThat(afterSecond.responses()).hasSize(2);
-        assertThat(afterSecond.responses()).allMatch(r -> r.employeeUserId().equals(employee1Id));
-        assertThat(afterSecond.responses()).extracting(r -> r.numericValue())
-            .containsExactlyInAnyOrder(10.0, 20.0);
+        assertThat(afterSecond.responses()).hasSize(1);
+        assertThat(afterSecond.responses().get(0).employeeUserId()).isEqualTo(employee1Id);
+        assertThat(afterSecond.responses().get(0).numericValue()).isEqualTo(20.0);
+
+        TaskResponseEntry superseded = taskResponseEntryRepository.findById(firstResponseId).orElseThrow();
+        assertThat(superseded.isActive()).isFalse();
+        assertThat(superseded.getUndoneAt()).isNotNull();
+
+        TaskResponseEntry latest = taskResponseEntryRepository.findById(afterSecond.responses().get(0).id()).orElseThrow();
+        assertThat(latest.getSupersededResponseId()).isEqualTo(firstResponseId);
     }
 
     // 12a. Store assignment validation is enforced: an employee not assigned to the

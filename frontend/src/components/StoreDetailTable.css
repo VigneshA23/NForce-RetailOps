@@ -210,69 +210,6 @@
   flex-shrink: 0;
 }
 
-/* Blue "History" badge + popover — shown when a response has been through at
-   least one flag -> resubmit cycle. Reuses the correction popover's row/label
-   classes; each hop gets its own block, separated by a divider. */
-.store-detail-table__history-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 1px 6px;
-  border-radius: var(--radius-pill);
-  background: var(--color-badge-icon-info-bg, #e0f2fe);
-  color: var(--color-badge-icon-info-fg, #0369a1);
-  border: 1px solid rgba(3, 105, 161, 0.25);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  cursor: pointer;
-  font-family: inherit;
-  transition: border-color 0.15s ease;
-}
-
-.store-detail-table__history-badge:hover {
-  border-color: var(--color-badge-icon-info-fg, #0369a1);
-}
-
-.store-detail-table__history-hop {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-bottom: var(--space-sm);
-  margin-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.store-detail-table__history-hop:last-child {
-  padding-bottom: 0;
-  margin-bottom: 0;
-  border-bottom: none;
-}
-
-/* Hover/focus (desktop/tablet) or tap (mobile) tooltip for the "History"
-   badge -- rendered via the same `document.body`-portaled BadgePopover as
-   .store-detail-table__correction-popover above, `position: fixed` with
-   inline `top`/`left`. A fixed width (not max-content) plus `overflow-wrap`
-   below ensures long values/reasons wrap onto multiple lines within that
-   width instead of overflowing the box; `max-width` is still a
-   viewport-safe fallback. */
-.store-detail-table__history-popover {
-  position: fixed;
-  z-index: 30;
-  width: 260px;
-  max-width: calc(100vw - 24px);
-  background: var(--color-surface-card);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-  padding: var(--space-sm) var(--space-md);
-  display: flex;
-  flex-direction: column;
-  white-space: normal;
-  gap: 4px;
-  overflow-wrap: anywhere;
-}
-
 /* "Flagged" badge — shown when admin has flagged a response back to employee */
 .store-detail-table__flagged-badge {
   display: inline-flex;

@@ -48,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -252,7 +253,12 @@ public class TaskService {
      * Submit an employee's answer to a task for one of their assigned stores, for
      * today's scheduled date. SINGLE: rejected outright if an active response already
      * exists for this task/store/day (first employee to respond wins, regardless of
-     * who they are). MULTIPLE: always allowed, including repeats by the same employee.
+     * who they are). MULTIPLE: an employee can resubmit any number of times, but each
+     * resubmission supersedes their own previous active response for that task/store/day
+     * -- only their latest answer stays visible/active, with earlier ones chained via
+     * supersededResponseId (same mechanism SINGLE uses for its flag -> resubmit cycle),
+     * so admins see one current row per employee with prior submissions in history.
+     * Other employees' active responses for the same task/day are never touched.
      */
     @Transactional
     public TaskResponseStateResponse submitResponse(Long employeeUserId, Long taskId, TaskResponseSubmitRequest request) {
@@ -282,6 +288,22 @@ public class TaskService {
             // and original value stay reachable from history (see
             // ChecklistHistoryService.buildResubmissionHistory).
             supersededResponseId = flagged.getId();
+        } else if (task.getCompletionType() == CompletionType.MULTIPLE) {
+            List<TaskResponseEntry> ownActive = activeResponses.stream()
+                .filter(r -> r.getEmployee().getId().equals(employeeUserId))
+                .toList();
+            if (!ownActive.isEmpty()) {
+                TaskResponseEntry mostRecent = ownActive.stream()
+                    .max(Comparator.comparing(TaskResponseEntry::getCreatedAt))
+                    .orElseThrow();
+                for (TaskResponseEntry prior : ownActive) {
+                    prior.setActive(false);
+                    prior.setUndoneAt(OffsetDateTime.now());
+                }
+                taskResponseEntryRepository.saveAll(ownActive);
+                taskResponseEntryRepository.flush();
+                supersededResponseId = mostRecent.getId();
+            }
         }
 
         TaskResponseEntry entry = new TaskResponseEntry();
