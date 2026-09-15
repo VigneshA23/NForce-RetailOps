@@ -110,6 +110,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   function handleNotificationNavigate(path: string) {
     switch (path) {
       case '/checklist': setActiveTab('checklist'); setShowNotifications(false); break;
+      case '/owners': setActiveTab('owners'); setShowNotifications(false); break;
       default: setShowNotifications(true); break;
     }
   }

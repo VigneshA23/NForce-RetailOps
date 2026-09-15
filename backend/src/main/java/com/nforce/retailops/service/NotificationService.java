@@ -105,6 +105,7 @@ public class NotificationService {
         n.setTitle(employeeName + " raised an issue at " + storeName);
         n.setMessage(notePreview);
         n.setRelatedIssue(issue);
+        n.setLinkPath("/issues");
         notificationRepository.save(n);
     }
 
@@ -122,7 +123,7 @@ public class NotificationService {
             send(employee, "ISSUE_ACKNOWLEDGED",
                 "Your issue at " + storeName + " was acknowledged",
                 "The admin has seen your issue: \"" + notePreview + "\"",
-                null);
+                "/issues");
         } else if ("RESOLVED".equals(newStatus)) {
             String responseText = issue.getResponseText();
             String msg = (responseText != null && !responseText.isBlank())
@@ -131,7 +132,7 @@ public class NotificationService {
             send(employee, "ISSUE_RESOLVED",
                 "Your issue at " + storeName + " has been resolved",
                 msg,
-                null);
+                "/issues");
         }
     }
 
