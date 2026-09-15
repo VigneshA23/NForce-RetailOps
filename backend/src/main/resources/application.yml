@@ -19,6 +19,9 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+    properties:
+      hibernate:
+        default_batch_fetch_size: 25
 
   flyway:
     enabled: true
