@@ -77,7 +77,8 @@ function Select({ id, options, value, onChange, ariaLabel, className }: SelectPr
       }
     }
 
-    function handleScrollOrResize() {
+    function handleScrollOrResize(event: Event) {
+      if (panelRef.current?.contains(event.target as Node)) return;
       setIsOpen(false);
     }
 

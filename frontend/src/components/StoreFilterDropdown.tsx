@@ -78,7 +78,8 @@ function StoreFilterDropdown({ options, selectedIds, onChange }: StoreFilterDrop
       }
     }
 
-    function handleScrollOrResize() {
+    function handleScrollOrResize(event: Event) {
+      if (panelRef.current?.contains(event.target as Node)) return;
       setIsOpen(false);
     }
 
