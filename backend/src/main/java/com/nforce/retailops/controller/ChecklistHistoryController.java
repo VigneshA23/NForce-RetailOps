@@ -37,16 +37,25 @@ public class ChecklistHistoryController {
         this.adminCorrectionService = adminCorrectionService;
     }
 
-    // storeIds omitted -> all stores this owner has; startDate/endDate omitted -> today.
+    // storeIds omitted -> all stores the caller can see (an Owner/Admin's own
+    // store(s); every actively-owned store on the platform for Super Admin);
+    // startDate/endDate omitted -> today. Uses Authentication (not
+    // @AuthenticationPrincipal AppUserDetails), same reason as /detail: a Super
+    // Admin's principal is SuperAdminUserDetails, which a typed AppUserDetails
+    // parameter would silently bind to null instead of matching.
     @GetMapping("/summary")
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<ChecklistHistorySummaryRow>> summary(
-        @AuthenticationPrincipal AppUserDetails principal,
+        Authentication authentication,
         @RequestParam(required = false) List<Long> storeIds,
         @RequestParam(required = false) LocalDate startDate,
         @RequestParam(required = false) LocalDate endDate
     ) {
-        return ResponseEntity.ok(checklistHistoryService.getSummary(
-            principal.getUser().getId(), storeIds, startDate, endDate));
+        List<ChecklistHistorySummaryRow> response =
+            authentication.getPrincipal() instanceof AppUserDetails appUserDetails
+                ? checklistHistoryService.getSummary(appUserDetails.getUser().getId(), storeIds, startDate, endDate)
+                : checklistHistoryService.getSummaryForSuperAdmin(storeIds, startDate, endDate);
+        return ResponseEntity.ok(response);
     }
 
     // Daily Operations Summary report. For an Owner/Admin, storeId is ignored and the

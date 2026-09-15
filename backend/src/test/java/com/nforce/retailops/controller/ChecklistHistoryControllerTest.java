@@ -357,14 +357,54 @@ class ChecklistHistoryControllerTest {
 
     @Test
     @Transactional
-    void superAdminIsBlockedFromSummaryEndpoint() throws Exception {
-        Role superAdminRole = role("SUPER_ADMIN");
-        user("history-superadmin-b@nforce.test", superAdminRole);
-        String superAdminToken = login("history-superadmin-b@nforce.test");
+    void superAdminCanViewSummaryAcrossOwners() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        User ownerK = user("history-owner-k@nforce.test", ownerRole);
+        Store storeK = store("Owner K Store", 9109L);
+        linkOwnerToStore(ownerK, storeK);
+
+        User ownerL = user("history-owner-l@nforce.test", ownerRole);
+        Store storeL = store("Owner L Store", 9110L);
+        linkOwnerToStore(ownerL, storeL);
+
+        // Real SuperAdmin entity, not a User with role SUPER_ADMIN -- see the comment
+        // on superAdminCanViewDetailForAnyStore above for why that distinction matters.
+        superAdmin("history-superadmin-summary@nforce.test");
+        String superAdminToken = login("history-superadmin-summary@nforce.test");
+        LocalDate today = LocalDate.now();
 
         mockMvc.perform(get("/api/checklist-history/summary")
-                .header("Authorization", "Bearer " + superAdminToken))
-            .andExpect(status().isForbidden());
+                .header("Authorization", "Bearer " + superAdminToken)
+                .param("startDate", today.toString())
+                .param("endDate", today.toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
+    @Transactional
+    void superAdminSummaryCanBeFilteredToASingleStoreAcrossOwners() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        User ownerM = user("history-owner-m@nforce.test", ownerRole);
+        Store storeM = store("Owner M Store", 9111L);
+        linkOwnerToStore(ownerM, storeM);
+
+        User ownerN = user("history-owner-n@nforce.test", ownerRole);
+        Store storeN = store("Owner N Store", 9112L);
+        linkOwnerToStore(ownerN, storeN);
+
+        superAdmin("history-superadmin-filter@nforce.test");
+        String superAdminToken = login("history-superadmin-filter@nforce.test");
+        LocalDate today = LocalDate.now();
+
+        mockMvc.perform(get("/api/checklist-history/summary")
+                .header("Authorization", "Bearer " + superAdminToken)
+                .param("storeIds", String.valueOf(storeM.getId()))
+                .param("startDate", today.toString())
+                .param("endDate", today.toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].storeName").value("Owner M Store"));
     }
 
     private record LoginPayload(String email, String password) {
