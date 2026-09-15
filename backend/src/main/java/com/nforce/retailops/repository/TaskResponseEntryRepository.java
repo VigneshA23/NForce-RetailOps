@@ -34,9 +34,18 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     Optional<TaskResponseEntry> findByIdAndTaskIdAndStoreId(Long id, Long taskId, Long storeId);
 
     // Admin checklist-history summary: one query for an entire store-range request,
-    // rather than one query per store per day.
+    // rather than one query per store per day. join fetch all three associations so
+    // accessing .getStore()/.getTask()/.getEmployee() on results never fires lazy-load
+    // queries (N+1) -- all @ManyToOne, no collection bags, so multiple join fetches are safe.
+    @Query("select tre from TaskResponseEntry tre "
+        + "join fetch tre.task join fetch tre.store join fetch tre.employee "
+        + "where tre.store.id in :storeIds "
+        + "and tre.responseDate between :startDate and :endDate "
+        + "and tre.active = true")
     List<TaskResponseEntry> findByStoreIdInAndResponseDateBetweenAndActiveTrue(
-        Collection<Long> storeIds, LocalDate startDate, LocalDate endDate
+        @Param("storeIds") Collection<Long> storeIds,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
     );
 
     // Admin checklist-history detail: deliberately broader than
@@ -45,7 +54,17 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     // task configuration (deactivated, rescoped, etc.), which the union-based
     // reconstruction in ChecklistHistoryService relies on to never drop real history.
     // Owner-facing only: intentionally includes every employee's responses.
-    List<TaskResponseEntry> findByStoreIdAndResponseDateAndActiveTrue(Long storeId, LocalDate responseDate);
+    // join fetch task and employee: callers access .getTask().getId() and
+    // .getEmployee().getFullName()/.getId()/.getAvatarUrl() on each result.
+    @Query("select tre from TaskResponseEntry tre "
+        + "join fetch tre.task join fetch tre.employee "
+        + "where tre.store.id = :storeId "
+        + "and tre.responseDate = :responseDate "
+        + "and tre.active = true")
+    List<TaskResponseEntry> findByStoreIdAndResponseDateAndActiveTrue(
+        @Param("storeId") Long storeId,
+        @Param("responseDate") LocalDate responseDate
+    );
 
     // Employee-facing history detail: the employee-scoped analogue of
     // findByStoreIdAndResponseDateAndActiveTrue above -- adds an employeeId

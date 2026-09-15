@@ -1,4 +1,4 @@
-import ExcelJS from 'exceljs';
+import type ExcelJS from 'exceljs';
 import type { ChecklistHistorySummaryRow, ChecklistHistoryTaskDetailRow, ChecklistTaskDetailStatus } from '../types/checklistHistory';
 import { formatTimeLabel } from './checklistHistoryOptions';
 
@@ -180,13 +180,14 @@ function applyStatusStyle(cell: ExcelJS.Cell, status: ChecklistTaskDetailStatus)
   cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isCompleted ? COLOR_GREEN_BG : COLOR_RED_BG } };
 }
 
-export function buildOperationsReportWorkbook(
+export async function buildOperationsReportWorkbook(
   summary: OperationsSummaryTotals[],
   details: ChecklistHistoryTaskDetailRow[],
   startDate: string,
   endDate: string,
-): ExcelJS.Workbook {
-  const workbook = new ExcelJS.Workbook();
+): Promise<ExcelJS.Workbook> {
+  const { default: ExcelJSLib } = await import('exceljs');
+  const workbook = new ExcelJSLib.Workbook();
   workbook.creator = 'NForce RetailOps';
   workbook.created = new Date();
 
