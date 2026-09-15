@@ -146,7 +146,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       case 'orders':
         return <OrderDashboard storeName={storesState.stores[0]?.name} />;
       case 'history':
-        return <History />;
+        return <History storeId={storesState.stores[0]?.id ?? null} />;
     }
   }
 

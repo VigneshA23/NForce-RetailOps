@@ -6,6 +6,7 @@ import com.nforce.retailops.dto.ChecklistHistoryOperationsReportResponse;
 import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
 import com.nforce.retailops.dto.ChecklistHistoryTaskDetailRow;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
+import com.nforce.retailops.dto.HistoryIssueResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
 import com.nforce.retailops.dto.ResponseHistoryEntry;
@@ -19,6 +20,7 @@ import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.AdminCorrectionRepository;
+import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.TaskRepository;
@@ -59,19 +61,22 @@ public class ChecklistHistoryService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final AdminCorrectionRepository adminCorrectionRepository;
+    private final RaisedIssueRepository raisedIssueRepository;
 
     public ChecklistHistoryService(
         TaskRepository taskRepository,
         TaskResponseEntryRepository taskResponseEntryRepository,
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
-        AdminCorrectionRepository adminCorrectionRepository
+        AdminCorrectionRepository adminCorrectionRepository,
+        RaisedIssueRepository raisedIssueRepository
     ) {
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.adminCorrectionRepository = adminCorrectionRepository;
+        this.raisedIssueRepository = raisedIssueRepository;
     }
 
     @Transactional(readOnly = true)
@@ -434,7 +439,12 @@ public class ChecklistHistoryService {
             ))
             .toList();
 
-        return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories, List.of());
+        List<HistoryIssueResponse> issues = raisedIssueRepository
+            .findByStoreIdAndRaisedDateOrderByCreatedAtDesc(storeId, date).stream()
+            .map(HistoryIssueResponse::from)
+            .toList();
+
+        return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories, issues);
     }
 
     // Walks a response's supersededResponseId chain back to its origin, pairing each

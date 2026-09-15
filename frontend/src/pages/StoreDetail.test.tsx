@@ -29,7 +29,7 @@ function taskItem(overrides: Partial<ChecklistHistoryTaskItem>): ChecklistHistor
 }
 
 function detail(storeId: number, storeName: string, categories: ChecklistHistoryDetail['categories']): ChecklistHistoryDetail {
-  return { storeId, storeName, date: todayDate(), hasChecklist: true, categories };
+  return { storeId, storeName, date: todayDate(), hasChecklist: true, categories, issues: [] };
 }
 
 function respondedYes(id: number) {

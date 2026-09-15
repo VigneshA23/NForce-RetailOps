@@ -59,6 +59,8 @@ class ChecklistHistoryServiceTest {
     private StoreEmployeeRepository storeEmployeeRepository;
     @Mock
     private com.nforce.retailops.repository.AdminCorrectionRepository adminCorrectionRepository;
+    @Mock
+    private com.nforce.retailops.repository.RaisedIssueRepository raisedIssueRepository;
 
     private ChecklistHistoryService checklistHistoryService;
 
@@ -66,7 +68,7 @@ class ChecklistHistoryServiceTest {
     void setUp() {
         checklistHistoryService = new ChecklistHistoryService(
             taskRepository, taskResponseEntryRepository, storeOwnerRepository,
-            storeEmployeeRepository, adminCorrectionRepository
+            storeEmployeeRepository, adminCorrectionRepository, raisedIssueRepository
         );
     }
 
@@ -584,6 +586,29 @@ class ChecklistHistoryServiceTest {
         assertThat(item.completed()).isTrue();
         assertThat(item.responses()).hasSize(1);
         assertThat(item.responses().get(0).empId()).isEqualTo("EMP-004");
+    }
+
+    @Test
+    void detailIncludesRaisedIssuesForTheStoreAndDate() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today)).thenReturn(List.of());
+
+        com.nforce.retailops.entity.RaisedIssue issue = new com.nforce.retailops.entity.RaisedIssue();
+        ReflectionTestUtils.setField(issue, "id", 7L);
+        issue.setNote("Freezer is warm");
+        issue.setStatus("OPEN");
+        ReflectionTestUtils.setField(issue, "createdAt", OffsetDateTime.now());
+        when(raisedIssueRepository.findByStoreIdAndRaisedDateOrderByCreatedAtDesc(10L, today))
+            .thenReturn(List.of(issue));
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        assertThat(detail.issues()).hasSize(1);
+        assertThat(detail.issues().get(0).note()).isEqualTo("Freezer is warm");
+        assertThat(detail.issues().get(0).status()).isEqualTo("OPEN");
     }
 
     @Test

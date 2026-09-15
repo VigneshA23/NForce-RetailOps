@@ -1,82 +1,84 @@
 import { useEffect, useState } from 'react';
-import { AlertCircle } from 'lucide-react';
-import { getChecklistHistorySummary, ChecklistHistoryRangeError } from '../api/checklistHistory';
-import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
-import { daysAgo, todayDate, MAX_RANGE_DAYS } from '../utils/checklistHistoryOptions';
-import ChecklistHistoryTable from '../components/ChecklistHistoryTable';
-import ChecklistHistoryDetailModal, { type ChecklistHistoryDetailTarget } from '../components/ChecklistHistoryDetailModal';
-import './History.css';
+import { getChecklistHistoryDetail } from '../api/checklistHistory';
+import type { ShiftHistory } from '../types/history';
+import { toShiftHistory } from '../utils/checklistHistoryToShiftHistory';
+import ChecklistDayHistoryView from '../components/ChecklistDayHistoryView';
 
-function History() {
-  const [startDate, setStartDate] = useState(() => daysAgo(6));
-  const [endDate, setEndDate] = useState(todayDate);
-  const [rows, setRows] = useState<ChecklistHistorySummaryRow[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [detailTarget, setDetailTarget] = useState<ChecklistHistoryDetailTarget | null>(null);
+function toDateKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
-  function load() {
-    setIsLoading(true);
-    setLoadError(null);
-    // storeIds omitted -- the backend always resolves this Owner/Admin's own
-    // authorized store(s), so this page never needs (or offers) a store filter.
-    getChecklistHistorySummary({ storeIds: [], startDate, endDate })
-      .then(setRows)
-      .catch((err: Error) => {
-        setLoadError(err instanceof ChecklistHistoryRangeError ? err.message : 'Failed to load checklist history');
+function todayDate(): string {
+  return toDateKey(new Date());
+}
+
+function yesterdayDate(): string {
+  const date = new Date();
+  date.setDate(date.getDate() - 1);
+  return toDateKey(date);
+}
+
+interface HistoryProps {
+  storeId: number | null;
+}
+
+function History({ storeId }: HistoryProps) {
+  const [selectedDate, setSelectedDate] = useState(yesterdayDate);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [history, setHistory] = useState<ShiftHistory | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  function loadHistory() {
+    if (!storeId) {
+      setLoading(false);
+      setHistory(null);
+      setError('No store assigned yet.');
+      return () => {};
+    }
+    let active = true;
+    setLoading(true);
+    setError(null);
+
+    getChecklistHistoryDetail(storeId, selectedDate)
+      .then((result) => {
+        if (!active) return;
+        setHistory(toShiftHistory(result));
       })
-      .finally(() => setIsLoading(false));
+      .catch((err: Error) => {
+        if (!active) return;
+        setHistory(null);
+        setError(err.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }
 
-  useEffect(() => { load(); }, [startDate, endDate]);
+  useEffect(() => {
+    const cancel = loadHistory();
+    return cancel;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId, selectedDate]);
 
   return (
-    <div className="history-page">
-      {loadError && (
-        <div className="owners-page__error">
-          <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-          <span className="owners-page__error-message">{loadError}</span>
-          <button type="button" className="btn btn--secondary" onClick={load}>Retry</button>
-        </div>
-      )}
-
-      <div className="filter-bar">
-        <div className="filter history-page__range-filter">
-          <label className="history-page__range-label">
-            From
-            <input
-              type="date"
-              className="input"
-              value={startDate}
-              max={endDate}
-              onChange={(event) => setStartDate(event.target.value)}
-            />
-          </label>
-        </div>
-        <div className="filter history-page__range-filter">
-          <label className="history-page__range-label">
-            To
-            <input
-              type="date"
-              className="input"
-              value={endDate}
-              min={startDate}
-              max={todayDate()}
-              onChange={(event) => setEndDate(event.target.value)}
-            />
-          </label>
-        </div>
-        <span className="history-page__range-hint">Max {MAX_RANGE_DAYS} days</span>
-      </div>
-
-      <ChecklistHistoryTable
-        rows={rows}
-        isLoading={isLoading}
-        onView={(row) => setDetailTarget({ storeId: row.storeId, storeName: row.storeName, date: row.date })}
-      />
-
-      <ChecklistHistoryDetailModal target={detailTarget} onClose={() => setDetailTarget(null)} />
-    </div>
+    <ChecklistDayHistoryView
+      history={history}
+      loading={loading}
+      error={error}
+      onRetry={loadHistory}
+      selectedDate={selectedDate}
+      onSelectDate={setSelectedDate}
+      maxDate={todayDate()}
+      searchQuery={searchQuery}
+      onSearchQueryChange={setSearchQuery}
+    />
   );
 }
 
