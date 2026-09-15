@@ -1,4 +1,5 @@
 import type { HistoryCategoryEntry, HistoryIssueEntry, HistoryResubmissionTransition, HistoryTaskDetail, IssueStatus, ShiftHistory, TaskStatus } from '../types/history';
+import type { AdminCorrectionEntry } from '../types/checklistHistory';
 import { authHeaders } from '../utils/authStorage';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
 import { fetchWithTimeout } from './client';
@@ -192,6 +193,8 @@ function toHistoryTask(task: RawTaskItem): HistoryTaskDetail {
     }));
   return {
     id: task.id,
+    responseId: latest?.id ?? null,
+    responseType: task.responseType,
     name: task.name,
     status: deriveTaskStatus(task, latest),
     responseValue: latest ? formatRawValue(latest, task.responseType) : null,
@@ -245,4 +248,22 @@ export async function getShiftHistory(storeId: number, date: string): Promise<Sh
     categories: raw.categories.map(toHistoryCategory),
     issues: (raw.issues ?? []).map(toHistoryIssue),
   };
+}
+
+// Full correction/resubmission audit trail for one response -- the employee-facing
+// equivalent of api/checklistHistory.ts's getCorrectionHistory. The bulk /history/detail
+// payload above only ever carries the single latestCorrection per response (collapsed
+// into resubmissionHistory as one DIRECT_CORRECTION entry), so an earlier correction
+// superseded by a later one on the same still-active response was invisible to
+// employees even though Owner/Admin could see it via this same full-chain endpoint.
+export async function getCorrectionHistory(responseId: number): Promise<AdminCorrectionEntry[]> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/me/history/responses/${responseId}/corrections`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to load correction history'));
+  }
+
+  return response.json();
 }

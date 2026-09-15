@@ -10,9 +10,11 @@ import {
   MessageSquareWarning,
   MoonStar,
 } from 'lucide-react'
-import { getShiftHistory } from '../api/history'
+import { getCorrectionHistory, getShiftHistory } from '../api/history'
 import type { StoreSummary } from '../types/store'
-import type { ShiftHistory } from '../types/history'
+import type { HistoryTaskDetail, ShiftHistory } from '../types/history'
+import type { AdminCorrectionEntry } from '../types/checklistHistory'
+import { formatDateLabel as formatDateTimeLabel, formatTimeLabel } from '../utils/checklistHistoryOptions'
 import CalendarPopover from '../components/CalendarPopover'
 import StatCard from '../components/StatCard'
 import './EmployeeHistory.css'
@@ -58,6 +60,25 @@ function formatDateLabel(date: string): string {
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+// Mirrors CorrectionModal's correctionValueLabel (Admin/Super Admin's rendering
+// of the same AdminCorrectionEntry shape), minus the numericUnit suffix --
+// HistoryTaskDetail carries no unit, and neither did this page's existing
+// resubmissionHistory rendering.
+function correctionValueLabel(
+  entry: AdminCorrectionEntry,
+  responseType: HistoryTaskDetail['responseType'],
+  which: 'original' | 'corrected',
+): string {
+  const b = which === 'original' ? entry.originalValueBoolean : entry.correctedValueBoolean
+  const n = which === 'original' ? entry.originalValueNumeric : entry.correctedValueNumeric
+  const t = which === 'original' ? entry.originalValueText : entry.correctedValueText
+  if (b !== null && b !== undefined) {
+    return responseType === 'YES_NO' ? (b ? 'Yes' : 'No') : b ? 'Done' : 'Not done'
+  }
+  if (n !== null && n !== undefined) return String(n)
+  return t ?? '—'
+}
+
 function EmployeeHistory({ store }: EmployeeHistoryProps) {
   // Defaults to yesterday: a shift's checklist is realistically only fully
   // wrapped up (and worth reviewing) once the day is over, so that's the more
@@ -72,6 +93,15 @@ function EmployeeHistory({ store }: EmployeeHistoryProps) {
   // Which tasks' resubmission-history panels are open -- independent of the
   // category expand/collapse state above.
   const [expandedHistoryKeys, setExpandedHistoryKeys] = useState<Set<number>>(new Set())
+  // Full correction/resubmission audit trail per response, fetched on demand the
+  // first time a task's panel is expanded (keyed by responseId, not taskId, so
+  // switching the selected date -- a new response row for the same task -- never
+  // shows a stale cached trail from a different day) -- the bulk /history/detail
+  // payload only ever carries the single latestCorrection, silently dropping any
+  // correction superseded by a later one on the same response.
+  const [fullHistoryByResponseId, setFullHistoryByResponseId] = useState<Map<number, AdminCorrectionEntry[]>>(new Map())
+  const [fullHistoryLoadingIds, setFullHistoryLoadingIds] = useState<Set<number>>(new Set())
+  const [fullHistoryErrorByResponseId, setFullHistoryErrorByResponseId] = useState<Map<number, string>>(new Map())
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const calendarButtonRef = useRef<HTMLButtonElement>(null)
 
@@ -133,16 +163,33 @@ function EmployeeHistory({ store }: EmployeeHistoryProps) {
     })
   }
 
-  function toggleHistory(key: number) {
+  function toggleHistory(taskId: number, responseId: number | null) {
     setExpandedHistoryKeys((current) => {
       const next = new Set(current)
-      if (next.has(key)) {
-        next.delete(key)
-      } else {
-        next.add(key)
+      if (next.has(taskId)) {
+        next.delete(taskId)
+        return next
       }
+      next.add(taskId)
       return next
     })
+    if (responseId === null || fullHistoryByResponseId.has(responseId) || fullHistoryLoadingIds.has(responseId)) return
+
+    setFullHistoryLoadingIds((current) => new Set(current).add(responseId))
+    getCorrectionHistory(responseId)
+      .then((entries) => {
+        setFullHistoryByResponseId((current) => new Map(current).set(responseId, entries))
+      })
+      .catch((err: Error) => {
+        setFullHistoryErrorByResponseId((current) => new Map(current).set(responseId, err.message))
+      })
+      .finally(() => {
+        setFullHistoryLoadingIds((current) => {
+          const next = new Set(current)
+          next.delete(responseId)
+          return next
+        })
+      })
   }
 
   return (
@@ -310,38 +357,92 @@ function EmployeeHistory({ store }: EmployeeHistoryProps) {
                                   <button
                                     type="button"
                                     className="employee-history-task-history-toggle"
-                                    onClick={() => toggleHistory(task.id)}
+                                    onClick={() => toggleHistory(task.id, task.responseId)}
                                     aria-expanded={isHistoryExpanded}
                                   >
                                     <HistoryIcon size={12} />
-                                    {isHistoryExpanded ? 'Hide' : 'View'} response history ({task.resubmissionHistory.length})
+                                    {isHistoryExpanded ? 'Hide' : 'View'} response history
                                   </button>
-                                  {isHistoryExpanded && (
-                                    <div className="employee-history-task-history-list">
-                                      {task.resubmissionHistory.map((transition, index) => (
-                                        <div key={index} className="employee-history-task-history-item">
-                                          <p className="employee-history-task-history-change">
-                                            {transition.fromValue ?? '—'} → {transition.toValue ?? '—'}
-                                          </p>
-                                          <p className="employee-history-task-history-meta">
-                                            {transition.kind === 'DIRECT_CORRECTION' ? 'Corrected by' : 'Flagged by'}{' '}
-                                            {transition.flaggedByName ?? 'Owner'}
-                                            {transition.flaggedAt ? ` · ${transition.flaggedAt}` : ''}
-                                          </p>
-                                          {transition.flagReason && (
-                                            <p className="employee-history-task-history-reason">
-                                              &ldquo;{transition.flagReason}&rdquo;
-                                            </p>
+                                  {isHistoryExpanded && (() => {
+                                    const fullHistory = task.responseId !== null
+                                      ? fullHistoryByResponseId.get(task.responseId)
+                                      : undefined
+                                    const fullHistoryError = task.responseId !== null
+                                      ? fullHistoryErrorByResponseId.get(task.responseId)
+                                      : undefined
+                                    const isLoadingFullHistory = task.responseId !== null
+                                      && fullHistoryLoadingIds.has(task.responseId)
+
+                                    // Full server trail once fetched (every DIRECT correction/flag/
+                                    // resubmission, not just the latest); the bulk-derived
+                                    // resubmissionHistory is only a fallback while it loads.
+                                    if (fullHistory) {
+                                      return (
+                                        <div className="employee-history-task-history-list">
+                                          {fullHistory.length === 0 && (
+                                            <p className="employee-history-task-history-meta">No changes recorded.</p>
                                           )}
-                                          {transition.kind === 'FLAG_RESUBMIT' && (
-                                            <p className="employee-history-task-history-meta">
-                                              Resubmitted by {transition.resubmittedByName} · {transition.resubmittedAt}
-                                            </p>
-                                          )}
+                                          {fullHistory.map((entry, index) => (
+                                            <div key={entry.id ?? `resubmission-${index}`} className="employee-history-task-history-item">
+                                              <p className="employee-history-task-history-change">
+                                                {correctionValueLabel(entry, task.responseType, 'original')}
+                                                {' → '}
+                                                {correctionValueLabel(entry, task.responseType, 'corrected')}
+                                              </p>
+                                              <p className="employee-history-task-history-meta">
+                                                {entry.correctionType === 'RESUBMISSION' ? 'Resubmitted by' : 'Corrected by'}{' '}
+                                                {entry.correctedByFullName}
+                                                {' · '}{formatDateTimeLabel(entry.correctedAt.slice(0, 10))} {formatTimeLabel(entry.correctedAt)}
+                                              </p>
+                                              {entry.reason && (
+                                                <p className="employee-history-task-history-reason">
+                                                  &ldquo;{entry.reason}&rdquo;
+                                                </p>
+                                              )}
+                                            </div>
+                                          ))}
                                         </div>
-                                      ))}
-                                    </div>
-                                  )}
+                                      )
+                                    }
+
+                                    if (fullHistoryError) {
+                                      return (
+                                        <p className="employee-history-task-history-meta">
+                                          Couldn&apos;t load full history: {fullHistoryError}
+                                        </p>
+                                      )
+                                    }
+
+                                    return (
+                                      <div className="employee-history-task-history-list">
+                                        {isLoadingFullHistory && (
+                                          <p className="employee-history-task-history-meta">Loading…</p>
+                                        )}
+                                        {task.resubmissionHistory.map((transition, index) => (
+                                          <div key={index} className="employee-history-task-history-item">
+                                            <p className="employee-history-task-history-change">
+                                              {transition.fromValue ?? '—'} → {transition.toValue ?? '—'}
+                                            </p>
+                                            <p className="employee-history-task-history-meta">
+                                              {transition.kind === 'DIRECT_CORRECTION' ? 'Corrected by' : 'Flagged by'}{' '}
+                                              {transition.flaggedByName ?? 'Owner'}
+                                              {transition.flaggedAt ? ` · ${transition.flaggedAt}` : ''}
+                                            </p>
+                                            {transition.flagReason && (
+                                              <p className="employee-history-task-history-reason">
+                                                &ldquo;{transition.flagReason}&rdquo;
+                                              </p>
+                                            )}
+                                            {transition.kind === 'FLAG_RESUBMIT' && (
+                                              <p className="employee-history-task-history-meta">
+                                                Resubmitted by {transition.resubmittedByName} · {transition.resubmittedAt}
+                                              </p>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )
+                                  })()}
                                 </>
                               )}
                             </div>
