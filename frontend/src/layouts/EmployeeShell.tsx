@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Boxes, CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
+import { CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
@@ -34,7 +34,6 @@ const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'today', label: 'Checklist', icon: CalendarCheck },
   { key: 'audits', label: 'History', icon: ClipboardList },
   { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
-  { key: 'stock-check', label: 'Stock Check', icon: Boxes },
 ]
 
 type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null
