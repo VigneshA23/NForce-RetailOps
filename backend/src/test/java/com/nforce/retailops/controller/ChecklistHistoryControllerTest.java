@@ -297,13 +297,50 @@ class ChecklistHistoryControllerTest {
 
         String tokenH = login("history-owner-h@nforce.test");
 
-        // No storeId/storeIds param exists on this endpoint at all -- confirms the
-        // backend always resolves the caller's own store(s), never a client-supplied one.
+        // storeId is accepted on this endpoint, but only honored for a Super Admin
+        // caller -- for an Owner/Admin it's ignored and the backend always resolves
+        // the caller's own store(s), confirmed here by passing another owner's storeId.
         mockMvc.perform(get("/api/checklist-history/operations-summary")
-                .header("Authorization", "Bearer " + tokenH))
+                .header("Authorization", "Bearer " + tokenH)
+                .param("storeId", String.valueOf(otherStore.getId())))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.summary.length()").value(1))
             .andExpect(jsonPath("$.summary[0].storeName").value("My Store"));
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanExportOperationsSummaryForAnyStore() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        User owner = user("history-owner-j@nforce.test", ownerRole);
+        Store store = store("Super Admin Export Target Store", 9108L);
+        linkOwnerToStore(owner, store);
+
+        // Real SuperAdmin entity, not a User with role SUPER_ADMIN -- see the comment
+        // on superAdminCanViewDetailForAnyStore above for why that distinction matters.
+        superAdmin("history-superadmin-export@nforce.test");
+        String superAdminToken = login("history-superadmin-export@nforce.test");
+        LocalDate today = LocalDate.now();
+
+        mockMvc.perform(get("/api/checklist-history/operations-summary")
+                .header("Authorization", "Bearer " + superAdminToken)
+                .param("storeId", String.valueOf(store.getId()))
+                .param("startDate", today.toString())
+                .param("endDate", today.toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.summary.length()").value(1))
+            .andExpect(jsonPath("$.summary[0].storeName").value("Super Admin Export Target Store"));
+    }
+
+    @Test
+    @Transactional
+    void operationsSummaryForSuperAdminWithoutAStoreIsNotFound() throws Exception {
+        superAdmin("history-superadmin-no-store@nforce.test");
+        String superAdminToken = login("history-superadmin-no-store@nforce.test");
+
+        mockMvc.perform(get("/api/checklist-history/operations-summary")
+                .header("Authorization", "Bearer " + superAdminToken))
+            .andExpect(status().isNotFound());
     }
 
     @Test

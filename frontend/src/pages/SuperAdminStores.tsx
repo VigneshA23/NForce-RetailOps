@@ -22,9 +22,13 @@ const PAGE_SIZE = 10;
 
 interface SuperAdminStoresProps {
   onNavigateToChecklist: (storeId: number) => void;
+  // Lets the Owners page (rendered by a sibling that stays mounted across tab
+  // switches, unlike this page) know its cached owner/store data needs a
+  // refresh after a store rename or owner (re)assignment here.
+  onOwnersDataStale?: () => void;
 }
 
-function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
+function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdminStoresProps) {
   const [stores, setStores] = useState<SuperAdminStore[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -110,6 +114,7 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
       setStores((current) => current.map((s) => (s.storeId === updated.storeId ? updated : s)));
       setEditTarget(null);
       nfToast.success(`"${updated.storeName}" store updated.`);
+      onOwnersDataStale?.();
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to update store';
       setEditError(msg);
@@ -165,6 +170,10 @@ function SuperAdminStores({ onNavigateToChecklist }: SuperAdminStoresProps) {
       );
       setAssignTarget(null);
       nfToast.success(`Owner assigned to "${updated.storeName}".`);
+      // The previous owner (if any) also lost this store link -- simplest
+      // correct fix is to have the Owners page refetch rather than try to
+      // replicate the reassignment's exact before/after shape locally.
+      onOwnersDataStale?.();
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to assign owner';
       setAssignError(msg);

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Calendar, ChevronDown, Download, FileText } from 'lucide-react';
+import { Calendar, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { getChecklistHistoryOperationsReport } from '../api/checklistHistory';
-import { buildOperationsReportCsv, summarizeByStore } from '../utils/operationsReportExport';
-import { downloadCsv } from '../utils/csv';
+import { buildOperationsReportWorkbook, summarizeByStore } from '../utils/operationsReportExport';
+import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import { MAX_RANGE_DAYS, todayDate } from '../utils/checklistHistoryOptions';
 import './ExportMenu.css';
@@ -47,10 +47,10 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     if (!storeId) return;
     setExporting(true);
     try {
-      const report = await getChecklistHistoryOperationsReport({ startDate: date, endDate: date });
+      const report = await getChecklistHistoryOperationsReport({ startDate: date, endDate: date, storeId: storeId ?? undefined });
       const summary = summarizeByStore(report.summary);
-      const csv = buildOperationsReportCsv(summary, report.details, date, date);
-      downloadCsv(`checklist-${date}.csv`, csv);
+      const workbook = buildOperationsReportWorkbook(summary, report.details, date, date);
+      await downloadWorkbook(`checklist-${date}.xlsx`, workbook);
       setMenuOpen(false);
     } catch (err) {
       nfToast.error(err instanceof Error ? err.message : 'Export failed. Please try again.');
@@ -72,10 +72,10 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     }
     setRangeExporting(true);
     try {
-      const report = await getChecklistHistoryOperationsReport({ startDate: rangeStart, endDate: rangeEnd });
+      const report = await getChecklistHistoryOperationsReport({ startDate: rangeStart, endDate: rangeEnd, storeId: storeId ?? undefined });
       const summary = summarizeByStore(report.summary);
-      const csv = buildOperationsReportCsv(summary, report.details, rangeStart, rangeEnd);
-      downloadCsv(`checklist-${rangeStart}_to_${rangeEnd}.csv`, csv);
+      const workbook = buildOperationsReportWorkbook(summary, report.details, rangeStart, rangeEnd);
+      await downloadWorkbook(`checklist-${rangeStart}_to_${rangeEnd}.xlsx`, workbook);
       setMenuOpen(false);
       setMode('idle');
     } catch (err) {
@@ -90,7 +90,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     setPdfExporting(true);
     setMenuOpen(false);
     try {
-      const report = await getChecklistHistoryOperationsReport({ startDate: date, endDate: date });
+      const report = await getChecklistHistoryOperationsReport({ startDate: date, endDate: date, storeId: storeId ?? undefined });
       const summary = summarizeByStore(report.summary);
       const storeEntry = summary[0];
       const details = report.details;
@@ -229,8 +229,8 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
             onClick={handleExportToday}
             disabled={exporting || !storeId}
           >
-            <Download size={14} />
-            {exporting ? 'Downloading…' : 'Export this day (CSV)'}
+            <FileSpreadsheet size={14} />
+            {exporting ? 'Downloading…' : 'Export this day (Excel)'}
           </button>
 
           <button
@@ -276,7 +276,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
                 onClick={handleExportRange}
                 disabled={rangeExporting}
               >
-                {rangeExporting ? 'Downloading…' : 'Download CSV'}
+                {rangeExporting ? 'Downloading…' : 'Download Excel'}
               </button>
             </div>
           )}

@@ -90,13 +90,34 @@ public class ChecklistHistoryService {
     // eligible-tasks-union-responded-tasks reconstruction, same Issue definition),
     // plus flattened task-level rows for CSV export / Print. Deliberately takes no
     // storeIds from the caller -- always resolves to the authenticated owner's own
-    // authorized store(s), so an Admin can never request another store's data.
+    // authorized store(s), so an Admin can never request another store's data. Super
+    // Admin callers (no "own stores") use getOperationsReportForSuperAdmin below.
     @Transactional(readOnly = true)
     public ChecklistHistoryOperationsReportResponse getOperationsReport(
         Long ownerId, LocalDate startDate, LocalDate endDate
     ) {
         List<StoreDayContext> contexts = buildStoreDayContexts(ownerId, null, startDate, endDate);
+        return buildOperationsReportResponse(contexts);
+    }
 
+    // Super Admin can export any store's operations summary by looking up the store's
+    // actual owner, then reusing the owner's own resolution/aggregation -- mirrors
+    // getDetailForSuperAdmin below.
+    @Transactional(readOnly = true)
+    public ChecklistHistoryOperationsReportResponse getOperationsReportForSuperAdmin(
+        Long storeId, LocalDate startDate, LocalDate endDate
+    ) {
+        if (storeId == null) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndActiveTrue(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        List<StoreDayContext> contexts = buildStoreDayContexts(
+            storeOwner.getOwner().getId(), List.of(storeId), startDate, endDate);
+        return buildOperationsReportResponse(contexts);
+    }
+
+    private ChecklistHistoryOperationsReportResponse buildOperationsReportResponse(List<StoreDayContext> contexts) {
         List<ChecklistHistorySummaryRow> summary = contexts.stream().map(this::toSummaryRow).collect(Collectors.toList());
         summary.sort(Comparator.comparing(ChecklistHistorySummaryRow::storeName)
             .thenComparing(ChecklistHistorySummaryRow::date));

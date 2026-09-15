@@ -14,7 +14,8 @@ import StoreDetailTable, { type StoreDetailRow } from '../components/StoreDetail
 import TrendChart from '../components/TrendChart';
 import CalendarPopover from '../components/CalendarPopover';
 import ExportMenu from '../components/ExportMenu';
-import { taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, formatDateNavLabel } from '../utils/checklistHistoryOptions';
+import { taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, formatDateNavLabel, responseDisplayValue, TASK_STATUS_LABELS } from '../utils/checklistHistoryOptions';
+import { matchesSearch } from '../utils/search';
 import { getAllStores } from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import './SuperAdminChecklist.css';
@@ -209,10 +210,14 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
       result = result.filter((row) => row.categoryName === categoryFilter);
     }
     if (searchQuery.trim()) {
-      const q = searchQuery.trim().toLowerCase();
       result = result.filter((row) =>
-        row.task.name.toLowerCase().includes(q) ||
-        row.categoryName.toLowerCase().includes(q),
+        matchesSearch(searchQuery, [
+          row.categoryName,
+          row.task.name,
+          responseDisplayValue(row.task),
+          TASK_STATUS_LABELS[taskStatus(row.task)],
+          ...row.task.responses.map((r) => r.employeeFullName),
+        ]),
       );
     }
     return result;
@@ -578,7 +583,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
               <SearchInput
                 value={searchQuery}
                 onChange={setSearchQuery}
-                placeholder="Search tasks or categories…"
+                placeholder="Search tasks, employees, status…"
                 variant="filter"
               />
             </div>

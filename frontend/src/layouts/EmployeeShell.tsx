@@ -165,7 +165,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                     onNavigate={(t) => { setOverlay(null); setActiveTab(t) }}
                   />
                 )}
-                {tab === 'audits' && <EmployeeHistory store={store} stores={stores} />}
+                {tab === 'audits' && <EmployeeHistory store={store} />}
                 {tab === 'issues' && <EmployeeIssues store={store} />}
                 {tab === 'stock-check' && <EmployeeStockCheck store={store} />}
               </div>

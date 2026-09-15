@@ -26,6 +26,12 @@ export function taskFrequencyLabel(task: ChecklistHistoryTaskItem): string {
 
 export type ChecklistTaskStatus = 'OPEN' | 'COMPLETE' | 'ISSUE';
 
+export const TASK_STATUS_LABELS: Record<ChecklistTaskStatus, string> = {
+  OPEN: 'Open',
+  COMPLETE: 'Complete',
+  ISSUE: 'Issue',
+};
+
 // The most recent response for a task -- for a MULTIPLE-completion task with
 // several entries, that's the one that best represents its current state.
 function latestResponse(task: ChecklistHistoryTaskItem) {

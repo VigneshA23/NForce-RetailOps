@@ -403,6 +403,44 @@ class ChecklistHistoryServiceTest {
         assertThat(report.summary().get(0).issueCount()).isEqualTo(1);
     }
 
+    // --- Daily Operations Summary report for Super Admin (getOperationsReportForSuperAdmin) ---
+
+    @Test
+    void operationsReportForSuperAdminScopesToTheStoresActualOwner() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        User owner = user(OWNER_ID, "Store Owner");
+        StoreOwner storeOwner = storeOwner(store);
+        storeOwner.setOwner(owner);
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(10L)).thenReturn(Optional.of(storeOwner));
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner));
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of());
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReportForSuperAdmin(10L, today, today);
+
+        assertThat(report.summary()).hasSize(1);
+        assertThat(report.summary().get(0).storeName()).isEqualTo("Downtown");
+    }
+
+    @Test
+    void operationsReportForSuperAdminThrowsWhenStoreDoesNotExist() {
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(99L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() ->
+            checklistHistoryService.getOperationsReportForSuperAdmin(99L, LocalDate.now(), LocalDate.now()))
+            .isInstanceOf(StoreNotFoundException.class);
+    }
+
+    @Test
+    void operationsReportForSuperAdminThrowsWhenStoreIdIsNull() {
+        assertThatThrownBy(() ->
+            checklistHistoryService.getOperationsReportForSuperAdmin(null, LocalDate.now(), LocalDate.now()))
+            .isInstanceOf(StoreNotFoundException.class);
+    }
+
     @Test
     void summaryRejectsStartDateAfterEndDate() {
         LocalDate today = LocalDate.now();

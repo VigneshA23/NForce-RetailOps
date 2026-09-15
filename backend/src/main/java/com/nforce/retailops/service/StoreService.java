@@ -9,6 +9,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.OwnerNotFoundException;
 import com.nforce.retailops.exception.OwnerStoreConflictException;
+import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.exception.StoreHasHistoryException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
@@ -147,10 +148,13 @@ public class StoreService {
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
         Store store = storeOwner.getStore();
-        store.setName(request.name().trim());
-        if (request.location() != null) {
-            store.setLocation(request.location().trim());
+        String newName = request.name().trim();
+        String newLocation = request.location() != null ? request.location().trim() : store.getLocation();
+        if (storeRepository.existsByNameAndLocationIgnoreCaseAndIdNot(newName, newLocation, store.getId())) {
+            throw new StoreAlreadyExistsException("A store with this name and location already exists");
         }
+        store.setName(newName);
+        store.setLocation(newLocation);
         store = storeRepository.save(store);
 
         User owner = storeOwner.getOwner();
@@ -276,9 +280,14 @@ public class StoreService {
     // created (OwnerManagementService.listReassignableStores).
     @Transactional
     public SuperAdminStoreResponse createUnownedStore(CreateStoreRequest request) {
+        String name = request.name().trim();
+        String location = request.location().trim();
+        if (storeRepository.existsByNameAndLocationIgnoreCase(name, location)) {
+            throw new StoreAlreadyExistsException("A store with this name and location already exists");
+        }
         Store store = new Store();
-        store.setName(request.name().trim());
-        store.setLocation(request.location().trim());
+        store.setName(name);
+        store.setLocation(location);
         store.setStoreCode(storeCodeGenerator.next());
         store = storeRepository.save(store);
 

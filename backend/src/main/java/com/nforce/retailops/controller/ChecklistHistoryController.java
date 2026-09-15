@@ -49,17 +49,25 @@ public class ChecklistHistoryController {
             principal.getUser().getId(), storeIds, startDate, endDate));
     }
 
-    // Daily Operations Summary report -- deliberately has no storeId/storeIds param
-    // at all: the backend always resolves the caller's own authorized store(s), so
-    // an Owner/Admin can never request another store's summary or task details.
+    // Daily Operations Summary report. For an Owner/Admin, storeId is ignored and the
+    // backend always resolves the caller's own authorized store(s) -- an Owner/Admin
+    // can never request another store's summary or task details. Super Admin has no
+    // "own stores," so storeId is required for that caller and resolved the same way
+    // /detail does (uses Authentication, not @AuthenticationPrincipal AppUserDetails,
+    // since a Super Admin's principal is SuperAdminUserDetails).
     @GetMapping("/operations-summary")
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<ChecklistHistoryOperationsReportResponse> operationsSummary(
-        @AuthenticationPrincipal AppUserDetails principal,
+        Authentication authentication,
+        @RequestParam(required = false) Long storeId,
         @RequestParam(required = false) LocalDate startDate,
         @RequestParam(required = false) LocalDate endDate
     ) {
-        return ResponseEntity.ok(checklistHistoryService.getOperationsReport(
-            principal.getUser().getId(), startDate, endDate));
+        ChecklistHistoryOperationsReportResponse response =
+            authentication.getPrincipal() instanceof AppUserDetails appUserDetails
+                ? checklistHistoryService.getOperationsReport(appUserDetails.getUser().getId(), startDate, endDate)
+                : checklistHistoryService.getOperationsReportForSuperAdmin(storeId, startDate, endDate);
+        return ResponseEntity.ok(response);
     }
 
     @PatchMapping("/responses/{responseId}/correct")

@@ -14,6 +14,7 @@ import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
 import com.nforce.retailops.exception.OwnerStoreConflictException;
+import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -176,6 +177,10 @@ public class OwnerManagementService {
 
         StoreOwner storeOwner;
         if (hasNewStore) {
+            if (storeRepository.existsByNameAndLocationIgnoreCase(request.storeName(), request.storeLocation())) {
+                throw new StoreAlreadyExistsException(
+                    "A store with this name and location already exists");
+            }
             Store store = new Store();
             store.setName(request.storeName());
             store.setLocation(request.storeLocation());

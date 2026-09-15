@@ -5,6 +5,7 @@ import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -22,6 +23,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -116,6 +118,18 @@ class OwnerProvisioningServiceTest {
         assertThat(provisioned.storeOwnerId()).isEqualTo(30L);
         assertThat(provisioned.previousOwnerIdIfReassigned()).isNull();
         assertThat(provisioned.response().storeId()).isEqualTo(20L);
+    }
+
+    @Test
+    void createOwnerAccountWithANewStoreRejectsDuplicateNameAndLocation() {
+        stubCreateAccountHappyPath();
+        when(storeRepository.existsByNameAndLocationIgnoreCase("Downtown", "Main St")).thenReturn(true);
+
+        assertThatThrownBy(() -> ownerProvisioningService.createOwnerAccount(requestWithNewStore(), true, false))
+            .isInstanceOf(StoreAlreadyExistsException.class)
+            .hasMessageContaining("already exists");
+
+        verify(storeRepository, never()).save(any(Store.class));
     }
 
     @Test
