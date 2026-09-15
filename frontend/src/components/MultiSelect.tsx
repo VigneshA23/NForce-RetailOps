@@ -110,8 +110,13 @@ function MultiSelect({
     }
 
     // Simplest robust fix for a portal-rendered panel: close on scroll rather
-    // than tracking the trigger's position continuously.
-    function handleScrollOrResize() {
+    // than tracking the trigger's position continuously. Ignore scroll
+    // events from inside the panel itself -- this listener runs on the
+    // capture phase on `window`, which is an ancestor of the portaled panel,
+    // so scrolling the options list would otherwise close it instead of
+    // scrolling it.
+    function handleScrollOrResize(event: Event) {
+      if (panelRef.current?.contains(event.target as Node)) return;
       setIsOpen(false);
     }
 
