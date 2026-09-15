@@ -1,4 +1,4 @@
-import type { HistoryCategoryEntry, HistoryIssueEntry, HistoryResubmissionTransition, HistoryTaskDetail, IssueStatus, ShiftHistory, TaskStatus } from '../types/history';
+import type { HistoryCategoryEntry, HistoryIssueEntry, HistoryResponderEntry, HistoryResubmissionTransition, HistoryTaskDetail, IssueStatus, ShiftHistory, TaskStatus } from '../types/history';
 import type { AdminCorrectionEntry } from '../types/checklistHistory';
 import { authHeaders } from '../utils/authStorage';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
@@ -181,16 +181,35 @@ function buildDirectCorrectionTransition(
   };
 }
 
+// Every still-active response, plus each one's own resubmission-chain hops (the
+// same-day submissions it superseded) -- without this, a MULTIPLE-completion task
+// answered 3x by the SAME employee would only ever show their latest submission
+// here, since task.responses (the backend's active-only list) keeps just one row
+// per employee. employeeUserId on a historical hop is the same employee as the
+// response it hangs off of (a resubmission chain is always one employee
+// superseding their own prior answer), so it's safe to reuse for that purpose.
+function buildCompletedByAll(responses: RawResponseEntry[]): HistoryResponderEntry[] {
+  return responses
+    .flatMap((entry) => [
+      ...entry.resubmissionHistory.map((hop) => ({
+        employeeUserId: entry.employeeUserId,
+        name: hop.employeeFullName,
+        respondedAtRaw: hop.respondedAt,
+      })),
+      { employeeUserId: entry.employeeUserId, name: entry.employeeFullName, respondedAtRaw: entry.respondedAt },
+    ])
+    .sort((a, b) => new Date(a.respondedAtRaw).getTime() - new Date(b.respondedAtRaw).getTime())
+    .map((item) => ({
+      employeeUserId: item.employeeUserId,
+      name: item.name,
+      respondedAt: formatTimeLabel(item.respondedAtRaw),
+    }));
+}
+
 function toHistoryTask(task: RawTaskItem): HistoryTaskDetail {
   const latest = latestResponse(task.responses);
   const directCorrection = latest ? buildDirectCorrectionTransition(latest, task.responseType) : null;
-  const completedByAll = [...task.responses]
-    .sort((a, b) => new Date(a.respondedAt).getTime() - new Date(b.respondedAt).getTime())
-    .map((entry) => ({
-      employeeUserId: entry.employeeUserId,
-      name: entry.employeeFullName,
-      respondedAt: formatTimeLabel(entry.respondedAt),
-    }));
+  const completedByAll = buildCompletedByAll(task.responses);
   return {
     id: task.id,
     responseId: latest?.id ?? null,

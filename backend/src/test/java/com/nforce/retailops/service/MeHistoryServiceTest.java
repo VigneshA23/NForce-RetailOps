@@ -719,4 +719,30 @@ class MeHistoryServiceTest {
         assertThatThrownBy(() -> meHistoryService.getCorrectionHistory(unassignedEmployee.getId(), responseId))
             .isInstanceOf(StoreNotFoundException.class);
     }
+
+    // 12. Owner/Admin's "Correction History" (AdminCorrectionService.getCorrectionHistory,
+    // shares the same ChecklistHistoryService.buildCorrectionHistory chain-walk this class's
+    // getCorrectionHistory uses) must show every one of a SINGLE employee's same-day
+    // submissions on a MULTIPLE-completion task -- not just the pair an admin flag or
+    // correction happens to touch. Each self-resubmission (no flag/correction involved at
+    // all) still supersedes the prior response via the same chain, so it must still
+    // surface here as a synthesized RESUBMISSION entry.
+    @Test
+    @Transactional
+    void adminCorrectionHistoryShowsEverySameEmployeeResubmissionOnAMultipleCompletionTask() {
+        Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
+        task.setCompletionType(CompletionType.MULTIPLE);
+        taskRepository.save(task);
+
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+        TaskResponseStateResponse afterThird =
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+        Long latestResponseId = afterThird.responses().get(0).id();
+
+        List<AdminCorrectionEntry> history = adminCorrectionService.getCorrectionHistory(latestResponseId, ownerId);
+
+        assertThat(history).hasSize(2);
+        assertThat(history).allMatch(entry -> "RESUBMISSION".equals(entry.correctionType()));
+    }
 }

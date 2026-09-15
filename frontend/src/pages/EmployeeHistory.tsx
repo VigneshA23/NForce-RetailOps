@@ -334,9 +334,12 @@ function EmployeeHistory({ store }: EmployeeHistoryProps) {
                             <div className="employee-history-task-info">
                               <p className="employee-history-task-name">{task.name}</p>
                               {task.completedByAll.length > 1 ? (
-                                task.completedByAll.map((responder) => (
+                                // Index-keyed: the same employee can now appear more than once here
+                                // (each of their same-day submissions on a MULTIPLE-completion task),
+                                // so employeeUserId is no longer unique across these rows.
+                                task.completedByAll.map((responder, index) => (
                                   <p
-                                    key={responder.employeeUserId}
+                                    key={index}
                                     className="employee-history-task-detail"
                                   >
                                     {`${responder.name} · ${responder.respondedAt}`}
