@@ -56,8 +56,8 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
   const prefersReducedMotion = useReducedMotion()
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
-  const rotateX = useTransform(mouseY, [-200, 200], [8, -8])
-  const rotateY = useTransform(mouseX, [-200, 200], [-8, 8])
+  const rotateX = useTransform(mouseY, [-200, 200], [3, -3])
+  const rotateY = useTransform(mouseX, [-200, 200], [-3, 3])
 
   const onCardMouseMove = useCallback(
     (e: React.MouseEvent<HTMLDivElement>) => {
@@ -139,7 +139,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
               style={!prefersReducedMotion ? { rotateX, rotateY } : undefined}
               onMouseMove={onCardMouseMove}
               onMouseLeave={onCardMouseLeave}
-              whileHover={!prefersReducedMotion ? { z: 8 } : undefined}
+              whileHover={!prefersReducedMotion ? { z: 4 } : undefined}
             >
               {/* Pulsing radial glow behind the card — opacity-animated, GPU-composited */}
               {!prefersReducedMotion && (
