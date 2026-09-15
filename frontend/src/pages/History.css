@@ -1,0 +1,17 @@
+.history-page__range-filter {
+  flex-basis: auto;
+}
+
+.history-page__range-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.history-page__range-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}

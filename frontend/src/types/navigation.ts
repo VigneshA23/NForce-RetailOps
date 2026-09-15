@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Boxes, Building2, CheckSquare, ClipboardList, LayoutGrid, Package, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
+import { Boxes, Building2, CheckSquare, ClipboardList, History, LayoutGrid, Package, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -9,7 +9,8 @@ export type NavTabKey =
   | 'tasks'
   | 'issues'
   | 'inventory'
-  | 'orders';
+  | 'orders'
+  | 'history';
 
 export interface NavItem<Key extends string = NavTabKey> {
   key: Key;
@@ -25,6 +26,7 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
   { key: 'inventory', label: 'Inventory', icon: Boxes },
   { key: 'orders', label: 'Orders', icon: ShoppingCart },
+  { key: 'history', label: 'History', icon: History },
 ];
 
 // Mobile bottom tab bar: home, daily checklist, tasks, employees.
@@ -43,6 +45,7 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   issues: 'Issues',
   inventory: 'Inventory',
   orders: 'Orders',
+  history: 'History',
 };
 
 export type EmployeeNavTabKey = 'today' | 'audits' | 'issues' | 'stock-check';
@@ -53,7 +56,7 @@ export interface EmployeeNavItem {
   icon: LucideIcon;
 }
 
-export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'checklist' | 'issues' | 'inventory';
+export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'checklist' | 'issues' | 'inventory' | 'history';
 
 export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'home', label: 'Home', icon: Home },
@@ -63,6 +66,7 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
   { key: 'inventory', label: 'Inventory', icon: Package },
+  { key: 'history', label: 'History', icon: History },
 ];
 
 export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
@@ -74,4 +78,5 @@ export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
   checklist: 'Daily Checklist',
   issues: 'Issues',
   inventory: 'Inventory',
+  history: 'History',
 };

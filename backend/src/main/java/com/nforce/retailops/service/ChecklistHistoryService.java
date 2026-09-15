@@ -86,6 +86,59 @@ public class ChecklistHistoryService {
         return rows;
     }
 
+    // Super Admin equivalent of getSummary: no "own stores" to fall back on, so an
+    // empty storeIds means literally every store with an active owner on the
+    // platform. buildStoreDayContexts's task lookup is owner-scoped (Task.owner), so
+    // requested stores are grouped by their owning owner and resolved one owner-batch
+    // at a time -- the same per-store owner lookup getDetailForSuperAdmin/
+    // getOperationsReportForSuperAdmin already do, just generalized to many stores
+    // across possibly many owners at once instead of a single store.
+    @Transactional(readOnly = true)
+    public List<ChecklistHistorySummaryRow> getSummaryForSuperAdmin(
+        List<Long> requestedStoreIds, LocalDate startDate, LocalDate endDate
+    ) {
+        LocalDate resolvedStart = startDate != null ? startDate : LocalDate.now();
+        LocalDate resolvedEnd = endDate != null ? endDate : LocalDate.now();
+        validateRange(resolvedStart, resolvedEnd);
+
+        List<StoreOwner> activeOwnedStores = storeOwnerRepository.findAllWithStoreAndOwner().stream()
+            .filter(StoreOwner::isActive)
+            .filter(so -> so.getOwner() != null)
+            .toList();
+
+        List<StoreOwner> selected;
+        if (requestedStoreIds == null || requestedStoreIds.isEmpty()) {
+            selected = activeOwnedStores;
+        } else {
+            if (requestedStoreIds.size() > MAX_STORE_SELECTION) {
+                throw new InvalidStoreSelectionException("Select at most " + MAX_STORE_SELECTION + " stores");
+            }
+            Set<Long> requested = Set.copyOf(requestedStoreIds);
+            selected = activeOwnedStores.stream()
+                .filter(so -> requested.contains(so.getStore().getId()))
+                .toList();
+            if (selected.size() != requested.size()) {
+                throw new InvalidStoreSelectionException("One or more selected stores could not be found");
+            }
+        }
+
+        Map<Long, List<Long>> storeIdsByOwnerId = selected.stream()
+            .collect(Collectors.groupingBy(
+                so -> so.getOwner().getId(),
+                Collectors.mapping(so -> so.getStore().getId(), Collectors.toList())
+            ));
+
+        List<StoreDayContext> contexts = new ArrayList<>();
+        for (Map.Entry<Long, List<Long>> group : storeIdsByOwnerId.entrySet()) {
+            contexts.addAll(buildStoreDayContexts(group.getKey(), group.getValue(), resolvedStart, resolvedEnd));
+        }
+
+        List<ChecklistHistorySummaryRow> rows = contexts.stream().map(this::toSummaryRow).collect(Collectors.toList());
+        rows.sort(Comparator.comparing(ChecklistHistorySummaryRow::storeName)
+            .thenComparing(ChecklistHistorySummaryRow::date));
+        return rows;
+    }
+
     // Daily Operations Summary report: same aggregation as getSummary (same
     // eligible-tasks-union-responded-tasks reconstruction, same Issue definition),
     // plus flattened task-level rows for CSV export / Print. Deliberately takes no
