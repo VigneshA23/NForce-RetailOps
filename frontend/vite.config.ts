@@ -33,6 +33,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       // Disabled in dev: a service worker registered during local development
       // can keep serving a stale cached bundle across restarts/HMR, making
@@ -44,6 +45,38 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-') || id.includes('node_modules/victory-')) {
+            return 'vendor-recharts'
+          }
+          if (id.includes('node_modules/exceljs')) {
+            return 'vendor-exceljs'
+          }
+          if (id.includes('node_modules/jspdf')) {
+            return 'vendor-jspdf'
+          }
+          if (id.includes('node_modules/html2canvas')) {
+            return 'vendor-html2canvas'
+          }
+          if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) {
+            return 'vendor-motion'
+          }
+          if (id.includes('node_modules/lucide-react')) {
+            return 'vendor-lucide'
+          }
+          if (id.includes('node_modules/ogl')) {
+            return 'vendor-ogl'
+          }
+          if (id.includes('node_modules/')) {
+            return 'vendor-misc'
+          }
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     host: true,
