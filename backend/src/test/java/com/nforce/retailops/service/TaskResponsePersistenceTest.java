@@ -417,6 +417,41 @@ class TaskResponsePersistenceTest {
         assertThat(latest.getSupersededResponseId()).isEqualTo(firstResponseId);
     }
 
+    // 11b. Undo-then-resubmit must preserve the chain, the same way flag->resubmit and
+    // a live MULTIPLE resubmission already do: Undo only deactivates a response (it
+    // never links forward), so without this, the undone value would be permanently
+    // unreachable from history once the employee submits again. Covers both SINGLE
+    // (undo frees the task for anyone, but THIS employee's own history must still
+    // chain) and MULTIPLE.
+    @Test
+    @Transactional
+    void undoThenResubmitBySameEmployeePreservesTheChain() {
+        Long singleTaskId = createTask(ResponseType.NUMERIC, CompletionType.SINGLE);
+        TaskResponseStateResponse firstSubmit = taskService.submitResponse(
+            employee1Id, singleTaskId, new TaskResponseSubmitRequest(storeId, null, 8.0, null));
+        Long firstResponseId = firstSubmit.responses().get(0).id();
+
+        taskService.undoResponse(employee1Id, singleTaskId, storeId, firstResponseId);
+        TaskResponseStateResponse afterResubmit = taskService.submitResponse(
+            employee1Id, singleTaskId, new TaskResponseSubmitRequest(storeId, null, 5.0, null));
+
+        assertThat(afterResubmit.responses()).hasSize(1);
+        TaskResponseEntry latest = taskResponseEntryRepository.findById(afterResubmit.responses().get(0).id()).orElseThrow();
+        assertThat(latest.getSupersededResponseId()).isEqualTo(firstResponseId);
+
+        Long multipleTaskId = createTask(ResponseType.NUMERIC, CompletionType.MULTIPLE);
+        TaskResponseStateResponse multiFirst = taskService.submitResponse(
+            employee1Id, multipleTaskId, new TaskResponseSubmitRequest(storeId, null, 3.0, null));
+        Long multiFirstId = multiFirst.responses().get(0).id();
+
+        taskService.undoResponse(employee1Id, multipleTaskId, storeId, multiFirstId);
+        TaskResponseStateResponse multiResubmit = taskService.submitResponse(
+            employee1Id, multipleTaskId, new TaskResponseSubmitRequest(storeId, null, 6.0, null));
+
+        TaskResponseEntry multiLatest = taskResponseEntryRepository.findById(multiResubmit.responses().get(0).id()).orElseThrow();
+        assertThat(multiLatest.getSupersededResponseId()).isEqualTo(multiFirstId);
+    }
+
     // 12a. Store assignment validation is enforced: an employee not assigned to the
     // store cannot submit a response for it.
     @Test

@@ -306,6 +306,22 @@ public class TaskService {
             }
         }
 
+        // Neither branch above found an active response to chain from (there wasn't
+        // one for this employee this round) -- but Undo itself never links forward
+        // (it only deactivates), so without this fallback, an undo-then-resubmit cycle
+        // would silently drop the undone response from history: it's this employee's
+        // own most recent row for this task/day, so if it exists and is inactive, it
+        // was undone (not superseded already, or activeResponses above would have
+        // found and superseded it instead).
+        if (supersededResponseId == null) {
+            supersededResponseId = taskResponseEntryRepository
+                .findFirstByTaskIdAndStoreIdAndResponseDateAndEmployeeIdOrderByCreatedAtDesc(
+                    taskId, request.storeId(), today, employeeUserId)
+                .filter(prior -> !prior.isActive())
+                .map(TaskResponseEntry::getId)
+                .orElse(null);
+        }
+
         TaskResponseEntry entry = new TaskResponseEntry();
         entry.setTask(task);
         entry.setStore(storeRepository.getReferenceById(request.storeId()));

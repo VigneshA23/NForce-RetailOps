@@ -33,6 +33,17 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
 
     Optional<TaskResponseEntry> findByIdAndTaskIdAndStoreId(Long id, Long taskId, Long storeId);
 
+    // Chain-continuation lookup for submitResponse: after an employee undoes their
+    // own response (active=false, no supersededResponseId set on anything -- Undo
+    // itself never links forward), this finds that same employee's most recent row
+    // for this task/store/day, active or not, so the NEXT submission can link back to
+    // it via supersededResponseId. Without this, an undo-then-resubmit cycle drops the
+    // undone value from history entirely (unlike flag->resubmit or a live MULTIPLE
+    // resubmission, both of which already preserve the chain).
+    Optional<TaskResponseEntry> findFirstByTaskIdAndStoreIdAndResponseDateAndEmployeeIdOrderByCreatedAtDesc(
+        Long taskId, Long storeId, LocalDate responseDate, Long employeeId
+    );
+
     // Admin checklist-history summary: one query for an entire store-range request,
     // rather than one query per store per day. join fetch all three associations so
     // accessing .getStore()/.getTask()/.getEmployee() on results never fires lazy-load
