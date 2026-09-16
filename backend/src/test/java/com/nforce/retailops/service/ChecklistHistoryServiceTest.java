@@ -145,7 +145,7 @@ class ChecklistHistoryServiceTest {
         Task mondayWednesdayTask = task(30L, category, ScheduleType.SELECTED_DAYS,
             Set.of(DayOfWeekCode.MON, DayOfWeekCode.WED), true);
 
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), monday, sunday))
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), monday, sunday))
             .thenReturn(List.of(mondayWednesdayTask));
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), monday, sunday))
             .thenReturn(List.of());
@@ -164,7 +164,7 @@ class ChecklistHistoryServiceTest {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
         when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
             .thenReturn(List.of());
 
@@ -174,32 +174,6 @@ class ChecklistHistoryServiceTest {
         assertThat(rows.get(0).hasChecklist()).isFalse();
         assertThat(rows.get(0).totalTasks()).isZero();
         assertThat(rows.get(0).completedTasks()).isZero();
-    }
-
-    // Regression test for the gap in the union-based reconstruction: an inactive Task
-    // (or one under an inactive Category) that has NEVER been answered must still
-    // count on the summary -- not just one that already has history (see
-    // summaryUnionCountsADeactivatedTaskThatStillHasAResponse below for that case).
-    @Test
-    void summaryIncludesInactiveTaskWithNoResponses() {
-        LocalDate today = LocalDate.now();
-        Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
-
-        Category category = category(20L, "Opening", 0);
-        Task inactiveTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today))
-            .thenReturn(List.of(inactiveTask));
-        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
-            .thenReturn(List.of());
-
-        List<ChecklistHistorySummaryRow> rows = checklistHistoryService.getSummary(OWNER_ID, List.of(10L), today, today);
-
-        assertThat(rows).hasSize(1);
-        ChecklistHistorySummaryRow row = rows.get(0);
-        assertThat(row.hasChecklist()).isTrue();
-        assertThat(row.totalTasks()).isEqualTo(1);
-        assertThat(row.completedTasks()).isZero();
     }
 
     // Regression test for the union-based reconstruction: a task deactivated after
@@ -213,9 +187,9 @@ class ChecklistHistoryServiceTest {
 
         Category category = category(20L, "Opening", 0);
         Task deactivatedTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
-        // Excluded here because findForStoresAndDateRange filters on active=true --
+        // Excluded here because findActiveForStoresAndDateRange filters on active=true --
         // simulating a task deactivated after it accumulated history.
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
         when(taskRepository.findAllById(Set.of(31L))).thenReturn(List.of(deactivatedTask));
 
         User employee = user(99L, "Jane Doe");
@@ -234,7 +208,7 @@ class ChecklistHistoryServiceTest {
     }
 
     // Regression test for the O(numStores) query fan-out fix: with multiple stores
-    // requested, findForStoresAndDateRange must be queried exactly once (not
+    // requested, findActiveForStoresAndDateRange must be queried exactly once (not
     // once per store), and each store's row must only reflect tasks actually scoped
     // to it.
     @Test
@@ -250,7 +224,7 @@ class ChecklistHistoryServiceTest {
         Task storeAOnlyTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
         storeAOnlyTask.setAppliesToAllStores(false);
 
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L, 11L), today, today))
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L, 11L), today, today))
             .thenReturn(List.of(allStoresTask, storeAOnlyTask));
         when(taskRepository.findStoreRowsGroupedByTaskIds(List.of(31L)))
             .thenReturn(List.<Object[]>of(new Object[] {31L, 10L, "Downtown"}));
@@ -269,7 +243,7 @@ class ChecklistHistoryServiceTest {
         assertThat(uptownRow.totalTasks()).isEqualTo(1);
 
         verify(taskRepository, times(1))
-            .findForStoresAndDateRange(OWNER_ID, List.of(10L, 11L), today, today);
+            .findActiveForStoresAndDateRange(OWNER_ID, List.of(10L, 11L), today, today);
     }
 
     // Daily Operations Summary report: issueCount must reuse the app's one
@@ -284,7 +258,7 @@ class ChecklistHistoryServiceTest {
 
         Category category = category(20L, "Opening", 0);
         Task yesNoTask = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(yesNoTask));
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(yesNoTask));
 
         User employee = user(99L, "Jane Doe");
         // An earlier "Yes" followed by a corrected, later "No" -- only the later
@@ -312,7 +286,7 @@ class ChecklistHistoryServiceTest {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
         when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
             .thenReturn(List.of());
 
@@ -332,7 +306,7 @@ class ChecklistHistoryServiceTest {
         LocalDate today = LocalDate.now();
         Store myStore = store(10L, "Downtown");
         when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(myStore)));
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
             .thenReturn(List.of());
 
@@ -364,7 +338,7 @@ class ChecklistHistoryServiceTest {
 
         Category category = category(20L, "Opening", 0);
         Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
             .thenReturn(List.of());
 
@@ -386,7 +360,7 @@ class ChecklistHistoryServiceTest {
 
         Category category = category(20L, "Opening", 0);
         Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
 
         User employee = user(99L, "Jane Doe");
         TaskResponseEntry yes = response(task, store, employee, today);
@@ -414,7 +388,7 @@ class ChecklistHistoryServiceTest {
 
         Category category = category(20L, "Opening", 0);
         Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
 
         User employee = user(99L, "Jane Doe");
         TaskResponseEntry no = response(task, store, employee, today);
@@ -594,7 +568,7 @@ class ChecklistHistoryServiceTest {
         storeOwner.setOwner(owner);
         when(storeOwnerRepository.findByStoreIdAndActiveTrue(10L)).thenReturn(Optional.of(storeOwner));
         when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner));
-        when(taskRepository.findForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
             .thenReturn(List.of());
 

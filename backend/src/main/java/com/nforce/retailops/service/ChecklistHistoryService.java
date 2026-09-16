@@ -284,7 +284,7 @@ public class ChecklistHistoryService {
         // eligibility needs to be re-evaluated below, in memory.
         List<Task> candidateTasks = storeIds.isEmpty()
             ? List.of()
-            : taskRepository.findForStoresAndDateRange(ownerId, storeIds, resolvedStart, resolvedEnd);
+            : taskRepository.findActiveForStoresAndDateRange(ownerId, storeIds, resolvedStart, resolvedEnd);
         Map<Long, Task> candidateTasksById = candidateTasks.stream()
             .collect(Collectors.toMap(Task::getId, task -> task, (a, b) -> a));
 
