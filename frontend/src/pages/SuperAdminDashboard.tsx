@@ -358,7 +358,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       {showProfile ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : showHelp ? (
-        <Help />
+        <Help role={user.role} />
       ) : showSettings ? (
         <Settings />
       ) : showNotifications ? (

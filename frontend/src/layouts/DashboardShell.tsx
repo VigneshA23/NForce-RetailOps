@@ -190,7 +190,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       {overlay === 'profile' ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : overlay === 'help' ? (
-        <Help />
+        <Help role={user.role} />
       ) : overlay === 'settings' ? (
         <Settings />
       ) : overlay === 'notifications' ? (
