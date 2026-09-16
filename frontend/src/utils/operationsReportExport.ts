@@ -98,32 +98,24 @@ export function formatTimestamp(iso: string | null): string {
   return `${formatDDMMYYYY(iso.slice(0, 10))} ${formatTimeLabel(iso)}`;
 }
 
-// Ports CorrectionModal.tsx's boolLabel/correctionValueLabel (the "Correct Response"
-// modal's own correction-history renderer) so the export formats before/after values
-// exactly the same way -- driven by plain responseType/numericUnit strings instead of
-// a ChecklistHistoryTaskItem, since ChecklistHistoryTaskDetailRow carries those flat.
-function correctionValueLabelForExport(
+// Ports CorrectionModal.tsx's boolLabel (the "Correct Response" modal's own
+// correction-history renderer) so the export formats the pre-change value
+// exactly the same way -- driven by plain responseType/numericUnit strings
+// instead of a ChecklistHistoryTaskItem, since ChecklistHistoryTaskDetailRow
+// carries those flat.
+function originalValueLabelForExport(
   entry: AdminCorrectionEntry,
   responseType: ChecklistResponseType,
   numericUnit: string | null,
-  which: 'original' | 'corrected',
 ): string {
-  const b = which === 'original' ? entry.originalValueBoolean : entry.correctedValueBoolean;
-  const n = which === 'original' ? entry.originalValueNumeric : entry.correctedValueNumeric;
-  const t = which === 'original' ? entry.originalValueText : entry.correctedValueText;
-  if (b !== null && b !== undefined) {
-    if (responseType === 'YES_NO') return b ? 'Yes' : 'No';
-    return b ? 'Done' : 'Not done';
+  if (entry.originalValueBoolean !== null && entry.originalValueBoolean !== undefined) {
+    if (responseType === 'YES_NO') return entry.originalValueBoolean ? 'Yes' : 'No';
+    return entry.originalValueBoolean ? 'Done' : 'Not done';
   }
-  if (n !== null && n !== undefined) return numericUnit ? `${n} ${numericUnit}` : String(n);
-  if (t !== null && t !== undefined) return t;
-  // No value on the "corrected" side of an UNDONE entry means the employee undid
-  // their answer -- a type-aware label reads better than a bare dash.
-  if (which === 'corrected' && entry.correctionType === 'UNDONE') {
-    if (responseType === 'YES_NO') return 'No';
-    if (responseType === 'DONE_NOT_DONE') return 'Not done';
-    return 'No answer';
+  if (entry.originalValueNumeric !== null && entry.originalValueNumeric !== undefined) {
+    return numericUnit ? `${entry.originalValueNumeric} ${numericUnit}` : String(entry.originalValueNumeric);
   }
+  if (entry.originalValueText !== null && entry.originalValueText !== undefined) return entry.originalValueText;
   return '—';
 }
 
@@ -140,21 +132,16 @@ function changeTypeLabel(entry: AdminCorrectionEntry): string {
 // Shared by both the Excel and PDF Task Detail tables: one line per history entry,
 // newest-first (correctionHistory is already sorted that way by the backend), so
 // the "Response History" and "Change Type" columns line up entry-for-entry.
+// Each line is the entry's ORIGINAL (pre-change) value only, not "old -> new" --
+// the "new" side is always redundant: for the newest entry it's just the current
+// value already shown in the Response column, and for every older entry it's the
+// same value as the next-newest entry's own "original".
 export function buildResponseHistoryLines(
   history: AdminCorrectionEntry[],
   responseType: ChecklistResponseType,
   numericUnit: string | null,
-  // jsPDF's standard fonts (helvetica/times/courier) only support WinAnsi
-  // encoding, which has no "→" glyph -- it renders as mojibake and throws off
-  // autoTable's column-width/wrap math. Excel (ExcelJS/real fonts) handles the
-  // real arrow fine and already uses it elsewhere (CorrectionModal.tsx etc), so
-  // only the PDF builder passes the ASCII-safe fallback.
-  arrow: string = '→',
 ): { changeLines: string[]; typeLines: string[] } {
-  const changeLines = history.map(
-    (entry) =>
-      `${correctionValueLabelForExport(entry, responseType, numericUnit, 'original')} ${arrow} ${correctionValueLabelForExport(entry, responseType, numericUnit, 'corrected')}`,
-  );
+  const changeLines = history.map((entry) => originalValueLabelForExport(entry, responseType, numericUnit));
   const typeLines = history.map(changeTypeLabel);
   return { changeLines, typeLines };
 }
@@ -163,12 +150,30 @@ function longestLine(text: string): string {
   return text.split('\n').reduce((longest, line) => (line.length > longest.length ? line : longest), '');
 }
 
+// How many visual lines `text` wraps into at a given column width -- used to
+// size row height correctly, since ExcelJS never auto-grows row height for
+// wrapped content (a row must be told its height explicitly).
+function estimateWrappedLines(text: string, columnWidthChars: number): number {
+  if (!text) return 1;
+  return text.split('\n').reduce((total, line) => total + Math.max(1, Math.ceil(line.length / columnWidthChars)), 0);
+}
+
 const TOTAL_COLUMNS = 10; // widest section (Task Detail): Store, Date, Category, Task, Status, Response, Employee, Completed At, Response History, Change Type
 const TASK_COLUMN_INDEX = 3; // zero-based -- Task Detail's "Task" column, needs the most width
+const RESPONSE_COLUMN_INDEX = 5;
+const RESPONSE_HISTORY_COLUMN_INDEX = 8;
+const CHANGE_TYPE_COLUMN_INDEX = 9;
 const MIN_COLUMN_WIDTH = 10;
 const MAX_COLUMN_WIDTH = 40;
 const TASK_MIN_COLUMN_WIDTH = 30;
 const TASK_MAX_COLUMN_WIDTH = 60;
+// Response/Response History/Change Type can hold long free text (a TEXT-type
+// task's response, or several change entries) -- fixed, generous widths
+// instead of the dynamic min/max clamp, so long content wraps into a
+// reasonable line count instead of a handful of characters per line.
+const RESPONSE_COLUMN_WIDTH = 32;
+const RESPONSE_HISTORY_COLUMN_WIDTH = 42;
+const CHANGE_TYPE_COLUMN_WIDTH = 26;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -189,6 +194,18 @@ class ColumnWidthTracker {
 
   applyTo(worksheet: ExcelJS.Worksheet): void {
     for (let i = 0; i < TOTAL_COLUMNS; i++) {
+      if (i === RESPONSE_COLUMN_INDEX) {
+        worksheet.getColumn(i + 1).width = RESPONSE_COLUMN_WIDTH;
+        continue;
+      }
+      if (i === RESPONSE_HISTORY_COLUMN_INDEX) {
+        worksheet.getColumn(i + 1).width = RESPONSE_HISTORY_COLUMN_WIDTH;
+        continue;
+      }
+      if (i === CHANGE_TYPE_COLUMN_INDEX) {
+        worksheet.getColumn(i + 1).width = CHANGE_TYPE_COLUMN_WIDTH;
+        continue;
+      }
       const isTaskColumn = i === TASK_COLUMN_INDEX;
       const min = isTaskColumn ? TASK_MIN_COLUMN_WIDTH : MIN_COLUMN_WIDTH;
       const max = isTaskColumn ? TASK_MAX_COLUMN_WIDTH : MAX_COLUMN_WIDTH;
@@ -275,9 +292,11 @@ export async function buildOperationsReportWorkbook(
     views: [{ state: 'frozen', ySplit: 2 }],
     pageSetup: {
       orientation: 'landscape',
-      fitToPage: true,
-      fitToWidth: 1,
-      fitToHeight: 0,
+      // Was fitToWidth: 1 (force everything onto one page-width), tuned for the
+      // original 8 narrow columns -- with Response History/Change Type added,
+      // that scaling crushed every column illegibly small on print/PDF preview.
+      // Let print span as many page-widths as it needs instead.
+      fitToPage: false,
       printTitlesRow: '1:2',
     },
   });
@@ -388,13 +407,22 @@ export async function buildOperationsReportWorkbook(
     ];
     const excelRow = writeDataRow(worksheet, rowCursor, values, displayText, detailAlignments, widths, idx % 2 === 1);
     excelRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    excelRow.getCell(6).alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
     excelRow.getCell(9).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
     excelRow.getCell(10).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
     applyStatusStyle(excelRow.getCell(5), row.status);
     // ExcelJS doesn't auto-grow row height for wrapped multi-line content --
-    // base single-line height (16, per writeDataRow) times however many history
-    // lines this row needs, so a frequently-corrected task's cell isn't clipped.
-    const lineCount = Math.max(changeLines.length, typeLines.length, 1);
+    // estimate how many visual lines each wrapped column needs at its actual
+    // column width (not just how many history entries there are: a single long
+    // free-text response/entry can itself wrap into several lines) and size the
+    // row to the tallest one, so nothing gets clipped or bleeds into the row below.
+    const lineCount = Math.max(
+      estimateWrappedLines(row.taskName, TASK_MAX_COLUMN_WIDTH),
+      estimateWrappedLines(response, RESPONSE_COLUMN_WIDTH),
+      estimateWrappedLines(historyText, RESPONSE_HISTORY_COLUMN_WIDTH),
+      estimateWrappedLines(changeTypeText, CHANGE_TYPE_COLUMN_WIDTH),
+      1,
+    );
     if (lineCount > 1) excelRow.height = 16 * lineCount;
     rowCursor += 1;
   });
