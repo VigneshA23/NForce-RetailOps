@@ -25,7 +25,7 @@ export interface HistoryResponderEntry extends HistoryResponder {
 //  - DIRECT_CORRECTION: the owner edited the response's value in place
 //    (fromValue -> toValue are the same row, before/after the edit).
 export interface HistoryResubmissionTransition {
-  kind: 'FLAG_RESUBMIT' | 'DIRECT_CORRECTION';
+  kind: 'FLAG_RESUBMIT' | 'DIRECT_CORRECTION' | 'UNDONE';
   fromValue: string | null;
   toValue: string | null;
   // The owner's comment/reason for the change, if any.

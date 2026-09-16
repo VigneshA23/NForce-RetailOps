@@ -366,6 +366,7 @@ public class TaskService {
 
         entry.setActive(false);
         entry.setUndoneAt(OffsetDateTime.now());
+        entry.setUndoneByUser(true);
         taskResponseEntryRepository.save(entry);
 
         return buildResponseState(taskId, storeId, entry.getResponseDate(), employeeUserId);

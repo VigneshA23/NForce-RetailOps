@@ -41,6 +41,9 @@ function latestResponse(task: ChecklistHistoryTaskItem) {
 export function taskStatus(task: ChecklistHistoryTaskItem): ChecklistTaskStatus {
   const response = latestResponse(task);
   if (!response) return 'OPEN';
+  // A dangling undone response (no resubmission since) isn't a real current
+  // answer -- it's only surfaced so its history/name still shows.
+  if (response.undone) return 'OPEN';
   if (task.responseType === 'YES_NO' && response.booleanValue === false) return 'ISSUE';
   // Flagged responses need employee attention — treat as ISSUE so the status
   // column updates immediately without waiting for the employee to re-submit.
@@ -51,6 +54,7 @@ export function taskStatus(task: ChecklistHistoryTaskItem): ChecklistTaskStatus 
 export function responseDisplayValue(task: ChecklistHistoryTaskItem): string {
   const response = latestResponse(task);
   if (!response) return '—';
+  if (response.undone) return '—';
   if (response.booleanValue !== null) {
     if (task.responseType === 'YES_NO') return response.booleanValue ? 'Yes' : 'No';
     return response.booleanValue ? 'Done' : 'Not done';

@@ -57,14 +57,23 @@ function formatValue(
   return null;
 }
 
+// Label shown in place of a dangling response's stale pre-undo value, or as the
+// "to" side of an undo transition -- type-aware so a checkbox reads "Not done"
+// rather than a generic placeholder.
+function undoneLabel(responseType: ChecklistHistoryTaskItem['responseType']): string {
+  if (responseType === 'YES_NO') return 'No';
+  if (responseType === 'DONE_NOT_DONE') return 'Not done';
+  return 'No answer';
+}
+
 function buildResubmissionTransitions(
   latest: ChecklistHistoryResponseEntry,
   responseType: ChecklistHistoryTaskItem['responseType'],
 ): HistoryResubmissionTransition[] {
   const chain = latest.resubmissionHistory;
-  return chain.map((hop, index) => {
+  return chain.flatMap((hop, index) => {
     const next = index + 1 < chain.length ? chain[index + 1] : latest;
-    return {
+    const resubmit: HistoryResubmissionTransition = {
       kind: 'FLAG_RESUBMIT' as const,
       fromValue: formatValue(hop, responseType),
       toValue: formatValue(next, responseType),
@@ -74,7 +83,41 @@ function buildResubmissionTransitions(
       resubmittedByName: next.employeeFullName,
       resubmittedAt: formatTimeLabel(next.respondedAt),
     };
+    // This hop was explicitly undone by its own employee before being
+    // resubmitted later -- surface that as its own line instead of only the
+    // resubmit line above, which alone can look like a same-value no-op.
+    if (!hop.undoneByUser) return [resubmit];
+    const undo: HistoryResubmissionTransition = {
+      kind: 'UNDONE' as const,
+      fromValue: formatValue(hop, responseType),
+      toValue: undoneLabel(responseType),
+      flagReason: null,
+      flaggedByName: hop.employeeFullName,
+      flaggedAt: formatTimeLabel(hop.respondedAt),
+      resubmittedByName: hop.employeeFullName,
+      resubmittedAt: formatTimeLabel(hop.respondedAt),
+    };
+    return [undo, resubmit];
   });
+}
+
+// The task's current response is itself a dangling undo (no resubmission
+// since) -- the one transition that isn't a hop in resubmissionHistory.
+function buildUndoTransition(
+  latest: ChecklistHistoryResponseEntry,
+  responseType: ChecklistHistoryTaskItem['responseType'],
+): HistoryResubmissionTransition | null {
+  if (!latest.undone) return null;
+  return {
+    kind: 'UNDONE',
+    fromValue: formatValue(latest, responseType),
+    toValue: undoneLabel(responseType),
+    flagReason: null,
+    flaggedByName: latest.employeeFullName,
+    flaggedAt: formatTimeLabel(latest.respondedAt),
+    resubmittedByName: latest.employeeFullName,
+    resubmittedAt: formatTimeLabel(latest.respondedAt),
+  };
 }
 
 function buildDirectCorrectionTransition(
@@ -129,6 +172,7 @@ function buildCompletedByAll(responses: ChecklistHistoryTaskItem['responses']): 
 function toHistoryTask(task: ChecklistHistoryTaskItem): HistoryTaskDetail {
   const latest = latestResponse(task);
   const directCorrection = latest ? buildDirectCorrectionTransition(latest, task.responseType) : null;
+  const undoTransition = latest ? buildUndoTransition(latest, task.responseType) : null;
 
   return {
     id: task.id,
@@ -136,12 +180,16 @@ function toHistoryTask(task: ChecklistHistoryTaskItem): HistoryTaskDetail {
     responseType: task.responseType,
     name: task.name,
     status: toTaskStatus(task),
-    responseValue: latest ? formatValue(latest, task.responseType) : null,
+    responseValue: latest ? (latest.undone ? undoneLabel(task.responseType) : formatValue(latest, task.responseType)) : null,
     completedBy: latest ? { employeeUserId: latest.employeeUserId, name: latest.employeeFullName } : null,
     completedAt: latest ? formatTimeLabel(latest.respondedAt) : null,
     completedByAll: buildCompletedByAll(task.responses),
     resubmissionHistory: latest
-      ? [...buildResubmissionTransitions(latest, task.responseType), ...(directCorrection ? [directCorrection] : [])]
+      ? [
+          ...buildResubmissionTransitions(latest, task.responseType),
+          ...(directCorrection ? [directCorrection] : []),
+          ...(undoTransition ? [undoTransition] : []),
+        ]
       : [],
   };
 }

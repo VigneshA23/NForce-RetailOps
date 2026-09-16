@@ -14,6 +14,12 @@ public record ResponseHistoryEntry(
     String employeeFullName,
     String flagReason,
     String flaggedByName,
-    OffsetDateTime flaggedAt
+    OffsetDateTime flaggedAt,
+    // True when this hop was itself deactivated by the employee's own explicit Undo
+    // (before being superseded by a later resubmission) -- lets the UI split this
+    // hop into "value -> Not done, Undone by X" followed by the normal resubmit
+    // transition, instead of collapsing an undo-then-redo cycle into one no-op-looking
+    // "value -> same value" line.
+    boolean undoneByUser
 ) {
 }
