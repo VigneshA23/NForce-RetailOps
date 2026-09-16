@@ -71,3 +71,10 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    diskspace:
+      # Lambda's deployment directory (/var/task) is a read-only overlay filesystem
+      # with 0 reported available bytes, causing this indicator to report DOWN despite
+      # the app being fully healthy. Disabled globally — disk space is not a meaningful
+      # health signal for this app (static JAR, no file writes) on either Lambda or Railway.
+      enabled: false
