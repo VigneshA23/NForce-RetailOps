@@ -3,6 +3,7 @@ package com.nforce.retailops.controller;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.repository.PasswordResetTokenRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -44,7 +45,18 @@ class AuthControllerTest {
     @Autowired
     private RoleRepository roleRepository;
 
+    @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private Role employeeRole() {
+        return roleRepository.findByName("EMPLOYEE").orElseGet(() -> {
+            Role role = new Role();
+            role.setName("EMPLOYEE");
+            return roleRepository.save(role);
+        });
+    }
 
     @Test
     @WithMockUser(username = "employee@nforce.test", roles = "EMPLOYEE")
@@ -162,6 +174,153 @@ class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(reloginBody))
             .andExpect(status().isOk());
+    }
+
+    // --- Email whitespace handling -------------------------------------------------
+
+    @Test
+    @Transactional
+    void loginSucceedsWithExactEmailNoWhitespace() throws Exception {
+        User user = new User();
+        user.setFullName("Whitespace Test User");
+        user.setEmail("ws-exact@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("correct-password"));
+        user.getRoles().add(employeeRole());
+        userRepository.save(user);
+
+        String body = objectMapper.writeValueAsString(new LoginPayload("ws-exact@nforce.test", "correct-password"));
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @Transactional
+    void loginWithLeadingWhitespaceInEmailIsRejected() throws Exception {
+        User user = new User();
+        user.setFullName("Whitespace Test User");
+        user.setEmail("ws-leading@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("correct-password"));
+        user.getRoles().add(employeeRole());
+        userRepository.save(user);
+
+        String body = objectMapper.writeValueAsString(new LoginPayload(" ws-leading@nforce.test", "correct-password"));
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isUnauthorized())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                .jsonPath("$.message").value("Invalid email or password"));
+    }
+
+    @Test
+    @Transactional
+    void loginWithTrailingWhitespaceInEmailIsRejected() throws Exception {
+        User user = new User();
+        user.setFullName("Whitespace Test User");
+        user.setEmail("ws-trailing@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("correct-password"));
+        user.getRoles().add(employeeRole());
+        userRepository.save(user);
+
+        String body = objectMapper.writeValueAsString(new LoginPayload("ws-trailing@nforce.test ", "correct-password"));
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isUnauthorized())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                .jsonPath("$.message").value("Invalid email or password"));
+    }
+
+    @Test
+    @Transactional
+    void loginWithLeadingAndTrailingWhitespaceInEmailIsRejected() throws Exception {
+        User user = new User();
+        user.setFullName("Whitespace Test User");
+        user.setEmail("ws-both@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("correct-password"));
+        user.getRoles().add(employeeRole());
+        userRepository.save(user);
+
+        String body = objectMapper.writeValueAsString(new LoginPayload(" ws-both@nforce.test ", "correct-password"));
+
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isUnauthorized())
+            .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                .jsonPath("$.message").value("Invalid email or password"));
+    }
+
+    // The email-whitespace guard must not affect the password: a password that
+    // legitimately contains a trailing space is matched exactly, not trimmed.
+    @Test
+    @Transactional
+    void passwordIsNotTrimmedBeforeAuthentication() throws Exception {
+        User user = new User();
+        user.setFullName("Password Whitespace Test User");
+        user.setEmail("pw-whitespace@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("secret-password "));
+        user.getRoles().add(employeeRole());
+        userRepository.save(user);
+
+        // The exact password, trailing space included, authenticates.
+        String exactBody = objectMapper.writeValueAsString(
+            new LoginPayload("pw-whitespace@nforce.test", "secret-password "));
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(exactBody))
+            .andExpect(status().isOk());
+
+        // A silently-trimmed version of the same password must NOT authenticate.
+        String trimmedBody = objectMapper.writeValueAsString(
+            new LoginPayload("pw-whitespace@nforce.test", "secret-password"));
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(trimmedBody))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @Transactional
+    void forgotPasswordWithWhitespaceInEmailDoesNotCreateResetTokenEvenForExistingUser() throws Exception {
+        User user = new User();
+        user.setFullName("Forgot Password Whitespace Test");
+        user.setEmail("forgot-pw-whitespace@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("some-password"));
+        user.getRoles().add(employeeRole());
+        userRepository.save(user);
+
+        long before = passwordResetTokenRepository.count();
+
+        // Leading space — both endpoints return 200 either way (anti-enumeration
+        // design), but no token should be created for a whitespace-padded email.
+        mockMvc.perform(post("/api/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\" forgot-pw-whitespace@nforce.test\"}"))
+            .andExpect(status().isOk());
+
+        // Trailing space
+        mockMvc.perform(post("/api/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"forgot-pw-whitespace@nforce.test \"}"))
+            .andExpect(status().isOk());
+
+        assertThat(passwordResetTokenRepository.count()).isEqualTo(before);
+
+        // Sanity check: the exact, unpadded email for the same account DOES create
+        // a token — proving the rejections above were caused by the whitespace,
+        // not by the account not existing.
+        mockMvc.perform(post("/api/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"forgot-pw-whitespace@nforce.test\"}"))
+            .andExpect(status().isOk());
+
+        assertThat(passwordResetTokenRepository.count()).isEqualTo(before + 1);
     }
 
     private record LoginPayload(String email, String password) {
