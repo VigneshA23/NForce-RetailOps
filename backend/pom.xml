@@ -131,59 +131,86 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
       </plugin>
-
-      <!-- Produces a flat uber-JAR (classifier "lambda") alongside the standard
-           Spring Boot fat JAR. The flat layout is required because Lambda's Java
-           runtime ClassLoader cannot load Spring Boot's nested-JAR format.
-           mvn spring-boot:run and the standard fat JAR are completely unaffected:
-           shadedArtifactAttached=true attaches the lambda JAR as an additional
-           artifact without replacing or modifying the primary artifact. -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-shade-plugin</artifactId>
-        <version>3.5.0</version>
-        <configuration>
-          <createDependencyReducedPom>false</createDependencyReducedPom>
-          <shadedArtifactAttached>true</shadedArtifactAttached>
-          <shadedClassifierName>lambda</shadedClassifierName>
-          <filters>
-            <filter>
-              <artifact>*:*</artifact>
-              <excludes>
-                <exclude>META-INF/*.SF</exclude>
-                <exclude>META-INF/*.DSA</exclude>
-                <exclude>META-INF/*.RSA</exclude>
-              </excludes>
-            </filter>
-          </filters>
-          <transformers>
-            <!-- ManifestResourceTransformer omitted intentionally: Lambda invokes
-                 LambdaHandler::handleRequest by class name — the JAR manifest's
-                 Main-Class is irrelevant. Omitting avoids a Plexus binding bug in
-                 shade 3.5.0 where mainClass is mis-associated with the next transformer. -->
-            <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-              <resource>META-INF/spring.handlers</resource>
-            </transformer>
-            <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-              <resource>META-INF/spring.schemas</resource>
-            </transformer>
-            <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-              <resource>META-INF/spring.factories</resource>
-            </transformer>
-            <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
-              <resource>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</resource>
-            </transformer>
-            <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer">
-            </transformer>
-          </transformers>
-        </configuration>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals><goal>shade</goal></goals>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>lambda</id>
+      <!-- Activate with: mvn package -Plambda -DskipTests
+           Produces two artifacts:
+             retailops-0.1.0-exec.jar  — Spring Boot fat JAR (runnable, for reference)
+             retailops-0.1.0-lambda.jar — flat uber-JAR for Lambda deployment (upload via S3)
+           Railway uses the default build (no profile): Spring Boot repackages the primary
+           artifact normally and no shade step runs, so Railway is completely unaffected. -->
+      <build>
+        <plugins>
+          <!-- Within this profile, Spring Boot attaches its fat JAR under the "exec"
+               classifier instead of replacing the primary artifact. This keeps the
+               primary artifact (retailops-0.1.0.jar) as a plain compiled-classes JAR.
+               The shade plugin then reads the plain primary artifact and produces a
+               genuinely flat uber-JAR. Without this override, Spring Boot's repackage
+               runs first (it is inherited from the parent POM and executes before any
+               child-POM plugin in the same phase), leaving the primary artifact in
+               BOOT-INF/classes/ nested layout — shade preserves that structure and
+               Lambda's classloader cannot find classes at the expected flat path,
+               causing ClassNotFoundException on handler load. -->
+          <plugin>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-maven-plugin</artifactId>
+            <configuration>
+              <classifier>exec</classifier>
+            </configuration>
+          </plugin>
+
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-shade-plugin</artifactId>
+            <version>3.5.0</version>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>lambda</shadedClassifierName>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <transformers>
+                <!-- ManifestResourceTransformer omitted intentionally: Lambda invokes
+                     LambdaHandler::handleRequest by class name — the JAR manifest's
+                     Main-Class is irrelevant. Omitting avoids a Plexus binding bug in
+                     shade 3.5.0 where mainClass is mis-associated with the next transformer. -->
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>META-INF/spring.handlers</resource>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>META-INF/spring.schemas</resource>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>META-INF/spring.factories</resource>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                  <resource>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</resource>
+                </transformer>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer">
+                </transformer>
+              </transformers>
+            </configuration>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals><goal>shade</goal></goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
