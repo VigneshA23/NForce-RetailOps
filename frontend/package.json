@@ -17,6 +17,7 @@
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.2",
+    "jspdf-autotable": "^3.8.4",
     "lucide-react": "^0.451.0",
     "motion": "^13.1.1",
     "ogl": "^1.0.11",

@@ -14,7 +14,7 @@ export interface ChecklistHistorySummaryRow {
   issueCount: number;
 }
 
-export type ChecklistTaskDetailStatus = 'COMPLETED' | 'NOT_COMPLETED' | 'ISSUE';
+export type ChecklistTaskDetailStatus = 'COMPLETED' | 'NOT_COMPLETED' | 'ISSUE' | 'INACTIVE';
 
 // One row per task completion event (or one row for a still-pending task) in the
 // Daily Operations Summary report's task-level detail (CSV export / Print).
@@ -28,6 +28,13 @@ export interface ChecklistHistoryTaskDetailRow {
   response: string | null;
   employeeFullName: string | null;
   completedAt: string | null;
+  // Newest-first full change trail for this row's response (DIRECT correction,
+  // FLAG_TO_EMPLOYEE + RESUBMISSION, or UNDONE) -- same shape the History page's
+  // "View response history" panel shows. Empty when the response never changed,
+  // or for a row with no response at all (NOT_COMPLETED/INACTIVE).
+  correctionHistory: AdminCorrectionEntry[];
+  responseType: ChecklistResponseType;
+  numericUnit: string | null;
 }
 
 export interface ChecklistHistoryOperationsReport {
@@ -63,6 +70,9 @@ export interface ResubmissionHistoryEntry {
   flagReason: string | null;
   flaggedByName: string | null;
   flaggedAt: string | null;
+  // True when this hop was itself deactivated by the employee's own explicit
+  // Undo, before being superseded by a later resubmission.
+  undoneByUser: boolean;
 }
 
 export interface ChecklistHistoryResponseEntry {
@@ -84,6 +94,11 @@ export interface ChecklistHistoryResponseEntry {
   // Oldest-first chain of flagged responses this one replaced via a
   // flag -> resubmit cycle. Empty when it never replaced a flagged response.
   resubmissionHistory: ResubmissionHistoryEntry[];
+  // True only for a dangling entry synthesized because the employee explicitly
+  // Undid this response and never resubmitted since -- the value fields above
+  // still carry the stale pre-undo value; consumers should display an
+  // undone/no-answer label instead.
+  undone: boolean;
 }
 
 export interface AdminCorrectionApplyResponse {

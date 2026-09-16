@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Owner/Admin-facing read model over historical checklist data. Deliberately
@@ -127,26 +128,69 @@ public class ChecklistHistoryService {
         summary.sort(Comparator.comparing(ChecklistHistorySummaryRow::storeName)
             .thenComparing(ChecklistHistorySummaryRow::date));
 
+        // Every response across the whole report (every store/day), resolved for its
+        // full correction/resubmission/undo trail in one batched pass -- calling the
+        // single-response buildCorrectionHistory once per detail row would be an N+1
+        // across a whole date-range/multi-store report.
+        List<TaskResponseEntry> allResponses = new ArrayList<>();
+        for (StoreDayContext context : contexts) {
+            context.responsesByTask().values().forEach(allResponses::addAll);
+            allResponses.addAll(context.danglingUndoneByTask().values());
+        }
+        Map<Long, List<AdminCorrectionEntry>> correctionHistoriesByResponseId = allResponses.isEmpty()
+            ? Map.of()
+            : buildCorrectionHistories(allResponses, taskResponseEntryRepository, adminCorrectionRepository);
+
         List<ChecklistHistoryTaskDetailRow> details = new ArrayList<>();
         for (StoreDayContext context : contexts) {
             for (Task task : context.unionTasksById().values()) {
+                String responseType = task.getResponseType().name();
+                String numericUnit = task.getNumericUnit();
                 List<TaskResponseEntry> responses = context.responsesByTask().getOrDefault(task.getId(), List.of());
-                if (responses.isEmpty()) {
-                    details.add(new ChecklistHistoryTaskDetailRow(
-                        context.store().getId(), context.store().getName(), context.date(),
-                        task.getCategory().getName(), task.getName(), "NOT_COMPLETED", null, null, null
-                    ));
-                } else {
+                if (!responses.isEmpty()) {
                     for (TaskResponseEntry response : responses) {
                         boolean isIssue = response.getResponseType() == ResponseType.YES_NO
                             && Boolean.FALSE.equals(response.getValueBoolean());
                         details.add(new ChecklistHistoryTaskDetailRow(
                             context.store().getId(), context.store().getName(), context.date(),
                             task.getCategory().getName(), task.getName(), isIssue ? "ISSUE" : "COMPLETED",
-                            formatResponseValue(response), response.getEmployee().getFullName(), response.getCreatedAt()
+                            formatResponseValue(response), response.getEmployee().getFullName(), response.getCreatedAt(),
+                            correctionHistoriesByResponseId.getOrDefault(response.getId(), List.of()),
+                            responseType, numericUnit
                         ));
                     }
+                    continue;
                 }
+                // No active response -- but the employee may still have answered and then
+                // explicitly Undone it with no resubmission since (same dangling-undo case
+                // History surfaces): show that instead of pretending nothing happened.
+                TaskResponseEntry dangling = context.danglingUndoneByTask().get(task.getId());
+                if (dangling != null) {
+                    details.add(new ChecklistHistoryTaskDetailRow(
+                        context.store().getId(), context.store().getName(), context.date(),
+                        task.getCategory().getName(), task.getName(), "NOT_COMPLETED",
+                        formatUndoneValue(dangling), dangling.getEmployee().getFullName(), dangling.getUndoneAt(),
+                        correctionHistoriesByResponseId.getOrDefault(dangling.getId(), List.of()),
+                        responseType, numericUnit
+                    ));
+                } else {
+                    details.add(new ChecklistHistoryTaskDetailRow(
+                        context.store().getId(), context.store().getName(), context.date(),
+                        task.getCategory().getName(), task.getName(), "NOT_COMPLETED", null, null, null,
+                        List.of(), responseType, numericUnit
+                    ));
+                }
+            }
+            // Tasks (or tasks under a category) currently deactivated in store config,
+            // with no activity of their own that day -- kept out of unionTaskIds (so they
+            // never inflate the Scheduled/Completed summary counts above), but still
+            // listed here so a deactivated task never silently disappears from the export.
+            for (Task inactiveTask : context.inactiveTasksById().values()) {
+                details.add(new ChecklistHistoryTaskDetailRow(
+                    context.store().getId(), context.store().getName(), context.date(),
+                    inactiveTask.getCategory().getName(), inactiveTask.getName(), "INACTIVE", null, null, null,
+                    List.of(), inactiveTask.getResponseType().name(), inactiveTask.getNumericUnit()
+                ));
             }
         }
         details.sort(Comparator.comparing(ChecklistHistoryTaskDetailRow::storeName)
@@ -180,6 +224,15 @@ public class ChecklistHistoryService {
         return "";
     }
 
+    // A dangling-undone response's stored value is its stale pre-undo answer, not the
+    // current state -- mirrors the frontend's identical undoneLabel (api/history.ts /
+    // checklistHistoryToShiftHistory.ts) so this report reads the same way History does.
+    private String formatUndoneValue(TaskResponseEntry response) {
+        if (response.getResponseType() == ResponseType.YES_NO) return "No";
+        if (response.getResponseType() == ResponseType.DONE_NOT_DONE) return "Not done";
+        return "No answer";
+    }
+
     // One entry per (store, date) in the requested range: the union of eligible and
     // responded tasks for that store/day, plus enough data (Task objects, grouped
     // responses) for both the summary counts and the task-level detail rows to be
@@ -196,7 +249,16 @@ public class ChecklistHistoryService {
         Map<Long, Task> unionTasksById,
         Set<Long> respondedTaskIds,
         Map<Long, List<TaskResponseEntry>> responsesByTask,
-        int issueCount
+        int issueCount,
+        // Currently-deactivated tasks (task itself, or its category) configured for this
+        // store, with no response of their own that day -- kept separate from
+        // unionTaskIds so they never inflate the Scheduled/Completed summary counts,
+        // but still resolvable for the "Inactive" detail rows in the Operations Report.
+        Map<Long, Task> inactiveTasksById,
+        // This store/day's most recent explicitly-Undone response per task, only for
+        // tasks with zero active responses that day -- lets the Operations Report show
+        // "who undid it and when" instead of a bare Not Completed row.
+        Map<Long, TaskResponseEntry> danglingUndoneByTask
     ) {
     }
 
@@ -226,9 +288,20 @@ public class ChecklistHistoryService {
         Map<Long, Task> candidateTasksById = candidateTasks.stream()
             .collect(Collectors.toMap(Task::getId, task -> task, (a, b) -> a));
 
+        // Every task ever configured for this owner (any active state), so currently
+        // deactivated tasks/categories can still be listed in the Operations Report
+        // even when they have no response at all that day -- findActiveForStoresAndDateRange
+        // above only ever returns active ones.
+        List<Task> inactiveCandidateTasks = storeIds.isEmpty()
+            ? List.of()
+            : taskRepository.findByOwnerIdOrderByCategoryAndDisplayOrderFetchCategory(ownerId).stream()
+                .filter(task -> !task.isActive() || !task.getCategory().isActive())
+                .toList();
+
         // Batched form of Task.stores, so per-store eligibility for scoped (non-
-        // appliesToAllStores) tasks can be reconstructed without a lazy-load per task.
-        List<Long> scopedTaskIds = candidateTasks.stream()
+        // appliesToAllStores) tasks can be reconstructed without a lazy-load per task --
+        // covers both the active candidates and the inactive ones above in one query.
+        List<Long> scopedTaskIds = Stream.concat(candidateTasks.stream(), inactiveCandidateTasks.stream())
             .filter(task -> !task.isAppliesToAllStores())
             .map(Task::getId)
             .toList();
@@ -240,11 +313,26 @@ public class ChecklistHistoryService {
                     Collectors.mapping(row -> (Long) row[1], Collectors.toSet())
                 ));
 
+        // This store-range/date-range's dangling Undo responses (active response
+        // deactivated by the employee's own explicit Undo, never resubmitted since) --
+        // same "don't let it silently vanish" rule as MeHistoryService/
+        // ChecklistHistoryService.getDetail, batched across every store/day at once.
+        Map<Long, List<TaskResponseEntry>> danglingUndoneByStore = storeIds.isEmpty()
+            ? Map.of()
+            : taskResponseEntryRepository
+                .findByStoreIdInAndResponseDateBetweenAndActiveFalseAndUndoneByUserTrue(storeIds, resolvedStart, resolvedEnd)
+                .stream()
+                .collect(Collectors.groupingBy(entry -> entry.getStore().getId()));
+
         // Tasks with responses but deactivated/rescoped since (not in candidateTasks
         // at all) -- fetched once across every store/date so they still appear in the
-        // union instead of silently disappearing (same rule as getDetail).
-        Set<Long> allRespondedTaskIds = responsesByStore.values().stream()
-            .flatMap(List::stream)
+        // union instead of silently disappearing (same rule as getDetail). Includes
+        // dangling-undone responses' tasks too, so a fully deactivated task whose only
+        // activity was later undone still resolves to a real Task for its detail row.
+        Set<Long> allRespondedTaskIds = Stream.concat(
+                responsesByStore.values().stream().flatMap(List::stream),
+                danglingUndoneByStore.values().stream().flatMap(List::stream)
+            )
             .map(entry -> entry.getTask().getId())
             .collect(Collectors.toSet());
         Set<Long> missingTaskIds = allRespondedTaskIds.stream()
@@ -261,7 +349,14 @@ public class ChecklistHistoryService {
                 .filter(task -> task.isAppliesToAllStores()
                     || storeIdsByTaskId.getOrDefault(task.getId(), Set.of()).contains(store.getId()))
                 .toList();
+            List<Task> inactiveTasksForStore = inactiveCandidateTasks.stream()
+                .filter(task -> task.isAppliesToAllStores()
+                    || storeIdsByTaskId.getOrDefault(task.getId(), Set.of()).contains(store.getId()))
+                .toList();
             Map<LocalDate, List<TaskResponseEntry>> responsesByDate = responsesByStore
+                .getOrDefault(store.getId(), List.of()).stream()
+                .collect(Collectors.groupingBy(TaskResponseEntry::getResponseDate));
+            Map<LocalDate, List<TaskResponseEntry>> danglingUndoneByDate = danglingUndoneByStore
                 .getOrDefault(store.getId(), List.of()).stream()
                 .collect(Collectors.groupingBy(TaskResponseEntry::getResponseDate));
 
@@ -271,6 +366,18 @@ public class ChecklistHistoryService {
                     .collect(Collectors.groupingBy(entry -> entry.getTask().getId()));
                 Set<Long> respondedTaskIds = responsesByTask.keySet();
 
+                // Only for tasks with zero active responses today -- if a later
+                // resubmission superseded the undo, that resubmission is already the
+                // task's active response above and takes priority.
+                Map<Long, TaskResponseEntry> danglingUndoneByTask = danglingUndoneByDate.getOrDefault(date, List.of())
+                    .stream()
+                    .filter(entry -> !respondedTaskIds.contains(entry.getTask().getId()))
+                    .collect(Collectors.toMap(
+                        entry -> entry.getTask().getId(),
+                        entry -> entry,
+                        (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
+                    ));
+
                 Set<Long> eligibleTaskIds = tasksForStore.stream()
                     .filter(task -> withinTaskDateRange(task, date) && TaskScheduleMatcher.matches(task, date))
                     .map(Task::getId)
@@ -278,14 +385,24 @@ public class ChecklistHistoryService {
 
                 // Union, not eligible-only: a task deactivated/reconfigured after the fact
                 // must never disappear from -- or under-count -- a day it actually has
-                // responses for.
+                // responses for. respondedTaskIds (active responses only) still drives the
+                // Completed count below -- a dangling-undone task is deliberately NOT
+                // "completed", it's just no longer silently missing from the detail rows.
                 Set<Long> unionTaskIds = new HashSet<>(eligibleTaskIds);
                 unionTaskIds.addAll(respondedTaskIds);
+                unionTaskIds.addAll(danglingUndoneByTask.keySet());
                 Map<Long, Task> unionTasksById = new LinkedHashMap<>();
                 for (Long taskId : unionTaskIds) {
                     Task task = candidateTasksById.getOrDefault(taskId, missingTasksById.get(taskId));
                     if (task != null) {
                         unionTasksById.put(taskId, task);
+                    }
+                }
+
+                Map<Long, Task> inactiveTasksById = new LinkedHashMap<>();
+                for (Task task : inactiveTasksForStore) {
+                    if (!unionTaskIds.contains(task.getId())) {
+                        inactiveTasksById.put(task.getId(), task);
                     }
                 }
 
@@ -303,7 +420,8 @@ public class ChecklistHistoryService {
                     .count();
 
                 contexts.add(new StoreDayContext(
-                    store, date, unionTaskIds, unionTasksById, respondedTaskIds, responsesByTask, (int) issueCount
+                    store, date, unionTaskIds, unionTasksById, respondedTaskIds, responsesByTask, (int) issueCount,
+                    inactiveTasksById, danglingUndoneByTask
                 ));
             }
         }
@@ -327,10 +445,32 @@ public class ChecklistHistoryService {
             .filter(task -> TaskScheduleMatcher.matches(task, date))
             .toList();
 
-        List<TaskResponseEntry> responses = taskResponseEntryRepository
-            .findByStoreIdAndResponseDateAndActiveTrue(storeId, date);
+        List<TaskResponseEntry> responses = new ArrayList<>(taskResponseEntryRepository
+            .findByStoreIdAndResponseDateAndActiveTrue(storeId, date));
         Map<Long, List<TaskResponseEntry>> responsesByTask = responses.stream()
             .collect(Collectors.groupingBy(entry -> entry.getTask().getId()));
+
+        // A task answered and then explicitly Undone, with no resubmission since, has
+        // zero active responses above and would otherwise disappear from history
+        // entirely -- surface the most recent such dangling row per task (only where
+        // no active response already covers that task) so it still shows up as "Not
+        // done, Undone by X · time" instead of silently vanishing. Mirrors
+        // MeHistoryService.getDetail's identical handling for the employee view.
+        List<TaskResponseEntry> danglingUndone = taskResponseEntryRepository
+            .findByStoreIdAndResponseDateAndActiveFalseAndUndoneByUserTrue(storeId, date);
+        if (!danglingUndone.isEmpty()) {
+            Map<Long, TaskResponseEntry> latestDanglingByTask = danglingUndone.stream()
+                .collect(Collectors.toMap(
+                    entry -> entry.getTask().getId(),
+                    entry -> entry,
+                    (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
+                ));
+            for (Map.Entry<Long, TaskResponseEntry> dangling : latestDanglingByTask.entrySet()) {
+                if (responsesByTask.containsKey(dangling.getKey())) continue;
+                responsesByTask.put(dangling.getKey(), List.of(dangling.getValue()));
+                responses.add(dangling.getValue());
+            }
+        }
 
         Set<Long> eligibleTaskIds = eligibleTasks.stream().map(Task::getId).collect(Collectors.toSet());
         Set<Long> missingTaskIds = responsesByTask.keySet().stream()
@@ -467,12 +607,121 @@ public class ChecklistHistoryService {
                     historical.getEmployee().getFullName(),
                     flag != null ? flag.getReason() : historical.getFlagReason(),
                     flag != null ? (flag.getCorrectedBy() != null ? flag.getCorrectedBy().getFullName() : flag.getCorrectedByName()) : null,
-                    flag != null ? flag.getCorrectedAt() : null
+                    flag != null ? flag.getCorrectedAt() : null,
+                    historical.isUndoneByUser()
                 ));
                 supersededId = historical.getSupersededResponseId();
             }
             Collections.reverse(chain);
             result.put(entry.getId(), chain);
+        }
+        return result;
+    }
+
+    // Batched form of buildCorrectionHistory below: resolves every response's
+    // supersededResponseId chain with a small, fixed number of round trips across ALL
+    // responses at once (one findAllById per "hop depth", same frontier walk
+    // buildResubmissionHistories already uses, plus one batched admin_corrections
+    // lookup), instead of one findById per hop per response. Used when rendering a
+    // whole report at once (Daily Operations Report export); the single-response
+    // overload still serves the one-off "View response history" fetch.
+    static Map<Long, List<AdminCorrectionEntry>> buildCorrectionHistories(
+        Collection<TaskResponseEntry> responses,
+        TaskResponseEntryRepository taskResponseEntryRepository,
+        AdminCorrectionRepository adminCorrectionRepository
+    ) {
+        Map<Long, TaskResponseEntry> resolved = new LinkedHashMap<>();
+        Set<Long> frontier = responses.stream()
+            .map(TaskResponseEntry::getSupersededResponseId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        while (!frontier.isEmpty()) {
+            Set<Long> nextFrontier = new LinkedHashSet<>();
+            for (TaskResponseEntry historical : taskResponseEntryRepository.findAllById(frontier)) {
+                resolved.put(historical.getId(), historical);
+                Long next = historical.getSupersededResponseId();
+                if (next != null && !resolved.containsKey(next)) {
+                    nextFrontier.add(next);
+                }
+            }
+            frontier = nextFrontier;
+        }
+
+        // Each response's own full chain (self + resolved ancestors), newest first --
+        // same construction as buildCorrectionHistory's local `chain`, just reusing the
+        // batch-resolved ancestors above instead of one findById per hop.
+        Map<Long, List<TaskResponseEntry>> chainsByResponseId = new LinkedHashMap<>();
+        Set<Long> allChainIds = new LinkedHashSet<>();
+        for (TaskResponseEntry entry : responses) {
+            List<TaskResponseEntry> chain = new ArrayList<>();
+            chain.add(entry);
+            allChainIds.add(entry.getId());
+            Long supersededId = entry.getSupersededResponseId();
+            while (supersededId != null) {
+                TaskResponseEntry prior = resolved.get(supersededId);
+                if (prior == null) {
+                    break;
+                }
+                chain.add(prior);
+                allChainIds.add(prior.getId());
+                supersededId = prior.getSupersededResponseId();
+            }
+            chainsByResponseId.put(entry.getId(), chain);
+        }
+
+        Map<Long, List<AdminCorrection>> rawCorrectionsByResponseId = allChainIds.isEmpty()
+            ? Map.of()
+            : adminCorrectionRepository.findByTaskResponseIdIn(allChainIds).stream()
+                .collect(Collectors.groupingBy(c -> c.getTaskResponse().getId()));
+
+        Map<Long, List<AdminCorrectionEntry>> result = new LinkedHashMap<>();
+        for (TaskResponseEntry entry : responses) {
+            List<TaskResponseEntry> chain = chainsByResponseId.get(entry.getId());
+
+            List<AdminCorrectionEntry> combined = new ArrayList<>();
+            for (TaskResponseEntry hop : chain) {
+                for (AdminCorrection c : rawCorrectionsByResponseId.getOrDefault(hop.getId(), List.of())) {
+                    combined.add(toCorrectionEntry(c));
+                }
+            }
+
+            // One synthesized entry per hop: the employee's own act of resubmitting a new
+            // answer that replaced the previous one -- see buildCorrectionHistory for why
+            // this is distinct from a DIRECT/FLAG_TO_EMPLOYEE admin_corrections row.
+            for (int i = 0; i < chain.size() - 1; i++) {
+                TaskResponseEntry newer = chain.get(i);
+                TaskResponseEntry older = chain.get(i + 1);
+                combined.add(new AdminCorrectionEntry(
+                    null,
+                    older.getValueBoolean(), older.getValueNumeric(), older.getValueText(),
+                    newer.getValueBoolean(), newer.getValueNumeric(), newer.getValueText(),
+                    newer.getEmployee().getFullName(),
+                    newer.getCreatedAt(),
+                    null,
+                    "RESUBMISSION"
+                ));
+            }
+
+            // One synthesized entry per hop the employee explicitly Undid -- see
+            // buildCorrectionHistory for why this covers both the chain's head (a
+            // dangling response) and any earlier hop undone mid-chain.
+            for (TaskResponseEntry hop : chain) {
+                if (hop.isUndoneByUser()) {
+                    combined.add(new AdminCorrectionEntry(
+                        null,
+                        hop.getValueBoolean(), hop.getValueNumeric(), hop.getValueText(),
+                        null, null, null,
+                        hop.getEmployee().getFullName(),
+                        hop.getUndoneAt(),
+                        null,
+                        "UNDONE"
+                    ));
+                }
+            }
+
+            combined.sort(Comparator.comparing(AdminCorrectionEntry::correctedAt).reversed());
+            result.put(entry.getId(), combined);
         }
         return result;
     }
@@ -527,6 +776,28 @@ public class ChecklistHistoryService {
             ));
         }
 
+        // One synthesized entry per hop the employee explicitly Undid (as opposed to
+        // one that was simply superseded by a fresh resubmission) -- covers both the
+        // chain's head (a dangling response with no resubmission since, surfaced by
+        // MeHistoryService/ChecklistHistoryService.getDetail specifically so this
+        // trail has something to show) and any earlier hop undone mid-chain before
+        // being resubmitted later, so an undo-then-redo cycle shows "value -> Not
+        // done (undone)" distinctly instead of collapsing into a same-value-looking
+        // RESUBMISSION line above.
+        for (TaskResponseEntry hop : chain) {
+            if (hop.isUndoneByUser()) {
+                combined.add(new AdminCorrectionEntry(
+                    null,
+                    hop.getValueBoolean(), hop.getValueNumeric(), hop.getValueText(),
+                    null, null, null,
+                    hop.getEmployee().getFullName(),
+                    hop.getUndoneAt(),
+                    null,
+                    "UNDONE"
+                ));
+            }
+        }
+
         return combined.stream()
             .sorted(Comparator.comparing(AdminCorrectionEntry::correctedAt).reversed())
             .toList();
@@ -564,12 +835,16 @@ public class ChecklistHistoryService {
                     entry.getValueBoolean(),
                     entry.getValueNumeric(),
                     entry.getValueText(),
-                    entry.getCreatedAt(),
+                    // See MeHistoryService's identical handling: a dangling-undo entry's
+                    // value fields are its stale pre-undo value, so its "as of" time is the
+                    // undo itself, not the original submission.
+                    entry.isActive() ? entry.getCreatedAt() : entry.getUndoneAt(),
                     correction != null ? toCorrectionEntry(correction) : null,
                     entry.getEmployee().getAvatarUrl(),
                     entry.isFlaggedNeedsCorrection(),
                     entry.getFlagReason(),
-                    resubmissionHistoriesByResponseId.getOrDefault(entry.getId(), List.of())
+                    resubmissionHistoriesByResponseId.getOrDefault(entry.getId(), List.of()),
+                    !entry.isActive()
                 );
             })
             .toList();

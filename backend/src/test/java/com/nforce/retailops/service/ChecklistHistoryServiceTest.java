@@ -40,6 +40,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -429,6 +430,157 @@ class ChecklistHistoryServiceTest {
         assertThat(row.status()).isEqualTo("ISSUE");
         assertThat(row.response()).isEqualTo("No");
         assertThat(report.summary().get(0).issueCount()).isEqualTo(1);
+    }
+
+    // Regression test: a deactivated task (or one under a deactivated category), with
+    // no response of its own that day, must still appear in the export -- as an
+    // "Inactive" row -- instead of silently disappearing, while never inflating the
+    // Scheduled/Completed summary counts (it isn't in unionTaskIds).
+    @Test
+    void operationsReportListsADeactivatedTaskWithNoResponseAsInactiveWithoutInflatingSummary() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task deactivatedTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
+        when(taskRepository.findByOwnerIdOrderByCategoryAndDisplayOrderFetchCategory(OWNER_ID))
+            .thenReturn(List.of(deactivatedTask));
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of());
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.details()).hasSize(1);
+        ChecklistHistoryTaskDetailRow row = report.details().get(0);
+        assertThat(row.status()).isEqualTo("INACTIVE");
+        assertThat(row.taskName()).isEqualTo(deactivatedTask.getName());
+        assertThat(row.employeeFullName()).isNull();
+        // Scheduled=0, Completed=0 -- the inactive task never joins unionTaskIds/respondedTaskIds.
+        assertThat(report.summary().get(0).totalTasks()).isZero();
+        assertThat(report.summary().get(0).completedTasks()).isZero();
+    }
+
+    // Regression test: an employee answered a task and then explicitly Undid it (no
+    // resubmission since) -- the export must show that instead of a bare "Not
+    // Completed" row with no employee/timestamp, mirroring what History already does.
+    @Test
+    void operationsReportShowsWhoUndidATaskWithNoActiveResponseSince() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of());
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry undone = response(task, store, employee, today);
+        undone.setActive(false);
+        ReflectionTestUtils.setField(undone, "undoneAt", OffsetDateTime.now());
+        ReflectionTestUtils.setField(undone, "undoneByUser", true);
+        when(taskResponseEntryRepository
+            .findByStoreIdInAndResponseDateBetweenAndActiveFalseAndUndoneByUserTrue(List.of(10L), today, today))
+            .thenReturn(List.of(undone));
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.details()).hasSize(1);
+        ChecklistHistoryTaskDetailRow row = report.details().get(0);
+        assertThat(row.status()).isEqualTo("NOT_COMPLETED");
+        // The undone response's real stored value is "Yes" (true), but the display
+        // reflects the current (undone) state, not the stale pre-undo answer.
+        assertThat(row.response()).isEqualTo("No");
+        assertThat(row.employeeFullName()).isEqualTo("Jane Doe");
+        assertThat(row.completedAt()).isNotNull();
+        assertThat(row.responseType()).isEqualTo("YES_NO");
+        assertThat(row.correctionHistory()).hasSize(1);
+        assertThat(row.correctionHistory().get(0).correctionType()).isEqualTo("UNDONE");
+        assertThat(row.correctionHistory().get(0).correctedByFullName()).isEqualTo("Jane Doe");
+    }
+
+    // Regression test: an admin's DIRECT edit of a response's value must show up in
+    // the export's correctionHistory, batched via buildCorrectionHistories rather
+    // than the single-response buildCorrectionHistory (which would be an N+1 if
+    // called once per report row).
+    @Test
+    void operationsReportIncludesADirectAdminCorrectionInCorrectionHistory() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry current = response(task, store, employee, today);
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of(current));
+
+        User admin = user(88L, "Admin User");
+        com.nforce.retailops.entity.AdminCorrection correction = new com.nforce.retailops.entity.AdminCorrection();
+        correction.setTaskResponse(current);
+        correction.setCorrectedBy(admin);
+        correction.setOriginalValueBoolean(false);
+        correction.setCorrectedValueBoolean(true);
+        correction.setCorrectionType("DIRECT");
+        ReflectionTestUtils.setField(correction, "correctedAt", OffsetDateTime.now());
+        when(adminCorrectionRepository.findByTaskResponseIdIn(any())).thenReturn(List.of(correction));
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.details()).hasSize(1);
+        ChecklistHistoryTaskDetailRow row = report.details().get(0);
+        assertThat(row.correctionHistory()).hasSize(1);
+        assertThat(row.correctionHistory().get(0).correctionType()).isEqualTo("DIRECT");
+        assertThat(row.correctionHistory().get(0).correctedByFullName()).isEqualTo("Admin User");
+    }
+
+    // Regression test: a MULTIPLE-task resubmission (or a flag -> resubmit cycle)
+    // chains the new response back to the one it replaced via supersededResponseId --
+    // the export must surface that as a synthesized RESUBMISSION entry, resolved via
+    // buildCorrectionHistories' batched frontier walk (findAllById), not one findById
+    // per hop.
+    @Test
+    void operationsReportIncludesAResubmissionInCorrectionHistory() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry older = response(task, store, employee, today);
+        ReflectionTestUtils.setField(older, "id", 501L);
+        older.setValueBoolean(false);
+        older.setActive(false);
+
+        TaskResponseEntry newer = response(task, store, employee, today);
+        ReflectionTestUtils.setField(newer, "id", 502L);
+        newer.setValueBoolean(true);
+        newer.setSupersededResponseId(501L);
+
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of(newer));
+        when(taskResponseEntryRepository.findAllById(any())).thenReturn(List.of(older));
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.details()).hasSize(1);
+        ChecklistHistoryTaskDetailRow row = report.details().get(0);
+        assertThat(row.correctionHistory()).hasSize(1);
+        assertThat(row.correctionHistory().get(0).correctionType()).isEqualTo("RESUBMISSION");
+        assertThat(row.correctionHistory().get(0).correctedByFullName()).isEqualTo("Jane Doe");
     }
 
     // --- Daily Operations Summary report for Super Admin (getOperationsReportForSuperAdmin) ---

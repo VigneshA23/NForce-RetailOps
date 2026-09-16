@@ -1,5 +1,11 @@
 import type ExcelJS from 'exceljs';
-import type { ChecklistHistorySummaryRow, ChecklistHistoryTaskDetailRow, ChecklistTaskDetailStatus } from '../types/checklistHistory';
+import type {
+  AdminCorrectionEntry,
+  ChecklistHistorySummaryRow,
+  ChecklistHistoryTaskDetailRow,
+  ChecklistResponseType,
+  ChecklistTaskDetailStatus,
+} from '../types/checklistHistory';
 import { formatTimeLabel } from './checklistHistoryOptions';
 
 export interface OperationsSummaryTotals {
@@ -39,6 +45,7 @@ export const TASK_DETAIL_STATUS_LABELS: Record<ChecklistTaskDetailStatus, string
   COMPLETED: 'Completed',
   NOT_COMPLETED: 'Not Completed',
   ISSUE: 'Issue',
+  INACTIVE: 'Inactive',
 };
 
 // ── 3-color report palette (navy / light blue-gray / green-or-red accent) ──
@@ -52,6 +59,8 @@ const COLOR_GREEN_BG = 'FFE1F8EC';
 const COLOR_GREEN_TEXT = 'FF1A9C5C';
 const COLOR_RED_BG = 'FFFCE7E9';
 const COLOR_RED_TEXT = 'FFE0384A';
+const COLOR_GRAY_BG = 'FFF1F1F3';
+const COLOR_GRAY_TEXT = 'FF6B7280';
 
 const THIN_BORDER: Partial<ExcelJS.Borders> = {
   top: { style: 'thin', color: { argb: COLOR_BORDER } },
@@ -77,17 +86,84 @@ function formatLongDate(date: string): string {
   return `${MONTH_NAMES[month - 1]} ${day}, ${year}`;
 }
 
-function formatDDMMYYYY(date: string): string {
+// Exported so the PDF export (ExportMenu.tsx) formats Date/Timestamp identically
+// instead of re-deriving its own -- one of the ways the two exports had drifted.
+export function formatDDMMYYYY(date: string): string {
   const [year, month, day] = date.split('-');
   return `${day}-${month}-${year}`;
 }
 
-function formatTimestamp(iso: string | null): string {
+export function formatTimestamp(iso: string | null): string {
   if (!iso) return '';
   return `${formatDDMMYYYY(iso.slice(0, 10))} ${formatTimeLabel(iso)}`;
 }
 
-const TOTAL_COLUMNS = 8; // widest section (Task Detail): Store, Date, Category, Task, Status, Response, Employee, Completed At
+// Ports CorrectionModal.tsx's boolLabel/correctionValueLabel (the "Correct Response"
+// modal's own correction-history renderer) so the export formats before/after values
+// exactly the same way -- driven by plain responseType/numericUnit strings instead of
+// a ChecklistHistoryTaskItem, since ChecklistHistoryTaskDetailRow carries those flat.
+function correctionValueLabelForExport(
+  entry: AdminCorrectionEntry,
+  responseType: ChecklistResponseType,
+  numericUnit: string | null,
+  which: 'original' | 'corrected',
+): string {
+  const b = which === 'original' ? entry.originalValueBoolean : entry.correctedValueBoolean;
+  const n = which === 'original' ? entry.originalValueNumeric : entry.correctedValueNumeric;
+  const t = which === 'original' ? entry.originalValueText : entry.correctedValueText;
+  if (b !== null && b !== undefined) {
+    if (responseType === 'YES_NO') return b ? 'Yes' : 'No';
+    return b ? 'Done' : 'Not done';
+  }
+  if (n !== null && n !== undefined) return numericUnit ? `${n} ${numericUnit}` : String(n);
+  if (t !== null && t !== undefined) return t;
+  // No value on the "corrected" side of an UNDONE entry means the employee undid
+  // their answer -- a type-aware label reads better than a bare dash.
+  if (which === 'corrected' && entry.correctionType === 'UNDONE') {
+    if (responseType === 'YES_NO') return 'No';
+    if (responseType === 'DONE_NOT_DONE') return 'Not done';
+    return 'No answer';
+  }
+  return '—';
+}
+
+// Same label set already established for the History page's "View response
+// history" panel (ChecklistDayHistoryView.tsx / CorrectionModal.tsx): RESUBMISSION
+// -> "Resubmitted by", UNDONE -> "Undone by", else (DIRECT/FLAG_TO_EMPLOYEE) ->
+// "Corrected by" -- reused here so the export reads the same way History does.
+function changeTypeLabel(entry: AdminCorrectionEntry): string {
+  if (entry.correctionType === 'RESUBMISSION') return `Resubmitted by ${entry.correctedByFullName}`;
+  if (entry.correctionType === 'UNDONE') return `Undone by ${entry.correctedByFullName}`;
+  return `Corrected by ${entry.correctedByFullName}`;
+}
+
+// Shared by both the Excel and PDF Task Detail tables: one line per history entry,
+// newest-first (correctionHistory is already sorted that way by the backend), so
+// the "Response History" and "Change Type" columns line up entry-for-entry.
+export function buildResponseHistoryLines(
+  history: AdminCorrectionEntry[],
+  responseType: ChecklistResponseType,
+  numericUnit: string | null,
+  // jsPDF's standard fonts (helvetica/times/courier) only support WinAnsi
+  // encoding, which has no "→" glyph -- it renders as mojibake and throws off
+  // autoTable's column-width/wrap math. Excel (ExcelJS/real fonts) handles the
+  // real arrow fine and already uses it elsewhere (CorrectionModal.tsx etc), so
+  // only the PDF builder passes the ASCII-safe fallback.
+  arrow: string = '→',
+): { changeLines: string[]; typeLines: string[] } {
+  const changeLines = history.map(
+    (entry) =>
+      `${correctionValueLabelForExport(entry, responseType, numericUnit, 'original')} ${arrow} ${correctionValueLabelForExport(entry, responseType, numericUnit, 'corrected')}`,
+  );
+  const typeLines = history.map(changeTypeLabel);
+  return { changeLines, typeLines };
+}
+
+function longestLine(text: string): string {
+  return text.split('\n').reduce((longest, line) => (line.length > longest.length ? line : longest), '');
+}
+
+const TOTAL_COLUMNS = 10; // widest section (Task Detail): Store, Date, Category, Task, Status, Response, Employee, Completed At, Response History, Change Type
 const TASK_COLUMN_INDEX = 3; // zero-based -- Task Detail's "Task" column, needs the most width
 const MIN_COLUMN_WIDTH = 10;
 const MAX_COLUMN_WIDTH = 40;
@@ -175,9 +251,13 @@ function writeDataRow(
 }
 
 function applyStatusStyle(cell: ExcelJS.Cell, status: ChecklistTaskDetailStatus): void {
-  const isCompleted = status === 'COMPLETED';
-  cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: isCompleted ? COLOR_GREEN_TEXT : COLOR_RED_TEXT } };
-  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isCompleted ? COLOR_GREEN_BG : COLOR_RED_BG } };
+  const [textColor, bgColor] = status === 'COMPLETED'
+    ? [COLOR_GREEN_TEXT, COLOR_GREEN_BG]
+    : status === 'INACTIVE'
+      ? [COLOR_GRAY_TEXT, COLOR_GRAY_BG]
+      : [COLOR_RED_TEXT, COLOR_RED_BG];
+  cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: textColor } };
+  cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
 }
 
 export async function buildOperationsReportWorkbook(
@@ -246,8 +326,12 @@ export async function buildOperationsReportWorkbook(
   rowCursor += 1; // spacer
 
   // ── Category breakdown ──
+  // Inactive rows are excluded here too -- same reasoning as the backend keeping them
+  // out of unionTaskIds/respondedTaskIds: a deactivated task was never "scheduled", so
+  // counting it would skew this category's completion percentage.
   const categoryMap = new Map<string, { completed: number; total: number }>();
   for (const row of details) {
+    if (row.status === 'INACTIVE') continue;
     const cat = categoryMap.get(row.categoryName) ?? { completed: 0, total: 0 };
     cat.total += 1;
     if (row.status === 'COMPLETED') cat.completed += 1;
@@ -279,8 +363,14 @@ export async function buildOperationsReportWorkbook(
   // ── Task-level detail ──
   writeBanner(worksheet, rowCursor, 'TASK DETAIL', TOTAL_COLUMNS);
   rowCursor += 1;
-  const detailAlignments: Alignment[] = ['left', 'center', 'left', 'left', 'center', 'center', 'left', 'center'];
-  writeHeaderRow(worksheet, rowCursor, ['Store', 'Date', 'Category', 'Task', 'Status', 'Response', 'Employee', 'Completed At'], detailAlignments, widths);
+  const detailAlignments: Alignment[] = ['left', 'center', 'left', 'left', 'center', 'center', 'left', 'center', 'left', 'left'];
+  writeHeaderRow(
+    worksheet,
+    rowCursor,
+    ['Store', 'Date', 'Category', 'Task', 'Status', 'Response', 'Employee', 'Completed At', 'Response History', 'Change Type'],
+    detailAlignments,
+    widths,
+  );
   rowCursor += 1;
   details.forEach((row, idx) => {
     const dateLabel = formatDDMMYYYY(row.date);
@@ -288,18 +378,24 @@ export async function buildOperationsReportWorkbook(
     const response = row.response ?? '';
     const employee = row.employeeFullName ?? '';
     const completedAt = formatTimestamp(row.completedAt);
-    const values = [row.storeName, dateLabel, row.categoryName, row.taskName, statusLabel, response, employee, completedAt];
-    const excelRow = writeDataRow(
-      worksheet,
-      rowCursor,
-      values,
-      values.map(String),
-      detailAlignments,
-      widths,
-      idx % 2 === 1,
-    );
+    const { changeLines, typeLines } = buildResponseHistoryLines(row.correctionHistory, row.responseType, row.numericUnit);
+    const historyText = changeLines.join('\n');
+    const changeTypeText = typeLines.join('\n');
+    const values = [row.storeName, dateLabel, row.categoryName, row.taskName, statusLabel, response, employee, completedAt, historyText, changeTypeText];
+    const displayText = [
+      row.storeName, dateLabel, row.categoryName, row.taskName, statusLabel, response, employee, completedAt,
+      longestLine(historyText), longestLine(changeTypeText),
+    ];
+    const excelRow = writeDataRow(worksheet, rowCursor, values, displayText, detailAlignments, widths, idx % 2 === 1);
     excelRow.getCell(4).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    excelRow.getCell(9).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+    excelRow.getCell(10).alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
     applyStatusStyle(excelRow.getCell(5), row.status);
+    // ExcelJS doesn't auto-grow row height for wrapped multi-line content --
+    // base single-line height (16, per writeDataRow) times however many history
+    // lines this row needs, so a frequently-corrected task's cell isn't clipped.
+    const lineCount = Math.max(changeLines.length, typeLines.length, 1);
+    if (lineCount > 1) excelRow.height = 16 * lineCount;
     rowCursor += 1;
   });
 

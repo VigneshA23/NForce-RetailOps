@@ -362,6 +362,12 @@
   margin: 2px 0 0;
 }
 
+.employee-history-task-value-meta {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 .employee-history-task-history-toggle {
   display: inline-flex;
   align-items: center;

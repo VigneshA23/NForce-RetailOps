@@ -75,7 +75,15 @@ function correctionValueLabel(
     return responseType === 'YES_NO' ? (b ? 'Yes' : 'No') : b ? 'Done' : 'Not done'
   }
   if (n !== null && n !== undefined) return String(n)
-  return t ?? '—'
+  if (t !== null && t !== undefined) return t
+  // No value on the "corrected" side of an UNDONE entry means the employee
+  // undid their answer -- a type-aware label reads better than a bare dash.
+  if (which === 'corrected' && entry.correctionType === 'UNDONE') {
+    if (responseType === 'YES_NO') return 'No'
+    if (responseType === 'DONE_NOT_DONE') return 'Not done'
+    return 'No answer'
+  }
+  return '—'
 }
 
 function ChecklistDayHistoryView({
@@ -331,27 +339,23 @@ function ChecklistDayHistoryView({
                           <div key={task.id} className="employee-history-task">
                             <div className="employee-history-task-info">
                               <p className="employee-history-task-name">{task.name}</p>
-                              {task.completedByAll.length > 1 ? (
-                                // Index-keyed: the same employee can appear more than once here
-                                // (each of their same-day submissions on a MULTIPLE-completion
-                                // task), so employeeUserId is no longer unique across these rows.
-                                task.completedByAll.map((responder, index) => (
-                                  <p
-                                    key={index}
-                                    className="employee-history-task-detail"
-                                  >
-                                    {`${responder.name} · ${responder.respondedAt}`}
-                                  </p>
-                                ))
+                              {task.responseValue ? (
+                                <p className="employee-history-task-value">
+                                  {task.responseValue}
+                                  {task.completedBy && (
+                                    <span className="employee-history-task-value-meta">
+                                      {' · '}
+                                      {task.completedBy.name}
+                                      {task.completedAt ? ` · ${task.completedAt}` : ''}
+                                    </span>
+                                  )}
+                                </p>
                               ) : (
                                 <p className="employee-history-task-detail">
                                   {task.completedBy
                                     ? `${task.completedBy.name}${task.completedAt ? ` · ${task.completedAt}` : ''}`
                                     : 'No staff recorded'}
                                 </p>
-                              )}
-                              {task.responseValue && (
-                                <p className="employee-history-task-value">{task.responseValue}</p>
                               )}
                               {task.resubmissionHistory.length > 0 && (
                                 <>
@@ -392,7 +396,11 @@ function ChecklistDayHistoryView({
                                                 {correctionValueLabel(entry, task.responseType, 'corrected')}
                                               </p>
                                               <p className="employee-history-task-history-meta">
-                                                {entry.correctionType === 'RESUBMISSION' ? 'Resubmitted by' : 'Corrected by'}{' '}
+                                                {entry.correctionType === 'RESUBMISSION'
+                                                  ? 'Resubmitted by'
+                                                  : entry.correctionType === 'UNDONE'
+                                                    ? 'Undone by'
+                                                    : 'Corrected by'}{' '}
                                                 {entry.correctedByFullName}
                                                 {' · '}{formatDateLabel(entry.correctedAt.slice(0, 10))} {formatTimeLabel(entry.correctedAt)}
                                               </p>
@@ -426,7 +434,11 @@ function ChecklistDayHistoryView({
                                               {transition.fromValue ?? '—'} → {transition.toValue ?? '—'}
                                             </p>
                                             <p className="employee-history-task-history-meta">
-                                              {transition.kind === 'DIRECT_CORRECTION' ? 'Corrected by' : 'Flagged by'}{' '}
+                                              {transition.kind === 'DIRECT_CORRECTION'
+                                                ? 'Corrected by'
+                                                : transition.kind === 'UNDONE'
+                                                  ? 'Undone by'
+                                                  : 'Flagged by'}{' '}
                                               {transition.flaggedByName ?? 'Owner'}
                                               {transition.flaggedAt ? ` · ${transition.flaggedAt}` : ''}
                                             </p>

@@ -47,6 +47,7 @@ function respondedYes(id: number) {
       flaggedNeedsCorrection: false,
       flagReason: null,
       resubmissionHistory: [],
+      undone: false,
     },
   ];
 }
@@ -66,6 +67,7 @@ function respondedWith(id: number, employeeFullName: string, booleanValue: boole
       flaggedNeedsCorrection: false,
       flagReason: null,
       resubmissionHistory: [],
+      undone: false,
     },
   ];
 }
