@@ -176,21 +176,12 @@ const SUPER_ADMIN_SECTIONS: HelpSection[] = [
       'Enter the corrected value.',
       'Provide a reason for the correction.',
       'Save the correction.',
+      'Review the correction history for a response, including the original value, the corrected value, who made the change, when it was made, and the reason given.',
     ],
     important: [
       'A correction reason is required before you can save.',
       'The original response is retained, and every correction is permanently recorded in correction history.',
       'As Super Admin, you can correct eligible responses across any store.',
-    ],
-  },
-  {
-    id: 'sa-history',
-    title: 'History & Correction History',
-    icon: HistoryIcon,
-    description: 'Review past checklist activity and every correction made to a response.',
-    bullets: [
-      'Review historical checklist information for any store.',
-      'Review the details of each correction, including the original value, the corrected value, who made the change, when it was made, and the reason given.',
     ],
   },
   {
@@ -288,22 +279,12 @@ const OWNER_ADMIN_SECTIONS: HelpSection[] = [
       'Enter the corrected value.',
       'Provide a reason for the correction.',
       'Save the correction.',
+      'Review the correction history for a response, including the original value, the corrected value, who made the change, when it was made, and the reason given.',
     ],
     important: [
       'A correction reason is required before you can save.',
       'The original response is retained, and every correction is permanently recorded in correction history.',
       'Owner/Admin corrections are limited to your store.',
-    ],
-  },
-  {
-    id: 'oa-history',
-    title: 'History',
-    icon: HistoryIcon,
-    description: "Review your store's past checklist activity.",
-    bullets: [
-      'Review previous checklist dates for your store.',
-      'Review response history.',
-      'View correction history for responses in your store.',
     ],
   },
 ];
