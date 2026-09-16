@@ -510,6 +510,63 @@ class ChecklistHistoryServiceTest {
     }
 
     @Test
+    void detailIncludesTaskUnderDeactivatedCategoryWithHistory() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category deactivatedCategory = category(20L, "Opening", 0);
+        deactivatedCategory.setActive(false);
+        Task task = task(31L, deactivatedCategory, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskRepository.findAllById(Set.of(31L))).thenReturn(List.of(task));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry entry = response(task, store, employee, today);
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today))
+            .thenReturn(List.of(entry));
+        when(storeEmployeeRepository.findByEmployeeIdIn(List.of(99L))).thenReturn(List.of());
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        assertThat(detail.hasChecklist()).isTrue();
+        assertThat(detail.categories()).hasSize(1);
+        assertThat(detail.categories().get(0).name()).isEqualTo("Opening");
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.completed()).isTrue();
+        assertThat(item.responses()).hasSize(1);
+    }
+
+    @Test
+    void detailIncludesTaskWhenBothCategoryAndTaskAreDeactivated() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category deactivatedCategory = category(20L, "Opening", 0);
+        deactivatedCategory.setActive(false);
+        Task deactivatedTask = task(31L, deactivatedCategory, ScheduleType.EVERY_DAY, Set.of(), false);
+        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskRepository.findAllById(Set.of(31L))).thenReturn(List.of(deactivatedTask));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry entry = response(deactivatedTask, store, employee, today);
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today))
+            .thenReturn(List.of(entry));
+        when(storeEmployeeRepository.findByEmployeeIdIn(List.of(99L))).thenReturn(List.of());
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        assertThat(detail.hasChecklist()).isTrue();
+        assertThat(detail.categories()).hasSize(1);
+        assertThat(detail.categories().get(0).name()).isEqualTo("Opening");
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.currentlyActive()).isFalse();
+        assertThat(item.completed()).isTrue();
+        assertThat(item.responses()).hasSize(1);
+    }
+
+    @Test
     void detailIncludesRaisedIssuesForTheStoreAndDate() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
