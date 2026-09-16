@@ -140,6 +140,13 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
       </button>
 
       {menuOpen && (
+        <div
+          className="export-menu__backdrop"
+          onClick={() => { setMenuOpen(false); setRangeError(null); }}
+        />
+      )}
+
+      {menuOpen && (
         <div className="export-menu__panel" role="menu">
           <div className="export-menu__header">
             <span className="export-menu__header-icon">

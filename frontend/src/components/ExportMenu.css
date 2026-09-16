@@ -29,6 +29,14 @@
   gap: var(--space-md);
 }
 
+.export-menu__backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 199;
+}
+
 /* Header: icon chip + title + description */
 .export-menu__header {
   display: flex;
@@ -228,7 +236,21 @@
 
 @media (max-width: 480px) {
   .export-menu__panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
     width: calc(100vw - 24px);
+    max-width: 420px;
+    max-height: 90vh;
+    max-height: 90svh;
+    max-height: 90dvh;
+    overflow-y: auto;
+  }
+
+  .export-menu__backdrop {
+    display: block;
   }
 
   .export-menu__range-row,
