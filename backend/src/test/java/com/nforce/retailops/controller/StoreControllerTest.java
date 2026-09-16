@@ -382,7 +382,7 @@ class StoreControllerTest {
 
     @Test
     @Transactional
-    void superAdminCanToggleStoreActiveStatusAndItPersistsWithoutAffectingOwnerAccess() throws Exception {
+    void superAdminCanToggleStoreActiveStatusAndItResetsOwnerAccess() throws Exception {
         Role ownerRole = role("OWNER_ADMIN");
         Role superRole = role("SUPER_ADMIN");
         User owner = user("store-status-owner@nforce.test", ownerRole);
@@ -398,9 +398,11 @@ class StoreControllerTest {
                 .content("{\"active\":false}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.storeActive").value(false))
-            // Deactivating the store itself must not touch the owner's access.
-            .andExpect(jsonPath("$.ownerName").value("Test User"))
-            .andExpect(jsonPath("$.ownerAccessActive").value(true));
+            // Deactivating the store itself releases its owner link, the same
+            // cascade an owner's own deactivation already applies -- the owner
+            // is freed up to be assigned a different store.
+            .andExpect(jsonPath("$.ownerName").doesNotExist())
+            .andExpect(jsonPath("$.ownerAccessActive").value(false));
 
         mockMvc.perform(get("/api/stores/all")
                 .header("Authorization", "Bearer " + token))
@@ -408,13 +410,15 @@ class StoreControllerTest {
             .andExpect(jsonPath("$[?(@.storeName=='Status Toggle Store')].storeActive",
                 org.hamcrest.Matchers.hasItem(false)));
 
+        // Reactivating the store must NOT auto-restore the released owner link --
+        // only an explicit reassignment (assign-owner) can.
         mockMvc.perform(patch("/api/stores/" + store.getId() + "/status")
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"active\":true}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.storeActive").value(true))
-            .andExpect(jsonPath("$.ownerAccessActive").value(true));
+            .andExpect(jsonPath("$.ownerAccessActive").value(false));
     }
 
     private void taskForStore(User owner, Store store) {

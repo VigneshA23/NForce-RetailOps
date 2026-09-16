@@ -42,7 +42,10 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     // Store-owner links with access revoked -- candidates for handing off to a
     // newly created owner while keeping the same store record/code. Also
-    // covers never-owned stores (owner = null, active = false).
-    @Query("select so from StoreOwner so join fetch so.store left join fetch so.owner where so.active = false")
+    // covers never-owned stores (owner = null, active = false). Excludes a
+    // deactivated store (store.active = false): a closed store shouldn't be
+    // offered for reassignment until it's reactivated.
+    @Query("select so from StoreOwner so join fetch so.store left join fetch so.owner "
+        + "where so.active = false and so.store.active = true")
     List<StoreOwner> findAllWithRevokedAccess();
 }

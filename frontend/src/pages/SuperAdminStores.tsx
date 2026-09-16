@@ -3,6 +3,7 @@ import { AlertCircle, CircleCheck, Plus, Store as StoreIcon, Users } from 'lucid
 import { nfToast } from '../utils/toast';
 import { assignStoreOwner, createStandaloneStore, deleteStore, getAllStores, updateStore, updateStoreStatus } from '../api/superAdminStores';
 import { getOwners } from '../api/owners';
+import { getAllEmployeesForSuperAdmin } from '../api/superAdminEmployees';
 import type { OwnerSummary } from '../types/owner';
 import type { CreateStoreValues, SuperAdminStore } from '../types/superAdminStore';
 import SuperAdminStoreTable from '../components/SuperAdminStoreTable';
@@ -54,6 +55,12 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [page, setPage] = useState(1);
 
+  // Platform-wide distinct active employee count for the "Total Employees" tile --
+  // NOT derived from summing each store's own employeeCount (below), since an
+  // employee assigned to more than one store would then be counted once per
+  // store instead of once overall.
+  const [activeEmployeeCount, setActiveEmployeeCount] = useState(0);
+
   function loadStores() {
     setIsLoading(true);
     setLoadError(null);
@@ -66,6 +73,9 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
   useEffect(() => {
     loadStores();
     getOwners().then(setAllOwners).catch(() => {});
+    getAllEmployeesForSuperAdmin()
+      .then((employees) => setActiveEmployeeCount(employees.filter((e) => e.active).length))
+      .catch(() => {});
   }, []);
 
   async function handleFormSubmit(values: CreateStoreValues) {
@@ -95,6 +105,10 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
       const updated = await updateStoreStatus(store.storeId, nextActive);
       setStores((current) => current.map((s) => (s.storeId === updated.storeId ? updated : s)));
       nfToast.success(`"${updated.storeName}" store ${updated.storeActive ? 'activated' : 'deactivated'}.`);
+      // Deactivating releases the store's owner link server-side (StoreService.
+      // setStoreActive) -- the Owners page holds its own separately-fetched copy
+      // of this data, so it needs telling to refetch, same as edit/assign-owner above.
+      onOwnersDataStale?.();
     } catch (error) {
       setStores((current) =>
         current.map((s) => (s.storeId === store.storeId ? { ...s, storeActive: store.storeActive } : s)),
@@ -209,17 +223,13 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
   const pagedStores = filteredStores.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const activeCount = useMemo(() => stores.filter((store) => store.storeActive).length, [stores]);
-  const totalEmployeeCount = useMemo(
-    () => stores.reduce((sum, store) => sum + store.employeeCount, 0),
-    [stores],
-  );
 
   return (
     <div className="super-admin-stores-page">
       <div className="stat-card-row">
         <StatCard icon={StoreIcon} label="Total Stores" value={stores.length} tone="primary" />
         <StatCard icon={CircleCheck} label="Active Stores" value={activeCount} tone="success" />
-        <StatCard icon={Users} label="Total Employees" value={totalEmployeeCount} tone="info" />
+        <StatCard icon={Users} label="Total Employees" value={activeEmployeeCount} tone="info" />
       </div>
 
       <div className="super-admin-stores-page__header">

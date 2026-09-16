@@ -12,6 +12,11 @@ import './SuperAdminHome.css';
 interface SuperAdminHomeProps {
   owners: OwnerSummary[];
   ownersLoading: boolean;
+  // Every store platform-wide, independent of ownership -- fetched by the parent
+  // (SuperAdminDashboard) from the Stores list, not derived from `owners` (one row
+  // per owner-store link, which silently excludes any store with no owner assigned).
+  // null while that fetch is in flight.
+  totalStoreCount: number | null;
   onStoreClick?: (storeId: number) => void;
   onIssuesClick?: () => void;
 }
@@ -21,7 +26,7 @@ const TREND_PERIODS = [
   { label: '30d', days: 30 },
 ] as const;
 
-function SuperAdminHome({ owners, ownersLoading, onStoreClick, onIssuesClick }: SuperAdminHomeProps) {
+function SuperAdminHome({ owners, ownersLoading, totalStoreCount, onStoreClick, onIssuesClick }: SuperAdminHomeProps) {
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [overview, setOverview] = useState<StoreOperationsSummary[] | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
@@ -67,11 +72,6 @@ function SuperAdminHome({ owners, ownersLoading, onStoreClick, onIssuesClick }: 
     () => new Set(owners.filter((o) => o.ownerActive).map((o) => o.ownerId)).size,
     [owners],
   );
-  const totalStoreCount = useMemo(
-    () => owners.filter((o) => o.storeId != null).length,
-    [owners],
-  );
-
   const needsAttention = useMemo(
     () => (overview ?? []).filter((s) => s.lastActivityAt === null && s.totalTasks > 0),
     [overview],
@@ -90,7 +90,7 @@ function SuperAdminHome({ owners, ownersLoading, onStoreClick, onIssuesClick }: 
           <>
             <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
             <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
-            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount} tone="info" />
+            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '—'} tone="info" />
           </>
         )}
         {platformStats === null ? (

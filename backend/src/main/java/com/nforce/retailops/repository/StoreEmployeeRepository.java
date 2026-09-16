@@ -12,16 +12,21 @@ import java.util.Optional;
 
 public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Long> {
 
-    int countByStoresId(Long storeId);
-
-    // Y in the "X/Y Completed By" checklist status: only employees whose User
-    // account is still active count toward the store's headcount.
+    // Y in the "X/Y Completed By" checklist status, and every store headcount shown
+    // elsewhere (Store Management, Super Admin Stores): only employees whose User
+    // account is still active count -- a raw employee_stores row count would keep
+    // counting an employee after they're deactivated (deactivation never removes the
+    // row, only flips User.active).
     int countByStoresIdAndEmployeeActiveTrue(Long storeId);
 
-    // Batched form of countByStoresId, for listing many stores at once without
-    // one count query per store.
-    @Query("select s.id, count(se) from StoreEmployee se join se.stores s where s.id in :storeIds group by s.id")
-    List<Object[]> countGroupedByStoreIds(@Param("storeIds") Collection<Long> storeIds);
+    // Batched form of countByStoresIdAndEmployeeActiveTrue, for the Store Management /
+    // Super Admin Stores list "Total Employees" tile and per-store column -- must match
+    // what the Employees page actually shows (active headcount), not a raw employee_stores
+    // join-table row count, which keeps counting an employee after they're deactivated
+    // (deactivation never removes the row, only flips User.active).
+    @Query("select s.id, count(se) from StoreEmployee se join se.stores s "
+        + "where s.id in :storeIds and se.employee.active = true group by s.id")
+    List<Object[]> countActiveGroupedByStoreIds(@Param("storeIds") Collection<Long> storeIds);
 
     List<StoreEmployee> findDistinctByStoresIdInOrderByIdAsc(Collection<Long> storeIds);
 

@@ -159,6 +159,10 @@ function SuperAdminEmployees() {
     [employees],
   );
   const inactiveCount = useMemo(() => employees.filter((employee) => !employee.active).length, [employees]);
+  // "Total Employees" reflects active headcount -- matches the Stores page's
+  // per-store/platform employee counts, which already only count active
+  // employees; a deactivated employee shouldn't inflate either figure.
+  const activeCount = employees.length - inactiveCount;
 
   const emptyMessage =
     employees.length === 0 ? 'No employees yet.' : 'No employees match your filters.';
@@ -166,7 +170,7 @@ function SuperAdminEmployees() {
   return (
     <div className="super-admin-employees-page">
       <div className="stat-card-row">
-        <StatCard icon={Users} label="Total Employees" value={employees.length} tone="primary" />
+        <StatCard icon={Users} label="Total Employees" value={activeCount} tone="primary" />
         <StatCard icon={UserCheck} label="Full Time" value={fullTimeCount} tone="success" />
         <StatCard icon={UserCog} label="Part Time" value={employees.length - fullTimeCount} tone="info" />
         <StatCard icon={UserX} label="Inactive" value={inactiveCount} tone="warning" />

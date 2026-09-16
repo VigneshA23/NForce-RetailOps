@@ -76,7 +76,7 @@ public class StoreService {
                 Store store = storeOwner.getStore();
                 Long storeId = store.getId();
                 List<Long> storeIds = List.of(storeId);
-                Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countGroupedByStoreIds(storeIds));
+                Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countActiveGroupedByStoreIds(storeIds));
                 Map<Long, Integer> storeTaskCounts = toCountMap(taskRepository.countGroupedByStoreIds(storeIds));
                 long appliesToAllCount = taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(ownerId);
                 return List.of(new StoreResponse(
@@ -104,7 +104,7 @@ public class StoreService {
         }
 
         List<Long> storeIds = storeOwners.stream().map(so -> so.getStore().getId()).toList();
-        Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countGroupedByStoreIds(storeIds));
+        Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countActiveGroupedByStoreIds(storeIds));
         Map<Long, Integer> storeTaskCounts = toCountMap(taskRepository.countGroupedByStoreIds(storeIds));
 
         Set<Long> ownerIds = storeOwners.stream()
@@ -158,7 +158,7 @@ public class StoreService {
         store = storeRepository.save(store);
 
         User owner = storeOwner.getOwner();
-        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
+        int employeeCount = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(store.getId());
         long taskCount = taskRepository.countByStoreId(store.getId())
             + (owner != null ? taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(owner.getId()) : 0);
 
@@ -178,10 +178,12 @@ public class StoreService {
         );
     }
 
-    // Super Admin toggles the store's OWN open/closed status -- distinct from
-    // (and must never touch) StoreOwner.active, which OwnerManagementService.
-    // setStoreActive uses for a completely different feature: revoking an
-    // owner's access to a store while leaving the store itself untouched.
+    // Super Admin toggles the store's OWN open/closed status. Distinct from
+    // OwnerManagementService.setStoreActive, which revokes an owner's access to a
+    // store while leaving the store itself untouched -- this is the other
+    // direction. Deactivating the store now also releases its owner link (see
+    // below), the same cascade OwnerManagementService.setOwnerActive already
+    // applies when the OWNER is deactivated instead of the store.
     @Transactional
     public SuperAdminStoreResponse setStoreActive(Long storeId, boolean active) {
         Store store = storeRepository.findById(storeId)
@@ -191,11 +193,27 @@ public class StoreService {
 
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        User owner = storeOwner.getOwner();
-        if (owner != null) {
-            notificationService.createForStoreStatus(store, owner, active);
+        User notifiedOwner = storeOwner.getOwner();
+        if (notifiedOwner != null) {
+            notificationService.createForStoreStatus(store, notifiedOwner, active);
         }
-        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
+
+        if (!active) {
+            // Fully releases the store's owner link -- same shape as a never-owned
+            // store (owner=null, active=false), not just marking the link inactive
+            // while leaving the owner reference in place. Without this, the owner
+            // would stay "assigned" to a closed store indefinitely, unable to be
+            // handed a different one, and the closed store would never surface as
+            // reassignable (StoreOwnerRepository.findAllWithRevokedAccess) once
+            // it's reactivated. Reactivating the store deliberately does NOT
+            // restore this link -- only an explicit reassignment can.
+            storeOwner.setActive(false);
+            storeOwner.setOwner(null);
+            storeOwner = storeOwnerRepository.save(storeOwner);
+        }
+
+        User owner = storeOwner.getOwner();
+        int employeeCount = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(store.getId());
         long taskCount = taskRepository.countByStoreId(store.getId())
             + (owner != null ? taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(owner.getId()) : 0);
 
@@ -254,7 +272,7 @@ public class StoreService {
         storeOwner = storeOwnerRepository.save(storeOwner);
 
         Store store = storeOwner.getStore();
-        int employeeCount = storeEmployeeRepository.countByStoresId(store.getId());
+        int employeeCount = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(store.getId());
         long taskCount = taskRepository.countByStoreId(store.getId())
             + taskRepository.countByOwnerIdAndAppliesToAllStoresTrue(newOwner.getId());
 
