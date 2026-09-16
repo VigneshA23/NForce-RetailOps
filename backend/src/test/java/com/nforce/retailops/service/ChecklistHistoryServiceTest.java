@@ -637,7 +637,7 @@ class ChecklistHistoryServiceTest {
 
         Category category = category(20L, "Opening", 0);
         Task deactivatedTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
-        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
         when(taskRepository.findAllById(Set.of(31L))).thenReturn(List.of(deactivatedTask));
 
         User employee = user(99L, "Jane Doe");
@@ -670,7 +670,7 @@ class ChecklistHistoryServiceTest {
         Category deactivatedCategory = category(20L, "Opening", 0);
         deactivatedCategory.setActive(false);
         Task task = task(31L, deactivatedCategory, ScheduleType.EVERY_DAY, Set.of(), true);
-        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
         when(taskRepository.findAllById(Set.of(31L))).thenReturn(List.of(task));
 
         User employee = user(99L, "Jane Doe");
@@ -698,7 +698,7 @@ class ChecklistHistoryServiceTest {
         Category deactivatedCategory = category(20L, "Opening", 0);
         deactivatedCategory.setActive(false);
         Task deactivatedTask = task(31L, deactivatedCategory, ScheduleType.EVERY_DAY, Set.of(), false);
-        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
         when(taskRepository.findAllById(Set.of(31L))).thenReturn(List.of(deactivatedTask));
 
         User employee = user(99L, "Jane Doe");
@@ -718,12 +718,65 @@ class ChecklistHistoryServiceTest {
         assertThat(item.responses()).hasSize(1);
     }
 
+    // Regression test for the actual gap being fixed: an inactive Task that has NEVER
+    // been answered on this date must still appear -- not just one that already has
+    // history (the tests above). findForStoreAndDate itself returns it directly, no
+    // findAllById fallback involved.
+    @Test
+    void detailIncludesInactiveTaskWithNoResponses() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task inactiveTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of(inactiveTask));
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today))
+            .thenReturn(List.of());
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        assertThat(detail.hasChecklist()).isTrue();
+        assertThat(detail.categories()).hasSize(1);
+        assertThat(detail.categories().get(0).name()).isEqualTo("Opening");
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.currentlyActive()).isFalse();
+        assertThat(item.completed()).isFalse();
+        assertThat(item.responses()).isEmpty();
+    }
+
+    // Same gap, for the Category side: an active Task under an inactive Category with
+    // no responses yet must still appear, grouped under that category.
+    @Test
+    void detailIncludesTaskUnderInactiveCategoryWithNoResponses() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category inactiveCategory = category(20L, "Opening", 0);
+        inactiveCategory.setActive(false);
+        Task task = task(31L, inactiveCategory, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of(task));
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today))
+            .thenReturn(List.of());
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        assertThat(detail.hasChecklist()).isTrue();
+        assertThat(detail.categories()).hasSize(1);
+        assertThat(detail.categories().get(0).name()).isEqualTo("Opening");
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.currentlyActive()).isTrue();
+        assertThat(item.completed()).isFalse();
+        assertThat(item.responses()).isEmpty();
+    }
+
     @Test
     void detailIncludesRaisedIssuesForTheStoreAndDate() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
         when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
-        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today)).thenReturn(List.of());
 
         com.nforce.retailops.entity.RaisedIssue issue = new com.nforce.retailops.entity.RaisedIssue();
@@ -746,7 +799,7 @@ class ChecklistHistoryServiceTest {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
         when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
-        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today)).thenReturn(List.of());
 
         ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);

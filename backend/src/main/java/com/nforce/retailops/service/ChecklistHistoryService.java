@@ -441,7 +441,7 @@ public class ChecklistHistoryService {
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         Store store = storeOwner.getStore();
 
-        List<Task> eligibleTasks = taskRepository.findActiveForStoreAndDate(ownerId, storeId, date).stream()
+        List<Task> eligibleTasks = taskRepository.findForStoreAndDate(ownerId, storeId, date).stream()
             .filter(task -> TaskScheduleMatcher.matches(task, date))
             .toList();
 
