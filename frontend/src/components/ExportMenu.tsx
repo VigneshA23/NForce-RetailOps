@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Calendar, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react';
 import { getChecklistHistoryOperationsReport } from '../api/checklistHistory';
 import { buildOperationsReportWorkbook, summarizeByStore } from '../utils/operationsReportExport';
+import { buildAndDownloadOperationsReportPdf } from '../utils/operationsReportPdfExport';
 import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import { MAX_RANGE_DAYS, todayDate } from '../utils/checklistHistoryOptions';
@@ -13,6 +14,24 @@ interface ExportMenuProps {
   storeName?: string | null;
 }
 
+// Shared by the single-day and date-range PDF exports -- deliberately a richer,
+// more human subtitle style (weekday spelled out) than Excel's own formatLongDate,
+// which this file has never matched exactly since the two exports' headers were
+// designed independently.
+function formatPdfDateLabel(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+}
+
+// Shared by both the Excel and PDF range exports.
+function validateRange(rangeStart: string, rangeEnd: string): string | null {
+  if (rangeStart > rangeEnd) return 'Start date must be on or before end date.';
+  const days = (new Date(`${rangeEnd}T00:00:00`).getTime() - new Date(`${rangeStart}T00:00:00`).getTime()) / 86_400_000;
+  if (days > MAX_RANGE_DAYS) return `Max ${MAX_RANGE_DAYS} days.`;
+  return null;
+}
+
 function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mode, setMode] = useState<'idle' | 'range'>('idle');
@@ -21,6 +40,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
   const [exporting, setExporting] = useState(false);
   const [rangeExporting, setRangeExporting] = useState(false);
   const [pdfExporting, setPdfExporting] = useState(false);
+  const [pdfRangeExporting, setPdfRangeExporting] = useState(false);
   const [rangeError, setRangeError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -59,16 +79,9 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
   }
 
   async function handleExportRange() {
-    setRangeError(null);
-    if (rangeStart > rangeEnd) {
-      setRangeError('Start date must be on or before end date.');
-      return;
-    }
-    const days = (new Date(`${rangeEnd}T00:00:00`).getTime() - new Date(`${rangeStart}T00:00:00`).getTime()) / 86_400_000;
-    if (days > MAX_RANGE_DAYS) {
-      setRangeError(`Max ${MAX_RANGE_DAYS} days.`);
-      return;
-    }
+    const validationError = validateRange(rangeStart, rangeEnd);
+    setRangeError(validationError);
+    if (validationError) return;
     setRangeExporting(true);
     try {
       const report = await getChecklistHistoryOperationsReport({ startDate: rangeStart, endDate: rangeEnd, storeId: storeId ?? undefined });
@@ -92,118 +105,52 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
       const report = await getChecklistHistoryOperationsReport({ startDate: date, endDate: date, storeId: storeId ?? undefined });
       const summary = summarizeByStore(report.summary);
       const storeEntry = summary[0];
-      const details = report.details;
-
-      const title = storeName ?? storeEntry?.storeName ?? 'Store';
-      const formattedDate = new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      await buildAndDownloadOperationsReportPdf({
+        title: storeName ?? storeEntry?.storeName ?? 'Store',
+        dateLabel: formatPdfDateLabel(date),
+        // Same Scheduled/Completed/Completion %/Issues stat set as the Excel export's
+        // Store Summary section, rather than this file's own previously-independent
+        // Total/Completed/No Response/Completion% -- that divergence was silently
+        // folding Issues into "No Response".
+        scheduled: storeEntry?.scheduled ?? 0,
+        completed: storeEntry?.completed ?? 0,
+        issues: storeEntry?.issues ?? 0,
+        details: report.details,
+        filename: `checklist-${date}.pdf`,
       });
-
-      const total = storeEntry?.scheduled ?? 0;
-      const completed = storeEntry?.completed ?? 0;
-      const open = total - completed;
-      const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
-
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      const pageW = doc.internal.pageSize.getWidth();
-      const margin = 14;
-      let y = margin;
-
-      // Header
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.text(title, margin, y);
-      y += 7;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Daily Checklist — ${formattedDate}`, margin, y);
-      y += 5;
-
-      // Divider
-      doc.setDrawColor(220, 220, 220);
-      doc.line(margin, y, pageW - margin, y);
-      y += 7;
-
-      // Stats row
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('SUMMARY', margin, y);
-      y += 5;
-
-      doc.setFont('helvetica', 'normal');
-      const stats = [
-        `Total Tasks: ${total}`,
-        `Completed: ${completed}`,
-        `No Response: ${open}`,
-        `Completion: ${pct}%`,
-      ];
-      const colW = (pageW - 2 * margin) / stats.length;
-      stats.forEach((stat, i) => {
-        doc.text(stat, margin + i * colW, y);
-      });
-      y += 8;
-
-      doc.setDrawColor(220, 220, 220);
-      doc.line(margin, y, pageW - margin, y);
-      y += 7;
-
-      // Table header
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('TASKS', margin, y);
-      y += 5;
-
-      const colCat = margin;
-      const colTask = margin + 38;
-      const colStatus = margin + 110;
-      const colEmployee = margin + 130;
-
-      doc.setFillColor(245, 245, 245);
-      doc.rect(margin, y - 4, pageW - 2 * margin, 6, 'F');
-      doc.setFontSize(9);
-      doc.text('Category', colCat, y);
-      doc.text('Task', colTask, y);
-      doc.text('Status', colStatus, y);
-      doc.text('Employee', colEmployee, y);
-      y += 5;
-
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, y - 1, pageW - margin, y - 1);
-
-      // Task rows
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      const rowH = 5.5;
-      for (const row of details) {
-        if (y + rowH > doc.internal.pageSize.getHeight() - margin) {
-          doc.addPage();
-          y = margin;
-        }
-        const statusLabel = row.status === 'COMPLETED' ? 'Done' : row.status === 'ISSUE' ? 'Issue' : 'Open';
-        doc.text(doc.splitTextToSize(row.categoryName, 36), colCat, y);
-        doc.text(doc.splitTextToSize(row.taskName, 70), colTask, y);
-        doc.text(statusLabel, colStatus, y);
-        doc.text(doc.splitTextToSize(row.employeeFullName ?? '—', 50), colEmployee, y);
-        y += rowH;
-        doc.setDrawColor(235, 235, 235);
-        doc.line(margin, y - 1, pageW - margin, y - 1);
-      }
-
-      // Footer
-      y += 4;
-      doc.setTextColor(150, 150, 150);
-      doc.setFontSize(7.5);
-      doc.text(`Generated ${new Date().toLocaleString()}`, margin, y);
-
-      doc.save(`checklist-${date}.pdf`);
     } catch (err) {
       nfToast.error(err instanceof Error ? err.message : 'Export failed. Please try again.');
     } finally {
       setPdfExporting(false);
+    }
+  }
+
+  async function handleExportPdfRange() {
+    const validationError = validateRange(rangeStart, rangeEnd);
+    setRangeError(validationError);
+    if (validationError) return;
+    setPdfRangeExporting(true);
+    try {
+      const report = await getChecklistHistoryOperationsReport({ startDate: rangeStart, endDate: rangeEnd, storeId: storeId ?? undefined });
+      const summary = summarizeByStore(report.summary);
+      const storeEntry = summary[0];
+      await buildAndDownloadOperationsReportPdf({
+        title: storeName ?? storeEntry?.storeName ?? 'Store',
+        dateLabel: rangeStart === rangeEnd
+          ? formatPdfDateLabel(rangeStart)
+          : `${formatPdfDateLabel(rangeStart)} – ${formatPdfDateLabel(rangeEnd)}`,
+        scheduled: storeEntry?.scheduled ?? 0,
+        completed: storeEntry?.completed ?? 0,
+        issues: storeEntry?.issues ?? 0,
+        details: report.details,
+        filename: `checklist-${rangeStart}_to_${rangeEnd}.pdf`,
+      });
+      setMenuOpen(false);
+      setMode('idle');
+    } catch (err) {
+      setRangeError(err instanceof Error ? err.message : 'Export failed.');
+    } finally {
+      setPdfRangeExporting(false);
     }
   }
 
@@ -270,14 +217,24 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
                 </label>
               </div>
               {rangeError && <p className="export-menu__range-error">{rangeError}</p>}
-              <button
-                type="button"
-                className="btn btn--primary export-menu__range-download"
-                onClick={handleExportRange}
-                disabled={rangeExporting}
-              >
-                {rangeExporting ? 'Downloading…' : 'Download Excel'}
-              </button>
+              <div className="export-menu__range-row">
+                <button
+                  type="button"
+                  className="btn btn--primary export-menu__range-download"
+                  onClick={handleExportRange}
+                  disabled={rangeExporting || pdfRangeExporting}
+                >
+                  {rangeExporting ? 'Downloading…' : 'Download Excel'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn--secondary export-menu__range-download"
+                  onClick={handleExportPdfRange}
+                  disabled={rangeExporting || pdfRangeExporting}
+                >
+                  {pdfRangeExporting ? 'Generating…' : 'Download PDF'}
+                </button>
+              </div>
             </div>
           )}
 

@@ -112,6 +112,13 @@
   padding: 7px 12px;
 }
 
+/* Two download buttons (Excel + PDF) share a row -- balance them 50/50 instead
+   of each trying to be the full row width. */
+.export-menu__range-row .export-menu__range-download {
+  width: auto;
+  flex: 1;
+}
+
 @media (max-width: 480px) {
   .export-menu__range-row {
     flex-direction: column;
