@@ -14,9 +14,9 @@ export interface OperationsReportPdfParams {
   filename: string;
 }
 
-// Shared by both the single-day "Export as PDF" and the date-range PDF export --
-// previously this whole ~120-line builder lived inline in ExportMenu.tsx's
-// handleExportPdf, duplicated (or missing entirely) for the range case.
+// Used by ExportMenu.tsx's date-range PDF export -- previously this whole
+// ~120-line builder lived inline in the handler, duplicated (or missing
+// entirely) for the range case.
 export async function buildAndDownloadOperationsReportPdf(params: OperationsReportPdfParams): Promise<void> {
   const { title, dateLabel, scheduled, completed, issues, details, filename } = params;
   const pct = completionPercent(scheduled, completed);
