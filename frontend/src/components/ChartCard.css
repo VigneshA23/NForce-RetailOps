@@ -1,5 +1,9 @@
 .chart-card__header {
   margin-bottom: var(--space-lg);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-md);
 }
 
 .chart-card__title {

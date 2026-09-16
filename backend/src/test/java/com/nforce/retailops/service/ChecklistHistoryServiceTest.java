@@ -595,85 +595,6 @@ class ChecklistHistoryServiceTest {
             .isInstanceOf(StoreNotFoundException.class);
     }
 
-    // --- Checklist history summary for Super Admin (getSummaryForSuperAdmin) ---
-
-    @Test
-    void summaryForSuperAdminAggregatesAcrossMultipleOwnersWhenNoStoreIdsGiven() {
-        LocalDate today = LocalDate.now();
-        Store storeA = store(10L, "Downtown");
-        Store storeB = store(11L, "Uptown");
-        User ownerA = user(1L, "Owner A");
-        User ownerB = user(2L, "Owner B");
-        StoreOwner storeOwnerA = storeOwner(storeA);
-        storeOwnerA.setOwner(ownerA);
-        StoreOwner storeOwnerB = storeOwner(storeB);
-        storeOwnerB.setOwner(ownerB);
-
-        when(storeOwnerRepository.findAllWithStoreAndOwner()).thenReturn(List.of(storeOwnerA, storeOwnerB));
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(1L, List.of(10L))).thenReturn(List.of(storeOwnerA));
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(2L, List.of(11L))).thenReturn(List.of(storeOwnerB));
-        when(taskRepository.findActiveForStoresAndDateRange(1L, List.of(10L), today, today)).thenReturn(List.of());
-        when(taskRepository.findActiveForStoresAndDateRange(2L, List.of(11L), today, today)).thenReturn(List.of());
-        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
-            .thenReturn(List.of());
-        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(11L), today, today))
-            .thenReturn(List.of());
-
-        List<ChecklistHistorySummaryRow> rows = checklistHistoryService.getSummaryForSuperAdmin(null, today, today);
-
-        assertThat(rows).hasSize(2);
-        assertThat(rows.stream().map(ChecklistHistorySummaryRow::storeName))
-            .containsExactlyInAnyOrder("Downtown", "Uptown");
-    }
-
-    @Test
-    void summaryForSuperAdminExcludesRevokedOrUnownedStores() {
-        LocalDate today = LocalDate.now();
-        Store activeStore = store(10L, "Downtown");
-        Store revokedStore = store(11L, "Uptown");
-        Store unownedStore = store(12L, "Suburb");
-        User owner = user(1L, "Owner A");
-
-        StoreOwner activeLink = storeOwner(activeStore);
-        activeLink.setOwner(owner);
-
-        StoreOwner revokedLink = storeOwner(revokedStore);
-        revokedLink.setOwner(owner);
-        revokedLink.setActive(false);
-
-        // owner left null: a store Super Admin created up front but never assigned.
-        StoreOwner unownedLink = storeOwner(unownedStore);
-
-        when(storeOwnerRepository.findAllWithStoreAndOwner())
-            .thenReturn(List.of(activeLink, revokedLink, unownedLink));
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(1L, List.of(10L))).thenReturn(List.of(activeLink));
-        when(taskRepository.findActiveForStoresAndDateRange(1L, List.of(10L), today, today)).thenReturn(List.of());
-        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
-            .thenReturn(List.of());
-
-        List<ChecklistHistorySummaryRow> rows = checklistHistoryService.getSummaryForSuperAdmin(null, today, today);
-
-        assertThat(rows).hasSize(1);
-        assertThat(rows.get(0).storeName()).isEqualTo("Downtown");
-    }
-
-    @Test
-    void summaryForSuperAdminRejectsUnknownStoreId() {
-        LocalDate today = LocalDate.now();
-        when(storeOwnerRepository.findAllWithStoreAndOwner()).thenReturn(List.of());
-
-        assertThatThrownBy(() -> checklistHistoryService.getSummaryForSuperAdmin(List.of(999L), today, today))
-            .isInstanceOf(InvalidStoreSelectionException.class);
-    }
-
-    @Test
-    void summaryForSuperAdminRejectsStartDateAfterEndDate() {
-        LocalDate today = LocalDate.now();
-        assertThatThrownBy(() ->
-            checklistHistoryService.getSummaryForSuperAdmin(null, today, today.minusDays(1)))
-            .isInstanceOf(InvalidDateRangeException.class);
-    }
-
     @Test
     void summaryRejectsStartDateAfterEndDate() {
         LocalDate today = LocalDate.now();
@@ -738,6 +659,63 @@ class ChecklistHistoryServiceTest {
         assertThat(item.completed()).isTrue();
         assertThat(item.responses()).hasSize(1);
         assertThat(item.responses().get(0).empId()).isEqualTo("EMP-004");
+    }
+
+    @Test
+    void detailIncludesTaskUnderDeactivatedCategoryWithHistory() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category deactivatedCategory = category(20L, "Opening", 0);
+        deactivatedCategory.setActive(false);
+        Task task = task(31L, deactivatedCategory, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskRepository.findAllById(Set.of(31L))).thenReturn(List.of(task));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry entry = response(task, store, employee, today);
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today))
+            .thenReturn(List.of(entry));
+        when(storeEmployeeRepository.findByEmployeeIdIn(List.of(99L))).thenReturn(List.of());
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        assertThat(detail.hasChecklist()).isTrue();
+        assertThat(detail.categories()).hasSize(1);
+        assertThat(detail.categories().get(0).name()).isEqualTo("Opening");
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.completed()).isTrue();
+        assertThat(item.responses()).hasSize(1);
+    }
+
+    @Test
+    void detailIncludesTaskWhenBothCategoryAndTaskAreDeactivated() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category deactivatedCategory = category(20L, "Opening", 0);
+        deactivatedCategory.setActive(false);
+        Task deactivatedTask = task(31L, deactivatedCategory, ScheduleType.EVERY_DAY, Set.of(), false);
+        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
+        when(taskRepository.findAllById(Set.of(31L))).thenReturn(List.of(deactivatedTask));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry entry = response(deactivatedTask, store, employee, today);
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today))
+            .thenReturn(List.of(entry));
+        when(storeEmployeeRepository.findByEmployeeIdIn(List.of(99L))).thenReturn(List.of());
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        assertThat(detail.hasChecklist()).isTrue();
+        assertThat(detail.categories()).hasSize(1);
+        assertThat(detail.categories().get(0).name()).isEqualTo("Opening");
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.currentlyActive()).isFalse();
+        assertThat(item.completed()).isTrue();
+        assertThat(item.responses()).hasSize(1);
     }
 
     @Test

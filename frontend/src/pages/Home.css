@@ -40,10 +40,59 @@
 }
 
 
+.home-page__donut-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .home-page__donut {
   position: relative;
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
+}
+
+.home-page__donut-legend {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-xl);
+  margin-top: var(--space-sm);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.home-page__donut-legend-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.home-page__donut-legend-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.home-page__donut-legend-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.home-page__donut-legend-dot--pending {
+  background: var(--color-border);
+}
+
+.home-page__donut-legend-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
 }
 
 .home-page__donut-label {
@@ -69,67 +118,58 @@
   color: var(--color-text-muted);
 }
 
-.home-page__store-status {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-md);
-  height: 100%;
-  padding: var(--space-md) 0;
-}
-
-.home-page__store-status-name {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-}
-
-.home-page__store-status-percent {
-  font-size: 48px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  line-height: 1;
-}
-
-.home-page__store-status-bar-track {
-  width: 100%;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--color-border);
-  overflow: hidden;
-}
-
-.home-page__store-status-bar-fill {
-  height: 100%;
-  border-radius: var(--radius-pill);
-  background: var(--color-accent);
-  transition: width 0.4s ease;
-}
-
+/* Category Health -- each row is a name+dot/percent line with a full-width
+   bar underneath (not a 3-column grid), so a long category name is never
+   clipped. Two tiers only (good/risk), matching the simple green/red status
+   read at a glance rather than a three-way traffic light. */
 .home-page__category-health {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   height: 100%;
+}
+
+.home-page__category-health-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
 .home-page__category-health-row {
-  display: grid;
-  grid-template-columns: 88px 1fr 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.home-page__category-health-row-top {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-sm);
 }
 
 .home-page__category-health-name {
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.home-page__category-health-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-badge-icon-success-fg);
+}
+
+.home-page__category-health-dot[data-tier='risk'] {
+  background: var(--color-accent);
 }
 
 .home-page__category-health-bar-track {
@@ -147,19 +187,18 @@
   background: var(--color-badge-icon-success-fg);
 }
 
-.home-page__category-health-bar-fill[data-tier='watch'] {
-  background: var(--color-badge-icon-warning-fg);
-}
-
 .home-page__category-health-bar-fill[data-tier='risk'] {
   background: var(--color-accent);
 }
 
 .home-page__category-health-percent {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  color: var(--color-text-primary);
-  text-align: right;
+  color: var(--color-badge-icon-success-fg);
+}
+
+.home-page__category-health-percent[data-tier='risk'] {
+  color: var(--color-accent);
 }
 
 .home-page__category-health-empty {
@@ -168,22 +207,146 @@
   margin: 0;
 }
 
-.home-page__store-rank-details {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  border: none;
-  background: transparent;
-  padding: 0;
+.home-page__category-health-target {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  cursor: pointer;
+  color: var(--color-text-muted);
   white-space: nowrap;
 }
 
-.home-page__store-rank-details:hover {
+.home-page__category-health-target-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.home-page__category-health-footer {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-md);
+}
+
+.home-page__category-health-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 700;
   color: var(--color-accent);
+  cursor: pointer;
+}
+
+.home-page__category-health-link:hover {
+  text-decoration: underline;
+}
+
+/* Today's Contributions -- one bordered "card" row per employee: avatar,
+   name + task count, then a bar/percent pair. Forked from Category Health's
+   classes above so redesigning one doesn't move the other. */
+.home-page__contribution {
+  height: 100%;
+}
+
+.home-page__contribution-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  height: 100%;
+  overflow-y: auto;
+}
+
+.home-page__contribution-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.home-page__contribution-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.home-page__contribution-avatar--img {
+  object-fit: cover;
+  background: var(--color-border);
+}
+
+.home-page__contribution-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 90px;
+}
+
+.home-page__contribution-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-page__contribution-meta {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.home-page__contribution-bar-track {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.home-page__contribution-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.4s ease;
+  background: var(--color-accent);
+}
+
+.home-page__contribution-percent {
+  flex-shrink: 0;
+  width: 36px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+.home-page__contribution-empty {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.home-page__contribution-count-badge {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 

@@ -42,6 +42,15 @@ public class AuthService {
 
     @Transactional
     public LoginResponse login(String email, String password) {
+        // An email with leading/trailing whitespace must not authenticate as the
+        // trimmed email -- reject explicitly, with the same generic message a
+        // wrong password gets, rather than relying on the lookup happening not
+        // to match (which case-insensitive-but-whitespace-sensitive queries would
+        // already produce, but only incidentally).
+        if (!email.equals(email.strip())) {
+            throw new BadCredentialsException("Invalid email or password");
+        }
+
         Optional<SuperAdmin> superAdminMatch = superAdminRepository.findByEmailIgnoreCase(email);
         if (superAdminMatch.isPresent()) {
             return loginAsSuperAdmin(superAdminMatch.get(), password);

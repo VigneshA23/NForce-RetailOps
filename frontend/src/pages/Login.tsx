@@ -78,6 +78,10 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
     event.preventDefault()
     if (submitStatus === 'success') return
     setError(null)
+    if (email !== email.trim()) {
+      setError('Invalid email or password')
+      return
+    }
     setLoading(true)
     try {
       const result = await login(email, password)
@@ -98,6 +102,10 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
   async function handleForgotSubmit(event: FormEvent) {
     event.preventDefault()
     setForgotError(null)
+    if (forgotEmail !== forgotEmail.trim()) {
+      setForgotError('Something went wrong. Please try again.')
+      return
+    }
     setForgotLoading(true)
     try {
       await requestPasswordReset(forgotEmail)
@@ -203,12 +211,15 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                           {/* layoutId highlight animates between inputs on focus change */}
                           <div className="login3-input-wrap" style={{ overflow: 'hidden' }}>
                             <Mail size={16} className="login3-input-icon" aria-hidden="true" />
+                            {/* type="text" (not "email"): a native type="email" input silently
+                                strips leading/trailing whitespace from its own value, which would
+                                make the whitespace check in handleSubmit unreachable. */}
                             <input
                               id="email"
-                              type="email"
+                              type="text"
                               inputMode="email"
                               autoComplete="email"
-                              placeholder="you@nforceone.com"
+                              placeholder="you@kedsicecream.com"
                               className="login3-input"
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
@@ -411,9 +422,10 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                             </span>
                             <div className="login3-input-wrap">
                               <Mail size={16} className="login3-input-icon" aria-hidden="true" />
+                              {/* type="text": see the sign-in email field for why not "email". */}
                               <input
                                 id="forgot-email"
-                                type="email"
+                                type="text"
                                 inputMode="email"
                                 autoComplete="email"
                                 placeholder="you@nforceone.com"
