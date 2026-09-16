@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, Users, Tags, Percent } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronRight, ListChecks, Users, Tags } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getChecklistHistoryDetail, getChecklistHistorySummary } from '../api/checklistHistory';
 import { getIssues } from '../api/issues';
@@ -186,15 +186,31 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
   }, [stores]);
 
   const storeName = stores[0]?.name ?? null;
-  const todayCompletion = useMemo(() => {
-    const totals = sumTasks(todayRows);
-    return completionPercent(totals.totalTasks, totals.completedTasks);
-  }, [todayRows]);
+  const todayTotals = useMemo(() => sumTasks(todayRows), [todayRows]);
+  const todayCompletion = useMemo(
+    () => completionPercent(todayTotals.totalTasks, todayTotals.completedTasks),
+    [todayTotals],
+  );
 
   const storeToday = useMemo(() => todayRows[0] ?? null, [todayRows]);
   const storeTodayCompletion = storeToday
     ? completionPercent(storeToday.totalTasks, storeToday.completedTasks)
     : todayCompletion;
+
+  // Worst-first: the category most in need of attention leads the list,
+  // mirroring how the trend/donut cards already frame "today" as a health
+  // check rather than a neutral tally.
+  const categoryHealth = useMemo(
+    () =>
+      categoryBreakdown
+        .map((category) => ({
+          id: category.id,
+          name: category.name,
+          percent: completionPercent(category.total, category.completed),
+        }))
+        .sort((a, b) => a.percent - b.percent),
+    [categoryBreakdown],
+  );
 
   const completionDonutData = useMemo(
     () => [
@@ -225,7 +241,12 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       <div className="stat-card-row">
         <StatCard icon={Users} label="Total Employees" value={employees.length} tone="info" />
         <StatCard icon={Tags} label="Categories" value={categories.length} tone="info" />
-        <StatCard icon={Percent} label="Today's Completion" value={`${todayCompletion}%`} tone="warning" />
+        <StatCard
+          icon={ListChecks}
+          label="Today's Completion"
+          value={`${todayTotals.completedTasks}/${todayTotals.totalTasks}`}
+          tone="warning"
+        />
         {issuesLoading ? (
           <StatCard icon={AlertTriangle} label="Open Issues" value="—" tone="info" />
         ) : (
@@ -266,6 +287,27 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
               <Bar dataKey="total" name="Total" fill="var(--color-border)" radius={[6, 6, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+        </ChartCard>
+
+        <ChartCard title="Category Health" subtitle="Completion rate by category, today">
+          <div className="home-page__category-health">
+            {categoryHealth.map((category) => (
+              <div key={category.id} className="home-page__category-health-row">
+                <span className="home-page__category-health-name">{category.name}</span>
+                <div className="home-page__category-health-bar-track">
+                  <div
+                    className="home-page__category-health-bar-fill"
+                    style={{ width: `${category.percent}%` }}
+                    data-tier={category.percent >= 90 ? 'good' : category.percent >= 70 ? 'watch' : 'risk'}
+                  />
+                </div>
+                <span className="home-page__category-health-percent">{category.percent}%</span>
+              </div>
+            ))}
+            {categoryHealth.length === 0 && (
+              <p className="home-page__category-health-empty">No categories scheduled today.</p>
+            )}
+          </div>
         </ChartCard>
 
         <ChartCard title="Today's Completion" subtitle="Share of tasks completed on time, today">
