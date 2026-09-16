@@ -42,6 +42,11 @@ public class PasswordResetService {
 
     @Transactional
     public void requestReset(String email) {
+        // An email with leading/trailing whitespace must not be treated as the
+        // trimmed email -- reject silently, same as the "user not found" case
+        // below, so the response never reveals which reason caused the no-op.
+        if (!email.equals(email.strip())) return;
+
         String normalised = email.strip().toLowerCase();
 
         // Silent no-op if user not found — identical response prevents email enumeration.
