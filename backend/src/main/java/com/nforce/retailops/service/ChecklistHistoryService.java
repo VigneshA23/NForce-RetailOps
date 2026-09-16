@@ -222,7 +222,7 @@ public class ChecklistHistoryService {
         // eligibility needs to be re-evaluated below, in memory.
         List<Task> candidateTasks = storeIds.isEmpty()
             ? List.of()
-            : taskRepository.findActiveForStoresAndDateRange(ownerId, storeIds, resolvedStart, resolvedEnd);
+            : taskRepository.findForStoresAndDateRange(ownerId, storeIds, resolvedStart, resolvedEnd);
         Map<Long, Task> candidateTasksById = candidateTasks.stream()
             .collect(Collectors.toMap(Task::getId, task -> task, (a, b) -> a));
 
@@ -323,7 +323,7 @@ public class ChecklistHistoryService {
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         Store store = storeOwner.getStore();
 
-        List<Task> eligibleTasks = taskRepository.findActiveForStoreAndDate(ownerId, storeId, date).stream()
+        List<Task> eligibleTasks = taskRepository.findForStoreAndDate(ownerId, storeId, date).stream()
             .filter(task -> TaskScheduleMatcher.matches(task, date))
             .toList();
 

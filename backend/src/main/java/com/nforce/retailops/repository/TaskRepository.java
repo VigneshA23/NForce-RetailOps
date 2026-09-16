@@ -104,15 +104,17 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("ownerIds") Collection<Long> ownerIds
     );
 
-    // Candidates for an employee's checklist at a given store and date: active tasks
-    // (with an active category) belonging to the store's owner, scoped to the store
-    // either via applies_to_all_stores or a specific task_stores entry, and within the
-    // task's active date range. Day-of-week/schedule-type matching is done in the
-    // service layer since it isn't a plain column comparison.
-    // join fetch t.category: every caller (today's checklist, both history detail
-    // services) reads task.getCategory().getName()/getDisplayOrder() while building
-    // its response, so fetch it up front instead of one lazy-load query per
-    // distinct category.
+    // Candidates for an employee's live "today" checklist at a given store and date:
+    // active tasks (with an active category) belonging to the store's owner, scoped to
+    // the store either via applies_to_all_stores or a specific task_stores entry, and
+    // within the task's active date range. Day-of-week/schedule-type matching is done
+    // in the service layer since it isn't a plain column comparison. Only used by
+    // TaskService.getTodayChecklistForEmployee -- the Owner/Admin & Super Admin
+    // checklist views use findForStoreAndDate/findForStoresAndDateRange below, which
+    // deliberately do NOT filter on active status.
+    // join fetch t.category: every caller reads task.getCategory().getName()/
+    // getDisplayOrder() while building its response, so fetch it up front instead of
+    // one lazy-load query per distinct category.
     @org.springframework.data.jpa.repository.Query(
         "select t from Task t join fetch t.category where t.owner.id = :ownerId and t.active = true and t.category.active = true "
             + "and (t.appliesToAllStores = true or :storeId in (select s.id from t.stores s)) "
@@ -138,6 +140,40 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
             + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"
     )
     List<Task> findActiveForStoresAndDateRange(
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId,
+        @org.springframework.data.repository.query.Param("storeIds") Collection<Long> storeIds,
+        @org.springframework.data.repository.query.Param("startDate") LocalDate startDate,
+        @org.springframework.data.repository.query.Param("endDate") LocalDate endDate
+    );
+
+    // Candidates for the Owner/Admin & Super Admin Daily Checklist view at a given
+    // store and date: same store-scoping and date-range rules as
+    // findActiveForStoreAndDate, but deliberately omits the "t.active = true and
+    // t.category.active = true" filter -- these views must show every Task belonging
+    // to the store regardless of whether the Task or its Category has since been
+    // deactivated.
+    @org.springframework.data.jpa.repository.Query(
+        "select t from Task t join fetch t.category where t.owner.id = :ownerId "
+            + "and (t.appliesToAllStores = true or :storeId in (select s.id from t.stores s)) "
+            + "and t.startDate <= :date and (t.endDate is null or t.endDate >= :date) "
+            + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"
+    )
+    List<Task> findForStoreAndDate(
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId,
+        @org.springframework.data.repository.query.Param("storeId") Long storeId,
+        @org.springframework.data.repository.query.Param("date") LocalDate date
+    );
+
+    // Multi-store range-overlap variant of findForStoreAndDate, for the admin/super
+    // admin checklist-history summary and operations report views -- same active-
+    // status-agnostic rule as findForStoreAndDate applies here too.
+    @org.springframework.data.jpa.repository.Query(
+        "select t from Task t join fetch t.category where t.owner.id = :ownerId "
+            + "and (t.appliesToAllStores = true or exists (select s.id from t.stores s where s.id in :storeIds)) "
+            + "and t.startDate <= :endDate and (t.endDate is null or t.endDate >= :startDate) "
+            + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"
+    )
+    List<Task> findForStoresAndDateRange(
         @org.springframework.data.repository.query.Param("ownerId") Long ownerId,
         @org.springframework.data.repository.query.Param("storeIds") Collection<Long> storeIds,
         @org.springframework.data.repository.query.Param("startDate") LocalDate startDate,
