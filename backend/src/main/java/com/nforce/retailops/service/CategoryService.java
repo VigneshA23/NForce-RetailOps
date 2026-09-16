@@ -66,7 +66,7 @@ public class CategoryService {
     public List<CategoryResponse> listCategories(Long ownerId) {
         Set<Long> ownedStoreIds = ownerStoreIds(ownerId);
         List<Category> visible = categoryRepository.findVisibleToOwner(ownerId, sentinel(ownedStoreIds));
-        return toResponses(visible);
+        return toResponses(visible, ownerId);
     }
 
     // Reorders the full set of categories visible to this owner (the same
@@ -103,7 +103,7 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> listCategoriesForSuperAdmin() {
-        return toResponses(categoryRepository.findAllByOrderByNameAsc());
+        return toResponses(categoryRepository.findAllByOrderByNameAsc(), null);
     }
 
     @Transactional
@@ -191,13 +191,20 @@ public class CategoryService {
         return CategoryResponse.from(category, taskRepository.countByCategoryId(category.getId()), stores);
     }
 
-    private List<CategoryResponse> toResponses(List<Category> categories) {
+    // ownerId non-null: Owner Admin view -- task counts are scoped to that
+    // owner's own tasks only, since a shared category's tasks can belong to
+    // other owners entirely. ownerId null: Super Admin view -- global counts
+    // across every owner, for a platform-wide picture of the category.
+    private List<CategoryResponse> toResponses(List<Category> categories, Long ownerId) {
         if (categories.isEmpty()) {
             return List.of();
         }
         List<Long> ids = categories.stream().map(Category::getId).toList();
 
-        Map<Long, Integer> taskCounts = taskRepository.countGroupedByCategoryIds(ids).stream()
+        List<Object[]> countRows = ownerId != null
+            ? taskRepository.countGroupedByCategoryIdsForOwner(ids, ownerId)
+            : taskRepository.countGroupedByCategoryIds(ids);
+        Map<Long, Integer> taskCounts = countRows.stream()
             .collect(Collectors.toMap(row -> (Long) row[0], row -> ((Number) row[1]).intValue()));
 
         Map<Long, List<StoreOptionResponse>> storesByCategoryId = new LinkedHashMap<>();

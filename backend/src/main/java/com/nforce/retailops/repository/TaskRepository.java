@@ -58,12 +58,31 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     long countByStoreId(Long storeId);
 
     // Batched form of countByCategoryId, for listing many categories at once
-    // without one count query per category.
+    // without one count query per category. Global count across every owner --
+    // correct for Super Admin's platform-wide category list, but NOT for an
+    // Owner Admin's (see countGroupedByCategoryIdsForOwner below): a shared
+    // category can have tasks belonging to other owners entirely.
     @org.springframework.data.jpa.repository.Query(
         "select t.category.id, count(t) from Task t where t.category.id in :categoryIds group by t.category.id"
     )
     List<Object[]> countGroupedByCategoryIds(
         @org.springframework.data.repository.query.Param("categoryIds") Collection<Long> categoryIds
+    );
+
+    // Owner-scoped form of the above: a Category can now be shared across many
+    // owners' stores (Super-Admin "All Stores"/multi-store categories), but a
+    // Task always belongs to exactly one owner -- so an Owner Admin's category
+    // list must count only their own tasks under each category, not every
+    // owner's. Without this, a category assigned to store A but whose tasks
+    // were created by store B's owner would show a task count that includes
+    // tasks store A's admin can never actually see on their checklist.
+    @org.springframework.data.jpa.repository.Query(
+        "select t.category.id, count(t) from Task t "
+            + "where t.category.id in :categoryIds and t.owner.id = :ownerId group by t.category.id"
+    )
+    List<Object[]> countGroupedByCategoryIdsForOwner(
+        @org.springframework.data.repository.query.Param("categoryIds") Collection<Long> categoryIds,
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId
     );
 
     // Batched form of countByStoreId, for listing many stores at once without
