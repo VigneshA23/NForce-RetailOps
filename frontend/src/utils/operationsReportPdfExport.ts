@@ -71,7 +71,7 @@ export async function buildAndDownloadOperationsReportPdf(params: OperationsRepo
   // guaranteed the same length/order autoTable iterates.
   const rowStatuses = details.map((row) => row.status);
   const body = details.map((row) => {
-    const { changeLines, typeLines } = buildResponseHistoryLines(row.correctionHistory, row.responseType, row.numericUnit, '->');
+    const { changeLines, typeLines } = buildResponseHistoryLines(row.correctionHistory, row.responseType, row.numericUnit);
     return [
       row.storeName,
       formatDDMMYYYY(row.date),
@@ -100,7 +100,7 @@ export async function buildAndDownloadOperationsReportPdf(params: OperationsRepo
     headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
     columnStyles: {
       3: { cellWidth: 30 }, // Task
-      8: { cellWidth: 32 }, // Response History -- needs room for "8 → 9" style lines
+      8: { cellWidth: 32 }, // Response History -- each line is one prior value
       9: { cellWidth: 28 }, // Change Type
     },
     didParseCell: (data) => {
