@@ -11,7 +11,6 @@ import Tasks from '../pages/Tasks';
 import AdminIssues from '../pages/AdminIssues';
 import StoreInventory from '../pages/StoreInventory';
 import OrderDashboard from '../pages/OrderDashboard';
-import History from '../pages/History';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 import Settings from '../pages/Settings';
@@ -87,7 +86,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
     else if (group === 'employees') setActiveTab('employees');
   }
 
-  const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders', 'history'];
+  const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders'];
 
   function renderTab(tab: NavTabKey) {
     switch (tab) {
@@ -145,8 +144,6 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
         return <StoreInventory />;
       case 'orders':
         return <OrderDashboard storeName={storesState.stores[0]?.name} />;
-      case 'history':
-        return <History storeId={storesState.stores[0]?.id ?? null} />;
     }
   }
 
