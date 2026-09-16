@@ -4,16 +4,20 @@ import './ChartCard.css';
 interface ChartCardProps {
   title: string;
   subtitle?: string;
+  headerRight?: ReactNode;
   height?: number;
   children: ReactNode;
 }
 
-function ChartCard({ title, subtitle, height = 260, children }: ChartCardProps) {
+function ChartCard({ title, subtitle, headerRight, height = 260, children }: ChartCardProps) {
   return (
     <div className="card chart-card">
       <div className="chart-card__header">
-        <h3 className="chart-card__title">{title}</h3>
-        {subtitle && <p className="chart-card__subtitle">{subtitle}</p>}
+        <div>
+          <h3 className="chart-card__title">{title}</h3>
+          {subtitle && <p className="chart-card__subtitle">{subtitle}</p>}
+        </div>
+        {headerRight}
       </div>
       <div className="chart-card__body" style={{ height }}>
         {children}
