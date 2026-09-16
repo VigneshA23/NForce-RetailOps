@@ -306,6 +306,22 @@ public class TaskService {
             }
         }
 
+        // Neither branch above found an active response to chain from (there wasn't
+        // one for this employee this round) -- but Undo itself never links forward
+        // (it only deactivates), so without this fallback, an undo-then-resubmit cycle
+        // would silently drop the undone response from history: it's this employee's
+        // own most recent row for this task/day, so if it exists and is inactive, it
+        // was undone (not superseded already, or activeResponses above would have
+        // found and superseded it instead).
+        if (supersededResponseId == null) {
+            supersededResponseId = taskResponseEntryRepository
+                .findFirstByTaskIdAndStoreIdAndResponseDateAndEmployeeIdOrderByCreatedAtDesc(
+                    taskId, request.storeId(), today, employeeUserId)
+                .filter(prior -> !prior.isActive())
+                .map(TaskResponseEntry::getId)
+                .orElse(null);
+        }
+
         TaskResponseEntry entry = new TaskResponseEntry();
         entry.setTask(task);
         entry.setStore(storeRepository.getReferenceById(request.storeId()));
@@ -314,7 +330,7 @@ public class TaskService {
         entry.setResponseType(task.getResponseType());
         entry.setCompletionType(task.getCompletionType());
         entry.setSupersededResponseId(supersededResponseId);
-        applyValue(entry, task.getResponseType(), request);
+        applyValue(entry, task, request);
 
         // The above pre-check is only a fast path (avoids a DB round trip for the common
         // case) -- it can't stop two concurrent submits from both passing it before either
@@ -389,8 +405,11 @@ public class TaskService {
         return task;
     }
 
-    private void applyValue(TaskResponseEntry entry, ResponseType responseType, TaskResponseSubmitRequest request) {
-        switch (responseType) {
+    // Same response-type rules AdminCorrectionService.correctResponse enforces on an
+    // admin's edit -- numericMin/numericMax and textMaxLength must be validated
+    // wherever a response value is written, not only when an admin corrects it.
+    private void applyValue(TaskResponseEntry entry, Task task, TaskResponseSubmitRequest request) {
+        switch (task.getResponseType()) {
             case YES_NO, DONE_NOT_DONE -> {
                 if (request.booleanValue() == null) {
                     throw new InvalidTaskResponseException("A Yes/No response is required");
@@ -401,11 +420,23 @@ public class TaskService {
                 if (request.numericValue() == null) {
                     throw new InvalidTaskResponseException("A numeric response is required");
                 }
+                Double min = task.getNumericMin();
+                Double max = task.getNumericMax();
+                if (min != null && request.numericValue() < min) {
+                    throw new InvalidTaskResponseException("Value must be at least " + min);
+                }
+                if (max != null && request.numericValue() > max) {
+                    throw new InvalidTaskResponseException("Value must be at most " + max);
+                }
                 entry.setValueNumeric(request.numericValue());
             }
             case TEXT -> {
                 if (request.textValue() == null) {
                     throw new InvalidTaskResponseException("A text response is required");
+                }
+                Integer maxLen = task.getTextMaxLength();
+                if (maxLen != null && request.textValue().length() > maxLen) {
+                    throw new InvalidTaskResponseException("Text must be " + maxLen + " characters or fewer");
                 }
                 entry.setValueText(request.textValue());
             }

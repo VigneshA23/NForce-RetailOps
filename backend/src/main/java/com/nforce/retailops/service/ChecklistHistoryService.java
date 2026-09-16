@@ -6,6 +6,7 @@ import com.nforce.retailops.dto.ChecklistHistoryOperationsReportResponse;
 import com.nforce.retailops.dto.ChecklistHistorySummaryRow;
 import com.nforce.retailops.dto.ChecklistHistoryTaskDetailRow;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
+import com.nforce.retailops.dto.HistoryIssueResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
 import com.nforce.retailops.dto.ResponseHistoryEntry;
@@ -19,6 +20,7 @@ import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.AdminCorrectionRepository;
+import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.TaskRepository;
@@ -59,19 +61,22 @@ public class ChecklistHistoryService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final AdminCorrectionRepository adminCorrectionRepository;
+    private final RaisedIssueRepository raisedIssueRepository;
 
     public ChecklistHistoryService(
         TaskRepository taskRepository,
         TaskResponseEntryRepository taskResponseEntryRepository,
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
-        AdminCorrectionRepository adminCorrectionRepository
+        AdminCorrectionRepository adminCorrectionRepository,
+        RaisedIssueRepository raisedIssueRepository
     ) {
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.adminCorrectionRepository = adminCorrectionRepository;
+        this.raisedIssueRepository = raisedIssueRepository;
     }
 
     @Transactional(readOnly = true)
@@ -79,6 +84,59 @@ public class ChecklistHistoryService {
         Long ownerId, List<Long> requestedStoreIds, LocalDate startDate, LocalDate endDate
     ) {
         List<StoreDayContext> contexts = buildStoreDayContexts(ownerId, requestedStoreIds, startDate, endDate);
+
+        List<ChecklistHistorySummaryRow> rows = contexts.stream().map(this::toSummaryRow).collect(Collectors.toList());
+        rows.sort(Comparator.comparing(ChecklistHistorySummaryRow::storeName)
+            .thenComparing(ChecklistHistorySummaryRow::date));
+        return rows;
+    }
+
+    // Super Admin equivalent of getSummary: no "own stores" to fall back on, so an
+    // empty storeIds means literally every store with an active owner on the
+    // platform. buildStoreDayContexts's task lookup is owner-scoped (Task.owner), so
+    // requested stores are grouped by their owning owner and resolved one owner-batch
+    // at a time -- the same per-store owner lookup getDetailForSuperAdmin/
+    // getOperationsReportForSuperAdmin already do, just generalized to many stores
+    // across possibly many owners at once instead of a single store.
+    @Transactional(readOnly = true)
+    public List<ChecklistHistorySummaryRow> getSummaryForSuperAdmin(
+        List<Long> requestedStoreIds, LocalDate startDate, LocalDate endDate
+    ) {
+        LocalDate resolvedStart = startDate != null ? startDate : LocalDate.now();
+        LocalDate resolvedEnd = endDate != null ? endDate : LocalDate.now();
+        validateRange(resolvedStart, resolvedEnd);
+
+        List<StoreOwner> activeOwnedStores = storeOwnerRepository.findAllWithStoreAndOwner().stream()
+            .filter(StoreOwner::isActive)
+            .filter(so -> so.getOwner() != null)
+            .toList();
+
+        List<StoreOwner> selected;
+        if (requestedStoreIds == null || requestedStoreIds.isEmpty()) {
+            selected = activeOwnedStores;
+        } else {
+            if (requestedStoreIds.size() > MAX_STORE_SELECTION) {
+                throw new InvalidStoreSelectionException("Select at most " + MAX_STORE_SELECTION + " stores");
+            }
+            Set<Long> requested = Set.copyOf(requestedStoreIds);
+            selected = activeOwnedStores.stream()
+                .filter(so -> requested.contains(so.getStore().getId()))
+                .toList();
+            if (selected.size() != requested.size()) {
+                throw new InvalidStoreSelectionException("One or more selected stores could not be found");
+            }
+        }
+
+        Map<Long, List<Long>> storeIdsByOwnerId = selected.stream()
+            .collect(Collectors.groupingBy(
+                so -> so.getOwner().getId(),
+                Collectors.mapping(so -> so.getStore().getId(), Collectors.toList())
+            ));
+
+        List<StoreDayContext> contexts = new ArrayList<>();
+        for (Map.Entry<Long, List<Long>> group : storeIdsByOwnerId.entrySet()) {
+            contexts.addAll(buildStoreDayContexts(group.getKey(), group.getValue(), resolvedStart, resolvedEnd));
+        }
 
         List<ChecklistHistorySummaryRow> rows = contexts.stream().map(this::toSummaryRow).collect(Collectors.toList());
         rows.sort(Comparator.comparing(ChecklistHistorySummaryRow::storeName)
@@ -381,7 +439,12 @@ public class ChecklistHistoryService {
             ))
             .toList();
 
-        return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories, List.of());
+        List<HistoryIssueResponse> issues = raisedIssueRepository
+            .findByStoreIdAndRaisedDateOrderByCreatedAtDesc(storeId, date).stream()
+            .map(HistoryIssueResponse::from)
+            .toList();
+
+        return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories, issues);
     }
 
     // Walks a response's supersededResponseId chain back to its origin, pairing each
@@ -465,6 +528,61 @@ public class ChecklistHistoryService {
             result.put(entry.getId(), chain);
         }
         return result;
+    }
+
+    // Full correction/resubmission audit trail for one response, walking the entire
+    // supersededResponseId chain (this response, then each one it replaced, oldest
+    // last) so a correction/flag logged against an earlier link -- before a
+    // flag->resubmit or a MULTIPLE-task resubmission -- doesn't disappear once that
+    // row is superseded. Shared by AdminCorrectionService (owner/admin) and
+    // MeHistoryService (employee) so both surfaces return the identical trail; only
+    // the caller-side authorization differs.
+    static List<AdminCorrectionEntry> buildCorrectionHistory(
+        TaskResponseEntry entry,
+        TaskResponseEntryRepository taskResponseEntryRepository,
+        AdminCorrectionRepository adminCorrectionRepository
+    ) {
+        List<TaskResponseEntry> chain = new ArrayList<>();
+        chain.add(entry);
+        TaskResponseEntry current = entry;
+        while (current.getSupersededResponseId() != null) {
+            TaskResponseEntry prior = taskResponseEntryRepository.findById(current.getSupersededResponseId())
+                .orElse(null);
+            if (prior == null) {
+                break;
+            }
+            chain.add(prior);
+            current = prior;
+        }
+
+        List<Long> chainIds = chain.stream().map(TaskResponseEntry::getId).toList();
+        List<AdminCorrectionEntry> combined = new ArrayList<>(
+            adminCorrectionRepository.findByTaskResponseIdIn(chainIds).stream()
+                .map(ChecklistHistoryService::toCorrectionEntry)
+                .toList()
+        );
+
+        // One synthesized entry per hop: the employee's own act of resubmitting a new
+        // answer that replaced the previous one. Distinct from a DIRECT admin edit or a
+        // FLAG_TO_EMPLOYEE action (both already captured above from admin_corrections),
+        // so "all changes" -- not just admin-made ones -- show up in one merged history.
+        for (int i = 0; i < chain.size() - 1; i++) {
+            TaskResponseEntry newer = chain.get(i);
+            TaskResponseEntry older = chain.get(i + 1);
+            combined.add(new AdminCorrectionEntry(
+                null,
+                older.getValueBoolean(), older.getValueNumeric(), older.getValueText(),
+                newer.getValueBoolean(), newer.getValueNumeric(), newer.getValueText(),
+                newer.getEmployee().getFullName(),
+                newer.getCreatedAt(),
+                null,
+                "RESUBMISSION"
+            ));
+        }
+
+        return combined.stream()
+            .sorted(Comparator.comparing(AdminCorrectionEntry::correctedAt).reversed())
+            .toList();
     }
 
     static AdminCorrectionEntry toCorrectionEntry(AdminCorrection c) {

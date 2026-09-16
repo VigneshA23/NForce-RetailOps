@@ -112,10 +112,25 @@ export interface ChecklistHistoryCategory {
   tasks: ChecklistHistoryTaskItem[];
 }
 
+// Mirrors the backend's HistoryIssueResponse -- the same DTO shape the
+// employee-facing /me/history/detail endpoint already returns (see
+// types/history.ts's RawIssue), now also populated on this owner-facing
+// endpoint's `issues` field.
+export interface ChecklistHistoryIssue {
+  id: number;
+  note: string;
+  status: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
+  responseText: string | null;
+  respondedByName: string | null;
+  respondedAt: string | null;
+  createdAt: string;
+}
+
 export interface ChecklistHistoryDetail {
   storeId: number;
   storeName: string;
   date: string;
   hasChecklist: boolean;
   categories: ChecklistHistoryCategory[];
+  issues: ChecklistHistoryIssue[];
 }

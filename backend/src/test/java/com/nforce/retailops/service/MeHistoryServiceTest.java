@@ -639,6 +639,36 @@ class MeHistoryServiceTest {
         assertThat(originalRow.getValueBoolean()).isFalse();
     }
 
+    // 8b. Undo -> resubmit end-to-end: an employee who undoes their own answer and
+    // submits a different one must still see the undone value in their own History,
+    // the same way a flag->resubmit cycle already does -- Undo itself never links
+    // forward (TaskService.undoResponse only deactivates), so submitResponse must
+    // pick up the chain via the employee's own most recent row for this task/day.
+    @Test
+    @Transactional
+    void historyResubmissionChainSurvivesAnEmployeesOwnUndoThenResubmit() {
+        Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
+        task.setCompletionType(CompletionType.MULTIPLE);
+        taskRepository.save(task);
+        LocalDate today = LocalDate.now();
+
+        TaskResponseStateResponse firstSubmit =
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+        Long firstResponseId = firstSubmit.responses().get(0).id();
+
+        taskService.undoResponse(employeeId, task.getId(), storeId, firstResponseId);
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+
+        ChecklistHistoryDetailResponse history = meHistoryService.getDetail(employeeId, storeId, today);
+        HistoryTaskItemResponse item = history.categories().get(0).tasks().get(0);
+        HistoryResponseEntryResponse current = item.responses().get(0);
+
+        assertThat(current.booleanValue()).isTrue();
+        assertThat(current.resubmissionHistory()).hasSize(1);
+        assertThat(current.resubmissionHistory().get(0).responseId()).isEqualTo(firstResponseId);
+        assertThat(current.resubmissionHistory().get(0).booleanValue()).isFalse();
+    }
+
     // 9. DIRECT correction end-to-end: when the owner edits a response's value in
     // place (as opposed to flagging it back), the employee's own History must show
     // the original value -> corrected value, the owner's comment, who corrected it,
@@ -675,5 +705,96 @@ class MeHistoryServiceTest {
         assertThat(correction.correctedByFullName()).isEqualTo("Test history-owner");
         assertThat(correction.correctedAt()).isNotNull();
         assertThat(correction.correctionType()).isEqualTo("DIRECT");
+    }
+
+    // 9b. DIAGNOSTIC: does getDetail's own embedded resubmissionHistory (what
+    // EmployeeHistory.tsx's completedByAll is actually built from) include every
+    // hop for a MULTIPLE-completion task the SAME employee submitted 3x, with no
+    // flag/correction involved at all -- pure self-resubmission chain?
+    @Test
+    @Transactional
+    void detailResubmissionHistoryIncludesPureSelfResubmissionHopsOnMultipleTask() {
+        Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
+        task.setCompletionType(CompletionType.MULTIPLE);
+        taskRepository.save(task);
+        LocalDate today = LocalDate.now();
+
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+
+        ChecklistHistoryDetailResponse detail = meHistoryService.getDetail(employeeId, storeId, today);
+        HistoryTaskItemResponse item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.responses()).hasSize(1);
+        assertThat(item.responses().get(0).resubmissionHistory()).hasSize(2);
+    }
+
+    // 10. getCorrectionHistory (the employee-facing "Correction History", added
+    // alongside the Owner/Admin one) must return EVERY correction, not just the
+    // latest -- this is the exact bug the employee-facing detail() above cannot
+    // catch, since it only ever surfaces latestCorrection. Two DIRECT corrections
+    // on the same still-active response must both appear here, newest first.
+    @Test
+    @Transactional
+    void getCorrectionHistoryReturnsEveryDirectCorrectionNotJustTheLatest() {
+        Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
+
+        TaskResponseStateResponse submitted =
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+        Long responseId = submitted.responses().get(0).id();
+
+        adminCorrectionService.correctResponse(
+            responseId, ownerId, null, new AdminCorrectionRequest(true, null, null, "First correction"));
+        adminCorrectionService.correctResponse(
+            responseId, ownerId, null, new AdminCorrectionRequest(false, null, null, "Second correction"));
+
+        List<AdminCorrectionEntry> history = meHistoryService.getCorrectionHistory(employeeId, responseId);
+
+        assertThat(history).hasSize(2);
+        assertThat(history.get(0).reason()).isEqualTo("Second correction");
+        assertThat(history.get(1).reason()).isEqualTo("First correction");
+    }
+
+    // 11. Same store-assignment guard as getDetail: an employee with no
+    // StoreEmployee link to the response's store is masked as "store not found",
+    // even though the response row itself exists.
+    @Test
+    @Transactional
+    void getCorrectionHistoryRejectsResponseFromStoreNotAssignedToEmployee() {
+        Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
+        TaskResponseStateResponse submitted =
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+        Long responseId = submitted.responses().get(0).id();
+
+        User unassignedEmployee = saveUser("history-corrections-unassigned");
+
+        assertThatThrownBy(() -> meHistoryService.getCorrectionHistory(unassignedEmployee.getId(), responseId))
+            .isInstanceOf(StoreNotFoundException.class);
+    }
+
+    // 12. Owner/Admin's "Correction History" (AdminCorrectionService.getCorrectionHistory,
+    // shares the same ChecklistHistoryService.buildCorrectionHistory chain-walk this class's
+    // getCorrectionHistory uses) must show every one of a SINGLE employee's same-day
+    // submissions on a MULTIPLE-completion task -- not just the pair an admin flag or
+    // correction happens to touch. Each self-resubmission (no flag/correction involved at
+    // all) still supersedes the prior response via the same chain, so it must still
+    // surface here as a synthesized RESUBMISSION entry.
+    @Test
+    @Transactional
+    void adminCorrectionHistoryShowsEverySameEmployeeResubmissionOnAMultipleCompletionTask() {
+        Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
+        task.setCompletionType(CompletionType.MULTIPLE);
+        taskRepository.save(task);
+
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+        TaskResponseStateResponse afterThird =
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+        Long latestResponseId = afterThird.responses().get(0).id();
+
+        List<AdminCorrectionEntry> history = adminCorrectionService.getCorrectionHistory(latestResponseId, ownerId);
+
+        assertThat(history).hasSize(2);
+        assertThat(history).allMatch(entry -> "RESUBMISSION".equals(entry.correctionType()));
     }
 }

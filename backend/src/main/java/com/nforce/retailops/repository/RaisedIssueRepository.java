@@ -27,6 +27,12 @@ public interface RaisedIssueRepository extends JpaRepository<RaisedIssue, Long> 
     @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser LEFT JOIN FETCH r.respondedByUser WHERE r.store.id = :storeId AND r.employeeUser.id = :employeeUserId AND r.raisedDate = :raisedDate ORDER BY r.createdAt DESC")
     List<RaisedIssue> findByStoreIdAndEmployeeIdAndRaisedDateOrderByCreatedAtDesc(@Param("storeId") Long storeId, @Param("employeeUserId") Long employeeUserId, @Param("raisedDate") java.time.LocalDate raisedDate);
 
+    // Store-wide (all employees) version of the above -- for the Owner/Admin
+    // and Super Admin checklist history detail view, which shows every issue
+    // raised that day, not just the calling employee's own.
+    @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser LEFT JOIN FETCH r.respondedByUser WHERE r.store.id = :storeId AND r.raisedDate = :raisedDate ORDER BY r.createdAt DESC")
+    List<RaisedIssue> findByStoreIdAndRaisedDateOrderByCreatedAtDesc(@Param("storeId") Long storeId, @Param("raisedDate") java.time.LocalDate raisedDate);
+
     @Query("SELECT r FROM RaisedIssue r JOIN FETCH r.employeeUser JOIN FETCH r.store LEFT JOIN FETCH r.respondedByUser ORDER BY r.createdAt DESC")
     List<RaisedIssue> findAllOrderByCreatedAtDesc();
 

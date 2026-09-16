@@ -18,8 +18,6 @@ import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -219,50 +217,7 @@ public class AdminCorrectionService {
                     "You can only view corrections for responses belonging to your own store"));
         }
 
-        // Walk the full supersededResponseId chain (this response, then each one it
-        // replaced, oldest last) so admin corrections/flags logged against an earlier
-        // link -- before a flag->resubmit or a MULTIPLE-task resubmission -- don't
-        // disappear once that row is superseded.
-        List<TaskResponseEntry> chain = new ArrayList<>();
-        chain.add(entry);
-        TaskResponseEntry current = entry;
-        while (current.getSupersededResponseId() != null) {
-            TaskResponseEntry prior = taskResponseEntryRepository.findById(current.getSupersededResponseId())
-                .orElse(null);
-            if (prior == null) {
-                break;
-            }
-            chain.add(prior);
-            current = prior;
-        }
-
-        List<Long> chainIds = chain.stream().map(TaskResponseEntry::getId).toList();
-        List<AdminCorrectionEntry> combined = new ArrayList<>(
-            adminCorrectionRepository.findByTaskResponseIdIn(chainIds).stream()
-                .map(ChecklistHistoryService::toCorrectionEntry)
-                .toList()
-        );
-
-        // One synthesized entry per hop: the employee's own act of resubmitting a new
-        // answer that replaced the previous one. Distinct from a DIRECT admin edit or a
-        // FLAG_TO_EMPLOYEE action (both already captured above from admin_corrections),
-        // so "all changes" -- not just admin-made ones -- show up in one merged history.
-        for (int i = 0; i < chain.size() - 1; i++) {
-            TaskResponseEntry newer = chain.get(i);
-            TaskResponseEntry older = chain.get(i + 1);
-            combined.add(new AdminCorrectionEntry(
-                null,
-                older.getValueBoolean(), older.getValueNumeric(), older.getValueText(),
-                newer.getValueBoolean(), newer.getValueNumeric(), newer.getValueText(),
-                newer.getEmployee().getFullName(),
-                newer.getCreatedAt(),
-                null,
-                "RESUBMISSION"
-            ));
-        }
-
-        return combined.stream()
-            .sorted(Comparator.comparing(AdminCorrectionEntry::correctedAt).reversed())
-            .toList();
+        return ChecklistHistoryService.buildCorrectionHistory(
+            entry, taskResponseEntryRepository, adminCorrectionRepository);
     }
 }

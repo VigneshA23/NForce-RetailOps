@@ -7,6 +7,7 @@ import type { StoreSummary } from '../types/store'
 
 vi.mock('../api/history', () => ({
   getShiftHistory: vi.fn(),
+  getCorrectionHistory: vi.fn(),
 }))
 
 const mockGetShiftHistory = vi.mocked(historyApi.getShiftHistory)
@@ -101,6 +102,8 @@ describe('EmployeeHistory task responder list', () => {
           tasks: [
             {
               id: 100,
+              responseId: 500,
+              responseType: 'YES_NO',
               name: 'Wipe counters',
               status: 'YES',
               responseValue: 'Yes',
@@ -139,6 +142,8 @@ describe('EmployeeHistory task responder list', () => {
           tasks: [
             {
               id: 100,
+              responseId: 501,
+              responseType: 'YES_NO',
               name: 'Unlock front door',
               status: 'YES',
               responseValue: 'Yes',
