@@ -208,7 +208,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                               type="email"
                               inputMode="email"
                               autoComplete="email"
-                              placeholder="you@nforceone.com"
+                              placeholder="you@kedsicecream.com"
                               className="login3-input"
                               value={email}
                               onChange={(e) => setEmail(e.target.value)}
