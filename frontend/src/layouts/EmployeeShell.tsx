@@ -146,7 +146,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       {overlay === 'profile'
         ? <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
         : overlay === 'help'
-        ? <Help />
+        ? <Help role={user.role} />
         : overlay === 'settings'
         ? <Settings />
         : overlay === 'notifications'

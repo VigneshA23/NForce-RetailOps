@@ -312,6 +312,41 @@ class AdminCorrectionControllerTest {
 
     @Test
     @Transactional
+    void correctionWithoutReasonIsRejected() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("corr-owner-noreason@nforce.test", ownerRole);
+        User employee = user("corr-emp-noreason@nforce.test", empRole);
+        Store store = store("Corr Store NoReason");
+        linkOwnerToStore(owner, store);
+        Category cat = category(owner);
+        Task task = booleanTask(owner, cat);
+        storeEmployee(employee, store);
+        TaskResponseEntry response = booleanResponse(task, store, employee, false);
+
+        String token = login("corr-owner-noreason@nforce.test");
+
+        // Missing reason (null)
+        mockMvc.perform(patch("/api/checklist-history/responses/{id}/correct", response.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new AdminCorrectionRequest(true, null, null, null))))
+            .andExpect(status().isBadRequest());
+
+        // Blank/whitespace-only reason
+        mockMvc.perform(patch("/api/checklist-history/responses/{id}/correct", response.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new AdminCorrectionRequest(true, null, null, "   "))))
+            .andExpect(status().isBadRequest());
+
+        // Response was never mutated by either rejected attempt — original value still stands.
+        TaskResponseEntry unchanged = taskResponseEntryRepository.findById(response.getId()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(false, unchanged.getValueBoolean());
+    }
+
+    @Test
+    @Transactional
     void ownerCannotCorrectResponseBelongingToDifferentStore() throws Exception {
         Role ownerRole = role("OWNER_ADMIN");
         Role empRole = role("EMPLOYEE");
