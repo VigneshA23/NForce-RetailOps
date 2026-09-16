@@ -232,12 +232,16 @@ function CorrectionModal({ isOpen, onClose, responseEntry, task, onSaved }: Corr
                     {entry.correctedByFullName} · {formatDateLabel(entry.correctedAt.slice(0, 10))} {formatTimeLabel(entry.correctedAt)}
                   </span>
                   <span className="correction-modal__history-change">
+                    <span className="correction-modal__history-field-label">Corrected Value: </span>
                     {correctionValueLabel(entry, task, 'original')}
                     {' → '}
                     {correctionValueLabel(entry, task, 'corrected')}
                   </span>
                   {entry.reason && (
-                    <span className="correction-modal__history-reason">"{entry.reason}"</span>
+                    <span className="correction-modal__history-reason">
+                      <span className="correction-modal__history-field-label">Reason: </span>
+                      "{entry.reason}"
+                    </span>
                   )}
                 </li>
               ))}
