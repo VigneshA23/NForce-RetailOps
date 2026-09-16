@@ -8,6 +8,11 @@ spring:
     password: ${DATABASE_PASSWORD:postgres}
     hikari:
       maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      # On Lambda set DB_POOL_MIN_IDLE=1 — Lambda containers handle one request
+      # at a time; a pool minimum of 1 releases idle connections quickly between
+      # invocations rather than holding open connections that age out on RDS.
+      # Railway default (unset) keeps Hikari's default minimum-idle behaviour.
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
       # Neon drops idle server-side connections faster than Hikari's untuned
       # defaults expect; without a keepalive, a dead pooled connection is only
       # discovered when a request tries to use it (an uncaught SQLException).
@@ -22,6 +27,20 @@ spring:
     properties:
       hibernate:
         default_batch_fetch_size: 25
+
+app:
+  # Controls whether Spring's @Scheduled infrastructure is activated.
+  # Default: true — Railway and local dev work exactly as today.
+  # Set APP_SCHEDULING_ENABLED=false in Lambda's environment variables to disable
+  # in-process scheduling; EventBridge Scheduler calls /internal/jobs/** instead.
+  # Safety: if this code is merged without APP_SCHEDULING_ENABLED being set in
+  # Railway, scheduling continues uninterrupted — this flag only activates
+  # Lambda-specific behaviour when explicitly configured.
+  scheduling:
+    enabled: ${APP_SCHEDULING_ENABLED:true}
+  cors:
+    allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+  base-url: ${APP_BASE_URL:http://localhost:5173}
 
   flyway:
     enabled: true
@@ -41,11 +60,6 @@ session:
 resend:
   api-key: ${RESEND_API_KEY:}
   from-email: ${RESEND_FROM_EMAIL:RetailOps <onboarding@resend.dev>}
-
-app:
-  cors:
-    allowed-origins: ${FRONTEND_URL:http://localhost:5173}
-  base-url: ${APP_BASE_URL:http://localhost:5173}
 
 login:
   rate-limit:

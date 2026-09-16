@@ -98,6 +98,15 @@
       <version>${poi.version}</version>
     </dependency>
 
+    <!-- Lambda adapter: wraps existing DispatcherServlet behind a RequestStreamHandler;
+         no controller/service changes required. Only active when deployed to Lambda —
+         zero effect on Railway or local dev. -->
+    <dependency>
+      <groupId>com.amazonaws.serverless</groupId>
+      <artifactId>aws-serverless-java-container-springboot3</artifactId>
+      <version>2.0.3</version>
+    </dependency>
+
     <!-- Test -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -121,6 +130,59 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+
+      <!-- Produces a flat uber-JAR (classifier "lambda") alongside the standard
+           Spring Boot fat JAR. The flat layout is required because Lambda's Java
+           runtime ClassLoader cannot load Spring Boot's nested-JAR format.
+           mvn spring-boot:run and the standard fat JAR are completely unaffected:
+           shadedArtifactAttached=true attaches the lambda JAR as an additional
+           artifact without replacing or modifying the primary artifact. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.0</version>
+        <configuration>
+          <createDependencyReducedPom>false</createDependencyReducedPom>
+          <shadedArtifactAttached>true</shadedArtifactAttached>
+          <shadedClassifierName>lambda</shadedClassifierName>
+          <filters>
+            <filter>
+              <artifact>*:*</artifact>
+              <excludes>
+                <exclude>META-INF/*.SF</exclude>
+                <exclude>META-INF/*.DSA</exclude>
+                <exclude>META-INF/*.RSA</exclude>
+              </excludes>
+            </filter>
+          </filters>
+          <transformers>
+            <!-- ManifestResourceTransformer omitted intentionally: Lambda invokes
+                 LambdaHandler::handleRequest by class name — the JAR manifest's
+                 Main-Class is irrelevant. Omitting avoids a Plexus binding bug in
+                 shade 3.5.0 where mainClass is mis-associated with the next transformer. -->
+            <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+              <resource>META-INF/spring.handlers</resource>
+            </transformer>
+            <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+              <resource>META-INF/spring.schemas</resource>
+            </transformer>
+            <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+              <resource>META-INF/spring.factories</resource>
+            </transformer>
+            <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+              <resource>META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports</resource>
+            </transformer>
+            <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer">
+            </transformer>
+          </transformers>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
