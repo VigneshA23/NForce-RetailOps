@@ -26,7 +26,7 @@ interface NotificationBellProps {
   unreadCount: number;
   onCountChange: (count: number) => void;
   onViewAll: () => void;
-  onNavigate?: (path: string) => void;
+  onNavigate?: (path: string, createdAt?: string) => void;
 }
 
 function relativeTime(iso: string): string {
@@ -94,7 +94,7 @@ interface NotifItemProps {
   notification: Notification;
   onRead: (id: number) => void;
   onViewAll: () => void;
-  onNavigate?: (path: string) => void;
+  onNavigate?: (path: string, createdAt?: string) => void;
 }
 
 function NotifItem({ notification, onRead, onViewAll, onNavigate }: NotifItemProps) {
@@ -103,7 +103,7 @@ function NotifItem({ notification, onRead, onViewAll, onNavigate }: NotifItemPro
   function handleClick() {
     onRead(notification.id);
     if (notification.linkPath && onNavigate) {
-      onNavigate(notification.linkPath);
+      onNavigate(notification.linkPath, notification.createdAt);
     } else {
       onViewAll();
     }
@@ -186,9 +186,9 @@ function NotificationBell({ unreadCount, onCountChange, onViewAll, onNavigate }:
     onViewAll();
   }
 
-  function handleNavigate(path: string) {
+  function handleNavigate(path: string, createdAt?: string) {
     setOpen(false);
-    if (onNavigate) onNavigate(path);
+    if (onNavigate) onNavigate(path, createdAt);
   }
 
   return (

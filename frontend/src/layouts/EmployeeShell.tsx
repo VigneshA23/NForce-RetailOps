@@ -41,6 +41,11 @@ type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, employeeId = null }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const [overlay, setOverlay] = useState<Overlay>(null)
+  // Seeds History's initial date with the clicked notification's own
+  // createdAt, rather than History always defaulting to yesterday -- id
+  // makes each click a distinct seed even if the same notification (and
+  // therefore the same date) is opened twice in a row.
+  const [historyDateSeed, setHistoryDateSeed] = useState<{ createdAt: string; id: number } | undefined>(undefined)
   const [mountedTabs, setMountedTabs] = useState<Set<EmployeeNavTabKey>>(new Set(['today']))
   const prevTab = useRef<EmployeeNavTabKey>('today')
   useEffect(() => {
@@ -69,10 +74,13 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     else setCount((prev) => Math.max(0, prev + value))
   }
 
-  function handleNotificationNavigate(path: string) {
+  function handleNotificationNavigate(path: string, createdAt?: string) {
     switch (path) {
       case '/checklist': setActiveTab('today'); setOverlay(null); break
-      case '/audit': setActiveTab('audits'); setOverlay(null); break
+      case '/audit':
+        if (createdAt) setHistoryDateSeed({ createdAt, id: Date.now() })
+        setActiveTab('audits'); setOverlay(null)
+        break
       case '/issues': setActiveTab('issues'); setOverlay(null); break
       default: setOverlay('notifications'); break
     }
@@ -164,7 +172,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                     onNavigate={(t) => { setOverlay(null); setActiveTab(t) }}
                   />
                 )}
-                {tab === 'audits' && <EmployeeHistory store={store} />}
+                {tab === 'audits' && <EmployeeHistory store={store} dateSeed={historyDateSeed} />}
                 {tab === 'issues' && <EmployeeIssues store={store} />}
                 {tab === 'stock-check' && <EmployeeStockCheck store={store} />}
               </div>

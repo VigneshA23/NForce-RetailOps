@@ -358,7 +358,7 @@ function NotifRow({ n, selected, onSelect, onMarkRead, onDelete, markingId, dele
 
 interface DetailPaneProps {
   n: Notification | null;
-  onNavigate?: (path: string) => void;
+  onNavigate?: (path: string, createdAt?: string) => void;
   onBack?: () => void;
   onDelete?: (id: number) => void;
   deletingId?: number | null;
@@ -422,7 +422,7 @@ function DetailPane({ n, onNavigate, onBack, onDelete, deletingId }: DetailPaneP
           <button
             type="button"
             className="nfp-detail__open-btn"
-            onClick={() => onNavigate(n.linkPath!)}
+            onClick={() => onNavigate(n.linkPath!, n.createdAt)}
           >
             Open related page <ArrowUpRight size={14} aria-hidden="true" />
           </button>
@@ -452,7 +452,7 @@ type SortOrder = 'newest' | 'oldest';
 
 interface NotificationsProps {
   onUnreadChange: (count: number) => void;
-  onNavigate?: (path: string) => void;
+  onNavigate?: (path: string, createdAt?: string) => void;
 }
 
 function Notifications({ onUnreadChange, onNavigate }: NotificationsProps) {
@@ -560,7 +560,7 @@ function Notifications({ onUnreadChange, onNavigate }: NotificationsProps) {
         <div className="nfp-mobile-detail-card">
           <DetailPane
             n={selected}
-            onNavigate={(path) => { onNavigate?.(path); setShowDetail(false); }}
+            onNavigate={(path, createdAt) => { onNavigate?.(path, createdAt); setShowDetail(false); }}
             onBack={() => setShowDetail(false)}
             onDelete={handleDelete}
             deletingId={deletingId}

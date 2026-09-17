@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getCorrectionHistory, getShiftHistory } from '../api/history'
 import type { StoreSummary } from '../types/store'
 import type { ShiftHistory } from '../types/history'
@@ -6,6 +6,11 @@ import ChecklistDayHistoryView from '../components/ChecklistDayHistoryView'
 
 interface EmployeeHistoryProps {
   store: StoreSummary
+  // Seeds the initially-selected date from a notification's own createdAt
+  // (converted to the LOCAL calendar date it falls on, same as todayDate()/
+  // yesterdayDate() below) instead of the yesterday default -- id lets a new
+  // click re-apply the same date if it's clicked again.
+  dateSeed?: { createdAt: string; id: number }
 }
 
 // YYYY-MM-DD from the Date object's own LOCAL calendar fields -- deliberately
@@ -29,14 +34,23 @@ function yesterdayDate(): string {
   return toDateKey(date)
 }
 
-function EmployeeHistory({ store }: EmployeeHistoryProps) {
+function EmployeeHistory({ store, dateSeed }: EmployeeHistoryProps) {
   // Defaults to yesterday: a shift's checklist is realistically only fully
   // wrapped up (and worth reviewing) once the day is over, so that's the more
-  // useful starting point than an in-progress "today".
+  // useful starting point than an in-progress "today". Overridden below when
+  // arriving here from a notification click (dateSeed).
   const [selectedDate, setSelectedDate] = useState(yesterdayDate)
   const [history, setHistory] = useState<ShiftHistory | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  const appliedSeedId = useRef<number | null>(null)
+  useEffect(() => {
+    if (dateSeed && dateSeed.id !== appliedSeedId.current) {
+      appliedSeedId.current = dateSeed.id
+      setSelectedDate(toDateKey(new Date(dateSeed.createdAt)))
+    }
+  }, [dateSeed])
 
   function loadHistory() {
     let active = true
