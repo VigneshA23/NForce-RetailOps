@@ -345,6 +345,98 @@ class TaskServiceTest {
         assertThat(response.active()).isFalse();
     }
 
+    private TaskRequest requestWithEndDateAndActive(LocalDate endDate, boolean active) {
+        return new TaskRequest(
+            "Clean counter",
+            null,
+            CATEGORY_ID,
+            null,
+            true,
+            null,
+            ResponseType.YES_NO,
+            null,
+            null,
+            null,
+            null,
+            null,
+            CompletionType.SINGLE,
+            null,
+            ScheduleType.EVERY_DAY,
+            null,
+            LocalDate.now().minusDays(10),
+            endDate,
+            TimeMode.ANYTIME,
+            null,
+            null,
+            active
+        );
+    }
+
+    // An edit that leaves (or puts) the end date in the past must silently take
+    // the task inactive instead of blocking the save with an error -- even
+    // though the incoming request still carries active=true unchanged from the
+    // form (there's no active checkbox in the edit form; see TaskFormModal).
+    @Test
+    void updatingAnActiveTaskWithAPastEndDateAutoDeactivatesInsteadOfThrowing() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.setActive(true);
+        task.setCategory(category);
+        task.setEndDate(LocalDate.now().plusDays(30));
+        when(taskRepository.findByIdAndOwnerId(taskId, OWNER_ID)).thenReturn(Optional.of(task));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse response = taskService.updateTask(
+            OWNER_ID, taskId, requestWithEndDateAndActive(LocalDate.now().minusDays(1), true));
+
+        assertThat(response.active()).isFalse();
+    }
+
+    // A task sitting inactive specifically because its end date had passed
+    // auto-reactivates once the edit moves the end date back to the future --
+    // without a separate manual toggle -- as long as its category is active.
+    @Test
+    void updatingAnExpiredInactiveTaskWithAFutureEndDateAutoReactivates() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.setActive(false);
+        task.setCategory(category);
+        task.setEndDate(LocalDate.now().minusDays(5));
+        when(taskRepository.findByIdAndOwnerId(taskId, OWNER_ID)).thenReturn(Optional.of(task));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse response = taskService.updateTask(
+            OWNER_ID, taskId, requestWithEndDateAndActive(LocalDate.now().plusDays(5), false));
+
+        assertThat(response.active()).isTrue();
+    }
+
+    // Control case: a task that's inactive for an unrelated reason (its end
+    // date was never in the past) must not be auto-reactivated just because
+    // some other field is edited -- the auto-reactivate heuristic only kicks
+    // in when the task was inactive AND its previous end date had passed.
+    @Test
+    void updatingAnInactiveTaskWhoseEndDateWasNeverPastDoesNotAutoReactivate() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.setActive(false);
+        task.setCategory(category);
+        task.setEndDate(LocalDate.now().plusDays(30));
+        when(taskRepository.findByIdAndOwnerId(taskId, OWNER_ID)).thenReturn(Optional.of(task));
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse response = taskService.updateTask(
+            OWNER_ID, taskId, requestWithEndDateAndActive(LocalDate.now().plusDays(60), false));
+
+        assertThat(response.active()).isFalse();
+    }
+
     @Test
     void deactivateTasksPastEndDateDelegatesToRepositoryWithToday() {
         taskService.deactivateTasksPastEndDate();

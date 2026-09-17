@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   AlertTriangle,
+  Calendar,
   CheckCircle2,
   ChevronDown,
   ClipboardList,
@@ -212,7 +213,7 @@ function ChecklistDayHistoryView({
             aria-haspopup="dialog"
             aria-expanded={isCalendarOpen}
           >
-            <span className="icon-mask-calendar" style={{ width: 16, height: 16 }} aria-hidden="true" />
+            <Calendar size={13} aria-hidden="true" />
             <span>{formatDateLabel(selectedDate)}</span>
           </button>
           <CalendarPopover

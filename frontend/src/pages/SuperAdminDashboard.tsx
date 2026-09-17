@@ -23,7 +23,6 @@ import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
-import Settings from '../pages/Settings';
 import Notifications from '../pages/Notifications';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
@@ -93,7 +92,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setChecklistNav({ storeId, ts: Date.now() });
     setShowProfile(false);
     setShowHelp(false);
-    setShowSettings(false);
     setActiveTab('checklist');
   }
 
@@ -103,7 +101,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
 
   const { count: unreadCount, setCount } = useUnreadCount();
@@ -125,7 +122,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   function handleSearchNavigate(navTarget: string) {
     setShowProfile(false);
     setShowHelp(false);
-    setShowSettings(false);
     setShowNotifications(false);
     if (navTarget.startsWith('checklist:')) {
       const storeId = parseInt(navTarget.split(':')[1], 10);
@@ -331,21 +327,18 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onSelectTab={(key) => {
         setShowProfile(false);
         setShowHelp(false);
-        setShowSettings(false);
         setShowNotifications(false);
         setActiveTab(key);
       }}
       title={
         showProfile ? 'My Profile'
         : showHelp ? 'Help & Guidance'
-        : showSettings ? 'Settings'
         : showNotifications ? 'Notifications'
         : SUPER_ADMIN_PAGE_TITLES[activeTab]
       }
       contentKey={
         showProfile ? 'profile'
         : showHelp ? 'help'
-        : showSettings ? 'settings'
         : showNotifications ? 'notifications'
         : activeTab
       }
@@ -356,10 +349,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onLogout={onLogout}
       loggingOut={loggingOut}
       avatarUrl={avatarUrl}
-      onProfileClick={() => { setShowHelp(false); setShowSettings(false); setShowNotifications(false); setShowProfile(true); }}
-      onHelpClick={() => { setShowProfile(false); setShowSettings(false); setShowNotifications(false); setShowHelp(true); }}
-      onSettingsClick={() => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowSettings(true); }}
-      onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowSettings(false); setShowNotifications(true); }}
+      onProfileClick={() => { setShowHelp(false); setShowNotifications(false); setShowProfile(true); }}
+      onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowHelp(true); }}
+      onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowNotifications(true); }}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}
       onNotificationsCountChange={handleNotificationsCountChange}
@@ -371,8 +363,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : showHelp ? (
         <Help role={user.role} />
-      ) : showSettings ? (
-        <Settings />
       ) : showNotifications ? (
         <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
       ) : activeTab === 'checklist' ? (
@@ -443,7 +433,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                 <p className="owners-page__summary">
                   {isLoading
                     ? 'Loading owners...'
-                    : `${uniqueOwnerCount} owner${uniqueOwnerCount === 1 ? '' : 's'} · ${totalStoreCount} store${totalStoreCount === 1 ? '' : 's'}`}
+                    : `${uniqueOwnerCount} owner${uniqueOwnerCount === 1 ? '' : 's'} · ${totalStoreCount ?? 0} store${(totalStoreCount ?? 0) === 1 ? '' : 's'}`}
                 </p>
                 <SpecularButton
                   size="sm"

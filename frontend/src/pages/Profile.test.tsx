@@ -140,7 +140,7 @@ describe('Profile change password section', () => {
     await user.type(screen.getByLabelText(/confirm new password/i), 'brand-new-password')
     await user.click(screen.getByRole('button', { name: /update password/i }))
 
-    expect(mockChangePassword).toHaveBeenCalledWith('current-pass', 'brand-new-password')
+    expect(mockChangePassword).toHaveBeenCalledWith('current-pass', 'brand-new-password', false)
     // On success the form collapses — the current-password input disappears.
     await screen.findByRole('button', { name: /change password/i })
     expect(screen.queryByLabelText(/current password/i)).not.toBeInTheDocument()

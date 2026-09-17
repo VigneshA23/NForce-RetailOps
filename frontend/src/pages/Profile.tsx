@@ -85,6 +85,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
   const [pwExpanded, setPwExpanded] = useState(false);
   const [pwValues, setPwValues] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [pwShow, setPwShow] = useState({ current: false, new: false, confirm: false });
+  const [pwLogoutOtherDevices, setPwLogoutOtherDevices] = useState(false);
   const [pwCurrentError, setPwCurrentError] = useState<string | null>(null);
   const [pwSubmitError, setPwSubmitError] = useState<string | null>(null);
   const [pwSubmitting, setPwSubmitting] = useState(false);
@@ -225,6 +226,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
   function handlePwCancel() {
     setPwValues({ currentPassword: '', newPassword: '', confirmPassword: '' });
     setPwShow({ current: false, new: false, confirm: false });
+    setPwLogoutOtherDevices(false);
     setPwCurrentError(null);
     setPwSubmitError(null);
     setPwExpanded(false);
@@ -245,11 +247,17 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
 
     setPwSubmitting(true);
     try {
-      await changePassword(pwValues.currentPassword, pwValues.newPassword);
+      await changePassword(pwValues.currentPassword, pwValues.newPassword, pwLogoutOtherDevices);
+      const loggedOutOtherDevices = pwLogoutOtherDevices;
       setPwValues({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setPwShow({ current: false, new: false, confirm: false });
+      setPwLogoutOtherDevices(false);
       setPwExpanded(false);
-      nfToast.success('Password changed successfully.');
+      nfToast.success(
+        loggedOutOtherDevices
+          ? 'Password changed. You have been logged out on all other devices.'
+          : 'Password changed successfully.',
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unable to change password.';
       if (msg.toLowerCase().includes('current') || msg.toLowerCase().includes('incorrect')) {
@@ -455,10 +463,12 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
                   <input
                     id="pf-phone"
                     type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
                     className="input profile-field__input--icon"
                     value={infoValues.phone}
-                    onChange={(e) => setInfoValues((v) => ({ ...v, phone: e.target.value }))}
-                    placeholder="+1 (555) 000-0000"
+                    onChange={(e) => setInfoValues((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                    placeholder="10-digit number"
                   />
                 </div>
               </div>
@@ -590,6 +600,15 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
                   </button>
                 </div>
               </div>
+
+              <label className="profile-pw-logout-others">
+                <input
+                  type="checkbox"
+                  checked={pwLogoutOtherDevices}
+                  onChange={(e) => setPwLogoutOtherDevices(e.target.checked)}
+                />
+                Log out from all other devices
+              </label>
 
               {pwSubmitError && <p className="profile-field__error">{pwSubmitError}</p>}
               <div className="profile-section__actions">

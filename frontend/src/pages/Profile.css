@@ -331,6 +331,22 @@
   margin-left: 4px;
 }
 
+.profile-pw-logout-others {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-md);
+  cursor: pointer;
+}
+
+.profile-pw-logout-others input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
 .profile-field__icon-wrap {
   position: relative;
 }
@@ -344,8 +360,13 @@
   pointer-events: none;
 }
 
-.profile-field__input--icon {
-  padding-left: 36px;
+/* Scoped under the wrapper (specificity 0,2,0) rather than the bare
+   .profile-field__input--icon class (0,1,0) -- the shared .input rule in
+   forms.css sets the same specificity via its "padding" shorthand, so a
+   same-specificity override was silently losing depending on CSS load
+   order, leaving the icon crowding the input's first character. */
+.profile-field__icon-wrap .profile-field__input--icon {
+  padding-left: 42px;
 }
 
 .profile-field__error {

@@ -39,6 +39,17 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
         + "or (s.location is not null and lower(s.location) like lower(concat('%', :q, '%'))) order by s.name")
     List<Store> searchByNameOrLocation(@Param("q") String q, Pageable pageable);
 
+    // Every Store platform-wide, left-joined with its (at most one --
+    // StoreOwner.store is a unique FK) StoreOwner/owner link, so a store with
+    // no StoreOwner row at all (e.g. seeded directly rather than through
+    // createUnownedStore) is still included instead of silently dropped --
+    // unlike starting the query from StoreOwner. Explicit tuple select (not
+    // "join fetch") since so/owner are ad-hoc-joined, not navigated from s.
+    @Query("select s, so, so.owner from Store s "
+        + "left join StoreOwner so on so.store = s "
+        + "left join so.owner")
+    List<Object[]> findAllWithOptionalStoreOwner();
+
     @Query(value = """
         SELECT s.id, s.store_code, s.name, s.active,
                COALESCE(ec.employee_count, 0) AS employee_count,

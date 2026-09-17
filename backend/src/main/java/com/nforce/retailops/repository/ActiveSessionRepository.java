@@ -23,6 +23,10 @@ public interface ActiveSessionRepository extends JpaRepository<ActiveSession, Lo
 
     @Modifying
     @Transactional
+    void deleteBySubjectEmailAndTokenIdNot(String subjectEmail, String tokenId);
+
+    @Modifying
+    @Transactional
     @Query("update ActiveSession s set s.lastActiveAt = :now where s.tokenId = :tokenId")
     int touch(String tokenId, OffsetDateTime now);
 }

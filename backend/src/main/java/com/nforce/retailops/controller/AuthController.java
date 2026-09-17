@@ -83,7 +83,8 @@ public class AuthController {
     @PostMapping("/change-password")
     public ResponseEntity<Void> changePassword(
         @AuthenticationPrincipal UserDetails principal,
-        @Valid @RequestBody ChangePasswordRequest request
+        @Valid @RequestBody ChangePasswordRequest request,
+        HttpServletRequest httpRequest
     ) {
         String email;
         if (principal instanceof SuperAdminUserDetails superAdminDetails) {
@@ -93,7 +94,20 @@ public class AuthController {
         } else {
             throw new BadCredentialsException("Invalid session");
         }
-        authService.changePassword(email, request.currentPassword(), request.newPassword());
+
+        String currentTokenId = null;
+        String authHeader = httpRequest.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            if (jwtService.isTokenValid(token)) {
+                currentTokenId = jwtService.extractTokenId(token);
+            }
+        }
+
+        authService.changePassword(
+            email, request.currentPassword(), request.newPassword(),
+            request.logoutOtherDevices(), currentTokenId
+        );
         return ResponseEntity.ok().build();
     }
 

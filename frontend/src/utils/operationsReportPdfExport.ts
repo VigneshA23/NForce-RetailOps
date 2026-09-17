@@ -99,6 +99,7 @@ export async function buildAndDownloadOperationsReportPdf(params: OperationsRepo
     styles: { fontSize: 8, cellPadding: 1.6, overflow: 'linebreak' },
     headStyles: { fillColor: [31, 56, 100], textColor: 255, fontStyle: 'bold' },
     columnStyles: {
+      0: { cellWidth: 26, overflow: 'ellipsize' }, // Store -- must not wrap
       3: { cellWidth: 30 }, // Task
       8: { cellWidth: 32 }, // Response History -- each line is one prior value
       9: { cellWidth: 28 }, // Change Type

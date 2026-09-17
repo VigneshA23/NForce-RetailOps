@@ -438,6 +438,99 @@ class AuthControllerTest {
             .andExpect(status().isOk());
     }
 
+    @Test
+    @Transactional
+    void changePasswordWithLogoutOtherDevicesRevokesOtherSessionsButKeepsTheCurrentOne() throws Exception {
+        Role employeeRole = roleRepository.findByName("EMPLOYEE").orElseGet(() -> {
+            Role role = new Role();
+            role.setName("EMPLOYEE");
+            return roleRepository.save(role);
+        });
+
+        User user = new User();
+        user.setFullName("Logout Other Devices Test");
+        user.setEmail("logout-others-test@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("original-password"));
+        user.getRoles().add(employeeRole);
+        userRepository.save(user);
+
+        String loginBody = objectMapper.writeValueAsString(new LoginPayload(
+            "logout-others-test@nforce.test", "original-password"
+        ));
+
+        // Two separate logins simulate two devices/sessions for the same user.
+        String tokenA = objectMapper.readTree(mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginBody))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString()).get("token").asText();
+
+        String tokenB = objectMapper.readTree(mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginBody))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString()).get("token").asText();
+
+        // Changing the password from session A with logoutOtherDevices=true must not
+        // affect session A itself, but must revoke session B.
+        mockMvc.perform(post("/api/auth/change-password")
+                .header("Authorization", "Bearer " + tokenA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"original-password\",\"newPassword\":\"brand-new-password\",\"logoutOtherDevices\":true}"))
+            .andExpect(status().isOk());
+
+        // Session B is now unauthenticated -- any protected endpoint rejects it.
+        mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + tokenB))
+            .andExpect(status().isUnauthorized());
+
+        // Session A (the caller's own) is untouched and still works.
+        mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + tokenA))
+            .andExpect(status().isOk());
+    }
+
+    @Test
+    @Transactional
+    void changePasswordWithoutLogoutOtherDevicesLeavesOtherSessionsIntact() throws Exception {
+        Role employeeRole = roleRepository.findByName("EMPLOYEE").orElseGet(() -> {
+            Role role = new Role();
+            role.setName("EMPLOYEE");
+            return roleRepository.save(role);
+        });
+
+        User user = new User();
+        user.setFullName("Keep Other Devices Test");
+        user.setEmail("keep-others-test@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("original-password"));
+        user.getRoles().add(employeeRole);
+        userRepository.save(user);
+
+        String loginBody = objectMapper.writeValueAsString(new LoginPayload(
+            "keep-others-test@nforce.test", "original-password"
+        ));
+
+        String tokenA = objectMapper.readTree(mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginBody))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString()).get("token").asText();
+
+        String tokenB = objectMapper.readTree(mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginBody))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString()).get("token").asText();
+
+        // logoutOtherDevices omitted (defaults to false): session B must remain valid.
+        mockMvc.perform(post("/api/auth/change-password")
+                .header("Authorization", "Bearer " + tokenA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"original-password\",\"newPassword\":\"brand-new-password\"}"))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/auth/logout").header("Authorization", "Bearer " + tokenB))
+            .andExpect(status().isOk());
+    }
+
     // --- Email whitespace handling -------------------------------------------------
 
     @Test

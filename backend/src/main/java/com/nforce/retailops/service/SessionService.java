@@ -122,4 +122,12 @@ public class SessionService {
     public void invalidateAllForUser(String email) {
         activeSessionRepository.deleteBySubjectEmail(email);
     }
+
+    // Same as invalidateAllForUser, but keeps the caller's own current session alive --
+    // used for "log out from all other devices" so the user isn't signed out of the
+    // tab/device they just made the change from.
+    @Transactional
+    public void invalidateAllForUserExcept(String email, String exceptTokenId) {
+        activeSessionRepository.deleteBySubjectEmailAndTokenIdNot(email, exceptTokenId);
+    }
 }

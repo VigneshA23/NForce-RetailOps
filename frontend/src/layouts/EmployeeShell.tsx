@@ -15,7 +15,6 @@ import EmployeeStockCheck from '../pages/EmployeeStockCheck'
 import Notifications from '../pages/Notifications'
 import Profile from '../pages/Profile'
 import Help from '../pages/Help'
-import Settings from '../pages/Settings'
 import EmployeeSearchDropdown from '../components/EmployeeSearchDropdown'
 
 interface EmployeeShellProps {
@@ -36,7 +35,7 @@ const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
 ]
 
-type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null
+type Overlay = 'profile' | 'help' | 'notifications' | null
 
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, employeeId = null }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
@@ -90,7 +89,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
 
   const contextLabel = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
-    : overlay === 'settings' ? 'Settings'
     : store.name
 
   const headerTitle = isMobile ? 'NForce RetailOps' : contextLabel
@@ -126,7 +124,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
-      onSettingsClick={() => setOverlay('settings')}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}
@@ -155,8 +152,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         ? <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
         : overlay === 'help'
         ? <Help role={user.role} />
-        : overlay === 'settings'
-        ? <Settings />
         : overlay === 'notifications'
         ? <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
         : ALL_EMPLOYEE_TABS.map((tab) =>

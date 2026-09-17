@@ -84,9 +84,11 @@ function EditProfileForm({ me, onSaved, onCancel, onOpenResetPassword }: EditPro
         <input
           id="edit-profile-phone"
           type="tel"
+          inputMode="numeric"
+          maxLength={10}
           className="input"
           value={phone}
-          onChange={(event) => setPhone(event.target.value)}
+          onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
         />
       </FormField>
 

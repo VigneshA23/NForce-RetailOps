@@ -93,31 +93,32 @@ public class StoreService {
 
     // Read-only, cross-owner directory for the Super Admin's Stores page --
     // every store platform-wide, active or not, with the owner it's currently
-    // (or was last) linked to. findAllWithStoreAndOwner fetch-joins both sides
-    // of StoreOwner, so this stays a fixed number of queries regardless of
-    // store count.
+    // (or was last) linked to. Starts from Store (left-joining StoreOwner/owner)
+    // rather than from StoreOwner, so a store with no StoreOwner row at all is
+    // still included instead of silently dropped -- see findAllWithOptionalStoreOwner.
     @Transactional(readOnly = true)
     public List<SuperAdminStoreResponse> listAllStoresForSuperAdmin() {
-        List<StoreOwner> storeOwners = storeOwnerRepository.findAllWithStoreAndOwner();
-        if (storeOwners.isEmpty()) {
+        List<Object[]> rows = storeRepository.findAllWithOptionalStoreOwner();
+        if (rows.isEmpty()) {
             return List.of();
         }
 
-        List<Long> storeIds = storeOwners.stream().map(so -> so.getStore().getId()).toList();
+        List<Long> storeIds = rows.stream().map(row -> ((Store) row[0]).getId()).toList();
         Map<Long, Integer> employeeCounts = toCountMap(storeEmployeeRepository.countActiveGroupedByStoreIds(storeIds));
         Map<Long, Integer> storeTaskCounts = toCountMap(taskRepository.countGroupedByStoreIds(storeIds));
 
-        Set<Long> ownerIds = storeOwners.stream()
-            .map(StoreOwner::getOwner)
+        Set<Long> ownerIds = rows.stream()
+            .map(row -> (User) row[2])
             .filter(java.util.Objects::nonNull)
             .map(User::getId)
             .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<Long, Integer> appliesAllCounts = toCountMap(taskRepository.countAppliesToAllGroupedByOwnerIds(ownerIds));
 
-        return storeOwners.stream()
-            .map(storeOwner -> {
-                Store store = storeOwner.getStore();
-                User owner = storeOwner.getOwner();
+        return rows.stream()
+            .map(row -> {
+                Store store = (Store) row[0];
+                StoreOwner storeOwner = (StoreOwner) row[1];
+                User owner = (User) row[2];
                 int taskCount = storeTaskCounts.getOrDefault(store.getId(), 0)
                     + (owner != null ? appliesAllCounts.getOrDefault(owner.getId(), 0) : 0);
                 return new SuperAdminStoreResponse(

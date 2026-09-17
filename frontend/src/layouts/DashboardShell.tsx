@@ -13,7 +13,6 @@ import StoreInventory from '../pages/StoreInventory';
 import OrderDashboard from '../pages/OrderDashboard';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
-import Settings from '../pages/Settings';
 import Notifications from '../pages/Notifications';
 import { getInitials } from '../utils/initials';
 import { useOwnerStores } from '../hooks/useOwnerStores';
@@ -30,7 +29,7 @@ interface DashboardShellProps {
   onAvatarChange?: (url: string | null) => void;
 }
 
-type Overlay = 'profile' | 'help' | 'settings' | 'notifications' | null;
+type Overlay = 'profile' | 'help' | 'notifications' | null;
 
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
@@ -59,7 +58,6 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
 
   const title = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
-    : overlay === 'settings' ? 'Settings'
     : PAGE_TITLES[activeTab];
 
   function handleNotificationsCountChange(value: number) {
@@ -174,7 +172,6 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
-      onSettingsClick={() => setOverlay('settings')}
       onIssuesClick={() => { setOverlay(null); setActiveTab('issues'); }}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
@@ -190,8 +187,6 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : overlay === 'help' ? (
         <Help role={user.role} />
-      ) : overlay === 'settings' ? (
-        <Settings />
       ) : overlay === 'notifications' ? (
         <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
       ) : (

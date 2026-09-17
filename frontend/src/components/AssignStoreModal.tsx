@@ -172,9 +172,7 @@ function AssignStoreModal({
                 onChange={(value) => updateField('existingStoreId', Number(value))}
                 options={reassignableStores.map((store) => ({
                   value: String(store.storeId),
-                  label: store.currentOwnerName
-                    ? `#${store.storeCode} · ${store.storeName} — was ${store.currentOwnerName}`
-                    : `#${store.storeCode} · ${store.storeName} — unassigned`,
+                  label: `#${store.storeCode} · ${store.storeName}`,
                 }))}
               />
             )}

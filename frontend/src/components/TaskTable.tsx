@@ -17,6 +17,11 @@ function stopRowClick(event: MouseEvent) {
   event.stopPropagation();
 }
 
+function isExpired(endDate?: string | null): boolean {
+  if (!endDate) return false;
+  return endDate < new Date().toISOString().slice(0, 10);
+}
+
 function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onToggleStatus }: TaskTableProps) {
   return (
     <div className="table-card">
@@ -34,7 +39,10 @@ function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onT
             </tr>
           </thead>
           <tbody>
-            {tasks.map((task) => (
+            {tasks.map((task) => {
+              const expired = isExpired(task.endDate);
+              const blockActivation = !task.active && expired;
+              return (
               <tr key={task.id} className="task-table__row" onClick={() => onRowClick(task)}>
                 <td className="task-table__name" data-label="Task">{task.name}</td>
                 <td data-label="Category">{task.categoryName}</td>
@@ -48,12 +56,19 @@ function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onT
                 <td data-label="Status">
                   <label
                     className="status-toggle"
-                    title={task.active ? 'Deactivate task' : 'Activate task'}
+                    title={
+                      blockActivation
+                        ? 'This task\'s end date has passed and cannot be activated'
+                        : task.active
+                          ? 'Deactivate task'
+                          : 'Activate task'
+                    }
                     onClick={stopRowClick}
                   >
                     <input
                       type="checkbox"
                       checked={task.active}
+                      disabled={blockActivation}
                       onChange={() => onToggleStatus(task)}
                       aria-label={task.active ? 'Deactivate task' : 'Activate task'}
                     />
@@ -91,7 +106,8 @@ function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onT
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

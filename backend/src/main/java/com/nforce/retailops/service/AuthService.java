@@ -111,7 +111,10 @@ public class AuthService {
      * tables share no key space.
      */
     @Transactional
-    public void changePassword(String email, String currentPassword, String newPassword) {
+    public void changePassword(
+        String email, String currentPassword, String newPassword,
+        boolean logoutOtherDevices, String currentTokenId
+    ) {
         Optional<SuperAdmin> superAdminMatch = superAdminRepository.findByEmailIgnoreCase(email);
         if (superAdminMatch.isPresent()) {
             SuperAdmin superAdmin = superAdminMatch.get();
@@ -120,6 +123,9 @@ public class AuthService {
             }
             superAdmin.setPasswordHash(passwordEncoder.encode(newPassword));
             superAdminRepository.save(superAdmin);
+            if (logoutOtherDevices && currentTokenId != null) {
+                sessionService.invalidateAllForUserExcept(email, currentTokenId);
+            }
             return;
         }
 
@@ -131,5 +137,8 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         user.setMustResetPassword(false);
         userRepository.save(user);
+        if (logoutOtherDevices && currentTokenId != null) {
+            sessionService.invalidateAllForUserExcept(email, currentTokenId);
+        }
     }
 }

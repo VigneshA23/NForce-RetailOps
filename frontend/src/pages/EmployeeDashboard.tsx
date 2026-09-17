@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
+  Calendar,
   CheckCircle2,
   ChevronDown,
   Circle,
@@ -496,7 +497,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
             <h1 className="employee-dashboard-heading">Today's Tasks</h1>
           </div>
           <span className="employee-dashboard-date">
-            <span className="icon-mask-calendar" style={{ width: 16, height: 16 }} aria-hidden="true" />
+            <Calendar size={13} aria-hidden="true" />
             {todayLabel}
           </span>
         </div>

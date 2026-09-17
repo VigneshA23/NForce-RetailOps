@@ -171,7 +171,7 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
               maxLength={10}
               className="input"
               value={values.ownerPhone}
-              onChange={(event) => updateField('ownerPhone', event.target.value)}
+              onChange={(event) => updateField('ownerPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
               placeholder="e.g. 5550000000"
             />
           </FormField>

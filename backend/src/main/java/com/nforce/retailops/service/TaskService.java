@@ -185,6 +185,10 @@ public class TaskService {
             throw new CategoryInactiveException(
                 "This task's category is inactive -- activate the category first");
         }
+        if (active && task.getEndDate() != null && task.getEndDate().isBefore(LocalDate.now())) {
+            throw new InvalidTaskConfigurationException(
+                "This task's end date has passed and cannot be activated");
+        }
         task.setActive(active);
         task = taskRepository.save(task);
 
@@ -513,6 +517,14 @@ public class TaskService {
     }
 
     private void applyRequest(Task task, Long ownerId, TaskRequest request) {
+        // Captured before any field below is mutated, so the auto-deactivate/
+        // auto-reactivate decision at the end of this method can compare the
+        // task's end date/active state as they were before this edit. Both are
+        // null/false for a brand-new task, which naturally makes that logic a
+        // no-op on create.
+        LocalDate previousEndDate = task.getEndDate();
+        boolean previousActive = task.isActive();
+
         Category category = categoryRepository
             .findVisibleToOwnerById(request.categoryId(), ownerId, ownerStoreIdsOrSentinel(ownerId))
             .orElseThrow(() -> new CategoryNotFoundException("Category not found"));
@@ -601,7 +613,30 @@ public class TaskService {
             task.setEndTime(null);
         }
 
-        task.setActive(request.active());
+        // Whether to auto-manage the active flag from the end-date edit itself,
+        // rather than blocking the save or requiring a separate manual toggle:
+        //  - An edit that leaves (or puts) the end date in the past silently
+        //    takes the task inactive instead of rejecting the save.
+        //  - An edit that moves the end date back to today/future auto-
+        //    reactivates a task that was sitting inactive specifically because
+        //    its (previous) end date had passed -- as long as its category is
+        //    still active. There's no stored "why was this deactivated" flag,
+        //    so this is inferred from (was inactive + had a past end date);
+        //    a task manually deactivated for an unrelated reason while its end
+        //    date also happened to be in the past would be indistinguishable
+        //    and would auto-reactivate too under the same edit.
+        LocalDate today = LocalDate.now();
+        boolean newEndDateInPast = request.endDate() != null && request.endDate().isBefore(today);
+        boolean wasInactiveDueToExpiry = !previousActive
+            && previousEndDate != null && previousEndDate.isBefore(today);
+
+        if (newEndDateInPast) {
+            task.setActive(false);
+        } else if (wasInactiveDueToExpiry && category.isActive()) {
+            task.setActive(true);
+        } else {
+            task.setActive(request.active());
+        }
     }
 
     // Used to validate that a category id an owner submits on a TaskRequest is
