@@ -48,6 +48,20 @@
   color: var(--color-text-secondary);
 }
 
+.sa-home__insights-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: stretch;
+}
+
+.sa-home__activity-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
 .sa-home__trend-section {
   background: var(--color-surface-raised);
   border: 1px solid var(--color-border);
@@ -56,6 +70,115 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
+  height: 320px;
+}
+
+.sa-home__health-panel {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  height: 320px;
+  min-height: 0;
+}
+
+.sa-home__health-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.sa-home__health-empty {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.sa-home__health-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.sa-home__health-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.sa-home__health-icon {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+
+.sa-home__health-icon--good { background: var(--color-badge-icon-success-bg); color: var(--color-badge-icon-success-fg); }
+.sa-home__health-icon--info { background: var(--color-badge-icon-info-bg); color: var(--color-badge-icon-info-fg); }
+.sa-home__health-icon--accent { background: var(--color-badge-icon-purple-bg); color: var(--color-badge-icon-purple-fg); }
+.sa-home__health-icon--danger { background: var(--color-badge-icon-primary-bg); color: var(--color-badge-icon-primary-fg); }
+.sa-home__health-icon--warning { background: var(--color-badge-icon-warning-bg); color: var(--color-badge-icon-warning-fg); }
+
+.sa-home__health-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sa-home__health-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sa-home__health-bar-track {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  overflow: hidden;
+}
+
+.sa-home__health-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width 0.4s ease;
+}
+
+.sa-home__health-bar-fill--good { background: var(--color-badge-icon-success-fg); }
+.sa-home__health-bar-fill--info { background: var(--color-badge-icon-info-fg); }
+.sa-home__health-bar-fill--accent { background: var(--color-badge-icon-purple-fg); }
+.sa-home__health-bar-fill--danger { background: var(--color-badge-icon-primary-fg); }
+.sa-home__health-bar-fill--warning { background: var(--color-badge-icon-warning-fg); }
+
+.sa-home__health-value {
+  flex-shrink: 0;
+  min-width: 34px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .sa-home__insights-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .sa-home__trend-header {

@@ -29,6 +29,7 @@ public class RaisedIssueService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final UserProfileService userProfileService;
     private final NotificationService notificationService;
+    private final ActivityLogService activityLogService;
 
     public RaisedIssueService(
         RaisedIssueRepository raisedIssueRepository,
@@ -36,7 +37,8 @@ public class RaisedIssueService {
         UserRepository userRepository,
         StoreOwnerRepository storeOwnerRepository,
         UserProfileService userProfileService,
-        NotificationService notificationService
+        NotificationService notificationService,
+        ActivityLogService activityLogService
     ) {
         this.raisedIssueRepository = raisedIssueRepository;
         this.storeRepository = storeRepository;
@@ -44,6 +46,7 @@ public class RaisedIssueService {
         this.storeOwnerRepository = storeOwnerRepository;
         this.userProfileService = userProfileService;
         this.notificationService = notificationService;
+        this.activityLogService = activityLogService;
     }
 
     @Transactional
@@ -67,6 +70,12 @@ public class RaisedIssueService {
         storeOwnerRepository.findByStoreIdAndActiveTrue(request.storeId())
             .map(storeOwner -> storeOwner.getOwner())
             .ifPresent(owner -> notificationService.createForIssue(saved, owner));
+
+        activityLogService.log(
+            "ISSUE_REPORTED", employee.getFullName(), "EMPLOYEE",
+            store.getId(), store.getName(), "ISSUE", null,
+            "Reported an issue"
+        );
 
         return IssueResponse.from(saved);
     }
@@ -109,7 +118,29 @@ public class RaisedIssueService {
 
         RaisedIssue saved = raisedIssueRepository.save(issue);
         notificationService.createForIssueUpdate(saved, request.status());
+
+        // Best-effort name lookup for the log entry only -- a missing user record
+        // must never abort the status update itself, so this never throws.
+        String ownerName = userRepository.findById(ownerId).map(User::getFullName).orElse("Admin");
+        activityLogService.log(
+            issueStatusActionType(request.status()), ownerName, "OWNER_ADMIN",
+            issue.getStore().getId(), issue.getStore().getName(), "ISSUE", null,
+            issueStatusDescription(request.status())
+        );
+
         return IssueResponse.from(saved);
+    }
+
+    private String issueStatusActionType(String status) {
+        return "RESOLVED".equals(status) ? "ISSUE_RESOLVED"
+            : "ACKNOWLEDGED".equals(status) ? "ISSUE_ACKNOWLEDGED"
+            : "ISSUE_UPDATED";
+    }
+
+    private String issueStatusDescription(String status) {
+        return "RESOLVED".equals(status) ? "Resolved an issue"
+            : "ACKNOWLEDGED".equals(status) ? "Acknowledged an issue"
+            : "Updated an issue";
     }
 
     @Transactional(readOnly = true)
@@ -135,6 +166,13 @@ public class RaisedIssueService {
 
         RaisedIssue saved = raisedIssueRepository.save(issue);
         notificationService.createForIssueUpdate(saved, request.status());
+
+        activityLogService.log(
+            issueStatusActionType(request.status()), "Super Admin", "SUPER_ADMIN",
+            issue.getStore().getId(), issue.getStore().getName(), "ISSUE", null,
+            issueStatusDescription(request.status())
+        );
+
         return IssueResponse.from(saved);
     }
 

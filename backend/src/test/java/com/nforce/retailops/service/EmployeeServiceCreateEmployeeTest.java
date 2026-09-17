@@ -47,6 +47,8 @@ class EmployeeServiceCreateEmployeeTest {
     private EmployeeProvisioningService employeeProvisioningService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private EmployeeService employeeService;

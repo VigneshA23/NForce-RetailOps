@@ -29,3 +29,18 @@
   gap: var(--space-lg);
   margin-bottom: var(--space-lg);
 }
+
+.chart-card__link-action {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.chart-card__link-action:hover {
+  text-decoration: underline;
+}

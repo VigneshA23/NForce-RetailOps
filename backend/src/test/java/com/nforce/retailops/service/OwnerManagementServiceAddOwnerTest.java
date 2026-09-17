@@ -48,6 +48,8 @@ class OwnerManagementServiceAddOwnerTest {
     private SuperAdminAlertService superAdminAlertService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private OwnerManagementService ownerManagementService;

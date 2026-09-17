@@ -52,6 +52,8 @@ class OwnerManagementServiceTest {
     private SuperAdminAlertService superAdminAlertService;
     @Mock
     private SessionService sessionService;
+    @Mock
+    private ActivityLogService activityLogService;
 
     private OwnerManagementService ownerManagementService;
 
@@ -59,7 +61,8 @@ class OwnerManagementServiceTest {
     void setUp() {
         ownerManagementService = new OwnerManagementService(
             userRepository, storeRepository, storeOwnerRepository,
-            mailService, storeCodeGenerator, ownerProvisioningService, notificationService, superAdminAlertService, sessionService
+            mailService, storeCodeGenerator, ownerProvisioningService, notificationService, superAdminAlertService, sessionService,
+            activityLogService
         );
     }
 

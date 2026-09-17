@@ -9,6 +9,7 @@ import type { Employee } from '../types/employee';
 import type { Category } from '../types/category';
 import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import StatCard from '../components/StatCard';
+import RecentActivityCard from '../components/RecentActivityCard';
 import ChartCard from '../components/ChartCard';
 import CompletionRateCard from '../components/CompletionRateCard';
 import { getInitials } from '../utils/initials';
@@ -329,7 +330,7 @@ function Home({
 
       {storeName && <p className="home-page__store-label">{storeName}</p>}
 
-      <div className="chart-card-row">
+      <div className="chart-card-row chart-card-row--top">
         <CompletionRateCard
           trend={trend}
           periodDays={trendDays}
@@ -434,7 +435,9 @@ function Home({
             </div>
           </div>
         </ChartCard>
+      </div>
 
+      <div className="chart-card-row">
         <ChartCard
           title="Today's Contributions"
           subtitle="Share of today's tasks completed individually by active staff"
@@ -485,6 +488,8 @@ function Home({
             </div>
           </div>
         </ChartCard>
+
+        <RecentActivityCard onViewAll={onViewStoreDetail} />
       </div>
 
       {isLoading && <p className="home-page__loading">Loading dashboard…</p>}
