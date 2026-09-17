@@ -82,14 +82,21 @@ public class MeHistoryService {
     public ChecklistHistoryDetailResponse getDetail(Long employeeUserId, Long storeId, LocalDate date) {
         userProfileService.requireAssignedStore(employeeUserId, storeId);
 
-        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndActiveTrue(storeId)
+        // Owner/Admin is optional here, same as the live Daily Checklist
+        // (TaskService.getTodayChecklistForEmployee) -- a deactivated Owner/Admin
+        // must not make an active store's history unreachable.
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         Store store = storeOwner.getStore();
-        Long ownerId = storeOwner.getOwner().getId();
+        Long ownerId = (storeOwner.isActive() && storeOwner.getOwner() != null)
+            ? storeOwner.getOwner().getId()
+            : null;
 
-        List<Task> eligibleTasks = taskRepository.findActiveForStoreAndDate(ownerId, storeId, date).stream()
-            .filter(task -> TaskScheduleMatcher.matches(task, date))
-            .toList();
+        List<Task> eligibleTasks = ownerId == null
+            ? List.of()
+            : taskRepository.findActiveForStoreAndDate(ownerId, storeId, date).stream()
+                .filter(task -> TaskScheduleMatcher.matches(task, date))
+                .toList();
 
         // Fetched store/date-wide (every employee's responses) -- same as the
         // owner-facing detail and the live Daily Checklist, neither of which

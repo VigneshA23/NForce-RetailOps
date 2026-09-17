@@ -1,8 +1,10 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.repository.RaisedIssueRepository;
+import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
@@ -27,15 +29,24 @@ import java.util.List;
  *   Any store whose OPEN issues are older than 48 hours gets one aggregated
  *   alert per SA per day (count included in the message).
  *
- * Both methods are package-visible (non-private) so the test class can call
+ * Trigger 3 — STORE_OWNER_VACANT (hourly):
+ *   Any store whose StoreOwner link has been ownerless (owner deactivated, or
+ *   their access to this store revoked -- see OwnerManagementService) for at
+ *   least 24 hours gets one alert per SA, deduped per vacancy occurrence (the
+ *   dedup key includes the vacancy's start timestamp) rather than per day, so
+ *   a still-unresolved case is never re-notified on the next hourly run.
+ *
+ * All methods are package-visible (non-private) so the test class can call
  * them directly without relying on the actual cron schedule.
  */
 @Service
 public class SuperAdminAlertService {
 
     private static final Logger log = LoggerFactory.getLogger(SuperAdminAlertService.class);
+    private static final long OWNER_VACANCY_NOTIFY_AFTER_HOURS = 24;
 
     private final StoreRepository storeRepository;
+    private final StoreOwnerRepository storeOwnerRepository;
     private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final RaisedIssueRepository raisedIssueRepository;
     private final SuperAdminRepository superAdminRepository;
@@ -43,12 +54,14 @@ public class SuperAdminAlertService {
 
     public SuperAdminAlertService(
         StoreRepository storeRepository,
+        StoreOwnerRepository storeOwnerRepository,
         TaskResponseEntryRepository taskResponseEntryRepository,
         RaisedIssueRepository raisedIssueRepository,
         SuperAdminRepository superAdminRepository,
         NotificationService notificationService
     ) {
         this.storeRepository = storeRepository;
+        this.storeOwnerRepository = storeOwnerRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.raisedIssueRepository = raisedIssueRepository;
         this.superAdminRepository = superAdminRepository;
@@ -153,5 +166,49 @@ public class SuperAdminAlertService {
             "/owners",
             null
         );
+    }
+
+    /**
+     * Trigger 3 — scheduled hourly.
+     * Any store still ownerless 24+ hours after OwnerManagementService stamped
+     * StoreOwner.ownerVacantSince fires one STORE_OWNER_VACANT alert per SA.
+     * Resolving the vacancy (same or new Owner/Admin assigned/reactivated for
+     * that store) clears ownerVacantSince, which both stops future alerts and
+     * -- since the dedup key is scoped to that vacancy's start timestamp --
+     * lets a later, separate vacancy on the same store notify again.
+     */
+    @Scheduled(cron = "0 0 * * * ?")
+    @Transactional
+    public void runOwnerVacancyCheck() {
+        runOwnerVacancyCheck(OffsetDateTime.now());
+    }
+
+    /** Same logic — accepts an explicit "now" so tests can call it without waiting for cron. */
+    @Transactional
+    public void runOwnerVacancyCheck(OffsetDateTime now) {
+        OffsetDateTime cutoff = now.minusHours(OWNER_VACANCY_NOTIFY_AFTER_HOURS);
+        List<SuperAdmin> superAdmins = superAdminRepository.findAll();
+        if (superAdmins.isEmpty()) return;
+
+        List<StoreOwner> pendingVacancies = storeOwnerRepository.findAllWithOwnerVacancyPending().stream()
+            .filter(so -> !so.getOwnerVacantSince().isAfter(cutoff))
+            .toList();
+
+        for (StoreOwner storeOwner : pendingVacancies) {
+            Store store = storeOwner.getStore();
+            String dedupKey = "STORE_OWNER_VACANT:" + store.getId() + ":" + storeOwner.getOwnerVacantSince();
+            for (SuperAdmin sa : superAdmins) {
+                if (notificationService.superAdminNotificationExists(sa.getId(), dedupKey)) continue;
+                notificationService.sendToSuperAdmin(
+                    sa,
+                    "STORE_OWNER_VACANT",
+                    store.getName() + " has no active Owner/Admin",
+                    store.getName() + " has had no active Owner/Admin for over 24 hours. Assign an Owner/Admin to restore full access.",
+                    "/owners",
+                    dedupKey
+                );
+            }
+        }
+        log.info("Owner-vacancy check complete for cutoff={}", cutoff);
     }
 }

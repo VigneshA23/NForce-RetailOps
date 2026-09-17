@@ -440,4 +440,47 @@ class TaskServiceTest {
         assertThat(item.completedByNames()).containsExactly("Jane Doe");
         assertThat(item.completedByCount()).isEqualTo(1);
     }
+
+    // Root-cause regression test: a Super Admin deactivating a store's Owner/Admin
+    // releases the StoreOwner link (owner set to null -- see
+    // OwnerManagementService.setOwnerActive) but the store itself stays active.
+    // The checklist must still load -- with no owner-configured tasks -- instead
+    // of throwing (previously an NPE on storeOwner.getOwner().getId()).
+    @Test
+    void todayChecklistReturnsEmptyInsteadOfFailingWhenStoreHasNoActiveOwner() {
+        Long employeeUserId = 42L;
+        Long storeId = 7L;
+
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setActive(false);
+        // owner deliberately left null, mirroring setOwnerActive's release behavior
+        when(storeOwnerRepository.findByStoreId(storeId)).thenReturn(Optional.of(storeOwner));
+
+        TodayChecklistResponse response = taskService.getTodayChecklistForEmployee(employeeUserId, storeId);
+
+        assertThat(response.storeId()).isEqualTo(storeId);
+        assertThat(response.categories()).isEmpty();
+        verify(taskRepository, never()).findActiveForStoreAndDate(anyLong(), anyLong(), any());
+    }
+
+    // Same optional-owner contract, for the "access to this store revoked but
+    // owner reference kept" shape (OwnerManagementService.setStoreActive(false)) --
+    // an inactive link with a non-null owner must be treated the same as no owner.
+    @Test
+    void todayChecklistReturnsEmptyWhenStoreOwnerLinkIsInactiveEvenWithOwnerReferenceStillSet() {
+        Long employeeUserId = 42L;
+        Long storeId = 7L;
+
+        User owner = new User();
+        ReflectionTestUtils.setField(owner, "id", OWNER_ID);
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setOwner(owner);
+        storeOwner.setActive(false);
+        when(storeOwnerRepository.findByStoreId(storeId)).thenReturn(Optional.of(storeOwner));
+
+        TodayChecklistResponse response = taskService.getTodayChecklistForEmployee(employeeUserId, storeId);
+
+        assertThat(response.categories()).isEmpty();
+        verify(taskRepository, never()).findActiveForStoreAndDate(anyLong(), anyLong(), any());
+    }
 }

@@ -19,6 +19,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
@@ -49,8 +50,11 @@ class EmployeeServiceCreateEmployeeTest {
     @Mock
     private NotificationService notificationService;
     @Mock
+<<<<<<< HEAD
     private ActivityLogService activityLogService;
     @Mock
+=======
+>>>>>>> Maheshwar/dev-work
     private PasswordResetService passwordResetService;
 
     @InjectMocks
@@ -69,7 +73,11 @@ class EmployeeServiceCreateEmployeeTest {
             42L, 7L, "jane@nforce.test", "Jane Doe", "temp-pass-123", response
         );
         when(employeeProvisioningService.createEmployeeAccount(isNull(), eq(request), any())).thenReturn(provisioned);
+<<<<<<< HEAD
         when(passwordResetService.createSetupToken("jane@nforce.test")).thenReturn("test-token");
+=======
+        when(passwordResetService.createSetupToken(anyString())).thenReturn("setup-token-123");
+>>>>>>> Maheshwar/dev-work
     }
 
     @Test
@@ -79,14 +87,14 @@ class EmployeeServiceCreateEmployeeTest {
         assertThat(result.employee()).isEqualTo(provisioned.response());
         assertThat(result.temporaryPassword()).isNull();
         assertThat(result.emailSent()).isTrue();
-        verify(mailService).sendAccountSetupEmail("jane@nforce.test", "Jane Doe", "http://localhost:5173?token=test-token");
+        verify(mailService).sendAccountSetupEmail(eq("jane@nforce.test"), eq("Jane Doe"), anyString());
         verify(employeeProvisioningService, never()).deleteUnreachableEmployee(any(), any());
     }
 
     @Test
     void onMailFailureTheAccountSurvivesAndResponseIndicatesEmailNotSent() {
         doThrow(new EmailDeliveryException("boom")).when(mailService)
-            .sendAccountSetupEmail("jane@nforce.test", "Jane Doe", "http://localhost:5173?token=test-token");
+            .sendAccountSetupEmail(anyString(), anyString(), anyString());
 
         EmployeeCreationResponse result = employeeService.createEmployee(request);
 

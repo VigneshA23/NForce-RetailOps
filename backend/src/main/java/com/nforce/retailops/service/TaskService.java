@@ -256,15 +256,24 @@ public class TaskService {
     public TodayChecklistResponse getTodayChecklistForEmployee(Long employeeUserId, Long storeId) {
         userProfileService.requireAssignedStore(employeeUserId, storeId);
 
-        Long ownerId = storeOwnerRepository.findByStoreId(storeId)
-            .map(storeOwner -> storeOwner.getOwner().getId())
+        // Owner/Admin is optional here: a Super Admin deactivating the store's
+        // Owner/Admin releases the StoreOwner link (owner set to null, active
+        // set to false -- see OwnerManagementService.setOwnerActive/setStoreActive)
+        // but the store itself stays active and reachable. With no active owner
+        // there are simply no owner-configured tasks to show yet.
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        Long ownerId = (storeOwner.isActive() && storeOwner.getOwner() != null)
+            ? storeOwner.getOwner().getId()
+            : null;
 
         LocalDate today = LocalDate.now();
 
-        List<Task> applicableTasks = taskRepository.findActiveForStoreAndDate(ownerId, storeId, today).stream()
-            .filter(task -> TaskScheduleMatcher.matches(task, today))
-            .toList();
+        List<Task> applicableTasks = ownerId == null
+            ? List.of()
+            : taskRepository.findActiveForStoreAndDate(ownerId, storeId, today).stream()
+                .filter(task -> TaskScheduleMatcher.matches(task, today))
+                .toList();
 
         // Batched instead of one active-responses query per task, so the checklist read
         // stays O(1) queries regardless of how many tasks are on it.

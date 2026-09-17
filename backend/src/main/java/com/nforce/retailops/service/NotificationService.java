@@ -46,6 +46,7 @@ public class NotificationService {
         PRIORITY_BY_CATEGORY.put("OWNER_EMAIL_FAILED",            "HIGH");
         PRIORITY_BY_CATEGORY.put("ISSUES_OVERDUE",                "MEDIUM");
         PRIORITY_BY_CATEGORY.put("ISSUE_NUDGE",                   "HIGH");
+        PRIORITY_BY_CATEGORY.put("STORE_OWNER_VACANT",            "HIGH");
     }
 
     private final NotificationRepository notificationRepository;

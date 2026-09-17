@@ -33,6 +33,13 @@ public class StoreOwner {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // Set the moment this link loses its active owner (deactivation, or access
+    // revoked); cleared back to null the moment it gets an active owner again.
+    // Drives the 24-hour "still no Owner/Admin" Super Admin notification in
+    // SuperAdminAlertService.runOwnerVacancyCheck.
+    @Column(name = "owner_vacant_since")
+    private OffsetDateTime ownerVacantSince;
+
     public StoreOwner() {
     }
 
@@ -73,5 +80,13 @@ public class StoreOwner {
 
     public OffsetDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public OffsetDateTime getOwnerVacantSince() {
+        return ownerVacantSince;
+    }
+
+    public void setOwnerVacantSince(OffsetDateTime ownerVacantSince) {
+        this.ownerVacantSince = ownerVacantSince;
     }
 }
