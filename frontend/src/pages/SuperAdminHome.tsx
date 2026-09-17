@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Building2, CircleCheck, Percent, Store as StoreIcon } from 'lucide-react';
+import { AlertTriangle, Building2, Percent, Store as StoreIcon, Tags } from 'lucide-react';
 import { getPlatformStats, getOperationsOverview, getPlatformTrend } from '../api/superAdminOperations';
 import type { PlatformStats, StoreOperationsSummary, TrendDataPoint } from '../api/superAdminOperations';
 import type { OwnerSummary } from '../types/owner';
@@ -17,8 +17,15 @@ interface SuperAdminHomeProps {
   // per owner-store link, which silently excludes any store with no owner assigned).
   // null while that fetch is in flight.
   totalStoreCount: number | null;
+  // Every category platform-wide (Super Admin's own list, not owner-scoped).
+  // null while that fetch is in flight.
+  totalCategoryCount: number | null;
   onStoreClick?: (storeId: number) => void;
   onIssuesClick?: () => void;
+  onOwnersClick?: () => void;
+  onStoresClick?: () => void;
+  onCategoriesClick?: () => void;
+  onChecklistClick?: () => void;
 }
 
 const TREND_PERIODS = [
@@ -26,7 +33,18 @@ const TREND_PERIODS = [
   { label: '30d', days: 30 },
 ] as const;
 
-function SuperAdminHome({ owners, ownersLoading, totalStoreCount, onStoreClick, onIssuesClick }: SuperAdminHomeProps) {
+function SuperAdminHome({
+  owners,
+  ownersLoading,
+  totalStoreCount,
+  totalCategoryCount,
+  onStoreClick,
+  onIssuesClick,
+  onOwnersClick,
+  onStoresClick,
+  onCategoriesClick,
+  onChecklistClick,
+}: SuperAdminHomeProps) {
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [overview, setOverview] = useState<StoreOperationsSummary[] | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
@@ -68,10 +86,6 @@ function SuperAdminHome({ owners, ownersLoading, totalStoreCount, onStoreClick, 
     () => new Set(owners.map((o) => o.ownerId)).size,
     [owners],
   );
-  const activeOwnerCount = useMemo(
-    () => new Set(owners.filter((o) => o.ownerActive).map((o) => o.ownerId)).size,
-    [owners],
-  );
   const needsAttention = useMemo(
     () => (overview ?? []).filter((s) => s.lastActivityAt === null && s.totalTasks > 0),
     [overview],
@@ -81,26 +95,26 @@ function SuperAdminHome({ owners, ownersLoading, totalStoreCount, onStoreClick, 
     <div className="sa-home">
       <div className="stat-card-row">
         {ownersLoading ? (
-          <>
-            <StatCard icon={Building2} label="Total Owners" value="—" tone="primary" />
-            <StatCard icon={CircleCheck} label="Active Owners" value="—" tone="success" />
-            <StatCard icon={StoreIcon} label="Total Stores" value="—" tone="info" />
-          </>
+          <StatCard icon={Building2} label="Total Owners" value="—" tone="primary" onClick={onOwnersClick} />
         ) : (
-          <>
-            <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
-            <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
-            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '—'} tone="info" />
-          </>
+          <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" onClick={onOwnersClick} />
         )}
+        <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '—'} tone="info" onClick={onStoresClick} />
+        <StatCard icon={Tags} label="Categories" value={totalCategoryCount ?? '—'} tone="success" onClick={onCategoriesClick} />
         {platformStats === null ? (
           <>
-            <StatCard icon={Percent} label="Platform Completion" value="—" tone="warning" />
+            <StatCard icon={Percent} label="Platform Completion" value="—" tone="warning" onClick={onChecklistClick} />
             <StatCard icon={AlertTriangle} label="Open Issues" value="—" tone="info" onClick={onIssuesClick} />
           </>
         ) : (
           <>
-            <StatCard icon={Percent} label="Platform Completion" value={`${platformStats.platformCompletionPercent}%`} tone="warning" />
+            <StatCard
+              icon={Percent}
+              label="Platform Completion"
+              value={`${platformStats.platformCompletionPercent}%`}
+              tone="warning"
+              onClick={onChecklistClick}
+            />
             <StatCard
               icon={AlertTriangle}
               label="Open Issues"
