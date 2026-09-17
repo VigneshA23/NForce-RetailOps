@@ -26,6 +26,8 @@ interface HomeProps {
   categories: Category[];
   onViewStoreDetail: () => void;
   onViewIssues?: () => void;
+  onViewEmployees?: () => void;
+  onViewCategories?: () => void;
 }
 
 function firstName(fullName: string): string {
@@ -73,7 +75,17 @@ function sumTasks(rows: ChecklistHistorySummaryRow[]): { totalTasks: number; com
   );
 }
 
-function Home({ userName, stores, storesLoading, employees, categories, onViewStoreDetail, onViewIssues }: HomeProps) {
+function Home({
+  userName,
+  stores,
+  storesLoading,
+  employees,
+  categories,
+  onViewStoreDetail,
+  onViewIssues,
+  onViewEmployees,
+  onViewCategories,
+}: HomeProps) {
   const [todayRows, setTodayRows] = useState<ChecklistHistorySummaryRow[]>([]);
   const [trend, setTrend] = useState<{ day: string; completion: number }[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<{ id: number; name: string; completed: number; total: number }[]>([]);
@@ -281,13 +293,26 @@ function Home({ userName, stores, storesLoading, employees, categories, onViewSt
       )}
 
       <div className="stat-card-row">
-        <StatCard icon={Users} label="Total Employees" value={employees.length} tone="info" />
-        <StatCard icon={Tags} label="Categories" value={categories.length} tone="success" />
+        <StatCard
+          icon={Users}
+          label="Total Employees"
+          value={employees.length}
+          tone="info"
+          onClick={onViewEmployees}
+        />
+        <StatCard
+          icon={Tags}
+          label="Categories"
+          value={categories.length}
+          tone="success"
+          onClick={onViewCategories}
+        />
         <StatCard
           icon={ListChecks}
           label="Today's Completion"
           value={`${todayTotals.completedTasks}/${todayTotals.totalTasks}`}
           tone="warning"
+          onClick={onViewStoreDetail}
         />
         {issuesLoading ? (
           <StatCard icon={AlertTriangle} label="Open Issues" value="—" tone="info" />

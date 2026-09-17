@@ -100,6 +100,8 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             categories={categoriesState.categories}
             onViewStoreDetail={() => setActiveTab('store-detail')}
             onViewIssues={() => setActiveTab('issues')}
+            onViewEmployees={() => setActiveTab('employees')}
+            onViewCategories={() => setActiveTab('categories')}
           />
         );
       case 'store-detail':
