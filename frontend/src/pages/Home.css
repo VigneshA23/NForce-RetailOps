@@ -136,6 +136,11 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Push the scrollbar out to the card's edge instead of sitting flush
+     against the percent column -- padding moves the content left, the
+     matching negative margin keeps the row's usable width unchanged. */
+  padding-right: var(--space-sm);
+  margin-right: calc(-1 * var(--space-sm));
 }
 
 .home-page__category-health-row {
