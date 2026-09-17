@@ -47,6 +47,7 @@ class CategoryServiceStoreAssignmentTest {
     @Mock private StoreEmployeeRepository storeEmployeeRepository;
     @Mock private NotificationService notificationService;
     @Mock private StoreRepository storeRepository;
+    @Mock private ActivityLogService activityLogService;
 
     @InjectMocks
     private CategoryService categoryService;

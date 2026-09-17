@@ -30,6 +30,8 @@ class CategoryServiceActiveCascadeTest {
     private CategoryRepository categoryRepository;
     @Mock
     private TaskRepository taskRepository;
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private CategoryService categoryService;

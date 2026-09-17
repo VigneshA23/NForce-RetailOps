@@ -17,6 +17,11 @@ export interface PlatformStats {
   totalOpenIssues: number;
   totalStores: number;
   storesWithActivity: number;
+  totalTasksToday: number;
+  completedTasksToday: number;
+  totalEmployees: number;
+  employeesActiveToday: number;
+  storesWithOpenIssues: number;
 }
 
 export async function getOperationsOverview(date?: string): Promise<StoreOperationsSummary[]> {

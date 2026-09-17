@@ -39,6 +39,7 @@ public class CategoryService {
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final NotificationService notificationService;
     private final StoreRepository storeRepository;
+    private final ActivityLogService activityLogService;
 
     public CategoryService(
         CategoryRepository categoryRepository,
@@ -46,7 +47,8 @@ public class CategoryService {
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
         NotificationService notificationService,
-        StoreRepository storeRepository
+        StoreRepository storeRepository,
+        ActivityLogService activityLogService
     ) {
         this.categoryRepository = categoryRepository;
         this.taskRepository = taskRepository;
@@ -54,6 +56,7 @@ public class CategoryService {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.notificationService = notificationService;
         this.storeRepository = storeRepository;
+        this.activityLogService = activityLogService;
     }
 
     // ---------------------------------------------------------------------
@@ -127,6 +130,11 @@ public class CategoryService {
         category = categoryRepository.save(category);
 
         notifyStores(category, targetStoreIds);
+        activityLogService.logForStores(
+            "CATEGORY_CREATED", "Super Admin", "SUPER_ADMIN",
+            resolveStoresForLog(targetStoreIds), "CATEGORY", category.getName(),
+            "Created category \"" + category.getName() + "\""
+        );
 
         return toResponse(category);
     }
@@ -151,6 +159,12 @@ public class CategoryService {
         category.setStores(resolvedStores);
         category = categoryRepository.save(category);
 
+        activityLogService.logForStores(
+            "CATEGORY_UPDATED", "Super Admin", "SUPER_ADMIN",
+            resolveStoresForLog(targetStoreIds), "CATEGORY", category.getName(),
+            "Updated category \"" + category.getName() + "\""
+        );
+
         return toResponse(category);
     }
 
@@ -169,6 +183,12 @@ public class CategoryService {
         tasks.forEach(task -> task.setActive(active));
         taskRepository.saveAll(tasks);
 
+        activityLogService.logForStores(
+            active ? "CATEGORY_ACTIVATED" : "CATEGORY_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
+            resolveStoresForLog(effectiveStoreIds(category)), "CATEGORY", category.getName(),
+            (active ? "Activated category \"" : "Deactivated category \"") + category.getName() + "\""
+        );
+
         return toResponse(category);
     }
 
@@ -176,7 +196,18 @@ public class CategoryService {
     public void deleteCategoryAsSuperAdmin(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)
             .orElseThrow(() -> new CategoryNotFoundException("Category not found"));
+        List<Store> affectedStores = resolveStoresForLog(effectiveStoreIds(category));
+        String categoryName = category.getName();
         categoryRepository.delete(category);
+        activityLogService.logForStores(
+            "CATEGORY_DELETED", "Super Admin", "SUPER_ADMIN",
+            affectedStores, "CATEGORY", categoryName,
+            "Deleted category \"" + categoryName + "\""
+        );
+    }
+
+    private List<Store> resolveStoresForLog(Set<Long> storeIds) {
+        return storeIds.isEmpty() ? List.of() : storeRepository.findAllById(storeIds);
     }
 
     // ---------------------------------------------------------------------

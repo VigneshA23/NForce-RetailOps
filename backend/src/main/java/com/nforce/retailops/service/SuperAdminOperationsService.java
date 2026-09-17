@@ -7,6 +7,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.repository.RaisedIssueRepository;
+import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
@@ -31,17 +32,20 @@ public class SuperAdminOperationsService {
     private final TaskRepository taskRepository;
     private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final RaisedIssueRepository raisedIssueRepository;
+    private final StoreEmployeeRepository storeEmployeeRepository;
 
     public SuperAdminOperationsService(
         StoreOwnerRepository storeOwnerRepository,
         TaskRepository taskRepository,
         TaskResponseEntryRepository taskResponseEntryRepository,
-        RaisedIssueRepository raisedIssueRepository
+        RaisedIssueRepository raisedIssueRepository,
+        StoreEmployeeRepository storeEmployeeRepository
     ) {
         this.storeOwnerRepository = storeOwnerRepository;
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.raisedIssueRepository = raisedIssueRepository;
+        this.storeEmployeeRepository = storeEmployeeRepository;
     }
 
     @Transactional(readOnly = true)
@@ -67,6 +71,8 @@ public class SuperAdminOperationsService {
         int completedTasks = 0;
         long totalOpenIssues = 0;
         int storesWithActivity = 0;
+        int storesWithOpenIssues = 0;
+        Set<Long> employeesActiveToday = new HashSet<>();
 
         for (StoreOwner link : activeLinks) {
             long storeId = link.getStore().getId();
@@ -91,11 +97,19 @@ public class SuperAdminOperationsService {
 
             if (!responses.isEmpty()) storesWithActivity++;
 
-            totalOpenIssues += raisedIssueRepository.countByStoreIdAndStatus(storeId, "OPEN");
+            responses.forEach(r -> employeesActiveToday.add(r.getEmployee().getId()));
+
+            long openIssuesForStore = raisedIssueRepository.countByStoreIdAndStatus(storeId, "OPEN");
+            totalOpenIssues += openIssuesForStore;
+            if (openIssuesForStore > 0) storesWithOpenIssues++;
         }
 
         int platformPercent = totalTasks == 0 ? 0 : Math.round((completedTasks * 100f) / totalTasks);
-        return new PlatformStatsResponse(platformPercent, totalOpenIssues, totalStores, storesWithActivity);
+        int totalEmployees = (int) storeEmployeeRepository.countByEmployeeActiveTrue();
+        return new PlatformStatsResponse(
+            platformPercent, totalOpenIssues, totalStores, storesWithActivity,
+            totalTasks, completedTasks, totalEmployees, employeesActiveToday.size(), storesWithOpenIssues
+        );
     }
 
     @Transactional(readOnly = true)

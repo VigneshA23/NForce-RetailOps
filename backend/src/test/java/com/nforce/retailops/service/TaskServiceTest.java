@@ -70,6 +70,10 @@ class TaskServiceTest {
     private TaskResponseEntryRepository taskResponseEntryRepository;
     @Mock
     private StoreEmployeeRepository storeEmployeeRepository;
+    @Mock
+    private NotificationService notificationService;
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private TaskService taskService;

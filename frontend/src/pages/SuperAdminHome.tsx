@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Building2, Percent, Store as StoreIcon, Tags } from 'lucide-react';
+import { AlertTriangle, BellOff, Building2, Clock, ListChecks, Percent, ShieldCheck, Store as StoreIcon, Tags, Users } from 'lucide-react';
 import { getPlatformStats, getOperationsOverview, getPlatformTrend } from '../api/superAdminOperations';
 import type { PlatformStats, StoreOperationsSummary, TrendDataPoint } from '../api/superAdminOperations';
 import type { OwnerSummary } from '../types/owner';
@@ -7,7 +7,12 @@ import StatCard from '../components/StatCard';
 import StoreComparisonTable from '../components/StoreComparisonTable';
 import StoreComparisonDetailModal from '../components/StoreComparisonDetailModal';
 import TrendChart from '../components/TrendChart';
+import ActivityFeedList from '../components/ActivityFeedList';
+import { useRecentActivity } from '../hooks/useRecentActivity';
 import './SuperAdminHome.css';
+
+const ACTIVITY_COLLAPSED_LIMIT = 8;
+const ACTIVITY_EXPANDED_LIMIT = 50;
 
 interface SuperAdminHomeProps {
   owners: OwnerSummary[];
@@ -52,6 +57,8 @@ function SuperAdminHome({
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
   const [trendLoading, setTrendLoading] = useState(true);
   const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
+  const [activityExpanded, setActivityExpanded] = useState(false);
+  const recentActivity = useRecentActivity(activityExpanded ? ACTIVITY_EXPANDED_LIMIT : ACTIVITY_COLLAPSED_LIMIT);
 
   useEffect(() => {
     let active = true;
@@ -91,6 +98,58 @@ function SuperAdminHome({
     [overview],
   );
 
+  const healthRows = useMemo(() => {
+    if (!platformStats) return [];
+    const pct = (part: number, whole: number) => (whole === 0 ? 0 : Math.round((part / whole) * 100));
+    return [
+      {
+        key: 'stores',
+        icon: StoreIcon,
+        label: 'Stores active today',
+        value: platformStats.storesWithActivity,
+        total: platformStats.totalStores,
+        percent: pct(platformStats.storesWithActivity, platformStats.totalStores),
+        tone: 'good',
+      },
+      {
+        key: 'employees',
+        icon: Users,
+        label: 'Employees active today',
+        value: platformStats.employeesActiveToday,
+        total: platformStats.totalEmployees,
+        percent: pct(platformStats.employeesActiveToday, platformStats.totalEmployees),
+        tone: 'info',
+      },
+      {
+        key: 'tasks',
+        icon: ListChecks,
+        label: 'Tasks completed today',
+        value: platformStats.completedTasksToday,
+        total: platformStats.totalTasksToday,
+        percent: pct(platformStats.completedTasksToday, platformStats.totalTasksToday),
+        tone: 'accent',
+      },
+      {
+        key: 'issues',
+        icon: AlertTriangle,
+        label: 'Stores with open issues',
+        value: platformStats.storesWithOpenIssues,
+        total: platformStats.totalStores,
+        percent: pct(platformStats.storesWithOpenIssues, platformStats.totalStores),
+        tone: 'danger',
+      },
+      {
+        key: 'inactive',
+        icon: BellOff,
+        label: 'Stores with no activity',
+        value: platformStats.totalStores - platformStats.storesWithActivity,
+        total: platformStats.totalStores,
+        percent: pct(platformStats.totalStores - platformStats.storesWithActivity, platformStats.totalStores),
+        tone: 'warning',
+      },
+    ] as const;
+  }, [platformStats]);
+
   return (
     <div className="sa-home">
       <div className="stat-card-row">
@@ -126,23 +185,74 @@ function SuperAdminHome({
         )}
       </div>
 
-      <div className="sa-home__trend-section">
-        <div className="sa-home__trend-header">
-          <h2 className="sa-home__section-title" style={{ margin: 0 }}>Platform Completion Trend</h2>
-          <div className="sa-home__trend-toggle">
-            {TREND_PERIODS.map((p) => (
-              <button
-                key={p.days}
-                type="button"
-                className={`sa-home__trend-btn${trendDays === p.days ? ' sa-home__trend-btn--active' : ''}`}
-                onClick={() => setTrendDays(p.days as 7 | 30)}
-              >
-                {p.label}
-              </button>
-            ))}
+      <div className="sa-home__insights-row">
+        <div className="sa-home__trend-section">
+          <div className="sa-home__trend-header">
+            <h2 className="sa-home__section-title" style={{ margin: 0 }}>Platform Completion Trend</h2>
+            <div className="sa-home__trend-toggle">
+              {TREND_PERIODS.map((p) => (
+                <button
+                  key={p.days}
+                  type="button"
+                  className={`sa-home__trend-btn${trendDays === p.days ? ' sa-home__trend-btn--active' : ''}`}
+                  onClick={() => setTrendDays(p.days as 7 | 30)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
+          <TrendChart data={trendData} loading={trendLoading} height={200} />
         </div>
-        <TrendChart data={trendData} loading={trendLoading} height={200} />
+
+        <div className="sa-home__health-panel">
+          <h2 className="sa-home__health-title">
+            <ShieldCheck size={18} />
+            Platform Health
+          </h2>
+          {healthRows.length === 0 ? (
+            <p className="sa-home__health-empty">Loading…</p>
+          ) : (
+            <div className="sa-home__health-rows">
+              {healthRows.map((row) => (
+                <div key={row.key} className="sa-home__health-row">
+                  <span className={`sa-home__health-icon sa-home__health-icon--${row.tone}`}>
+                    <row.icon size={14} />
+                  </span>
+                  <div className="sa-home__health-row-main">
+                    <span className="sa-home__health-label">{row.label}</span>
+                    <div className="sa-home__health-bar-track">
+                      <div
+                        className={`sa-home__health-bar-fill sa-home__health-bar-fill--${row.tone}`}
+                        style={{ width: `${row.percent}%` }}
+                      />
+                    </div>
+                  </div>
+                  <span className="sa-home__health-value">{row.value}/{row.total}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="sa-home__health-panel">
+          <div className="sa-home__activity-header">
+            <h2 className="sa-home__health-title">
+              <Clock size={18} />
+              Recent Activity
+            </h2>
+            {!activityExpanded && (
+              <button
+                type="button"
+                className="chart-card__link-action"
+                onClick={() => setActivityExpanded(true)}
+              >
+                View all
+              </button>
+            )}
+          </div>
+          <ActivityFeedList entries={recentActivity} />
+        </div>
       </div>
 
       {needsAttention.length > 0 && (

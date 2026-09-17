@@ -50,6 +50,7 @@ public class OwnerManagementService {
     private final NotificationService notificationService;
     private final SuperAdminAlertService superAdminAlertService;
     private final SessionService sessionService;
+    private final ActivityLogService activityLogService;
     private final PasswordResetService passwordResetService;
     private final String appBaseUrl;
 
@@ -63,6 +64,7 @@ public class OwnerManagementService {
         NotificationService notificationService,
         SuperAdminAlertService superAdminAlertService,
         SessionService sessionService,
+        ActivityLogService activityLogService,
         PasswordResetService passwordResetService,
         @Value("${app.base-url}") String appBaseUrl
     ) {
@@ -75,6 +77,7 @@ public class OwnerManagementService {
         this.notificationService = notificationService;
         this.superAdminAlertService = superAdminAlertService;
         this.sessionService = sessionService;
+        this.activityLogService = activityLogService;
         this.passwordResetService = passwordResetService;
         this.appBaseUrl = appBaseUrl;
     }
@@ -155,6 +158,12 @@ public class OwnerManagementService {
             }
         }
 
+        activityLogService.logPlatform(
+            "OWNER_CREATED", "Super Admin", "SUPER_ADMIN",
+            "OWNER", provisioned.fullName(),
+            "Created admin \"" + provisioned.fullName() + "\""
+        );
+
         return new OwnerCreationResponse(provisioned.response(), null, emailSent);
     }
 
@@ -210,6 +219,12 @@ public class OwnerManagementService {
             storeOwner = storeOwnerRepository.save(storeOwner);
         }
 
+        activityLogService.log(
+            "STORE_ASSIGNED", "Super Admin", "SUPER_ADMIN",
+            storeOwner.getStore().getId(), storeOwner.getStore().getName(), "OWNER", owner.getFullName(),
+            "Assigned " + owner.getFullName() + " to " + storeOwner.getStore().getName()
+        );
+
         return OwnerResponse.from(storeOwner);
     }
 
@@ -237,6 +252,11 @@ public class OwnerManagementService {
         notificationService.createForAccountStatus(owner, active);
 
         List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
+        activityLogService.logForStores(
+            active ? "OWNER_ACTIVATED" : "OWNER_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
+            storeOwners.stream().map(StoreOwner::getStore).toList(), "OWNER", owner.getFullName(),
+            (active ? "Activated admin \"" : "Deactivated admin \"") + owner.getFullName() + "\""
+        );
         if (!active) {
             // Deactivating the owner fully releases their store link(s) --
             // same shape as a never-owned store (owner=null, active=false),
@@ -267,6 +287,12 @@ public class OwnerManagementService {
 
         storeOwner.setActive(active);
         storeOwnerRepository.save(storeOwner);
+
+        activityLogService.log(
+            active ? "STORE_ACTIVATED" : "STORE_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
+            storeOwner.getStore().getId(), storeOwner.getStore().getName(), "STORE", storeOwner.getStore().getName(),
+            (active ? "Activated store \"" : "Deactivated store \"") + storeOwner.getStore().getName() + "\""
+        );
 
         return storeOwnerRepository.findByOwnerId(ownerId).stream()
             .map(OwnerResponse::from)

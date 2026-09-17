@@ -51,6 +51,8 @@ class OwnerManagementServiceAddOwnerTest {
     @Mock
     private NotificationService notificationService;
     @Mock
+    private ActivityLogService activityLogService;
+    @Mock
     private SessionService sessionService;
     @Mock
     private PasswordResetService passwordResetService;
@@ -69,7 +71,6 @@ class OwnerManagementServiceAddOwnerTest {
         provisioned = new OwnerProvisioningService.ProvisionedOwner(
             5L, "owner@nforce.test", "New Owner", "temp-pass-123", null, null, false, null, response
         );
-        when(passwordResetService.createSetupToken("owner@nforce.test")).thenReturn("test-token");
     }
 
     private com.nforce.retailops.entity.User newUser() {
@@ -82,6 +83,7 @@ class OwnerManagementServiceAddOwnerTest {
 
     @Test
     void onMailSuccessTheProvisionedResponsePassesThroughWithEmailSentTrue() {
+        when(passwordResetService.createSetupToken("owner@nforce.test")).thenReturn("test-token");
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
 
         OwnerCreationResponse result = ownerManagementService.addOwner(request);
@@ -95,6 +97,7 @@ class OwnerManagementServiceAddOwnerTest {
 
     @Test
     void onMailFailureTheAccountSurvivesAndResponseIndicatesEmailNotSent() {
+        when(passwordResetService.createSetupToken("owner@nforce.test")).thenReturn("test-token");
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
         doThrow(new EmailDeliveryException("boom")).when(mailService)
             .sendAccountSetupEmail("owner@nforce.test", "New Owner", "http://localhost:5173?token=test-token");

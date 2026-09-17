@@ -53,6 +53,8 @@ class OwnerManagementServiceTest {
     @Mock
     private SessionService sessionService;
     @Mock
+    private ActivityLogService activityLogService;
+    @Mock
     private PasswordResetService passwordResetService;
 
     private OwnerManagementService ownerManagementService;
@@ -62,7 +64,7 @@ class OwnerManagementServiceTest {
         ownerManagementService = new OwnerManagementService(
             userRepository, storeRepository, storeOwnerRepository,
             mailService, storeCodeGenerator, ownerProvisioningService, notificationService, superAdminAlertService, sessionService,
-            passwordResetService, "http://localhost:5173"
+            activityLogService, passwordResetService, "http://localhost:5173"
         );
     }
 

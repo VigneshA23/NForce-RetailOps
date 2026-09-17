@@ -50,6 +50,8 @@ class EmployeeServiceStatusTest {
     @Mock
     private NotificationService notificationService;
     @Mock
+    private ActivityLogService activityLogService;
+    @Mock
     private PasswordResetService passwordResetService;
 
     @InjectMocks
