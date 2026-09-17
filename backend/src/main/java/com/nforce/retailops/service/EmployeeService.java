@@ -23,6 +23,7 @@ import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +52,8 @@ public class EmployeeService {
     private final PasswordEncoder passwordEncoder;
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final NotificationService notificationService;
+    private final PasswordResetService passwordResetService;
+    private final String appBaseUrl;
 
     public EmployeeService(
         StoreEmployeeRepository storeEmployeeRepository,
@@ -62,7 +65,9 @@ public class EmployeeService {
         EmployeeProvisioningService employeeProvisioningService,
         PasswordEncoder passwordEncoder,
         TemporaryPasswordGenerator temporaryPasswordGenerator,
-        NotificationService notificationService
+        NotificationService notificationService,
+        PasswordResetService passwordResetService,
+        @Value("${app.base-url}") String appBaseUrl
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -74,6 +79,8 @@ public class EmployeeService {
         this.passwordEncoder = passwordEncoder;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.notificationService = notificationService;
+        this.passwordResetService = passwordResetService;
+        this.appBaseUrl = appBaseUrl;
     }
 
     private boolean ownsAnyStore(StoreEmployee storeEmployee, Long ownerId) {
@@ -180,13 +187,14 @@ public class EmployeeService {
 
         boolean emailSent = false;
         try {
-            mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
+            String token = passwordResetService.createSetupToken(provisioned.email());
+            mailService.sendAccountSetupEmail(provisioned.email(), provisioned.fullName(), appBaseUrl + "?token=" + token);
             emailSent = true;
         } catch (EmailDeliveryException ex) {
-            log.warn("Welcome email failed for employee {} ({}); account still created", provisioned.fullName(), provisioned.userId(), ex);
+            log.warn("Setup email failed for employee {} ({}); account still created", provisioned.fullName(), provisioned.userId(), ex);
         }
 
-        return new EmployeeCreationResponse(provisioned.response(), provisioned.temporaryPassword(), emailSent);
+        return new EmployeeCreationResponse(provisioned.response(), null, emailSent);
     }
 
     // Super-Admin-only: atomically replaces all store assignments for an employee.
@@ -412,8 +420,7 @@ public class EmployeeService {
         }
 
         User employee = storeEmployee.getEmployee();
-        String temporaryPassword = temporaryPasswordGenerator.generate();
-        employee.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        employee.setPasswordHash(passwordEncoder.encode(temporaryPasswordGenerator.generate()));
         employee.setMustResetPassword(true);
         userRepository.save(employee);
 
@@ -422,10 +429,11 @@ public class EmployeeService {
         // rather than staying valid until that token's own expiry.
         sessionService.invalidateAllForUser(employee.getEmail());
 
-        // Thrown on failure, which rolls back the password change above -- an
-        // employee must not be locked out of an account whose new password
-        // they were never actually told.
-        mailService.sendPasswordReset(employee.getEmail(), employee.getFullName(), temporaryPassword);
+        // Thrown on failure, which rolls back the password change and session
+        // invalidation above -- the employee must not be locked out without
+        // receiving the setup link they need to get back in.
+        String token = passwordResetService.createSetupToken(employee.getEmail());
+        mailService.sendAccountSetupEmail(employee.getEmail(), employee.getFullName(), appBaseUrl + "?token=" + token);
     }
 
     @Transactional

@@ -90,7 +90,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setActiveTab('checklist');
   }
 
-  const [tempPassword, setTempPassword] = useState<{ name: string; password: string; emailSent: boolean } | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ name: string; password: string | null; emailSent: boolean } | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');

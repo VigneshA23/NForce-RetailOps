@@ -22,6 +22,7 @@ import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.security.SuperAdminUserDetails;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +50,8 @@ public class OwnerManagementService {
     private final NotificationService notificationService;
     private final SuperAdminAlertService superAdminAlertService;
     private final SessionService sessionService;
+    private final PasswordResetService passwordResetService;
+    private final String appBaseUrl;
 
     public OwnerManagementService(
         UserRepository userRepository,
@@ -59,7 +62,9 @@ public class OwnerManagementService {
         OwnerProvisioningService ownerProvisioningService,
         NotificationService notificationService,
         SuperAdminAlertService superAdminAlertService,
-        SessionService sessionService
+        SessionService sessionService,
+        PasswordResetService passwordResetService,
+        @Value("${app.base-url}") String appBaseUrl
     ) {
         this.userRepository = userRepository;
         this.storeRepository = storeRepository;
@@ -70,6 +75,8 @@ public class OwnerManagementService {
         this.notificationService = notificationService;
         this.superAdminAlertService = superAdminAlertService;
         this.sessionService = sessionService;
+        this.passwordResetService = passwordResetService;
+        this.appBaseUrl = appBaseUrl;
     }
 
     @Transactional(readOnly = true)
@@ -133,10 +140,11 @@ public class OwnerManagementService {
 
         boolean emailSent = false;
         try {
-            mailService.sendTemporaryPassword(provisioned.email(), provisioned.fullName(), provisioned.temporaryPassword());
+            String token = passwordResetService.createSetupToken(provisioned.email());
+            mailService.sendAccountSetupEmail(provisioned.email(), provisioned.fullName(), appBaseUrl + "?token=" + token);
             emailSent = true;
         } catch (EmailDeliveryException ex) {
-            log.warn("Welcome email failed for owner {} ({}); account still created", provisioned.fullName(), provisioned.ownerId(), ex);
+            log.warn("Setup email failed for owner {} ({}); account still created", provisioned.fullName(), provisioned.ownerId(), ex);
             try {
                 Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
                 if (principal instanceof SuperAdminUserDetails saDetails) {
@@ -147,7 +155,7 @@ public class OwnerManagementService {
             }
         }
 
-        return new OwnerCreationResponse(provisioned.response(), provisioned.temporaryPassword(), emailSent);
+        return new OwnerCreationResponse(provisioned.response(), null, emailSent);
     }
 
     @Transactional
