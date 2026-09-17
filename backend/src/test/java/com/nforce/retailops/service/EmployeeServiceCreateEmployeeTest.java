@@ -13,6 +13,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 
@@ -28,8 +29,8 @@ import static org.mockito.Mockito.when;
 // Proves createEmployee's decoupled-from-the-transaction mail flow (see
 // EmployeeProvisioningService): on mail success emailSent=true and nothing is
 // cleaned up; on mail failure the account SURVIVES (no compensation/rollback)
-// and the response carries emailSent=false so the caller can share the
-// temporary password directly with the new employee.
+// and the response carries emailSent=false so the caller can trigger a resend
+// via the Reset Password action.
 @ExtendWith(MockitoExtension.class)
 class EmployeeServiceCreateEmployeeTest {
 
@@ -47,6 +48,8 @@ class EmployeeServiceCreateEmployeeTest {
     private EmployeeProvisioningService employeeProvisioningService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private PasswordResetService passwordResetService;
 
     @InjectMocks
     private EmployeeService employeeService;
@@ -56,6 +59,7 @@ class EmployeeServiceCreateEmployeeTest {
 
     @BeforeEach
     void setUp() {
+        ReflectionTestUtils.setField(employeeService, "appBaseUrl", "http://localhost:5173");
         request = new EmployeeCreateRequest("Jane Doe", "jane@nforce.test", "555-0100", "Morning", "Full Time", "Female", null);
         EmployeeResponse response =
             new EmployeeResponse(7L, "EMP-007", "Jane Doe", "jane@nforce.test", "555-0100", "Morning", "Full Time", "Female", true, List.of(), null);
@@ -63,6 +67,7 @@ class EmployeeServiceCreateEmployeeTest {
             42L, 7L, "jane@nforce.test", "Jane Doe", "temp-pass-123", response
         );
         when(employeeProvisioningService.createEmployeeAccount(isNull(), eq(request), any())).thenReturn(provisioned);
+        when(passwordResetService.createSetupToken("jane@nforce.test")).thenReturn("test-token");
     }
 
     @Test
@@ -70,21 +75,21 @@ class EmployeeServiceCreateEmployeeTest {
         EmployeeCreationResponse result = employeeService.createEmployee(request);
 
         assertThat(result.employee()).isEqualTo(provisioned.response());
-        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.temporaryPassword()).isNull();
         assertThat(result.emailSent()).isTrue();
-        verify(mailService).sendTemporaryPassword("jane@nforce.test", "Jane Doe", "temp-pass-123");
+        verify(mailService).sendAccountSetupEmail("jane@nforce.test", "Jane Doe", "http://localhost:5173?token=test-token");
         verify(employeeProvisioningService, never()).deleteUnreachableEmployee(any(), any());
     }
 
     @Test
     void onMailFailureTheAccountSurvivesAndResponseIndicatesEmailNotSent() {
         doThrow(new EmailDeliveryException("boom")).when(mailService)
-            .sendTemporaryPassword("jane@nforce.test", "Jane Doe", "temp-pass-123");
+            .sendAccountSetupEmail("jane@nforce.test", "Jane Doe", "http://localhost:5173?token=test-token");
 
         EmployeeCreationResponse result = employeeService.createEmployee(request);
 
         assertThat(result.employee()).isEqualTo(provisioned.response());
-        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.temporaryPassword()).isNull();
         assertThat(result.emailSent()).isFalse();
         verify(employeeProvisioningService, never()).deleteUnreachableEmployee(any(), any());
     }
