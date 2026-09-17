@@ -67,4 +67,28 @@ class JwtServiceTest {
 
         assertThat(jwtService.isTokenValid("not-a-jwt-at-all")).isFalse();
     }
+
+    // Remember Me needs a token whose own expiry matches the chosen session
+    // policy (30 min / 4h), not always the service's single default -- this
+    // is what makes that possible without a second JwtService instance.
+    @Test
+    void generateTokenWithExplicitExpirationOverridesTheConstructorDefault() throws InterruptedException {
+        // Constructor default is a long-lived 60s, but this call asks for a
+        // token that expires almost immediately -- proving the explicit
+        // duration wins over the service's own default.
+        JwtService jwtService = new JwtService(SECRET, 60_000);
+
+        String shortLivedToken = jwtService.generateToken("owner@nforce.test", List.of("OWNER_ADMIN"), 1);
+        Thread.sleep(25);
+        assertThat(jwtService.isTokenValid(shortLivedToken)).isFalse();
+    }
+
+    @Test
+    void generateTokenWithoutExplicitExpirationStillUsesTheConstructorDefault() {
+        JwtService jwtService = new JwtService(SECRET, 60_000);
+
+        String token = jwtService.generateToken("owner@nforce.test", List.of("OWNER_ADMIN"));
+
+        assertThat(jwtService.isTokenValid(token)).isTrue();
+    }
 }

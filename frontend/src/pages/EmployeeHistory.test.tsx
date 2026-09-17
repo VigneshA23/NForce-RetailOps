@@ -86,6 +86,65 @@ describe('EmployeeHistory date selection', () => {
   })
 })
 
+describe('EmployeeHistory notification-driven date seeding', () => {
+  it("opens on today's date when the clicked notification was created today", async () => {
+    vi.stubEnv('TZ', 'Asia/Kolkata')
+    vi.setSystemTime(new Date('2026-09-17T10:00:00Z')) // 2026-09-17 15:30 IST
+
+    render(<EmployeeHistory store={STORE} dateSeed={{ createdAt: '2026-09-17T09:00:00Z', id: 1 }} />)
+
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-17'))
+    expect(screen.getByRole('button', { name: 'Pick a date' })).toHaveTextContent(formatDateLabel('2026-09-17'))
+  })
+
+  it("opens on yesterday's date when the clicked notification was created yesterday", async () => {
+    vi.stubEnv('TZ', 'Asia/Kolkata')
+    vi.setSystemTime(new Date('2026-09-17T10:00:00Z'))
+
+    render(<EmployeeHistory store={STORE} dateSeed={{ createdAt: '2026-09-16T09:00:00Z', id: 1 }} />)
+
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-16'))
+  })
+
+  // The regression this whole feature guards against: a notification created
+  // late in the local day, whose UTC instant already rolled over to the next
+  // UTC calendar date, must still select the date it was created on LOCALLY,
+  // not the UTC date and not an unrelated default.
+  it('uses the local calendar date, not the UTC date, for a notification created near local midnight', async () => {
+    vi.stubEnv('TZ', 'Asia/Kolkata') // UTC+5:30
+    vi.setSystemTime(new Date('2026-09-17T19:00:00Z')) // 2026-09-18 00:30 IST
+
+    // Created at 2026-09-17T19:15:00Z = 2026-09-18 00:45 IST -- local date is
+    // the 18th even though the UTC date is still the 17th.
+    render(<EmployeeHistory store={STORE} dateSeed={{ createdAt: '2026-09-17T19:15:00Z', id: 1 }} />)
+
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-18'))
+  })
+
+  it('re-seeds the date when a different notification (new id) is clicked', async () => {
+    vi.stubEnv('TZ', 'Asia/Kolkata')
+    vi.setSystemTime(new Date('2026-09-17T10:00:00Z'))
+
+    const { rerender } = render(
+      <EmployeeHistory store={STORE} dateSeed={{ createdAt: '2026-09-17T09:00:00Z', id: 1 }} />,
+    )
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-17'))
+    mockGetShiftHistory.mockClear()
+
+    rerender(<EmployeeHistory store={STORE} dateSeed={{ createdAt: '2026-09-15T09:00:00Z', id: 2 }} />)
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-15'))
+  })
+
+  it('falls back to the normal yesterday default when opened without a notification (direct navigation)', async () => {
+    vi.stubEnv('TZ', 'Asia/Kolkata')
+    vi.setSystemTime(new Date('2026-09-17T10:00:00Z')) // local 2026-09-17
+
+    render(<EmployeeHistory store={STORE} />)
+
+    await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalledWith(1, '2026-09-16'))
+  })
+})
+
 describe('EmployeeHistory task responder list', () => {
   it('shows only the most recent responder\'s combined value/name/time line for a MULTIPLE-completion task', async () => {
     mockGetShiftHistory.mockResolvedValue({

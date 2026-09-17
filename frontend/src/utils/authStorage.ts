@@ -24,6 +24,14 @@ export function clearAuthToken(): void {
   sessionStorage.removeItem(TOKEN_KEY);
 }
 
+// Derives whether the current session was started with "Remember me" from
+// which storage actually holds the token, rather than persisting that choice
+// separately -- there is exactly one source of truth for it (the storage
+// location itself), so a second copy could never drift out of sync with it.
+export function wasRememberedLogin(): boolean {
+  return localStorage.getItem(TOKEN_KEY) !== null;
+}
+
 export const ACTIVE_STORE_STORAGE_KEY = 'nforce-retailops-active-store';
 
 // Only the id is stored. It is re-validated against the server's list of

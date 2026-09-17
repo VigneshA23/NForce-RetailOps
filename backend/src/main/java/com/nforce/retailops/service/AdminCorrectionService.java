@@ -28,19 +28,22 @@ public class AdminCorrectionService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final ActivityLogService activityLogService;
 
     public AdminCorrectionService(
         TaskResponseEntryRepository taskResponseEntryRepository,
         AdminCorrectionRepository adminCorrectionRepository,
         StoreOwnerRepository storeOwnerRepository,
         UserRepository userRepository,
-        NotificationService notificationService
+        NotificationService notificationService,
+        ActivityLogService activityLogService
     ) {
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.adminCorrectionRepository = adminCorrectionRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.activityLogService = activityLogService;
     }
 
     @Transactional
@@ -128,6 +131,15 @@ public class AdminCorrectionService {
         AdminCorrection saved = adminCorrectionRepository.save(correction);
         notificationService.createForCorrection(saved);
 
+        String correctorName = adminUserId != null
+            ? userRepository.findById(adminUserId).map(u -> u.getFullName()).orElse(adminDisplayName)
+            : adminDisplayName;
+        activityLogService.log(
+            "RESPONSE_CORRECTED", correctorName, adminUserId != null ? "OWNER_ADMIN" : "SUPER_ADMIN",
+            entry.getStore().getId(), entry.getStore().getName(), "TASK", entry.getTask().getName(),
+            "Corrected a response for \"" + entry.getTask().getName() + "\""
+        );
+
         AdminCorrectionEntry correctionDto = ChecklistHistoryService.toCorrectionEntry(saved);
         HistoryResponseEntryResponse updatedResponse = new HistoryResponseEntryResponse(
             entry.getId(),
@@ -190,6 +202,15 @@ public class AdminCorrectionService {
         AdminCorrection saved = adminCorrectionRepository.save(flag);
 
         notificationService.createForFlag(saved);
+
+        String flaggerName = adminUserId != null
+            ? userRepository.findById(adminUserId).map(u -> u.getFullName()).orElse(adminDisplayName)
+            : adminDisplayName;
+        activityLogService.log(
+            "RESPONSE_FLAGGED", flaggerName, adminUserId != null ? "OWNER_ADMIN" : "SUPER_ADMIN",
+            entry.getStore().getId(), entry.getStore().getName(), "TASK", entry.getTask().getName(),
+            "Flagged a response for \"" + entry.getTask().getName() + "\""
+        );
 
         AdminCorrectionEntry correctionDto = ChecklistHistoryService.toCorrectionEntry(saved);
         return new HistoryResponseEntryResponse(

@@ -18,6 +18,18 @@
   margin: calc(-1 * var(--space-sm)) 0 var(--space-md);
 }
 
+/* Top insights row: Completion Rate gets noticeably more width than Today's
+   Completion and Category Health, rather than the three splitting evenly. */
+.chart-card-row--top {
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+@media (--tablet-down) {
+  .chart-card-row--top {
+    grid-template-columns: 1fr;
+  }
+}
+
 .home-page__loading {
   color: var(--color-text-secondary);
   font-size: 14px;
@@ -136,6 +148,11 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  /* Push the scrollbar out to the card's edge instead of sitting flush
+     against the percent column -- padding moves the content left, the
+     matching negative margin keeps the row's usable width unchanged. */
+  padding-right: var(--space-sm);
+  margin-right: calc(-1 * var(--space-sm));
 }
 
 .home-page__category-health-row {

@@ -72,6 +72,14 @@ public class PasswordResetService {
     }
 
     @Transactional
+    public String createSetupToken(String email) {
+        UUID token = UUID.randomUUID();
+        OffsetDateTime now = OffsetDateTime.now();
+        tokenRepository.save(new PasswordResetToken(email, token, now, now.plusHours(72)));
+        return token.toString();
+    }
+
+    @Transactional
     public void confirmReset(String rawToken, String newPassword) {
         UUID uuid;
         try {

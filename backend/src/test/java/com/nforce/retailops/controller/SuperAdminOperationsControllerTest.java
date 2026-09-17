@@ -3,10 +3,12 @@ package com.nforce.retailops.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
+import com.nforce.retailops.entity.RaisedIssue;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.Task;
@@ -14,7 +16,9 @@ import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.RoleRepository;
+import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SuperAdminRepository;
@@ -54,6 +58,8 @@ class SuperAdminOperationsControllerTest {
     @Autowired private CategoryRepository categoryRepository;
     @Autowired private TaskRepository taskRepository;
     @Autowired private TaskResponseEntryRepository taskResponseEntryRepository;
+    @Autowired private StoreEmployeeRepository storeEmployeeRepository;
+    @Autowired private RaisedIssueRepository raisedIssueRepository;
     @Autowired private SuperAdminRepository superAdminRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
@@ -142,6 +148,26 @@ class SuperAdminOperationsControllerTest {
         return taskResponseEntryRepository.save(r);
     }
 
+    private StoreEmployee storeEmployee(User employee, Store store) {
+        StoreEmployee se = new StoreEmployee();
+        se.setEmployee(employee);
+        se.setPhone("555-0100");
+        se.setShift("Morning");
+        se.setEmployeeType("Full-time");
+        se.setGender("Other");
+        se.getStores().add(store);
+        return storeEmployeeRepository.save(se);
+    }
+
+    private RaisedIssue openIssue(Store store, User employee) {
+        RaisedIssue issue = new RaisedIssue();
+        issue.setStore(store);
+        issue.setEmployeeUser(employee);
+        issue.setNote("Something needs attention");
+        issue.setStatus("OPEN");
+        return raisedIssueRepository.save(issue);
+    }
+
     private SuperAdmin superAdmin(String email) {
         SuperAdmin sa = new SuperAdmin();
         sa.setName("Super Admin");
@@ -228,7 +254,48 @@ class SuperAdminOperationsControllerTest {
             .andExpect(jsonPath("$.totalStores").isNumber())
             .andExpect(jsonPath("$.platformCompletionPercent").isNumber())
             .andExpect(jsonPath("$.totalOpenIssues").isNumber())
-            .andExpect(jsonPath("$.storesWithActivity").isNumber());
+            .andExpect(jsonPath("$.storesWithActivity").isNumber())
+            .andExpect(jsonPath("$.totalTasksToday").value(1))
+            .andExpect(jsonPath("$.completedTasksToday").value(1))
+            .andExpect(jsonPath("$.employeesActiveToday").value(1))
+            .andExpect(jsonPath("$.storesWithOpenIssues").value(0))
+            .andExpect(jsonPath("$.totalEmployees").isNumber());
+    }
+
+    // Dedicated coverage for the "Platform Health" panel's fields: one store with
+    // a real StoreEmployee row and today's activity, one store with an open issue
+    // and no activity at all -- exercises storesWithOpenIssues, totalEmployees and
+    // employeesActiveToday together rather than as loose isNumber() checks.
+    @Test
+    @Transactional
+    void platformStatsCountsActiveEmployeesAndStoresWithOpenIssues() throws Exception {
+        superAdmin("sa-ops-admin-h@nforce.test");
+        User owner = ownerUser("sa-ops-owner-h@nforce.test");
+        Store activeStore = store("Store Health Active", 9220L);
+        Store idleStore = store("Store Health Idle", 9221L);
+        linkOwnerToStore(owner, activeStore);
+        linkOwnerToStore(owner, idleStore);
+
+        Category cat = category(owner);
+        Task t = task(owner, cat, activeStore);
+        User emp = employeeUser("sa-ops-emp-h@nforce.test");
+        storeEmployee(emp, activeStore);
+        response(t, activeStore, emp);
+
+        User idleEmployee = employeeUser("sa-ops-emp-idle-h@nforce.test");
+        openIssue(idleStore, idleEmployee);
+
+        String token = login("sa-ops-admin-h@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/platform-stats")
+                .header("Authorization", "Bearer " + token)
+                .param("date", LocalDate.now().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalStores").value(2))
+            .andExpect(jsonPath("$.storesWithActivity").value(1))
+            .andExpect(jsonPath("$.storesWithOpenIssues").value(1))
+            .andExpect(jsonPath("$.totalEmployees").value(1))
+            .andExpect(jsonPath("$.employeesActiveToday").value(1));
     }
 
     @Test

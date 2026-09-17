@@ -28,8 +28,17 @@ public class JwtService {
     }
 
     public String generateToken(String email, List<String> roles) {
+        return generateToken(email, roles, expirationMs);
+    }
+
+    // Lets a caller mint a token whose own expiry matches a specific session
+    // policy (e.g. the 30-minute standard / 4-hour Remember Me lifetime),
+    // rather than always using the single default. This keeps the JWT itself
+    // honest about how long it should live -- the server-side session record
+    // (ActiveSession.expiresAt) remains the actual enforced boundary either way.
+    public String generateToken(String email, List<String> roles, long tokenExpirationMs) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + expirationMs);
+        Date expiry = new Date(now.getTime() + tokenExpirationMs);
 
         return Jwts.builder()
             .subject(email)

@@ -11,45 +11,67 @@ import java.time.OffsetDateTime;
 import java.util.Optional;
 
 /**
- * Single source of truth for the global inactivity-timeout session policy.
- * A session is identified by the JWT's own "jti" claim (the token id) rather
- * than the token string itself, so no raw token is ever persisted.
+ * Single source of truth for the session/Remember-Me policy. A session is
+ * identified by the JWT's own "jti" claim (the token id) rather than the
+ * token string itself, so no raw token is ever persisted.
+ *
+ * Each session gets an absolute expiry fixed at creation time, chosen from
+ * one of two policies (standard / remember-me) — not a sliding inactivity
+ * window — so "the session lasts exactly N minutes" is a real guarantee
+ * regardless of how active the caller stays in between.
  */
 @Service
 public class SessionService {
 
-    // Below this, re-touching the row on every request is skipped — the expiry
-    // check only needs minute-level accuracy, so this avoids a DB write per request.
+    // Below this, re-touching the row on every request is skipped -- lastActiveAt
+    // is kept for observability only (it plays no part in the expiry decision),
+    // so minute-level accuracy is enough and this avoids a DB write per request.
     private static final Duration TOUCH_THROTTLE = Duration.ofSeconds(20);
 
     private final ActiveSessionRepository activeSessionRepository;
-    private final long inactivityTimeoutMinutes;
+    private final long standardSessionMinutes;
+    private final long rememberMeSessionMinutes;
 
     public SessionService(
         ActiveSessionRepository activeSessionRepository,
-        @Value("${session.inactivity-timeout-minutes}") long inactivityTimeoutMinutes
+        @Value("${session.inactivity-timeout-minutes}") long standardSessionMinutes,
+        @Value("${session.remember-me-timeout-minutes}") long rememberMeSessionMinutes
     ) {
         this.activeSessionRepository = activeSessionRepository;
-        this.inactivityTimeoutMinutes = inactivityTimeoutMinutes;
+        this.standardSessionMinutes = standardSessionMinutes;
+        this.rememberMeSessionMinutes = rememberMeSessionMinutes;
     }
 
     public long getInactivityTimeoutMinutes() {
-        return inactivityTimeoutMinutes;
+        return standardSessionMinutes;
+    }
+
+    public long getRememberMeTimeoutMinutes() {
+        return rememberMeSessionMinutes;
+    }
+
+    /** The session lifetime, in minutes, for a login with/without Remember Me. */
+    public long resolveSessionMinutes(boolean rememberMe) {
+        return rememberMe ? rememberMeSessionMinutes : standardSessionMinutes;
     }
 
     @Transactional
-    public void createSession(String tokenId, String subjectEmail) {
+    public void createSession(String tokenId, String subjectEmail, long sessionMinutes) {
+        OffsetDateTime now = OffsetDateTime.now();
         ActiveSession session = new ActiveSession();
         session.setTokenId(tokenId);
         session.setSubjectEmail(subjectEmail);
+        session.setLastActiveAt(now);
+        session.setExpiresAt(now.plusMinutes(sessionMinutes));
         activeSessionRepository.save(session);
     }
 
     /**
-     * Validates that the session behind this token id is still alive (exists and
-     * has not exceeded the inactivity timeout), touching its last-activity
+     * Validates that the session behind this token id is still alive (exists
+     * and has not passed its absolute expiry), touching its last-activity
      * timestamp on success. Returns false when the caller must be treated as
-     * unauthenticated (revoked via logout, or expired due to inactivity).
+     * unauthenticated (revoked via logout, or past its Remember-Me/standard
+     * expiry).
      */
     @Transactional
     public boolean validateAndTouch(String tokenId) {
@@ -60,18 +82,29 @@ public class SessionService {
 
         ActiveSession session = sessionOpt.get();
         OffsetDateTime now = OffsetDateTime.now();
-        Duration idle = Duration.between(session.getLastActiveAt(), now);
 
-        if (idle.toMinutes() >= inactivityTimeoutMinutes) {
+        if (!now.isBefore(session.getExpiresAt())) {
             activeSessionRepository.deleteByTokenId(tokenId);
             return false;
         }
 
-        if (idle.compareTo(TOUCH_THROTTLE) > 0) {
+        if (Duration.between(session.getLastActiveAt(), now).compareTo(TOUCH_THROTTLE) > 0) {
             activeSessionRepository.touch(tokenId, now);
         }
 
         return true;
+    }
+
+    /**
+     * How many seconds remain before this session's absolute expiry, clamped
+     * to zero. Used only to seed the frontend's UX countdown accurately after
+     * a page refresh -- the value returned here has no effect on enforcement,
+     * which is decided solely by validateAndTouch above.
+     */
+    @Transactional(readOnly = true)
+    public Optional<Long> getRemainingSeconds(String tokenId) {
+        return activeSessionRepository.findByTokenId(tokenId)
+            .map(session -> Math.max(0, Duration.between(OffsetDateTime.now(), session.getExpiresAt()).getSeconds()));
     }
 
     @Transactional

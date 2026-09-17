@@ -73,6 +73,11 @@ public class SecurityConfig {
                     "/actuator/health",
                     "/error"
                 ).permitAll()
+                // Internal job endpoints called by EventBridge Scheduler (Lambda only).
+                // Auth is the X-Internal-Job-Secret header check inside InternalJobController.
+                // On Railway/local dev these endpoints exist but are unreachable from outside
+                // since no EventBridge points at Railway — presence here is harmless.
+                .requestMatchers("/internal/jobs/**").permitAll()
                 // Explicit rather than left to the anyRequest() catch-all below: every
                 // /api/me/** endpoint (including /api/me/history/**) requires the same
                 // authenticated-caller check, with per-employee store scoping enforced

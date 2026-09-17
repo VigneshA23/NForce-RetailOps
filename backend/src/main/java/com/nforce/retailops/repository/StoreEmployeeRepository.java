@@ -19,6 +19,12 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
     // row, only flips User.active).
     int countByStoresIdAndEmployeeActiveTrue(Long storeId);
 
+    // Platform-wide active headcount for Super Admin's "Employees active today" /
+    // total-employees denominator -- a plain count, not scoped to any one store's
+    // employee_stores rows (one StoreEmployee row already represents one employee,
+    // regardless of how many stores they're assigned to).
+    long countByEmployeeActiveTrue();
+
     // Batched form of countByStoresIdAndEmployeeActiveTrue, for the Store Management /
     // Super Admin Stores list "Total Employees" tile and per-store column -- must match
     // what the Employees page actually shows (active headcount), not a raw employee_stores

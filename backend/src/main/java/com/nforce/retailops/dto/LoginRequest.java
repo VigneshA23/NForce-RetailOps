@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotBlank;
 // that would reveal the raw input was malformed.
 public record LoginRequest(
     @NotBlank String email,
-    @NotBlank String password
+    @NotBlank String password,
+    boolean rememberMe
 ) {
 }

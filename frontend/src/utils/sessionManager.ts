@@ -3,6 +3,7 @@
 // up their own timers or fetch interceptors.
 
 export const DEFAULT_INACTIVITY_TIMEOUT_MINUTES = 30;
+export const DEFAULT_REMEMBER_ME_TIMEOUT_MINUTES = 240;
 
 const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click'] as const;
 const ACTIVITY_RESET_THROTTLE_MS = 1000;

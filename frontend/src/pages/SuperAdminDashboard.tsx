@@ -3,6 +3,7 @@ import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'l
 import { nfToast } from '../utils/toast';
 import { addOwner, assignStore, deleteOwner, getOwners, setOwnerStatus, setStoreStatus, updateOwner } from '../api/owners';
 import { getAllStores } from '../api/superAdminStores';
+import { getCategories } from '../api/categories';
 import type { AddOwnerValues, AssignStoreValues, OwnerSummary, UpdateOwnerValues } from '../types/owner';
 import type { GroupedOwner } from '../components/OwnerTable';
 import type { AuthUser } from '../types/auth';
@@ -52,6 +53,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   // (one row per owner-store link) silently excludes any store with no owner assigned
   // yet, undercounting "Total Stores" against the real total shown on the Stores page.
   const [totalStoreCount, setTotalStoreCount] = useState<number | null>(null);
+  const [totalCategoryCount, setTotalCategoryCount] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Add owner
@@ -95,7 +97,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setActiveTab('checklist');
   }
 
-  const [tempPassword, setTempPassword] = useState<{ name: string; password: string; emailSent: boolean } | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ name: string; password: string | null; emailSent: boolean } | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
@@ -180,6 +182,10 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
 
   useEffect(() => {
     getAllStores().then((stores) => setTotalStoreCount(stores.length)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    getCategories().then((categories) => setTotalCategoryCount(categories.length)).catch(() => {});
   }, []);
 
   async function handleFormSubmit(values: AddOwnerValues) {
@@ -376,8 +382,13 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
           owners={owners}
           ownersLoading={isLoading}
           totalStoreCount={totalStoreCount}
+          totalCategoryCount={totalCategoryCount}
           onStoreClick={navigateToChecklist}
           onIssuesClick={() => setActiveTab('issues')}
+          onOwnersClick={() => setActiveTab('owners')}
+          onStoresClick={() => setActiveTab('stores')}
+          onCategoriesClick={() => setActiveTab('categories')}
+          onChecklistClick={() => setActiveTab('checklist')}
         />
       ) : activeTab === 'stores' ? (
         <SuperAdminStores onNavigateToChecklist={navigateToChecklist} onOwnersDataStale={refreshOwnersSilently} />

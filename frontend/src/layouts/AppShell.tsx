@@ -32,7 +32,7 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
   onNotificationsClick?: () => void;
-  onNotificationNavigate?: (path: string) => void;
+  onNotificationNavigate?: (path: string, createdAt?: string) => void;
   notificationUnreadCount?: number;
   onNotificationsCountChange?: (count: number) => void;
   avatarUrl?: string | null;

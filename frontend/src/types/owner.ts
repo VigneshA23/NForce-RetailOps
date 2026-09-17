@@ -41,7 +41,7 @@ export interface ReassignableStore {
 
 export interface OwnerCreationResult {
   owner: OwnerSummary;
-  temporaryPassword: string;
+  temporaryPassword: string | null;
   emailSent: boolean;
 }
 
