@@ -49,6 +49,8 @@ class EmployeeServiceStatusTest {
     private TemporaryPasswordGenerator temporaryPasswordGenerator;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private PasswordResetService passwordResetService;
 
     @InjectMocks
     private EmployeeService employeeService;
@@ -122,6 +124,7 @@ class EmployeeServiceStatusTest {
         when(storeEmployeeRepository.findById(EMPLOYEE_ID)).thenReturn(Optional.of(storeEmployee));
         when(temporaryPasswordGenerator.generate()).thenReturn("Temp-Pass1");
         when(passwordEncoder.encode("Temp-Pass1")).thenReturn("hashed");
+        when(passwordResetService.createSetupToken(EMPLOYEE_EMAIL)).thenReturn("setup-token-123");
 
         employeeService.resetEmployeePassword(OWNER_ID, EMPLOYEE_ID);
 
@@ -129,7 +132,7 @@ class EmployeeServiceStatusTest {
         assertThat(storeEmployee.getEmployee().isMustResetPassword()).isTrue();
         verify(userRepository).save(storeEmployee.getEmployee());
         verify(sessionService).invalidateAllForUser(EMPLOYEE_EMAIL);
-        verify(mailService).sendPasswordReset(EMPLOYEE_EMAIL, "Test Employee", "Temp-Pass1");
+        verify(mailService).sendAccountSetupEmail(eq(EMPLOYEE_EMAIL), eq("Test Employee"), anyString());
     }
 
     @Test
@@ -145,7 +148,7 @@ class EmployeeServiceStatusTest {
         assertThatThrownBy(() -> employeeService.resetEmployeePassword(OWNER_ID, EMPLOYEE_ID))
             .isInstanceOf(EmployeeNotFoundException.class);
 
-        verify(mailService, never()).sendPasswordReset(anyString(), anyString(), anyString());
+        verify(mailService, never()).sendAccountSetupEmail(anyString(), anyString(), anyString());
         verify(sessionService, never()).invalidateAllForUser(anyString());
     }
 

@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -158,6 +159,49 @@ class OwnerManagementServiceTest {
             .hasMessageContaining("already exists");
 
         verify(storeRepository, times(0)).save(any(Store.class));
+    }
+
+    // Part of the owner-vacancy notification flow: deactivating an owner must
+    // stamp ownerVacantSince on every store link it releases, so
+    // SuperAdminAlertService.runOwnerVacancyCheck has a 24-hour window to count from.
+    @Test
+    void setOwnerActiveFalseStampsOwnerVacantSinceOnReleasedStoreLinks() {
+        User owner = user(1L, "Alice Owner");
+        Store store = store(10L, "Downtown");
+        StoreOwner link = storeOwner(owner, store);
+        link.setActive(true);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(link));
+
+        ownerManagementService.setOwnerActive(1L, false);
+
+        assertThat(link.isActive()).isFalse();
+        assertThat(link.getOwner()).isNull();
+        assertThat(link.getOwnerVacantSince()).isNotNull();
+    }
+
+    // The other half of the same flow: explicitly reassigning a previously-released
+    // store back to an owner (same or new) must resolve the pending vacancy,
+    // regardless of whether 24 hours have already passed since it started.
+    @Test
+    void assignStoreToAnExistingRevokedStoreClearsOwnerVacantSince() {
+        User owner = user(1L, "Alice Owner");
+        Store store = store(20L, "Uptown");
+        StoreOwner revokedLink = storeOwner(null, store);
+        revokedLink.setActive(false);
+        revokedLink.setOwnerVacantSince(OffsetDateTime.now().minusHours(30));
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(storeOwnerRepository.existsByOwnerIdAndActiveTrue(1L)).thenReturn(false);
+        when(storeOwnerRepository.findByStoreId(20L)).thenReturn(Optional.of(revokedLink));
+        when(storeOwnerRepository.save(any(StoreOwner.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OwnerResponse response = ownerManagementService.assignStore(1L, new AssignStoreRequest(null, null, 20L));
+
+        assertThat(response.storeId()).isEqualTo(20L);
+        assertThat(revokedLink.getOwner()).isEqualTo(owner);
+        assertThat(revokedLink.isActive()).isTrue();
+        assertThat(revokedLink.getOwnerVacantSince()).isNull();
     }
 
     // Regression test for the unbounded-listing fix: the response is capped at

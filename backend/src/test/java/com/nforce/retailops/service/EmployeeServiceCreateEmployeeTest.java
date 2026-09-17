@@ -18,6 +18,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doThrow;
@@ -47,6 +48,8 @@ class EmployeeServiceCreateEmployeeTest {
     private EmployeeProvisioningService employeeProvisioningService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private PasswordResetService passwordResetService;
 
     @InjectMocks
     private EmployeeService employeeService;
@@ -63,6 +66,7 @@ class EmployeeServiceCreateEmployeeTest {
             42L, 7L, "jane@nforce.test", "Jane Doe", "temp-pass-123", response
         );
         when(employeeProvisioningService.createEmployeeAccount(isNull(), eq(request), any())).thenReturn(provisioned);
+        when(passwordResetService.createSetupToken(anyString())).thenReturn("setup-token-123");
     }
 
     @Test
@@ -70,21 +74,21 @@ class EmployeeServiceCreateEmployeeTest {
         EmployeeCreationResponse result = employeeService.createEmployee(request);
 
         assertThat(result.employee()).isEqualTo(provisioned.response());
-        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.temporaryPassword()).isNull();
         assertThat(result.emailSent()).isTrue();
-        verify(mailService).sendTemporaryPassword("jane@nforce.test", "Jane Doe", "temp-pass-123");
+        verify(mailService).sendAccountSetupEmail(eq("jane@nforce.test"), eq("Jane Doe"), anyString());
         verify(employeeProvisioningService, never()).deleteUnreachableEmployee(any(), any());
     }
 
     @Test
     void onMailFailureTheAccountSurvivesAndResponseIndicatesEmailNotSent() {
         doThrow(new EmailDeliveryException("boom")).when(mailService)
-            .sendTemporaryPassword("jane@nforce.test", "Jane Doe", "temp-pass-123");
+            .sendAccountSetupEmail(anyString(), anyString(), anyString());
 
         EmployeeCreationResponse result = employeeService.createEmployee(request);
 
         assertThat(result.employee()).isEqualTo(provisioned.response());
-        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.temporaryPassword()).isNull();
         assertThat(result.emailSent()).isFalse();
         verify(employeeProvisioningService, never()).deleteUnreachableEmployee(any(), any());
     }

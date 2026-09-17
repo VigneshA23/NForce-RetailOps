@@ -27,6 +27,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -207,6 +208,10 @@ public class OwnerManagementService {
             }
             storeOwner.setOwner(owner);
             storeOwner.setActive(true);
+            // Resolves any pending owner-vacancy notification for this store --
+            // the same/new owner is now active again, whether or not 24h have
+            // already passed since it became ownerless.
+            storeOwner.setOwnerVacantSince(null);
             storeOwner = storeOwnerRepository.save(storeOwner);
         }
 
@@ -250,6 +255,7 @@ public class OwnerManagementService {
             storeOwners.forEach(storeOwner -> {
                 storeOwner.setActive(false);
                 storeOwner.setOwner(null);
+                storeOwner.setOwnerVacantSince(OffsetDateTime.now());
             });
             storeOwnerRepository.saveAll(storeOwners);
             return List.of(OwnerResponse.withoutStore(owner));
@@ -266,6 +272,7 @@ public class OwnerManagementService {
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
         storeOwner.setActive(active);
+        storeOwner.setOwnerVacantSince(active ? null : OffsetDateTime.now());
         storeOwnerRepository.save(storeOwner);
 
         return storeOwnerRepository.findByOwnerId(ownerId).stream()

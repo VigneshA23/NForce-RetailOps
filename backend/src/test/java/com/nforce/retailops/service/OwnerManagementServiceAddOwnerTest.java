@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -48,6 +49,8 @@ class OwnerManagementServiceAddOwnerTest {
     private SuperAdminAlertService superAdminAlertService;
     @Mock
     private NotificationService notificationService;
+    @Mock
+    private PasswordResetService passwordResetService;
 
     @InjectMocks
     private OwnerManagementService ownerManagementService;
@@ -75,26 +78,28 @@ class OwnerManagementServiceAddOwnerTest {
     @Test
     void onMailSuccessTheProvisionedResponsePassesThroughWithEmailSentTrue() {
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
+        when(passwordResetService.createSetupToken(anyString())).thenReturn("setup-token-123");
 
         OwnerCreationResponse result = ownerManagementService.addOwner(request);
 
         assertThat(result.owner()).isEqualTo(provisioned.response());
-        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.temporaryPassword()).isNull();
         assertThat(result.emailSent()).isTrue();
-        verify(mailService).sendTemporaryPassword("owner@nforce.test", "New Owner", "temp-pass-123");
+        verify(mailService).sendAccountSetupEmail(eq("owner@nforce.test"), eq("New Owner"), anyString());
         verify(ownerProvisioningService, never()).deleteUnreachableOwner(any());
     }
 
     @Test
     void onMailFailureTheAccountSurvivesAndResponseIndicatesEmailNotSent() {
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
+        when(passwordResetService.createSetupToken(anyString())).thenReturn("setup-token-123");
         doThrow(new EmailDeliveryException("boom")).when(mailService)
-            .sendTemporaryPassword("owner@nforce.test", "New Owner", "temp-pass-123");
+            .sendAccountSetupEmail(anyString(), anyString(), anyString());
 
         OwnerCreationResponse result = ownerManagementService.addOwner(request);
 
         assertThat(result.owner()).isEqualTo(provisioned.response());
-        assertThat(result.temporaryPassword()).isEqualTo("temp-pass-123");
+        assertThat(result.temporaryPassword()).isNull();
         assertThat(result.emailSent()).isFalse();
         verify(ownerProvisioningService, never()).deleteUnreachableOwner(any());
     }

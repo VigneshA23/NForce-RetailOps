@@ -48,4 +48,9 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
     @Query("select so from StoreOwner so join fetch so.store left join fetch so.owner "
         + "where so.active = false and so.store.active = true")
     List<StoreOwner> findAllWithRevokedAccess();
+
+    // Links currently tracking an unresolved owner vacancy -- candidates for
+    // SuperAdminAlertService.runOwnerVacancyCheck's 24-hour notification.
+    @Query("select so from StoreOwner so join fetch so.store where so.ownerVacantSince is not null")
+    List<StoreOwner> findAllWithOwnerVacancyPending();
 }
