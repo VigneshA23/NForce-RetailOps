@@ -4,6 +4,7 @@ public record LoginResponse(
     String token,
     String role,
     String fullName,
-    boolean mustResetPassword
+    boolean mustResetPassword,
+    long sessionTimeoutMinutes
 ) {
 }

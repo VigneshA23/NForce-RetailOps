@@ -20,9 +20,15 @@ import {
   getStoredAvatarUrl,
   setStoredAvatarUrl,
   clearStoredAvatarUrl,
+  wasRememberedLogin,
 } from './utils/authStorage'
-import { DEFAULT_INACTIVITY_TIMEOUT_MINUTES, onUnauthorizedResponse, startInactivityTimer } from './utils/sessionManager'
-import { getSessionConfig, logout } from './api/auth'
+import {
+  DEFAULT_INACTIVITY_TIMEOUT_MINUTES,
+  DEFAULT_REMEMBER_ME_TIMEOUT_MINUTES,
+  onUnauthorizedResponse,
+  startInactivityTimer,
+} from './utils/sessionManager'
+import { getSessionConfig, getSessionStatus, logout } from './api/auth'
 import { useAssignedStores } from './hooks/useAssignedStores'
 import { useMe } from './hooks/useMe'
 
@@ -152,29 +158,51 @@ function App() {
     setStoredAvatarUrl(meState.me.avatarUrl)
   }, [meState.me?.avatarUrl, restoringSession, user])
 
-  // Single global session-management mechanism: an inactivity timer plus a
-  // 401 watcher, both scoped to the lifetime of an authenticated session.
-  // No page or shell owns any of this logic individually.
+  // Single global session-management mechanism: a UX-only countdown timer plus
+  // a 401 watcher, both scoped to the lifetime of an authenticated session. No
+  // page or shell owns any of this logic individually.
+  //
+  // This timer is a convenience, not the security boundary: the real, exact
+  // 30-minute / 4-hour (Remember Me) session lifetime is enforced server-side
+  // (ActiveSession.expiresAt). If the server actually expires the session
+  // before this fires (e.g. this timer resets on activity but the server's
+  // cap does not), the very next API call still gets a 401 and the 401
+  // watcher below ends the session immediately regardless.
   useEffect(() => {
     if (!user) return
 
+    const remembered = wasRememberedLogin()
+    const defaultMinutes = remembered ? DEFAULT_REMEMBER_ME_TIMEOUT_MINUTES : DEFAULT_INACTIVITY_TIMEOUT_MINUTES
+
     let disposed = false
     let stopTimer = startInactivityTimer(
-      DEFAULT_INACTIVITY_TIMEOUT_MINUTES * 60_000,
+      defaultMinutes * 60_000,
       () => endSession(INACTIVITY_MESSAGE),
     )
 
-    getSessionConfig()
-      .then((config) => {
-        if (disposed) return
-        stopTimer()
-        stopTimer = startInactivityTimer(
-          config.inactivityTimeoutMinutes * 60_000,
-          () => endSession(INACTIVITY_MESSAGE),
-        )
-      })
+    function applyRemainingMs(remainingMs: number) {
+      if (disposed) return
+      stopTimer()
+      stopTimer = startInactivityTimer(
+        Math.max(remainingMs, 0),
+        () => endSession(INACTIVITY_MESSAGE),
+      )
+    }
+
+    // The session's actual remaining time -- accurate even after a page
+    // refresh, unlike restarting the countdown at the full policy duration.
+    // Falls back to the static per-policy default if this can't be fetched.
+    getSessionStatus()
+      .then((status) => applyRemainingMs(status.remainingSeconds * 1000))
       .catch(() => {
-        // Keep running with the default timeout if the config can't be fetched.
+        getSessionConfig()
+          .then((config) => {
+            const minutes = remembered ? config.rememberMeTimeoutMinutes : config.inactivityTimeoutMinutes
+            applyRemainingMs(minutes * 60_000)
+          })
+          .catch(() => {
+            // Keep running with the default timeout if neither can be fetched.
+          })
       })
 
     const stopUnauthorizedWatch = onUnauthorizedResponse(() => endSession(INVALID_SESSION_MESSAGE))

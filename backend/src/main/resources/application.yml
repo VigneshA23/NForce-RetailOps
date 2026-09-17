@@ -37,6 +37,7 @@ jwt:
 
 session:
   inactivity-timeout-minutes: ${SESSION_INACTIVITY_TIMEOUT_MINUTES:30}
+  remember-me-timeout-minutes: ${SESSION_REMEMBER_ME_TIMEOUT_MINUTES:240}
 
 resend:
   api-key: ${RESEND_API_KEY:}

@@ -24,6 +24,13 @@ public class ActiveSession {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
+    // Absolute cutoff, fixed at login time based on the Remember Me policy
+    // chosen then (30 min standard / 4h remember-me) -- unlike lastActiveAt,
+    // this never slides forward, so "exactly N minutes" is a real guarantee
+    // regardless of how active the user stays.
+    @Column(name = "expires_at", nullable = false)
+    private OffsetDateTime expiresAt;
+
     public ActiveSession() {
     }
 
@@ -66,5 +73,13 @@ public class ActiveSession {
 
     public OffsetDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public OffsetDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(OffsetDateTime expiresAt) {
+        this.expiresAt = expiresAt;
     }
 }

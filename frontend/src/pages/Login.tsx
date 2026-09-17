@@ -84,7 +84,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
     }
     setLoading(true)
     try {
-      const result = await login(email, password)
+      const result = await login(email, password, rememberMe)
       pendingLoginRef.current = { result, remember: rememberMe, mustReset: result.mustResetPassword }
       setSubmitStatus('success')
       setConfettiKey(k => k + 1)
