@@ -6,13 +6,14 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080
 
 export interface LoginResult extends AuthUser {
   mustResetPassword: boolean
+  sessionTimeoutMinutes: number
 }
 
-export async function login(email: string, password: string): Promise<LoginResult> {
+export async function login(email: string, password: string, rememberMe: boolean): Promise<LoginResult> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, rememberMe }),
   })
 
   if (!response.ok) {
@@ -70,6 +71,7 @@ export async function logout(): Promise<void> {
 
 export interface SessionConfig {
   inactivityTimeoutMinutes: number
+  rememberMeTimeoutMinutes: number
 }
 
 export async function getSessionConfig(): Promise<SessionConfig> {
@@ -77,6 +79,25 @@ export async function getSessionConfig(): Promise<SessionConfig> {
 
   if (!response.ok) {
     throw new Error('Unable to load session configuration')
+  }
+
+  return response.json()
+}
+
+export interface SessionStatus {
+  remainingSeconds: number
+}
+
+// The caller's own current session's real remaining time -- used only to
+// seed an accurate UX countdown (e.g. right after a page refresh), never to
+// decide whether a request is allowed.
+export async function getSessionStatus(): Promise<SessionStatus> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/session-status`, {
+    headers: authHeaders(),
+  })
+
+  if (!response.ok) {
+    throw new Error('Unable to load session status')
   }
 
   return response.json()

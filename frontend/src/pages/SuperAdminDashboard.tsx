@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { addOwner, assignStore, deleteOwner, getOwners, setOwnerStatus, setStoreStatus, updateOwner } from '../api/owners';
+import { getAllStores } from '../api/superAdminStores';
+import { getCategories } from '../api/categories';
 import type { AddOwnerValues, AssignStoreValues, OwnerSummary, UpdateOwnerValues } from '../types/owner';
 import type { GroupedOwner } from '../components/OwnerTable';
 import type { AuthUser } from '../types/auth';
@@ -47,6 +49,11 @@ interface SuperAdminDashboardProps {
 function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: SuperAdminDashboardProps) {
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Every store platform-wide, independent of ownership -- deriving this from `owners`
+  // (one row per owner-store link) silently excludes any store with no owner assigned
+  // yet, undercounting "Total Stores" against the real total shown on the Stores page.
+  const [totalStoreCount, setTotalStoreCount] = useState<number | null>(null);
+  const [totalCategoryCount, setTotalCategoryCount] = useState<number | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Add owner
@@ -171,6 +178,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
 
   useEffect(() => {
     loadOwners();
+  }, []);
+
+  useEffect(() => {
+    getAllStores().then((stores) => setTotalStoreCount(stores.length)).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    getCategories().then((categories) => setTotalCategoryCount(categories.length)).catch(() => {});
   }, []);
 
   async function handleFormSubmit(values: AddOwnerValues) {
@@ -309,8 +324,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     () => new Set(owners.filter((o) => o.ownerActive).map((o) => o.ownerId)).size,
     [owners],
   );
-  const totalStoreCount = useMemo(() => owners.filter((o) => o.storeId != null).length, [owners]);
-
   return (
     <AppShell<SuperAdminNavTabKey>
       navItems={SUPER_ADMIN_NAV_ITEMS}
@@ -357,7 +370,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       {showProfile ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : showHelp ? (
-        <Help />
+        <Help role={user.role} />
       ) : showSettings ? (
         <Settings />
       ) : showNotifications ? (
@@ -365,7 +378,18 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       ) : activeTab === 'checklist' ? (
         <SuperAdminChecklist nav={checklistNav} />
       ) : activeTab === 'home' ? (
-        <SuperAdminHome owners={owners} ownersLoading={isLoading} onStoreClick={navigateToChecklist} onIssuesClick={() => setActiveTab('issues')} />
+        <SuperAdminHome
+          owners={owners}
+          ownersLoading={isLoading}
+          totalStoreCount={totalStoreCount}
+          totalCategoryCount={totalCategoryCount}
+          onStoreClick={navigateToChecklist}
+          onIssuesClick={() => setActiveTab('issues')}
+          onOwnersClick={() => setActiveTab('owners')}
+          onStoresClick={() => setActiveTab('stores')}
+          onCategoriesClick={() => setActiveTab('categories')}
+          onChecklistClick={() => setActiveTab('checklist')}
+        />
       ) : activeTab === 'stores' ? (
         <SuperAdminStores onNavigateToChecklist={navigateToChecklist} onOwnersDataStale={refreshOwnersSilently} />
       ) : activeTab === 'employees' ? (
@@ -381,7 +405,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
           <div className="stat-card-row">
             <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
             <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
-            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount} tone="info" />
+            <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '—'} tone="info" />
           </div>
 
           {statusError && (

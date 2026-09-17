@@ -70,6 +70,14 @@
   background: var(--color-badge-icon-primary-bg);
 }
 
+/* Extra filter controls (Super Admin's store picker, the optional search
+   box) share the sticky filter bar with the date trigger above -- sized to
+   coexist with it rather than stretching to fill the row. */
+.employee-history-extra-filter {
+  flex: 1;
+  min-width: 200px;
+}
+
 /* Skeleton loading state */
 
 .employee-history-skeleton {
@@ -354,6 +362,12 @@
   margin: 2px 0 0;
 }
 
+.employee-history-task-value-meta {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
 .employee-history-task-history-toggle {
   display: inline-flex;
   align-items: center;
@@ -505,5 +519,18 @@
   .employee-history-date-trigger-wrap {
     flex: 1;
     max-width: 280px;
+  }
+}
+
+/* Pages with extra filters (Super Admin's store picker, search) need more
+   room than the plain single-date Employee bar -- widened and allowed to
+   wrap instead of the fixed 600px cap above. */
+.employee-history-filters--extended {
+  flex-wrap: wrap;
+}
+
+@media (--tablet-up) {
+  .employee-history-filters--extended {
+    max-width: none;
   }
 }

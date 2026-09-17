@@ -25,7 +25,7 @@ export interface HistoryResponderEntry extends HistoryResponder {
 //  - DIRECT_CORRECTION: the owner edited the response's value in place
 //    (fromValue -> toValue are the same row, before/after the edit).
 export interface HistoryResubmissionTransition {
-  kind: 'FLAG_RESUBMIT' | 'DIRECT_CORRECTION';
+  kind: 'FLAG_RESUBMIT' | 'DIRECT_CORRECTION' | 'UNDONE';
   fromValue: string | null;
   toValue: string | null;
   // The owner's comment/reason for the change, if any.
@@ -44,6 +44,13 @@ export interface HistoryResubmissionTransition {
 
 export interface HistoryTaskDetail {
   id: number;
+  // The current/latest response row's id for this task, or null if never
+  // answered -- used to fetch the full correction history on demand.
+  responseId: number | null;
+  // Needed to render an on-demand-fetched correction's before/after value the
+  // same way responseValue above is derived (Yes/No vs Done/Not done differ
+  // by response type; NUMERIC/TEXT need no boolean label at all).
+  responseType: 'YES_NO' | 'DONE_NOT_DONE' | 'NUMERIC' | 'TEXT';
   name: string;
   status: TaskStatus;
   // The actual value the employee submitted (Yes/No, Done/Not done, a number

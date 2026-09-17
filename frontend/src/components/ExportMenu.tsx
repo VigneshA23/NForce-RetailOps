@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Calendar, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react';
+import { Calendar, ChevronDown, Download, FileDown, FileSpreadsheet, FileText } from 'lucide-react';
+import CalendarPopover from './CalendarPopover';
 import { getChecklistHistoryOperationsReport } from '../api/checklistHistory';
 import { buildOperationsReportWorkbook, summarizeByStore } from '../utils/operationsReportExport';
+import { buildAndDownloadOperationsReportPdf } from '../utils/operationsReportPdfExport';
 import { downloadWorkbook } from '../utils/xlsx';
-import { nfToast } from '../utils/toast';
 import { MAX_RANGE_DAYS, todayDate } from '../utils/checklistHistoryOptions';
 import './ExportMenu.css';
 
@@ -13,16 +14,47 @@ interface ExportMenuProps {
   storeName?: string | null;
 }
 
+type ExportFormat = 'excel' | 'pdf';
+
+// Shared by the single-day and date-range PDF exports -- deliberately a richer,
+// more human subtitle style (weekday spelled out) than Excel's own formatLongDate,
+// which this file has never matched exactly since the two exports' headers were
+// designed independently.
+function formatPdfDateLabel(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
+}
+
+// Numeric DD-MM-YYYY display for the Date Range fields -- distinct from the
+// weekday-spelled-out label above and from the nav header's formatDateNavLabel,
+// neither of which match this panel's compact field style.
+function formatRangeDate(date: string): string {
+  const [year, month, day] = date.split('-');
+  return `${day}-${month}-${year}`;
+}
+
+// Shared by both the Excel and PDF range exports.
+function validateRange(rangeStart: string, rangeEnd: string): string | null {
+  if (rangeStart > rangeEnd) return 'Start date must be on or before end date.';
+  const days = (new Date(`${rangeEnd}T00:00:00`).getTime() - new Date(`${rangeStart}T00:00:00`).getTime()) / 86_400_000;
+  if (days > MAX_RANGE_DAYS) return `Max ${MAX_RANGE_DAYS} days.`;
+  return null;
+}
+
 function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [mode, setMode] = useState<'idle' | 'range'>('idle');
+  const [format, setFormat] = useState<ExportFormat>('excel');
   const [rangeStart, setRangeStart] = useState(date);
   const [rangeEnd, setRangeEnd] = useState(date);
-  const [exporting, setExporting] = useState(false);
+  const [fromPickerOpen, setFromPickerOpen] = useState(false);
+  const [toPickerOpen, setToPickerOpen] = useState(false);
   const [rangeExporting, setRangeExporting] = useState(false);
-  const [pdfExporting, setPdfExporting] = useState(false);
+  const [pdfRangeExporting, setPdfRangeExporting] = useState(false);
   const [rangeError, setRangeError] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const fromTriggerRef = useRef<HTMLButtonElement>(null);
+  const toTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setRangeStart(date);
@@ -34,7 +66,6 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     function handleOutsideClick(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMenuOpen(false);
-        setMode('idle');
         setRangeError(null);
       }
     }
@@ -42,33 +73,10 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [menuOpen]);
 
-  async function handleExportToday() {
-    if (!storeId) return;
-    setExporting(true);
-    try {
-      const report = await getChecklistHistoryOperationsReport({ startDate: date, endDate: date, storeId: storeId ?? undefined });
-      const summary = summarizeByStore(report.summary);
-      const workbook = await buildOperationsReportWorkbook(summary, report.details, date, date);
-      await downloadWorkbook(`checklist-${date}.xlsx`, workbook);
-      setMenuOpen(false);
-    } catch (err) {
-      nfToast.error(err instanceof Error ? err.message : 'Export failed. Please try again.');
-    } finally {
-      setExporting(false);
-    }
-  }
-
   async function handleExportRange() {
-    setRangeError(null);
-    if (rangeStart > rangeEnd) {
-      setRangeError('Start date must be on or before end date.');
-      return;
-    }
-    const days = (new Date(`${rangeEnd}T00:00:00`).getTime() - new Date(`${rangeStart}T00:00:00`).getTime()) / 86_400_000;
-    if (days > MAX_RANGE_DAYS) {
-      setRangeError(`Max ${MAX_RANGE_DAYS} days.`);
-      return;
-    }
+    const validationError = validateRange(rangeStart, rangeEnd);
+    setRangeError(validationError);
+    if (validationError) return;
     setRangeExporting(true);
     try {
       const report = await getChecklistHistoryOperationsReport({ startDate: rangeStart, endDate: rangeEnd, storeId: storeId ?? undefined });
@@ -76,7 +84,6 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
       const workbook = await buildOperationsReportWorkbook(summary, report.details, rangeStart, rangeEnd);
       await downloadWorkbook(`checklist-${rangeStart}_to_${rangeEnd}.xlsx`, workbook);
       setMenuOpen(false);
-      setMode('idle');
     } catch (err) {
       setRangeError(err instanceof Error ? err.message : 'Export failed.');
     } finally {
@@ -84,217 +91,175 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     }
   }
 
-  async function handleExportPdf() {
-    if (!storeId) return;
-    setPdfExporting(true);
-    setMenuOpen(false);
+  async function handleExportPdfRange() {
+    const validationError = validateRange(rangeStart, rangeEnd);
+    setRangeError(validationError);
+    if (validationError) return;
+    setPdfRangeExporting(true);
     try {
-      const report = await getChecklistHistoryOperationsReport({ startDate: date, endDate: date, storeId: storeId ?? undefined });
+      const report = await getChecklistHistoryOperationsReport({ startDate: rangeStart, endDate: rangeEnd, storeId: storeId ?? undefined });
       const summary = summarizeByStore(report.summary);
       const storeEntry = summary[0];
-      const details = report.details;
-
-      const title = storeName ?? storeEntry?.storeName ?? 'Store';
-      const formattedDate = new Date(`${date}T00:00:00`).toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      await buildAndDownloadOperationsReportPdf({
+        title: storeName ?? storeEntry?.storeName ?? 'Store',
+        dateLabel: rangeStart === rangeEnd
+          ? formatPdfDateLabel(rangeStart)
+          : `${formatPdfDateLabel(rangeStart)} – ${formatPdfDateLabel(rangeEnd)}`,
+        scheduled: storeEntry?.scheduled ?? 0,
+        completed: storeEntry?.completed ?? 0,
+        issues: storeEntry?.issues ?? 0,
+        details: report.details,
+        filename: `checklist-${rangeStart}_to_${rangeEnd}.pdf`,
       });
-
-      const total = storeEntry?.scheduled ?? 0;
-      const completed = storeEntry?.completed ?? 0;
-      const open = total - completed;
-      const pct = total === 0 ? 0 : Math.round((completed / total) * 100);
-
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      const pageW = doc.internal.pageSize.getWidth();
-      const margin = 14;
-      let y = margin;
-
-      // Header
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.text(title, margin, y);
-      y += 7;
-
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`Daily Checklist — ${formattedDate}`, margin, y);
-      y += 5;
-
-      // Divider
-      doc.setDrawColor(220, 220, 220);
-      doc.line(margin, y, pageW - margin, y);
-      y += 7;
-
-      // Stats row
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('SUMMARY', margin, y);
-      y += 5;
-
-      doc.setFont('helvetica', 'normal');
-      const stats = [
-        `Total Tasks: ${total}`,
-        `Completed: ${completed}`,
-        `No Response: ${open}`,
-        `Completion: ${pct}%`,
-      ];
-      const colW = (pageW - 2 * margin) / stats.length;
-      stats.forEach((stat, i) => {
-        doc.text(stat, margin + i * colW, y);
-      });
-      y += 8;
-
-      doc.setDrawColor(220, 220, 220);
-      doc.line(margin, y, pageW - margin, y);
-      y += 7;
-
-      // Table header
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('TASKS', margin, y);
-      y += 5;
-
-      const colCat = margin;
-      const colTask = margin + 38;
-      const colStatus = margin + 110;
-      const colEmployee = margin + 130;
-
-      doc.setFillColor(245, 245, 245);
-      doc.rect(margin, y - 4, pageW - 2 * margin, 6, 'F');
-      doc.setFontSize(9);
-      doc.text('Category', colCat, y);
-      doc.text('Task', colTask, y);
-      doc.text('Status', colStatus, y);
-      doc.text('Employee', colEmployee, y);
-      y += 5;
-
-      doc.setDrawColor(200, 200, 200);
-      doc.line(margin, y - 1, pageW - margin, y - 1);
-
-      // Task rows
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
-      const rowH = 5.5;
-      for (const row of details) {
-        if (y + rowH > doc.internal.pageSize.getHeight() - margin) {
-          doc.addPage();
-          y = margin;
-        }
-        const statusLabel = row.status === 'COMPLETED' ? 'Done' : row.status === 'ISSUE' ? 'Issue' : 'Open';
-        doc.text(doc.splitTextToSize(row.categoryName, 36), colCat, y);
-        doc.text(doc.splitTextToSize(row.taskName, 70), colTask, y);
-        doc.text(statusLabel, colStatus, y);
-        doc.text(doc.splitTextToSize(row.employeeFullName ?? '—', 50), colEmployee, y);
-        y += rowH;
-        doc.setDrawColor(235, 235, 235);
-        doc.line(margin, y - 1, pageW - margin, y - 1);
-      }
-
-      // Footer
-      y += 4;
-      doc.setTextColor(150, 150, 150);
-      doc.setFontSize(7.5);
-      doc.text(`Generated ${new Date().toLocaleString()}`, margin, y);
-
-      doc.save(`checklist-${date}.pdf`);
+      setMenuOpen(false);
     } catch (err) {
-      nfToast.error(err instanceof Error ? err.message : 'Export failed. Please try again.');
+      setRangeError(err instanceof Error ? err.message : 'Export failed.');
     } finally {
-      setPdfExporting(false);
+      setPdfRangeExporting(false);
     }
   }
+
+  function handleDownload() {
+    return format === 'excel' ? handleExportRange() : handleExportPdfRange();
+  }
+
+  const downloading = rangeExporting || pdfRangeExporting;
 
   return (
     <div ref={menuRef} className="export-menu">
       <button
         type="button"
         className="btn btn--danger export-menu__trigger"
-        onClick={() => { setMenuOpen((v) => !v); setMode('idle'); setRangeError(null); }}
+        onClick={() => { setMenuOpen((v) => !v); setRangeError(null); }}
         aria-expanded={menuOpen}
         aria-haspopup="menu"
       >
+        <Download size={14} />
         Export
         <ChevronDown size={13} />
       </button>
 
       {menuOpen && (
-        <div className="export-menu__dropdown" role="menu">
-          <button
-            type="button"
-            className="export-menu__item"
-            role="menuitem"
-            onClick={handleExportToday}
-            disabled={exporting || !storeId}
-          >
-            <FileSpreadsheet size={14} />
-            {exporting ? 'Downloading…' : 'Export this day (Excel)'}
-          </button>
+        <div
+          className="export-menu__backdrop"
+          onClick={() => { setMenuOpen(false); setRangeError(null); }}
+        />
+      )}
 
-          <button
-            type="button"
-            className="export-menu__item"
-            role="menuitem"
-            onClick={() => { setMode((m) => (m === 'range' ? 'idle' : 'range')); setRangeError(null); }}
-            aria-expanded={mode === 'range'}
-          >
-            <Calendar size={14} />
-            Export date range…
-          </button>
+      {menuOpen && (
+        <div className="export-menu__panel" role="menu">
+          <div className="export-menu__header">
+            <span className="export-menu__header-icon">
+              <FileDown size={20} />
+            </span>
+            <div>
+              <h3 className="export-menu__title">Export Data</h3>
+              <p className="export-menu__description">
+                Download your store&rsquo;s daily checklist data for the selected date range.
+              </p>
+            </div>
+          </div>
 
-          {mode === 'range' && (
-            <div className="export-menu__range-form">
-              <div className="export-menu__range-row">
-                <label className="export-menu__range-label">
-                  From
-                  <input
-                    type="date"
-                    className="export-menu__range-input"
-                    value={rangeStart}
-                    max={todayDate()}
-                    onChange={(e) => { setRangeStart(e.target.value); setRangeError(null); }}
-                  />
-                </label>
-                <label className="export-menu__range-label">
-                  To
-                  <input
-                    type="date"
-                    className="export-menu__range-input"
-                    value={rangeEnd}
-                    min={rangeStart}
-                    max={todayDate()}
-                    onChange={(e) => { setRangeEnd(e.target.value); setRangeError(null); }}
-                  />
-                </label>
-              </div>
-              {rangeError && <p className="export-menu__range-error">{rangeError}</p>}
+          <div className="export-menu__section">
+            <h4 className="export-menu__section-title">Date Range</h4>
+            <div className="export-menu__range-row">
+              <label className="export-menu__field">
+                <span className="export-menu__field-label">From</span>
+                <button
+                  type="button"
+                  ref={fromTriggerRef}
+                  className="export-menu__date-trigger"
+                  onClick={() => setFromPickerOpen((v) => !v)}
+                  aria-expanded={fromPickerOpen}
+                >
+                  <Calendar size={14} />
+                  <span className="export-menu__date-value">{formatRangeDate(rangeStart)}</span>
+                  <ChevronDown size={13} className="export-menu__date-chevron" />
+                </button>
+              </label>
+              <label className="export-menu__field">
+                <span className="export-menu__field-label">To</span>
+                <button
+                  type="button"
+                  ref={toTriggerRef}
+                  className="export-menu__date-trigger"
+                  onClick={() => setToPickerOpen((v) => !v)}
+                  aria-expanded={toPickerOpen}
+                >
+                  <Calendar size={14} />
+                  <span className="export-menu__date-value">{formatRangeDate(rangeEnd)}</span>
+                  <ChevronDown size={13} className="export-menu__date-chevron" />
+                </button>
+              </label>
+            </div>
+            {rangeError && <p className="export-menu__range-error">{rangeError}</p>}
+          </div>
+
+          <div className="export-menu__section">
+            <h4 className="export-menu__section-title">Export Format</h4>
+            <div className="export-menu__format-row" role="radiogroup" aria-label="Export format">
               <button
                 type="button"
-                className="btn btn--primary export-menu__range-download"
-                onClick={handleExportRange}
-                disabled={rangeExporting}
+                role="radio"
+                aria-checked={format === 'excel'}
+                className={`export-menu__format-card${format === 'excel' ? ' export-menu__format-card--selected' : ''}`}
+                onClick={() => setFormat('excel')}
               >
-                {rangeExporting ? 'Downloading…' : 'Download Excel'}
+                <span className="export-menu__format-radio" aria-hidden="true" />
+                <span className="export-menu__format-icon export-menu__format-icon--excel">
+                  <FileSpreadsheet size={20} />
+                </span>
+                <span className="export-menu__format-label">Excel</span>
+                <span className="export-menu__format-desc">Best for analysis &amp; editing</span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={format === 'pdf'}
+                className={`export-menu__format-card${format === 'pdf' ? ' export-menu__format-card--selected' : ''}`}
+                onClick={() => setFormat('pdf')}
+              >
+                <span className="export-menu__format-radio" aria-hidden="true" />
+                <span className="export-menu__format-icon export-menu__format-icon--pdf">
+                  <FileText size={20} />
+                </span>
+                <span className="export-menu__format-label">PDF</span>
+                <span className="export-menu__format-desc">Best for sharing &amp; printing</span>
               </button>
             </div>
-          )}
-
-          <div className="export-menu__divider" role="separator" />
+          </div>
 
           <button
             type="button"
-            className="export-menu__item"
-            role="menuitem"
-            onClick={handleExportPdf}
-            disabled={pdfExporting || !storeId}
+            className="btn btn--danger export-menu__download"
+            onClick={handleDownload}
+            disabled={downloading || !storeId}
           >
-            <FileText size={14} />
-            {pdfExporting ? 'Generating PDF…' : 'Export as PDF'}
+            <Download size={15} />
+            {format === 'excel'
+              ? (rangeExporting ? 'Downloading…' : 'Download Excel')
+              : (pdfRangeExporting ? 'Generating…' : 'Download PDF')}
           </button>
         </div>
       )}
+
+      <CalendarPopover
+        value={rangeStart}
+        max={todayDate()}
+        isOpen={fromPickerOpen}
+        onClose={() => setFromPickerOpen(false)}
+        onSelect={(d) => { setRangeStart(d); setRangeError(null); }}
+        anchorRef={fromTriggerRef}
+      />
+      <CalendarPopover
+        value={rangeEnd}
+        min={rangeStart}
+        max={todayDate()}
+        isOpen={toPickerOpen}
+        onClose={() => setToPickerOpen(false)}
+        onSelect={(d) => { setRangeEnd(d); setRangeError(null); }}
+        anchorRef={toTriggerRef}
+      />
     </div>
   );
 }

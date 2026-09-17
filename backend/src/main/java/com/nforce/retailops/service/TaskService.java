@@ -48,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -252,7 +253,12 @@ public class TaskService {
      * Submit an employee's answer to a task for one of their assigned stores, for
      * today's scheduled date. SINGLE: rejected outright if an active response already
      * exists for this task/store/day (first employee to respond wins, regardless of
-     * who they are). MULTIPLE: always allowed, including repeats by the same employee.
+     * who they are). MULTIPLE: an employee can resubmit any number of times, but each
+     * resubmission supersedes their own previous active response for that task/store/day
+     * -- only their latest answer stays visible/active, with earlier ones chained via
+     * supersededResponseId (same mechanism SINGLE uses for its flag -> resubmit cycle),
+     * so admins see one current row per employee with prior submissions in history.
+     * Other employees' active responses for the same task/day are never touched.
      */
     @Transactional
     public TaskResponseStateResponse submitResponse(Long employeeUserId, Long taskId, TaskResponseSubmitRequest request) {
@@ -282,6 +288,38 @@ public class TaskService {
             // and original value stay reachable from history (see
             // ChecklistHistoryService.buildResubmissionHistory).
             supersededResponseId = flagged.getId();
+        } else if (task.getCompletionType() == CompletionType.MULTIPLE) {
+            List<TaskResponseEntry> ownActive = activeResponses.stream()
+                .filter(r -> r.getEmployee().getId().equals(employeeUserId))
+                .toList();
+            if (!ownActive.isEmpty()) {
+                TaskResponseEntry mostRecent = ownActive.stream()
+                    .max(Comparator.comparing(TaskResponseEntry::getCreatedAt))
+                    .orElseThrow();
+                for (TaskResponseEntry prior : ownActive) {
+                    prior.setActive(false);
+                    prior.setUndoneAt(OffsetDateTime.now());
+                }
+                taskResponseEntryRepository.saveAll(ownActive);
+                taskResponseEntryRepository.flush();
+                supersededResponseId = mostRecent.getId();
+            }
+        }
+
+        // Neither branch above found an active response to chain from (there wasn't
+        // one for this employee this round) -- but Undo itself never links forward
+        // (it only deactivates), so without this fallback, an undo-then-resubmit cycle
+        // would silently drop the undone response from history: it's this employee's
+        // own most recent row for this task/day, so if it exists and is inactive, it
+        // was undone (not superseded already, or activeResponses above would have
+        // found and superseded it instead).
+        if (supersededResponseId == null) {
+            supersededResponseId = taskResponseEntryRepository
+                .findFirstByTaskIdAndStoreIdAndResponseDateAndEmployeeIdOrderByCreatedAtDesc(
+                    taskId, request.storeId(), today, employeeUserId)
+                .filter(prior -> !prior.isActive())
+                .map(TaskResponseEntry::getId)
+                .orElse(null);
         }
 
         TaskResponseEntry entry = new TaskResponseEntry();
@@ -292,7 +330,7 @@ public class TaskService {
         entry.setResponseType(task.getResponseType());
         entry.setCompletionType(task.getCompletionType());
         entry.setSupersededResponseId(supersededResponseId);
-        applyValue(entry, task.getResponseType(), request);
+        applyValue(entry, task, request);
 
         // The above pre-check is only a fast path (avoids a DB round trip for the common
         // case) -- it can't stop two concurrent submits from both passing it before either
@@ -328,6 +366,7 @@ public class TaskService {
 
         entry.setActive(false);
         entry.setUndoneAt(OffsetDateTime.now());
+        entry.setUndoneByUser(true);
         taskResponseEntryRepository.save(entry);
 
         return buildResponseState(taskId, storeId, entry.getResponseDate(), employeeUserId);
@@ -367,8 +406,11 @@ public class TaskService {
         return task;
     }
 
-    private void applyValue(TaskResponseEntry entry, ResponseType responseType, TaskResponseSubmitRequest request) {
-        switch (responseType) {
+    // Same response-type rules AdminCorrectionService.correctResponse enforces on an
+    // admin's edit -- numericMin/numericMax and textMaxLength must be validated
+    // wherever a response value is written, not only when an admin corrects it.
+    private void applyValue(TaskResponseEntry entry, Task task, TaskResponseSubmitRequest request) {
+        switch (task.getResponseType()) {
             case YES_NO, DONE_NOT_DONE -> {
                 if (request.booleanValue() == null) {
                     throw new InvalidTaskResponseException("A Yes/No response is required");
@@ -379,11 +421,23 @@ public class TaskService {
                 if (request.numericValue() == null) {
                     throw new InvalidTaskResponseException("A numeric response is required");
                 }
+                Double min = task.getNumericMin();
+                Double max = task.getNumericMax();
+                if (min != null && request.numericValue() < min) {
+                    throw new InvalidTaskResponseException("Value must be at least " + min);
+                }
+                if (max != null && request.numericValue() > max) {
+                    throw new InvalidTaskResponseException("Value must be at most " + max);
+                }
                 entry.setValueNumeric(request.numericValue());
             }
             case TEXT -> {
                 if (request.textValue() == null) {
                     throw new InvalidTaskResponseException("A text response is required");
+                }
+                Integer maxLen = task.getTextMaxLength();
+                if (maxLen != null && request.textValue().length() > maxLen) {
+                    throw new InvalidTaskResponseException("Text must be " + maxLen + " characters or fewer");
                 }
                 entry.setValueText(request.textValue());
             }

@@ -58,12 +58,31 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
     long countByStoreId(Long storeId);
 
     // Batched form of countByCategoryId, for listing many categories at once
-    // without one count query per category.
+    // without one count query per category. Global count across every owner --
+    // correct for Super Admin's platform-wide category list, but NOT for an
+    // Owner Admin's (see countGroupedByCategoryIdsForOwner below): a shared
+    // category can have tasks belonging to other owners entirely.
     @org.springframework.data.jpa.repository.Query(
         "select t.category.id, count(t) from Task t where t.category.id in :categoryIds group by t.category.id"
     )
     List<Object[]> countGroupedByCategoryIds(
         @org.springframework.data.repository.query.Param("categoryIds") Collection<Long> categoryIds
+    );
+
+    // Owner-scoped form of the above: a Category can now be shared across many
+    // owners' stores (Super-Admin "All Stores"/multi-store categories), but a
+    // Task always belongs to exactly one owner -- so an Owner Admin's category
+    // list must count only their own tasks under each category, not every
+    // owner's. Without this, a category assigned to store A but whose tasks
+    // were created by store B's owner would show a task count that includes
+    // tasks store A's admin can never actually see on their checklist.
+    @org.springframework.data.jpa.repository.Query(
+        "select t.category.id, count(t) from Task t "
+            + "where t.category.id in :categoryIds and t.owner.id = :ownerId group by t.category.id"
+    )
+    List<Object[]> countGroupedByCategoryIdsForOwner(
+        @org.springframework.data.repository.query.Param("categoryIds") Collection<Long> categoryIds,
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId
     );
 
     // Batched form of countByStoreId, for listing many stores at once without
@@ -85,15 +104,19 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("ownerIds") Collection<Long> ownerIds
     );
 
-    // Candidates for an employee's checklist at a given store and date: active tasks
-    // (with an active category) belonging to the store's owner, scoped to the store
-    // either via applies_to_all_stores or a specific task_stores entry, and within the
-    // task's active date range. Day-of-week/schedule-type matching is done in the
-    // service layer since it isn't a plain column comparison.
-    // join fetch t.category: every caller (today's checklist, both history detail
-    // services) reads task.getCategory().getName()/getDisplayOrder() while building
-    // its response, so fetch it up front instead of one lazy-load query per
-    // distinct category.
+    // Candidates for an employee's live "today" checklist at a given store and date:
+    // active tasks (with an active category) belonging to the store's owner, scoped to
+    // the store either via applies_to_all_stores or a specific task_stores entry, and
+    // within the task's active date range. Day-of-week/schedule-type matching is done
+    // in the service layer since it isn't a plain column comparison. Also backs the
+    // admin checklist-history summary/operations-report views (buildStoreDayContexts),
+    // which separately re-surface deactivated tasks as their own "Inactive" rows rather
+    // than folding them into this active-only candidate set. The Daily Checklist detail
+    // view (getDetail) instead uses findForStoreAndDate below, which deliberately does
+    // NOT filter on active status.
+    // join fetch t.category: every caller reads task.getCategory().getName()/
+    // getDisplayOrder() while building its response, so fetch it up front instead of
+    // one lazy-load query per distinct category.
     @org.springframework.data.jpa.repository.Query(
         "select t from Task t join fetch t.category where t.owner.id = :ownerId and t.active = true and t.category.active = true "
             + "and (t.appliesToAllStores = true or :storeId in (select s.id from t.stores s)) "
@@ -123,6 +146,24 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("storeIds") Collection<Long> storeIds,
         @org.springframework.data.repository.query.Param("startDate") LocalDate startDate,
         @org.springframework.data.repository.query.Param("endDate") LocalDate endDate
+    );
+
+    // Candidates for the Owner/Admin & Super Admin Daily Checklist detail view at a
+    // given store and date: same store-scoping and date-range rules as
+    // findActiveForStoreAndDate, but deliberately omits the "t.active = true and
+    // t.category.active = true" filter -- this view must show every Task belonging
+    // to the store regardless of whether the Task or its Category has since been
+    // deactivated.
+    @org.springframework.data.jpa.repository.Query(
+        "select t from Task t join fetch t.category where t.owner.id = :ownerId "
+            + "and (t.appliesToAllStores = true or :storeId in (select s.id from t.stores s)) "
+            + "and t.startDate <= :date and (t.endDate is null or t.endDate >= :date) "
+            + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"
+    )
+    List<Task> findForStoreAndDate(
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId,
+        @org.springframework.data.repository.query.Param("storeId") Long storeId,
+        @org.springframework.data.repository.query.Param("date") LocalDate date
     );
 
     @org.springframework.data.jpa.repository.Query(

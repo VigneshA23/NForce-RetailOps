@@ -7,6 +7,7 @@ import com.nforce.retailops.dto.LoginRequest;
 import com.nforce.retailops.dto.LoginResponse;
 import com.nforce.retailops.dto.ResetPasswordRequest;
 import com.nforce.retailops.dto.SessionConfigResponse;
+import com.nforce.retailops.dto.SessionStatusResponse;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.security.JwtService;
 import com.nforce.retailops.security.SuperAdminUserDetails;
@@ -55,7 +56,7 @@ public class AuthController {
         String normalisedEmail = request.email().strip().toLowerCase();
         loginRateLimitService.checkAndBlock(normalisedEmail);
         try {
-            LoginResponse response = authService.login(request.email(), request.password());
+            LoginResponse response = authService.login(request.email(), request.password(), request.rememberMe());
             loginRateLimitService.clearFailures(normalisedEmail);
             return ResponseEntity.ok(response);
         } catch (BadCredentialsException ex) {
@@ -98,7 +99,31 @@ public class AuthController {
 
     @GetMapping("/session-config")
     public ResponseEntity<SessionConfigResponse> sessionConfig() {
-        return ResponseEntity.ok(new SessionConfigResponse(sessionService.getInactivityTimeoutMinutes()));
+        return ResponseEntity.ok(new SessionConfigResponse(
+            sessionService.getInactivityTimeoutMinutes(),
+            sessionService.getRememberMeTimeoutMinutes()
+        ));
+    }
+
+    // Authenticated (not in SecurityConfig's permitAll list), so reaching this
+    // method already proves JwtAuthenticationFilter accepted the request --
+    // i.e. validateAndTouch just confirmed this exact session is still valid.
+    // Purely informational: seeds the frontend's UX countdown with the real
+    // remaining time after a page refresh instead of restarting it at the
+    // full policy duration. Never used to decide whether a request is allowed.
+    @GetMapping("/session-status")
+    public ResponseEntity<SessionStatusResponse> sessionStatus(HttpServletRequest request) {
+        String authHeader = request.getHeader("Authorization");
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7);
+            if (jwtService.isTokenValid(token)) {
+                var remainingSeconds = sessionService.getRemainingSeconds(jwtService.extractTokenId(token));
+                if (remainingSeconds.isPresent()) {
+                    return ResponseEntity.ok(new SessionStatusResponse(remainingSeconds.get()));
+                }
+            }
+        }
+        throw new BadCredentialsException("Invalid session");
     }
 
     @PostMapping("/forgot-password")

@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -41,20 +42,29 @@ public class AuthService {
     }
 
     @Transactional
-    public LoginResponse login(String email, String password) {
+    public LoginResponse login(String email, String password, boolean rememberMe) {
+        // An email with leading/trailing whitespace must not authenticate as the
+        // trimmed email -- reject explicitly, with the same generic message a
+        // wrong password gets, rather than relying on the lookup happening not
+        // to match (which case-insensitive-but-whitespace-sensitive queries would
+        // already produce, but only incidentally).
+        if (!email.equals(email.strip())) {
+            throw new BadCredentialsException("Invalid email or password");
+        }
+
         Optional<SuperAdmin> superAdminMatch = superAdminRepository.findByEmailIgnoreCase(email);
         if (superAdminMatch.isPresent()) {
-            return loginAsSuperAdmin(superAdminMatch.get(), password);
+            return loginAsSuperAdmin(superAdminMatch.get(), password, rememberMe);
         }
 
         User user = userRepository.findByEmailWithRoles(email)
             .filter(User::isActive)
             .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
-        return loginAsUser(user, password);
+        return loginAsUser(user, password, rememberMe);
     }
 
-    private LoginResponse loginAsUser(User user, String password) {
+    private LoginResponse loginAsUser(User user, String password, boolean rememberMe) {
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
             throw new BadCredentialsException("Invalid email or password");
         }
@@ -65,21 +75,23 @@ public class AuthService {
         user.setLastLoginAt(OffsetDateTime.now());
         userRepository.save(user);
 
-        String token = jwtService.generateToken(user.getEmail(), roleNames);
-        sessionService.createSession(jwtService.extractTokenId(token), user.getEmail());
+        long sessionMinutes = sessionService.resolveSessionMinutes(rememberMe);
+        String token = jwtService.generateToken(user.getEmail(), roleNames, Duration.ofMinutes(sessionMinutes).toMillis());
+        sessionService.createSession(jwtService.extractTokenId(token), user.getEmail(), sessionMinutes);
 
-        return new LoginResponse(token, primaryRole, user.getFullName(), user.isMustResetPassword());
+        return new LoginResponse(token, primaryRole, user.getFullName(), user.isMustResetPassword(), sessionMinutes);
     }
 
-    private LoginResponse loginAsSuperAdmin(SuperAdmin superAdmin, String password) {
+    private LoginResponse loginAsSuperAdmin(SuperAdmin superAdmin, String password, boolean rememberMe) {
         if (!passwordEncoder.matches(password, superAdmin.getPasswordHash())) {
             throw new BadCredentialsException("Invalid email or password");
         }
 
-        String token = jwtService.generateToken(superAdmin.getEmail(), List.of("SUPER_ADMIN"));
-        sessionService.createSession(jwtService.extractTokenId(token), superAdmin.getEmail());
+        long sessionMinutes = sessionService.resolveSessionMinutes(rememberMe);
+        String token = jwtService.generateToken(superAdmin.getEmail(), List.of("SUPER_ADMIN"), Duration.ofMinutes(sessionMinutes).toMillis());
+        sessionService.createSession(jwtService.extractTokenId(token), superAdmin.getEmail(), sessionMinutes);
 
-        return new LoginResponse(token, "SUPER_ADMIN", superAdmin.getName(), false);
+        return new LoginResponse(token, "SUPER_ADMIN", superAdmin.getName(), false, sessionMinutes);
     }
 
     @Transactional

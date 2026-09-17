@@ -61,8 +61,8 @@ public class CategoryController {
         return ResponseEntity.ok(categoryService.setActiveAsSuperAdmin(id, request.active()));
     }
 
-    // Pre-existing, Owner-Admin-only, untouched by this feature -- see plan's
-    // Global Constraints. No frontend caller today.
+    // Owner-Admin-only: reorders the full set of categories visible to this
+    // owner (see CategoryService#reorderCategories).
     @PatchMapping("/reorder")
     @PreAuthorize("hasRole('OWNER_ADMIN')")
     public ResponseEntity<List<CategoryResponse>> reorder(

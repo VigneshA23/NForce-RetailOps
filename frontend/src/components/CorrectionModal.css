@@ -206,3 +206,9 @@
   color: var(--color-text-secondary);
   font-style: italic;
 }
+
+.correction-modal__history-field-label {
+  font-weight: 700;
+  font-style: normal;
+  color: var(--color-text-muted);
+}

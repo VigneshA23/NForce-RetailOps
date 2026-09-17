@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Flag, History as HistoryIcon, Pencil } from 'lucide-react';
+import { Flag, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 import { responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -212,95 +212,14 @@ function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHisto
   );
 }
 
-interface HistoryValueLike {
-  booleanValue: boolean | null;
-  numericValue: number | null;
-  textValue: string | null;
-}
-
-function formatHistoryValue(entry: HistoryValueLike, task: ChecklistHistoryTaskItem): string {
-  if (entry.booleanValue !== null) {
-    if (task.responseType === 'YES_NO') return entry.booleanValue ? 'Yes' : 'No';
-    return entry.booleanValue ? 'Done' : 'Not done';
-  }
-  if (entry.numericValue !== null) {
-    return task.numericUnit ? `${entry.numericValue} ${task.numericUnit}` : String(entry.numericValue);
-  }
-  if (entry.textValue !== null && entry.textValue !== '') return entry.textValue;
-  return '—';
-}
-
-// "History" badge — shown once a response has been through at least one
-// flag -> resubmit cycle (StoreDetailTable.resubmissionHistory), independent of
-// whether it's currently flagged again or already resubmitted. Desktop/tablet:
-// hover/focus. Mobile: tap (see useDisclosure). Rendered via BadgePopover
-// (a `document.body` portal), positioned directly beside this badge.
-function ResubmissionHistoryBadge({ responseEntry, task }: { responseEntry: ChecklistHistoryResponseEntry; task: ChecklistHistoryTaskItem }) {
-  const isMobile = useIsMobile();
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const { open, triggerHandlers, popoverHandlers } = useDisclosure(isMobile);
-  const history = responseEntry.resubmissionHistory;
-
-  return (
-    <span className="store-detail-table__corrected-wrap">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="store-detail-table__history-badge"
-        {...triggerHandlers}
-        aria-expanded={open}
-        aria-label="View resubmission history"
-      >
-        <HistoryIcon size={10} />
-        History
-      </button>
-      <BadgePopover
-        open={open}
-        anchorRef={triggerRef}
-        popoverHandlers={popoverHandlers}
-        className="store-detail-table__history-popover"
-      >
-        {history.map((hop, index) => {
-            const next = index + 1 < history.length ? history[index + 1] : responseEntry;
-            const nextRespondedAt = index + 1 < history.length ? history[index + 1].respondedAt : responseEntry.respondedAt;
-            const nextEmployeeName = index + 1 < history.length ? history[index + 1].employeeFullName : responseEntry.employeeFullName;
-            return (
-              <span key={hop.responseId} className="store-detail-table__history-hop">
-                <span className="store-detail-table__correction-popover-row">
-                  <span className="store-detail-table__correction-popover-label">Change</span>
-                  {formatHistoryValue(hop, task)} → {formatHistoryValue(next, task)}
-                </span>
-                <span className="store-detail-table__correction-popover-row">
-                  <span className="store-detail-table__correction-popover-label">Flagged</span>
-                  {hop.flaggedByName ?? 'Owner'}
-                  {hop.flaggedAt ? ` · ${formatDateLabel(hop.flaggedAt.slice(0, 10))} ${formatTimeLabel(hop.flaggedAt)}` : ''}
-                </span>
-                {hop.flagReason && (
-                  <span className="store-detail-table__correction-popover-row">
-                    <span className="store-detail-table__correction-popover-label">Reason</span>
-                    <em>{hop.flagReason}</em>
-                  </span>
-                )}
-                <span className="store-detail-table__correction-popover-row">
-                  <span className="store-detail-table__correction-popover-label">Resubmitted</span>
-                  {nextEmployeeName} · {formatDateLabel(nextRespondedAt.slice(0, 10))} {formatTimeLabel(nextRespondedAt)}
-                </span>
-              </span>
-            );
-        })}
-      </BadgePopover>
-    </span>
-  );
-}
-
 function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCorrected, onResponseFlagged, repeatOffenderMap }: StoreDetailTableProps) {
   const [correctionTarget, setCorrectionTarget] = useState<ResponseTarget | null>(null);
   const [flagTarget, setFlagTarget] = useState<ResponseTarget | null>(null);
 
   // Shared by the mobile inline-actions cell and the desktop Manager Actions
-  // cell: badges (Flagged/Corrected/History) sit in a fixed-width slot ahead
-  // of the edit/flag icons so the icons land at the same x position on every
-  // row, whether a row has zero, one, or two badges.
+  // cell: badges (Flagged/Corrected) sit in a fixed-width slot ahead of the
+  // edit/flag icons so the icons land at the same x position on every row,
+  // whether a row has zero or one badge.
   function renderManagerActions(responder: ChecklistHistoryResponseEntry, task: ChecklistHistoryTaskItem) {
     return (
       <>
@@ -312,9 +231,6 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
           )}
           {responder.latestCorrection && !responder.flaggedNeedsCorrection && (
             <CorrectedBadge responseEntry={responder} task={task} />
-          )}
-          {responder.resubmissionHistory.length > 0 && (
-            <ResubmissionHistoryBadge responseEntry={responder} task={task} />
           )}
         </span>
         <span className="store-detail-table__action-icons">

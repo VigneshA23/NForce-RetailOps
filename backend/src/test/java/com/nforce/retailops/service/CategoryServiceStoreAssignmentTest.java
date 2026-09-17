@@ -77,6 +77,7 @@ class CategoryServiceStoreAssignmentTest {
     @BeforeEach
     void setUp() {
         lenient().when(taskRepository.countByCategoryId(anyLong())).thenReturn(0);
+        lenient().when(categoryRepository.findMaxDisplayOrder()).thenReturn(-1);
         lenient().when(categoryRepository.save(any(Category.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
     }
@@ -157,13 +158,38 @@ class CategoryServiceStoreAssignmentTest {
 
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(link));
         when(categoryRepository.findVisibleToOwner(OWNER_ID, List.of(STORE_ID))).thenReturn(List.of(visibleCategory));
-        when(taskRepository.countGroupedByCategoryIds(List.of(CATEGORY_ID))).thenReturn(List.of());
+        when(taskRepository.countGroupedByCategoryIdsForOwner(List.of(CATEGORY_ID), OWNER_ID)).thenReturn(List.of());
         when(categoryRepository.findStoreRowsGroupedByCategoryIds(List.of(CATEGORY_ID))).thenReturn(List.of());
 
         var result = categoryService.listCategories(OWNER_ID);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).id()).isEqualTo(CATEGORY_ID);
+    }
+
+    // A shared ("All Stores"/multi-store) category can have tasks belonging to
+    // other owners entirely -- an Owner Admin's task count must never leak
+    // those in, even though the category itself is visible to them.
+    @Test
+    void ownerAdminTaskCountReflectsOnlyTheirOwnTasksNotTheGlobalCategoryTotal() {
+        Store ownedStore = store(STORE_ID, true);
+        StoreOwner link = new StoreOwner();
+        link.setStore(ownedStore);
+        link.setActive(true);
+        Category sharedCategory = category(CATEGORY_ID, null, true, Set.of());
+
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(link));
+        when(categoryRepository.findVisibleToOwner(OWNER_ID, List.of(STORE_ID))).thenReturn(List.of(sharedCategory));
+        // This owner has 0 tasks under the shared category, even though a different
+        // owner's 2 tasks under it would make the global count (never consulted for
+        // an Owner Admin's view -- see toResponses) misleadingly show 2 instead.
+        when(taskRepository.countGroupedByCategoryIdsForOwner(List.of(CATEGORY_ID), OWNER_ID)).thenReturn(List.of());
+        when(categoryRepository.findStoreRowsGroupedByCategoryIds(List.of(CATEGORY_ID))).thenReturn(List.of());
+
+        var result = categoryService.listCategories(OWNER_ID);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).taskCount()).isEqualTo(0);
     }
 
     @Test

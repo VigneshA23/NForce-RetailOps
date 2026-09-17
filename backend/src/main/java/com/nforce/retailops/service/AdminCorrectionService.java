@@ -58,6 +58,14 @@ public class AdminCorrectionService {
                     "You can only correct responses belonging to your own store"));
         }
 
+        if (request.reason() == null || request.reason().isBlank()) {
+            throw new InvalidTaskResponseException("A reason is required when correcting a response");
+        }
+        String trimmedReason = request.reason().trim();
+        if (trimmedReason.length() > 200) {
+            throw new InvalidTaskResponseException("Reason must be 200 characters or fewer");
+        }
+
         AdminCorrection correction = new AdminCorrection();
         correction.setTaskResponse(entry);
         if (adminUserId != null) {
@@ -65,13 +73,7 @@ public class AdminCorrectionService {
         } else {
             correction.setCorrectedByName(adminDisplayName);
         }
-        if (request.reason() != null && !request.reason().isBlank()) {
-            String trimmed = request.reason().trim();
-            if (trimmed.length() > 200) {
-                throw new InvalidTaskResponseException("Reason must be 200 characters or fewer");
-            }
-            correction.setReason(trimmed);
-        }
+        correction.setReason(trimmedReason);
 
         // Capture original values before overwriting.
         correction.setOriginalValueBoolean(entry.getValueBoolean());
@@ -140,7 +142,8 @@ public class AdminCorrectionService {
             entry.getEmployee().getAvatarUrl(),
             entry.isFlaggedNeedsCorrection(),
             entry.getFlagReason(),
-            ChecklistHistoryService.buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository)
+            ChecklistHistoryService.buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository),
+            false
         );
 
         return new AdminCorrectionApplyResponse(updatedResponse, correctionDto);
@@ -202,7 +205,8 @@ public class AdminCorrectionService {
             entry.getEmployee().getAvatarUrl(),
             true,
             trimmedReason,
-            ChecklistHistoryService.buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository)
+            ChecklistHistoryService.buildResubmissionHistory(entry, taskResponseEntryRepository, adminCorrectionRepository),
+            false
         );
     }
 
@@ -217,10 +221,7 @@ public class AdminCorrectionService {
                     "You can only view corrections for responses belonging to your own store"));
         }
 
-        return adminCorrectionRepository
-            .findByTaskResponseIdOrderByCorrectedAtDesc(responseId)
-            .stream()
-            .map(ChecklistHistoryService::toCorrectionEntry)
-            .toList();
+        return ChecklistHistoryService.buildCorrectionHistory(
+            entry, taskResponseEntryRepository, adminCorrectionRepository);
     }
 }

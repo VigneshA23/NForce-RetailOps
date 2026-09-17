@@ -1,4 +1,5 @@
-import type { HistoryCategoryEntry, HistoryIssueEntry, HistoryResubmissionTransition, HistoryTaskDetail, IssueStatus, ShiftHistory, TaskStatus } from '../types/history';
+import type { HistoryCategoryEntry, HistoryIssueEntry, HistoryResponderEntry, HistoryResubmissionTransition, HistoryTaskDetail, IssueStatus, ShiftHistory, TaskStatus } from '../types/history';
+import type { AdminCorrectionEntry } from '../types/checklistHistory';
 import { authHeaders } from '../utils/authStorage';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
 import { fetchWithTimeout } from './client';
@@ -28,6 +29,9 @@ interface RawResubmissionHistoryEntry {
   flagReason: string | null;
   flaggedByName: string | null;
   flaggedAt: string | null;
+  // True when this hop was itself deactivated by the employee's own explicit
+  // Undo, before being superseded by a later resubmission.
+  undoneByUser: boolean;
 }
 
 // Mirrors the backend's AdminCorrectionEntry -- a DIRECT edit's before/after
@@ -56,6 +60,11 @@ interface RawResponseEntry {
   respondedAt: string;
   latestCorrection: RawAdminCorrectionEntry | null;
   resubmissionHistory: RawResubmissionHistoryEntry[];
+  // True only for a dangling entry synthesized because the employee explicitly
+  // Undid this response and never resubmitted since -- the value fields above
+  // still carry the stale pre-undo value; display an undone/no-answer label
+  // instead of formatting them normally.
+  undone: boolean;
 }
 
 interface RawTaskItem {
@@ -107,9 +116,20 @@ function latestResponse(responses: RawResponseEntry[]): RawResponseEntry | null 
 // No completed response -> Not answered. Completed and the most recent
 // response explicitly answered "No" -> Flagged. Anything else completed
 // (including NUMERIC/TEXT tasks, which have no booleanValue at all) -> Complete.
+// A dangling undone response (no resubmission since) counts as Not answered too --
+// it's only surfaced here so its history/name still shows, not as a real answer.
 function deriveTaskStatus(task: RawTaskItem, latest: RawResponseEntry | null): TaskStatus {
-  if (!task.completed || !latest) return 'NOT_ANSWERED';
+  if (!task.completed || !latest || latest.undone) return 'NOT_ANSWERED';
   return latest.booleanValue === false ? 'NO' : 'YES';
+}
+
+// Label shown in place of a dangling response's stale pre-undo value, or as the
+// "to" side of an undo transition -- type-aware so a checkbox reads "Not done"
+// rather than a generic placeholder.
+function undoneLabel(responseType: RawTaskItem['responseType']): string {
+  if (responseType === 'YES_NO') return 'No';
+  if (responseType === 'DONE_NOT_DONE') return 'Not done';
+  return 'No answer';
 }
 
 // Renders the same value regardless of whether it comes from a live response
@@ -135,9 +155,9 @@ function buildResubmissionTransitions(
   responseType: RawTaskItem['responseType'],
 ): HistoryResubmissionTransition[] {
   const chain = latest.resubmissionHistory;
-  return chain.map((hop, index) => {
+  return chain.flatMap((hop, index) => {
     const next = index + 1 < chain.length ? chain[index + 1] : latest;
-    return {
+    const resubmit: HistoryResubmissionTransition = {
       kind: 'FLAG_RESUBMIT' as const,
       fromValue: formatRawValue(hop, responseType),
       toValue: formatRawValue(next, responseType),
@@ -147,7 +167,43 @@ function buildResubmissionTransitions(
       resubmittedByName: next.employeeFullName,
       resubmittedAt: formatTimeLabel(next.respondedAt),
     };
+    // This hop was explicitly undone by its own employee before being
+    // resubmitted later -- surface that as its own line ("value -> Not done,
+    // Undone by X") instead of only the resubmit line above, which on its own
+    // can look like a same-value no-op when the resubmitted value matches.
+    if (!hop.undoneByUser) return [resubmit];
+    const undo: HistoryResubmissionTransition = {
+      kind: 'UNDONE' as const,
+      fromValue: formatRawValue(hop, responseType),
+      toValue: undoneLabel(responseType),
+      flagReason: null,
+      flaggedByName: hop.employeeFullName,
+      flaggedAt: formatTimeLabel(hop.respondedAt),
+      resubmittedByName: hop.employeeFullName,
+      resubmittedAt: formatTimeLabel(hop.respondedAt),
+    };
+    return [undo, resubmit];
   });
+}
+
+// The task's current response is itself a dangling undo (no resubmission
+// since) -- the one transition that isn't a hop in resubmissionHistory,
+// since it describes what happened to the "latest" entry itself.
+function buildUndoTransition(
+  latest: RawResponseEntry,
+  responseType: RawTaskItem['responseType'],
+): HistoryResubmissionTransition | null {
+  if (!latest.undone) return null;
+  return {
+    kind: 'UNDONE',
+    fromValue: formatRawValue(latest, responseType),
+    toValue: undoneLabel(responseType),
+    flagReason: null,
+    flaggedByName: latest.employeeFullName,
+    flaggedAt: formatTimeLabel(latest.respondedAt),
+    resubmittedByName: latest.employeeFullName,
+    resubmittedAt: formatTimeLabel(latest.respondedAt),
+  };
 }
 
 // The owner's latest DIRECT value-edit on the current response, if any --
@@ -180,26 +236,52 @@ function buildDirectCorrectionTransition(
   };
 }
 
+// Every still-active response, plus each one's own resubmission-chain hops (the
+// same-day submissions it superseded) -- without this, a MULTIPLE-completion task
+// answered 3x by the SAME employee would only ever show their latest submission
+// here, since task.responses (the backend's active-only list) keeps just one row
+// per employee. employeeUserId on a historical hop is the same employee as the
+// response it hangs off of (a resubmission chain is always one employee
+// superseding their own prior answer), so it's safe to reuse for that purpose.
+function buildCompletedByAll(responses: RawResponseEntry[]): HistoryResponderEntry[] {
+  return responses
+    .flatMap((entry) => [
+      ...entry.resubmissionHistory.map((hop) => ({
+        employeeUserId: entry.employeeUserId,
+        name: hop.employeeFullName,
+        respondedAtRaw: hop.respondedAt,
+      })),
+      { employeeUserId: entry.employeeUserId, name: entry.employeeFullName, respondedAtRaw: entry.respondedAt },
+    ])
+    .sort((a, b) => new Date(a.respondedAtRaw).getTime() - new Date(b.respondedAtRaw).getTime())
+    .map((item) => ({
+      employeeUserId: item.employeeUserId,
+      name: item.name,
+      respondedAt: formatTimeLabel(item.respondedAtRaw),
+    }));
+}
+
 function toHistoryTask(task: RawTaskItem): HistoryTaskDetail {
   const latest = latestResponse(task.responses);
   const directCorrection = latest ? buildDirectCorrectionTransition(latest, task.responseType) : null;
-  const completedByAll = [...task.responses]
-    .sort((a, b) => new Date(a.respondedAt).getTime() - new Date(b.respondedAt).getTime())
-    .map((entry) => ({
-      employeeUserId: entry.employeeUserId,
-      name: entry.employeeFullName,
-      respondedAt: formatTimeLabel(entry.respondedAt),
-    }));
+  const undoTransition = latest ? buildUndoTransition(latest, task.responseType) : null;
+  const completedByAll = buildCompletedByAll(task.responses);
   return {
     id: task.id,
+    responseId: latest?.id ?? null,
+    responseType: task.responseType,
     name: task.name,
     status: deriveTaskStatus(task, latest),
-    responseValue: latest ? formatRawValue(latest, task.responseType) : null,
+    responseValue: latest ? (latest.undone ? undoneLabel(task.responseType) : formatRawValue(latest, task.responseType)) : null,
     completedBy: latest ? { employeeUserId: latest.employeeUserId, name: latest.employeeFullName } : null,
     completedAt: latest ? formatTimeLabel(latest.respondedAt) : null,
     completedByAll,
     resubmissionHistory: latest
-      ? [...buildResubmissionTransitions(latest, task.responseType), ...(directCorrection ? [directCorrection] : [])]
+      ? [
+          ...buildResubmissionTransitions(latest, task.responseType),
+          ...(directCorrection ? [directCorrection] : []),
+          ...(undoTransition ? [undoTransition] : []),
+        ]
       : [],
   };
 }
@@ -245,4 +327,22 @@ export async function getShiftHistory(storeId: number, date: string): Promise<Sh
     categories: raw.categories.map(toHistoryCategory),
     issues: (raw.issues ?? []).map(toHistoryIssue),
   };
+}
+
+// Full correction/resubmission audit trail for one response -- the employee-facing
+// equivalent of api/checklistHistory.ts's getCorrectionHistory. The bulk /history/detail
+// payload above only ever carries the single latestCorrection per response (collapsed
+// into resubmissionHistory as one DIRECT_CORRECTION entry), so an earlier correction
+// superseded by a later one on the same still-active response was invisible to
+// employees even though Owner/Admin could see it via this same full-chain endpoint.
+export async function getCorrectionHistory(responseId: number): Promise<AdminCorrectionEntry[]> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/me/history/responses/${responseId}/corrections`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to load correction history'));
+  }
+
+  return response.json();
 }

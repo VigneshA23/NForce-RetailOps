@@ -17,6 +17,7 @@ function responseEntry(overrides: Partial<ChecklistHistoryResponseEntry>): Check
     flaggedNeedsCorrection: false,
     flagReason: null,
     resubmissionHistory: [],
+    undone: false,
     ...overrides,
   };
 }

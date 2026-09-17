@@ -57,23 +57,26 @@ public class CategoryService {
     }
 
     // ---------------------------------------------------------------------
-    // Owner Admin -- read-only
+    // Owner Admin -- read-only, except for reordering their configured
+    // category order (the one write action Owner Admin has here; category
+    // creation/editing/activation/deletion remain Super-Admin-only).
     // ---------------------------------------------------------------------
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> listCategories(Long ownerId) {
         Set<Long> ownedStoreIds = ownerStoreIds(ownerId);
         List<Category> visible = categoryRepository.findVisibleToOwner(ownerId, sentinel(ownedStoreIds));
-        return toResponses(visible);
+        return toResponses(visible, ownerId);
     }
 
-    // Pre-existing feature, unaffected by category management moving to
-    // Super-Admin-only: still scoped strictly to categories this owner
-    // created themselves, unchanged from before this feature (no frontend
-    // caller today -- left as-is).
+    // Reorders the full set of categories visible to this owner (the same
+    // set listCategories returns -- owner-created, store-assigned, and
+    // "applies to all stores" Super-Admin categories alike), not just ones
+    // this owner personally created.
     @Transactional
     public List<CategoryResponse> reorderCategories(Long ownerId, List<Long> orderedIds) {
-        List<Category> categories = categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(ownerId);
+        Set<Long> ownedStoreIds = ownerStoreIds(ownerId);
+        List<Category> categories = categoryRepository.findVisibleToOwner(ownerId, sentinel(ownedStoreIds));
         Map<Long, Category> categoriesById = new LinkedHashMap<>();
         for (Category category : categories) {
             categoriesById.put(category.getId(), category);
@@ -82,7 +85,7 @@ public class CategoryService {
         boolean sameSize = orderedIds.size() == categoriesById.size();
         boolean noDuplicates = Set.copyOf(orderedIds).size() == orderedIds.size();
         if (!sameSize || !noDuplicates || !categoriesById.keySet().containsAll(orderedIds)) {
-            throw new InvalidCategoryOrderException("orderedIds must include every one of your categories exactly once");
+            throw new InvalidCategoryOrderException("orderedIds must include every category visible to you exactly once");
         }
 
         int order = 0;
@@ -100,7 +103,7 @@ public class CategoryService {
 
     @Transactional(readOnly = true)
     public List<CategoryResponse> listCategoriesForSuperAdmin() {
-        return toResponses(categoryRepository.findAllByOrderByNameAsc());
+        return toResponses(categoryRepository.findAllByOrderByNameAsc(), null);
     }
 
     @Transactional
@@ -118,7 +121,7 @@ public class CategoryService {
         Category category = new Category();
         category.setOwner(null);
         category.setName(name);
-        category.setDisplayOrder(0);
+        category.setDisplayOrder(categoryRepository.findMaxDisplayOrder() + 1);
         category.setAppliesToAllStores(request.appliesToAllStores());
         category.setStores(resolvedStores);
         category = categoryRepository.save(category);
@@ -188,13 +191,20 @@ public class CategoryService {
         return CategoryResponse.from(category, taskRepository.countByCategoryId(category.getId()), stores);
     }
 
-    private List<CategoryResponse> toResponses(List<Category> categories) {
+    // ownerId non-null: Owner Admin view -- task counts are scoped to that
+    // owner's own tasks only, since a shared category's tasks can belong to
+    // other owners entirely. ownerId null: Super Admin view -- global counts
+    // across every owner, for a platform-wide picture of the category.
+    private List<CategoryResponse> toResponses(List<Category> categories, Long ownerId) {
         if (categories.isEmpty()) {
             return List.of();
         }
         List<Long> ids = categories.stream().map(Category::getId).toList();
 
-        Map<Long, Integer> taskCounts = taskRepository.countGroupedByCategoryIds(ids).stream()
+        List<Object[]> countRows = ownerId != null
+            ? taskRepository.countGroupedByCategoryIdsForOwner(ids, ownerId)
+            : taskRepository.countGroupedByCategoryIds(ids);
+        Map<Long, Integer> taskCounts = countRows.stream()
             .collect(Collectors.toMap(row -> (Long) row[0], row -> ((Number) row[1]).intValue()));
 
         Map<Long, List<StoreOptionResponse>> storesByCategoryId = new LinkedHashMap<>();

@@ -26,7 +26,15 @@ function correctionValueLabel(entry: AdminCorrectionEntry, task: ChecklistHistor
   const t = which === 'original' ? entry.originalValueText : entry.correctedValueText;
   if (b !== null) return boolLabel(b, task.responseType);
   if (n !== null) return task.numericUnit ? `${n} ${task.numericUnit}` : String(n);
-  return t ?? '—';
+  if (t !== null) return t;
+  // No value on the "corrected" side of an UNDONE entry means the employee
+  // undid their answer -- a type-aware label reads better than a bare dash.
+  if (which === 'corrected' && entry.correctionType === 'UNDONE') {
+    if (task.responseType === 'YES_NO') return 'No';
+    if (task.responseType === 'DONE_NOT_DONE') return 'Not done';
+    return 'No answer';
+  }
+  return '—';
 }
 
 function CorrectionModal({ isOpen, onClose, responseEntry, task, onSaved }: CorrectionModalProps) {
@@ -225,18 +233,27 @@ function CorrectionModal({ isOpen, onClose, responseEntry, task, onSaved }: Corr
           )}
           {history !== null && history.length > 0 && (
             <ul className="correction-modal__history-list">
-              {history.map((entry) => (
-                <li key={entry.id} className="correction-modal__history-entry">
+              {history.map((entry, index) => (
+                <li key={entry.id ?? `resubmission-${index}`} className="correction-modal__history-entry">
                   <span className="correction-modal__history-meta">
+                    {entry.correctionType === 'RESUBMISSION'
+                      ? 'Resubmitted by '
+                      : entry.correctionType === 'UNDONE'
+                        ? 'Undone by '
+                        : 'Corrected by '}
                     {entry.correctedByFullName} · {formatDateLabel(entry.correctedAt.slice(0, 10))} {formatTimeLabel(entry.correctedAt)}
                   </span>
                   <span className="correction-modal__history-change">
+                    <span className="correction-modal__history-field-label">Corrected Value: </span>
                     {correctionValueLabel(entry, task, 'original')}
                     {' → '}
                     {correctionValueLabel(entry, task, 'corrected')}
                   </span>
                   {entry.reason && (
-                    <span className="correction-modal__history-reason">"{entry.reason}"</span>
+                    <span className="correction-modal__history-reason">
+                      <span className="correction-modal__history-field-label">Reason: </span>
+                      "{entry.reason}"
+                    </span>
                   )}
                 </li>
               ))}

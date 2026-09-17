@@ -33,6 +33,17 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
 
     Optional<TaskResponseEntry> findByIdAndTaskIdAndStoreId(Long id, Long taskId, Long storeId);
 
+    // Chain-continuation lookup for submitResponse: after an employee undoes their
+    // own response (active=false, no supersededResponseId set on anything -- Undo
+    // itself never links forward), this finds that same employee's most recent row
+    // for this task/store/day, active or not, so the NEXT submission can link back to
+    // it via supersededResponseId. Without this, an undo-then-resubmit cycle drops the
+    // undone value from history entirely (unlike flag->resubmit or a live MULTIPLE
+    // resubmission, both of which already preserve the chain).
+    Optional<TaskResponseEntry> findFirstByTaskIdAndStoreIdAndResponseDateAndEmployeeIdOrderByCreatedAtDesc(
+        Long taskId, Long storeId, LocalDate responseDate, Long employeeId
+    );
+
     // Admin checklist-history summary: one query for an entire store-range request,
     // rather than one query per store per day. join fetch all three associations so
     // accessing .getStore()/.getTask()/.getEmployee() on results never fires lazy-load
@@ -43,6 +54,22 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
         + "and tre.responseDate between :startDate and :endDate "
         + "and tre.active = true")
     List<TaskResponseEntry> findByStoreIdInAndResponseDateBetweenAndActiveTrue(
+        @Param("storeIds") Collection<Long> storeIds,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+
+    // Batched, date-range form of findByStoreIdAndResponseDateAndActiveFalseAndUndoneByUserTrue
+    // -- lets the Daily Operations Report (ChecklistHistoryService.buildStoreDayContexts)
+    // surface a task an employee answered and then explicitly Undid, with no resubmission
+    // since, the same way Employee/Owner/Super Admin History already does, instead of it
+    // showing as if nothing happened.
+    @Query("select tre from TaskResponseEntry tre "
+        + "join fetch tre.task join fetch tre.store join fetch tre.employee "
+        + "where tre.store.id in :storeIds "
+        + "and tre.responseDate between :startDate and :endDate "
+        + "and tre.active = false and tre.undoneByUser = true")
+    List<TaskResponseEntry> findByStoreIdInAndResponseDateBetweenAndActiveFalseAndUndoneByUserTrue(
         @Param("storeIds") Collection<Long> storeIds,
         @Param("startDate") LocalDate startDate,
         @Param("endDate") LocalDate endDate
@@ -74,6 +101,20 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     // deactivated/rescoped task the employee personally answered still surfaces.
     List<TaskResponseEntry> findByStoreIdAndResponseDateAndEmployeeIdAndActiveTrue(
         Long storeId, LocalDate responseDate, Long employeeId
+    );
+
+    // History detail (Employee, Owner/Admin, Super Admin): a task an employee
+    // answered and then explicitly Undid, with no resubmission since, has zero
+    // active responses -- this surfaces that dangling row so the day's history
+    // still shows "who undid it and when" instead of the whole event vanishing.
+    // undoneByUser = true excludes rows deactivated purely because a fresh
+    // resubmission superseded them (those are already covered by the active
+    // successor's resubmission-history chain).
+    @Query("select tre from TaskResponseEntry tre join fetch tre.employee "
+        + "where tre.store.id = :storeId and tre.responseDate = :responseDate "
+        + "and tre.active = false and tre.undoneByUser = true")
+    List<TaskResponseEntry> findByStoreIdAndResponseDateAndActiveFalseAndUndoneByUserTrue(
+        @Param("storeId") Long storeId, @Param("responseDate") LocalDate responseDate
     );
 
     // Backs the deleteTask history guard. Deliberately has no "active" predicate --

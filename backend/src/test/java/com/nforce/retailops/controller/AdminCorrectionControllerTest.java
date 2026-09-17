@@ -221,6 +221,70 @@ class AdminCorrectionControllerTest {
             .andExpect(jsonPath("$[0].reason").value("Second fix"));
     }
 
+    // A MULTIPLE-completion resubmission supersedes the employee's own prior response
+    // (TaskService.submitResponse) -- the merged correction history for the CURRENT
+    // response must still surface that earlier submission as a RESUBMISSION entry,
+    // not just admin-made corrections, per the "all changes tracked" requirement.
+    @Test
+    @Transactional
+    void correctionHistoryIncludesResubmissionOfAMultipleCompletionTask() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("resub-owner-a@nforce.test", ownerRole);
+        User employee = user("resub-emp-a@nforce.test", empRole);
+        Store store = store("Resub Store A");
+        linkOwnerToStore(owner, store);
+        Category cat = category(owner);
+
+        Task task = new Task();
+        task.setOwner(owner);
+        task.setCategory(cat);
+        task.setName("Log temperature");
+        task.setDisplayOrder(0);
+        task.setAppliesToAllStores(true);
+        task.setResponseType(ResponseType.NUMERIC);
+        task.setCompletionType(CompletionType.MULTIPLE);
+        task.setScheduleType(ScheduleType.EVERY_DAY);
+        task.setTimeMode(TimeMode.ANYTIME);
+        task.setStartDate(LocalDate.now().minusDays(1));
+        task.setActive(true);
+        task = taskRepository.save(task);
+        storeEmployee(employee, store);
+
+        TaskResponseEntry first = new TaskResponseEntry();
+        first.setTask(task);
+        first.setStore(store);
+        first.setEmployee(employee);
+        first.setResponseDate(LocalDate.now());
+        first.setResponseType(ResponseType.NUMERIC);
+        first.setCompletionType(CompletionType.MULTIPLE);
+        first.setValueNumeric(10.0);
+        first.setActive(false);
+        first = taskResponseEntryRepository.save(first);
+
+        TaskResponseEntry second = new TaskResponseEntry();
+        second.setTask(task);
+        second.setStore(store);
+        second.setEmployee(employee);
+        second.setResponseDate(LocalDate.now());
+        second.setResponseType(ResponseType.NUMERIC);
+        second.setCompletionType(CompletionType.MULTIPLE);
+        second.setValueNumeric(20.0);
+        second.setActive(true);
+        second.setSupersededResponseId(first.getId());
+        second = taskResponseEntryRepository.save(second);
+
+        String token = login("resub-owner-a@nforce.test");
+
+        mockMvc.perform(get("/api/checklist-history/responses/{id}/corrections", second.getId())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.length()").value(1))
+            .andExpect(jsonPath("$[0].correctionType").value("RESUBMISSION"))
+            .andExpect(jsonPath("$[0].originalValueNumeric").value(10.0))
+            .andExpect(jsonPath("$[0].correctedValueNumeric").value(20.0));
+    }
+
     @Test
     @Transactional
     void invalidCorrectedValueIsRejected() throws Exception {
@@ -244,6 +308,41 @@ class AdminCorrectionControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(req)))
             .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Transactional
+    void correctionWithoutReasonIsRejected() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("corr-owner-noreason@nforce.test", ownerRole);
+        User employee = user("corr-emp-noreason@nforce.test", empRole);
+        Store store = store("Corr Store NoReason");
+        linkOwnerToStore(owner, store);
+        Category cat = category(owner);
+        Task task = booleanTask(owner, cat);
+        storeEmployee(employee, store);
+        TaskResponseEntry response = booleanResponse(task, store, employee, false);
+
+        String token = login("corr-owner-noreason@nforce.test");
+
+        // Missing reason (null)
+        mockMvc.perform(patch("/api/checklist-history/responses/{id}/correct", response.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new AdminCorrectionRequest(true, null, null, null))))
+            .andExpect(status().isBadRequest());
+
+        // Blank/whitespace-only reason
+        mockMvc.perform(patch("/api/checklist-history/responses/{id}/correct", response.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new AdminCorrectionRequest(true, null, null, "   "))))
+            .andExpect(status().isBadRequest());
+
+        // Response was never mutated by either rejected attempt — original value still stands.
+        TaskResponseEntry unchanged = taskResponseEntryRepository.findById(response.getId()).orElseThrow();
+        org.junit.jupiter.api.Assertions.assertEquals(false, unchanged.getValueBoolean());
     }
 
     @Test

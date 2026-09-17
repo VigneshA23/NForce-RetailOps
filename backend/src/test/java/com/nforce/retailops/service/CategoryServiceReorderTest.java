@@ -57,7 +57,7 @@ class CategoryServiceReorderTest {
         Category first = category(1L, 0);
         Category second = category(2L, 1);
         Category third = category(3L, 2);
-        when(categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(OWNER_ID))
+        when(categoryRepository.findVisibleToOwner(eq(OWNER_ID), anyList()))
             .thenReturn(List.of(first, second, third));
 
         categoryService.reorderCategories(OWNER_ID, List.of(3L, 1L, 2L));
@@ -69,10 +69,26 @@ class CategoryServiceReorderTest {
     }
 
     @Test
-    void rejectsAnOrderedIdsListMissingOneOfTheOwnersCategories() {
+    void reorderingIncludesCategoriesVisibleToTheOwnerEvenIfNotOwnerCreated() {
+        // e.g. a Super-Admin-created category assigned to one of the owner's stores
+        // (owner is null on the entity, but it's still part of the visible set).
+        Category ownerCreated = category(1L, 0);
+        Category superAdminCreated = category(2L, 1);
+        when(categoryRepository.findVisibleToOwner(eq(OWNER_ID), anyList()))
+            .thenReturn(List.of(ownerCreated, superAdminCreated));
+
+        categoryService.reorderCategories(OWNER_ID, List.of(2L, 1L));
+
+        assertThat(superAdminCreated.getDisplayOrder()).isEqualTo(0);
+        assertThat(ownerCreated.getDisplayOrder()).isEqualTo(1);
+        verify(categoryRepository).saveAll(anyCollection());
+    }
+
+    @Test
+    void rejectsAnOrderedIdsListMissingOneOfTheVisibleCategories() {
         Category first = category(1L, 0);
         Category second = category(2L, 1);
-        when(categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(OWNER_ID))
+        when(categoryRepository.findVisibleToOwner(eq(OWNER_ID), anyList()))
             .thenReturn(List.of(first, second));
 
         assertThatThrownBy(() -> categoryService.reorderCategories(OWNER_ID, List.of(1L)))
@@ -85,7 +101,7 @@ class CategoryServiceReorderTest {
     void rejectsAnOrderedIdsListWithADuplicate() {
         Category first = category(1L, 0);
         Category second = category(2L, 1);
-        when(categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(OWNER_ID))
+        when(categoryRepository.findVisibleToOwner(eq(OWNER_ID), anyList()))
             .thenReturn(List.of(first, second));
 
         assertThatThrownBy(() -> categoryService.reorderCategories(OWNER_ID, List.of(1L, 1L)))
@@ -95,10 +111,10 @@ class CategoryServiceReorderTest {
     }
 
     @Test
-    void rejectsAnOrderedIdsListContainingAForeignCategoryId() {
+    void rejectsAnOrderedIdsListContainingANotVisibleCategoryId() {
         Category first = category(1L, 0);
         Category second = category(2L, 1);
-        when(categoryRepository.findByOwnerIdOrderByDisplayOrderAsc(OWNER_ID))
+        when(categoryRepository.findVisibleToOwner(eq(OWNER_ID), anyList()))
             .thenReturn(List.of(first, second));
 
         assertThatThrownBy(() -> categoryService.reorderCategories(OWNER_ID, List.of(1L, 999L)))

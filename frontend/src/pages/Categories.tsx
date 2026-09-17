@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { Tags, CircleCheck, CircleSlash } from 'lucide-react';
 import type { Category } from '../types/category';
+import { reorderCategories } from '../api/categories';
+import { nfToast } from '../utils/toast';
 import CategoryTable from '../components/CategoryTable';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
@@ -24,12 +26,14 @@ interface CategoriesProps {
   searchSeed?: { term: string; id: number };
 }
 
-// Read-only for Owner Admin: category creation, editing, activation, and
-// deletion are Super-Admin-only. This page shows whichever categories apply
-// to this owner's store(s), including ones Super Admin created and assigned.
-function Categories({ categories, isLoading, loadError, onRetry, searchSeed }: CategoriesProps) {
+// Read-only for Owner Admin except for reordering: category creation,
+// editing, activation, and deletion are Super-Admin-only, but this owner can
+// drag-and-drop to change the display order of whichever categories apply to
+// their store(s), including ones Super Admin created and assigned.
+function Categories({ categories, setCategories, isLoading, loadError, onRetry, searchSeed }: CategoriesProps) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [isReordering, setIsReordering] = useState(false);
 
   const appliedSeedId = useRef<number | null>(null);
   useEffect(() => {
@@ -50,6 +54,27 @@ function Categories({ categories, isLoading, loadError, onRetry, searchSeed }: C
       return true;
     });
   }, [categories, search, statusFilter]);
+
+  // Reordering only makes sense against the full, unfiltered list -- with a
+  // search term or status filter applied, "move up" would be ambiguous
+  // relative to categories hidden by the filter.
+  const canReorder = statusFilter === 'ALL' && search.trim() === '';
+
+  async function handleReorder(orderedIds: number[]) {
+    const previous = categories;
+    const byId = new Map(previous.map((category) => [category.id, category]));
+    setCategories(orderedIds.map((id) => byId.get(id)).filter((c): c is Category => c !== undefined));
+    setIsReordering(true);
+    try {
+      const updated = await reorderCategories(orderedIds);
+      setCategories(updated);
+    } catch (error) {
+      setCategories(previous);
+      nfToast.error(error instanceof Error ? error.message : 'Failed to save the new category order');
+    } finally {
+      setIsReordering(false);
+    }
+  }
 
   return (
     <div className="categories-page">
@@ -89,7 +114,17 @@ function Categories({ categories, isLoading, loadError, onRetry, searchSeed }: C
             />
           </div>
 
-          <CategoryTable categories={filteredCategories} canManage={false} isLoading={isLoading} />
+          {!canReorder && !isLoading && categories.length > 0 && (
+            <p className="categories-page__reorder-hint">Clear filters to reorder categories.</p>
+          )}
+
+          <CategoryTable
+            categories={filteredCategories}
+            canManage={false}
+            canReorder={canReorder && !isReordering}
+            onReorder={handleReorder}
+            isLoading={isLoading}
+          />
         </>
       )}
     </div>

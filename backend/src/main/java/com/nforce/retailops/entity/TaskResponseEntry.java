@@ -65,6 +65,14 @@ public class TaskResponseEntry {
     @Column(name = "undone_at")
     private OffsetDateTime undoneAt;
 
+    // True only when this row was deactivated by the employee's own explicit Undo
+    // action (TaskService.undoResponse) -- false when it was deactivated as a side
+    // effect of a fresh resubmission superseding it (TaskService.submitResponse's
+    // auto-supersede paths leave this false), so history can tell "the employee
+    // undid this and stopped" apart from "this was immediately replaced."
+    @Column(name = "undone_by_user", nullable = false)
+    private boolean undoneByUser = false;
+
     @Column(name = "flagged_needs_correction", nullable = false)
     private boolean flaggedNeedsCorrection = false;
 
@@ -182,6 +190,14 @@ public class TaskResponseEntry {
 
     public void setUndoneAt(OffsetDateTime undoneAt) {
         this.undoneAt = undoneAt;
+    }
+
+    public boolean isUndoneByUser() {
+        return undoneByUser;
+    }
+
+    public void setUndoneByUser(boolean undoneByUser) {
+        this.undoneByUser = undoneByUser;
     }
 
     public boolean isFlaggedNeedsCorrection() {

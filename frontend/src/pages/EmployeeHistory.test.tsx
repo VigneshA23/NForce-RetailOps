@@ -7,6 +7,7 @@ import type { StoreSummary } from '../types/store'
 
 vi.mock('../api/history', () => ({
   getShiftHistory: vi.fn(),
+  getCorrectionHistory: vi.fn(),
 }))
 
 const mockGetShiftHistory = vi.mocked(historyApi.getShiftHistory)
@@ -86,7 +87,7 @@ describe('EmployeeHistory date selection', () => {
 })
 
 describe('EmployeeHistory task responder list', () => {
-  it('lists every employee who completed a MULTIPLE-completion task, not just the caller', async () => {
+  it('shows only the most recent responder\'s combined value/name/time line for a MULTIPLE-completion task', async () => {
     mockGetShiftHistory.mockResolvedValue({
       date: '2026-09-02',
       storeId: 1,
@@ -101,6 +102,8 @@ describe('EmployeeHistory task responder list', () => {
           tasks: [
             {
               id: 100,
+              responseId: 500,
+              responseType: 'YES_NO',
               name: 'Wipe counters',
               status: 'YES',
               responseValue: 'Yes',
@@ -120,8 +123,8 @@ describe('EmployeeHistory task responder list', () => {
     render(<EmployeeHistory store={STORE} />)
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
 
-    expect(await screen.findByText('Alice Caller · 2:00 PM')).toBeInTheDocument()
-    expect(screen.getByText('Bob Teammate · 3:00 PM')).toBeInTheDocument()
+    expect(await screen.findByText('· Bob Teammate · 3:00 PM')).toBeInTheDocument()
+    expect(screen.queryByText('Alice Caller', { exact: false })).not.toBeInTheDocument()
   })
 
   it('keeps the single-line responder view for a SINGLE-completion task', async () => {
@@ -139,6 +142,8 @@ describe('EmployeeHistory task responder list', () => {
           tasks: [
             {
               id: 100,
+              responseId: 501,
+              responseType: 'YES_NO',
               name: 'Unlock front door',
               status: 'YES',
               responseValue: 'Yes',
@@ -155,7 +160,8 @@ describe('EmployeeHistory task responder list', () => {
     render(<EmployeeHistory store={STORE} />)
     await waitFor(() => expect(mockGetShiftHistory).toHaveBeenCalled())
 
-    expect(await screen.findByText('Alice Caller · 2:00 PM')).toBeInTheDocument()
+    expect(await screen.findByText('Yes')).toBeInTheDocument()
+    expect(screen.getByText('· Alice Caller · 2:00 PM')).toBeInTheDocument()
   })
 })
 

@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.AdminCorrectionEntry;
 import com.nforce.retailops.dto.ChecklistHistoryDetailResponse;
 import com.nforce.retailops.dto.HistoryCategoryResponse;
 import com.nforce.retailops.dto.HistoryIssueResponse;
@@ -12,6 +13,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.exception.TaskResponseNotFoundException;
 import com.nforce.retailops.repository.AdminCorrectionRepository;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
@@ -94,10 +96,31 @@ public class MeHistoryService {
         // filters by employeeId. MULTIPLE-completion tasks need every employee's
         // response visible here, not just the caller's; SINGLE-completion tasks
         // are unaffected since only one active responder can ever exist for them.
-        List<TaskResponseEntry> responses = taskResponseEntryRepository
-            .findByStoreIdAndResponseDateAndActiveTrue(storeId, date);
+        List<TaskResponseEntry> responses = new ArrayList<>(taskResponseEntryRepository
+            .findByStoreIdAndResponseDateAndActiveTrue(storeId, date));
         Map<Long, List<TaskResponseEntry>> responsesByTask = responses.stream()
             .collect(Collectors.groupingBy(entry -> entry.getTask().getId()));
+
+        // A task answered and then explicitly Undone, with no resubmission since, has
+        // zero active responses above and would otherwise disappear from history
+        // entirely -- surface the most recent such dangling row per task (only where
+        // no active response already covers that task) so it still shows up as "Not
+        // done, Undone by X · time" instead of silently vanishing.
+        List<TaskResponseEntry> danglingUndone = taskResponseEntryRepository
+            .findByStoreIdAndResponseDateAndActiveFalseAndUndoneByUserTrue(storeId, date);
+        if (!danglingUndone.isEmpty()) {
+            Map<Long, TaskResponseEntry> latestDanglingByTask = danglingUndone.stream()
+                .collect(Collectors.toMap(
+                    entry -> entry.getTask().getId(),
+                    entry -> entry,
+                    (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
+                ));
+            for (Map.Entry<Long, TaskResponseEntry> dangling : latestDanglingByTask.entrySet()) {
+                if (responsesByTask.containsKey(dangling.getKey())) continue;
+                responsesByTask.put(dangling.getKey(), List.of(dangling.getValue()));
+                responses.add(dangling.getValue());
+            }
+        }
 
         Set<Long> eligibleTaskIds = eligibleTasks.stream().map(Task::getId).collect(Collectors.toSet());
         Set<Long> missingTaskIds = responsesByTask.keySet().stream()
@@ -174,6 +197,22 @@ public class MeHistoryService {
         return new ChecklistHistoryDetailResponse(store.getId(), store.getName(), date, !allTasks.isEmpty(), categories, issues);
     }
 
+    // Employee-facing equivalent of AdminCorrectionService.getCorrectionHistory: the
+    // Employee History page only ever showed the single latestCorrection inline
+    // (above), silently dropping any earlier corrections once superseded by a newer
+    // one -- this returns the full chain the same "Correction History" view already
+    // gives Owner/Admin and Super Admin, scoped to a store this employee is assigned to.
+    @Transactional(readOnly = true)
+    public List<AdminCorrectionEntry> getCorrectionHistory(Long employeeUserId, Long responseId) {
+        TaskResponseEntry entry = taskResponseEntryRepository.findById(responseId)
+            .orElseThrow(() -> new TaskResponseNotFoundException("Response not found"));
+
+        userProfileService.requireAssignedStore(employeeUserId, entry.getStore().getId());
+
+        return ChecklistHistoryService.buildCorrectionHistory(
+            entry, taskResponseEntryRepository, adminCorrectionRepository);
+    }
+
     private HistoryTaskItemResponse toHistoryTaskItem(
         Task task, List<TaskResponseEntry> responses, Map<Long, String> empIdByUserId,
         Map<Long, AdminCorrection> latestCorrectionByResponseId,
@@ -190,7 +229,10 @@ public class MeHistoryService {
                     entry.getValueBoolean(),
                     entry.getValueNumeric(),
                     entry.getValueText(),
-                    entry.getCreatedAt(),
+                    // The dangling-undo entry's value fields above are its stale pre-undo
+                    // value, not the current state -- its "as of" time is the undo, not the
+                    // original submission, so respondedAt/completedAt reflect that instead.
+                    entry.isActive() ? entry.getCreatedAt() : entry.getUndoneAt(),
                     // Previously hidden from employees; now shown, same as the owner-facing
                     // view -- the employee's own previous -> edited value, the owner's
                     // comment, who edited it, and when.
@@ -200,7 +242,8 @@ public class MeHistoryService {
                     entry.getFlagReason(),
                     // The flag -> resubmit history is also shown to the employee: it's their
                     // own prior answer, the owner's comment on it, and what they resubmitted.
-                    resubmissionHistoriesByResponseId.getOrDefault(entry.getId(), List.of())
+                    resubmissionHistoriesByResponseId.getOrDefault(entry.getId(), List.of()),
+                    !entry.isActive()
                 );
             })
             .toList();

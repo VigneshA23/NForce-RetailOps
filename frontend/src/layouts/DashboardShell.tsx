@@ -100,6 +100,8 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
             categories={categoriesState.categories}
             onViewStoreDetail={() => setActiveTab('store-detail')}
             onViewIssues={() => setActiveTab('issues')}
+            onViewEmployees={() => setActiveTab('employees')}
+            onViewCategories={() => setActiveTab('categories')}
           />
         );
       case 'store-detail':
@@ -187,7 +189,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       {overlay === 'profile' ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
       ) : overlay === 'help' ? (
-        <Help />
+        <Help role={user.role} />
       ) : overlay === 'settings' ? (
         <Settings />
       ) : overlay === 'notifications' ? (
