@@ -20,74 +20,104 @@ class SessionServiceTest {
     @Mock
     private ActiveSessionRepository activeSessionRepository;
 
-    private SessionService sessionService(long timeoutMinutes) {
-        return new SessionService(activeSessionRepository, timeoutMinutes);
+    private SessionService sessionService(long standardMinutes, long rememberMeMinutes) {
+        return new SessionService(activeSessionRepository, standardMinutes, rememberMeMinutes);
     }
 
     @Test
-    void reportsConfiguredTimeoutBackVerbatim() {
-        assertThat(sessionService(10).getInactivityTimeoutMinutes()).isEqualTo(10);
-        assertThat(sessionService(45).getInactivityTimeoutMinutes()).isEqualTo(45);
+    void reportsConfiguredTimeoutsBackVerbatim() {
+        SessionService service = sessionService(30, 240);
+        assertThat(service.getInactivityTimeoutMinutes()).isEqualTo(30);
+        assertThat(service.getRememberMeTimeoutMinutes()).isEqualTo(240);
+    }
+
+    @Test
+    void resolveSessionMinutesPicksThePolicyMatchingRememberMe() {
+        SessionService service = sessionService(30, 240);
+        assertThat(service.resolveSessionMinutes(false)).isEqualTo(30);
+        assertThat(service.resolveSessionMinutes(true)).isEqualTo(240);
     }
 
     @Test
     void unknownTokenIdIsNotValid() {
         when(activeSessionRepository.findByTokenId("missing")).thenReturn(Optional.empty());
 
-        assertThat(sessionService(10).validateAndTouch("missing")).isFalse();
+        assertThat(sessionService(30, 240).validateAndTouch("missing")).isFalse();
     }
 
     @Test
-    void recentlyActiveSessionIsValid() {
+    void sessionWellWithinItsExpiryIsValid() {
         ActiveSession session = new ActiveSession();
         session.setTokenId("tok-1");
         session.setLastActiveAt(OffsetDateTime.now());
+        session.setExpiresAt(OffsetDateTime.now().plusMinutes(25));
         when(activeSessionRepository.findByTokenId("tok-1")).thenReturn(Optional.of(session));
 
-        assertThat(sessionService(10).validateAndTouch("tok-1")).isTrue();
+        assertThat(sessionService(30, 240).validateAndTouch("tok-1")).isTrue();
         verify(activeSessionRepository, never()).deleteByTokenId(anyString());
     }
 
     @Test
-    void sessionIdleLongerThanTimeoutIsExpiredAndRevoked() {
+    void sessionPastItsAbsoluteExpiryIsRejectedAndRevokedEvenIfRecentlyActive() {
         ActiveSession session = new ActiveSession();
         session.setTokenId("tok-2");
-        session.setLastActiveAt(OffsetDateTime.now().minusMinutes(11));
+        // Active a moment ago (would pass any inactivity-only check) but the
+        // absolute lifetime granted at login has already elapsed.
+        session.setLastActiveAt(OffsetDateTime.now().minusSeconds(5));
+        session.setExpiresAt(OffsetDateTime.now().minusMinutes(1));
         when(activeSessionRepository.findByTokenId("tok-2")).thenReturn(Optional.of(session));
 
-        assertThat(sessionService(10).validateAndTouch("tok-2")).isFalse();
+        assertThat(sessionService(30, 240).validateAndTouch("tok-2")).isFalse();
         verify(activeSessionRepository).deleteByTokenId("tok-2");
     }
 
     @Test
-    void sessionIdleJustUnderTimeoutRemainsValid() {
+    void sessionExactlyAtItsExpiryMomentIsRejected() {
+        OffsetDateTime now = OffsetDateTime.now();
         ActiveSession session = new ActiveSession();
         session.setTokenId("tok-3");
-        session.setLastActiveAt(OffsetDateTime.now().minusMinutes(9));
+        session.setLastActiveAt(now.minusMinutes(1));
+        session.setExpiresAt(now);
         when(activeSessionRepository.findByTokenId("tok-3")).thenReturn(Optional.of(session));
 
-        assertThat(sessionService(10).validateAndTouch("tok-3")).isTrue();
+        assertThat(sessionService(30, 240).validateAndTouch("tok-3")).isFalse();
     }
 
     @Test
     void invalidateDeletesTheSessionRow() {
-        sessionService(10).invalidate("tok-4");
+        sessionService(30, 240).invalidate("tok-4");
 
         verify(activeSessionRepository).deleteByTokenId("tok-4");
     }
 
     @Test
-    void creatingASessionPersistsItWithTheGivenTokenIdAndSubject() {
-        sessionService(10).createSession("tok-5", "user@nforce.test");
+    void creatingAStandardSessionExpiresThirtyMinutesFromNow() {
+        sessionService(30, 240).createSession("tok-5", "user@nforce.test", 30);
 
         verify(activeSessionRepository).save(argThat(session ->
-            "tok-5".equals(session.getTokenId()) && "user@nforce.test".equals(session.getSubjectEmail())
+            "tok-5".equals(session.getTokenId())
+                && "user@nforce.test".equals(session.getSubjectEmail())
+                && session.getExpiresAt() != null
+                && session.getExpiresAt().isAfter(OffsetDateTime.now().plusMinutes(29))
+                && session.getExpiresAt().isBefore(OffsetDateTime.now().plusMinutes(31))
+        ));
+    }
+
+    @Test
+    void creatingARememberMeSessionExpiresFourHoursFromNow() {
+        sessionService(30, 240).createSession("tok-6", "user@nforce.test", 240);
+
+        verify(activeSessionRepository).save(argThat(session ->
+            "tok-6".equals(session.getTokenId())
+                && session.getExpiresAt() != null
+                && session.getExpiresAt().isAfter(OffsetDateTime.now().plusMinutes(239))
+                && session.getExpiresAt().isBefore(OffsetDateTime.now().plusMinutes(241))
         ));
     }
 
     @Test
     void invalidateAllForUserRevokesEverySessionThatUserHolds() {
-        sessionService(10).invalidateAllForUser("employee@nforce.test");
+        sessionService(30, 240).invalidateAllForUser("employee@nforce.test");
 
         verify(activeSessionRepository).deleteBySubjectEmail("employee@nforce.test");
         verify(activeSessionRepository, never()).deleteByTokenId(anyString());

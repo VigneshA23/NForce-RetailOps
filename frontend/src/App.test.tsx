@@ -17,6 +17,7 @@ vi.mock('./api/auth', () => ({
   logout: vi.fn(),
   requestPasswordReset: vi.fn(),
   getSessionConfig: vi.fn(),
+  getSessionStatus: vi.fn(),
 }))
 
 vi.mock('./api/stores', () => ({
@@ -49,6 +50,7 @@ vi.mock('./api/notifications', () => ({
 const mockLogin = vi.mocked(authApi.login)
 const mockLogout = vi.mocked(authApi.logout)
 const mockGetSessionConfig = vi.mocked(authApi.getSessionConfig)
+const mockGetSessionStatus = vi.mocked(authApi.getSessionStatus)
 const mockGetAuthorizedStores = vi.mocked(storesApi.getAuthorizedStores)
 const mockGetMe = vi.mocked(meApi.getMe)
 const mockGetDailyChecklist = vi.mocked(tasksApi.getDailyChecklist)
@@ -57,7 +59,7 @@ const STORE_1: StoreSummary = { id: 1, name: 'Store 1', location: 'Main St', sta
 const STORE_2: StoreSummary = { id: 2, name: 'Store 2', location: 'Oak Ave', status: 'Open' }
 
 async function loginAsEmployee(user: ReturnType<typeof userEvent.setup>) {
-  mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false })
+  mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false, sessionTimeoutMinutes: 30 })
   await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
   await user.type(screen.getByLabelText(/^password$/i), 'password123')
   // "Remember me" defaults to unchecked, which stores the token in
@@ -81,7 +83,9 @@ beforeEach(() => {
   mockLogout.mockReset()
   mockLogout.mockResolvedValue(undefined)
   mockGetSessionConfig.mockReset()
-  mockGetSessionConfig.mockResolvedValue({ inactivityTimeoutMinutes: 10 })
+  mockGetSessionConfig.mockResolvedValue({ inactivityTimeoutMinutes: 10, rememberMeTimeoutMinutes: 240 })
+  mockGetSessionStatus.mockReset()
+  mockGetSessionStatus.mockResolvedValue({ remainingSeconds: 600 })
   mockGetAuthorizedStores.mockReset()
   // Two stores by default, so the picker is shown and has something to choose.
   mockGetAuthorizedStores.mockResolvedValue([STORE_1, STORE_2])
@@ -212,6 +216,112 @@ describe('sign-out', () => {
   })
 })
 
+describe('Remember Me persistence', () => {
+  it('stores the token in localStorage (survives browser close) when Remember Me is checked', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await loginAsEmployee(user) // helper already checks Remember Me
+
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('test-token')
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+
+  it('stores the token in sessionStorage only (does not survive browser close) when Remember Me is left unchecked', async () => {
+    const user = userEvent.setup()
+    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false, sessionTimeoutMinutes: 30 })
+    render(<App />)
+
+    await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'password123')
+    // Remember Me left unchecked this time.
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+    await screen.findByText(/select your store/i)
+
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('test-token')
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+})
+
+describe('cross-tab session sync', () => {
+  it('ends this tab\'s session when another tab clears the shared auth token', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await loginAsEmployee(user)
+    await selectFirstOpenStore(user)
+
+    // Simulate the effect of another tab logging out / expiring: the shared
+    // localStorage key is cleared and a native `storage` event fires (jsdom,
+    // like real browsers, does not dispatch this in the SAME tab that made
+    // the change, so it must be dispatched explicitly here to simulate the
+    // OTHER tab's write being observed by this one).
+    localStorage.removeItem(TOKEN_KEY)
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: TOKEN_KEY,
+      newValue: null,
+      storageArea: localStorage,
+    }))
+
+    await screen.findByText(/you have been logged out/i)
+    expect(screen.queryByLabelText(/signed in as/i)).not.toBeInTheDocument()
+  })
+})
+
+describe('session countdown accuracy after refresh', () => {
+  it('seeds the UX countdown from the real remaining server-side time, not the full policy duration', async () => {
+    // Simulates a page refresh mid-session: a token already sits in storage
+    // (as if this were a remembered session restored, not a fresh login), and
+    // the server reports only a sliver of time left on it -- proving the
+    // countdown is seeded from that real remaining time (and ends the session
+    // almost immediately) rather than restarting at the full default.
+    localStorage.setItem(TOKEN_KEY, 'valid-token')
+    localStorage.setItem(ACTIVE_STORE_KEY, String(STORE_1.id))
+    mockGetMe.mockResolvedValue({
+      id: 7,
+      fullName: 'Jane Doe',
+      email: 'jane@nforceone.com',
+      role: 'EMPLOYEE',
+      storeNames: ['Store 1'],
+      mustResetPassword: false,
+      shift: null,
+      employeeType: null,
+      phone: null,
+      avatarUrl: null,
+    })
+    mockGetSessionStatus.mockResolvedValue({ remainingSeconds: 0.05 })
+
+    render(<App />)
+
+    await screen.findByRole('heading', { name: /today's tasks/i })
+    await screen.findByText(/welcome back/i, {}, { timeout: 2000 })
+    expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
+  })
+
+  it('keeps the session alive when the real remaining time is still substantial', async () => {
+    localStorage.setItem(TOKEN_KEY, 'valid-token')
+    localStorage.setItem(ACTIVE_STORE_KEY, String(STORE_1.id))
+    mockGetMe.mockResolvedValue({
+      id: 7,
+      fullName: 'Jane Doe',
+      email: 'jane@nforceone.com',
+      role: 'EMPLOYEE',
+      storeNames: ['Store 1'],
+      mustResetPassword: false,
+      shift: null,
+      employeeType: null,
+      phone: null,
+      avatarUrl: null,
+    })
+    mockGetSessionStatus.mockResolvedValue({ remainingSeconds: 1800 })
+
+    render(<App />)
+
+    await screen.findByRole('heading', { name: /today's tasks/i })
+    expect(screen.queryByText(/welcome back/i)).not.toBeInTheDocument()
+  })
+})
+
 describe('session restore', () => {
   it('restores an employee session from a stored token on refresh', async () => {
     localStorage.setItem(TOKEN_KEY, 'valid-token')
@@ -299,7 +409,7 @@ describe('store selection', () => {
   it('auto-selects the only assigned store and hides the switch-store control', async () => {
     const user = userEvent.setup()
     mockGetAuthorizedStores.mockResolvedValue([STORE_1])
-    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false })
+    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false, sessionTimeoutMinutes: 30 })
 
     render(<App />)
     await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
@@ -314,7 +424,7 @@ describe('store selection', () => {
   it('shows an empty state when the employee has no assigned store', async () => {
     const user = userEvent.setup()
     mockGetAuthorizedStores.mockResolvedValue([])
-    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false })
+    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false, sessionTimeoutMinutes: 30 })
 
     render(<App />)
     await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')

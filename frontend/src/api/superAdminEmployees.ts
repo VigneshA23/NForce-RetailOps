@@ -9,7 +9,7 @@ export async function getAllEmployeesForSuperAdmin(): Promise<SuperAdminEmployee
 
 export interface EmployeeCreationResult {
   employee: Employee;
-  temporaryPassword: string;
+  temporaryPassword: string | null;
   emailSent: boolean;
 }
 

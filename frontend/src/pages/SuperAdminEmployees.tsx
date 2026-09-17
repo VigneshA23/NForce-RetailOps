@@ -48,7 +48,7 @@ function SuperAdminEmployees() {
   const [editTarget, setEditTarget] = useState<SuperAdminEmployee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [tempPassword, setTempPassword] = useState<{ name: string; password: string; emailSent: boolean } | null>(null);
+  const [tempPassword, setTempPassword] = useState<{ name: string; password: string | null; emailSent: boolean } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SuperAdminEmployee | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<SuperAdminEmployee | null>(null);
