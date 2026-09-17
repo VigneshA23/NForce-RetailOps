@@ -52,6 +52,10 @@ class OwnerManagementServiceAddOwnerTest {
     private NotificationService notificationService;
     @Mock
     private PasswordResetService passwordResetService;
+    @Mock
+    private SessionService sessionService;
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private OwnerManagementService ownerManagementService;
@@ -79,7 +83,6 @@ class OwnerManagementServiceAddOwnerTest {
 
     @Test
     void onMailSuccessTheProvisionedResponsePassesThroughWithEmailSentTrue() {
-        when(passwordResetService.createSetupToken("owner@nforce.test")).thenReturn("test-token");
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
         when(passwordResetService.createSetupToken(anyString())).thenReturn("setup-token-123");
 
@@ -94,7 +97,6 @@ class OwnerManagementServiceAddOwnerTest {
 
     @Test
     void onMailFailureTheAccountSurvivesAndResponseIndicatesEmailNotSent() {
-        when(passwordResetService.createSetupToken("owner@nforce.test")).thenReturn("test-token");
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
         when(passwordResetService.createSetupToken(anyString())).thenReturn("setup-token-123");
         doThrow(new EmailDeliveryException("boom")).when(mailService)
