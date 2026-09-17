@@ -227,6 +227,28 @@ class MeHistoryServiceTest {
             .isInstanceOf(StoreNotFoundException.class);
     }
 
+    // 2b. Root-cause regression test: once the store's Owner/Admin is deactivated
+    // (StoreOwner link released -- owner set null, active false, matching
+    // OwnerManagementService.setOwnerActive), an employee still assigned to the
+    // store must get an empty history back, not "store not found".
+    @Test
+    @Transactional
+    void detailReturnsEmptyHistoryInsteadOfFailingWhenStoreHasNoActiveOwner() {
+        Task task = saveTask(storeRepository.getReferenceById(storeId));
+        LocalDate today = LocalDate.now();
+
+        StoreOwner link = storeOwnerRepository.findByStoreId(storeId).orElseThrow();
+        link.setOwner(null);
+        link.setActive(false);
+        storeOwnerRepository.save(link);
+
+        ChecklistHistoryDetailResponse detail = meHistoryService.getDetail(employeeId, storeId, today);
+
+        assertThat(detail.storeId()).isEqualTo(storeId);
+        assertThat(detail.hasChecklist()).isFalse();
+        assertThat(detail.categories()).isEmpty();
+    }
+
     // 3. Assigned store, but nothing configured/recorded for the day: hasChecklist
     // is false and categories is empty, rather than an error.
     @Test

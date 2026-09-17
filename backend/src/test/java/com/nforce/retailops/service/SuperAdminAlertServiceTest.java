@@ -7,6 +7,7 @@ import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
@@ -16,6 +17,7 @@ import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.NotificationRepository;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.RoleRepository;
+import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.TaskRepository;
@@ -49,6 +51,7 @@ class SuperAdminAlertServiceTest {
     @Autowired private UserRepository userRepository;
     @Autowired private RoleRepository roleRepository;
     @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private StoreOwnerRepository storeOwnerRepository;
 
     private SuperAdmin createSuperAdmin(String email) {
         SuperAdmin sa = new SuperAdmin();
@@ -186,6 +189,17 @@ class SuperAdminAlertServiceTest {
         assertThat(dedupCount).isEqualTo(1);
     }
 
+    // A store whose Owner/Admin has been deactivated (or whose access to this
+    // store was revoked) -- StoreOwner.owner is null, ownerVacantSince stamped,
+    // mirroring what OwnerManagementService.setOwnerActive/setStoreActive do.
+    private void createVacantStoreOwnerLink(Store store, OffsetDateTime vacantSince) {
+        StoreOwner link = new StoreOwner();
+        link.setStore(store);
+        link.setActive(false);
+        link.setOwnerVacantSince(vacantSince);
+        storeOwnerRepository.save(link);
+    }
+
     // ── Trigger 2: Overdue Issues ─────────────────────────────────────────────
 
     @Test
@@ -278,5 +292,130 @@ class SuperAdminAlertServiceTest {
             })
             .count();
         assertThat(count).isEqualTo(1);
+    }
+
+    // ── Trigger 3: Store Owner Vacant ───────────────────────────────────────
+
+    @Test
+    @Transactional
+    void ownerVacancyCheck_vacantOver24Hours_notifiesSuperAdmin() {
+        SuperAdmin sa = createSuperAdmin("sa-vacancy-1@nforce.test");
+        Store store = createActiveStore("Vacant Store 1", 8300L);
+        createVacantStoreOwnerLink(store, OffsetDateTime.now().minusHours(25));
+
+        superAdminAlertService.runOwnerVacancyCheck(OffsetDateTime.now());
+
+        List<?> notifications = notificationRepository
+            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(sa.getId(), org.springframework.data.domain.PageRequest.of(0, 50));
+        boolean hasAlert = notifications.stream()
+            .anyMatch(o -> {
+                var notif = (com.nforce.retailops.entity.Notification) o;
+                return "STORE_OWNER_VACANT".equals(notif.getCategory()) && notif.getTitle().contains("Vacant Store 1");
+            });
+        assertThat(hasAlert).isTrue();
+    }
+
+    @Test
+    @Transactional
+    void ownerVacancyCheck_vacantUnder24Hours_doesNotNotify() {
+        SuperAdmin sa = createSuperAdmin("sa-vacancy-2@nforce.test");
+        Store store = createActiveStore("Fresh Vacancy Store 2", 8301L);
+        // Deactivated just an hour ago -- still well within the 24-hour grace window.
+        createVacantStoreOwnerLink(store, OffsetDateTime.now().minusHours(1));
+
+        superAdminAlertService.runOwnerVacancyCheck(OffsetDateTime.now());
+
+        List<?> notifications = notificationRepository
+            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(sa.getId(), org.springframework.data.domain.PageRequest.of(0, 50));
+        boolean hasAlert = notifications.stream()
+            .anyMatch(o -> ((com.nforce.retailops.entity.Notification) o).getTitle().contains("Fresh Vacancy Store 2"));
+        assertThat(hasAlert).isFalse();
+    }
+
+    // If the same Owner/Admin is reactivated for this store, or a new one is
+    // assigned, within the 24-hour window, OwnerManagementService clears
+    // ownerVacantSince -- so even once 24 hours have genuinely passed, there is
+    // nothing left for the check to find, and no notification fires.
+    @Test
+    @Transactional
+    void ownerVacancyCheck_resolvedWithinWindow_doesNotNotify() {
+        SuperAdmin sa = createSuperAdmin("sa-vacancy-3@nforce.test");
+        Store store = createActiveStore("Resolved Store 3", 8302L);
+        StoreOwner link = new StoreOwner();
+        link.setStore(store);
+        link.setActive(false);
+        link.setOwnerVacantSince(OffsetDateTime.now().minusHours(25));
+        link = storeOwnerRepository.save(link);
+
+        // Owner reassigned before the check ever runs -- OwnerManagementService's
+        // reassignment path clears ownerVacantSince back to null.
+        link.setActive(true);
+        link.setOwnerVacantSince(null);
+        storeOwnerRepository.save(link);
+
+        superAdminAlertService.runOwnerVacancyCheck(OffsetDateTime.now());
+
+        List<?> notifications = notificationRepository
+            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(sa.getId(), org.springframework.data.domain.PageRequest.of(0, 50));
+        boolean hasAlert = notifications.stream()
+            .anyMatch(o -> ((com.nforce.retailops.entity.Notification) o).getTitle().contains("Resolved Store 3"));
+        assertThat(hasAlert).isFalse();
+    }
+
+    @Test
+    @Transactional
+    void ownerVacancyCheck_runTwice_noDuplicateNotificationForSameUnresolvedCase() {
+        SuperAdmin sa = createSuperAdmin("sa-vacancy-4@nforce.test");
+        Store store = createActiveStore("Dedup Vacancy Store 4", 8303L);
+        createVacantStoreOwnerLink(store, OffsetDateTime.now().minusHours(30));
+
+        superAdminAlertService.runOwnerVacancyCheck(OffsetDateTime.now());
+        superAdminAlertService.runOwnerVacancyCheck(OffsetDateTime.now());
+
+        List<?> notifications = notificationRepository
+            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(sa.getId(), org.springframework.data.domain.PageRequest.of(0, 50));
+        long count = notifications.stream()
+            .filter(o -> {
+                var notif = (com.nforce.retailops.entity.Notification) o;
+                return "STORE_OWNER_VACANT".equals(notif.getCategory())
+                    && notif.getTitle().contains("Dedup Vacancy Store 4");
+            })
+            .count();
+        assertThat(count).isEqualTo(1);
+    }
+
+    // A store that goes vacant a second time (resolved, then deactivated again)
+    // must be able to notify again -- the dedup key is scoped to the specific
+    // vacancy's own start timestamp, not just the store id.
+    @Test
+    @Transactional
+    void ownerVacancyCheck_newVacancyAfterPriorResolvedOne_notifiesAgain() {
+        SuperAdmin sa = createSuperAdmin("sa-vacancy-5@nforce.test");
+        Store store = createActiveStore("Re-vacated Store 5", 8304L);
+
+        StoreOwner link = new StoreOwner();
+        link.setStore(store);
+        link.setActive(false);
+        link.setOwnerVacantSince(OffsetDateTime.now().minusHours(48));
+        link = storeOwnerRepository.save(link);
+
+        superAdminAlertService.runOwnerVacancyCheck(OffsetDateTime.now());
+
+        // Resolved, then vacated again later with a fresh timestamp.
+        link.setOwnerVacantSince(OffsetDateTime.now().minusHours(25));
+        storeOwnerRepository.save(link);
+
+        superAdminAlertService.runOwnerVacancyCheck(OffsetDateTime.now());
+
+        List<?> notifications = notificationRepository
+            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(sa.getId(), org.springframework.data.domain.PageRequest.of(0, 50));
+        long count = notifications.stream()
+            .filter(o -> {
+                var notif = (com.nforce.retailops.entity.Notification) o;
+                return "STORE_OWNER_VACANT".equals(notif.getCategory())
+                    && notif.getTitle().contains("Re-vacated Store 5");
+            })
+            .count();
+        assertThat(count).isEqualTo(2);
     }
 }

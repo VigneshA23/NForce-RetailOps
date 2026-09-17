@@ -33,6 +33,8 @@ class CategoryServiceReorderTest {
     private TaskRepository taskRepository;
     @Mock
     private StoreOwnerRepository storeOwnerRepository;
+    @Mock
+    private ActivityLogService activityLogService;
 
     @InjectMocks
     private CategoryService categoryService;

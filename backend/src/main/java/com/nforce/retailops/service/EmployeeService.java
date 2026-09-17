@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -52,6 +53,7 @@ public class EmployeeService {
     private final PasswordEncoder passwordEncoder;
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
     private final NotificationService notificationService;
+    private final ActivityLogService activityLogService;
     private final PasswordResetService passwordResetService;
     private final String appBaseUrl;
 
@@ -66,6 +68,7 @@ public class EmployeeService {
         PasswordEncoder passwordEncoder,
         TemporaryPasswordGenerator temporaryPasswordGenerator,
         NotificationService notificationService,
+        ActivityLogService activityLogService,
         PasswordResetService passwordResetService,
         @Value("${app.base-url}") String appBaseUrl
     ) {
@@ -79,8 +82,22 @@ public class EmployeeService {
         this.passwordEncoder = passwordEncoder;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
         this.notificationService = notificationService;
+        this.activityLogService = activityLogService;
         this.passwordResetService = passwordResetService;
         this.appBaseUrl = appBaseUrl;
+    }
+
+    // Scopes a log entry to only the stores this owner actually owns among the
+    // employee's (possibly multi-owner-shared) store list -- so an action on a
+    // shared employee never leaks into a different owner's activity feed.
+    private List<Store> ownedStoresAmong(Collection<Store> stores, Long ownerId) {
+        return stores.stream()
+            .filter(store -> storeOwnerRepository.findByStoreIdAndOwnerId(store.getId(), ownerId).isPresent())
+            .toList();
+    }
+
+    private String ownerName(Long ownerId) {
+        return userRepository.findById(ownerId).map(User::getFullName).orElse("Admin");
     }
 
     private boolean ownsAnyStore(StoreEmployee storeEmployee, Long ownerId) {
@@ -193,6 +210,12 @@ public class EmployeeService {
         } catch (EmailDeliveryException ex) {
             log.warn("Setup email failed for employee {} ({}); account still created", provisioned.fullName(), provisioned.userId(), ex);
         }
+
+        activityLogService.logForStores(
+            "EMPLOYEE_CREATED", "Super Admin", "SUPER_ADMIN",
+            stores, "EMPLOYEE", provisioned.fullName(),
+            "Created employee \"" + provisioned.fullName() + "\""
+        );
 
         return new EmployeeCreationResponse(provisioned.response(), null, emailSent);
     }
@@ -330,6 +353,12 @@ public class EmployeeService {
         storeEmployee.setGender(request.gender());
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
 
+        activityLogService.logForStores(
+            "EMPLOYEE_UPDATED", ownerName(ownerId), "OWNER_ADMIN",
+            ownedStoresAmong(storeEmployee.getStores(), ownerId), "EMPLOYEE", employee.getFullName(),
+            "Updated employee \"" + employee.getFullName() + "\""
+        );
+
         return EmployeeResponse.from(storeEmployee);
     }
 
@@ -343,9 +372,17 @@ public class EmployeeService {
         }
 
         User employee = storeEmployee.getEmployee();
+        String employeeName = employee.getFullName();
+        List<Store> affectedStores = ownedStoresAmong(storeEmployee.getStores(), ownerId);
         sessionService.invalidateAllForUser(employee.getEmail());
         storeEmployeeRepository.delete(storeEmployee);
         userRepository.delete(employee);
+
+        activityLogService.logForStores(
+            "EMPLOYEE_DELETED", ownerName(ownerId), "OWNER_ADMIN",
+            affectedStores, "EMPLOYEE", employeeName,
+            "Removed employee \"" + employeeName + "\""
+        );
     }
 
     @Transactional
@@ -369,6 +406,12 @@ public class EmployeeService {
         storeEmployee.setEmployeeType(request.employeeType());
         storeEmployee.setGender(request.gender());
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
+
+        activityLogService.logForStores(
+            "EMPLOYEE_UPDATED", "Super Admin", "SUPER_ADMIN",
+            storeEmployee.getStores(), "EMPLOYEE", employee.getFullName(),
+            "Updated employee \"" + employee.getFullName() + "\""
+        );
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -394,6 +437,12 @@ public class EmployeeService {
                 ? "Your NForce account has been reactivated by your store admin."
                 : "Your NForce account has been deactivated by your store admin.",
             active ? "/checklist" : null);
+
+        activityLogService.logForStores(
+            active ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
+            storeEmployee.getStores(), "EMPLOYEE", employee.getFullName(),
+            (active ? "Activated employee \"" : "Deactivated employee \"") + employee.getFullName() + "\""
+        );
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -462,6 +511,12 @@ public class EmployeeService {
                 ? "Your NForce account has been reactivated."
                 : "Your NForce account has been deactivated.",
             request.active() ? "/checklist" : null);
+
+        activityLogService.logForStores(
+            request.active() ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", ownerName(ownerId), "OWNER_ADMIN",
+            ownedStoresAmong(storeEmployee.getStores(), ownerId), "EMPLOYEE", employee.getFullName(),
+            (request.active() ? "Activated employee \"" : "Deactivated employee \"") + employee.getFullName() + "\""
+        );
 
         return EmployeeResponse.from(storeEmployee);
     }

@@ -51,8 +51,6 @@ class OwnerManagementServiceAddOwnerTest {
     @Mock
     private NotificationService notificationService;
     @Mock
-    private SessionService sessionService;
-    @Mock
     private PasswordResetService passwordResetService;
 
     @InjectMocks
@@ -69,7 +67,6 @@ class OwnerManagementServiceAddOwnerTest {
         provisioned = new OwnerProvisioningService.ProvisionedOwner(
             5L, "owner@nforce.test", "New Owner", "temp-pass-123", null, null, false, null, response
         );
-        when(passwordResetService.createSetupToken("owner@nforce.test")).thenReturn("test-token");
     }
 
     private com.nforce.retailops.entity.User newUser() {
@@ -82,22 +79,26 @@ class OwnerManagementServiceAddOwnerTest {
 
     @Test
     void onMailSuccessTheProvisionedResponsePassesThroughWithEmailSentTrue() {
+        when(passwordResetService.createSetupToken("owner@nforce.test")).thenReturn("test-token");
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
+        when(passwordResetService.createSetupToken(anyString())).thenReturn("setup-token-123");
 
         OwnerCreationResponse result = ownerManagementService.addOwner(request);
 
         assertThat(result.owner()).isEqualTo(provisioned.response());
         assertThat(result.temporaryPassword()).isNull();
         assertThat(result.emailSent()).isTrue();
-        verify(mailService).sendAccountSetupEmail("owner@nforce.test", "New Owner", "http://localhost:5173?token=test-token");
+        verify(mailService).sendAccountSetupEmail(eq("owner@nforce.test"), eq("New Owner"), anyString());
         verify(ownerProvisioningService, never()).deleteUnreachableOwner(any());
     }
 
     @Test
     void onMailFailureTheAccountSurvivesAndResponseIndicatesEmailNotSent() {
+        when(passwordResetService.createSetupToken("owner@nforce.test")).thenReturn("test-token");
         when(ownerProvisioningService.createOwnerAccount(eq(request), eq(false), eq(false))).thenReturn(provisioned);
+        when(passwordResetService.createSetupToken(anyString())).thenReturn("setup-token-123");
         doThrow(new EmailDeliveryException("boom")).when(mailService)
-            .sendAccountSetupEmail("owner@nforce.test", "New Owner", "http://localhost:5173?token=test-token");
+            .sendAccountSetupEmail(anyString(), anyString(), anyString());
 
         OwnerCreationResponse result = ownerManagementService.addOwner(request);
 

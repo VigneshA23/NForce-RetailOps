@@ -19,6 +19,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
+import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.CategoryInactiveException;
 import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
@@ -72,6 +73,7 @@ public class TaskService {
     private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final NotificationService notificationService;
+    private final ActivityLogService activityLogService;
 
     public TaskService(
         TaskRepository taskRepository,
@@ -82,7 +84,8 @@ public class TaskService {
         UserProfileService userProfileService,
         TaskResponseEntryRepository taskResponseEntryRepository,
         StoreEmployeeRepository storeEmployeeRepository,
-        NotificationService notificationService
+        NotificationService notificationService,
+        ActivityLogService activityLogService
     ) {
         this.taskRepository = taskRepository;
         this.categoryRepository = categoryRepository;
@@ -93,6 +96,19 @@ public class TaskService {
         this.taskResponseEntryRepository = taskResponseEntryRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.notificationService = notificationService;
+        this.activityLogService = activityLogService;
+    }
+
+    // A task's stores for "all stores" tasks means all of ITS OWNER'S stores
+    // (a task is always single-owner), not every store platform-wide.
+    private List<Store> resolveTaskStoresForLog(Task task, Long ownerId) {
+        if (!task.isAppliesToAllStores()) {
+            return List.copyOf(task.getStores());
+        }
+        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+            .filter(StoreOwner::isActive)
+            .map(StoreOwner::getStore)
+            .toList();
     }
 
     @Transactional(readOnly = true)
@@ -138,6 +154,12 @@ public class TaskService {
                     "/checklist"));
         });
 
+        activityLogService.logForStores(
+            "TASK_CREATED", ownerName(ownerId), "OWNER_ADMIN",
+            resolveTaskStoresForLog(task, ownerId), "TASK", task.getName(),
+            "Created task \"" + task.getName() + "\""
+        );
+
         return TaskResponse.from(task);
     }
 
@@ -146,6 +168,13 @@ public class TaskService {
         Task task = requireOwnedTask(ownerId, taskId);
         applyRequest(task, ownerId, request);
         task = taskRepository.save(task);
+
+        activityLogService.logForStores(
+            "TASK_UPDATED", ownerName(ownerId), "OWNER_ADMIN",
+            resolveTaskStoresForLog(task, ownerId), "TASK", task.getName(),
+            "Updated task \"" + task.getName() + "\""
+        );
+
         return TaskResponse.from(task);
     }
 
@@ -158,6 +187,13 @@ public class TaskService {
         }
         task.setActive(active);
         task = taskRepository.save(task);
+
+        activityLogService.logForStores(
+            active ? "TASK_ACTIVATED" : "TASK_DEACTIVATED", ownerName(ownerId), "OWNER_ADMIN",
+            resolveTaskStoresForLog(task, ownerId), "TASK", task.getName(),
+            (active ? "Activated task \"" : "Deactivated task \"") + task.getName() + "\""
+        );
+
         return TaskResponse.from(task);
     }
 
@@ -194,7 +230,19 @@ public class TaskService {
             throw new TaskHasHistoryException(
                 "This task has checklist history and cannot be deleted. Deactivate it instead.");
         }
+        List<Store> affectedStores = resolveTaskStoresForLog(task, ownerId);
+        String taskName = task.getName();
         taskRepository.delete(task);
+
+        activityLogService.logForStores(
+            "TASK_DELETED", ownerName(ownerId), "OWNER_ADMIN",
+            affectedStores, "TASK", taskName,
+            "Deleted task \"" + taskName + "\""
+        );
+    }
+
+    private String ownerName(Long ownerId) {
+        return userRepository.findById(ownerId).map(User::getFullName).orElse("Admin");
     }
 
     /**
@@ -208,15 +256,24 @@ public class TaskService {
     public TodayChecklistResponse getTodayChecklistForEmployee(Long employeeUserId, Long storeId) {
         userProfileService.requireAssignedStore(employeeUserId, storeId);
 
-        Long ownerId = storeOwnerRepository.findByStoreId(storeId)
-            .map(storeOwner -> storeOwner.getOwner().getId())
+        // Owner/Admin is optional here: a Super Admin deactivating the store's
+        // Owner/Admin releases the StoreOwner link (owner set to null, active
+        // set to false -- see OwnerManagementService.setOwnerActive/setStoreActive)
+        // but the store itself stays active and reachable. With no active owner
+        // there are simply no owner-configured tasks to show yet.
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        Long ownerId = (storeOwner.isActive() && storeOwner.getOwner() != null)
+            ? storeOwner.getOwner().getId()
+            : null;
 
         LocalDate today = LocalDate.now();
 
-        List<Task> applicableTasks = taskRepository.findActiveForStoreAndDate(ownerId, storeId, today).stream()
-            .filter(task -> TaskScheduleMatcher.matches(task, today))
-            .toList();
+        List<Task> applicableTasks = ownerId == null
+            ? List.of()
+            : taskRepository.findActiveForStoreAndDate(ownerId, storeId, today).stream()
+                .filter(task -> TaskScheduleMatcher.matches(task, today))
+                .toList();
 
         // Batched instead of one active-responses query per task, so the checklist read
         // stays O(1) queries regardless of how many tasks are on it.
@@ -342,6 +399,12 @@ public class TaskService {
         } catch (DataIntegrityViolationException ex) {
             throw new TaskAlreadyCompletedException("This task has already been completed for today");
         }
+
+        activityLogService.log(
+            ActivityLogService.TASK_COMPLETED, entry.getEmployee().getFullName(), "EMPLOYEE",
+            entry.getStore().getId(), entry.getStore().getName(), "TASK", task.getName(),
+            "Completed " + task.getName()
+        );
 
         return buildResponseState(taskId, request.storeId(), today, employeeUserId);
     }

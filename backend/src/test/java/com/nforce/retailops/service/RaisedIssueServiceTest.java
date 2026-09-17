@@ -49,6 +49,7 @@ class RaisedIssueServiceTest {
     @Mock private StoreOwnerRepository storeOwnerRepository;
     @Mock private UserProfileService userProfileService;
     @Mock private NotificationService notificationService;
+    @Mock private ActivityLogService activityLogService;
 
     @InjectMocks
     private RaisedIssueService raisedIssueService;

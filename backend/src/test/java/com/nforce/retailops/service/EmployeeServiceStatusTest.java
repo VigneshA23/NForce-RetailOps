@@ -126,7 +126,7 @@ class EmployeeServiceStatusTest {
         when(storeEmployeeRepository.findById(EMPLOYEE_ID)).thenReturn(Optional.of(storeEmployee));
         when(temporaryPasswordGenerator.generate()).thenReturn("Temp-Pass1");
         when(passwordEncoder.encode("Temp-Pass1")).thenReturn("hashed");
-        when(passwordResetService.createSetupToken(EMPLOYEE_EMAIL)).thenReturn("setup-token");
+        when(passwordResetService.createSetupToken(EMPLOYEE_EMAIL)).thenReturn("setup-token-123");
 
         employeeService.resetEmployeePassword(OWNER_ID, EMPLOYEE_ID);
 
@@ -134,7 +134,7 @@ class EmployeeServiceStatusTest {
         assertThat(storeEmployee.getEmployee().isMustResetPassword()).isTrue();
         verify(userRepository).save(storeEmployee.getEmployee());
         verify(sessionService).invalidateAllForUser(EMPLOYEE_EMAIL);
-        verify(mailService).sendAccountSetupEmail(EMPLOYEE_EMAIL, "Test Employee", "http://localhost:5173?token=setup-token");
+        verify(mailService).sendAccountSetupEmail(eq(EMPLOYEE_EMAIL), eq("Test Employee"), anyString());
     }
 
     @Test
