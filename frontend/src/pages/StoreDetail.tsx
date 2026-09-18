@@ -308,36 +308,23 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
 
   // Outstanding/Incomplete = OPEN/ISSUE tasks for the currently viewed date
   // (today or historical). ISSUE sorted before OPEN, alphabetical by task
-  // name within each group. Shares the category/search filter bar below with
-  // the task table -- the status dropdown is deliberately NOT applied here
-  // (this list is always OPEN/ISSUE only; picking "Completed" would just
-  // empty it out).
+  // name within each group. Has its own dedicated search/category filter
+  // (outstandingSearch/outstandingCategoryFilter below, applied via
+  // filteredOutstandingRows) -- deliberately independent from the main
+  // table's filter bar, so filtering one doesn't silently affect the other.
   const outstandingRows = useMemo(() => {
-    let result = rows.filter((row) => {
-      const s = taskStatus(row.task);
-      return s === 'OPEN' || s === 'ISSUE';
-    });
-    if (categoryFilter !== 'all') {
-      result = result.filter((row) => row.categoryName === categoryFilter);
-    }
-    if (searchQuery.trim()) {
-      result = result.filter((row) =>
-        matchesSearch(searchQuery, [
-          row.categoryName,
-          row.task.name,
-          responseDisplayValue(row.task),
-          TASK_STATUS_LABELS[taskStatus(row.task)],
-          ...row.task.responses.map((r) => r.employeeFullName),
-        ]),
-      );
-    }
-    return result.sort((a, b) => {
-      const sa = taskStatus(a.task);
-      const sb = taskStatus(b.task);
-      if (sa !== sb) return sa === 'ISSUE' ? -1 : 1;
-      return a.task.name.localeCompare(b.task.name);
-    });
-  }, [rows, categoryFilter, searchQuery]);
+    return rows
+      .filter((row) => {
+        const s = taskStatus(row.task);
+        return s === 'OPEN' || s === 'ISSUE';
+      })
+      .sort((a, b) => {
+        const sa = taskStatus(a.task);
+        const sb = taskStatus(b.task);
+        if (sa !== sb) return sa === 'ISSUE' ? -1 : 1;
+        return a.task.name.localeCompare(b.task.name);
+      });
+  }, [rows]);
 
   // Open by default when issues exist; close when only open tasks remain.
   // Reset whenever fresh data arrives (date navigation triggers a new detail load).
@@ -608,7 +595,9 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
                 )}
               </div>
               {filteredOutstandingRows.length === 0 ? (
-                <p className="store-detail-outstanding__empty">No outstanding tasks match your filters.</p>
+                <p className="store-detail-outstanding__empty">
+                  No {isToday ? 'outstanding' : 'incomplete'} tasks match your filters.
+                </p>
               ) : (
                 <>
                   <div className="store-detail-outstanding__head" aria-hidden="true">
