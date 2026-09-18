@@ -8,6 +8,7 @@ import StoreComparisonTable from '../components/StoreComparisonTable';
 import StoreComparisonDetailModal from '../components/StoreComparisonDetailModal';
 import TrendChart from '../components/TrendChart';
 import ActivityFeedList from '../components/ActivityFeedList';
+import Select from '../components/Select';
 import { useRecentActivity } from '../hooks/useRecentActivity';
 import './SuperAdminHome.css';
 
@@ -33,10 +34,11 @@ interface SuperAdminHomeProps {
   onChecklistClick?: () => void;
 }
 
-const TREND_PERIODS = [
-  { label: '7d', days: 7 },
-  { label: '30d', days: 30 },
-] as const;
+const TREND_PERIOD_OPTIONS = [
+  { value: '7', label: 'Last 7 Days' },
+  { value: '14', label: 'Last 14 Days' },
+  { value: '30', label: 'Last 30 Days' },
+];
 
 function SuperAdminHome({
   owners,
@@ -53,7 +55,7 @@ function SuperAdminHome({
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [overview, setOverview] = useState<StoreOperationsSummary[] | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
-  const [trendDays, setTrendDays] = useState<7 | 30>(7);
+  const [trendDays, setTrendDays] = useState(7);
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
   const [trendLoading, setTrendLoading] = useState(true);
   const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
@@ -189,18 +191,12 @@ function SuperAdminHome({
         <div className="sa-home__trend-section">
           <div className="sa-home__trend-header">
             <h2 className="sa-home__section-title" style={{ margin: 0 }}>Platform Completion Trend</h2>
-            <div className="sa-home__trend-toggle">
-              {TREND_PERIODS.map((p) => (
-                <button
-                  key={p.days}
-                  type="button"
-                  className={`sa-home__trend-btn${trendDays === p.days ? ' sa-home__trend-btn--active' : ''}`}
-                  onClick={() => setTrendDays(p.days as 7 | 30)}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+            <Select
+              options={TREND_PERIOD_OPTIONS}
+              value={String(trendDays)}
+              onChange={(value) => setTrendDays(Number(value))}
+              ariaLabel="Select time period"
+            />
           </div>
           <TrendChart data={trendData} loading={trendLoading} height={200} />
         </div>
