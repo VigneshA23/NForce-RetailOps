@@ -209,7 +209,8 @@
 }
 
 .store-detail-page__stat-row {
-  margin-bottom: var(--space-xs);
+  gap: var(--space-lg);
+  margin-bottom: var(--space-lg);
 }
 
 /* ─── Premium stat chips ─── */
@@ -560,11 +561,53 @@
   transform: rotate(180deg);
 }
 
+.store-detail-outstanding__filter-bar {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  margin-bottom: 0;
+  background: transparent;
+  padding: 10px 14px;
+}
+
+.store-detail-outstanding__empty {
+  margin: 0;
+  padding: 16px 14px;
+  font-size: 13px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.store-detail-outstanding__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 14px;
+  border-top: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.store-detail-outstanding__head-category {
+  width: 150px;
+  flex-shrink: 0;
+}
+
+.store-detail-outstanding__head-task {
+  flex: 1;
+}
+
+.store-detail-outstanding__head-status {
+  flex-shrink: 0;
+}
+
 .store-detail-outstanding__list {
   list-style: none;
   margin: 0;
   padding: 0;
-  border-top: 1px solid var(--color-border);
 }
 
 .store-detail-outstanding__list li + li {
@@ -596,8 +639,10 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   flex-shrink: 0;
-  min-width: 80px;
+  width: 150px;
 }
 
 .store-detail-outstanding__task {

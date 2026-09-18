@@ -397,7 +397,7 @@ function Home({
           <div className="home-page__category-health">
             <div className="home-page__category-health-rows">
               {categoryHealth.map((category) => {
-                const tier = category.percent >= 90 ? 'good' : 'risk';
+                const tier = category.percent >= 90 ? 'good' : category.percent >= 50 ? 'warning' : 'risk';
                 return (
                   <div key={category.id} className="home-page__category-health-row">
                     <div className="home-page__category-health-row-top">

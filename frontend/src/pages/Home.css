@@ -185,6 +185,10 @@
   background: var(--color-badge-icon-success-fg);
 }
 
+.home-page__category-health-dot[data-tier='warning'] {
+  background: var(--color-badge-icon-warning-fg);
+}
+
 .home-page__category-health-dot[data-tier='risk'] {
   background: var(--color-accent);
 }
@@ -204,6 +208,10 @@
   background: var(--color-badge-icon-success-fg);
 }
 
+.home-page__category-health-bar-fill[data-tier='warning'] {
+  background: var(--color-badge-icon-warning-fg);
+}
+
 .home-page__category-health-bar-fill[data-tier='risk'] {
   background: var(--color-accent);
 }
@@ -212,6 +220,10 @@
   font-size: 14px;
   font-weight: 700;
   color: var(--color-badge-icon-success-fg);
+}
+
+.home-page__category-health-percent[data-tier='warning'] {
+  color: var(--color-badge-icon-warning-fg);
 }
 
 .home-page__category-health-percent[data-tier='risk'] {
