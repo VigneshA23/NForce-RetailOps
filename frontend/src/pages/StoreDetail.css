@@ -393,7 +393,7 @@
 
 .store-detail-page__category-progress {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: var(--space-sm);
   margin-bottom: var(--space-md);
 }
@@ -408,6 +408,14 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface-card);
   font-size: 12px;
+  /* A grid item's automatic minimum size defaults to its content's min-content
+     width, which ignored the minmax(150px, 1fr) track and let long names
+     (e.g. "Cleaning & Hygiene") push the card wider than its column, clipping
+     against the next card. overflow: hidden zeroes that automatic minimum so
+     the track size is actually honored, and min-width: 0 lets the card (and
+     its flex children) shrink below their own content width in the first place. */
+  min-width: 0;
+  overflow: hidden;
 }
 
 .cat-prog-card--done {
@@ -419,10 +427,14 @@
   font-weight: 600;
   color: var(--color-text-primary);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .cat-prog-card__track {
-  width: 48px;
+  width: 36px;
   height: 5px;
   border-radius: 3px;
   background: rgba(0, 0, 0, 0.08);
@@ -447,6 +459,7 @@
   font-weight: 700;
   color: var(--color-text-muted);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .store-detail-page__trend {
@@ -505,7 +518,7 @@
   color: var(--color-text-secondary);
 }
 
-/* Outstanding Tasks (today-only collapsible) */
+/* Outstanding Tasks (collapsible; shown for any viewed date, not just today) */
 .store-detail-outstanding {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);

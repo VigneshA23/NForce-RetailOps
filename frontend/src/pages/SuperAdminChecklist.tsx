@@ -20,7 +20,10 @@ import { getAllStores } from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import './SuperAdminChecklist.css';
 
-type FilterKey = 'ALL' | 'COMPLETE' | 'OPEN' | 'ISSUE';
+// No 'OPEN' filter option -- open (no-response) tasks are already surfaced
+// in the Outstanding/Incomplete Tasks section above, so the table below only
+// ever shows Completed/Issue rows (see filteredRows). Matches StoreDetail.tsx.
+type FilterKey = 'ALL' | 'COMPLETE' | 'ISSUE';
 
 // Session-scoped repeat-offender cache keyed by storeId (separate from owner-admin's cache in StoreDetail).
 const saRepeatOffenderCache = new Map<number, Map<number, number>>();
@@ -205,7 +208,10 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   }, [detail]);
 
   const filteredRows = useMemo(() => {
-    let result = filter === 'ALL' ? rows : rows.filter((row) => taskStatus(row.task) === filter);
+    let result = rows.filter((row) => taskStatus(row.task) !== 'OPEN');
+    if (filter !== 'ALL') {
+      result = result.filter((row) => taskStatus(row.task) === filter);
+    }
     if (categoryFilter !== 'all') {
       result = result.filter((row) => row.categoryName === categoryFilter);
     }
@@ -271,20 +277,38 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     });
   }
 
+  // Outstanding/Incomplete = OPEN/ISSUE tasks for the currently viewed date
+  // (today or historical). ISSUE sorted before OPEN, alphabetical by task
+  // name within each group.
+  // Shares the category/search filter bar below with the task table -- the
+  // status dropdown is deliberately NOT applied here (this list is always
+  // OPEN/ISSUE only; picking "Completed" would just empty it out).
   const outstandingRows = useMemo(() => {
-    if (!isToday) return [];
-    return rows
-      .filter((row) => {
-        const s = taskStatus(row.task);
-        return s === 'OPEN' || s === 'ISSUE';
-      })
-      .sort((a, b) => {
-        const sa = taskStatus(a.task);
-        const sb = taskStatus(b.task);
-        if (sa !== sb) return sa === 'ISSUE' ? -1 : 1;
-        return a.task.name.localeCompare(b.task.name);
-      });
-  }, [rows, isToday]);
+    let result = rows.filter((row) => {
+      const s = taskStatus(row.task);
+      return s === 'OPEN' || s === 'ISSUE';
+    });
+    if (categoryFilter !== 'all') {
+      result = result.filter((row) => row.categoryName === categoryFilter);
+    }
+    if (searchQuery.trim()) {
+      result = result.filter((row) =>
+        matchesSearch(searchQuery, [
+          row.categoryName,
+          row.task.name,
+          responseDisplayValue(row.task),
+          TASK_STATUS_LABELS[taskStatus(row.task)],
+          ...row.task.responses.map((r) => r.employeeFullName),
+        ]),
+      );
+    }
+    return result.sort((a, b) => {
+      const sa = taskStatus(a.task);
+      const sb = taskStatus(b.task);
+      if (sa !== sb) return sa === 'ISSUE' ? -1 : 1;
+      return a.task.name.localeCompare(b.task.name);
+    });
+  }, [rows, categoryFilter, searchQuery]);
 
   function handleResponseCorrected(taskId: number, updatedResponse: ChecklistHistoryResponseEntry) {
     setDetail((prev) => {
@@ -536,7 +560,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             </div>
           )}
 
-          {selectedStoreId !== null && isToday && outstandingRows.length > 0 && (
+          {selectedStoreId !== null && outstandingRows.length > 0 && (
             <div className="store-detail-outstanding">
               <button
                 type="button"
@@ -545,7 +569,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                 aria-expanded={outstandingOpen}
               >
                 <span className="store-detail-outstanding__title">
-                  Outstanding Tasks
+                  {isToday ? 'Outstanding Tasks' : 'Incomplete Tasks'}
                   <span className="store-detail-outstanding__count">{outstandingRows.length}</span>
                 </span>
                 <ChevronDown
@@ -601,7 +625,6 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
               options={[
                 { value: 'ALL', label: 'All statuses' },
                 { value: 'COMPLETE', label: 'Completed' },
-                { value: 'OPEN', label: 'No Response' },
                 { value: 'ISSUE', label: 'Issues' },
               ]}
               value={filter}
