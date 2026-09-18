@@ -9,12 +9,25 @@ export interface LoginResult extends AuthUser {
   sessionTimeoutMinutes: number
 }
 
-export async function login(email: string, password: string, rememberMe: boolean): Promise<LoginResult> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
+const LOGIN_TIMEOUT_MS = 30_000;
+
+async function attemptLogin(email: string, password: string, rememberMe: boolean): Promise<Response> {
+  return fetchWithTimeout(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, rememberMe }),
-  })
+  }, LOGIN_TIMEOUT_MS);
+}
+
+export async function login(email: string, password: string, rememberMe: boolean): Promise<LoginResult> {
+  let response: Response;
+  try {
+    response = await attemptLogin(email, password, rememberMe);
+  } catch {
+    // Network/timeout failure (not a server auth rejection) — retry once silently
+    // so Lambda cold starts don't surface a spurious error to the user.
+    response = await attemptLogin(email, password, rememberMe);
+  }
 
   if (!response.ok) {
     const payload = await response.json().catch(() => null)
