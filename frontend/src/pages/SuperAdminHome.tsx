@@ -14,7 +14,6 @@ import { firstName } from '../utils/initials';
 import './SuperAdminHome.css';
 
 const ACTIVITY_COLLAPSED_LIMIT = 8;
-const ACTIVITY_EXPANDED_LIMIT = 50;
 
 interface SuperAdminHomeProps {
   userName: string;
@@ -34,6 +33,7 @@ interface SuperAdminHomeProps {
   onStoresClick?: () => void;
   onCategoriesClick?: () => void;
   onChecklistClick?: () => void;
+  onViewAllActivity?: () => void;
 }
 
 const TREND_PERIOD_OPTIONS = [
@@ -54,6 +54,7 @@ function SuperAdminHome({
   onStoresClick,
   onCategoriesClick,
   onChecklistClick,
+  onViewAllActivity,
 }: SuperAdminHomeProps) {
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [overview, setOverview] = useState<StoreOperationsSummary[] | null>(null);
@@ -62,8 +63,7 @@ function SuperAdminHome({
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
   const [trendLoading, setTrendLoading] = useState(true);
   const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
-  const [activityExpanded, setActivityExpanded] = useState(false);
-  const recentActivity = useRecentActivity(activityExpanded ? ACTIVITY_EXPANDED_LIMIT : ACTIVITY_COLLAPSED_LIMIT);
+  const recentActivity = useRecentActivity(ACTIVITY_COLLAPSED_LIMIT);
 
   useEffect(() => {
     let active = true;
@@ -253,11 +253,11 @@ function SuperAdminHome({
               <Clock size={18} />
               Recent Activity
             </h2>
-            {!activityExpanded && (
+            {onViewAllActivity && (
               <button
                 type="button"
                 className="chart-card__link-action"
-                onClick={() => setActivityExpanded(true)}
+                onClick={onViewAllActivity}
               >
                 View all
               </button>
