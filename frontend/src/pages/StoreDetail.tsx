@@ -14,7 +14,10 @@ import { taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, f
 import { matchesSearch } from '../utils/search';
 import './StoreDetail.css';
 
-type FilterKey = 'ALL' | 'COMPLETE' | 'OPEN' | 'ISSUE';
+// No 'OPEN' filter option -- open (no-response) tasks are already surfaced
+// in the Outstanding Tasks section above, so the table below only ever shows
+// Completed/Issue rows (see filteredRows).
+type FilterKey = 'ALL' | 'COMPLETE' | 'ISSUE';
 
 // Session-scoped cache: storeId → (taskId → count of days OPEN/ISSUE in last 7).
 // Lives for the lifetime of the JS module — survives date navigation, cleared on page reload.
@@ -229,7 +232,10 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   }, [detail]);
 
   const filteredRows = useMemo(() => {
-    let result = filter === 'ALL' ? rows : rows.filter((row) => taskStatus(row.task) === filter);
+    let result = rows.filter((row) => taskStatus(row.task) !== 'OPEN');
+    if (filter !== 'ALL') {
+      result = result.filter((row) => taskStatus(row.task) === filter);
+    }
     if (categoryFilter !== 'all') {
       result = result.filter((row) => row.categoryName === categoryFilter);
     }
@@ -590,7 +596,6 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
           options={[
             { value: 'ALL', label: 'All statuses' },
             { value: 'COMPLETE', label: 'Completed' },
-            { value: 'OPEN', label: 'No Response' },
             { value: 'ISSUE', label: 'Issues' },
           ]}
           value={filter}

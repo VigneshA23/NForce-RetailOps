@@ -387,15 +387,15 @@
 .store-detail-chip--static:hover { box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 6px 20px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.9); }
 
 .store-detail-page__category-progress {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-sm);
   margin-bottom: var(--space-md);
 }
 
 /* Category progress mini-cards */
 .cat-prog-card {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 7px;
   padding: 5px 10px;
@@ -437,6 +437,7 @@
 }
 
 .cat-prog-card__count {
+  margin-left: auto;
   font-size: 11px;
   font-weight: 700;
   color: var(--color-text-muted);
