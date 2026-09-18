@@ -1,0 +1,35 @@
+.sa-activity {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.sa-activity__header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sa-activity__title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.sa-activity__subtitle {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.sa-activity__list-card {
+  padding: var(--space-sm) var(--space-lg);
+}
+
+@media (max-width: 640px) {
+  .sa-activity {
+    padding: var(--space-md);
+  }
+}

@@ -41,13 +41,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 // End-to-end coverage for the "Recent Activity" feed: exercises the real
-// instrumented actions (category creation, task response submission) through
-// their actual HTTP endpoints, then reads GET /api/activity back as each
-// role, to prove both the store-scoping (Owner Admin sees only their own
-// store) and the feed split -- Super Admin sees admin-action events platform-
-// wide but never task completions, while an Owner Admin sees only their own
-// store's task completions, never admin-action events -- rather than just
-// unit-testing ActivityLogService in isolation.
+// instrumented actions (category creation, issue reporting, task response
+// submission) through their actual HTTP endpoints, then reads GET
+// /api/activity back as each role, to prove both the store-scoping (Owner
+// Admin sees only their own store) and the feed split -- Super Admin sees
+// Owner-Admin/Employee activity platform-wide but never task completions or
+// their own Super-Admin-authored actions, while an Owner Admin sees only
+// their own store's task completions, never admin-action events -- rather
+// than just unit-testing ActivityLogService in isolation.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -168,27 +169,50 @@ class ActivityLogControllerTest {
 
     @Test
     @Transactional
-    void superAdminSeesCategoryCreationInThePlatformFeed() throws Exception {
+    void superAdminDoesNotSeeTheirOwnActionsOnlyOwnerAndEmployeeActivity() throws Exception {
         superAdmin("activity-sa-a@nforce.test");
         String saToken = login("activity-sa-a@nforce.test");
 
         Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
         User owner = user("activity-owner-a@nforce.test", ownerRole);
+        User employee = user("activity-emp-a@nforce.test", empRole);
         Store store = store("Activity Store A");
         linkOwnerToStore(owner, store);
+        storeEmployee(employee, store);
 
-        String body = objectMapper.writeValueAsString(
+        // A Super-Admin-authored action (category creation) must never surface
+        // in Super Admin's own feed -- watching your own actions played back
+        // to you isn't oversight, and every such row is attributed to the
+        // literal string "Super Admin" anyway, not a specific account.
+        String categoryBody = objectMapper.writeValueAsString(
             new CategoryRequestPayload("Activity Category A", false, List.of(store.getId())));
         mockMvc.perform(post("/api/categories")
                 .header("Authorization", "Bearer " + saToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(body))
+                .content(categoryBody))
             .andExpect(status().isCreated());
 
         mockMvc.perform(get("/api/activity").header("Authorization", "Bearer " + saToken))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].description").value("Created category \"Activity Category A\""))
-            .andExpect(jsonPath("$[0].actorRole").value("SUPER_ADMIN"));
+            .andExpect(jsonPath("$", org.hamcrest.Matchers.not(
+                org.hamcrest.Matchers.hasItem(
+                    org.hamcrest.Matchers.hasEntry("description", "Created category \"Activity Category A\"")))));
+
+        // But an Employee's own action (reporting an issue) is genuine
+        // cross-role oversight and must still show up.
+        String employeeToken = login("activity-emp-a@nforce.test");
+        String issueBody = objectMapper.writeValueAsString(new RaiseIssuePayload(store.getId(), "Freezer is warm"));
+        mockMvc.perform(post("/api/me/issues")
+                .header("Authorization", "Bearer " + employeeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(issueBody))
+            .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/activity").header("Authorization", "Bearer " + saToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].description").value("Reported an issue"))
+            .andExpect(jsonPath("$[0].actorRole").value("EMPLOYEE"));
     }
 
     @Test
@@ -280,6 +304,8 @@ class ActivityLogControllerTest {
     private record LoginPayload(String email, String password) {}
 
     private record CategoryRequestPayload(String name, boolean appliesToAllStores, List<Long> storeIds) {}
+
+    private record RaiseIssuePayload(Long storeId, String note) {}
 
     private record EmployeeUpdatePayload(
         String name, String email, String phone, String shift, String employeeType, String gender

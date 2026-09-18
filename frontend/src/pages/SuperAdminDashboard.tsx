@@ -31,6 +31,7 @@ import SuperAdminHome from '../pages/SuperAdminHome';
 import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import SuperAdminIssues from '../pages/SuperAdminIssues';
 import SuperAdminInventory from '../pages/SuperAdminInventory';
+import SuperAdminActivity from '../pages/SuperAdminActivity';
 import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 import './SuperAdminDashboard.css';
@@ -93,7 +94,15 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setChecklistNav({ storeId, ts: Date.now() });
     setShowProfile(false);
     setShowHelp(false);
+    setShowActivity(false);
     setActiveTab('checklist');
+  }
+
+  function viewAllActivity() {
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowNotifications(false);
+    setShowActivity(true);
   }
 
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string | null; emailSent: boolean } | null>(null);
@@ -103,6 +112,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
 
   const { count: unreadCount, setCount } = useUnreadCount();
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
@@ -124,6 +134,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setShowProfile(false);
     setShowHelp(false);
     setShowNotifications(false);
+    setShowActivity(false);
     if (navTarget.startsWith('checklist:')) {
       const storeId = parseInt(navTarget.split(':')[1], 10);
       if (!isNaN(storeId)) {
@@ -329,18 +340,21 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         setShowProfile(false);
         setShowHelp(false);
         setShowNotifications(false);
+        setShowActivity(false);
         setActiveTab(key);
       }}
       title={
         showProfile ? 'My Profile'
         : showHelp ? 'Help & Guidance'
         : showNotifications ? 'Notifications'
+        : showActivity ? 'Recent Activity'
         : SUPER_ADMIN_PAGE_TITLES[activeTab]
       }
       contentKey={
         showProfile ? 'profile'
         : showHelp ? 'help'
         : showNotifications ? 'notifications'
+        : showActivity ? 'activity'
         : activeTab
       }
       logoSrc="/nforce-logo.png"
@@ -350,9 +364,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onLogout={onLogout}
       loggingOut={loggingOut}
       avatarUrl={avatarUrl}
-      onProfileClick={() => { setShowHelp(false); setShowNotifications(false); setShowProfile(true); }}
-      onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowHelp(true); }}
-      onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowNotifications(true); }}
+      onProfileClick={() => { setShowHelp(false); setShowNotifications(false); setShowActivity(false); setShowProfile(true); }}
+      onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowActivity(false); setShowHelp(true); }}
+      onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowActivity(false); setShowNotifications(true); }}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}
       onNotificationsCountChange={handleNotificationsCountChange}
@@ -366,6 +380,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <Help role={user.role} />
       ) : showNotifications ? (
         <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
+      ) : showActivity ? (
+        <SuperAdminActivity />
       ) : activeTab === 'checklist' ? (
         <SuperAdminChecklist nav={checklistNav} />
       ) : activeTab === 'home' ? (
@@ -381,6 +397,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
           onStoresClick={() => setActiveTab('stores')}
           onCategoriesClick={() => setActiveTab('categories')}
           onChecklistClick={() => setActiveTab('checklist')}
+          onViewAllActivity={viewAllActivity}
         />
       ) : activeTab === 'stores' ? (
         <SuperAdminStores onNavigateToChecklist={navigateToChecklist} onOwnersDataStale={refreshOwnersSilently} />

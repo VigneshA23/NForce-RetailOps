@@ -17,11 +17,16 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
     // match an owner's storeIds list, so they're correctly excluded here.
     List<ActivityLog> findByStoreIdInOrderByOccurredAtDesc(Collection<Long> storeIds, Pageable pageable);
 
-    // Super Admin's feed excludes TASK_COMPLETED -- that action type is
-    // reserved for an Owner Admin's own task-activity feed below, and would
-    // otherwise flood the platform-wide admin-action feed with routine
-    // employee checklist submissions.
-    List<ActivityLog> findByActionTypeNotOrderByOccurredAtDesc(String actionType, Pageable pageable);
+    // Super Admin's feed excludes TASK_COMPLETED (reserved for an Owner
+    // Admin's own task-activity feed below -- would otherwise flood the
+    // platform-wide admin-action feed with routine employee checklist
+    // submissions) and SUPER_ADMIN-authored rows (Super Admin watching their
+    // own actions back to themselves is pure noise, not oversight -- and
+    // every such row is attributed to the literal string "Super Admin"
+    // regardless of which account did it, so it carries no audit value even
+    // if a second Super Admin account existed).
+    List<ActivityLog> findByActionTypeNotAndActorRoleNotOrderByOccurredAtDesc(
+        String actionType, String actorRole, Pageable pageable);
 
     // Owner Admin's task-activity feed -- only TASK_COMPLETED rows for their
     // own store(s), newest first.

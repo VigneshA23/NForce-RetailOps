@@ -45,6 +45,8 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   const [filter, setFilter] = useState<FilterKey>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [outstandingSearch, setOutstandingSearch] = useState('');
+  const [outstandingCategoryFilter, setOutstandingCategoryFilter] = useState('all');
 
   const isToday = date === todayDate();
 
@@ -342,8 +344,28 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   const [outstandingOpen, setOutstandingOpen] = useState(false);
   useEffect(() => {
     setOutstandingOpen(counts.issues > 0);
+    setOutstandingSearch('');
+    setOutstandingCategoryFilter('all');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
+
+  const outstandingCategoryOptions = useMemo<SelectOption[]>(() => {
+    const names = Array.from(new Set(outstandingRows.map((row) => row.categoryName))).sort();
+    return names.map((name) => ({ value: name, label: name }));
+  }, [outstandingRows]);
+
+  const filteredOutstandingRows = useMemo(() => {
+    let result = outstandingRows;
+    if (outstandingCategoryFilter !== 'all') {
+      result = result.filter((row) => row.categoryName === outstandingCategoryFilter);
+    }
+    if (outstandingSearch.trim()) {
+      result = result.filter((row) =>
+        matchesSearch(outstandingSearch, [row.categoryName, row.task.name]),
+      );
+    }
+    return result;
+  }, [outstandingRows, outstandingCategoryFilter, outstandingSearch]);
 
   // Deferred scroll: reset filter to ALL first so the target row is in the DOM,
   // then scroll once filteredRows has updated on the next render.
@@ -565,26 +587,58 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
             />
           </button>
           {outstandingOpen && (
-            <ul className="store-detail-outstanding__list">
-              {outstandingRows.map((row) => {
-                const status = taskStatus(row.task);
-                return (
-                  <li key={row.key}>
-                    <button
-                      type="button"
-                      className="store-detail-outstanding__row"
-                      onClick={() => scrollToRow(row.key)}
-                    >
-                      <span className="store-detail-outstanding__category">{row.categoryName}</span>
-                      <span className="store-detail-outstanding__task">{row.task.name}</span>
-                      <span className={`badge ${status === 'ISSUE' ? 'badge--danger' : 'badge--outline'}`}>
-                        {status === 'ISSUE' ? 'Issue' : 'Open'}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <div className="filter-bar store-detail-outstanding__filter-bar">
+                <div className="filter filter--search">
+                  <SearchInput
+                    value={outstandingSearch}
+                    onChange={setOutstandingSearch}
+                    placeholder="Search tasks…"
+                    variant="filter"
+                  />
+                </div>
+                {outstandingCategoryOptions.length > 1 && (
+                  <Select
+                    className="filter"
+                    options={[{ value: 'all', label: 'All categories' }, ...outstandingCategoryOptions]}
+                    value={outstandingCategoryFilter}
+                    onChange={setOutstandingCategoryFilter}
+                    ariaLabel="Filter outstanding tasks by category"
+                  />
+                )}
+              </div>
+              {filteredOutstandingRows.length === 0 ? (
+                <p className="store-detail-outstanding__empty">No outstanding tasks match your filters.</p>
+              ) : (
+                <>
+                  <div className="store-detail-outstanding__head" aria-hidden="true">
+                    <span className="store-detail-outstanding__head-category">Category</span>
+                    <span className="store-detail-outstanding__head-task">Task</span>
+                    <span className="store-detail-outstanding__head-status">Status</span>
+                  </div>
+                  <ul className="store-detail-outstanding__list">
+                  {filteredOutstandingRows.map((row) => {
+                    const status = taskStatus(row.task);
+                    return (
+                      <li key={row.key}>
+                        <button
+                          type="button"
+                          className="store-detail-outstanding__row"
+                          onClick={() => scrollToRow(row.key)}
+                        >
+                          <span className="store-detail-outstanding__category">{row.categoryName}</span>
+                          <span className="store-detail-outstanding__task">{row.task.name}</span>
+                          <span className={`badge ${status === 'ISSUE' ? 'badge--danger' : 'badge--outline'}`}>
+                            {status === 'ISSUE' ? 'Issue' : 'Open'}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                  </ul>
+                </>
+              )}
+            </>
           )}
         </div>
       )}
