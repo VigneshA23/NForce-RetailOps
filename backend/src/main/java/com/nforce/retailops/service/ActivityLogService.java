@@ -13,17 +13,21 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Collection;
 import java.util.List;
 
-// Writes and reads "Recent Activity" entries. Super Admin's feed shows every
-// admin-action row platform-wide (categories/employees/tasks/issues/
-// corrections/owners) but excludes TASK_COMPLETED -- routine employee
-// checklist submissions would otherwise drown that feed out, and Super Admin
-// has no other visibility into per-action admin activity across stores. An
-// Owner Admin's feed is the inverse: only TASK_COMPLETED rows for their own
-// store(s), since they already see their own admin actions reflected in the
-// UI they just used, and staff task activity is the signal not shown anywhere
-// else on their dashboard. Deliberately no @Async/queue here -- write volume
-// is low enough at the "2-store scale" this app targets that a synchronous
-// save alongside the triggering action is simplest.
+// Writes and reads "Recent Activity" entries. Super Admin's feed shows
+// Owner-Admin and Employee activity platform-wide (tasks/issues/corrections
+// done by owners, issues reported by employees) -- genuine oversight of what
+// other roles are doing -- but excludes TASK_COMPLETED (reserved for an
+// Owner Admin's own feed below; would otherwise drown this one in routine
+// checklist submissions) and SUPER_ADMIN-authored rows (Super Admin has no
+// need to watch their own actions played back to them, and those rows all
+// share the literal actor name "Super Admin" regardless of account, so they
+// carry no real audit value). An Owner Admin's feed is the inverse: only
+// TASK_COMPLETED rows for their own store(s), since they already see their
+// own admin actions reflected in the UI they just used, and staff task
+// activity is the signal not shown anywhere else on their dashboard.
+// Deliberately no @Async/queue here -- write volume is low enough at the
+// "2-store scale" this app targets that a synchronous save alongside the
+// triggering action is simplest.
 @Service
 public class ActivityLogService {
 
@@ -81,7 +85,8 @@ public class ActivityLogService {
 
     @Transactional(readOnly = true)
     public List<ActivityLogEntryResponse> getRecentForPlatform(int limit) {
-        return activityLogRepository.findByActionTypeNotOrderByOccurredAtDesc(TASK_COMPLETED, PageRequest.of(0, limit)).stream()
+        return activityLogRepository
+            .findByActionTypeNotAndActorRoleNotOrderByOccurredAtDesc(TASK_COMPLETED, "SUPER_ADMIN", PageRequest.of(0, limit)).stream()
             .map(ActivityLogEntryResponse::from)
             .toList();
     }
