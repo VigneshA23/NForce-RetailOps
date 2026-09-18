@@ -26,6 +26,7 @@ interface EmployeeShellProps {
   loggingOut?: boolean
   avatarUrl?: string | null
   onAvatarChange?: (url: string | null) => void
+  onProfileUpdate?: (fullName: string) => void
   employeeId?: number | null
 }
 
@@ -37,7 +38,7 @@ const NAV_ITEMS: EmployeeNavItem[] = [
 
 type Overlay = 'profile' | 'help' | 'notifications' | null
 
-function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, employeeId = null }: EmployeeShellProps) {
+function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate, employeeId = null }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const [overlay, setOverlay] = useState<Overlay>(null)
   // Seeds History's initial date with the clicked notification's own
@@ -149,7 +150,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       }
     >
       {overlay === 'profile'
-        ? <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
+        ? <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} onProfileUpdate={onProfileUpdate} />
         : overlay === 'help'
         ? <Help role={user.role} />
         : overlay === 'notifications'

@@ -106,6 +106,10 @@ function App() {
     setStoredAvatarUrl(url)
   }
 
+  function handleProfileUpdate(fullName: string) {
+    setUser((current) => (current ? { ...current, fullName } : current))
+  }
+
   // Rehydrate the session on boot. The token outlives a page load, so ask the
   // server who it belongs to rather than trusting anything cached locally; a
   // token that is expired, revoked, or belongs to a deactivated account fails
@@ -276,11 +280,11 @@ function App() {
   }
 
   if (user.role === 'SUPER_ADMIN') {
-    return <SuperAdminDashboard user={user} onLogout={handleLogout} loggingOut={loggingOut} avatarUrl={avatarUrl} onAvatarChange={handleAvatarChange} />
+    return <SuperAdminDashboard user={user} onLogout={handleLogout} loggingOut={loggingOut} avatarUrl={avatarUrl} onAvatarChange={handleAvatarChange} onProfileUpdate={handleProfileUpdate} />
   }
 
   if (user.role === 'OWNER_ADMIN') {
-    return <DashboardShell user={user} onLogout={handleLogout} loggingOut={loggingOut} avatarUrl={avatarUrl} onAvatarChange={handleAvatarChange} />
+    return <DashboardShell user={user} onLogout={handleLogout} loggingOut={loggingOut} avatarUrl={avatarUrl} onAvatarChange={handleAvatarChange} onProfileUpdate={handleProfileUpdate} />
   }
 
   if (storesLoading) {
@@ -331,6 +335,7 @@ function App() {
       loggingOut={loggingOut}
       avatarUrl={avatarUrl}
       onAvatarChange={handleAvatarChange}
+      onProfileUpdate={handleProfileUpdate}
       employeeId={meState.me?.id ?? null}
     />
   )

@@ -347,26 +347,19 @@
   cursor: pointer;
 }
 
-.profile-field__icon-wrap {
-  position: relative;
+.profile-field__phone-row {
+  display: flex;
+  gap: var(--space-xs);
 }
 
-.profile-field__icon {
-  position: absolute;
-  left: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-text-secondary);
-  pointer-events: none;
+.profile-field__country-code {
+  flex: 0 0 40%;
+  max-width: 40%;
 }
 
-/* Scoped under the wrapper (specificity 0,2,0) rather than the bare
-   .profile-field__input--icon class (0,1,0) -- the shared .input rule in
-   forms.css sets the same specificity via its "padding" shorthand, so a
-   same-specificity override was silently losing depending on CSS load
-   order, leaving the icon crowding the input's first character. */
-.profile-field__icon-wrap .profile-field__input--icon {
-  padding-left: 42px;
+.profile-field__phone-row .input {
+  flex: 1;
+  min-width: 0;
 }
 
 .profile-field__error {

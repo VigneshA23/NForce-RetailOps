@@ -70,7 +70,7 @@ public class MeController {
 
     private MeResponse superAdminMeResponse(SuperAdmin sa) {
         return new MeResponse(sa.getId(), sa.getName(), sa.getEmail(), "SUPER_ADMIN",
-            List.of(), false, null, null, null, sa.getAvatarUrl());
+            List.of(), false, null, null, sa.getPhone(), sa.getAvatarUrl());
     }
 
     // Not role-gated: principal is either AppUserDetails or SuperAdminUserDetails.
@@ -83,7 +83,8 @@ public class MeController {
         return ResponseEntity.ok(userProfileService.getMe(userDetails.getUser()));
     }
 
-    // Self-service profile edit: name + email for all roles; phone only for employees.
+    // Self-service profile edit: name + email for all roles; phone for everyone
+    // except employees without a StoreEmployee record (there are none in practice).
     @Transactional
     @PutMapping
     public ResponseEntity<MeResponse> updateMe(
@@ -100,6 +101,8 @@ public class MeController {
             }
             sa.setName(request.fullName().trim());
             sa.setEmail(email);
+            String phone = request.phone();
+            sa.setPhone(phone != null ? phone.trim() : null);
             superAdminRepository.save(sa);
             return ResponseEntity.ok(superAdminMeResponse(sa));
         }

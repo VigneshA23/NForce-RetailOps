@@ -37,7 +37,7 @@ const ME: MeResponse = {
   mustResetPassword: false,
   shift: 'Morning',
   employeeType: 'Full Time',
-  phone: '555-0100',
+  phone: '+1 5550100',
   avatarUrl: null,
 }
 
@@ -75,7 +75,7 @@ describe('Profile personal info section', () => {
     const phoneInput = screen.getByLabelText(/phone/i) as HTMLInputElement
     expect(nameInput.value).toBe('Jane Employee')
     expect(emailInput.value).toBe('jane@nforceone.com')
-    expect(phoneInput.value).toBe('555-0100')
+    expect(phoneInput.value).toBe('5550100')
   })
 
   it('saves profile changes and reflects them in the overview on success', async () => {
@@ -95,6 +95,65 @@ describe('Profile personal info section', () => {
       expect.objectContaining({ fullName: 'Jane Updated', email: 'jane@nforceone.com' }),
     )
     expect(await screen.findByRole('heading', { name: 'Jane Updated' })).toBeInTheDocument()
+  })
+
+  // Regression: the phone field used to be a single plain-digit input with no
+  // country-code awareness, so a phone stored as "+1 5550100" (the format the
+  // Add/Edit Employee form writes) got its "+"/space stripped and its leading
+  // "1" merged into the 10-digit slot on the very first edit, permanently
+  // losing the real last digit on save.
+  it('keeps the country code separate from the phone number on save, unmerged', async () => {
+    mockUpdateMe.mockResolvedValue({ ...ME })
+    const user = userEvent.setup()
+    render(<Profile initials="JE" />)
+
+    await screen.findByRole('heading', { name: 'Jane Employee' })
+    await user.click(screen.getByRole('button', { name: /edit personal info/i }))
+
+    const phoneInput = (await screen.findByLabelText(/phone/i)) as HTMLInputElement
+    expect(phoneInput.value).toBe('5550100')
+    await user.type(phoneInput, '99')
+    expect(phoneInput.value).toBe('555010099')
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(mockUpdateMe).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: '+1 555010099' }),
+    )
+  })
+})
+
+describe('Profile personal info section — Owner/Admin and Super Admin phone', () => {
+  // Owners/Super Admins have no country-code dropdown anywhere in the app
+  // (see OwnerFormModal's plain 10-digit "Contact" field) -- their phone is
+  // stored as bare digits, so the field must not run it through the
+  // country-code parser (that would misread leading digits as a country
+  // code and drop the real last digit on save).
+  it.each([
+    ['OWNER_ADMIN' as const, 'Olivia Owner'],
+    ['SUPER_ADMIN' as const, 'Sam Admin'],
+  ])('edits and saves a plain 10-digit phone with no country code, for %s', async (role, fullName) => {
+    const me = { ...ME, role, fullName, storeNames: [], shift: null, employeeType: null, phone: '5550100' }
+    mockGetMe.mockResolvedValue(me)
+    mockUpdateMe.mockResolvedValue({ ...me })
+    const user = userEvent.setup()
+    render(<Profile initials="OA" />)
+
+    await screen.findByRole('heading', { name: fullName })
+    await user.click(screen.getByRole('button', { name: /edit personal info/i }))
+
+    const phoneInput = (await screen.findByLabelText(/phone/i)) as HTMLInputElement
+    expect(phoneInput.value).toBe('5550100')
+    expect(screen.queryByLabelText(/country code/i)).not.toBeInTheDocument()
+
+    await user.type(phoneInput, '99')
+    expect(phoneInput.value).toBe('555010099')
+
+    await user.click(screen.getByRole('button', { name: /save changes/i }))
+
+    expect(mockUpdateMe).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: '555010099' }),
+    )
   })
 })
 

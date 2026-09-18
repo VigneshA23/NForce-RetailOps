@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react';
 import { getChecklistHistoryOperationsReport } from '../api/checklistHistory';
 import { buildOperationsReportWorkbook, summarizeByStore } from '../utils/operationsReportExport';
@@ -13,6 +14,8 @@ interface ExportMenuProps {
   date: string;
   storeName?: string | null;
 }
+
+const VIEWPORT_MARGIN = 12;
 
 // Shared by the single-day and date-range PDF exports -- deliberately a richer,
 // more human subtitle style (weekday spelled out) than Excel's own formatLongDate,
@@ -42,7 +45,10 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pdfRangeExporting, setPdfRangeExporting] = useState(false);
   const [rangeError, setRangeError] = useState<string | null>(null);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setRangeStart(date);
@@ -52,14 +58,57 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
   useEffect(() => {
     if (!menuOpen) return;
     function handleOutsideClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-        setMode('idle');
-        setRangeError(null);
-      }
+      const target = e.target as Node;
+      if (menuRef.current?.contains(target)) return;
+      if (dropdownRef.current?.contains(target)) return;
+      setMenuOpen(false);
+      setMode('idle');
+      setRangeError(null);
     }
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [menuOpen]);
+
+  // Anchored absolute positioning (right: 0 on the dropdown, relative to the
+  // trigger's own small wrapper) ran the panel off the left edge on mobile
+  // whenever the trigger itself sat close to the screen edge -- same failure
+  // mode CalendarPopover already had to solve. Portal + measure-after-render
+  // and clamp to the viewport instead, same pattern as CalendarPopover/Select.
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    const trigger = triggerRef.current;
+    const dropdown = dropdownRef.current;
+    if (!trigger || !dropdown) return;
+
+    const triggerRect = trigger.getBoundingClientRect();
+    const dropdownRect = dropdown.getBoundingClientRect();
+
+    let top = triggerRect.bottom + 6;
+    if (top + dropdownRect.height > window.innerHeight - VIEWPORT_MARGIN) {
+      top = triggerRect.top - dropdownRect.height - 6;
+    }
+    top = Math.max(VIEWPORT_MARGIN, top);
+
+    let left = triggerRect.right - dropdownRect.width;
+    left = Math.min(left, window.innerWidth - dropdownRect.width - VIEWPORT_MARGIN);
+    left = Math.max(VIEWPORT_MARGIN, left);
+
+    setPosition((current) => (current.top === top && current.left === left ? current : { top, left }));
+  }, [menuOpen, mode, rangeError]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleScrollOrResize() {
+      setMenuOpen(false);
+      setMode('idle');
+      setRangeError(null);
+    }
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
   }, [menuOpen]);
 
   async function handleExportToday() {
@@ -157,6 +206,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
   return (
     <div ref={menuRef} className="export-menu">
       <button
+        ref={triggerRef}
         type="button"
         className="btn btn--danger export-menu__trigger"
         onClick={() => { setMenuOpen((v) => !v); setMode('idle'); setRangeError(null); }}
@@ -167,8 +217,8 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
         <ChevronDown size={13} />
       </button>
 
-      {menuOpen && (
-        <div className="export-menu__dropdown" role="menu">
+      {menuOpen && createPortal(
+        <div ref={dropdownRef} className="export-menu__dropdown" role="menu" style={{ top: position.top, left: position.left }}>
           <button
             type="button"
             className="export-menu__item"
@@ -250,7 +300,8 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
             <FileText size={14} />
             {pdfExporting ? 'Generating PDF…' : 'Export as PDF'}
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

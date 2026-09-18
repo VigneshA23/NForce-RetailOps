@@ -1,12 +1,14 @@
 import { type ChangeEvent, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  Briefcase, Camera, Clock, Eye, EyeOff, Mail, Pencil, Phone,
+  Briefcase, Camera, Clock, Eye, EyeOff, Mail, Pencil,
   ShieldCheck, Store as StoreIcon, Trash2, X,
 } from 'lucide-react';
 import { getMe, updateMe, updateAvatar, type MeResponse } from '../api/me';
 import { changePassword } from '../api/auth';
 import { ApiError } from '../api/client';
 import UserAvatar from '../components/UserAvatar';
+import Select from '../components/Select';
+import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import { nfToast } from '../utils/toast';
 import { getInitials } from '../utils/initials';
 import './Profile.css';
@@ -15,6 +17,29 @@ interface ProfileProps {
   initials: string;
   avatarUrl?: string | null;
   onAvatarChange?: (url: string | null) => void;
+  onProfileUpdate?: (fullName: string) => void;
+}
+
+interface PersonalInfo {
+  fullName: string;
+  email: string;
+  phone: string;
+  countryCode: string;
+}
+
+// Employees store phone with a country code ("+1 5551234567", set via the
+// Add/Edit Employee form's country-code dropdown). Owners and Super Admins
+// have no such dropdown anywhere in the app (see OwnerFormModal's plain
+// 10-digit "Contact" field) -- their phone is stored as bare digits, so it
+// must not be run through the country-code parser or it'll misread the
+// leading digits as a country code and drop the real last digit, the exact
+// corruption this file used to have for employees.
+function personalInfoFromMe(data: Pick<MeResponse, 'fullName' | 'email' | 'phone' | 'role'>): PersonalInfo {
+  if (data.role === 'EMPLOYEE') {
+    const { countryCode, phone } = parsePhoneForForm(data.phone ?? '');
+    return { fullName: data.fullName, email: data.email, phone, countryCode };
+  }
+  return { fullName: data.fullName, email: data.email, phone: (data.phone ?? '').replace(/\D/g, '').slice(0, 10), countryCode: '' };
 }
 
 const ROLE_LABELS: Record<MeResponse['role'], string> = {
@@ -62,7 +87,7 @@ async function resizeImageToBase64(file: File): Promise<string> {
   });
 }
 
-function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: ProfileProps) {
+function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfileUpdate }: ProfileProps) {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -76,8 +101,8 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
 
   // Personal info — separate saved vs. in-progress values for clean Cancel
   const [infoEditing, setInfoEditing] = useState(false);
-  const [savedInfo, setSavedInfo] = useState({ fullName: '', email: '', phone: '' });
-  const [infoValues, setInfoValues] = useState({ fullName: '', email: '', phone: '' });
+  const [savedInfo, setSavedInfo] = useState<PersonalInfo>({ fullName: '', email: '', phone: '', countryCode: COUNTRY_CODE_OPTIONS[0].code });
+  const [infoValues, setInfoValues] = useState<PersonalInfo>({ fullName: '', email: '', phone: '', countryCode: COUNTRY_CODE_OPTIONS[0].code });
   const [infoSaving, setInfoSaving] = useState(false);
   const [infoError, setInfoError] = useState<string | null>(null);
 
@@ -96,7 +121,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
       .then((data) => {
         if (!mounted) return;
         setMe(data);
-        const info = { fullName: data.fullName, email: data.email, phone: data.phone ?? '' };
+        const info = personalInfoFromMe(data);
         setInfoValues(info);
         setSavedInfo(info);
         if (data.avatarUrl && !localAvatar) {
@@ -201,16 +226,21 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
     setInfoError(null);
     setInfoSaving(true);
     try {
+      const trimmedPhone = infoValues.phone.trim();
+      const phone = me?.role === 'EMPLOYEE'
+        ? (trimmedPhone ? `${infoValues.countryCode} ${trimmedPhone}` : '')
+        : trimmedPhone;
       const updated = await updateMe({
         fullName: infoValues.fullName.trim(),
         email: infoValues.email.trim(),
-        phone: me?.role === 'EMPLOYEE' ? infoValues.phone.trim() : undefined,
+        phone,
       });
       setMe(updated);
-      const newInfo = { fullName: updated.fullName, email: updated.email, phone: updated.phone ?? '' };
+      const newInfo = personalInfoFromMe(updated);
       setInfoValues(newInfo);
       setSavedInfo(newInfo);
       setInfoEditing(false);
+      onProfileUpdate?.(updated.fullName);
       nfToast.success('Profile info updated.');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to save profile.';
@@ -453,26 +483,44 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
                 required
               />
             </div>
-            {me.role === 'EMPLOYEE' && (
-              <div className="profile-field">
-                <label htmlFor="pf-phone" className="profile-field__label">
-                  Phone <span className="profile-field__opt">optional</span>
-                </label>
-                <div className="profile-field__icon-wrap">
-                  <Phone size={15} className="profile-field__icon" />
+            <div className="profile-field">
+              <label htmlFor="pf-phone" className="profile-field__label">
+                Phone <span className="profile-field__opt">optional</span>
+              </label>
+              {me.role === 'EMPLOYEE' ? (
+                <div className="profile-field__phone-row">
+                  <Select
+                    id="pf-phone-country-code"
+                    className="profile-field__country-code"
+                    ariaLabel="Country code"
+                    value={infoValues.countryCode}
+                    onChange={(value) => setInfoValues((v) => ({ ...v, countryCode: value }))}
+                    options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
+                  />
                   <input
                     id="pf-phone"
                     type="tel"
                     inputMode="numeric"
                     maxLength={10}
-                    className="input profile-field__input--icon"
+                    className="input"
                     value={infoValues.phone}
                     onChange={(e) => setInfoValues((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                     placeholder="10-digit number"
                   />
                 </div>
-              </div>
-            )}
+              ) : (
+                <input
+                  id="pf-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  className="input"
+                  value={infoValues.phone}
+                  onChange={(e) => setInfoValues((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                  placeholder="10-digit number"
+                />
+              )}
+            </div>
             {infoError && <p className="profile-field__error">{infoError}</p>}
             <div className="profile-section__actions">
               <button type="button" className="btn btn--ghost" onClick={handleInfoCancel}>
@@ -493,12 +541,14 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
               <div className="profile-field__label">Email</div>
               <div className="profile-field-value">{savedInfo.email || '—'}</div>
             </div>
-            {me.role === 'EMPLOYEE' && (
-              <div className="profile-field-row">
-                <div className="profile-field__label">Phone</div>
-                <div className="profile-field-value">{savedInfo.phone || '—'}</div>
+            <div className="profile-field-row">
+              <div className="profile-field__label">Phone</div>
+              <div className="profile-field-value">
+                {savedInfo.phone
+                  ? (me.role === 'EMPLOYEE' ? `${savedInfo.countryCode} ${savedInfo.phone}` : savedInfo.phone)
+                  : '—'}
               </div>
-            )}
+            </div>
           </div>
         )}
       </section>
@@ -589,6 +639,8 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange }: Profile
                     className="input"
                     value={pwValues.confirmPassword}
                     onChange={(e) => setPwValues((v) => ({ ...v, confirmPassword: e.target.value }))}
+                    onPaste={(e) => e.preventDefault()}
+                    onDrop={(e) => e.preventDefault()}
                   />
                   <button
                     type="button"

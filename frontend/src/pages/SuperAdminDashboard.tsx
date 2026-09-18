@@ -43,9 +43,10 @@ interface SuperAdminDashboardProps {
   loggingOut?: boolean;
   avatarUrl?: string | null;
   onAvatarChange?: (url: string | null) => void;
+  onProfileUpdate?: (fullName: string) => void;
 }
 
-function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: SuperAdminDashboardProps) {
+function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate }: SuperAdminDashboardProps) {
   const [owners, setOwners] = useState<OwnerSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   // Every store platform-wide, independent of ownership -- deriving this from `owners`
@@ -360,7 +361,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       headerActions={<SACommandPalette onNavigate={handleSearchNavigate} />}
     >
       {showProfile ? (
-        <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
+        <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} onProfileUpdate={onProfileUpdate} />
       ) : showHelp ? (
         <Help role={user.role} />
       ) : showNotifications ? (

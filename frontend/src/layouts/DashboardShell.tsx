@@ -27,11 +27,12 @@ interface DashboardShellProps {
   loggingOut?: boolean;
   avatarUrl?: string | null;
   onAvatarChange?: (url: string | null) => void;
+  onProfileUpdate?: (fullName: string) => void;
 }
 
 type Overlay = 'profile' | 'help' | 'notifications' | null;
 
-function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange }: DashboardShellProps) {
+function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [searchSeed, setSearchSeed] = useState<{ term: string; id: number } | undefined>(undefined);
@@ -184,7 +185,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange 
       headerActions={<AdminSearchDropdown onNavigate={handleSearchNavigate} />}
     >
       {overlay === 'profile' ? (
-        <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} />
+        <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} onProfileUpdate={onProfileUpdate} />
       ) : overlay === 'help' ? (
         <Help role={user.role} />
       ) : overlay === 'notifications' ? (

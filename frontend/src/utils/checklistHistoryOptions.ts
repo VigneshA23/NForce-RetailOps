@@ -96,13 +96,20 @@ export function daysAgo(n: number): string {
 export function lastWeekSameDay(date: string): string {
   const d = new Date(`${date}T00:00:00`);
   d.setDate(d.getDate() - 7);
-  return d.toISOString().slice(0, 10);
+  return localDateString(d);
 }
 
+// toISOString() renders in UTC, which silently shifts the result back a day
+// in any timezone ahead of UTC (e.g. IST, UTC+5:30) -- local midnight lands
+// on the *previous* UTC day. That made every step net one day short, so the
+// "next day" arrow (stepDate(date, 1)) landed back on the same day it
+// started from and looked completely broken, while "previous day" merely
+// over-shot by an extra day. localDateString reads the Date's own local
+// fields instead, matching todayDate()/yesterday()/daysAgo() above.
 export function stepDate(date: string, delta: number): string {
   const d = new Date(`${date}T00:00:00`);
   d.setDate(d.getDate() + delta);
-  return d.toISOString().slice(0, 10);
+  return localDateString(d);
 }
 
 export function formatDateNavLabel(date: string): string {

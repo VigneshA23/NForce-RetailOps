@@ -48,13 +48,17 @@ public class UserProfileService {
 
         String shift = null;
         String employeeType = null;
-        String phone = null;
-        if (!isOwnerAdmin(user)) {
+        String phone;
+        if (isOwnerAdmin(user)) {
+            // Owners have no StoreEmployee record -- their phone lives directly
+            // on User (same column AddOwnerRequest.ownerPhone is provisioned into).
+            phone = user.getPhone();
+        } else {
             StoreEmployee storeEmployee = storeEmployeeRepository.findByEmployeeId(user.getId()).orElse(null);
+            phone = storeEmployee != null ? storeEmployee.getPhone() : null;
             if (storeEmployee != null) {
                 shift = storeEmployee.getShift();
                 employeeType = storeEmployee.getEmployeeType();
-                phone = storeEmployee.getPhone();
             }
         }
 
@@ -64,9 +68,9 @@ public class UserProfileService {
     }
 
     /**
-     * Self-service profile edit: full name and email always apply; phone only
-     * applies to callers with a StoreEmployee record (employees) and is silently
-     * ignored for owners/super admins, who have none.
+     * Self-service profile edit: full name and email always apply. Phone is
+     * persisted on the StoreEmployee record for employees, or directly on
+     * User for owners (who have no StoreEmployee record).
      */
     @Transactional
     public MeResponse updateMe(User user, UpdateMeRequest request) {
@@ -77,13 +81,19 @@ public class UserProfileService {
 
         user.setFullName(request.fullName().trim());
         user.setEmail(email);
+        if (isOwnerAdmin(user)) {
+            String phone = request.phone();
+            user.setPhone(phone != null ? phone.trim() : null);
+        }
         userRepository.save(user);
 
-        storeEmployeeRepository.findByEmployeeId(user.getId()).ifPresent(storeEmployee -> {
-            String phone = request.phone();
-            storeEmployee.setPhone(phone != null ? phone.trim() : null);
-            storeEmployeeRepository.save(storeEmployee);
-        });
+        if (!isOwnerAdmin(user)) {
+            storeEmployeeRepository.findByEmployeeId(user.getId()).ifPresent(storeEmployee -> {
+                String phone = request.phone();
+                storeEmployee.setPhone(phone != null ? phone.trim() : null);
+                storeEmployeeRepository.save(storeEmployee);
+            });
+        }
 
         return getMe(user);
     }

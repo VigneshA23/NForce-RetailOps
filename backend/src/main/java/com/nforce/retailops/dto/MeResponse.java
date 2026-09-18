@@ -13,6 +13,7 @@ public record MeResponse(
     // who have no StoreEmployee record to source them from.
     String shift,
     String employeeType,
+    // Self-service phone number, for every role (see UpdateMeRequest).
     String phone,
     // Base64-encoded profile photo (data: URL). Null when not set.
     String avatarUrl

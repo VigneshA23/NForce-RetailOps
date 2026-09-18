@@ -10,6 +10,7 @@ import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
@@ -19,6 +20,7 @@ import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -78,6 +80,8 @@ class MeControllerTest {
     private TaskResponseEntryRepository taskResponseEntryRepository;
     @Autowired
     private StoreEmployeeRepository storeEmployeeRepository;
+    @Autowired
+    private SuperAdminRepository superAdminRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -117,6 +121,53 @@ class MeControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.fullName").value("Updated Name"))
             .andExpect(jsonPath("$.phone").isEmpty());
+    }
+
+    @Test
+    @Transactional
+    void authenticatedOwnerCanUpdateTheirOwnPhone() throws Exception {
+        Role ownerRole = roleRepository.findByName("OWNER_ADMIN").orElseGet(() -> {
+            Role role = new Role();
+            role.setName("OWNER_ADMIN");
+            return roleRepository.save(role);
+        });
+
+        User owner = new User();
+        owner.setFullName("Owner Name");
+        owner.setEmail("update-me-owner-test@nforce.test");
+        owner.setPasswordHash(passwordEncoder.encode("original-password"));
+        owner.getRoles().add(ownerRole);
+        userRepository.save(owner);
+
+        String token = login("update-me-owner-test@nforce.test", "original-password");
+
+        mockMvc.perform(put("/api/me")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fullName\":\"Updated Owner\",\"email\":\"update-me-owner-test@nforce.test\",\"phone\":\"5550001234\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.fullName").value("Updated Owner"))
+            .andExpect(jsonPath("$.phone").value("5550001234"));
+    }
+
+    @Test
+    @Transactional
+    void authenticatedSuperAdminCanUpdateTheirOwnPhone() throws Exception {
+        SuperAdmin superAdmin = new SuperAdmin();
+        superAdmin.setName("Super Admin");
+        superAdmin.setEmail("update-me-sa-test@nforce.test");
+        superAdmin.setPasswordHash(passwordEncoder.encode("original-password"));
+        superAdminRepository.save(superAdmin);
+
+        String token = login("update-me-sa-test@nforce.test", "original-password");
+
+        mockMvc.perform(put("/api/me")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fullName\":\"Updated Super Admin\",\"email\":\"update-me-sa-test@nforce.test\",\"phone\":\"5559998888\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.fullName").value("Updated Super Admin"))
+            .andExpect(jsonPath("$.phone").value("5559998888"));
     }
 
     @Test

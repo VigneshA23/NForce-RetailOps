@@ -145,6 +145,23 @@ class UserProfileServiceTest {
     }
 
     @Test
+    void updateMeAppliesNameEmailAndPhoneForAnOwner() {
+        User owner = user("OWNER_ADMIN");
+        owner.setPhone("555-0000");
+        when(userRepository.findByEmailWithRoles("new@nforce.test")).thenReturn(Optional.empty());
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(USER_ID)).thenReturn(Optional.empty());
+
+        MeResponse updated = userProfileService.updateMe(
+            owner, new UpdateMeRequest("New Name", "new@nforce.test", "555-1234"));
+
+        assertThat(owner.getFullName()).isEqualTo("New Name");
+        assertThat(owner.getEmail()).isEqualTo("new@nforce.test");
+        assertThat(owner.getPhone()).isEqualTo("555-1234");
+        assertThat(updated.fullName()).isEqualTo("New Name");
+        assertThat(updated.phone()).isEqualTo("555-1234");
+    }
+
+    @Test
     void updateMeRejectsAnEmailAlreadyUsedBySomeoneElse() {
         User employee = user("EMPLOYEE");
         when(userRepository.findByEmailWithRoles("taken@nforce.test")).thenReturn(Optional.of(new User()));
