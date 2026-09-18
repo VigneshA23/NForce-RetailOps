@@ -180,7 +180,7 @@ describe('StoreDetail search', () => {
     render(<StoreDetail storeId={1} />);
     await screen.findByText('Check float cash in till');
 
-    await userEvent.type(screen.getByRole('searchbox'), 'Jane');
+    await userEvent.type(screen.getByPlaceholderText('Search tasks, employees, status…'), 'Jane');
 
     const table = within(screen.getByRole('table'));
     expect(table.getByText('Check float cash in till')).toBeInTheDocument();
@@ -192,7 +192,7 @@ describe('StoreDetail search', () => {
     render(<StoreDetail storeId={1} />);
     await screen.findByText('Check float cash in till');
 
-    await userEvent.type(screen.getByRole('searchbox'), 'No');
+    await userEvent.type(screen.getByPlaceholderText('Search tasks, employees, status…'), 'No');
 
     const table = within(screen.getByRole('table'));
     expect(table.getByText('Clean restrooms')).toBeInTheDocument();
@@ -204,7 +204,7 @@ describe('StoreDetail search', () => {
     render(<StoreDetail storeId={1} />);
     await screen.findByText('Check float cash in till');
 
-    await userEvent.type(screen.getByRole('searchbox'), 'Issue');
+    await userEvent.type(screen.getByPlaceholderText('Search tasks, employees, status…'), 'Issue');
 
     const table = within(screen.getByRole('table'));
     expect(table.getByText('Clean restrooms')).toBeInTheDocument();
