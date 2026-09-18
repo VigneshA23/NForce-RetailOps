@@ -124,16 +124,14 @@ describe('Profile personal info section', () => {
 })
 
 describe('Profile personal info section — Owner/Admin and Super Admin phone', () => {
-  // Owners/Super Admins have no country-code dropdown anywhere in the app
-  // (see OwnerFormModal's plain 10-digit "Contact" field) -- their phone is
-  // stored as bare digits, so the field must not run it through the
-  // country-code parser (that would misread leading digits as a country
-  // code and drop the real last digit on save).
+  // Owner and Super Admin get the same country-code + 10-digit phone field
+  // as Employee (Add Owner now has the same country-code dropdown Add
+  // Employee does), so self-edit must behave identically for all three roles.
   it.each([
     ['OWNER_ADMIN' as const, 'Olivia Owner'],
     ['SUPER_ADMIN' as const, 'Sam Admin'],
-  ])('edits and saves a plain 10-digit phone with no country code, for %s', async (role, fullName) => {
-    const me = { ...ME, role, fullName, storeNames: [], shift: null, employeeType: null, phone: '5550100' }
+  ])('edits and saves a country-code phone, for %s', async (role, fullName) => {
+    const me = { ...ME, role, fullName, storeNames: [], shift: null, employeeType: null, phone: '+91 5550100' }
     mockGetMe.mockResolvedValue(me)
     mockUpdateMe.mockResolvedValue({ ...me })
     const user = userEvent.setup()
@@ -144,7 +142,7 @@ describe('Profile personal info section — Owner/Admin and Super Admin phone', 
 
     const phoneInput = (await screen.findByLabelText(/phone/i)) as HTMLInputElement
     expect(phoneInput.value).toBe('5550100')
-    expect(screen.queryByLabelText(/country code/i)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(/country code/i)).toBeInTheDocument()
 
     await user.type(phoneInput, '99')
     expect(phoneInput.value).toBe('555010099')
@@ -152,8 +150,24 @@ describe('Profile personal info section — Owner/Admin and Super Admin phone', 
     await user.click(screen.getByRole('button', { name: /save changes/i }))
 
     expect(mockUpdateMe).toHaveBeenCalledWith(
-      expect.objectContaining({ phone: '555010099' }),
+      expect.objectContaining({ phone: '+91 555010099' }),
     )
+  })
+
+  // Regression: Add Owner used to write a plain 10-digit phone with no
+  // country code. An existing owner's Profile edit must not misread those
+  // legacy digits as a country code and drop the real last digit.
+  it('reads a legacy plain-digit owner phone without losing digits', async () => {
+    const me = { ...ME, role: 'OWNER_ADMIN' as const, fullName: 'Legacy Owner', storeNames: [], shift: null, employeeType: null, phone: '5550100' }
+    mockGetMe.mockResolvedValue(me)
+    const user = userEvent.setup()
+    render(<Profile initials="LO" />)
+
+    await screen.findByRole('heading', { name: 'Legacy Owner' })
+    await user.click(screen.getByRole('button', { name: /edit personal info/i }))
+
+    const phoneInput = (await screen.findByLabelText(/phone/i)) as HTMLInputElement
+    expect(phoneInput.value).toBe('5550100')
   })
 })
 

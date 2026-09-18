@@ -27,19 +27,16 @@ interface PersonalInfo {
   countryCode: string;
 }
 
-// Employees store phone with a country code ("+1 5551234567", set via the
-// Add/Edit Employee form's country-code dropdown). Owners and Super Admins
-// have no such dropdown anywhere in the app (see OwnerFormModal's plain
-// 10-digit "Contact" field) -- their phone is stored as bare digits, so it
-// must not be run through the country-code parser or it'll misread the
-// leading digits as a country code and drop the real last digit, the exact
-// corruption this file used to have for employees.
-function personalInfoFromMe(data: Pick<MeResponse, 'fullName' | 'email' | 'phone' | 'role'>): PersonalInfo {
-  if (data.role === 'EMPLOYEE') {
-    const { countryCode, phone } = parsePhoneForForm(data.phone ?? '');
-    return { fullName: data.fullName, email: data.email, phone, countryCode };
-  }
-  return { fullName: data.fullName, email: data.email, phone: (data.phone ?? '').replace(/\D/g, '').slice(0, 10), countryCode: '' };
+// Every role stores phone the same way: country code + space + 10-digit
+// number (e.g. "+1 5551234567") -- the Add/Edit Employee and Add Owner forms
+// both write it via their country-code dropdown. parsePhoneForForm also
+// handles legacy owner records saved before Add Owner had a country-code
+// field (plain 10 digits, no "+" prefix): it falls back to treating the
+// whole string as the digits with a default country code, so no data is
+// lost or misread for those.
+function personalInfoFromMe(data: Pick<MeResponse, 'fullName' | 'email' | 'phone'>): PersonalInfo {
+  const { countryCode, phone } = parsePhoneForForm(data.phone ?? '');
+  return { fullName: data.fullName, email: data.email, phone, countryCode };
 }
 
 const ROLE_LABELS: Record<MeResponse['role'], string> = {
@@ -227,13 +224,10 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
     setInfoSaving(true);
     try {
       const trimmedPhone = infoValues.phone.trim();
-      const phone = me?.role === 'EMPLOYEE'
-        ? (trimmedPhone ? `${infoValues.countryCode} ${trimmedPhone}` : '')
-        : trimmedPhone;
       const updated = await updateMe({
         fullName: infoValues.fullName.trim(),
         email: infoValues.email.trim(),
-        phone,
+        phone: trimmedPhone ? `${infoValues.countryCode} ${trimmedPhone}` : '',
       });
       setMe(updated);
       const newInfo = personalInfoFromMe(updated);
@@ -487,28 +481,15 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
               <label htmlFor="pf-phone" className="profile-field__label">
                 Phone <span className="profile-field__opt">optional</span>
               </label>
-              {me.role === 'EMPLOYEE' ? (
-                <div className="profile-field__phone-row">
-                  <Select
-                    id="pf-phone-country-code"
-                    className="profile-field__country-code"
-                    ariaLabel="Country code"
-                    value={infoValues.countryCode}
-                    onChange={(value) => setInfoValues((v) => ({ ...v, countryCode: value }))}
-                    options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
-                  />
-                  <input
-                    id="pf-phone"
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    className="input"
-                    value={infoValues.phone}
-                    onChange={(e) => setInfoValues((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                    placeholder="10-digit number"
-                  />
-                </div>
-              ) : (
+              <div className="profile-field__phone-row">
+                <Select
+                  id="pf-phone-country-code"
+                  className="profile-field__country-code"
+                  ariaLabel="Country code"
+                  value={infoValues.countryCode}
+                  onChange={(value) => setInfoValues((v) => ({ ...v, countryCode: value }))}
+                  options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
+                />
                 <input
                   id="pf-phone"
                   type="tel"
@@ -519,7 +500,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
                   onChange={(e) => setInfoValues((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                   placeholder="10-digit number"
                 />
-              )}
+              </div>
             </div>
             {infoError && <p className="profile-field__error">{infoError}</p>}
             <div className="profile-section__actions">
@@ -544,9 +525,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
             <div className="profile-field-row">
               <div className="profile-field__label">Phone</div>
               <div className="profile-field-value">
-                {savedInfo.phone
-                  ? (me.role === 'EMPLOYEE' ? `${savedInfo.countryCode} ${savedInfo.phone}` : savedInfo.phone)
-                  : '—'}
+                {savedInfo.phone ? `${savedInfo.countryCode} ${savedInfo.phone}` : '—'}
               </div>
             </div>
           </div>

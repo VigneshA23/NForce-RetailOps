@@ -10,6 +10,21 @@
   grid-column: 1 / -1;
 }
 
+.owner-form__phone-row {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.owner-form__country-code {
+  flex: 0 0 40%;
+  max-width: 40%;
+}
+
+.owner-form__phone-row .input {
+  flex: 1;
+  min-width: 0;
+}
+
 .owner-form__hint {
   margin: -8px 0 var(--space-md);
   font-size: 13px;

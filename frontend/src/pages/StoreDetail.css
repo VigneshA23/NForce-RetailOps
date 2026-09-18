@@ -51,6 +51,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  flex-wrap: wrap;
 }
 
 .store-detail-page__heading {
@@ -72,6 +73,8 @@
   letter-spacing: 0.04em;
   padding: 3px 8px;
   border-radius: var(--radius-pill);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .store-detail-page__mode-badge--live {
@@ -89,6 +92,8 @@
 .store-detail-page__last-updated {
   font-size: 11px;
   color: var(--color-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .store-detail-page__empty {

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { getNextStoreCode, getReassignableStores } from '../api/owners';
 import type { AddOwnerValues, OwnerStoreMode, ReassignableStore } from '../types/owner';
+import { COUNTRY_CODE_OPTIONS } from '../utils/countryCodes';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
@@ -26,6 +27,7 @@ interface FormState {
   ownerName: string;
   ownerEmail: string;
   ownerPhone: string;
+  ownerCountryCode: string;
   ownerGender: OwnerGender | '';
   storeMode: OwnerStoreMode;
   storeName: string;
@@ -37,6 +39,7 @@ const EMPTY_VALUES: FormState = {
   ownerName: '',
   ownerEmail: '',
   ownerPhone: '',
+  ownerCountryCode: COUNTRY_CODE_OPTIONS[0].code,
   ownerGender: '',
   storeMode: 'new',
   storeName: '',
@@ -112,7 +115,7 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
     const payload: AddOwnerValues = {
       ownerName: values.ownerName.trim(),
       ownerEmail: values.ownerEmail.trim(),
-      ownerPhone: values.ownerPhone.trim(),
+      ownerPhone: `${values.ownerCountryCode} ${values.ownerPhone.trim()}`,
       ownerGender: values.ownerGender as OwnerGender,
     };
     if (values.storeMode === 'new') {
@@ -164,16 +167,26 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
           </FormField>
 
           <FormField label="Contact" htmlFor="owner-phone" required error={errors.ownerPhone}>
-            <input
-              id="owner-phone"
-              type="tel"
-              inputMode="numeric"
-              maxLength={10}
-              className="input"
-              value={values.ownerPhone}
-              onChange={(event) => updateField('ownerPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
-              placeholder="e.g. 5550000000"
-            />
+            <div className="owner-form__phone-row">
+              <Select
+                id="owner-country-code"
+                className="owner-form__country-code"
+                ariaLabel="Country code"
+                value={values.ownerCountryCode}
+                onChange={(value) => updateField('ownerCountryCode', value)}
+                options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
+              />
+              <input
+                id="owner-phone"
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                className="input"
+                value={values.ownerPhone}
+                onChange={(event) => updateField('ownerPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="10-digit number"
+              />
+            </div>
           </FormField>
 
           <FormField label="Gender" htmlFor="owner-gender" required error={errors.ownerGender}>
