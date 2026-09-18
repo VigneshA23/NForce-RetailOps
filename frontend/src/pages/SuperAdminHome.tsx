@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, BellOff, Building2, Clock, ListChecks, Percent, ShieldCheck, Store as StoreIcon, Tags, Users } from 'lucide-react';
+import { AlertTriangle, BellOff, Building2, Calendar, Clock, ListChecks, Percent, ShieldCheck, Store as StoreIcon, Tags, Users } from 'lucide-react';
 import { getPlatformStats, getOperationsOverview, getPlatformTrend } from '../api/superAdminOperations';
 import type { PlatformStats, StoreOperationsSummary, TrendDataPoint } from '../api/superAdminOperations';
 import type { OwnerSummary } from '../types/owner';
@@ -10,12 +10,14 @@ import TrendChart from '../components/TrendChart';
 import ActivityFeedList from '../components/ActivityFeedList';
 import Select from '../components/Select';
 import { useRecentActivity } from '../hooks/useRecentActivity';
+import { firstName } from '../utils/initials';
 import './SuperAdminHome.css';
 
 const ACTIVITY_COLLAPSED_LIMIT = 8;
 const ACTIVITY_EXPANDED_LIMIT = 50;
 
 interface SuperAdminHomeProps {
+  userName: string;
   owners: OwnerSummary[];
   ownersLoading: boolean;
   // Every store platform-wide, independent of ownership -- fetched by the parent
@@ -41,6 +43,7 @@ const TREND_PERIOD_OPTIONS = [
 ];
 
 function SuperAdminHome({
+  userName,
   owners,
   ownersLoading,
   totalStoreCount,
@@ -90,6 +93,11 @@ function SuperAdminHome({
       .catch(() => { if (active) setTrendLoading(false); });
     return () => { active = false; };
   }, [trendDays]);
+
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    [],
+  );
 
   const uniqueOwnerCount = useMemo(
     () => new Set(owners.map((o) => o.ownerId)).size,
@@ -154,6 +162,14 @@ function SuperAdminHome({
 
   return (
     <div className="sa-home">
+      <div className="sa-home__heading-row">
+        <h1 className="sa-home__greeting">Welcome, {firstName(userName)}!</h1>
+        <span className="sa-home__date">
+          <Calendar size={13} aria-hidden="true" />
+          {todayLabel}
+        </span>
+      </div>
+
       <div className="stat-card-row">
         {ownersLoading ? (
           <StatCard icon={Building2} label="Total Owners" value="—" tone="primary" onClick={onOwnersClick} />

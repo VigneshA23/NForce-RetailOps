@@ -4,11 +4,34 @@
   padding: var(--space-lg);
 }
 
+.home-page__heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-lg);
+}
+
 .home-page__greeting {
   font-size: 22px;
   font-weight: 700;
   color: var(--color-text-primary);
-  margin: 0 0 var(--space-lg);
+  margin: 0;
+}
+
+.home-page__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .home-page__store-label {
@@ -419,9 +442,12 @@
     padding: var(--space-md);
   }
 
+  .home-page__heading-row {
+    margin-bottom: var(--space-md);
+  }
+
   .home-page__greeting {
     font-size: 18px;
-    margin-bottom: var(--space-md);
   }
 
   .chart-card-row {

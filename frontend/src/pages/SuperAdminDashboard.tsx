@@ -370,6 +370,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminChecklist nav={checklistNav} />
       ) : activeTab === 'home' ? (
         <SuperAdminHome
+          userName={user.fullName}
           owners={owners}
           ownersLoading={isLoading}
           totalStoreCount={totalStoreCount}

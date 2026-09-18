@@ -5,6 +5,35 @@
   gap: var(--space-lg);
 }
 
+.sa-home__heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.sa-home__greeting {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.sa-home__date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .sa-home__section-title {
   margin: 0;
   font-size: 16px;

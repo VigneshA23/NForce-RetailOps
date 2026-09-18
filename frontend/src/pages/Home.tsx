@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, AlertTriangle, ArrowRight, CheckCircle2, ListChecks, Users, Tags } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowRight, Calendar, CheckCircle2, ListChecks, Users, Tags } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { getChecklistHistoryDetail, getChecklistHistorySummary } from '../api/checklistHistory';
 import { getIssues } from '../api/issues';
@@ -12,7 +12,7 @@ import StatCard from '../components/StatCard';
 import RecentActivityCard from '../components/RecentActivityCard';
 import ChartCard from '../components/ChartCard';
 import CompletionRateCard from '../components/CompletionRateCard';
-import { getInitials } from '../utils/initials';
+import { getInitials, firstName } from '../utils/initials';
 import './Home.css';
 
 // Cycled by row position so each contributor gets a visually distinct avatar
@@ -29,10 +29,6 @@ interface HomeProps {
   onViewIssues?: () => void;
   onViewEmployees?: () => void;
   onViewCategories?: () => void;
-}
-
-function firstName(fullName: string): string {
-  return fullName.trim().split(/\s+/)[0] ?? fullName;
 }
 
 const DEFAULT_TREND_DAYS = 7;
@@ -279,9 +275,20 @@ function Home({
   const openIssueCount = issues ? issues.filter((i) => i.status === 'OPEN').length : 0;
   const hasOpenIssues = openIssueCount > 0;
 
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    [],
+  );
+
   return (
     <div className="home-page">
-      <h1 className="home-page__greeting">Welcome, {firstName(userName)}!</h1>
+      <div className="home-page__heading-row">
+        <h1 className="home-page__greeting">Welcome, {firstName(userName)}!</h1>
+        <span className="home-page__date">
+          <Calendar size={13} aria-hidden="true" />
+          {todayLabel}
+        </span>
+      </div>
 
       {loadError && (
         <div className="home-page__error">
