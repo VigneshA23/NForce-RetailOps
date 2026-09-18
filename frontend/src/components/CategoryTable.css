@@ -60,7 +60,7 @@
 }
 
 @media (--mobile) {
-  .category-table__row--reorderable {
+  .table-card .data-table tbody tr.category-table__row--reorderable {
     position: relative;
     padding-left: calc(var(--space-md) + 28px);
   }
