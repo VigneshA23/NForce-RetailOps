@@ -358,7 +358,7 @@ function TaskFormModal({
 
           {values.scheduleType === 'SELECTED_DAYS' && (
             <div className="task-form__conditional">
-              <span className="task-form__conditional-label">Select Days *</span>
+              <span className="task-form__conditional-label">Select Days <span className="form-field__required">*</span></span>
               <div className="task-form__days">
                 {DAY_OPTIONS.map((day) => (
                   <label key={day.value} className="task-form__day">
