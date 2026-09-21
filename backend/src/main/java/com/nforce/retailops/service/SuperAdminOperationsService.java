@@ -73,10 +73,17 @@ public class SuperAdminOperationsService {
         int storesWithActivity = 0;
         int storesWithOpenIssues = 0;
         Set<Long> employeesActiveToday = new HashSet<>();
+        Set<Long> distinctOwnerIds = new HashSet<>();
+        Set<Long> ownersLoggedInToday = new HashSet<>();
 
         for (StoreOwner link : activeLinks) {
             long storeId = link.getStore().getId();
             long ownerId = link.getOwner().getId();
+            distinctOwnerIds.add(ownerId);
+            OffsetDateTime lastLoginAt = link.getOwner().getLastLoginAt();
+            if (lastLoginAt != null && lastLoginAt.toLocalDate().equals(date)) {
+                ownersLoggedInToday.add(ownerId);
+            }
 
             List<Task> eligible = taskRepository.findActiveForStoreAndDate(ownerId, storeId, date).stream()
                 .filter(t -> TaskScheduleMatcher.matches(t, date))
@@ -108,7 +115,8 @@ public class SuperAdminOperationsService {
         int totalEmployees = (int) storeEmployeeRepository.countByEmployeeActiveTrue();
         return new PlatformStatsResponse(
             platformPercent, totalOpenIssues, totalStores, storesWithActivity,
-            totalTasks, completedTasks, totalEmployees, employeesActiveToday.size(), storesWithOpenIssues
+            totalTasks, completedTasks, totalEmployees, employeesActiveToday.size(), storesWithOpenIssues,
+            distinctOwnerIds.size(), ownersLoggedInToday.size()
         );
     }
 
