@@ -9,5 +9,7 @@ public record PlatformStatsResponse(
     int completedTasksToday,
     int totalEmployees,
     int employeesActiveToday,
-    int storesWithOpenIssues
+    int storesWithOpenIssues,
+    int totalOwners,
+    int ownersLoggedInToday
 ) {}

@@ -113,18 +113,18 @@ function SuperAdminHome({
     const pct = (part: number, whole: number) => (whole === 0 ? 0 : Math.round((part / whole) * 100));
     return [
       {
-        key: 'stores',
-        icon: StoreIcon,
-        label: 'Stores active today',
-        value: platformStats.storesWithActivity,
-        total: platformStats.totalStores,
-        percent: pct(platformStats.storesWithActivity, platformStats.totalStores),
+        key: 'owners',
+        icon: Building2,
+        label: 'Owners logged in today',
+        value: platformStats.ownersLoggedInToday,
+        total: platformStats.totalOwners,
+        percent: pct(platformStats.ownersLoggedInToday, platformStats.totalOwners),
         tone: 'good',
       },
       {
         key: 'employees',
         icon: Users,
-        label: 'Employees active today',
+        label: 'Employees with activity today',
         value: platformStats.employeesActiveToday,
         total: platformStats.totalEmployees,
         percent: pct(platformStats.employeesActiveToday, platformStats.totalEmployees),
