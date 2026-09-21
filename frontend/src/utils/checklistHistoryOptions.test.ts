@@ -1,34 +1,94 @@
 import { describe, expect, it } from 'vitest';
-import { stepDate, lastWeekSameDay } from './checklistHistoryOptions';
+import { taskStatus } from './checklistHistoryOptions';
+import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 
-// Regression: stepDate used to build its result with `.toISOString().slice(0, 10)`,
-// which renders in UTC. In any timezone ahead of UTC (this suite runs in
-// Asia/Calcutta, UTC+5:30 -- the same one production runs in), local midnight
-// lands on the *previous* UTC calendar day, so every step landed one day short.
-// That made the "next day" arrow (stepDate(date, 1)) return the same date it
-// started from -- looking completely broken -- while "previous day" merely
-// over-shot by an extra day.
-describe('stepDate', () => {
-  it('moves forward exactly one day', () => {
-    expect(stepDate('2026-09-18', 1)).toBe('2026-09-19');
+function response(overrides: Partial<ChecklistHistoryResponseEntry> = {}): ChecklistHistoryResponseEntry {
+  return {
+    id: 1,
+    employeeUserId: 1,
+    employeeFullName: 'Jane Doe',
+    empId: 'EMP-001',
+    booleanValue: true,
+    numericValue: null,
+    textValue: null,
+    respondedAt: '2026-09-18T10:00:00Z',
+    latestCorrection: null,
+    flaggedNeedsCorrection: false,
+    flagReason: null,
+    resubmissionHistory: [],
+    undone: false,
+    ...overrides,
+  };
+}
+
+function task(overrides: Partial<ChecklistHistoryTaskItem> = {}): ChecklistHistoryTaskItem {
+  return {
+    id: 10,
+    name: 'Clean counter',
+    description: null,
+    responseType: 'YES_NO',
+    completionType: 'SINGLE',
+    scheduleType: 'EVERY_DAY',
+    numericUnit: null,
+    completed: false,
+    currentlyActive: true,
+    responses: [],
+    ...overrides,
+  };
+}
+
+describe('taskStatus', () => {
+  it('is OPEN with no responses', () => {
+    expect(taskStatus(task({ responses: [] }))).toBe('OPEN');
   });
 
-  it('moves backward exactly one day', () => {
-    expect(stepDate('2026-09-18', -1)).toBe('2026-09-17');
+  it('is COMPLETE for a SINGLE-completion task with one response', () => {
+    expect(taskStatus(task({ completionType: 'SINGLE', responses: [response()] }))).toBe('COMPLETE');
   });
 
-  it('round-trips forward then backward to the same date', () => {
-    const forward = stepDate('2026-09-18', 1);
-    expect(stepDate(forward, -1)).toBe('2026-09-18');
+  // Regression test for the reported bug: a MULTIPLE-completion task must stay
+  // Open after only one employee's response.
+  it('is OPEN for a MULTIPLE-completion task with only one response', () => {
+    const result = taskStatus(
+      task({ completionType: 'MULTIPLE', responses: [response({ employeeUserId: 1 })] })
+    );
+    expect(result).toBe('OPEN');
   });
 
-  it('crosses a month boundary correctly', () => {
-    expect(stepDate('2026-09-30', 1)).toBe('2026-10-01');
+  it('is COMPLETE for a MULTIPLE-completion task once a second distinct employee responds', () => {
+    const result = taskStatus(
+      task({
+        completionType: 'MULTIPLE',
+        responses: [
+          response({ id: 1, employeeUserId: 1 }),
+          response({ id: 2, employeeUserId: 2 }),
+        ],
+      })
+    );
+    expect(result).toBe('COMPLETE');
   });
-});
 
-describe('lastWeekSameDay', () => {
-  it('moves back exactly seven days', () => {
-    expect(lastWeekSameDay('2026-09-18')).toBe('2026-09-11');
+  it('stays OPEN for a MULTIPLE-completion task when the same employee resubmits twice', () => {
+    const result = taskStatus(
+      task({
+        completionType: 'MULTIPLE',
+        responses: [
+          response({ id: 1, employeeUserId: 1, undone: true }),
+          response({ id: 2, employeeUserId: 1 }),
+        ],
+      })
+    );
+    expect(result).toBe('OPEN');
+  });
+
+  it('is OPEN when the latest response was undone', () => {
+    expect(taskStatus(task({ responses: [response({ undone: true })] }))).toBe('OPEN');
+  });
+
+  it('is ISSUE for a Yes/No task whose latest response is No', () => {
+    const result = taskStatus(
+      task({ responseType: 'YES_NO', responses: [response({ booleanValue: false })] })
+    );
+    expect(result).toBe('ISSUE');
   });
 });

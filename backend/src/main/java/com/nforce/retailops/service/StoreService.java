@@ -209,6 +209,10 @@ public class StoreService {
             // it's reactivated. Reactivating the store deliberately does NOT
             // restore this link -- only an explicit reassignment can.
             storeOwner.setActive(false);
+            // Recorded before nulling so employees keep seeing this owner's
+            // configured tasks (StoreOwner.resolveTaskOwnerId) even though
+            // the live link below is fully released.
+            storeOwner.setLastOwner(storeOwner.getOwner());
             storeOwner.setOwner(null);
             storeOwner = storeOwnerRepository.save(storeOwner);
         }

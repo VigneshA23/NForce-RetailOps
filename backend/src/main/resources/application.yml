@@ -32,7 +32,14 @@ spring:
     enabled: true
     locations: classpath:db/migration
     validate-on-migrate: false
-    out-of-order: true
+    # This is a shared dev database used across multiple feature branches, so
+    # a branch checked out here won't always have every migration file that
+    # was already applied from another branch (e.g. V51, V57) -- tolerate
+    # those instead of refusing to start. Still fails loudly on a real
+    # checksum mismatch or a genuinely future/unapplied migration.
+    ignore-migration-patterns:
+      - "*:missing"
+      - "*:future"
 
 app:
   # Controls whether Spring's @Scheduled infrastructure is activated.

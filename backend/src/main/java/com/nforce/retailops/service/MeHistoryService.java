@@ -84,13 +84,12 @@ public class MeHistoryService {
 
         // Owner/Admin is optional here, same as the live Daily Checklist
         // (TaskService.getTodayChecklistForEmployee) -- a deactivated Owner/Admin
-        // must not make an active store's history unreachable.
+        // must not make an active store's history unreachable, and must not hide
+        // the tasks they configured either (StoreOwner.resolveTaskOwnerId).
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         Store store = storeOwner.getStore();
-        Long ownerId = (storeOwner.isActive() && storeOwner.getOwner() != null)
-            ? storeOwner.getOwner().getId()
-            : null;
+        Long ownerId = storeOwner.resolveTaskOwnerId();
 
         List<Task> eligibleTasks = ownerId == null
             ? List.of()
@@ -255,6 +254,12 @@ public class MeHistoryService {
             })
             .toList();
 
+        long activeResponderCount = responses.stream()
+            .filter(TaskResponseEntry::isActive)
+            .map(entry -> entry.getEmployee().getId())
+            .distinct()
+            .count();
+
         return new HistoryTaskItemResponse(
             task.getId(),
             task.getName(),
@@ -263,7 +268,7 @@ public class MeHistoryService {
             task.getCompletionType(),
             task.getScheduleType(),
             task.getNumericUnit(),
-            !responseDtos.isEmpty(),
+            task.getCompletionType().isSatisfiedBy(activeResponderCount),
             task.isActive(),
             responseDtos
         );

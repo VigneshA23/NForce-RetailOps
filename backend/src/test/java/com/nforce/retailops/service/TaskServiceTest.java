@@ -555,6 +555,45 @@ class TaskServiceTest {
         verify(taskRepository, never()).findActiveForStoreAndDate(anyLong(), anyLong(), any());
     }
 
+    // Regression test: a store whose owner was fully released (owner=null) must
+    // still show the tasks that owner configured, via StoreOwner.lastOwner --
+    // an employee's checklist should not go empty just because the store is
+    // temporarily ownerless (see StoreOwner.resolveTaskOwnerId).
+    @Test
+    void todayChecklistFallsBackToLastOwnerWhenStoreHasNoActiveOwner() {
+        Long employeeUserId = 42L;
+        Long storeId = 7L;
+        LocalDate today = LocalDate.now();
+
+        User lastOwner = new User();
+        ReflectionTestUtils.setField(lastOwner, "id", OWNER_ID);
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setActive(false);
+        storeOwner.setLastOwner(lastOwner);
+        // owner deliberately left null, mirroring setOwnerActive's release behavior
+        when(storeOwnerRepository.findByStoreId(storeId)).thenReturn(Optional.of(storeOwner));
+
+        Task task = new Task();
+        ReflectionTestUtils.setField(task, "id", 55L);
+        task.setCategory(category);
+        task.setActive(true);
+        task.setAppliesToAllStores(true);
+        task.setResponseType(ResponseType.YES_NO);
+        task.setCompletionType(CompletionType.SINGLE);
+        task.setScheduleType(ScheduleType.EVERY_DAY);
+        task.setTimeMode(TimeMode.ANYTIME);
+        task.setStartDate(today.minusDays(1));
+        when(taskRepository.findActiveForStoreAndDate(OWNER_ID, storeId, today)).thenReturn(List.of(task));
+        when(taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue(List.of(55L), storeId, today))
+            .thenReturn(List.of());
+        when(storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId)).thenReturn(3);
+
+        TodayChecklistResponse response = taskService.getTodayChecklistForEmployee(employeeUserId, storeId);
+
+        assertThat(response.categories()).hasSize(1);
+        assertThat(response.categories().get(0).tasks()).hasSize(1);
+    }
+
     // Same optional-owner contract, for the "access to this store revoked but
     // owner reference kept" shape (OwnerManagementService.setStoreActive(false)) --
     // an inactive link with a non-null owner must be treated the same as no owner.

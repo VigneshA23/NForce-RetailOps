@@ -207,6 +207,35 @@ class ChecklistHistoryServiceTest {
         assertThat(row.completedTasks()).isLessThanOrEqualTo(row.totalTasks());
     }
 
+    // Regression test: a MULTIPLE-completion task must not count toward
+    // completedTasks (and therefore the Owner/Admin's completion %) until at
+    // least 2 distinct employees have responded -- one response alone must
+    // leave it out of the completed count, same as the per-task `completed`
+    // flag in getDetail below.
+    @Test
+    void summaryRequiresTwoDistinctRespondersForMultipleCompletionTask() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        task.setCompletionType(CompletionType.MULTIPLE);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry response = response(task, store, employee, today);
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of(response));
+
+        List<ChecklistHistorySummaryRow> rows = checklistHistoryService.getSummary(OWNER_ID, List.of(10L), today, today);
+
+        assertThat(rows).hasSize(1);
+        ChecklistHistorySummaryRow row = rows.get(0);
+        assertThat(row.totalTasks()).isEqualTo(1);
+        assertThat(row.completedTasks()).isZero();
+    }
+
     // Regression test for the O(numStores) query fan-out fix: with multiple stores
     // requested, findActiveForStoresAndDateRange must be queried exactly once (not
     // once per store), and each store's row must only reflect tasks actually scoped
@@ -769,6 +798,62 @@ class ChecklistHistoryServiceTest {
         assertThat(item.currentlyActive()).isTrue();
         assertThat(item.completed()).isFalse();
         assertThat(item.responses()).isEmpty();
+    }
+
+    // Regression test for the reported bug: a MULTIPLE-completion task must stay
+    // Open in the Owner/Admin Daily Checklist after only one employee's response
+    // -- it should not flip to Completed until a second distinct employee responds.
+    @Test
+    void detailMarksMultipleCompletionTaskAsOpenWithOnlyOneResponse() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        task.setCompletionType(CompletionType.MULTIPLE);
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of(task));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry entry = response(task, store, employee, today);
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today))
+            .thenReturn(List.of(entry));
+        when(storeEmployeeRepository.findByEmployeeIdIn(List.of(99L))).thenReturn(List.of());
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.completed()).isFalse();
+        assertThat(item.responses()).hasSize(1);
+    }
+
+    // Same task, second distinct employee responds -- now it should flip to Completed.
+    @Test
+    void detailMarksMultipleCompletionTaskAsCompletedWithTwoDistinctResponses() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        task.setCompletionType(CompletionType.MULTIPLE);
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of(task));
+
+        User employeeA = user(99L, "Jane Doe");
+        User employeeB = user(100L, "John Smith");
+        TaskResponseEntry entryA = response(task, store, employeeA, today);
+        ReflectionTestUtils.setField(entryA, "id", 501L);
+        TaskResponseEntry entryB = response(task, store, employeeB, today);
+        ReflectionTestUtils.setField(entryB, "id", 502L);
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today))
+            .thenReturn(List.of(entryA, entryB));
+        when(storeEmployeeRepository.findByEmployeeIdIn(List.of(99L, 100L))).thenReturn(List.of());
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.completed()).isTrue();
+        assertThat(item.responses()).hasSize(2);
     }
 
     @Test
