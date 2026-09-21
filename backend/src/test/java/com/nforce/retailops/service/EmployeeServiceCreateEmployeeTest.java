@@ -63,9 +63,9 @@ class EmployeeServiceCreateEmployeeTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(employeeService, "appBaseUrl", "http://localhost:5173");
-        request = new EmployeeCreateRequest("Jane Doe", "jane@nforce.test", "555-0100", "Morning", "Full Time", "Female", null);
+        request = new EmployeeCreateRequest("Jane Doe", "jane@nforce.test", "555-0100", "Full Time", "Female", null);
         EmployeeResponse response =
-            new EmployeeResponse(7L, "EMP-007", "Jane Doe", "jane@nforce.test", "555-0100", "Morning", "Full Time", "Female", true, List.of(), null);
+            new EmployeeResponse(7L, "EMP-007", "Jane Doe", "jane@nforce.test", "555-0100", "Full Time", "Female", true, List.of(), null);
         provisioned = new EmployeeProvisioningService.ProvisionedEmployee(
             42L, 7L, "jane@nforce.test", "Jane Doe", "temp-pass-123", response
         );

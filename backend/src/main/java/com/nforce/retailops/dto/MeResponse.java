@@ -9,9 +9,8 @@ public record MeResponse(
     String role,
     List<String> storeNames,
     boolean mustResetPassword,
-    // Employee-only details for the Profile page; null for owners/super admins,
-    // who have no StoreEmployee record to source them from.
-    String shift,
+    // Employee-only detail for the Profile page; null for owners/super admins,
+    // who have no StoreEmployee record to source it from.
     String employeeType,
     // Self-service phone number, for every role (see UpdateMeRequest).
     String phone,

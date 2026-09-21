@@ -215,7 +215,6 @@ class MeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employee);
         storeEmployee.setPhone("555-0100");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full-time");
         storeEmployee.setGender("Other");
         storeEmployee.setStores(new HashSet<>(Set.of(store)));
@@ -263,7 +262,6 @@ class MeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employee);
         storeEmployee.setPhone("555-0100");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full-time");
         storeEmployee.setGender("Other");
         storeEmployee.setStores(new HashSet<>(Set.of(store)));
@@ -314,7 +312,6 @@ class MeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employee);
         storeEmployee.setPhone("555-0100");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full-time");
         storeEmployee.setGender("Other");
         storeEmployee.setStores(new HashSet<>(Set.of(store)));

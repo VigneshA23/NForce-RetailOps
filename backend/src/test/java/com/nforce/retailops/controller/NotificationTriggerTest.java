@@ -105,7 +105,6 @@ class NotificationTriggerTest {
         StoreEmployee se = new StoreEmployee();
         se.setEmployee(employee);
         se.setPhone("555-0300");
-        se.setShift("Morning");
         se.setEmployeeType("Full-time");
         se.setGender("Other");
         se.getStores().add(store);
@@ -302,7 +301,6 @@ class NotificationTriggerTest {
         StoreEmployee se = new StoreEmployee();
         se.setEmployee(employee);
         se.setPhone("555-0100");
-        se.setShift("Morning");
         se.setEmployeeType("Full-time");
         se.setGender("Other");
         se = storeEmployeeRepository.save(se);

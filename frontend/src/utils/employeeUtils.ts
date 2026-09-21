@@ -1,16 +1,10 @@
-import type { Employee, EmployeeCreateValues, EmployeeUpdateValues, ShiftName } from '../types/employee';
-import { SHIFT_OPTIONS } from './employeeOptions';
-
-export function getShiftTimeRange(shift: ShiftName): string {
-  return SHIFT_OPTIONS.find((option) => option.name === shift)?.timeRange ?? '';
-}
+import type { Employee, EmployeeCreateValues, EmployeeUpdateValues } from '../types/employee';
 
 export function toEmployeeUpdateValues(employee: Employee): EmployeeUpdateValues {
   return {
     name: employee.name,
     email: employee.email,
     phone: employee.phone,
-    shift: employee.shift,
     employeeType: employee.employeeType,
     gender: employee.gender,
   };
@@ -28,10 +22,6 @@ export function validateEmployeeForm(
     errors.name = 'Name is required';
   } else if (!NAME_PATTERN.test(values.name.trim())) {
     errors.name = 'Name can only contain letters, with a single space between words';
-  }
-
-  if (!values.shift) {
-    errors.shift = 'Shift is required';
   }
 
   if (!values.phone.trim()) {

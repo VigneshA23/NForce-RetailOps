@@ -79,7 +79,6 @@ class EmployeeControllerTest {
         storeEmployee.setEmployee(employeeUser);
         storeEmployee.setCreatedByOwner(owner);
         storeEmployee.setPhone("555-0100");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployeeRepository.save(storeEmployee);
@@ -106,7 +105,7 @@ class EmployeeControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"name":"Nope","email":"nope@nforce.test","phone":"555-0100",\
-                    "shift":"Morning","employeeType":"Full Time","gender":"Female"}"""))
+                    "employeeType":"Full Time","gender":"Female"}"""))
             .andExpect(status().isForbidden());
     }
 
@@ -125,7 +124,6 @@ class EmployeeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employeeUser);
         storeEmployee.setPhone("555-0199");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
@@ -165,7 +163,6 @@ class EmployeeControllerTest {
         storeEmployee.setEmployee(employeeUser);
         storeEmployee.setCreatedByOwner(owner);
         storeEmployee.setPhone("555-0201");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
@@ -187,7 +184,6 @@ class EmployeeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employeeUser);
         storeEmployee.setPhone("555-0202");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
@@ -215,7 +211,6 @@ class EmployeeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employeeUser);
         storeEmployee.setPhone("555-0198");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
@@ -250,7 +245,6 @@ class EmployeeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employeeUser);
         storeEmployee.setPhone("+1 2145550100");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
@@ -265,7 +259,7 @@ class EmployeeControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"name":"Ananya Reddy","email":"ananya.reddy@kedsicecream.com",\
-                    "phone":"+1 2145550101","shift":"Morning","employeeType":"Full Time",\
+                    "phone":"+1 2145550101","employeeType":"Full Time",\
                     "gender":"Female"}"""))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.phone").value("+1 2145550101"));
@@ -291,7 +285,6 @@ class EmployeeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employeeUser);
         storeEmployee.setPhone("2145550101");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee.getStores().add(assignedStore);
@@ -307,7 +300,7 @@ class EmployeeControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"name":"Ananya R. Reddy","email":"rename-target-worker@nforce.test",\
-                    "phone":"2145550101","shift":"Morning","employeeType":"Full Time",\
+                    "phone":"2145550101","employeeType":"Full Time",\
                     "gender":"Female"}"""))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("Ananya R. Reddy"))
@@ -328,7 +321,6 @@ class EmployeeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employeeUser);
         storeEmployee.setPhone("555-0100");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
@@ -342,7 +334,7 @@ class EmployeeControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                     {"name":"Test User","email":"update-target-invalid@nforce.test",\
-                    "phone":"555-0100","shift":"Morning","employeeType":"",\
+                    "phone":"555-0100","employeeType":"",\
                     "gender":"Female"}"""))
             .andExpect(status().isBadRequest())
             .andExpect(jsonPath("$.employeeType").value("Employment type is required"));
@@ -361,7 +353,6 @@ class EmployeeControllerTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setEmployee(employeeUser);
         storeEmployee.setPhone("555-0300");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee = storeEmployeeRepository.save(storeEmployee);

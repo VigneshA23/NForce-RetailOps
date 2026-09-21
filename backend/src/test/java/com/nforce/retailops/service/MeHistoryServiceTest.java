@@ -132,7 +132,6 @@ class MeHistoryServiceTest {
         storeEmployee.setEmployee(employee);
         storeEmployee.setCreatedByOwner(owner);
         storeEmployee.setPhone("555-0100");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee.setStores(new HashSet<>(Set.of(stores)));

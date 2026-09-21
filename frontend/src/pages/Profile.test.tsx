@@ -35,7 +35,6 @@ const ME: MeResponse = {
   role: 'EMPLOYEE',
   storeNames: ['Store 1'],
   mustResetPassword: false,
-  shift: 'Morning',
   employeeType: 'Full Time',
   phone: '+1 5550100',
   avatarUrl: null,
@@ -57,7 +56,6 @@ describe('Profile overview section', () => {
     // Email appears in the identity meta span and in the read-only personal info row.
     expect((await screen.findAllByText('jane@nforceone.com')).length).toBeGreaterThan(0)
     expect(screen.getByText('Store 1')).toBeInTheDocument()
-    expect(screen.getByText(/morning shift/i)).toBeInTheDocument()
   })
 })
 
@@ -131,7 +129,7 @@ describe('Profile personal info section — Owner/Admin and Super Admin phone', 
     ['OWNER_ADMIN' as const, 'Olivia Owner'],
     ['SUPER_ADMIN' as const, 'Sam Admin'],
   ])('edits and saves a country-code phone, for %s', async (role, fullName) => {
-    const me = { ...ME, role, fullName, storeNames: [], shift: null, employeeType: null, phone: '+91 5550100' }
+    const me = { ...ME, role, fullName, storeNames: [], employeeType: null, phone: '+91 5550100' }
     mockGetMe.mockResolvedValue(me)
     mockUpdateMe.mockResolvedValue({ ...me })
     const user = userEvent.setup()
@@ -158,7 +156,7 @@ describe('Profile personal info section — Owner/Admin and Super Admin phone', 
   // country code. An existing owner's Profile edit must not misread those
   // legacy digits as a country code and drop the real last digit.
   it('reads a legacy plain-digit owner phone without losing digits', async () => {
-    const me = { ...ME, role: 'OWNER_ADMIN' as const, fullName: 'Legacy Owner', storeNames: [], shift: null, employeeType: null, phone: '5550100' }
+    const me = { ...ME, role: 'OWNER_ADMIN' as const, fullName: 'Legacy Owner', storeNames: [], employeeType: null, phone: '5550100' }
     mockGetMe.mockResolvedValue(me)
     const user = userEvent.setup()
     render(<Profile initials="LO" />)

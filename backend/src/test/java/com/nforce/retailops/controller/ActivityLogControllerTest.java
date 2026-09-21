@@ -107,7 +107,6 @@ class ActivityLogControllerTest {
         StoreEmployee se = new StoreEmployee();
         se.setEmployee(employee);
         se.setPhone("555-0100");
-        se.setShift("Morning");
         se.setEmployeeType("Full-time");
         se.setGender("Other");
         se.getStores().add(store);
@@ -272,7 +271,7 @@ class ActivityLogControllerTest {
         // An admin action (employee update) must never surface in the owner's
         // own feed -- that feed is task-completions only.
         String body = objectMapper.writeValueAsString(new EmployeeUpdatePayload(
-            "Updated Name", "activity-emp-d@nforce.test", "555-0199", "Evening", "Part-time", "Other"));
+            "Updated Name", "activity-emp-d@nforce.test", "555-0199", "Part-time", "Other"));
         mockMvc.perform(put("/api/employees/{id}", storeEmployee.getId())
                 .header("Authorization", "Bearer " + ownerToken)
                 .contentType(MediaType.APPLICATION_JSON)
@@ -308,7 +307,7 @@ class ActivityLogControllerTest {
     private record RaiseIssuePayload(Long storeId, String note) {}
 
     private record EmployeeUpdatePayload(
-        String name, String email, String phone, String shift, String employeeType, String gender
+        String name, String email, String phone, String employeeType, String gender
     ) {}
 
     private record TaskResponsePayload(Long storeId, Boolean booleanValue, Double numericValue, String textValue) {}

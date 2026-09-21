@@ -1,5 +1,3 @@
-export type ShiftName = 'Morning' | 'Afternoon' | 'Evening';
-
 export type EmployeeType = 'Full Time' | 'Part Time';
 
 export type Gender = 'Male' | 'Female' | 'Non-binary';
@@ -15,7 +13,6 @@ export interface Employee {
   name: string;
   email: string;
   phone: string;
-  shift: ShiftName;
   employeeType: EmployeeType;
   gender: Gender;
   active: boolean;
@@ -27,7 +24,6 @@ export interface EmployeeFormValues {
   name: string;
   email: string;
   phone: string;
-  shift: ShiftName;
   employeeType: EmployeeType;
   gender: Gender;
 }
