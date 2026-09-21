@@ -15,9 +15,11 @@ import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.CategoryInactiveException;
+import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
 import com.nforce.retailops.exception.TaskAlreadyCompletedException;
 import com.nforce.retailops.exception.TaskHasHistoryException;
+import com.nforce.retailops.exception.TaskNotFoundException;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -37,6 +39,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -45,6 +48,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -613,5 +617,184 @@ class TaskServiceTest {
 
         assertThat(response.categories()).isEmpty();
         verify(taskRepository, never()).findActiveForStoreAndDate(anyLong(), anyLong(), any());
+    }
+
+    // ---------------------------------------------------------------------
+    // Super Admin task creation/management -- see TaskService.createTasksAsSuperAdmin.
+    // A Task always belongs to exactly one owner, so Super Admin's multi-store
+    // creation fans out into one owner-scoped Task per owner group; these tests
+    // pin down that grouping/fan-out and the "Super Admin" activity-log attribution.
+    // ---------------------------------------------------------------------
+
+    private TaskRequest superAdminRequest(boolean appliesToAllStores, List<Long> storeIds) {
+        return new TaskRequest(
+            "Clean counter", null, CATEGORY_ID, null, appliesToAllStores, storeIds,
+            ResponseType.YES_NO, null, null, null, null, null,
+            CompletionType.SINGLE, null, ScheduleType.EVERY_DAY, null,
+            LocalDate.now(), null, TimeMode.ANYTIME, null, null, true
+        );
+    }
+
+    private StoreOwner activeStoreOwner(Long storeId, Long ownerId) {
+        Store store = new Store();
+        ReflectionTestUtils.setField(store, "id", storeId);
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setStore(store);
+        storeOwner.setActive(true);
+        if (ownerId != null) {
+            User owner = new User();
+            ReflectionTestUtils.setField(owner, "id", ownerId);
+            owner.setFullName("Owner " + ownerId);
+            storeOwner.setOwner(owner);
+        }
+        return storeOwner;
+    }
+
+    private void stubCommonSuperAdminCreatePath() {
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), anyLong(), anyList())).thenReturn(Optional.of(category));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.getReferenceById(anyLong())).thenAnswer(invocation -> {
+            User user = new User();
+            ReflectionTestUtils.setField(user, "id", (Long) invocation.getArgument(0));
+            return user;
+        });
+    }
+
+    @Test
+    void createTasksAsSuperAdmin_singleStore_createsOneTaskUnderThatStoresOwner() {
+        stubCommonSuperAdminCreatePath();
+        when(storeRepository.findAllById(any())).thenReturn(List.of(storeOf(10L)));
+        when(storeOwnerRepository.findByStoreIdIn(any())).thenReturn(List.of(activeStoreOwner(10L, 1L)));
+        // Owner-scoped store validation inside applyRequest/resolveStores (distinct from
+        // the findByStoreIdIn grouping query above) -- must also resolve for the fan-out
+        // to actually attach the store to the created Task.
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(eq(1L), any())).thenReturn(List.of(activeStoreOwner(10L, 1L)));
+
+        List<TaskResponse> created = taskService.createTasksAsSuperAdmin(superAdminRequest(false, List.of(10L)));
+
+        assertThat(created).hasSize(1);
+        assertThat(created.get(0).ownerId()).isEqualTo(1L);
+        verify(activityLogService).logForStores(
+            eq("TASK_CREATED"), eq("Super Admin"), eq("SUPER_ADMIN"), any(), eq("TASK"), any(), any());
+    }
+
+    @Test
+    void createTasksAsSuperAdmin_multipleStoresAcrossDifferentOwners_fansOutOnePerOwner() {
+        stubCommonSuperAdminCreatePath();
+        when(storeRepository.findAllById(any())).thenReturn(List.of(storeOf(10L), storeOf(20L)));
+        when(storeOwnerRepository.findByStoreIdIn(any()))
+            .thenReturn(List.of(activeStoreOwner(10L, 1L), activeStoreOwner(20L, 2L)));
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(eq(1L), any())).thenReturn(List.of(activeStoreOwner(10L, 1L)));
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(eq(2L), any())).thenReturn(List.of(activeStoreOwner(20L, 2L)));
+
+        List<TaskResponse> created = taskService.createTasksAsSuperAdmin(superAdminRequest(false, List.of(10L, 20L)));
+
+        assertThat(created).hasSize(2);
+        assertThat(created).extracting(TaskResponse::ownerId).containsExactlyInAnyOrder(1L, 2L);
+        verify(taskRepository, times(2)).save(any());
+    }
+
+    @Test
+    void createTasksAsSuperAdmin_allStores_setsAppliesToAllStoresOnEachGeneratedTask() {
+        stubCommonSuperAdminCreatePath();
+        when(storeRepository.findAll()).thenReturn(List.of(storeOf(10L)));
+        when(storeOwnerRepository.findByStoreIdIn(any())).thenReturn(List.of(activeStoreOwner(10L, 1L)));
+
+        List<TaskResponse> created = taskService.createTasksAsSuperAdmin(superAdminRequest(true, List.of()));
+
+        assertThat(created).hasSize(1);
+        assertThat(created.get(0).appliesToAllStores()).isTrue();
+        assertThat(created.get(0).stores()).isEmpty();
+    }
+
+    @Test
+    void createTasksAsSuperAdmin_explicitSelectionIncludingOwnerlessStore_isRejected() {
+        when(storeRepository.findAllById(any())).thenReturn(List.of(storeOf(10L), storeOf(20L)));
+        // Store 20 has no StoreOwner row at all -- never owned.
+        when(storeOwnerRepository.findByStoreIdIn(any())).thenReturn(List.of(activeStoreOwner(10L, 1L)));
+
+        assertThatThrownBy(() -> taskService.createTasksAsSuperAdmin(superAdminRequest(false, List.of(10L, 20L))))
+            .isInstanceOf(InvalidStoreSelectionException.class);
+
+        verify(taskRepository, never()).save(any());
+    }
+
+    @Test
+    void createTasksAsSuperAdmin_allStoresSilentlyDropsOwnerlessStores() {
+        stubCommonSuperAdminCreatePath();
+        when(storeRepository.findAll()).thenReturn(List.of(storeOf(10L), storeOf(20L)));
+        // Store 20 has no active owner -- excluded rather than rejected under "All Stores".
+        when(storeOwnerRepository.findByStoreIdIn(any())).thenReturn(List.of(activeStoreOwner(10L, 1L)));
+
+        List<TaskResponse> created = taskService.createTasksAsSuperAdmin(superAdminRequest(true, List.of()));
+
+        assertThat(created).hasSize(1);
+        assertThat(created.get(0).ownerId()).isEqualTo(1L);
+    }
+
+    private Store storeOf(Long id) {
+        Store store = new Store();
+        ReflectionTestUtils.setField(store, "id", id);
+        store.setActive(true);
+        return store;
+    }
+
+    @Test
+    void setActiveAsSuperAdmin_logsActorAsSuperAdminRegardlessOfTaskOwner() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.setActive(true);
+        task.setCategory(category);
+        User owner = new User();
+        ReflectionTestUtils.setField(owner, "id", OWNER_ID);
+        task.setOwner(owner);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse response = taskService.setActiveAsSuperAdmin(taskId, false);
+
+        assertThat(response.active()).isFalse();
+        verify(activityLogService).logForStores(
+            eq("TASK_DEACTIVATED"), eq("Super Admin"), eq("SUPER_ADMIN"), any(), eq("TASK"), any(), any());
+    }
+
+    @Test
+    void deleteTaskAsSuperAdmin_rejectsWhenTaskHasHistory() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        User owner = new User();
+        ReflectionTestUtils.setField(owner, "id", OWNER_ID);
+        task.setOwner(owner);
+        when(taskRepository.findById(taskId)).thenReturn(Optional.of(task));
+        when(taskResponseEntryRepository.existsByTaskId(taskId)).thenReturn(true);
+
+        assertThatThrownBy(() -> taskService.deleteTaskAsSuperAdmin(taskId))
+            .isInstanceOf(TaskHasHistoryException.class);
+
+        verify(taskRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteTaskAsSuperAdmin_notFoundThrows() {
+        when(taskRepository.findById(123L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> taskService.deleteTaskAsSuperAdmin(123L))
+            .isInstanceOf(TaskNotFoundException.class);
+    }
+
+    @Test
+    void listTasksForSuperAdmin_returnsPlatformWideTasksAcrossOwners() {
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", 55L);
+        task.setCategory(category);
+        when(taskRepository.findAllOrderByCategoryAndDisplayOrderFetchCategory()).thenReturn(List.of(task));
+        when(taskRepository.findStoreRowsGroupedByTaskIds(List.of(55L))).thenReturn(List.of());
+
+        List<TaskResponse> responses = taskService.listTasksForSuperAdmin();
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).id()).isEqualTo(55L);
     }
 }

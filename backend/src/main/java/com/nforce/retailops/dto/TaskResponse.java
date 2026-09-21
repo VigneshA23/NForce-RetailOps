@@ -40,7 +40,9 @@ public record TaskResponse(
     LocalTime endTime,
     boolean active,
     OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
+    OffsetDateTime updatedAt,
+    Long ownerId,
+    String ownerName
 ) {
     public static TaskResponse from(Task task) {
         List<StoreOptionResponse> storeOptions = task.getStores().stream()
@@ -89,7 +91,9 @@ public record TaskResponse(
             task.getEndTime(),
             task.isActive(),
             task.getCreatedAt(),
-            task.getUpdatedAt()
+            task.getUpdatedAt(),
+            task.getOwner() != null ? task.getOwner().getId() : null,
+            task.getOwner() != null ? task.getOwner().getFullName() : null
         );
     }
 }

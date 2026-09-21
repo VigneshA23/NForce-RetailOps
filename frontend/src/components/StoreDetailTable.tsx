@@ -23,6 +23,10 @@ interface StoreDetailTableProps {
   onResponseCorrected?: (taskId: number, updatedResponse: ChecklistHistoryResponseEntry) => void;
   onResponseFlagged?: (taskId: number, updatedResponse: ChecklistHistoryResponseEntry) => void;
   repeatOffenderMap?: Map<number, number>;
+  // Distinguishes row ids when this table is rendered more than once on the
+  // same page (e.g. Outstanding Tasks above the main table) -- a task can
+  // appear in both, and duplicate DOM ids break getElementById-based scrolling.
+  idPrefix?: string;
 }
 
 const STATUS_BADGE_CLASS: Record<ChecklistTaskStatus, string> = {
@@ -212,7 +216,7 @@ function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHisto
   );
 }
 
-function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCorrected, onResponseFlagged, repeatOffenderMap }: StoreDetailTableProps) {
+function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCorrected, onResponseFlagged, repeatOffenderMap, idPrefix = '' }: StoreDetailTableProps) {
   const [correctionTarget, setCorrectionTarget] = useState<ResponseTarget | null>(null);
   const [flagTarget, setFlagTarget] = useState<ResponseTarget | null>(null);
 
@@ -283,7 +287,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                 const status = taskStatus(task);
                 const responders = task.responses;
                 return (
-                  <tr key={key} id={`task-row-${key}`}>
+                  <tr key={key} id={`${idPrefix}task-row-${key}`}>
                     <td data-label="Category" className="store-detail-table__category">
                       {categoryName}
                     </td>
