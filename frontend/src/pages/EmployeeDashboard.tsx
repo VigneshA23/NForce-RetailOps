@@ -56,9 +56,10 @@ function CategoryProgressGrid({ items }: { items: CategoryProgressGridItem[] }) 
     <div className="category-progress-grid">
       {items.map(({ id, name, done, total }) => {
         const complete = total > 0 && done === total
-        const inProgress = done > 0 && !complete
         const percent = total === 0 ? 0 : Math.round((done / total) * 100)
-        const tone = complete ? ' category-progress-card--complete' : inProgress ? ' category-progress-card--progress' : ''
+        // No tasks in this category at all -- nothing to be "behind" on, so
+        // it stays neutral rather than reading as a 0% (red) failure.
+        const tone = total === 0 ? '' : percent >= 90 ? ' category-progress-card--good' : percent >= 50 ? ' category-progress-card--warning' : ' category-progress-card--risk'
         return (
           <div key={id} className={`category-progress-card${tone}`}>
             <span className="category-progress-card__name">{name}</span>
@@ -587,7 +588,10 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
               <div className="checklist-categories">
                 {filteredCategories.map((category) => {
                   const progress = categoryProgress(category)
-                  const isComplete = progress.total > 0 && progress.done === progress.total
+                  const progressPercent = progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100)
+                  // No tasks in this category at all -- nothing to be "behind" on, so
+                  // it stays neutral rather than reading as a 0% (red) failure.
+                  const progressTone = progress.total === 0 ? '' : progressPercent >= 90 ? 'good' : progressPercent >= 50 ? 'warning' : 'risk'
                   return (
                     <details
                       key={category.id}
@@ -604,7 +608,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
                             <h3>{category.name}</h3>
                           </div>
                           <div className="checklist-category-meta">
-                            <span className={`checklist-category-count${isComplete ? ' checklist-category-count--complete' : ''}`}>
+                            <span className={`checklist-category-count${progressTone ? ` checklist-category-count--${progressTone}` : ''}`}>
                               {progress.done}/{progress.total}
                             </span>
                             <ChevronDown size={18} className="checklist-category-chevron" />
@@ -612,8 +616,8 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
                         </div>
                         <div className="checklist-category-bar">
                           <div
-                            className={`checklist-category-bar__fill${isComplete ? ' checklist-category-bar__fill--complete' : progress.done > 0 ? ' checklist-category-bar__fill--progress' : ''}`}
-                            style={{ width: progress.total === 0 ? '0%' : `${Math.round((progress.done / progress.total) * 100)}%` }}
+                            className={`checklist-category-bar__fill${progressTone ? ` checklist-category-bar__fill--${progressTone}` : ''}`}
+                            style={{ width: `${progressPercent}%` }}
                           />
                         </div>
                       </summary>
