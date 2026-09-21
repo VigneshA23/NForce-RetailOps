@@ -24,6 +24,13 @@
   max-height: 90vh;
   max-height: 90svh;
   max-height: 90dvh;
+  /* Modal.tsx keeps --modal-vvh live-synced to visualViewport.height, which
+     shrinks the instant the soft keyboard opens (most reliably on Android
+     Chrome). Preferring it over dvh here means the modal card itself always
+     resizes to fit whatever's actually still visible, so its own header
+     stays on screen and pinned to the top instead of being pushed off by
+     the keyboard -- only .modal__body scrolls internally to compensate. */
+  max-height: var(--modal-vvh, 90dvh);
   display: flex;
   flex-direction: column;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
@@ -103,6 +110,7 @@
     max-height: 92vh;
     max-height: 92svh;
     max-height: 92dvh;
+    max-height: var(--modal-vvh, 92dvh);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
@@ -125,6 +133,7 @@
     max-height: 90vh;
     max-height: 90svh;
     max-height: 90dvh;
+    max-height: var(--modal-vvh, 90dvh);
     border-radius: var(--radius-md);
   }
 

@@ -42,6 +42,13 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
   // open we keep the overlay's box explicitly pinned to it. On browsers
   // without visualViewport (or on desktop, where it always matches the
   // window) this is a no-op and the CSS `inset: 0` fallback below applies.
+  //
+  // The same viewport also shrinks when the soft keyboard opens (most
+  // reliably reported on Android Chrome; iOS Safari mainly reports it via
+  // `resize`, not layout-viewport resize). We publish that live height as
+  // `--modal-vvh`, which Modal.css prefers over the dvh/svh max-height, so
+  // the modal card itself always fits the space actually left on screen
+  // instead of being pushed/clipped off the top by the keyboard.
   useEffect(() => {
     if (!isOpen) return;
     const viewport = window.visualViewport;
@@ -49,11 +56,13 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
 
     function syncToVisualViewport() {
       const overlay = overlayRef.current;
+      const modalEl = modalRef.current;
       if (!overlay || !viewport) return;
       overlay.style.width = `${viewport.width}px`;
       overlay.style.height = `${viewport.height}px`;
       overlay.style.left = `${viewport.offsetLeft}px`;
       overlay.style.top = `${viewport.offsetTop}px`;
+      modalEl?.style.setProperty('--modal-vvh', `${viewport.height}px`);
     }
 
     syncToVisualViewport();
@@ -62,6 +71,7 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
     return () => {
       viewport.removeEventListener('resize', syncToVisualViewport);
       viewport.removeEventListener('scroll', syncToVisualViewport);
+      modalRef.current?.style.removeProperty('--modal-vvh');
     };
   }, [isOpen]);
 
@@ -71,11 +81,17 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
   // `position: fixed` at its current scroll offset is the standard fix that
   // actually holds on iOS as well as desktop; the offset is restored (and the
   // page snapped back to its exact prior scroll position) on close/unmount.
+  // `html` gets `overflow: hidden` too -- body's fixed positioning handles
+  // touch panning/bounce, but html is what Android Chrome's own
+  // focused-input-into-view scroll acts on when the keyboard opens, so
+  // leaving it scrollable is what lets that scroll escape past the modal.
   useEffect(() => {
     if (!isOpen) return;
 
     const scrollY = window.scrollY;
+    const html = document.documentElement;
     const { body } = document;
+    const previousHtmlOverflow = html.style.overflow;
     const previousStyle = {
       position: body.style.position,
       top: body.style.top,
@@ -85,6 +101,7 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
       overflow: body.style.overflow,
     };
 
+    html.style.overflow = 'hidden';
     body.style.position = 'fixed';
     body.style.top = `-${scrollY}px`;
     body.style.left = '0';
@@ -93,6 +110,7 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
     body.style.overflow = 'hidden';
 
     return () => {
+      html.style.overflow = previousHtmlOverflow;
       body.style.position = previousStyle.position;
       body.style.top = previousStyle.top;
       body.style.left = previousStyle.left;
