@@ -192,6 +192,33 @@ public class CategoryService {
         return toResponse(category);
     }
 
+    // Categories applicable to every one of the given stores -- backs the Super
+    // Admin task-creation flow's category picker: pass a single store id for
+    // "one store", the selected set for "multiple stores", or appliesToAllStores
+    // for "all stores" (resolved here to every active store's id, same as
+    // resolveAnyStores/createCategoryAsSuperAdmin). One formula covers all
+    // three: a category qualifies if it applies to all stores, or its own
+    // effective store set is a superset of the requested ids.
+    @Transactional(readOnly = true)
+    public List<CategoryResponse> listCategoriesApplicableToStores(boolean appliesToAllStores, List<Long> storeIds) {
+        Set<Long> targetStoreIds;
+        if (appliesToAllStores) {
+            targetStoreIds = allStoreIds();
+        } else {
+            List<Long> ids = storeIds == null ? List.of() : storeIds;
+            if (ids.isEmpty()) {
+                throw new InvalidStoreSelectionException("Select at least one store, or choose All Stores");
+            }
+            targetStoreIds = Set.copyOf(ids);
+        }
+
+        List<Category> applicable = categoryRepository.findAllByOrderByNameAsc().stream()
+            .filter(Category::isActive)
+            .filter(category -> effectiveStoreIds(category).containsAll(targetStoreIds))
+            .toList();
+        return toResponses(applicable, null);
+    }
+
     @Transactional
     public void deleteCategoryAsSuperAdmin(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)

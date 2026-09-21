@@ -34,6 +34,15 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("ownerId") Long ownerId
     );
 
+    // Platform-wide form of the above, for the Super Admin Tasks page: every
+    // task across every owner, fetch-joined on both category and owner (every
+    // row's TaskResponse reads task.getOwner().getFullName()).
+    @org.springframework.data.jpa.repository.Query(
+        "select t from Task t join fetch t.category join fetch t.owner "
+            + "order by t.category.displayOrder asc, t.displayOrder asc, t.updatedAt desc, t.id asc"
+    )
+    List<Task> findAllOrderByCategoryAndDisplayOrderFetchCategory();
+
     // Batched form of Task.stores, for listing many tasks at once without one
     // query per task for its (lazy, many-to-many) store list.
     @org.springframework.data.jpa.repository.Query(

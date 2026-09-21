@@ -138,6 +138,14 @@ public class TaskService {
 
     @Transactional
     public TaskResponse createTask(Long ownerId, TaskRequest request) {
+        return createTaskInternal(ownerId, request, ownerName(ownerId), "OWNER_ADMIN");
+    }
+
+    // Shared by the Owner Admin create path above and the Super Admin fan-out
+    // (createTasksAsSuperAdmin) below -- actorName/actorRole let the activity
+    // log correctly attribute a Super-Admin-authored task to "Super Admin"
+    // rather than to the owner it was created under.
+    private TaskResponse createTaskInternal(Long ownerId, TaskRequest request, String actorName, String actorRole) {
         Task task = new Task();
         task.setOwner(userRepository.getReferenceById(ownerId));
         applyRequest(task, ownerId, request);
@@ -155,12 +163,171 @@ public class TaskService {
         });
 
         activityLogService.logForStores(
-            "TASK_CREATED", ownerName(ownerId), "OWNER_ADMIN",
+            "TASK_CREATED", actorName, actorRole,
             resolveTaskStoresForLog(task, ownerId), "TASK", task.getName(),
             "Created task \"" + task.getName() + "\""
         );
 
         return TaskResponse.from(task);
+    }
+
+    // ---------------------------------------------------------------------
+    // Super Admin -- platform-wide task management. A Task always belongs to
+    // exactly one Owner Admin (tasks.owner_id is NOT NULL, and the employee
+    // checklist is resolved per-owner -- see findActiveForStoreAndDate), so a
+    // Super-Admin-created task spanning multiple stores is fanned out into
+    // one ordinary owner-scoped Task row per owner group below, rather than
+    // reworking Task's ownership model. In this app's actual 2-store scale
+    // this almost always collapses to a single row.
+    // ---------------------------------------------------------------------
+
+    @Transactional(readOnly = true)
+    public List<TaskResponse> listTasksForSuperAdmin() {
+        List<Task> tasks = taskRepository.findAllOrderByCategoryAndDisplayOrderFetchCategory();
+        if (tasks.isEmpty()) {
+            return List.of();
+        }
+
+        Map<Long, List<StoreOptionResponse>> storesByTaskId = new LinkedHashMap<>();
+        List<Long> taskIds = tasks.stream().map(Task::getId).toList();
+        for (Object[] row : taskRepository.findStoreRowsGroupedByTaskIds(taskIds)) {
+            storesByTaskId
+                .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
+                .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
+        }
+
+        return tasks.stream()
+            .map(task -> TaskResponse.from(task, storesByTaskId.getOrDefault(task.getId(), List.of())))
+            .toList();
+    }
+
+    @Transactional
+    public List<TaskResponse> createTasksAsSuperAdmin(TaskRequest request) {
+        Set<Store> resolvedStores = resolveAnyStores(request.appliesToAllStores(), request.storeIds());
+        Set<Long> targetStoreIds = request.appliesToAllStores()
+            ? allStoreIds()
+            : resolvedStores.stream().map(Store::getId).collect(Collectors.toSet());
+
+        if (targetStoreIds.isEmpty()) {
+            throw new InvalidStoreSelectionException("Select at least one store, or choose All Stores");
+        }
+
+        Map<Long, StoreOwner> storeOwnerByStoreId = storeOwnerRepository.findByStoreIdIn(targetStoreIds).stream()
+            .collect(Collectors.toMap(so -> so.getStore().getId(), so -> so));
+
+        Map<Long, Set<Long>> storeIdsByOwnerId = new LinkedHashMap<>();
+        List<String> ownerlessStoreNames = new ArrayList<>();
+        for (Long storeId : targetStoreIds) {
+            StoreOwner so = storeOwnerByStoreId.get(storeId);
+            if (so == null || so.getOwner() == null || !so.isActive()) {
+                ownerlessStoreNames.add(so != null ? so.getStore().getName() : ("Store " + storeId));
+                continue;
+            }
+            storeIdsByOwnerId.computeIfAbsent(so.getOwner().getId(), key -> new HashSet<>()).add(storeId);
+        }
+
+        // An explicit single/multiple-store pick that includes an ownerless store is a
+        // mistake worth surfacing; "All Stores" silently drops ownerless stores instead,
+        // the same way the employee checklist already treats them as inert.
+        if (!ownerlessStoreNames.isEmpty() && !request.appliesToAllStores()) {
+            throw new InvalidStoreSelectionException(
+                "The following stores have no active Owner/Admin and cannot receive tasks: "
+                    + String.join(", ", ownerlessStoreNames));
+        }
+        if (storeIdsByOwnerId.isEmpty()) {
+            throw new InvalidStoreSelectionException("None of the selected stores currently have an active Owner/Admin");
+        }
+
+        List<TaskResponse> created = new ArrayList<>();
+        for (Map.Entry<Long, Set<Long>> entry : storeIdsByOwnerId.entrySet()) {
+            TaskRequest perOwnerRequest = withStores(request, request.appliesToAllStores(), List.copyOf(entry.getValue()));
+            created.add(createTaskInternal(entry.getKey(), perOwnerRequest, "Super Admin", "SUPER_ADMIN"));
+        }
+        return created;
+    }
+
+    @Transactional
+    public TaskResponse setActiveAsSuperAdmin(Long taskId, boolean active) {
+        Task task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+        if (active && !task.getCategory().isActive()) {
+            throw new CategoryInactiveException(
+                "This task's category is inactive -- activate the category first");
+        }
+        if (active && task.getEndDate() != null && task.getEndDate().isBefore(LocalDate.now())) {
+            throw new InvalidTaskConfigurationException(
+                "This task's end date has passed and cannot be activated");
+        }
+        task.setActive(active);
+        task = taskRepository.save(task);
+
+        activityLogService.logForStores(
+            active ? "TASK_ACTIVATED" : "TASK_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
+            resolveTaskStoresForLog(task, task.getOwner().getId()), "TASK", task.getName(),
+            (active ? "Activated task \"" : "Deactivated task \"") + task.getName() + "\""
+        );
+
+        return TaskResponse.from(task);
+    }
+
+    @Transactional
+    public void deleteTaskAsSuperAdmin(Long taskId) {
+        Task task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+        if (taskResponseEntryRepository.existsByTaskId(taskId)) {
+            throw new TaskHasHistoryException(
+                "This task has checklist history and cannot be deleted. Deactivate it instead.");
+        }
+        List<Store> affectedStores = resolveTaskStoresForLog(task, task.getOwner().getId());
+        String taskName = task.getName();
+        taskRepository.delete(task);
+
+        activityLogService.logForStores(
+            "TASK_DELETED", "Super Admin", "SUPER_ADMIN",
+            affectedStores, "TASK", taskName,
+            "Deleted task \"" + taskName + "\""
+        );
+    }
+
+    // Mirrors CategoryService.resolveAnyStores: validates a store selection
+    // against every store platform-wide, not just one owner's -- used by the
+    // Super Admin task creation flow, where the caller isn't scoped to a
+    // single owner's stores.
+    private Set<Store> resolveAnyStores(boolean appliesToAllStores, List<Long> storeIds) {
+        if (appliesToAllStores) {
+            return new HashSet<>();
+        }
+        List<Long> ids = storeIds == null ? List.of() : storeIds;
+        if (ids.isEmpty()) {
+            throw new InvalidStoreSelectionException("Select at least one store, or choose All Stores");
+        }
+        List<Store> stores = storeRepository.findAllById(ids);
+        if (stores.size() != Set.copyOf(ids).size()) {
+            throw new InvalidStoreSelectionException("One or more selected stores could not be found");
+        }
+        if (stores.stream().anyMatch(s -> !s.isActive())) {
+            throw new StoreInactiveException("One or more selected stores have been deactivated");
+        }
+        return new HashSet<>(stores);
+    }
+
+    private Set<Long> allStoreIds() {
+        return storeRepository.findAll().stream().map(Store::getId).collect(Collectors.toSet());
+    }
+
+    // Copies a TaskRequest with a different store scope -- used to fan a single
+    // Super Admin task-creation request out into one per-owner request.
+    private TaskRequest withStores(TaskRequest base, boolean appliesToAllStores, List<Long> storeIds) {
+        return new TaskRequest(
+            base.name(), base.description(), base.categoryId(), base.displayOrder(),
+            appliesToAllStores, storeIds,
+            base.responseType(), base.responseNote(), base.numericUnit(), base.numericMin(), base.numericMax(), base.textMaxLength(),
+            base.completionType(), base.maxCompletions(),
+            base.scheduleType(), base.selectedDays(),
+            base.startDate(), base.endDate(),
+            base.timeMode(), base.startTime(), base.endTime(),
+            base.active()
+        );
     }
 
     @Transactional

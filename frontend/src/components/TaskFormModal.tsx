@@ -1,6 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Category } from '../types/category';
-import type { OwnerStore } from '../types/ownerStore';
 import type { AdminTask, AdminTaskFormValues, CompletionType, DayCode, ResponseType, ScheduleType } from '../types/adminTask';
 import { emptyTaskFormValues, getTodayDateString, validateTaskForm, type AdminTaskFormErrors } from '../utils/adminTaskValidation';
 import { COMPLETION_TYPE_OPTIONS, DAY_OPTIONS, RESPONSE_TYPE_OPTIONS, SCHEDULE_TYPE_OPTIONS } from '../utils/adminTaskOptions';
@@ -18,7 +17,17 @@ interface TaskFormModalProps {
   categoriesError: string | null;
   onRetryCategories: () => void;
   onManageCategories: () => void;
-  stores: OwnerStore[];
+  // Structurally typed rather than OwnerStore[] so the Super Admin page (whose
+  // store list is SuperAdminStore[], a different shape) can pass a simple
+  // {id, name} projection without fabricating unused fields.
+  stores: { id: number; name: string }[];
+  // Super Admin's create flow: store scope is picked inline in this form
+  // (a searchable multi-select with an "All Stores" option up top) instead of
+  // defaulting to stores[0] like the Owner Admin flow does. Category options
+  // stay disabled until a scope is chosen, then `onStoreScopeChange` is used
+  // by the page to fetch the categories applicable to that scope.
+  storeScopeSelectable?: boolean;
+  onStoreScopeChange?: (scope: { appliesToAllStores: boolean; storeIds: number[] }) => void;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -59,6 +68,8 @@ function TaskFormModal({
   onRetryCategories,
   onManageCategories,
   stores,
+  storeScopeSelectable = false,
+  onStoreScopeChange,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -73,14 +84,21 @@ function TaskFormModal({
         setValues(toFormValues(initialTask));
       } else {
         const base = emptyTaskFormValues();
-        if (stores[0]) {
+        if (!storeScopeSelectable && stores[0]) {
           base.storeIds = [stores[0].id];
         }
         setValues(base);
       }
       setErrors({});
     }
-  }, [isOpen, initialTask, stores]);
+  }, [isOpen, initialTask, stores, storeScopeSelectable]);
+
+  function handleStoreScopeChange(scope: { appliesToAllStores: boolean; storeIds: number[] }) {
+    setValues((current) => ({ ...current, ...scope, categoryId: null }));
+    onStoreScopeChange?.(scope);
+  }
+
+  const storeScopeChosen = !storeScopeSelectable || values.appliesToAllStores || values.storeIds.length > 0;
 
   function updateField<K extends keyof AdminTaskFormValues>(field: K, value: AdminTaskFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -173,11 +191,47 @@ function TaskFormModal({
           </FormField>
         </section>
 
-        {/* ── Category & Order ── */}
+        {/* ── Store, Category & Order ── */}
         <section className="task-form__section">
+          {storeScopeSelectable && (
+            <FormField label="Store *" htmlFor="task-store" error={errors.storeIds}>
+              <SearchableSelect
+                id="task-store"
+                placeholder="Select store(s)"
+                multiple
+                options={stores.map((store) => ({ id: store.id, label: store.name }))}
+                selectedIds={values.storeIds}
+                allOption={{
+                  label: 'All Stores',
+                  selected: values.appliesToAllStores,
+                  onToggle: () => handleStoreScopeChange({ appliesToAllStores: !values.appliesToAllStores, storeIds: [] }),
+                }}
+                onChange={(ids) => {
+                  // Checking every individual store by hand is the same intent as
+                  // checking "All Stores" -- promote to it so the category scope
+                  // also covers stores added later, not just today's full list.
+                  const everyStoreSelected = stores.length > 0 && stores.every((store) => ids.includes(store.id));
+                  handleStoreScopeChange(
+                    everyStoreSelected
+                      ? { appliesToAllStores: true, storeIds: [] }
+                      : { appliesToAllStores: false, storeIds: ids },
+                  );
+                }}
+              />
+            </FormField>
+          )}
           <div className="task-form__grid-category">
             <FormField label="Category *" htmlFor="task-category" error={errors.categoryId}>
-              {!categoriesLoading && !categoriesError && categories.length === 0 ? (
+              {!storeScopeChosen ? (
+                <SearchableSelect
+                  id="task-category"
+                  placeholder="Select store(s) first"
+                  options={[]}
+                  selectedIds={[]}
+                  onChange={() => {}}
+                  disabled
+                />
+              ) : !categoriesLoading && !categoriesError && categories.length === 0 ? (
                 <div className="task-form__empty-state">
                   No categories yet.
                   <button type="button" className="btn btn--secondary" onClick={onManageCategories}>
@@ -209,8 +263,10 @@ function TaskFormModal({
             </FormField>
           </div>
           <p className="task-form__hint">
-            Store: <strong>{values.appliesToAllStores ? 'All stores' : (stores[0]?.name ?? '—')}</strong>
-            {' · '}Order controls position within the category on the checklist.
+            {!storeScopeSelectable && (
+              <>Store: <strong>{values.appliesToAllStores ? 'All stores' : (stores[0]?.name ?? '—')}</strong>{' · '}</>
+            )}
+            Order controls position within the category on the checklist.
           </p>
         </section>
 

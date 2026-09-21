@@ -27,6 +27,7 @@ import Notifications from '../pages/Notifications';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
 import SuperAdminCategories from '../pages/SuperAdminCategories';
+import SuperAdminTasks from '../pages/SuperAdminTasks';
 import SuperAdminHome from '../pages/SuperAdminHome';
 import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import SuperAdminIssues from '../pages/SuperAdminIssues';
@@ -405,6 +406,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminEmployees />
       ) : activeTab === 'categories' ? (
         <SuperAdminCategories />
+      ) : activeTab === 'tasks' ? (
+        <SuperAdminTasks />
       ) : activeTab === 'issues' ? (
         <SuperAdminIssues />
       ) : activeTab === 'inventory' ? (
