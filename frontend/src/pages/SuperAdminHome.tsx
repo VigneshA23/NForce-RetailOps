@@ -115,7 +115,7 @@ function SuperAdminHome({
       {
         key: 'owners',
         icon: Building2,
-        label: 'Owners logged in today',
+        label: 'Admins logged in today',
         value: platformStats.ownersLoggedInToday,
         total: platformStats.totalOwners,
         percent: pct(platformStats.ownersLoggedInToday, platformStats.totalOwners),

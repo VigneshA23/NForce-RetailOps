@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import SearchInput from '../components/SearchInput';
 import Select, { type SelectOption } from '../components/Select';
 import ActivityFeedList from '../components/ActivityFeedList';
@@ -10,7 +11,13 @@ import './SuperAdminActivity.css';
 // the largest single page the API can return.
 const FULL_LIMIT = 100;
 
-function SuperAdminActivity() {
+interface SuperAdminActivityProps {
+  // Leaves this page entirely (e.g. back to Home) -- this page is only
+  // reachable via "View all", so there's no tab of its own to fall back to.
+  onBack?: () => void;
+}
+
+function SuperAdminActivity({ onBack }: SuperAdminActivityProps) {
   const entries = useRecentActivity(FULL_LIMIT);
   const [search, setSearch] = useState('');
   const [storeFilter, setStoreFilter] = useState('all');
@@ -39,6 +46,12 @@ function SuperAdminActivity() {
 
   return (
     <div className="sa-activity">
+      {onBack && (
+        <button type="button" className="sa-activity__back" onClick={onBack}>
+          <ChevronLeft size={16} aria-hidden="true" /> Back
+        </button>
+      )}
+
       <div className="sa-activity__header">
         <h1 className="sa-activity__title">Recent Activity</h1>
         <p className="sa-activity__subtitle">Owner and employee activity across every store, most recent first.</p>

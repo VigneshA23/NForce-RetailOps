@@ -189,7 +189,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       ) : overlay === 'help' ? (
         <Help role={user.role} />
       ) : overlay === 'notifications' ? (
-        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
+        <Notifications
+          onUnreadChange={handleNotificationsCountChange}
+          onNavigate={handleNotificationNavigate}
+          onBackToHome={() => { setOverlay(null); setActiveTab('home'); }}
+        />
       ) : (
         ALL_TABS.map((tab) =>
           mountedTabs.has(tab) ? (

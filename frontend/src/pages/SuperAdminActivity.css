@@ -5,6 +5,26 @@
   gap: var(--space-lg);
 }
 
+.sa-activity__back {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  margin-bottom: calc(-1 * var(--space-lg) + 8px);
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.sa-activity__back:hover {
+  color: var(--color-text-primary);
+}
+
 .sa-activity__header {
   display: flex;
   flex-direction: column;
