@@ -453,9 +453,13 @@ type SortOrder = 'newest' | 'oldest';
 interface NotificationsProps {
   onUnreadChange: (count: number) => void;
   onNavigate?: (path: string, createdAt?: string) => void;
+  // Leaves the Notifications page entirely (e.g. back to Home) -- distinct
+  // from DetailPane's own onBack, which just returns from the mobile detail
+  // view to this page's list.
+  onBackToHome?: () => void;
 }
 
-function Notifications({ onUnreadChange, onNavigate }: NotificationsProps) {
+function Notifications({ onUnreadChange, onNavigate, onBackToHome }: NotificationsProps) {
   const isWide = useMediaQuery('(min-width: 900px)');
   const isDesktopPointer = useMediaQuery('(hover: hover) and (pointer: fine)');
 
@@ -572,6 +576,12 @@ function Notifications({ onUnreadChange, onNavigate }: NotificationsProps) {
 
   return (
     <div className="nfp-page">
+
+      {onBackToHome && (
+        <button type="button" className="nfp-detail__back" onClick={onBackToHome}>
+          <ChevronLeft size={16} aria-hidden="true" /> Back
+        </button>
+      )}
 
       {/* ── Header ── */}
       <div className="nfp-header">

@@ -106,6 +106,17 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setShowActivity(true);
   }
 
+  // Both Recent Activity and Notifications are reached only via "View all"/the
+  // bell, not a sidebar tab, so they have no tab of their own to fall back to
+  // on Back -- send the user to Home explicitly instead.
+  function goHome() {
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowNotifications(false);
+    setShowActivity(false);
+    setActiveTab('home');
+  }
+
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string | null; emailSent: boolean } | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -386,9 +397,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       ) : showHelp ? (
         <Help role={user.role} />
       ) : showNotifications ? (
-        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
+        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} onBackToHome={goHome} />
       ) : showActivity ? (
-        <SuperAdminActivity />
+        <SuperAdminActivity onBack={goHome} />
       ) : activeTab === 'checklist' ? (
         <SuperAdminChecklist nav={checklistNav} />
       ) : activeTab === 'home' ? (
