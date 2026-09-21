@@ -8,7 +8,8 @@ import type { AddOwnerValues, AssignStoreValues, OwnerSummary, UpdateOwnerValues
 import type { GroupedOwner } from '../components/OwnerTable';
 import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
-import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
+import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_BOTTOM_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import OwnerTable from '../components/OwnerTable';
 import OwnerDetailModal from '../components/OwnerDetailModal';
 import OwnerFormModal from '../components/OwnerFormModal';
@@ -332,9 +333,13 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     () => new Set(owners.filter((o) => o.ownerActive).map((o) => o.ownerId)).size,
     [owners],
   );
+  // Owners/Stores move off the mobile bottom nav into the profile menu below --
+  // desktop/tablet Sidebar keeps the full SUPER_ADMIN_NAV_ITEMS list untouched.
+  const isMobile = useIsMobile();
   return (
     <AppShell<SuperAdminNavTabKey>
       navItems={SUPER_ADMIN_NAV_ITEMS}
+      bottomNavItems={SUPER_ADMIN_BOTTOM_NAV_ITEMS}
       activeTab={activeTab}
       onSelectTab={(key) => {
         setShowProfile(false);
@@ -365,6 +370,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       loggingOut={loggingOut}
       avatarUrl={avatarUrl}
       onProfileClick={() => { setShowHelp(false); setShowNotifications(false); setShowActivity(false); setShowProfile(true); }}
+      onOwnersClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('owners'); } : undefined}
+      onStoresClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('stores'); } : undefined}
       onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowActivity(false); setShowHelp(true); }}
       onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowActivity(false); setShowNotifications(true); }}
       onNotificationNavigate={handleNotificationNavigate}

@@ -65,6 +65,14 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
 ];
 
+// Mobile bottom tab bar: home, employees, categories, daily checklist.
+// Owners and Stores are accessible via the profile menu instead (mobile only) --
+// 6 tabs doesn't fit comfortably at phone width.
+const SUPER_ADMIN_BOTTOM_NAV_ORDER: SuperAdminNavTabKey[] = ['home', 'employees', 'categories', 'checklist'];
+export const SUPER_ADMIN_BOTTOM_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = SUPER_ADMIN_BOTTOM_NAV_ORDER.map(
+  (key) => SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!,
+);
+
 export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
   home: 'Home',
   owners: 'Owners',
