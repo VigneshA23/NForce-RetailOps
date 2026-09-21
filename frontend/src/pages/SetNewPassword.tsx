@@ -3,6 +3,7 @@ import { Eye, EyeOff, Lock } from 'lucide-react'
 import { motion, useMotionValue, useTransform, animate, useReducedMotion } from 'motion/react'
 import { confirmPasswordReset } from '../api/auth'
 import LoginHeroPanel from '../components/LoginHeroPanel'
+import ButtonDots from '../components/ButtonDots'
 import './LoginCrimson.css'
 
 interface SetNewPasswordProps {
@@ -249,7 +250,7 @@ function SetNewPassword({ token, onDone }: SetNewPasswordProps) {
                           whileTap={canSubmit ? { scale: 0.98 } : undefined}
                         >
                           <span className="nf1-btn-sweep" aria-hidden="true" />
-                          {loading ? 'Saving…' : 'Set Password'}
+                          {loading ? <ButtonDots label="Saving" /> : 'Set Password'}
                         </motion.button>
                       </div>
                     </form>

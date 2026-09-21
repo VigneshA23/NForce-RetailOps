@@ -3,6 +3,7 @@ import type { InventoryCategory, InventoryItemFormValues } from '../types/invent
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
+import ButtonDots from './ButtonDots';
 
 interface InventoryItemFormModalProps {
   isOpen: boolean;
@@ -66,8 +67,8 @@ function InventoryItemFormModal({
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="inventory-item-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Add Item' : 'Save Changes'}
+          <button type="submit" form="inventory-item-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'create' ? 'Add Item' : 'Save Changes'}
           </button>
         </>
       }

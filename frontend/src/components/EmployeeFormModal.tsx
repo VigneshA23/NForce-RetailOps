@@ -7,6 +7,7 @@ import EmployeeFormFields, {
   type EmployeeFormValues,
 } from './EmployeeFormFields';
 import Modal from './Modal';
+import ButtonDots from './ButtonDots';
 import './EmployeeFormModal.css';
 
 interface EmployeeFormModalProps {
@@ -88,8 +89,8 @@ function EmployeeFormModal({
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="employee-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Add Employee' : 'Save Changes'}
+          <button type="submit" form="employee-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'create' ? 'Add Employee' : 'Save Changes'}
           </button>
         </>
       }

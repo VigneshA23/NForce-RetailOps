@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Eye, EyeOff, Lock } from 'lucide-react'
 import { motion } from 'motion/react'
 import { completePasswordReset } from '../api/auth'
+import ButtonDots from '../components/ButtonDots'
 import './LoginCrimson.css'
 
 interface ResetPasswordRequiredProps {
@@ -148,7 +149,7 @@ function ResetPasswordRequired({ onSuccess, onLogout, loggingOut }: ResetPasswor
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
               >
-                {loading ? 'Saving…' : 'Set Password & Continue'}
+                {loading ? <ButtonDots label="Saving" /> : 'Set Password & Continue'}
               </motion.button>
             </form>
 

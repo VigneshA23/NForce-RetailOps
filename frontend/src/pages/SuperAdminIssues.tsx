@@ -5,6 +5,7 @@ import { getSAIssues, nudgeOwner, updateSAIssueStatus, type SAIssue } from '../a
 import StatCard from '../components/StatCard';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
+import ButtonDots from '../components/ButtonDots';
 import './SuperAdminIssues.css';
 
 type StatusFilter = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | null;
@@ -72,8 +73,8 @@ function ResolveModal({ issue, onCancel, onConfirm, busy }: ResolveModalProps) {
           <button type="button" className="btn btn--secondary" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
-          <button type="button" className="btn btn--primary" onClick={() => onConfirm(text)} disabled={busy}>
-            {busy ? 'Resolving…' : 'Confirm Resolve'}
+          <button type="button" className={`btn btn--primary${busy ? ' btn--loading' : ''}`} onClick={() => onConfirm(text)} disabled={busy}>
+            {busy ? <ButtonDots label="Resolving" /> : 'Confirm Resolve'}
           </button>
         </div>
       </div>
@@ -218,13 +219,13 @@ function SuperAdminIssues() {
                 )}
                 <button
                   type="button"
-                  className="btn btn--ghost btn--sm sa-issues-page__nudge-btn"
+                  className={`btn btn--ghost btn--sm sa-issues-page__nudge-btn${nudgingId === issue.id ? ' btn--loading' : ''}`}
                   onClick={() => handleNudge(issue)}
                   disabled={nudgingId === issue.id}
                   title="Notify store owner to take action"
                 >
                   <Bell size={12} />
-                  {nudgingId === issue.id ? 'Sending…' : 'Nudge'}
+                  {nudgingId === issue.id ? <ButtonDots label="Sending" /> : 'Nudge'}
                 </button>
               </div>
             )}

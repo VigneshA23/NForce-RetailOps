@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ClipboardList, Pencil, History } from 'lucide-react';
 import Modal from './Modal';
+import ButtonDots from './ButtonDots';
 import {
   correctResponse,
   getCorrectionHistory,
@@ -155,8 +156,8 @@ function CorrectionForm({
           <button type="button" className="btn btn--secondary btn--sm" onClick={() => setConfirmStep(false)} disabled={submitting}>
             Back
           </button>
-          <button type="button" className="btn btn--primary btn--sm" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? 'Saving…' : 'Confirm'}
+          <button type="button" className={`btn btn--primary btn--sm${submitting ? ' btn--loading' : ''}`} onClick={handleSubmit} disabled={submitting}>
+            {submitting ? <ButtonDots label="Saving" /> : 'Confirm'}
           </button>
         </div>
       </div>

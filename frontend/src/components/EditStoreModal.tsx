@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { CreateStoreValues } from '../types/superAdminStore';
 import Modal from './Modal';
 import FormField from './FormField';
+import ButtonDots from './ButtonDots';
 import './AssignStoreModal.css';
 
 interface EditStoreModalProps {
@@ -52,8 +53,8 @@ function EditStoreModal({ isOpen, initialValues, errorMessage, isSubmitting = fa
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="edit-store-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          <button type="submit" form="edit-store-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : 'Save Changes'}
           </button>
         </>
       }

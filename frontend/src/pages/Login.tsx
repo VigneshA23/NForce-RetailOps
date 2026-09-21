@@ -12,6 +12,7 @@ import { login, requestPasswordReset } from '../api/auth'
 import type { AuthUser } from '../types/auth'
 import { useScrambleText } from '../hooks/useScrambleText'
 import LoginHeroPanel from '../components/LoginHeroPanel'
+import ButtonDots from '../components/ButtonDots'
 import './LoginCrimson.css'
 
 interface LoginProps {
@@ -348,7 +349,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                                 Signed in!
                               </>
                             ) : loading ? (
-                              'Signing in…'
+                              <ButtonDots label="Signing in" />
                             ) : (
                               'Sign In'
                             )}
@@ -447,7 +448,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                               whileTap={{ scale: 0.98 }}
                             >
                               <span className="nf1-btn-sweep" aria-hidden="true" />
-                              {forgotLoading ? 'Sending…' : 'Send Reset Instructions'}
+                              {forgotLoading ? <ButtonDots label="Sending" /> : 'Send Reset Instructions'}
                             </motion.button>
                           </div>
 

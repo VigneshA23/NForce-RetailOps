@@ -5,6 +5,7 @@ import { COUNTRY_CODE_OPTIONS } from '../utils/countryCodes';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
+import ButtonDots from './ButtonDots';
 import './OwnerFormModal.css';
 
 type OwnerGender = 'Male' | 'Female' | 'Non-binary';
@@ -138,8 +139,8 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="owner-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Add Owner'}
+          <button type="submit" form="owner-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : 'Add Owner'}
           </button>
         </>
       }

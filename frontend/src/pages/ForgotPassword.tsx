@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { ArrowLeft, Mail } from 'lucide-react'
 import { motion } from 'motion/react'
 import { requestPasswordReset } from '../api/auth'
+import ButtonDots from '../components/ButtonDots'
 import './LoginCrimson.css'
 
 interface ForgotPasswordProps {
@@ -123,7 +124,7 @@ function ForgotPassword({ onBackToSignIn }: ForgotPasswordProps) {
                   onHoverStart={() => setSubmitHovered(true)}
                   onHoverEnd={() => setSubmitHovered(false)}
                 >
-                  {loading ? 'Sending…' : 'Send Reset Instructions'}
+                  {loading ? <ButtonDots label="Sending" /> : 'Send Reset Instructions'}
                   {submitHovered && !loading && (
                     <motion.span
                       className="login3-submit-shimmer"

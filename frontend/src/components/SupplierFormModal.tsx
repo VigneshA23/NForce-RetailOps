@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { SupplierFormValues } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
+import ButtonDots from './ButtonDots';
 
 interface SupplierFormModalProps {
   isOpen: boolean;
@@ -53,8 +54,8 @@ function SupplierFormModal({
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="supplier-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Add Supplier' : 'Save Changes'}
+          <button type="submit" form="supplier-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'create' ? 'Add Supplier' : 'Save Changes'}
           </button>
         </>
       }

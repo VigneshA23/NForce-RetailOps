@@ -19,6 +19,7 @@ import type { StoreSummary } from '../types/store'
 import type { ChecklistCategory, ChecklistTask, TaskResponseSummary } from '../types/task'
 import StatCard from '../components/StatCard'
 import SearchInput from '../components/SearchInput'
+import ButtonDots from '../components/ButtonDots'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import './EmployeeDashboard.css'
 import '../styles/filters.css'
@@ -677,7 +678,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
                                       disabled={undoingTaskId === task.id}
                                       onClick={() => undoAnswer(task)}
                                     >
-                                      {undoingTaskId === task.id ? 'Undoing…' : 'Undo'}
+                                      {undoingTaskId === task.id ? <ButtonDots label="Undoing" /> : 'Undo'}
                                     </button>
                                   )}
                                 </div>
@@ -770,7 +771,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
                                       />
                                       {mine && task.canUndo && (
                                         <button type="button" className="checklist-task__undo" disabled={undoingTaskId === task.id} onClick={() => undoAnswer(task)}>
-                                          {undoingTaskId === task.id ? 'Undoing…' : 'Undo'}
+                                          {undoingTaskId === task.id ? <ButtonDots label="Undoing" /> : 'Undo'}
                                         </button>
                                       )}
                                     </div>
@@ -792,7 +793,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
                                       {task.numericUnit && <span className="checklist-task__unit">{task.numericUnit}</span>}
                                       {mine && task.canUndo && (
                                         <button type="button" className="checklist-task__undo" disabled={undoingTaskId === task.id} onClick={() => undoAnswer(task)}>
-                                          {undoingTaskId === task.id ? 'Undoing…' : 'Undo'}
+                                          {undoingTaskId === task.id ? <ButtonDots label="Undoing" /> : 'Undo'}
                                         </button>
                                       )}
                                     </div>

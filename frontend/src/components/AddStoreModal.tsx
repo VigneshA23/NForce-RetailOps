@@ -3,6 +3,7 @@ import { getNextStoreCode } from '../api/owners';
 import type { CreateStoreValues } from '../types/superAdminStore';
 import Modal from './Modal';
 import FormField from './FormField';
+import ButtonDots from './ButtonDots';
 import './AssignStoreModal.css';
 
 interface AddStoreModalProps {
@@ -60,8 +61,8 @@ function AddStoreModal({ isOpen, errorMessage, isSubmitting = false, onClose, on
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="add-store-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Add Store'}
+          <button type="submit" form="add-store-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : 'Add Store'}
           </button>
         </>
       }

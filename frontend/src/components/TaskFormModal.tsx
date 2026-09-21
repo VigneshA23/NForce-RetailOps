@@ -7,6 +7,7 @@ import { COMPLETION_TYPE_OPTIONS, DAY_OPTIONS, RESPONSE_TYPE_OPTIONS, SCHEDULE_T
 import Modal from './Modal';
 import FormField from './FormField';
 import SearchableSelect from './SearchableSelect';
+import ButtonDots from './ButtonDots';
 import './TaskFormModal.css';
 
 interface TaskFormModalProps {
@@ -142,8 +143,8 @@ function TaskFormModal({
           <button type="button" className="btn btn--secondary" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
-          <button type="submit" form="task-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Task'}
+          <button type="submit" form="task-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'edit' ? 'Save Changes' : 'Create Task'}
           </button>
         </>
       }

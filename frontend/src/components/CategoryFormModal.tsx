@@ -3,6 +3,7 @@ import type { CategoryFormValues, CategoryStoreOption } from '../types/category'
 import Modal from './Modal';
 import FormField from './FormField';
 import CategoryStorePicker from './CategoryStorePicker';
+import ButtonDots from './ButtonDots';
 
 interface CategoryFormModalProps {
   isOpen: boolean;
@@ -60,8 +61,8 @@ function CategoryFormModal({
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="category-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Add Category' : 'Save Changes'}
+          <button type="submit" form="category-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'create' ? 'Add Category' : 'Save Changes'}
           </button>
         </>
       }
