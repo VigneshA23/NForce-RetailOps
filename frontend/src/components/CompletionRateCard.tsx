@@ -10,10 +10,15 @@ interface TrendPoint {
 }
 
 interface CompletionRateCardProps {
+  title?: string;
   trend: TrendPoint[];
   periodDays: number;
   onPeriodChange: (days: number) => void;
   todayCompletion: number;
+  // Lets a caller fit this card into a shorter fixed-height slot (e.g. Super
+  // Admin's dashboard row, which must match its Platform Health/Recent
+  // Activity siblings) without changing Home.tsx's own look.
+  chartHeight?: number;
 }
 
 const PERIOD_OPTIONS = [
@@ -32,7 +37,7 @@ function RateTooltip({ active, payload, label }: TooltipProps<number, string>) {
   );
 }
 
-function CompletionRateCard({ trend, periodDays, onPeriodChange, todayCompletion }: CompletionRateCardProps) {
+function CompletionRateCard({ title = 'Completion Rate', trend, periodDays, onPeriodChange, todayCompletion, chartHeight = 220 }: CompletionRateCardProps) {
   const gradientId = useId();
   const firstPoint = trend[0];
   const delta = firstPoint ? todayCompletion - firstPoint.completion : 0;
@@ -41,7 +46,7 @@ function CompletionRateCard({ trend, periodDays, onPeriodChange, todayCompletion
   return (
     <div className="card completion-rate-card">
       <div className="card__header">
-        <h3 className="card__title">Completion Rate</h3>
+        <h3 className="card__title">{title}</h3>
         <Select
           className="completion-rate-card__period"
           options={PERIOD_OPTIONS}
@@ -66,7 +71,7 @@ function CompletionRateCard({ trend, periodDays, onPeriodChange, todayCompletion
         </p>
       )}
 
-      <div className="completion-rate-card__chart">
+      <div className="completion-rate-card__chart" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>

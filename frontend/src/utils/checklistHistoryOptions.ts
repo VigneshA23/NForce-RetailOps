@@ -125,3 +125,14 @@ export function formatDateLabel(date: string): string {
 export function formatTimeLabel(isoTimestamp: string): string {
   return new Date(isoTimestamp).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
+
+// Weekday name at a glance for a short window; "Mon"/"Tue" repeats and gets
+// ambiguous once the window spans more than a week, so a longer period spells
+// out the date instead. Shared by every completion-trend chart (Admin and
+// Super Admin) so their day labels never drift apart.
+export function formatTrendDayLabel(isoDate: string, periodDays: number): string {
+  const date = new Date(`${isoDate}T00:00:00`);
+  return periodDays <= 7
+    ? date.toLocaleDateString(undefined, { weekday: 'short' })
+    : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
