@@ -58,27 +58,6 @@ function EmployeeFormFields({ values, errors, onChange, idPrefix = 'employee' }:
         />
       </FormField>
 
-      <FormField label="Contact" htmlFor={`${idPrefix}-phone`} required error={errors.phone}>
-        <div className="employee-form__phone-row">
-          <Select
-            id={`${idPrefix}-country-code`}
-            className="employee-form__country-code"
-            ariaLabel="Country code"
-            value={values.countryCode}
-            onChange={(value) => onChange('countryCode', value)}
-            options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
-          />
-          <input
-            id={`${idPrefix}-phone`}
-            className="input"
-            inputMode="numeric"
-            value={values.phone}
-            onChange={(event) => onChange('phone', event.target.value.replace(/\D/g, '').slice(0, 10))}
-            placeholder="10-digit number"
-          />
-        </div>
-      </FormField>
-
       <FormField label="Gender" htmlFor={`${idPrefix}-gender`} error={errors.gender}>
         <Select
           id={`${idPrefix}-gender`}
@@ -87,6 +66,29 @@ function EmployeeFormFields({ values, errors, onChange, idPrefix = 'employee' }:
           options={GENDER_OPTIONS.map((gender) => ({ value: gender, label: gender }))}
         />
       </FormField>
+
+      <div className="form-field--full">
+        <FormField label="Contact" htmlFor={`${idPrefix}-phone`} required error={errors.phone}>
+          <div className="employee-form__phone-row">
+            <Select
+              id={`${idPrefix}-country-code`}
+              className="employee-form__country-code"
+              ariaLabel="Country code"
+              value={values.countryCode}
+              onChange={(value) => onChange('countryCode', value)}
+              options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
+            />
+            <input
+              id={`${idPrefix}-phone`}
+              className="input"
+              inputMode="numeric"
+              value={values.phone}
+              onChange={(event) => onChange('phone', event.target.value.replace(/\D/g, '').slice(0, 10))}
+              placeholder="10-digit number"
+            />
+          </div>
+        </FormField>
+      </div>
 
       <div className="form-field--full">
         <FormField label="Email" htmlFor={`${idPrefix}-email`} required error={errors.email}>
