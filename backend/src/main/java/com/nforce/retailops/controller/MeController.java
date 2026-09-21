@@ -70,7 +70,7 @@ public class MeController {
 
     private MeResponse superAdminMeResponse(SuperAdmin sa) {
         return new MeResponse(sa.getId(), sa.getName(), sa.getEmail(), "SUPER_ADMIN",
-            List.of(), false, null, null, sa.getPhone(), sa.getAvatarUrl());
+            List.of(), false, null, sa.getPhone(), sa.getAvatarUrl());
     }
 
     // Not role-gated: principal is either AppUserDetails or SuperAdminUserDetails.

@@ -139,7 +139,6 @@ class AdminCorrectionControllerTest {
         StoreEmployee se = new StoreEmployee();
         se.setEmployee(employee);
         se.setPhone("555-0100");
-        se.setShift("Morning");
         se.setEmployeeType("Full-time");
         se.setGender("Other");
         se.getStores().add(store);

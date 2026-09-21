@@ -1,6 +1,6 @@
 import { type ChangeEvent, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  Briefcase, Camera, Clock, Eye, EyeOff, Mail, Pencil,
+  Briefcase, Camera, Eye, EyeOff, Mail, Pencil,
   ShieldCheck, Store as StoreIcon, Trash2, X,
 } from 'lucide-react';
 import { getMe, updateMe, updateAvatar, type MeResponse } from '../api/me';
@@ -429,7 +429,6 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
             {me.storeNames.length > 0 && (
               <span><StoreIcon size={13} />{me.storeNames.join(', ')}</span>
             )}
-            {me.shift && <span><Clock size={13} />{me.shift} shift</span>}
             {me.employeeType && <span><Briefcase size={13} />{me.employeeType}</span>}
           </div>
         </div>

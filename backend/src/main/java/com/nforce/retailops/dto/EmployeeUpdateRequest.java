@@ -20,9 +20,6 @@ public record EmployeeUpdateRequest(
     @NotBlank(message = "Contact number is required")
     String phone,
 
-    @NotBlank(message = "Shift is required")
-    String shift,
-
     @NotBlank(message = "Employment type is required")
     String employeeType,
 

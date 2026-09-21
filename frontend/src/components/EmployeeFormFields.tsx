@@ -1,5 +1,5 @@
 import type { EmployeeCreateValues, EmployeeUpdateValues } from '../types/employee';
-import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
+import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS } from '../utils/employeeOptions';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import FormField from './FormField';
 import Select from './Select';
@@ -9,7 +9,6 @@ export type EmployeeFormValues = EmployeeUpdateValues & { countryCode: string };
 export function emptyEmployeeFormValues(): EmployeeFormValues {
   return {
     name: '',
-    shift: SHIFT_OPTIONS[0].name,
     phone: '',
     countryCode: COUNTRY_CODE_OPTIONS[0].code,
     employeeType: EMPLOYEE_TYPE_OPTIONS[0],
@@ -49,18 +48,6 @@ function EmployeeFormFields({ values, errors, onChange, idPrefix = 'employee' }:
           />
         </FormField>
       </div>
-
-      <FormField label="Shift" htmlFor={`${idPrefix}-shift`} required error={errors.shift}>
-        <Select
-          id={`${idPrefix}-shift`}
-          value={values.shift}
-          onChange={(value) => onChange('shift', value as EmployeeFormValues['shift'])}
-          options={SHIFT_OPTIONS.map((shift) => ({
-            value: shift.name,
-            label: `${shift.name} (${shift.timeRange})`,
-          }))}
-        />
-      </FormField>
 
       <FormField label="Type" htmlFor={`${idPrefix}-type`} required error={errors.employeeType}>
         <Select

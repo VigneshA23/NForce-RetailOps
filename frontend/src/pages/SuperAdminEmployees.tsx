@@ -5,10 +5,10 @@ import { createEmployeeAsSuperAdmin, getAllEmployeesForSuperAdmin, updateEmploye
 import { getAllStores } from '../api/superAdminStores';
 import { deleteEmployee, setEmployeeStatus, updateEmployee } from '../api/employees';
 import type { SuperAdminEmployee } from '../types/superAdminEmployee';
-import type { EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName, StoreOption } from '../types/employee';
+import type { EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, StoreOption } from '../types/employee';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import { toEmployeeUpdateValues } from '../utils/employeeUtils';
-import { EMPLOYEE_TYPE_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
+import { EMPLOYEE_TYPE_OPTIONS } from '../utils/employeeOptions';
 import SuperAdminEmployeeTable from '../components/SuperAdminEmployeeTable';
 import EmployeeFormModal from '../components/EmployeeFormModal';
 import EmployeeDetailModal from '../components/EmployeeDetailModal';
@@ -37,7 +37,6 @@ function SuperAdminEmployees() {
   }, []);
 
   const [search, setSearch] = useState('');
-  const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
   const [typeFilter, setTypeFilter] = useState<EmployeeType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [page, setPage] = useState(1);
@@ -138,17 +137,16 @@ function SuperAdminEmployees() {
       ) {
         return false;
       }
-      if (shiftFilter !== 'ALL' && employee.shift !== shiftFilter) return false;
       if (typeFilter !== 'ALL' && employee.employeeType !== typeFilter) return false;
       if (statusFilter === 'ACTIVE' && !employee.active) return false;
       if (statusFilter === 'INACTIVE' && employee.active) return false;
       return true;
     });
-  }, [employees, search, shiftFilter, typeFilter, statusFilter]);
+  }, [employees, search, typeFilter, statusFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, shiftFilter, typeFilter, statusFilter]);
+  }, [search, typeFilter, statusFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredEmployees.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -203,19 +201,6 @@ function SuperAdminEmployees() {
         <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search employees or owners" variant="filter" />
         </div>
-
-        <select
-          className="select filter"
-          value={shiftFilter}
-          onChange={(event) => setShiftFilter(event.target.value as ShiftName | 'ALL')}
-        >
-          <option value="ALL">All Shifts</option>
-          {SHIFT_OPTIONS.map((option) => (
-            <option key={option.name} value={option.name}>
-              {option.name}
-            </option>
-          ))}
-        </select>
 
         <select
           className="select filter"

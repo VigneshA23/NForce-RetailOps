@@ -11,7 +11,6 @@ function baseEmployee(overrides: Partial<Employee> = {}): Employee {
     name: 'Asha Rao',
     email: 'asha@example.com',
     phone: '+91 9876543210',
-    shift: 'Morning',
     employeeType: 'Full Time',
     gender: 'Female',
     active: true,
@@ -29,7 +28,6 @@ describe('EmployeeDetailModal', () => {
     renderModal();
 
     expect(screen.getByText('Downtown - Store 1')).toBeInTheDocument();
-    expect(screen.getByText(/Morning/)).toBeInTheDocument();
     expect(screen.getByText('Full Time')).toBeInTheDocument();
     expect(screen.getByText('+91 9876543210')).toBeInTheDocument();
     expect(screen.getByText('asha@example.com')).toBeInTheDocument();

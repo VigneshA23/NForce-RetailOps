@@ -21,7 +21,6 @@ describe('updateEmployee error messages', () => {
         name: 'Ananya Reddy',
         email: 'ananya.reddy@kedsicecream.com',
         phone: '+1 2145550101',
-        shift: 'Morning',
         // Cast: simulates the legacy/mismatched data that reaches the backend
         // as blank -- EmployeeType itself never allows an empty string.
         employeeType: '' as EmployeeUpdateValues['employeeType'],
@@ -40,7 +39,6 @@ describe('updateEmployee error messages', () => {
         name: 'Ananya Reddy',
         email: 'taken@kedsicecream.com',
         phone: '+1 2145550101',
-        shift: 'Morning',
         employeeType: 'Full Time',
         gender: 'Female',
       }),
@@ -55,7 +53,6 @@ describe('updateEmployee error messages', () => {
         name: 'Ananya Reddy',
         email: 'ananya.reddy@kedsicecream.com',
         phone: '+1 2145550101',
-        shift: 'Morning',
         employeeType: 'Full Time',
         gender: 'Female',
       }),
@@ -77,7 +74,6 @@ describe('updateEmployee error messages', () => {
         name: 'Ananya Reddy',
         email: 'ananya.reddy@kedsicecream.com',
         phone: '+1 2145550101',
-        shift: 'Morning',
         employeeType: 'Full Time',
         gender: 'Female',
       }),

@@ -11,7 +11,6 @@ function baseEmployee(overrides: Partial<Employee> = {}): Employee {
     name: 'Asha Rao',
     email: 'asha@example.com',
     phone: '+91 9876543210',
-    shift: 'Morning',
     employeeType: 'Full Time',
     gender: 'Female',
     active: true,

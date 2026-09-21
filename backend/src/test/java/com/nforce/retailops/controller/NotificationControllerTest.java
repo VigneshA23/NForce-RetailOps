@@ -86,7 +86,6 @@ class NotificationControllerTest {
         StoreEmployee se = new StoreEmployee();
         se.setEmployee(employee);
         se.setPhone("555-0200");
-        se.setShift("Evening");
         se.setEmployeeType("Part-time");
         se.setGender("Other");
         se.getStores().add(store);
