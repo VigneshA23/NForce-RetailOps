@@ -13,6 +13,7 @@ import RecentActivityCard from '../components/RecentActivityCard';
 import ChartCard from '../components/ChartCard';
 import CompletionRateCard from '../components/CompletionRateCard';
 import { getInitials, firstName } from '../utils/initials';
+import { formatTrendDayLabel } from '../utils/checklistHistoryOptions';
 import './Home.css';
 
 // Cycled by row position so each contributor gets a visually distinct avatar
@@ -47,16 +48,6 @@ function isoDateDaysAgo(daysAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
   return toLocalIsoDate(date);
-}
-
-// Weekday name at a glance for a short window; "Mon"/"Tue" repeats and gets
-// ambiguous once the window spans more than a week, so a longer period spells
-// out the date instead.
-function formatDayLabel(isoDate: string, periodDays: number): string {
-  const date = new Date(`${isoDate}T00:00:00`);
-  return periodDays <= 7
-    ? date.toLocaleDateString(undefined, { weekday: 'short' })
-    : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 // completedTasks/totalTasks as a whole-number percent, 0 for a day/store with
@@ -202,7 +193,7 @@ function Home({
         setTrend(
           trendDates.map((date) => {
             const totals = trendTotalsByDate.get(date) ?? { totalTasks: 0, completedTasks: 0 };
-            return { day: formatDayLabel(date, trendDays), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
+            return { day: formatTrendDayLabel(date, trendDays), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
           }),
         );
       })

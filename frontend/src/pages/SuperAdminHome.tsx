@@ -6,11 +6,11 @@ import type { OwnerSummary } from '../types/owner';
 import StatCard from '../components/StatCard';
 import StoreComparisonTable from '../components/StoreComparisonTable';
 import StoreComparisonDetailModal from '../components/StoreComparisonDetailModal';
-import TrendChart from '../components/TrendChart';
+import CompletionRateCard from '../components/CompletionRateCard';
 import ActivityFeedList from '../components/ActivityFeedList';
-import Select from '../components/Select';
 import { useRecentActivity } from '../hooks/useRecentActivity';
 import { firstName } from '../utils/initials';
+import { formatTrendDayLabel } from '../utils/checklistHistoryOptions';
 import './SuperAdminHome.css';
 
 const ACTIVITY_COLLAPSED_LIMIT = 8;
@@ -36,12 +36,6 @@ interface SuperAdminHomeProps {
   onViewAllActivity?: () => void;
 }
 
-const TREND_PERIOD_OPTIONS = [
-  { value: '7', label: 'Last 7 Days' },
-  { value: '14', label: 'Last 14 Days' },
-  { value: '30', label: 'Last 30 Days' },
-];
-
 function SuperAdminHome({
   userName,
   owners,
@@ -61,7 +55,6 @@ function SuperAdminHome({
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [trendDays, setTrendDays] = useState(7);
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
-  const [trendLoading, setTrendLoading] = useState(true);
   const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
   const recentActivity = useRecentActivity(ACTIVITY_COLLAPSED_LIMIT);
 
@@ -87,12 +80,19 @@ function SuperAdminHome({
 
   useEffect(() => {
     let active = true;
-    setTrendLoading(true);
     getPlatformTrend(trendDays)
-      .then((data) => { if (active) { setTrendData(data); setTrendLoading(false); } })
-      .catch(() => { if (active) setTrendLoading(false); });
+      .then((data) => { if (active) setTrendData(data); })
+      .catch(() => {});
     return () => { active = false; };
   }, [trendDays]);
+
+  const completionTrend = useMemo(
+    () => trendData.map((point) => ({
+      day: formatTrendDayLabel(point.date, trendDays),
+      completion: point.completionPercent,
+    })),
+    [trendData, trendDays],
+  );
 
   const todayLabel = useMemo(
     () => new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
@@ -204,18 +204,14 @@ function SuperAdminHome({
       </div>
 
       <div className="sa-home__insights-row">
-        <div className="sa-home__trend-section">
-          <div className="sa-home__trend-header">
-            <h2 className="sa-home__section-title" style={{ margin: 0 }}>Platform Completion Trend</h2>
-            <Select
-              options={TREND_PERIOD_OPTIONS}
-              value={String(trendDays)}
-              onChange={(value) => setTrendDays(Number(value))}
-              ariaLabel="Select time period"
-            />
-          </div>
-          <TrendChart data={trendData} loading={trendLoading} height={200} />
-        </div>
+        <CompletionRateCard
+          title="Platform Completion Trend"
+          trend={completionTrend}
+          periodDays={trendDays}
+          onPeriodChange={setTrendDays}
+          todayCompletion={platformStats?.platformCompletionPercent ?? 0}
+          chartHeight={130}
+        />
 
         <div className="sa-home__health-panel">
           <h2 className="sa-home__health-title">

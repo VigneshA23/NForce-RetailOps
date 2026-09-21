@@ -48,7 +48,7 @@
 }
 
 .completion-rate-card__chart {
-  height: 220px;
+  min-height: 0;
 }
 
 .completion-rate-card__tooltip {

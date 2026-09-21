@@ -91,15 +91,18 @@
   gap: var(--space-sm);
 }
 
-.sa-home__trend-section {
-  background: var(--color-surface-raised);
+/* Matches the border-card look and fixed height of its Platform Health/
+   Recent Activity siblings in this row (CompletionRateCard's own .card
+   styling is the shadow-card look Home.tsx uses instead, and its natural
+   content height is taller than this row's usual 320px). chartHeight={130}
+   on the CompletionRateCard instance itself is what actually shrinks it to
+   fit -- overflow:hidden here is only a safety net against sub-pixel
+   rounding, not the primary fit mechanism. */
+.sa-home__insights-row .completion-rate-card {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-md) var(--space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
+  box-shadow: none;
   height: 320px;
+  overflow: hidden;
 }
 
 .sa-home__health-panel {
@@ -210,20 +213,8 @@
   }
 }
 
-.sa-home__trend-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--space-sm);
-}
-
 @media (max-width: 640px) {
   .sa-home {
-    padding: var(--space-md);
-  }
-
-  .sa-home__trend-section {
     padding: var(--space-md);
   }
 }
