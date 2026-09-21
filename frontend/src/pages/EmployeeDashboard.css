@@ -146,30 +146,41 @@
   margin-top: 2px;
 }
 
-/* Progress state */
-.category-progress-card--progress {
-  border-color: #f59e0b40;
+/* Completion-tier states: 0-49% risk (red), 50-89% warning (amber), 90-100% good (green) */
+.category-progress-card--risk {
+  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
 }
 
-.category-progress-card--progress .category-progress-card__done {
-  color: #d97706;
+.category-progress-card--risk .category-progress-card__done {
+  color: var(--color-accent);
 }
 
-.category-progress-card--progress .category-progress-card__fill {
-  background: #d97706;
+.category-progress-card--risk .category-progress-card__fill {
+  background: var(--color-accent);
 }
 
-/* Complete state */
-.category-progress-card--complete {
+.category-progress-card--warning {
+  border-color: color-mix(in srgb, var(--color-badge-icon-warning-fg) 35%, var(--color-border));
+}
+
+.category-progress-card--warning .category-progress-card__done {
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.category-progress-card--warning .category-progress-card__fill {
+  background: var(--color-badge-icon-warning-fg);
+}
+
+.category-progress-card--good {
   border-color: color-mix(in srgb, var(--color-badge-icon-success-fg) 35%, var(--color-border));
   background: var(--color-badge-icon-success-bg);
 }
 
-.category-progress-card--complete .category-progress-card__done {
+.category-progress-card--good .category-progress-card__done {
   color: var(--color-badge-icon-success-fg);
 }
 
-.category-progress-card--complete .category-progress-card__fill {
+.category-progress-card--good .category-progress-card__fill {
   background: var(--color-badge-icon-success-fg);
 }
 
@@ -256,7 +267,19 @@
   white-space: nowrap;
 }
 
-.checklist-category-count--complete {
+.checklist-category-count--risk {
+  color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  border-color: transparent;
+}
+
+.checklist-category-count--warning {
+  color: var(--color-badge-icon-warning-fg);
+  background: var(--color-badge-icon-warning-bg);
+  border-color: transparent;
+}
+
+.checklist-category-count--good {
   color: var(--color-badge-icon-success-fg);
   background: var(--color-badge-icon-success-bg);
   border-color: transparent;
@@ -286,11 +309,15 @@
   transition: width 0.4s ease;
 }
 
-.checklist-category-bar__fill--progress {
-  background: #d97706;
+.checklist-category-bar__fill--risk {
+  background: var(--color-accent);
 }
 
-.checklist-category-bar__fill--complete {
+.checklist-category-bar__fill--warning {
+  background: var(--color-badge-icon-warning-fg);
+}
+
+.checklist-category-bar__fill--good {
   background: var(--color-badge-icon-success-fg);
 }
 
