@@ -50,11 +50,6 @@ class EmployeeServiceCreateEmployeeTest {
     @Mock
     private NotificationService notificationService;
     @Mock
-<<<<<<< HEAD
-    private ActivityLogService activityLogService;
-    @Mock
-=======
->>>>>>> Maheshwar/dev-work
     private PasswordResetService passwordResetService;
 
     @InjectMocks
@@ -73,11 +68,7 @@ class EmployeeServiceCreateEmployeeTest {
             42L, 7L, "jane@nforce.test", "Jane Doe", "temp-pass-123", response
         );
         when(employeeProvisioningService.createEmployeeAccount(isNull(), eq(request), any())).thenReturn(provisioned);
-<<<<<<< HEAD
-        when(passwordResetService.createSetupToken("jane@nforce.test")).thenReturn("test-token");
-=======
         when(passwordResetService.createSetupToken(anyString())).thenReturn("setup-token-123");
->>>>>>> Maheshwar/dev-work
     }
 
     @Test

@@ -259,13 +259,13 @@ public class TaskService {
         // Owner/Admin is optional here: a Super Admin deactivating the store's
         // Owner/Admin releases the StoreOwner link (owner set to null, active
         // set to false -- see OwnerManagementService.setOwnerActive/setStoreActive)
-        // but the store itself stays active and reachable. With no active owner
-        // there are simply no owner-configured tasks to show yet.
+        // but the store itself stays active and reachable. The tasks the
+        // (now-vacant) owner configured are still the store's tasks, so fall
+        // back to whoever last held the link (StoreOwner.resolveTaskOwnerId) --
+        // only a store that has never had an owner assigned resolves to null.
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        Long ownerId = (storeOwner.isActive() && storeOwner.getOwner() != null)
-            ? storeOwner.getOwner().getId()
-            : null;
+        Long ownerId = storeOwner.resolveTaskOwnerId();
 
         LocalDate today = LocalDate.now();
 

@@ -274,6 +274,10 @@ public class OwnerManagementService {
             // pick can.
             storeOwners.forEach(storeOwner -> {
                 storeOwner.setActive(false);
+                // Recorded before nulling so employees keep seeing this owner's
+                // configured tasks (StoreOwner.resolveTaskOwnerId) even though
+                // the live link below is fully released.
+                storeOwner.setLastOwner(storeOwner.getOwner());
                 storeOwner.setOwner(null);
                 storeOwner.setOwnerVacantSince(OffsetDateTime.now());
             });
@@ -310,6 +314,21 @@ public class OwnerManagementService {
     public void deleteOwner(Long ownerId) {
         User owner = userRepository.findById(ownerId)
             .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+
+        // Release every store this owner was linked to the same way setOwnerActive(false)
+        // does: active=false, not just owner_id going null via the FK's ON DELETE SET NULL
+        // below. Without this, a hard-deleted owner's store keeps active=true with no
+        // owner, so it never satisfies findAllWithRevokedAccess's "active = false" check
+        // and silently disappears from the Existing Store picker while the store itself
+        // stays active. (last_owner_id/owner_id are left for the DB cascade to null out --
+        // pointing them at a user we're about to delete would just be undone by it anyway.)
+        List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
+        storeOwners.forEach(storeOwner -> {
+            storeOwner.setActive(false);
+            storeOwner.setOwnerVacantSince(OffsetDateTime.now());
+        });
+        storeOwnerRepository.saveAll(storeOwners);
+
         // Token stops working immediately; DB cascade/set-null (V42) handles
         // the FK cleanup when the user row is deleted below.
         sessionService.invalidateAllForUser(owner.getEmail());

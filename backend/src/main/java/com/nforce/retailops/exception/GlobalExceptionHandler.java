@@ -10,6 +10,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -216,6 +217,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OrderListEntryNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleOrderListEntryNotFound(OrderListEntryNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    // The client (browser tab closed, navigation away, dropped connection) went away
+    // before the response finished writing. There's no one left to send a body to --
+    // attempting one just fails again on the same dead socket -- so log quietly and stop.
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncRequestNotUsable(AsyncRequestNotUsableException ex) {
+        log.debug("Client disconnected before the response could be written: {}", ex.getMessage());
     }
 
     // Catch-all for anything not explicitly mapped above (e.g. a dropped/dead
