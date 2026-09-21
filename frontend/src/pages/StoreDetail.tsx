@@ -354,22 +354,6 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
     return result;
   }, [outstandingRows, outstandingCategoryFilter, outstandingSearch]);
 
-  // Deferred scroll: reset filter to ALL first so the target row is in the DOM,
-  // then scroll once filteredRows has updated on the next render.
-  const [pendingScrollKey, setPendingScrollKey] = useState<string | null>(null);
-  function scrollToRow(key: string) {
-    setFilter('ALL');
-    setPendingScrollKey(key);
-  }
-  useEffect(() => {
-    if (!pendingScrollKey) return;
-    const el = document.getElementById(`task-row-${pendingScrollKey}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setPendingScrollKey(null);
-    }
-  }, [pendingScrollKey, filteredRows]);
-
   if (storeId === null) {
     return (
       <div className="store-detail-page">
@@ -599,33 +583,14 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
                   No {isToday ? 'outstanding' : 'incomplete'} tasks match your filters.
                 </p>
               ) : (
-                <>
-                  <div className="store-detail-outstanding__head" aria-hidden="true">
-                    <span className="store-detail-outstanding__head-category">Category</span>
-                    <span className="store-detail-outstanding__head-task">Task</span>
-                    <span className="store-detail-outstanding__head-status">Status</span>
-                  </div>
-                  <ul className="store-detail-outstanding__list">
-                  {filteredOutstandingRows.map((row) => {
-                    const status = taskStatus(row.task);
-                    return (
-                      <li key={row.key}>
-                        <button
-                          type="button"
-                          className="store-detail-outstanding__row"
-                          onClick={() => scrollToRow(row.key)}
-                        >
-                          <span className="store-detail-outstanding__category">{row.categoryName}</span>
-                          <span className="store-detail-outstanding__task">{row.task.name}</span>
-                          <span className={`badge ${status === 'ISSUE' ? 'badge--danger' : 'badge--outline'}`}>
-                            {status === 'ISSUE' ? 'Issue' : 'Open'}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                  </ul>
-                </>
+                <StoreDetailTable
+                  idPrefix="outstanding-"
+                  rows={filteredOutstandingRows}
+                  hasChecklist={detail?.hasChecklist ?? false}
+                  onResponseCorrected={handleResponseCorrected}
+                  onResponseFlagged={handleResponseCorrected}
+                  repeatOffenderMap={repeatOffenderMap}
+                />
               )}
             </>
           )}

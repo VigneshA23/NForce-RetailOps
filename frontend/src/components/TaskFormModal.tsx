@@ -218,30 +218,36 @@ function TaskFormModal({
         <section className="task-form__section">
           <div className="task-form__grid-2">
             <FormField label="Response Type *" htmlFor="task-response-type" error={errors.responseType}>
-              <select
+              <SearchableSelect
                 id="task-response-type"
-                className="select"
-                value={values.responseType ?? ''}
-                onChange={(event) => handleResponseTypeChange(event.target.value as ResponseType)}
-              >
-                <option value="" disabled>Select…</option>
-                {RESPONSE_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                placeholder="Select…"
+                options={RESPONSE_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+                selectedIds={
+                  values.responseType
+                    ? [RESPONSE_TYPE_OPTIONS.findIndex((option) => option.value === values.responseType)]
+                    : []
+                }
+                onChange={(ids) => {
+                  const option = RESPONSE_TYPE_OPTIONS[ids[0]];
+                  if (option) handleResponseTypeChange(option.value);
+                }}
+              />
             </FormField>
             <FormField label="Completion Type *" htmlFor="task-completion-type" error={errors.completionType}>
-              <select
+              <SearchableSelect
                 id="task-completion-type"
-                className="select"
-                value={values.completionType ?? ''}
-                onChange={(event) => handleCompletionTypeChange(event.target.value as CompletionType)}
-              >
-                <option value="" disabled>Select…</option>
-                {COMPLETION_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                placeholder="Select…"
+                options={COMPLETION_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+                selectedIds={
+                  values.completionType
+                    ? [COMPLETION_TYPE_OPTIONS.findIndex((option) => option.value === values.completionType)]
+                    : []
+                }
+                onChange={(ids) => {
+                  const option = COMPLETION_TYPE_OPTIONS[ids[0]];
+                  if (option) handleCompletionTypeChange(option.value);
+                }}
+              />
             </FormField>
           </div>
 
@@ -277,17 +283,20 @@ function TaskFormModal({
         {/* ── Schedule & Dates ── */}
         <section className="task-form__section">
           <FormField label="Schedule *" htmlFor="task-schedule-type" error={errors.scheduleType}>
-            <select
+            <SearchableSelect
               id="task-schedule-type"
-              className="select"
-              value={values.scheduleType ?? ''}
-              onChange={(event) => handleScheduleTypeChange(event.target.value as ScheduleType)}
-            >
-              <option value="" disabled>Select Schedule</option>
-              {SCHEDULE_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+              placeholder="Select Schedule"
+              options={SCHEDULE_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+              selectedIds={
+                values.scheduleType
+                  ? [SCHEDULE_TYPE_OPTIONS.findIndex((option) => option.value === values.scheduleType)]
+                  : []
+              }
+              onChange={(ids) => {
+                const option = SCHEDULE_TYPE_OPTIONS[ids[0]];
+                if (option) handleScheduleTypeChange(option.value);
+              }}
+            />
           </FormField>
 
           {values.scheduleType === 'SELECTED_DAYS' && (
@@ -310,6 +319,7 @@ function TaskFormModal({
             <div className="task-form__conditional">
               <FormField label="Date *" htmlFor="task-one-time-date" error={errors.oneTimeDate}>
                 <input id="task-one-time-date" type="date" className="input" value={values.oneTimeDate}
+                  min={mode === 'create' ? getTodayDateString() : undefined}
                   onChange={(event) => updateField('oneTimeDate', event.target.value)} />
               </FormField>
               <p className="task-form__hint">Appears only on the selected date.</p>

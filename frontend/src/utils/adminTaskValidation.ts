@@ -91,6 +91,8 @@ export function validateTaskForm(values: AdminTaskFormValues, mode: 'create' | '
   if (values.scheduleType === 'ONE_TIME') {
     if (!values.oneTimeDate) {
       errors.oneTimeDate = 'Task date is required';
+    } else if (mode === 'create' && values.oneTimeDate < getTodayDateString()) {
+      errors.oneTimeDate = 'Task date cannot be in the past';
     }
   } else {
     if (!values.startDate) {
