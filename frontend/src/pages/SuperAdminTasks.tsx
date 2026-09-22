@@ -56,6 +56,7 @@ function SuperAdminTasks() {
   const [allCategories, setAllCategories] = useState<Category[]>([]);
 
   const [search, setSearch] = useState('');
+  const [storeFilter, setStoreFilter] = useState<number | 'ALL'>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<number | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [scheduleFilter, setScheduleFilter] = useState<ScheduleType | 'ALL'>('ALL');
@@ -100,6 +101,14 @@ function SuperAdminTasks() {
     [activeStores],
   );
 
+  const storeFilterOptions = useMemo(
+    () => [
+      { value: 'ALL', label: 'All Stores' },
+      ...activeStores.map((store) => ({ value: String(store.storeId), label: store.storeName })),
+    ],
+    [activeStores],
+  );
+
   const categoryFilterOptions = useMemo(
     () => [
       { value: 'ALL', label: 'All Categories' },
@@ -112,6 +121,7 @@ function SuperAdminTasks() {
     const normalizedSearch = search.trim().toLowerCase();
     return tasks.filter((task) => {
       if (normalizedSearch && !task.name.toLowerCase().includes(normalizedSearch)) return false;
+      if (storeFilter !== 'ALL' && !task.appliesToAllStores && !task.stores.some((store) => store.id === storeFilter)) return false;
       if (categoryFilter !== 'ALL' && task.categoryId !== categoryFilter) return false;
       if (statusFilter === 'ACTIVE' && !task.active) return false;
       if (statusFilter === 'INACTIVE' && task.active) return false;
@@ -121,11 +131,11 @@ function SuperAdminTasks() {
       }
       return true;
     });
-  }, [tasks, search, categoryFilter, statusFilter, scheduleFilter]);
+  }, [tasks, search, storeFilter, categoryFilter, statusFilter, scheduleFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter, statusFilter, scheduleFilter]);
+  }, [search, storeFilter, categoryFilter, statusFilter, scheduleFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filteredTasks.length / PAGE_SIZE));
   const currentPage = Math.min(page, pageCount);
@@ -278,6 +288,14 @@ function SuperAdminTasks() {
 
         <Select
           className="filter"
+          options={storeFilterOptions}
+          value={storeFilter === 'ALL' ? 'ALL' : String(storeFilter)}
+          onChange={(value) => setStoreFilter(value === 'ALL' ? 'ALL' : Number(value))}
+          ariaLabel="Filter by store"
+        />
+
+        <Select
+          className="filter"
           options={categoryFilterOptions}
           value={categoryFilter === 'ALL' ? 'ALL' : String(categoryFilter)}
           onChange={(value) => setCategoryFilter(value === 'ALL' ? 'ALL' : Number(value))}
@@ -315,6 +333,7 @@ function SuperAdminTasks() {
           <TaskTable
             tasks={pagedTasks}
             isLoading={isLoading}
+            showStoreColumn
             onRowClick={(task) => setDetailsTask(task)}
             onDelete={(task) => {
               setActionError(null);
