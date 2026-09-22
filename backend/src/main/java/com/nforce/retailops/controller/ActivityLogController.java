@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -27,16 +28,22 @@ public class ActivityLogController {
     }
 
     // Shared by both roles: Owner Admin gets activity scoped to their own
-    // store(s), Super Admin gets every store platform-wide.
+    // store(s), Super Admin gets every store platform-wide. startDate/endDate
+    // are both optional and only meaningful together -- omitted, the feed is
+    // unfiltered by date (the Home dashboard widget's usage); supplied, only
+    // that inclusive local-calendar-day window is returned (the Recent
+    // Activity "view all" page's date filter).
     @GetMapping
     public ResponseEntity<List<ActivityLogEntryResponse>> recent(
         Authentication authentication,
-        @RequestParam(defaultValue = "20") int limit
+        @RequestParam(defaultValue = "20") int limit,
+        @RequestParam(required = false) LocalDate startDate,
+        @RequestParam(required = false) LocalDate endDate
     ) {
         int cappedLimit = Math.min(Math.max(limit, 1), MAX_LIMIT);
         if (authentication.getPrincipal() instanceof AppUserDetails appUserDetails) {
-            return ResponseEntity.ok(activityLogService.getRecentForOwner(appUserDetails.getUser().getId(), cappedLimit));
+            return ResponseEntity.ok(activityLogService.getRecentForOwner(appUserDetails.getUser().getId(), cappedLimit, startDate, endDate));
         }
-        return ResponseEntity.ok(activityLogService.getRecentForPlatform(cappedLimit));
+        return ResponseEntity.ok(activityLogService.getRecentForPlatform(cappedLimit, startDate, endDate));
     }
 }

@@ -300,6 +300,47 @@ class ActivityLogControllerTest {
             .andExpect(jsonPath("$[0].actorRole").value("EMPLOYEE"));
     }
 
+    @Test
+    @Transactional
+    void activityFeedCanBeFilteredByDateRange() throws Exception {
+        superAdmin("activity-sa-date@nforce.test");
+        String saToken = login("activity-sa-date@nforce.test");
+
+        Role empRole = role("EMPLOYEE");
+        User employee = user("activity-emp-date@nforce.test", empRole);
+        Store store = store("Activity Store Date");
+        storeEmployee(employee, store);
+
+        String employeeToken = login("activity-emp-date@nforce.test");
+        String issueBody = objectMapper.writeValueAsString(new RaiseIssuePayload(store.getId(), "Date range test issue"));
+        mockMvc.perform(post("/api/me/issues")
+                .header("Authorization", "Bearer " + employeeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(issueBody))
+            .andExpect(status().isCreated());
+
+        LocalDate today = LocalDate.now();
+        LocalDate yesterday = today.minusDays(1);
+
+        // A request scoped to today's date includes the just-logged issue.
+        mockMvc.perform(get("/api/activity")
+                .param("startDate", today.toString())
+                .param("endDate", today.toString())
+                .header("Authorization", "Bearer " + saToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].description").value("Reported an issue"));
+
+        // A request scoped to a day with no activity excludes it.
+        mockMvc.perform(get("/api/activity")
+                .param("startDate", yesterday.toString())
+                .param("endDate", yesterday.toString())
+                .header("Authorization", "Bearer " + saToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$", org.hamcrest.Matchers.not(
+                org.hamcrest.Matchers.hasItem(
+                    org.hamcrest.Matchers.hasEntry("description", "Reported an issue")))));
+    }
+
     private record LoginPayload(String email, String password) {}
 
     private record CategoryRequestPayload(String name, boolean appliesToAllStores, List<Long> storeIds) {}

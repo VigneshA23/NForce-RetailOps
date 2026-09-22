@@ -10,6 +10,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.List;
 
@@ -85,14 +88,36 @@ public class ActivityLogService {
 
     @Transactional(readOnly = true)
     public List<ActivityLogEntryResponse> getRecentForPlatform(int limit) {
+        return getRecentForPlatform(limit, null, null);
+    }
+
+    // startDate/endDate null -> unfiltered, most-recent-first (unchanged
+    // behaviour for the Home dashboard's activity widget). Both supplied ->
+    // scoped to that inclusive local-calendar-day window, for the Recent
+    // Activity "view all" page's date filter.
+    @Transactional(readOnly = true)
+    public List<ActivityLogEntryResponse> getRecentForPlatform(int limit, LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            return activityLogRepository
+                .findByActionTypeNotAndActorRoleNotOrderByOccurredAtDesc(TASK_COMPLETED, "SUPER_ADMIN", PageRequest.of(0, limit)).stream()
+                .map(ActivityLogEntryResponse::from)
+                .toList();
+        }
         return activityLogRepository
-            .findByActionTypeNotAndActorRoleNotOrderByOccurredAtDesc(TASK_COMPLETED, "SUPER_ADMIN", PageRequest.of(0, limit)).stream()
+            .findByActionTypeNotAndActorRoleNotAndOccurredAtGreaterThanEqualAndOccurredAtLessThanOrderByOccurredAtDesc(
+                TASK_COMPLETED, "SUPER_ADMIN", rangeStart(startDate), rangeEndExclusive(endDate), PageRequest.of(0, limit))
+            .stream()
             .map(ActivityLogEntryResponse::from)
             .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ActivityLogEntryResponse> getRecentForOwner(Long ownerId, int limit) {
+        return getRecentForOwner(ownerId, limit, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ActivityLogEntryResponse> getRecentForOwner(Long ownerId, int limit, LocalDate startDate, LocalDate endDate) {
         List<Long> storeIds = storeOwnerRepository.findByOwnerId(ownerId).stream()
             .filter(StoreOwner::isActive)
             .map(so -> so.getStore().getId())
@@ -100,9 +125,25 @@ public class ActivityLogService {
         if (storeIds.isEmpty()) {
             return List.of();
         }
+        if (startDate == null || endDate == null) {
+            return activityLogRepository
+                .findByStoreIdInAndActionTypeOrderByOccurredAtDesc(storeIds, TASK_COMPLETED, PageRequest.of(0, limit)).stream()
+                .map(ActivityLogEntryResponse::from)
+                .toList();
+        }
         return activityLogRepository
-            .findByStoreIdInAndActionTypeOrderByOccurredAtDesc(storeIds, TASK_COMPLETED, PageRequest.of(0, limit)).stream()
+            .findByStoreIdInAndActionTypeAndOccurredAtGreaterThanEqualAndOccurredAtLessThanOrderByOccurredAtDesc(
+                storeIds, TASK_COMPLETED, rangeStart(startDate), rangeEndExclusive(endDate), PageRequest.of(0, limit))
+            .stream()
             .map(ActivityLogEntryResponse::from)
             .toList();
+    }
+
+    private static OffsetDateTime rangeStart(LocalDate date) {
+        return date.atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
+    }
+
+    private static OffsetDateTime rangeEndExclusive(LocalDate date) {
+        return date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
     }
 }
