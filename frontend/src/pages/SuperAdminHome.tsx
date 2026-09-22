@@ -104,7 +104,9 @@ function SuperAdminHome({
     [owners],
   );
   const needsAttention = useMemo(
-    () => (overview ?? []).filter((s) => s.lastActivityAt === null && s.totalTasks > 0),
+    () => (overview ?? [])
+      .filter((s) => s.lastActivityAt === null)
+      .sort((a, b) => (b.totalTasks > 0 ? 1 : 0) - (a.totalTasks > 0 ? 1 : 0)),
     [overview],
   );
 
@@ -270,7 +272,11 @@ function SuperAdminHome({
             {needsAttention.map((s) => (
               <div key={s.storeId} className="sa-home__attention-item">
                 <span className="sa-home__attention-store">{s.storeName}</span>
-                <span className="sa-home__attention-detail">No activity today · {s.totalTasks} task{s.totalTasks === 1 ? '' : 's'}</span>
+                <span className="sa-home__attention-detail">
+                  {s.totalTasks === 0
+                    ? 'No tasks assigned'
+                    : `No activity today · ${s.totalTasks} task${s.totalTasks === 1 ? '' : 's'}`}
+                </span>
               </div>
             ))}
           </div>
