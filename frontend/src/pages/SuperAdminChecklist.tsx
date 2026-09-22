@@ -279,24 +279,18 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     });
   }
 
-  // Outstanding/Incomplete = OPEN/ISSUE tasks for the currently viewed date
-  // (today or historical). ISSUE sorted before OPEN, alphabetical by task
-  // name within each group. Has its own dedicated search/category filter
-  // (outstandingSearch/outstandingCategoryFilter below, applied via
-  // filteredOutstandingRows) -- deliberately independent from the main
-  // table's filter bar, so filtering one doesn't silently affect the other.
+  // Outstanding/Incomplete = OPEN tasks (no response yet) for the currently
+  // viewed date (today or historical), alphabetical by task name. ISSUE
+  // tasks have a response (just a flagged/failing one) so they belong in the
+  // main table alongside Complete, not here. Has its own dedicated
+  // search/category filter (outstandingSearch/outstandingCategoryFilter
+  // below, applied via filteredOutstandingRows) -- deliberately independent
+  // from the main table's filter bar, so filtering one doesn't silently
+  // affect the other.
   const outstandingRows = useMemo(() => {
     return rows
-      .filter((row) => {
-        const s = taskStatus(row.task);
-        return s === 'OPEN' || s === 'ISSUE';
-      })
-      .sort((a, b) => {
-        const sa = taskStatus(a.task);
-        const sb = taskStatus(b.task);
-        if (sa !== sb) return sa === 'ISSUE' ? -1 : 1;
-        return a.task.name.localeCompare(b.task.name);
-      });
+      .filter((row) => taskStatus(row.task) === 'OPEN')
+      .sort((a, b) => a.task.name.localeCompare(b.task.name));
   }, [rows]);
 
   function handleResponseCorrected(taskId: number, updatedResponse: ChecklistHistoryResponseEntry) {
@@ -394,7 +388,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
               </span>
             )}
             {/* Spacer pushes store selector to the right */}
-            <div style={{ flex: 1 }} />
+            <div className="sa-checklist__top-row-spacer" style={{ flex: 1 }} />
             {/* Store selector — RIGHT, amber accent when no store selected */}
             <Select
               id="sa-store-select"
@@ -590,6 +584,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                   ) : (
                     <StoreDetailTable
                       idPrefix="outstanding-"
+                      variant="outstanding"
                       rows={filteredOutstandingRows}
                       hasChecklist={detail?.hasChecklist ?? false}
                       onResponseCorrected={handleResponseCorrected}
