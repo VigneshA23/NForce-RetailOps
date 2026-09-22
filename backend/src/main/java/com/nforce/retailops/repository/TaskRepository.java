@@ -175,6 +175,26 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
         @org.springframework.data.repository.query.Param("date") LocalDate date
     );
 
+    // Candidates for the "Missed Tasks" scan at a given store over a date range: same
+    // store-scoping as findForStoreAndDate (task_stores or applies-to-all-stores) and
+    // deliberately the same "no active filter" as findForStoreAndDate -- a missed
+    // instance is defined by whether the task WAS scheduled on day D, ignoring the
+    // task's CURRENT active flag (see TaskMakeupLinkService.getMissedTasks). Range
+    // overlap only narrows candidates at the task level; per-day eligibility (schedule
+    // type, exact start/end) is still evaluated per date in the service layer.
+    @org.springframework.data.jpa.repository.Query(
+        "select t from Task t join fetch t.category where t.owner.id = :ownerId "
+            + "and (t.appliesToAllStores = true or :storeId in (select s.id from t.stores s)) "
+            + "and t.startDate <= :endDate and (t.endDate is null or t.endDate >= :startDate) "
+            + "order by t.category.displayOrder asc, t.displayOrder asc, t.id asc"
+    )
+    List<Task> findForStoreAndDateRange(
+        @org.springframework.data.repository.query.Param("ownerId") Long ownerId,
+        @org.springframework.data.repository.query.Param("storeId") Long storeId,
+        @org.springframework.data.repository.query.Param("startDate") LocalDate startDate,
+        @org.springframework.data.repository.query.Param("endDate") LocalDate endDate
+    );
+
     @org.springframework.data.jpa.repository.Query(
         "select t from Task t join fetch t.category where t.owner.id = :ownerId "
             + "and lower(t.name) like lower(concat('%', :q, '%')) order by t.name"

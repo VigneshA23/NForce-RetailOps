@@ -10,6 +10,7 @@ import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.dto.TaskResponseSummary;
 import com.nforce.retailops.dto.TodayChecklistResponse;
 import com.nforce.retailops.entity.Category;
+import com.nforce.retailops.entity.CompletedVia;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.DayOfWeekCode;
 import com.nforce.retailops.entity.ResponseType;
@@ -25,6 +26,7 @@ import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
 import com.nforce.retailops.exception.InvalidTaskResponseException;
+import com.nforce.retailops.exception.MakeupResponsePermanentException;
 import com.nforce.retailops.exception.StoreInactiveException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.TaskAlreadyCompletedException;
@@ -74,6 +76,7 @@ public class TaskService {
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
+    private final TaskMakeupLinkService taskMakeupLinkService;
 
     public TaskService(
         TaskRepository taskRepository,
@@ -85,7 +88,8 @@ public class TaskService {
         TaskResponseEntryRepository taskResponseEntryRepository,
         StoreEmployeeRepository storeEmployeeRepository,
         NotificationService notificationService,
-        ActivityLogService activityLogService
+        ActivityLogService activityLogService,
+        TaskMakeupLinkService taskMakeupLinkService
     ) {
         this.taskRepository = taskRepository;
         this.categoryRepository = categoryRepository;
@@ -97,6 +101,7 @@ public class TaskService {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.notificationService = notificationService;
         this.activityLogService = activityLogService;
+        this.taskMakeupLinkService = taskMakeupLinkService;
     }
 
     // A task's stores for "all stores" tasks means all of ITS OWNER'S stores
@@ -458,6 +463,11 @@ public class TaskService {
         // so it's computed once rather than per task.
         int totalActiveEmployees = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId);
 
+        // "Will also complete N missed (dates)": past dates with a PENDING makeup link
+        // to today, per task (see TaskMakeupLinkService).
+        Map<Long, List<LocalDate>> pendingMakeupDatesByTask =
+            taskMakeupLinkService.findPendingMakeupDatesByTaskId(taskIds, storeId, today);
+
         LinkedHashMap<Long, List<Task>> tasksByCategory = new LinkedHashMap<>();
         for (Task task : applicableTasks) {
             tasksByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(task);
@@ -469,7 +479,8 @@ public class TaskService {
                 tasks.get(0).getCategory().getName(),
                 tasks.stream()
                     .map(task -> TaskChecklistItemResponse.from(
-                        task, responsesByTask.getOrDefault(task.getId(), List.of()), employeeUserId, totalActiveEmployees))
+                        task, responsesByTask.getOrDefault(task.getId(), List.of()), employeeUserId, totalActiveEmployees,
+                        pendingMakeupDatesByTask.getOrDefault(task.getId(), List.of())))
                     .toList()
             ))
             .toList();
@@ -492,10 +503,73 @@ public class TaskService {
     public TaskResponseStateResponse submitResponse(Long employeeUserId, Long taskId, TaskResponseSubmitRequest request) {
         userProfileService.requireAssignedStore(employeeUserId, request.storeId());
         Task task = requireTaskForStore(taskId, request.storeId());
+        LocalDate today = LocalDate.now();
+
+        TaskResponseEntry entry = writeResponse(employeeUserId, task, request.storeId(), today, request, CompletedVia.NORMAL);
+
+        activityLogService.log(
+            ActivityLogService.TASK_COMPLETED, entry.getEmployee().getFullName(), "EMPLOYEE",
+            entry.getStore().getId(), entry.getStore().getName(), "TASK", task.getName(),
+            "Completed " + task.getName()
+        );
+
+        // Inside this same transaction: if this submission just brought today's instance
+        // to Completed (SINGLE: always; MULTIPLE: the 2nd distinct responder), fulfil any
+        // PENDING "Missed Tasks" links pointing at today for this task/store.
+        taskMakeupLinkService.fulfillPendingLinksIfCompleted(entry);
+
+        return buildResponseState(taskId, request.storeId(), today, employeeUserId);
+    }
+
+    /**
+     * "Missed Tasks" -- Complete Now: an employee completes a past-day instance
+     * (date < today, within the 90-day lookback cap) that was never answered.
+     * Identical response-type validation and SINGLE/MULTIPLE completion rules as a
+     * same-day submission (writeResponse below is shared with submitResponse), except
+     * the task lookup ignores the task's current active flag, mirroring how a missed
+     * instance is defined regardless of whether the task has since been deactivated.
+     */
+    @Transactional
+    public TaskResponseStateResponse completeMissedNow(
+        Long employeeUserId, Long taskId, Long storeId, LocalDate date, TaskResponseSubmitRequest request
+    ) {
+        userProfileService.requireAssignedStore(employeeUserId, storeId);
+        taskMakeupLinkService.expireStalePendingLinks();
 
         LocalDate today = LocalDate.now();
+        if (!date.isBefore(today) || date.isBefore(today.minusDays(TaskMakeupLinkService.MAX_LOOKBACK_DAYS))) {
+            throw new TaskNotFoundException("This task instance is not available for a makeup completion");
+        }
+        Task task = requireTaskForStoreIgnoringActive(taskId, storeId);
+        if (date.isBefore(task.getStartDate()) || (task.getEndDate() != null && date.isAfter(task.getEndDate()))) {
+            throw new TaskNotFoundException("This task instance is not available for a makeup completion");
+        }
+
+        TaskResponseEntry entry = writeResponse(employeeUserId, task, storeId, date, request, CompletedVia.MAKEUP_NOW);
+
+        activityLogService.log(
+            ActivityLogService.TASK_COMPLETED, entry.getEmployee().getFullName(), "EMPLOYEE",
+            entry.getStore().getId(), entry.getStore().getName(), "TASK", task.getName(),
+            "Completed " + task.getName() + " (missed " + date + ")"
+        );
+
+        // Invariant: a missed instance has either an active response or a PENDING link,
+        // never both -- this response just landed directly on (task, date).
+        taskMakeupLinkService.cancelPendingLinkIfAny(taskId, storeId, date);
+
+        return buildResponseState(taskId, storeId, date, employeeUserId);
+    }
+
+    // Shared by submitResponse (date = today, requires the task currently active) and
+    // completeMissedNow (date = a past missed instance) -- SINGLE's flag-aware resubmit
+    // guard, MULTIPLE's own-employee resubmit-supersede, and the partial-unique-index
+    // race-safety backstop (V19) are all identical between the two callers.
+    private TaskResponseEntry writeResponse(
+        Long employeeUserId, Task task, Long storeId, LocalDate date,
+        TaskResponseSubmitRequest request, CompletedVia completedVia
+    ) {
         List<TaskResponseEntry> activeResponses = taskResponseEntryRepository
-            .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, request.storeId(), today);
+            .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(task.getId(), storeId, date);
 
         Long supersededResponseId = null;
         if (task.getCompletionType() == CompletionType.SINGLE && !activeResponses.isEmpty()) {
@@ -505,11 +579,11 @@ public class TaskService {
                 && activeResponses.get(0).isFlaggedNeedsCorrection()
                 && activeResponses.get(0).getEmployee().getId().equals(employeeUserId);
             if (!isFlaggedByMe) {
-                throw new TaskAlreadyCompletedException("This task has already been completed for today");
+                throw new TaskAlreadyCompletedException(alreadyCompletedMessage(date));
             }
             TaskResponseEntry flagged = activeResponses.get(0);
             flagged.setActive(false);
-            flagged.setUndoneAt(java.time.OffsetDateTime.now());
+            flagged.setUndoneAt(OffsetDateTime.now());
             taskResponseEntryRepository.save(flagged);
             taskResponseEntryRepository.flush();
             // Links the new response back to the one it replaces so the flag/comment
@@ -544,7 +618,7 @@ public class TaskService {
         if (supersededResponseId == null) {
             supersededResponseId = taskResponseEntryRepository
                 .findFirstByTaskIdAndStoreIdAndResponseDateAndEmployeeIdOrderByCreatedAtDesc(
-                    taskId, request.storeId(), today, employeeUserId)
+                    task.getId(), storeId, date, employeeUserId)
                 .filter(prior -> !prior.isActive())
                 .map(TaskResponseEntry::getId)
                 .orElse(null);
@@ -552,11 +626,12 @@ public class TaskService {
 
         TaskResponseEntry entry = new TaskResponseEntry();
         entry.setTask(task);
-        entry.setStore(storeRepository.getReferenceById(request.storeId()));
+        entry.setStore(storeRepository.getReferenceById(storeId));
         entry.setEmployee(userRepository.getReferenceById(employeeUserId));
-        entry.setResponseDate(today);
+        entry.setResponseDate(date);
         entry.setResponseType(task.getResponseType());
         entry.setCompletionType(task.getCompletionType());
+        entry.setCompletedVia(completedVia);
         entry.setSupersededResponseId(supersededResponseId);
         applyValue(entry, task, request);
 
@@ -568,16 +643,15 @@ public class TaskService {
             taskResponseEntryRepository.save(entry);
             taskResponseEntryRepository.flush();
         } catch (DataIntegrityViolationException ex) {
-            throw new TaskAlreadyCompletedException("This task has already been completed for today");
+            throw new TaskAlreadyCompletedException(alreadyCompletedMessage(date));
         }
+        return entry;
+    }
 
-        activityLogService.log(
-            ActivityLogService.TASK_COMPLETED, entry.getEmployee().getFullName(), "EMPLOYEE",
-            entry.getStore().getId(), entry.getStore().getName(), "TASK", task.getName(),
-            "Completed " + task.getName()
-        );
-
-        return buildResponseState(taskId, request.storeId(), today, employeeUserId);
+    private static String alreadyCompletedMessage(LocalDate date) {
+        return date.equals(LocalDate.now())
+            ? "This task has already been completed for today"
+            : "This task has already been completed for that day";
     }
 
     /**
@@ -597,6 +671,12 @@ public class TaskService {
         if (!entry.getEmployee().getId().equals(employeeUserId)) {
             throw new UnauthorizedTaskResponseActionException("Only the employee who submitted this response can undo it");
         }
+        // "Missed Tasks" makeup rows auto-generated by fulfilling a link are permanent --
+        // see CompletedVia.LINK_FULFILLED and TaskMakeupLinkService.
+        if (entry.getCompletedVia() == CompletedVia.LINK_FULFILLED) {
+            throw new MakeupResponsePermanentException(
+                "This response was auto-completed via a linked task and cannot be undone");
+        }
 
         entry.setActive(false);
         entry.setUndoneAt(OffsetDateTime.now());
@@ -610,7 +690,10 @@ public class TaskService {
         List<TaskResponseEntry> active = taskResponseEntryRepository
             .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, storeId, date);
         List<TaskResponseSummary> summaries = active.stream().map(TaskResponseSummary::from).toList();
-        boolean canUndo = active.stream().anyMatch(entry -> entry.getEmployee().getId().equals(employeeUserId));
+        // LINK_FULFILLED rows are permanent -- never offer Undo for one (see
+        // CompletedVia.LINK_FULFILLED and TaskService.undoResponse's matching guard).
+        boolean canUndo = active.stream().anyMatch(entry ->
+            entry.getEmployee().getId().equals(employeeUserId) && entry.getCompletedVia() != CompletedVia.LINK_FULFILLED);
 
         LinkedHashMap<Long, String> activeResponders = new LinkedHashMap<>();
         for (TaskResponseEntry entry : active) {
@@ -630,6 +713,22 @@ public class TaskService {
     private Task requireTaskForStore(Long taskId, Long storeId) {
         Task task = taskRepository.findById(taskId)
             .filter(Task::isActive)
+            .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+
+        boolean appliesToStore = task.isAppliesToAllStores()
+            || task.getStores().stream().anyMatch(store -> store.getId().equals(storeId));
+        if (!appliesToStore) {
+            throw new TaskNotFoundException("Task not found");
+        }
+        return task;
+    }
+
+    // "Missed Tasks" variant of requireTaskForStore: a missed instance is defined
+    // regardless of the task's CURRENT active flag (it may have been deactivated since
+    // the missed day), so Complete Now must still be able to find it -- same
+    // store-membership check as requireTaskForStore, just without Task::isActive.
+    private Task requireTaskForStoreIgnoringActive(Long taskId, Long storeId) {
+        Task task = taskRepository.findById(taskId)
             .orElseThrow(() -> new TaskNotFoundException("Task not found"));
 
         boolean appliesToStore = task.isAppliesToAllStores()

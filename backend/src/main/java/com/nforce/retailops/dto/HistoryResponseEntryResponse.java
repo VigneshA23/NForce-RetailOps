@@ -1,5 +1,7 @@
 package com.nforce.retailops.dto;
 
+import com.nforce.retailops.entity.CompletedVia;
+
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -28,6 +30,10 @@ public record HistoryResponseEntryResponse(
     // today) -- every normally-active response is always false here. The value
     // fields above still carry the response's real pre-undo value; the frontend
     // uses this flag to display "Not done"/"No"/no-answer instead.
-    boolean undone
+    boolean undone,
+    // MAKEUP_NOW/LINK_FULFILLED: this is a "Missed Tasks" response (see CompletedVia).
+    // The frontend shows a "completed via today's checklist" tag for LINK_FULFILLED
+    // and, per that feature's permanence rule, such rows are never undoable.
+    CompletedVia completedVia
 ) {
 }

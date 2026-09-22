@@ -249,7 +249,8 @@ public class MeHistoryService {
                     // The flag -> resubmit history is also shown to the employee: it's their
                     // own prior answer, the owner's comment on it, and what they resubmitted.
                     resubmissionHistoriesByResponseId.getOrDefault(entry.getId(), List.of()),
-                    !entry.isActive()
+                    !entry.isActive(),
+                    entry.getCompletedVia()
                 );
             })
             .toList();

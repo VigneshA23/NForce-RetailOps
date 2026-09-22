@@ -69,6 +69,11 @@ export interface HistoryTaskDetail {
   // Oldest-first: one entry per flag -> resubmit cycle or direct owner edit
   // this task's current answer has been through. Empty when never changed.
   resubmissionHistory: HistoryResubmissionTransition[];
+  // How the current response came to exist -- see types/task.ts's CompletedVia.
+  // Optional: only populated on the employee-facing history view for now.
+  // 'LINK_FULFILLED' shows a "completed via today's checklist" tag and is
+  // permanent (never undoable -- already reflected server-side, not derived here).
+  completedVia?: 'NORMAL' | 'MAKEUP_NOW' | 'LINK_FULFILLED';
 }
 
 export interface HistoryCategoryEntry {

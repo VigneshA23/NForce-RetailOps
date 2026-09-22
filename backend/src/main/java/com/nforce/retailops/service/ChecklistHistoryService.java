@@ -860,7 +860,8 @@ public class ChecklistHistoryService {
                     entry.isFlaggedNeedsCorrection(),
                     entry.getFlagReason(),
                     resubmissionHistoriesByResponseId.getOrDefault(entry.getId(), List.of()),
-                    !entry.isActive()
+                    !entry.isActive(),
+                    entry.getCompletedVia()
                 );
             })
             .toList();
