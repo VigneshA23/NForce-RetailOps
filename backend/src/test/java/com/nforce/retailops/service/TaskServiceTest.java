@@ -78,6 +78,8 @@ class TaskServiceTest {
     private NotificationService notificationService;
     @Mock
     private ActivityLogService activityLogService;
+    @Mock
+    private TaskMakeupLinkService taskMakeupLinkService;
 
     @InjectMocks
     private TaskService taskService;
@@ -86,6 +88,10 @@ class TaskServiceTest {
 
     @BeforeEach
     void setUp() {
+        org.mockito.Mockito.lenient()
+            .when(taskMakeupLinkService.findPendingMakeupDatesByTaskId(any(), any(), any()))
+            .thenReturn(java.util.Map.of());
+
         category = new Category();
         ReflectionTestUtils.setField(category, "id", CATEGORY_ID);
         ReflectionTestUtils.setField(category, "name", "Cleaning");

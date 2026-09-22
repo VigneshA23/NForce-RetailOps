@@ -43,6 +43,17 @@
   font-weight: 600;
 }
 
+/* Trimmed down from filters.css's default 45% -- Super Admin Tasks now has a
+   5th filter (Store) alongside Category/Status/Schedule, which pushed the
+   row's combined flex-basis past 100% and wrapped Schedule onto its own line.
+   Scoped to desktop so it doesn't fight filters.css's tablet-down rule that
+   collapses the search box to full width. */
+@media (--desktop) {
+  .tasks-page .filter--search {
+    flex-basis: 26%;
+  }
+}
+
 @media (--mobile) {
   .tasks-page__header {
     flex-wrap: wrap;

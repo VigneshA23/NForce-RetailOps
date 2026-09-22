@@ -2,6 +2,12 @@ export type TaskResponseType = 'YES_NO' | 'DONE_NOT_DONE' | 'NUMERIC' | 'TEXT';
 
 export type CompletionType = 'SINGLE' | 'MULTIPLE';
 
+// How a response came to exist -- NORMAL is a same-day submission, MAKEUP_NOW/
+// LINK_FULFILLED are "Missed Tasks" (see types/missedTasks.ts). A LINK_FULFILLED
+// response is permanent and never shows an Undo control (canUndo already reflects
+// this from the backend).
+export type CompletedVia = 'NORMAL' | 'MAKEUP_NOW' | 'LINK_FULFILLED';
+
 // One recorded (still-active) answer to a task, as returned by the backend --
 // see TaskResponseSummary on the backend.
 export interface TaskResponseSummary {
@@ -14,6 +20,8 @@ export interface TaskResponseSummary {
   respondedAt: string;
   flaggedNeedsCorrection: boolean;
   flagReason: string | null;
+  // Optional: older/test fixtures predate this field. Defaults to 'NORMAL'.
+  completedVia?: CompletedVia;
 }
 
 export interface ChecklistTask {
@@ -38,6 +46,10 @@ export interface ChecklistTask {
   completedByCount: number;
   totalActiveEmployees: number;
   completedByNames: string[];
+  // Past dates with a PENDING "Missed Tasks" link to today (see types/missedTasks.ts)
+  // -- non-empty shows "Will also complete N missed (dates)" on this task's card.
+  // Optional: older/test fixtures predate this field. Defaults to empty.
+  pendingMakeupDates?: string[];
 }
 
 export interface ChecklistCategory {

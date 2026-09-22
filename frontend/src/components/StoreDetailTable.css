@@ -52,6 +52,19 @@
   font-weight: 600;
 }
 
+/* Response value pill — plain inline text on desktop (matches the existing
+   table look); becomes a colored pill with a leading checkmark on mobile,
+   see the tile layout below. */
+.store-detail-table__response-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.store-detail-table__response-icon {
+  display: none;
+}
+
 .store-detail-table__response-time {
   color: var(--color-text-muted);
 }
@@ -250,10 +263,132 @@
     overflow-x: visible;
   }
 
+  /* Each row becomes its own tile: rounded, bordered, spaced apart on the
+     page background — matches the reference design's card-per-task layout
+     instead of the shared table.css generic label/value list. */
+  .store-detail-table__card {
+    background: transparent;
+    box-shadow: none;
+  }
+
+  /* .data-table itself still carries the card surface color (table.css) --
+     left as transparent it would just reveal whatever ancestor sits behind
+     it, which is white again inside the "Outstanding Tasks" panel (its own
+     card background). Setting the page background explicitly keeps the
+     gaps between tiles consistently page-colored everywhere this table is
+     used, not just when it happens to sit directly on the page. */
+  .store-detail-table__card .data-table {
+    background: var(--color-bg-page);
+  }
+
+  .store-detail-table__card .data-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .store-detail-table__card .data-table tbody tr {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  /* table.css's generic mobile rule strips the last row's bottom border for
+     its plain label/value list -- that would leave this tile's bottom edge
+     open, so it's put back at matching specificity. */
+  .store-detail-table__card .data-table tbody tr:last-child {
+    border-bottom: 1px solid var(--color-border) !important;
+  }
+
+  .store-detail-table__card .data-table tbody td {
+    padding: 0;
+  }
+
   /* Value side of every card row must not overflow the card */
   .store-detail-table__card .data-table tbody td > * {
     min-width: 0;
     overflow: hidden;
+  }
+
+  /* Category — a small pill at the top of the tile, no "Category" caption */
+  .store-detail-table__card .data-table tbody td.store-detail-table__category {
+    display: inline-flex;
+    align-self: flex-start;
+    width: auto;
+    max-width: 100%;
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+    background: var(--color-badge-icon-primary-bg);
+    color: var(--color-badge-icon-primary-fg);
+    font-size: 10px;
+  }
+
+  .store-detail-table__card .data-table tbody td.store-detail-table__category::before {
+    content: none;
+  }
+
+  /* Task — no "Task" caption, name + meta stacked full width as the tile's headline */
+  .store-detail-table__card .data-table tbody td[data-label='Task'] {
+    display: block;
+  }
+
+  .store-detail-table__card .data-table tbody td[data-label='Task']::before {
+    content: none;
+  }
+
+  .store-detail-table__card .store-detail-table__task-name {
+    font-size: 15px;
+  }
+
+  /* Task name and meta wrap naturally */
+  .store-detail-table__task-name {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .store-detail-table__task-meta {
+    white-space: normal;
+  }
+
+  /* Response — "Response" caption on the left, value pill on the right */
+  .store-detail-table__card .data-table tbody td[data-label='Response'] {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 10px 12px;
+    background: var(--color-bg-page);
+    border-radius: var(--radius-sm);
+  }
+
+  .store-detail-table__response-value {
+    padding: 2px 10px;
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    font-size: 13px;
+    background: var(--color-badge-icon-info-bg);
+    color: var(--color-badge-icon-info-fg);
+  }
+
+  .store-detail-table__response-value--issue {
+    background: var(--color-badge-icon-primary-bg);
+    color: var(--color-badge-icon-primary-fg);
+  }
+
+  .store-detail-table__response-value--open {
+    padding-left: 0;
+    background: transparent;
+    color: var(--color-text-muted);
+  }
+
+  .store-detail-table__response-icon {
+    display: inline-flex;
   }
 
   /* Employee containers must shrink */
@@ -271,26 +406,15 @@
     text-overflow: unset;
   }
 
-  /* Task name and meta wrap naturally */
-  .store-detail-table__task-name {
-    white-space: normal;
-    word-break: break-word;
+  /* Employee — no caption, divider above; avatar/name/time on the left, actions on the right */
+  .store-detail-table__card .data-table tbody td[data-label='Employee'] {
+    display: block;
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border);
   }
 
-  .store-detail-table__task-meta {
-    white-space: normal;
-  }
-
-  /* Category label row: allow text to wrap */
-  .store-detail-table__category {
-    text-align: right;
-    max-width: 60%;
-  }
-
-  /* Status aligned right */
-  .store-detail-table__status-cell,
-  .data-table thead th.store-detail-table__status-cell {
-    text-align: right;
+  .store-detail-table__card .data-table tbody td[data-label='Employee']::before {
+    content: none;
   }
 
   /* Hide the desktop Manager Actions column — actions move inline with each responder */
@@ -298,21 +422,22 @@
     display: none !important;
   }
 
-  /* Responders list: stacks multiple employees vertically on the right side of the label */
+  /* Responders list: stacks multiple employees, each spanning the full width */
   .store-detail-table__responders-list {
     display: flex;
     flex-direction: column;
-    align-items: flex-end;
+    align-items: stretch;
     gap: 0;
   }
 
-  /* Each employee entry stacks vertically: name+time on top, action buttons below */
+  /* Each employee entry is a single row: avatar/name/time on the left, action buttons on the right */
   .store-detail-table__employee-entry {
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     padding-bottom: 6px;
-    width: auto;
+    width: 100%;
   }
 
   .store-detail-table__employee-entry:not(:last-child) {
@@ -321,18 +446,28 @@
     padding-bottom: 6px;
   }
 
-  /* Show inline action buttons on mobile -- each responder gets its own row
-     here (unlike the shared desktop column), so the fixed-width badges slot
-     isn't needed for alignment; let it size to content and right-align. */
+  /* Show inline action buttons on mobile */
   .store-detail-table__inline-actions {
     display: flex;
     align-items: center;
     justify-content: flex-end;
     gap: 6px;
+    flex-shrink: 0;
   }
 
   .store-detail-table__inline-actions .store-detail-table__badges {
     width: auto;
+  }
+
+  /* Status — caption + pill on the same row, divider above */
+  .store-detail-table__status-cell,
+  .data-table thead th.store-detail-table__status-cell {
+    text-align: right;
+  }
+
+  .store-detail-table__card .data-table tbody td.store-detail-table__status-cell {
+    padding-top: 10px;
+    border-top: 1px solid var(--color-border);
   }
 
   /* Actions row: align right — kept for fallback */
