@@ -25,6 +25,6 @@ export function useIsMobile(): boolean {
   return useMediaQuery(`(max-width: ${BREAKPOINTS.mobile}px)`);
 }
 
-export function useIsTabletDown(): boolean {
-  return useMediaQuery(`(max-width: ${BREAKPOINTS.tablet}px)`);
+export function useIsTabletNarrow(): boolean {
+  return useMediaQuery(`(min-width: ${BREAKPOINTS.mobile + 1}px) and (max-width: ${BREAKPOINTS.tabletNarrowMax}px)`);
 }
