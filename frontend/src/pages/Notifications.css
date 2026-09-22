@@ -651,6 +651,7 @@
   will-change: transform;
   position: relative;
   z-index: 1;
+  overflow: hidden;
   background: var(--color-surface-card);
 }
 
