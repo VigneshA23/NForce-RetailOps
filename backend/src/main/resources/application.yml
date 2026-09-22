@@ -63,6 +63,9 @@ resend:
   api-key: ${RESEND_API_KEY:}
   from-email: ${RESEND_FROM_EMAIL:RetailOps <onboarding@resend.dev>}
 
+ses:
+  from-email: ${SES_FROM_EMAIL:noreply@nforceone.com}
+
 login:
   rate-limit:
     # Set LOGIN_RATE_LIMIT_ENABLED=false in dev/CI to bypass the 5-attempt limit.

@@ -21,7 +21,20 @@
     <java.version>17</java.version>
     <jjwt.version>0.12.6</jjwt.version>
     <poi.version>5.3.0</poi.version>
+    <aws.sdk.version>2.26.7</aws.sdk.version>
   </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${aws.sdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
 
   <dependencies>
     <dependency>
@@ -96,6 +109,12 @@
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
       <version>${poi.version}</version>
+    </dependency>
+
+    <!-- SES: used in Lambda deployments for transactional email; Resend is used locally/Railway -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>ses</artifactId>
     </dependency>
 
     <!-- Lambda adapter: wraps existing DispatcherServlet behind a RequestStreamHandler;

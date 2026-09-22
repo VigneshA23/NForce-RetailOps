@@ -9,6 +9,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.ses.SesClient;
+import software.amazon.awssdk.services.ses.model.Body;
+import software.amazon.awssdk.services.ses.model.Content;
+import software.amazon.awssdk.services.ses.model.Destination;
+import software.amazon.awssdk.services.ses.model.Message;
+import software.amazon.awssdk.services.ses.model.SendEmailRequest;
+import software.amazon.awssdk.services.ses.model.SesException;
+
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 import java.util.Map;
@@ -18,49 +28,101 @@ public class MailService {
 
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
 
-    private final RestClient restClient;
-    private final String fromEmail;
+    /**
+     * Abstraction over the actual sending mechanism. Implementations throw
+     * EmailDeliveryException on failure; callers never see provider-specific exceptions.
+     */
+    @FunctionalInterface
+    interface EmailTransport {
+        void deliver(String to, String subject, String html);
+    }
 
+    private final EmailTransport transport;
+
+    @Autowired
     public MailService(
-        @Value("${resend.api-key}") String apiKey,
-        @Value("${resend.from-email}") String fromEmail
+        @Value("${resend.api-key:}") String resendApiKey,
+        @Value("${resend.from-email}") String resendFromEmail,
+        @Value("${ses.from-email:noreply@nforceone.com}") String sesFromEmail
     ) {
-        this.fromEmail = fromEmail;
-        // Bounded so a slow/hung Resend response can only ever block the calling
-        // request (and hold its DB transaction/connection open) for a fixed worst
-        // case, instead of indefinitely.
+        boolean isLambda = isLambdaEnvironment();
+        log.info("MailService: provider={}", isLambda ? "SES (us-east-1)" : "Resend");
+        this.transport = isLambda
+            ? buildSesTransport(sesFromEmail)
+            : buildResendTransport(resendApiKey, resendFromEmail);
+    }
+
+    // Package-private: lets tests inject a capture transport without touching real providers.
+    MailService(EmailTransport transport) {
+        this.transport = transport;
+    }
+
+    // Package-private: exposed so tests can assert provider selection without env-var gymnastics.
+    static boolean isLambdaEnvironment() {
+        return System.getenv("AWS_LAMBDA_FUNCTION_NAME") != null;
+    }
+
+    private static EmailTransport buildResendTransport(String apiKey, String fromEmail) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(3_000);
         requestFactory.setReadTimeout(5_000);
-        this.restClient = RestClient.builder()
+        RestClient client = RestClient.builder()
             .baseUrl("https://api.resend.com")
             .defaultHeader("Authorization", "Bearer " + apiKey)
             .requestFactory(requestFactory)
             .build();
+
+        return (to, subject, html) -> {
+            try {
+                client.post()
+                    .uri("/emails")
+                    .body(Map.of(
+                        "from", fromEmail,
+                        "to", List.of(to),
+                        "subject", subject,
+                        "html", html
+                    ))
+                    .retrieve()
+                    .toBodilessEntity();
+            } catch (RestClientException ex) {
+                log.error("Resend send failed for {}", to, ex);
+                String detail = ex instanceof RestClientResponseException r
+                    ? r.getResponseBodyAsString()
+                    : ex.getMessage();
+                throw new EmailDeliveryException("Failed to send the account email to " + to + ": " + detail);
+            }
+        };
+    }
+
+    private static EmailTransport buildSesTransport(String fromEmail) {
+        // Credentials come from the Lambda execution role via the default provider chain.
+        // No explicit access key needed in code — IAM role attached to the function handles auth.
+        SesClient ses = SesClient.builder()
+            .region(Region.US_EAST_1)
+            .build();
+
+        return (to, subject, html) -> {
+            try {
+                ses.sendEmail(SendEmailRequest.builder()
+                    .source(fromEmail)
+                    .destination(Destination.builder().toAddresses(to).build())
+                    .message(Message.builder()
+                        .subject(Content.builder().data(subject).charset("UTF-8").build())
+                        .body(Body.builder()
+                            .html(Content.builder().data(html).charset("UTF-8").build())
+                            .build())
+                        .build())
+                    .build());
+            } catch (SesException ex) {
+                log.error("SES send failed for {}", to, ex);
+                throw new EmailDeliveryException(
+                    "Failed to send the account email to " + to + ": " + ex.awsErrorDetails().errorMessage());
+            }
+        };
     }
 
     private void send(String toEmail, String subject, String html) {
-        try {
-            restClient.post()
-                .uri("/emails")
-                .body(Map.of(
-                    "from", fromEmail,
-                    "to", List.of(toEmail),
-                    "subject", subject,
-                    "html", html
-                ))
-                .retrieve()
-                .toBodilessEntity();
-        } catch (RestClientException ex) {
-            log.error("Resend send failed for {}", toEmail, ex);
-            // Only a trusted super admin ever sees this message (it comes back through
-            // a super-admin-only endpoint), so it's safe -- and far more useful than a
-            // blank "failed" -- to surface Resend's own rejection reason here.
-            String detail = ex instanceof RestClientResponseException responseEx
-                ? responseEx.getResponseBodyAsString()
-                : ex.getMessage();
-            throw new EmailDeliveryException("Failed to send the account email to " + toEmail + ": " + detail);
-        }
+        transport.deliver(toEmail, subject, html);
     }
 
     public void sendAccountSetupEmail(String toEmail, String fullName, String setupLink) {
@@ -95,24 +157,7 @@ public class MailService {
             </html>
             """.formatted(escapeHtml(fullName), setupLink);
 
-        try {
-            restClient.post()
-                .uri("/emails")
-                .body(Map.of(
-                    "from", fromEmail,
-                    "to", List.of(toEmail),
-                    "subject", "Set up your NForce RetailOps account",
-                    "html", html
-                ))
-                .retrieve()
-                .toBodilessEntity();
-        } catch (RestClientException ex) {
-            log.error("Resend account setup send failed for {}", toEmail, ex);
-            String detail = ex instanceof RestClientResponseException responseEx
-                ? responseEx.getResponseBodyAsString()
-                : ex.getMessage();
-            throw new EmailDeliveryException("Failed to send the setup email to " + toEmail + ": " + detail);
-        }
+        send(toEmail, "Set up your NForce RetailOps account", html);
     }
 
     public void sendPasswordResetEmail(String toEmail, String fullName, String resetLink) {
@@ -147,21 +192,7 @@ public class MailService {
             </html>
             """.formatted(escapeHtml(fullName), resetLink);
 
-        try {
-            restClient.post()
-                .uri("/emails")
-                .body(Map.of(
-                    "from", fromEmail,
-                    "to", List.of(toEmail),
-                    "subject", "Reset your NForce RetailOps password",
-                    "html", html
-                ))
-                .retrieve()
-                .toBodilessEntity();
-        } catch (RestClientException ex) {
-            log.error("Resend password reset send failed for {}", toEmail, ex);
-            throw new EmailDeliveryException("Failed to send the reset email to " + toEmail);
-        }
+        send(toEmail, "Reset your NForce RetailOps password", html);
     }
 
     private static String escapeHtml(String value) {
