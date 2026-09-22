@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Search, X } from 'lucide-react';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 import './SearchableSelect.css';
 
 const VIEWPORT_MARGIN = 8;
@@ -110,50 +111,15 @@ function SearchableSelect({
     return () => viewport.removeEventListener('resize', repositionPanel);
   }, [isOpen]);
 
+  // Escape closes via capture phase + stopPropagation: when this dropdown is
+  // rendered inside a Modal, Modal's own bubble-phase Escape listener on
+  // `document` would otherwise also fire and close the modal underneath us.
+  useDismissablePanel({ isOpen, onClose: () => setIsOpen(false), refs: [wrapperRef, panelRef] });
+
   useEffect(() => {
     if (!isOpen) return;
-
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node;
-      const clickedWrapper = wrapperRef.current?.contains(target);
-      const clickedPanel = panelRef.current?.contains(target);
-      if (!clickedWrapper && !clickedPanel) {
-        setIsOpen(false);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        // Capture phase + stopPropagation: when this dropdown is rendered
-        // inside a Modal, Modal's own bubble-phase Escape listener on
-        // `document` would otherwise also fire and close the modal underneath us.
-        event.stopPropagation();
-        setIsOpen(false);
-      }
-    }
-    // Simplest robust fix for a portal-rendered panel: close on scroll rather
-    // than tracking the trigger's position continuously (relevant here since
-    // the trigger typically lives inside a scrollable modal body). Ignore
-    // scroll events from inside the panel itself -- this listener runs on
-    // the capture phase on `window`, which is an ancestor of the portaled
-    // panel, so scrolling the options list would otherwise close it instead
-    // of scrolling it.
-    function handleScrollOrResize(event: Event) {
-      if (panelRef.current?.contains(event.target as Node)) return;
-      setIsOpen(false);
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown, true);
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
     const focusTimer = window.setTimeout(() => searchRef.current?.focus(), 0);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown, true);
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
-      window.clearTimeout(focusTimer);
-    };
+    return () => window.clearTimeout(focusTimer);
   }, [isOpen]);
 
   useEffect(() => {

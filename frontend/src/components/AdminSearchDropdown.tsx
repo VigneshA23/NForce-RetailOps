@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ClipboardList, Layers, Search, Users } from 'lucide-react';
 import { adminSearch, type AdminSearchItem, type AdminSearchResponse } from '../api/adminSearch';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 import './AdminSearchDropdown.css';
 
 interface AdminSearchDropdownProps {
-  onNavigate: (group: 'tasks' | 'categories' | 'employees', term: string) => void;
+  onNavigate: (group: 'tasks' | 'categories' | 'employees', id: number, term: string) => void;
 }
 
 const EMPTY: AdminSearchResponse = { tasks: [], categories: [], employees: [] };
@@ -87,7 +88,7 @@ function SearchResults({
   query: string;
   results: AdminSearchResponse;
   loading: boolean;
-  onNavigate: (group: 'tasks' | 'categories' | 'employees', term: string) => void;
+  onNavigate: (group: 'tasks' | 'categories' | 'employees', id: number, term: string) => void;
 }) {
   const hasResults =
     results.tasks.length > 0 || results.categories.length > 0 || results.employees.length > 0;
@@ -106,17 +107,17 @@ function SearchResults({
       <ResultGroup
         groupKey="tasks"
         items={results.tasks}
-        onSelect={(item) => onNavigate('tasks', item.label)}
+        onSelect={(item) => onNavigate('tasks', item.id, item.label)}
       />
       <ResultGroup
         groupKey="categories"
         items={results.categories}
-        onSelect={(item) => onNavigate('categories', item.label)}
+        onSelect={(item) => onNavigate('categories', item.id, item.label)}
       />
       <ResultGroup
         groupKey="employees"
         items={results.employees}
-        onSelect={(item) => onNavigate('employees', item.label)}
+        onSelect={(item) => onNavigate('employees', item.id, item.label)}
       />
     </>
   );
@@ -156,26 +157,15 @@ function AdminSearchDropdown({ onNavigate }: AdminSearchDropdownProps) {
     }
   }, [mobileOpen]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        inputRef.current?.blur();
-      }
-    }
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
+  useDismissablePanel({
+    isOpen: open,
+    onClose: () => {
+      setOpen(false);
+      inputRef.current?.blur();
+    },
+    refs: [containerRef],
+    closeOnScrollOrResize: false,
+  });
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -186,12 +176,12 @@ function AdminSearchDropdown({ onNavigate }: AdminSearchDropdownProps) {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [mobileOpen]);
 
-  function handleNavigate(group: 'tasks' | 'categories' | 'employees', term: string) {
+  function handleNavigate(group: 'tasks' | 'categories' | 'employees', id: number, term: string) {
     setOpen(false);
     setMobileOpen(false);
     setQuery('');
     setResults(EMPTY);
-    onNavigate(group, term);
+    onNavigate(group, id, term);
   }
 
   const showDropdown = open && query.trim().length > 0;

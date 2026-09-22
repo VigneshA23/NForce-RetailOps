@@ -8,6 +8,7 @@ import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import ButtonDots from './ButtonDots';
 import { MAX_RANGE_DAYS, todayDate } from '../utils/checklistHistoryOptions';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 import './ExportMenu.css';
 
 interface ExportMenuProps {
@@ -56,19 +57,18 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     setRangeEnd(date);
   }, [date]);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleOutsideClick(e: MouseEvent) {
-      const target = e.target as Node;
-      if (menuRef.current?.contains(target)) return;
-      if (dropdownRef.current?.contains(target)) return;
-      setMenuOpen(false);
-      setMode('idle');
-      setRangeError(null);
-    }
-    document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
-  }, [menuOpen]);
+  function closeMenu() {
+    setMenuOpen(false);
+    setMode('idle');
+    setRangeError(null);
+  }
+
+  useDismissablePanel({
+    isOpen: menuOpen,
+    onClose: closeMenu,
+    refs: [menuRef, dropdownRef],
+    closeOnEscape: false,
+  });
 
   // Anchored absolute positioning (right: 0 on the dropdown, relative to the
   // trigger's own small wrapper) ran the panel off the left edge on mobile
@@ -96,21 +96,6 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
 
     setPosition((current) => (current.top === top && current.left === left ? current : { top, left }));
   }, [menuOpen, mode, rangeError]);
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    function handleScrollOrResize() {
-      setMenuOpen(false);
-      setMode('idle');
-      setRangeError(null);
-    }
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
-    return () => {
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
-    };
-  }, [menuOpen]);
 
   async function handleExportToday() {
     if (!storeId) return;

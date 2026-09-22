@@ -121,6 +121,27 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
     };
   }, [isOpen]);
 
+  // `--modal-vvh` shrinks the modal card to fit above the keyboard, but on a
+  // tall form the now-focused field can still land underneath it (nothing
+  // repositions scroll within `.modal__body` itself). Scroll the focused
+  // field into view as a fallback once the keyboard has had time to animate
+  // in, so Save stays reachable even when shrinking the card alone isn't
+  // enough.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    function handleFocusIn(event: FocusEvent) {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      if (!modalRef.current?.contains(target)) return;
+      if (!['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return;
+      setTimeout(() => target.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }), 300);
+    }
+
+    document.addEventListener('focusin', handleFocusIn);
+    return () => document.removeEventListener('focusin', handleFocusIn);
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
 

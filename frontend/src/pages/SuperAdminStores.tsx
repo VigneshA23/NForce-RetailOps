@@ -15,6 +15,7 @@ import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
+import Select from '../components/Select';
 import './SuperAdminStores.css';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -260,15 +261,17 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
           <SearchInput value={search} onChange={setSearch} placeholder="Search by store, ID, or owner" variant="filter" />
         </div>
 
-        <select
-          className="select filter filter--narrow"
+        <Select
+          className="filter filter--narrow"
+          options={[
+            { value: 'ALL', label: 'All Statuses' },
+            { value: 'ACTIVE', label: 'Active' },
+            { value: 'INACTIVE', label: 'Inactive' },
+          ]}
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-        </select>
+          onChange={(value) => setStatusFilter(value as StatusFilter)}
+          ariaLabel="Filter by status"
+        />
 
       </div>
 

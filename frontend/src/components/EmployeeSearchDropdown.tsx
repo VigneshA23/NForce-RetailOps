@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ClipboardList, MessageSquareWarning, Search } from 'lucide-react';
 import { employeeSearch, type EmployeeSearchItem, type EmployeeSearchResponse } from '../api/employeeSearch';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 import './EmployeeSearchDropdown.css';
 
 interface EmployeeSearchDropdownProps {
   storeId: number;
-  onNavigate: (target: 'today' | 'issues') => void;
+  onNavigate: (target: 'today' | 'issues', id: number) => void;
 }
 
 const EMPTY: EmployeeSearchResponse = { tasks: [], issues: [] };
@@ -45,7 +46,7 @@ function ResultGroup({
 }: {
   groupKey: GroupKey;
   items: EmployeeSearchItem[];
-  onSelect: () => void;
+  onSelect: (item: EmployeeSearchItem) => void;
 }) {
   if (items.length === 0) return null;
   const { label, Icon, mod } = GROUP_CONFIG[groupKey];
@@ -60,7 +61,7 @@ function ResultGroup({
           key={item.id}
           type="button"
           className="edrop__item"
-          onMouseDown={(e) => { e.preventDefault(); onSelect(); }}
+          onMouseDown={(e) => { e.preventDefault(); onSelect(item); }}
         >
           <span className={`edrop__item-badge edrop__item-badge--${mod}`}>
             <Icon size={12} aria-hidden="true" />
@@ -84,7 +85,7 @@ function SearchResults({
   query: string;
   results: EmployeeSearchResponse;
   loading: boolean;
-  onNavigate: (target: 'today' | 'issues') => void;
+  onNavigate: (target: 'today' | 'issues', id: number) => void;
 }) {
   const hasResults = results.tasks.length > 0 || results.issues.length > 0;
   if (loading) return <SkeletonResults />;
@@ -98,8 +99,8 @@ function SearchResults({
   }
   return (
     <>
-      <ResultGroup groupKey="tasks" items={results.tasks} onSelect={() => onNavigate('today')} />
-      <ResultGroup groupKey="issues" items={results.issues} onSelect={() => onNavigate('issues')} />
+      <ResultGroup groupKey="tasks" items={results.tasks} onSelect={(item) => onNavigate('today', item.id)} />
+      <ResultGroup groupKey="issues" items={results.issues} onSelect={(item) => onNavigate('issues', item.id)} />
     </>
   );
 }
@@ -138,23 +139,15 @@ function EmployeeSearchDropdown({ storeId, onNavigate }: EmployeeSearchDropdownP
     }
   }, [mobileOpen]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') { setOpen(false); inputRef.current?.blur(); }
-    }
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
+  useDismissablePanel({
+    isOpen: open,
+    onClose: () => {
+      setOpen(false);
+      inputRef.current?.blur();
+    },
+    refs: [containerRef],
+    closeOnScrollOrResize: false,
+  });
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -165,12 +158,12 @@ function EmployeeSearchDropdown({ storeId, onNavigate }: EmployeeSearchDropdownP
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [mobileOpen]);
 
-  function handleNavigate(target: 'today' | 'issues') {
+  function handleNavigate(target: 'today' | 'issues', id: number) {
     setOpen(false);
     setMobileOpen(false);
     setQuery('');
     setResults(EMPTY);
-    onNavigate(target);
+    onNavigate(target, id);
   }
 
   const showDropdown = open && query.trim().length > 0;

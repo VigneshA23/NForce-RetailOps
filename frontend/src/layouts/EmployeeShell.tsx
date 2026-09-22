@@ -46,6 +46,10 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   // makes each click a distinct seed even if the same notification (and
   // therefore the same date) is opened twice in a row.
   const [historyDateSeed, setHistoryDateSeed] = useState<{ createdAt: string; id: number } | undefined>(undefined)
+  // Search-result navigation into a specific task/issue -- `ts` makes
+  // re-selecting the same result fire again even if it's already focused.
+  const [focusTaskId, setFocusTaskId] = useState<{ taskId: number; ts: number } | undefined>(undefined)
+  const [focusIssueId, setFocusIssueId] = useState<{ issueId: number; ts: number } | undefined>(undefined)
   const [mountedTabs, setMountedTabs] = useState<Set<EmployeeNavTabKey>>(new Set(['today']))
   const prevTab = useRef<EmployeeNavTabKey>('today')
   useEffect(() => {
@@ -95,9 +99,11 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   const headerTitle = isMobile ? 'NForce RetailOps' : contextLabel
   const headerSubtitle = isMobile ? contextLabel : undefined
 
-  function handleSearchNavigate(target: 'today' | 'issues') {
+  function handleSearchNavigate(target: 'today' | 'issues', id: number) {
     setOverlay(null)
     setActiveTab(target)
+    if (target === 'today') setFocusTaskId({ taskId: id, ts: Date.now() })
+    else setFocusIssueId({ issueId: id, ts: Date.now() })
   }
 
   const tabBadges = useMemo(
@@ -166,10 +172,11 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                     employeeId={employeeId}
                     employeeName={user.fullName}
                     onNavigate={(t) => { setOverlay(null); setActiveTab(t) }}
+                    focusTaskId={focusTaskId}
                   />
                 )}
                 {tab === 'audits' && <EmployeeHistory store={store} dateSeed={historyDateSeed} />}
-                {tab === 'issues' && <EmployeeIssues store={store} />}
+                {tab === 'issues' && <EmployeeIssues store={store} focusIssueId={focusIssueId} />}
                 {tab === 'stock-check' && <EmployeeStockCheck store={store} />}
               </div>
             ) : null,

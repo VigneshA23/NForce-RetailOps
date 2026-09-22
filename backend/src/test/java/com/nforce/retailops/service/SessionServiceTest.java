@@ -11,7 +11,9 @@ import java.time.OffsetDateTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -55,6 +57,45 @@ class SessionServiceTest {
 
         assertThat(sessionService(30, 240).validateAndTouch("tok-1")).isTrue();
         verify(activeSessionRepository, never()).deleteByTokenId(anyString());
+    }
+
+    @Test
+    void activeSessionPastTheTouchThrottleSlidesItsExpiryForwardByTheOriginalWindow() {
+        OffsetDateTime lastActiveAt = OffsetDateTime.now().minusMinutes(1);
+        ActiveSession session = new ActiveSession();
+        session.setTokenId("tok-slide");
+        session.setLastActiveAt(lastActiveAt);
+        // Original 30-minute window, still intact at this point: expiresAt is
+        // exactly lastActiveAt + 30 minutes.
+        session.setExpiresAt(lastActiveAt.plusMinutes(30));
+        when(activeSessionRepository.findByTokenId("tok-slide")).thenReturn(Optional.of(session));
+
+        assertThat(sessionService(30, 240).validateAndTouch("tok-slide")).isTrue();
+
+        // The same 30-minute window should be re-applied from "now", not left
+        // at its original (now nearly-elapsed) cutoff -- this is what keeps an
+        // actively-used session from expiring mid-activity.
+        verify(activeSessionRepository).touch(
+            eq("tok-slide"),
+            any(OffsetDateTime.class),
+            argThat(newExpiresAt ->
+                newExpiresAt.isAfter(OffsetDateTime.now().plusMinutes(29))
+                    && newExpiresAt.isBefore(OffsetDateTime.now().plusMinutes(31))
+            )
+        );
+    }
+
+    @Test
+    void sessionWithinTheTouchThrottleIsNotReTouched() {
+        ActiveSession session = new ActiveSession();
+        session.setTokenId("tok-throttled");
+        session.setLastActiveAt(OffsetDateTime.now());
+        session.setExpiresAt(OffsetDateTime.now().plusMinutes(30));
+        when(activeSessionRepository.findByTokenId("tok-throttled")).thenReturn(Optional.of(session));
+
+        assertThat(sessionService(30, 240).validateAndTouch("tok-throttled")).isTrue();
+
+        verify(activeSessionRepository, never()).touch(anyString(), any(), any());
     }
 
     @Test

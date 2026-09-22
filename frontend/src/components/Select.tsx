@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown } from 'lucide-react';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 import './Select.css';
 
 export interface SelectOption {
@@ -15,11 +16,13 @@ interface SelectProps {
   onChange: (value: string) => void;
   ariaLabel?: string;
   className?: string;
+  placeholder?: string;
+  disabled?: boolean;
 }
 
 const VIEWPORT_MARGIN = 8;
 
-function Select({ id, options, value, onChange, ariaLabel, className }: SelectProps) {
+function Select({ id, options, value, onChange, ariaLabel, className, placeholder, disabled }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -38,65 +41,50 @@ function Select({ id, options, value, onChange, ariaLabel, className }: SelectPr
   // but on a narrow desktop viewport (or emulated mobile view) it visibly
   // spills over surrounding form content. Rendering our own portaled,
   // viewport-clamped panel avoids that everywhere, same as MultiSelect.
-  useLayoutEffect(() => {
-    if (!isOpen) return;
+  //
+  // Uses visualViewport's height, not window.innerHeight -- opening this
+  // panel can happen while the on-screen keyboard is already up (e.g. a
+  // filter row above a focused text field), and iOS Safari shrinks
+  // visualViewport without firing a window 'resize' event for it.
+  function repositionPanel() {
     const trigger = triggerRef.current;
     const panel = panelRef.current;
     if (!trigger || !panel) return;
 
     const triggerRect = trigger.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
+    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
 
     let top = triggerRect.bottom + 4;
-    if (top + panelRect.height > window.innerHeight - VIEWPORT_MARGIN) {
+    if (top + panelRect.height > viewportHeight - VIEWPORT_MARGIN) {
       top = triggerRect.top - panelRect.height - 4;
     }
     top = Math.max(VIEWPORT_MARGIN, top);
 
-    if (top !== position.top) {
-      setPosition((current) => ({ ...current, top }));
-    }
+    // Clamp horizontally too -- a narrow trigger near the right edge of a
+    // mobile viewport can otherwise leave the (wider) option panel rendered
+    // partly off-screen.
+    let left = triggerRect.left;
+    left = Math.min(left, viewportWidth - panelRect.width - VIEWPORT_MARGIN);
+    left = Math.max(VIEWPORT_MARGIN, left);
+
+    setPosition((current) => (top !== current.top || left !== current.left ? { ...current, top, left } : current));
+  }
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+    repositionPanel();
   }, [isOpen]);
 
   useEffect(() => {
-    if (!isOpen) return;
-
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node;
-      const clickedTrigger = triggerRef.current?.contains(target);
-      const clickedPanel = panelRef.current?.contains(target);
-      if (!clickedTrigger && !clickedPanel) {
-        setIsOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        setIsOpen(false);
-      }
-    }
-
-    // Ignore scroll events from inside the panel itself -- this listener
-    // runs on the capture phase on `window`, which is an ancestor of the
-    // portaled panel, so scrolling the options list would otherwise close
-    // it instead of scrolling it.
-    function handleScrollOrResize(event: Event) {
-      if (panelRef.current?.contains(event.target as Node)) return;
-      setIsOpen(false);
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown, true);
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown, true);
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
-    };
+    if (!isOpen || !window.visualViewport) return;
+    const viewport = window.visualViewport;
+    viewport.addEventListener('resize', repositionPanel);
+    return () => viewport.removeEventListener('resize', repositionPanel);
   }, [isOpen]);
+
+  useDismissablePanel({ isOpen, onClose: () => setIsOpen(false), refs: [triggerRef, panelRef] });
 
   const selected = options.find((option) => option.value === value);
 
@@ -110,9 +98,10 @@ function Select({ id, options, value, onChange, ariaLabel, className }: SelectPr
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label={ariaLabel}
+        disabled={disabled}
         onClick={() => (isOpen ? setIsOpen(false) : openPanel())}
       >
-        <span>{selected?.label ?? ''}</span>
+        <span>{selected?.label ?? placeholder ?? ''}</span>
         <ChevronDown size={16} className="custom-select__chevron" />
       </button>
       {isOpen &&

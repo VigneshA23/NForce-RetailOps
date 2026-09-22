@@ -35,7 +35,7 @@ type Overlay = 'profile' | 'help' | 'notifications' | null;
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
   const [overlay, setOverlay] = useState<Overlay>(null);
-  const [searchSeed, setSearchSeed] = useState<{ term: string; id: number } | undefined>(undefined);
+  const [searchSeed, setSearchSeed] = useState<{ term: string; id: number; recordId?: number } | undefined>(undefined);
   // Lazy-mount: tabs mount on first visit and stay alive — no refetch on tab switch.
   const [mountedTabs, setMountedTabs] = useState<Set<NavTabKey>>(new Set(['home']));
   useEffect(() => {
@@ -77,9 +77,9 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
     }
   }
 
-  function handleSearchNavigate(group: 'tasks' | 'categories' | 'employees', term: string) {
+  function handleSearchNavigate(group: 'tasks' | 'categories' | 'employees', id: number, term: string) {
     setOverlay(null);
-    setSearchSeed({ term, id: Date.now() });
+    setSearchSeed({ term, id: Date.now(), recordId: id });
     if (group === 'tasks') setActiveTab('tasks');
     else if (group === 'categories') setActiveTab('categories');
     else if (group === 'employees') setActiveTab('employees');

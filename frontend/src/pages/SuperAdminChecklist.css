@@ -20,8 +20,8 @@
 }
 
 /* Amber accent until a store is chosen — signals required action without alarm-red.
-   Double-class specificity beats .select's single-class border shorthand. */
-.select.sa-checklist__store-select--unselected {
+   The modifier class lives on the Select wrapper; .select is the inner trigger button. */
+.sa-checklist__store-select--unselected .select {
   border-color: #f59e0b;
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
   color: #b45309;

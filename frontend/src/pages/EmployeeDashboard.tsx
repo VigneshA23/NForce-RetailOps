@@ -31,6 +31,9 @@ interface EmployeeDashboardProps {
   employeeId: number | null
   employeeName?: string
   onNavigate?: (tab: 'audits' | 'issues') => void
+  // Set from a search-result click to scroll to and briefly highlight that
+  // exact task's card -- `ts` makes re-selecting the same task fire again.
+  focusTaskId?: { taskId: number; ts: number }
 }
 
 function todayDateKey(): string {
@@ -239,7 +242,7 @@ function showsCompletedByCount(task: ChecklistTask): boolean {
   return task.completionType === 'MULTIPLE' && task.completedByCount > 0
 }
 
-function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: EmployeeDashboardProps) {
+function EmployeeDashboard({ store, employeeId, employeeName, onNavigate, focusTaskId }: EmployeeDashboardProps) {
   const isMobile = useIsMobile()
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
   const [loading, setLoading] = useState(true)
@@ -269,6 +272,26 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
       return next
     })
   }
+
+  const [highlightedTaskId, setHighlightedTaskId] = useState<number | null>(null)
+
+  // Clear any filter/collapse that would hide the targeted task, expand its
+  // category, then scroll it into view and flash a highlight once rendered.
+  useEffect(() => {
+    if (!focusTaskId) return
+    const owningCategory = categories.find((cat) => cat.tasks.some((t) => t.id === focusTaskId.taskId))
+    if (!owningCategory) return
+    setTaskSearch('')
+    setCategoryFilter(new Set())
+    setStatusFilter(null)
+    setOpenCategories((prev) => (prev.has(owningCategory.id) ? prev : new Set(prev).add(owningCategory.id)))
+    const timer = window.setTimeout(() => {
+      document.getElementById(`checklist-task-${focusTaskId.taskId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      setHighlightedTaskId(focusTaskId.taskId)
+    }, 0)
+    const clearTimer = window.setTimeout(() => setHighlightedTaskId(null), 2500)
+    return () => { window.clearTimeout(timer); window.clearTimeout(clearTimer) }
+  }, [focusTaskId, categories])
 
   function loadChecklist() {
     let active = true
@@ -644,7 +667,11 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
                                 : ''
 
                           return (
-                            <div key={task.id} className={`checklist-task${taskClass}`}>
+                            <div
+                              key={task.id}
+                              id={`checklist-task-${task.id}`}
+                              className={`checklist-task${taskClass}${highlightedTaskId === task.id ? ' checklist-task--highlighted' : ''}`}
+                            >
                               {/* Task name */}
                               <p className="checklist-task__name">{task.name}</p>
 

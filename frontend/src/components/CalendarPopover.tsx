@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import useDismissablePanel from '../hooks/useDismissablePanel'
 import './CalendarPopover.css'
 
 const VIEWPORT_MARGIN = 8
@@ -61,26 +62,7 @@ function CalendarPopover({ value, max, isOpen, onClose, onSelect, anchorRef }: C
     setPosition((current) => (current.top === top && current.left === left ? current : { top, left }))
   }, [isOpen, anchorRef, viewDate])
 
-  useEffect(() => {
-    if (!isOpen) return
-
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node
-      if (anchorRef.current?.contains(target)) return
-      if (panelRef.current?.contains(target)) return
-      onClose()
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') onClose()
-    }
-
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isOpen, onClose, anchorRef])
+  useDismissablePanel({ isOpen, onClose, refs: [anchorRef, panelRef], closeOnScrollOrResize: false })
 
   if (!isOpen) return null
 

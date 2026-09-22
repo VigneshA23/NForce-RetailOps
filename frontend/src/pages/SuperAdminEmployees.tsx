@@ -18,13 +18,21 @@ import SearchInput from '../components/SearchInput';
 import SpecularButton from '../components/SpecularButton';
 import Pagination from '../components/Pagination';
 import StatCard from '../components/StatCard';
+import Select from '../components/Select';
 import './SuperAdminEmployees.css';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 const PAGE_SIZE = 10;
 
-function SuperAdminEmployees() {
+interface SuperAdminEmployeesProps {
+  // Set from a search-result click (SuperAdminDashboard) to open that exact
+  // employee's detail modal once loaded. `ts` makes re-selecting the same
+  // employee from search fire again even if the modal was since closed.
+  focusEmployee?: { id: number; ts: number } | null;
+}
+
+function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
   const [employees, setEmployees] = useState<SuperAdminEmployee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -65,6 +73,14 @@ function SuperAdminEmployees() {
   useEffect(() => {
     loadEmployees();
   }, []);
+
+  // Open the exact employee a search result pointed at once the list has
+  // loaded far enough to contain it, instead of just landing on this tab.
+  useEffect(() => {
+    if (!focusEmployee) return;
+    const match = employees.find((e) => e.id === focusEmployee.id);
+    if (match) setDetailTarget(match);
+  }, [focusEmployee, employees]);
 
   async function handleFormSubmit(values: EmployeeCreateValues | EmployeeUpdateValues) {
     setFormError(null);
@@ -202,28 +218,28 @@ function SuperAdminEmployees() {
           <SearchInput value={search} onChange={setSearch} placeholder="Search employees or owners" variant="filter" />
         </div>
 
-        <select
-          className="select filter"
+        <Select
+          className="filter"
+          options={[
+            { value: 'ALL', label: 'All Types' },
+            ...EMPLOYEE_TYPE_OPTIONS.map((type) => ({ value: type, label: type })),
+          ]}
           value={typeFilter}
-          onChange={(event) => setTypeFilter(event.target.value as EmployeeType | 'ALL')}
-        >
-          <option value="ALL">All Types</option>
-          {EMPLOYEE_TYPE_OPTIONS.map((type) => (
-            <option key={type} value={type}>
-              {type}
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setTypeFilter(value as EmployeeType | 'ALL')}
+          ariaLabel="Filter by employee type"
+        />
 
-        <select
-          className="select filter filter--narrow"
+        <Select
+          className="filter filter--narrow"
+          options={[
+            { value: 'ALL', label: 'All Statuses' },
+            { value: 'ACTIVE', label: 'Active' },
+            { value: 'INACTIVE', label: 'Inactive' },
+          ]}
           value={statusFilter}
-          onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-        >
-          <option value="ALL">All Statuses</option>
-          <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
-        </select>
+          onChange={(value) => setStatusFilter(value as StatusFilter)}
+          ariaLabel="Filter by status"
+        />
       </div>
 
       {loadError ? (

@@ -27,6 +27,6 @@ public interface ActiveSessionRepository extends JpaRepository<ActiveSession, Lo
 
     @Modifying
     @Transactional
-    @Query("update ActiveSession s set s.lastActiveAt = :now where s.tokenId = :tokenId")
-    int touch(String tokenId, OffsetDateTime now);
+    @Query("update ActiveSession s set s.lastActiveAt = :now, s.expiresAt = :expiresAt where s.tokenId = :tokenId")
+    int touch(String tokenId, OffsetDateTime now, OffsetDateTime expiresAt);
 }

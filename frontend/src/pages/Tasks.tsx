@@ -40,7 +40,9 @@ interface TasksProps {
   categoriesError: string | null;
   onRetryCategories: () => void;
   stores: OwnerStore[];
-  searchSeed?: { term: string; id: number };
+  // `recordId`, when present, is the exact search-result task to open —
+  // set alongside `term` so the list is still filtered to it as a fallback.
+  searchSeed?: { term: string; id: number; recordId?: number };
 }
 
 function Tasks({
@@ -79,6 +81,21 @@ function Tasks({
   const [deleteTarget, setDeleteTarget] = useState<AdminTask | null>(null);
   const [historyConflictTask, setHistoryConflictTask] = useState<AdminTask | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Separate from the term-seed effect above so it can keep retrying (gated
+  // on its own ref) until `tasks` actually contains the match, instead of
+  // giving up after a single run if the list hadn't loaded it yet. Opens the
+  // read-only details view rather than edit, since a search click should
+  // show the record, not put it straight into edit mode.
+  const appliedDetailSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (searchSeed?.recordId == null || appliedDetailSeedId.current === searchSeed.id) return;
+    const match = tasks.find((task) => task.id === searchSeed.recordId);
+    if (match) {
+      setDetailsTask(match);
+      appliedDetailSeedId.current = searchSeed.id;
+    }
+  }, [searchSeed, tasks]);
 
   function loadTasks() {
     setIsLoading(true);

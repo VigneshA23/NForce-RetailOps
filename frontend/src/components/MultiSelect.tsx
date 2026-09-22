@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as Rea
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, X } from 'lucide-react';
 import SearchInput from './SearchInput';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 import './MultiSelect.css';
 
 export interface MultiSelectOption {
@@ -87,50 +88,11 @@ function MultiSelect({
     return () => viewport.removeEventListener('resize', repositionPanel);
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node;
-      const clickedTrigger = triggerRef.current?.contains(target);
-      const clickedPanel = panelRef.current?.contains(target);
-      if (!clickedTrigger && !clickedPanel) {
-        setIsOpen(false);
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        // Capture phase + stopPropagation: when this panel is rendered inside
-        // a Modal, Modal's own bubble-phase Escape listener on `document`
-        // would otherwise also fire and close the whole modal underneath us.
-        event.stopPropagation();
-        setIsOpen(false);
-      }
-    }
-
-    // Simplest robust fix for a portal-rendered panel: close on scroll rather
-    // than tracking the trigger's position continuously. Ignore scroll
-    // events from inside the panel itself -- this listener runs on the
-    // capture phase on `window`, which is an ancestor of the portaled panel,
-    // so scrolling the options list would otherwise close it instead of
-    // scrolling it.
-    function handleScrollOrResize(event: Event) {
-      if (panelRef.current?.contains(event.target as Node)) return;
-      setIsOpen(false);
-    }
-
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown, true);
-    window.addEventListener('scroll', handleScrollOrResize, true);
-    window.addEventListener('resize', handleScrollOrResize);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown, true);
-      window.removeEventListener('scroll', handleScrollOrResize, true);
-      window.removeEventListener('resize', handleScrollOrResize);
-    };
-  }, [isOpen]);
+  // Escape closes via capture phase + stopPropagation: when this panel is
+  // rendered inside a Modal, Modal's own bubble-phase Escape listener on
+  // `document` would otherwise also fire and close the whole modal
+  // underneath us.
+  useDismissablePanel({ isOpen, onClose: () => setIsOpen(false), refs: [triggerRef, panelRef] });
 
   function toggleOpen() {
     isOpen ? setIsOpen(false) : openPanel();

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Building2, Search, Store, Users } from 'lucide-react';
 import { superAdminSearch, type SASearchItem, type SASearchResponse } from '../api/superAdminSearch';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 import './SACommandPalette.css';
 
 interface SACommandPaletteProps {
@@ -144,26 +145,15 @@ function SACommandPalette({ onNavigate }: SACommandPaletteProps) {
     }
   }, [mobileOpen]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointerDown(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        inputRef.current?.blur();
-      }
-    }
-    document.addEventListener('mousedown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
+  useDismissablePanel({
+    isOpen: open,
+    onClose: () => {
+      setOpen(false);
+      inputRef.current?.blur();
+    },
+    refs: [containerRef],
+    closeOnScrollOrResize: false,
+  });
 
   useEffect(() => {
     if (!mobileOpen) return;

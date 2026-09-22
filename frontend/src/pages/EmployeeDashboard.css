@@ -368,6 +368,16 @@
   opacity: 0.8;
 }
 
+/* Brief flash when a search result scrolls this exact task into view. */
+.checklist-task--highlighted {
+  animation: checklist-task-flash 2.5s ease-out;
+}
+
+@keyframes checklist-task-flash {
+  0%, 40% { background: var(--color-accent-soft, rgba(59, 130, 246, 0.16)); }
+  100% { background: transparent; }
+}
+
 .checklist-task__name {
   font-size: 15px;
   font-weight: 600;

@@ -38,7 +38,9 @@ interface EmployeesProps {
   employeesLoading: boolean;
   employeesError: string | null;
   onRetryEmployees: () => void;
-  searchSeed?: { term: string; id: number };
+  // `recordId`, when present, is the exact search-result employee to open —
+  // set alongside `term` so the list is still filtered to it as a fallback.
+  searchSeed?: { term: string; id: number; recordId?: number };
 }
 
 function Employees({ employees, setEmployees, employeesLoading, employeesError, onRetryEmployees, searchSeed }: EmployeesProps) {
@@ -50,15 +52,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [page, setPage] = useState(1);
 
-  const appliedSeedId = useRef<number | null>(null);
-  useEffect(() => {
-    if (searchSeed && searchSeed.id !== appliedSeedId.current) {
-      appliedSeedId.current = searchSeed.id;
-      setSearch(searchSeed.term);
-      setPage(1);
-    }
-  }, [searchSeed]);
-
   const [editTarget, setEditTarget] = useState<Employee | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,6 +60,27 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const [statusTarget, setStatusTarget] = useState<Employee | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [detailTarget, setDetailTarget] = useState<Employee | null>(null);
+
+  const appliedSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (!searchSeed || searchSeed.id === appliedSeedId.current) return;
+    appliedSeedId.current = searchSeed.id;
+    setSearch(searchSeed.term);
+    setPage(1);
+  }, [searchSeed]);
+
+  // Separate from the term-seed effect above so it can keep retrying (gated
+  // on its own ref) until `employees` actually contains the match, instead
+  // of giving up after a single run if the list hadn't loaded it yet.
+  const appliedDetailSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (searchSeed?.recordId == null || appliedDetailSeedId.current === searchSeed.id) return;
+    const match = employees.find((employee) => employee.id === searchSeed.recordId);
+    if (match) {
+      setDetailTarget(match);
+      appliedDetailSeedId.current = searchSeed.id;
+    }
+  }, [searchSeed, employees]);
 
   const filteredEmployees = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();

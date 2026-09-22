@@ -24,10 +24,10 @@ public class ActiveSession {
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
-    // Absolute cutoff, fixed at login time based on the Remember Me policy
-    // chosen then (30 min standard / 4h remember-me) -- unlike lastActiveAt,
-    // this never slides forward, so "exactly N minutes" is a real guarantee
-    // regardless of how active the user stays.
+    // Sliding cutoff: starts at login time + the Remember Me policy chosen
+    // then (30 min standard / 4h remember-me), and SessionService.validateAndTouch
+    // pushes it forward by that same window on every touch, so it only
+    // arrives after that many minutes with no requests at all.
     @Column(name = "expires_at", nullable = false)
     private OffsetDateTime expiresAt;
 

@@ -16,7 +16,7 @@ export interface GroupedOwner {
   anyStore: OwnerSummary | null;
 }
 
-function groupOwners(owners: OwnerSummary[]): GroupedOwner[] {
+export function groupOwners(owners: OwnerSummary[]): GroupedOwner[] {
   const groups = new Map<number, GroupedOwner>();
   owners.forEach((row) => {
     const existing = groups.get(row.ownerId);

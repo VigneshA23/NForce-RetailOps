@@ -10,7 +10,7 @@ import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
 import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_BOTTOM_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import OwnerTable from '../components/OwnerTable';
+import OwnerTable, { groupOwners } from '../components/OwnerTable';
 import OwnerDetailModal from '../components/OwnerDetailModal';
 import OwnerFormModal from '../components/OwnerFormModal';
 import OwnerEditModal from '../components/OwnerEditModal';
@@ -20,6 +20,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
 import SACommandPalette from '../components/SACommandPalette';
 import SearchInput from '../components/SearchInput';
+import Select from '../components/Select';
 import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
 import Profile from '../pages/Profile';
@@ -92,6 +93,11 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   // Checklist tab navigation: storeId + monotone ts so re-navigation to the same store fires
   const [checklistNav, setChecklistNav] = useState<ChecklistNav | null>(null);
 
+  // Owner/employee search-result navigation: id + monotone ts so re-selecting
+  // the same result from search re-opens its detail even if it was closed.
+  const [ownerFocus, setOwnerFocus] = useState<{ id: number; ts: number } | null>(null);
+  const [employeeFocus, setEmployeeFocus] = useState<{ id: number; ts: number } | null>(null);
+
   function navigateToChecklist(storeId: number) {
     setChecklistNav({ storeId, ts: Date.now() });
     setShowProfile(false);
@@ -153,9 +159,13 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       if (!isNaN(storeId)) {
         navigateToChecklist(storeId);
       }
-    } else if (navTarget === 'owners') {
+    } else if (navTarget.startsWith('owners:')) {
+      const ownerId = parseInt(navTarget.split(':')[1], 10);
+      if (!isNaN(ownerId)) setOwnerFocus({ id: ownerId, ts: Date.now() });
       setActiveTab('owners');
-    } else if (navTarget === 'employees') {
+    } else if (navTarget.startsWith('employees:')) {
+      const employeeId = parseInt(navTarget.split(':')[1], 10);
+      if (!isNaN(employeeId)) setEmployeeFocus({ id: employeeId, ts: Date.now() });
       setActiveTab('employees');
     }
   }
@@ -200,6 +210,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   useEffect(() => {
     loadOwners();
   }, []);
+
+  // Open the exact owner a search result pointed at once the owners list has
+  // loaded far enough to contain it, instead of just landing on the tab.
+  useEffect(() => {
+    if (!ownerFocus) return;
+    const match = groupOwners(owners).find((o) => o.ownerId === ownerFocus.id);
+    if (match) setOwnerDetailTarget(match);
+  }, [ownerFocus, owners]);
 
   useEffect(() => {
     getAllStores().then((stores) => setTotalStoreCount(stores.length)).catch(() => {});
@@ -421,7 +439,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       ) : activeTab === 'stores' ? (
         <SuperAdminStores onNavigateToChecklist={navigateToChecklist} onOwnersDataStale={refreshOwnersSilently} />
       ) : activeTab === 'employees' ? (
-        <SuperAdminEmployees />
+        <SuperAdminEmployees focusEmployee={employeeFocus} />
       ) : activeTab === 'categories' ? (
         <SuperAdminCategories />
       ) : activeTab === 'tasks' ? (
@@ -507,15 +525,17 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                   />
                 </div>
 
-                <select
-                  className="select filter filter--narrow"
+                <Select
+                  className="filter filter--narrow"
+                  options={[
+                    { value: 'ALL', label: 'All Statuses' },
+                    { value: 'ACTIVE', label: 'Active' },
+                    { value: 'INACTIVE', label: 'Inactive' },
+                  ]}
                   value={statusFilter}
-                  onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
+                  onChange={(value) => setStatusFilter(value as StatusFilter)}
+                  ariaLabel="Filter by status"
+                />
               </div>
 
               <div className="card">

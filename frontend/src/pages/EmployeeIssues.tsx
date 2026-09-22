@@ -33,9 +33,12 @@ function formatDate(iso: string): string {
 
 interface EmployeeIssuesProps {
   store: StoreSummary
+  // Set from a search-result click to scroll to and briefly highlight that
+  // exact issue's row -- `ts` makes re-selecting the same issue fire again.
+  focusIssueId?: { issueId: number; ts: number }
 }
 
-function EmployeeIssues({ store }: EmployeeIssuesProps) {
+function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
   const [issues, setIssues] = useState<Issue[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +47,22 @@ function EmployeeIssues({ store }: EmployeeIssuesProps) {
   const [isRaiseModalOpen, setIsRaiseModalOpen] = useState(false)
   const [issueNote, setIssueNote] = useState('')
   const [isSubmittingIssue, setIsSubmittingIssue] = useState(false)
+  const [highlightedIssueId, setHighlightedIssueId] = useState<number | null>(null)
+
+  // Clear any filter that would hide the targeted issue, then scroll its row
+  // into view and flash a highlight once it's actually rendered.
+  useEffect(() => {
+    if (!focusIssueId) return
+    if (!issues.some((issue) => issue.id === focusIssueId.issueId)) return
+    setStatusFilter(null)
+    setSearch('')
+    const timer = window.setTimeout(() => {
+      document.getElementById(`emp-issue-row-${focusIssueId.issueId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      setHighlightedIssueId(focusIssueId.issueId)
+    }, 0)
+    const clearTimer = window.setTimeout(() => setHighlightedIssueId(null), 2500)
+    return () => { window.clearTimeout(timer); window.clearTimeout(clearTimer) }
+  }, [focusIssueId, issues])
 
   function loadIssues() {
     let active = true
@@ -175,7 +194,11 @@ function EmployeeIssues({ store }: EmployeeIssuesProps) {
                 </thead>
                 <tbody>
                   {filtered.map((issue) => (
-                    <tr key={issue.id}>
+                    <tr
+                      key={issue.id}
+                      id={`emp-issue-row-${issue.id}`}
+                      className={highlightedIssueId === issue.id ? 'emp-issues-page__row--highlighted' : undefined}
+                    >
                       <td data-label="Date" className="emp-issues-page__date-cell">
                         {formatDate(issue.raisedDate)}
                       </td>

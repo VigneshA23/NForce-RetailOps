@@ -396,26 +396,16 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             {/* Spacer pushes store selector to the right */}
             <div style={{ flex: 1 }} />
             {/* Store selector — RIGHT, amber accent when no store selected */}
-            <select
+            <Select
               id="sa-store-select"
-              className={`select sa-checklist__store-select${selectedStoreId === null ? ' sa-checklist__store-select--unselected' : ''}`}
+              className={`sa-checklist__store-select${selectedStoreId === null ? ' sa-checklist__store-select--unselected' : ''}`}
+              options={storeOptions}
               value={selectedStoreId !== null ? String(selectedStoreId) : ''}
-              onChange={(e) => {
-                const val = e.target.value;
-                setSelectedStoreId(val ? Number(val) : null);
-              }}
+              onChange={(val) => setSelectedStoreId(val ? Number(val) : null)}
+              placeholder={storesLoading ? 'Loading stores…' : 'Select a store…'}
+              ariaLabel="Select a store"
               disabled={storesLoading}
-            >
-              {storesLoading && selectedStoreId !== null
-                ? <option value={String(selectedStoreId)}>Loading stores…</option>
-                : <option value="">Select a store…</option>
-              }
-              {storeOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
+            />
             {selectedStoreId !== null && <ExportMenu storeId={selectedStoreId} date={date} />}
           </div>
             <CalendarPopover

@@ -118,6 +118,16 @@
   color: var(--color-text-muted);
 }
 
+/* Brief flash when a search result scrolls this exact row into view. */
+.emp-issues-page__row--highlighted {
+  animation: emp-issues-row-flash 2.5s ease-out;
+}
+
+@keyframes emp-issues-row-flash {
+  0%, 40% { background: var(--color-accent-soft, rgba(59, 130, 246, 0.16)); }
+  100% { background: transparent; }
+}
+
 /* Dark mode */
 
 [data-theme='dark'] .emp-issues-page__error {

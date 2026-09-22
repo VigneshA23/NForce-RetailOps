@@ -39,7 +39,7 @@ public class SuperAdminSearchService {
         String trimmed = q.trim();
 
         List<SASearchItem> owners = userRepository.searchOwnersByNameOrEmail(trimmed, top5).stream()
-            .map(u -> new SASearchItem(u.getId(), u.getFullName(), u.getEmail(), "owners"))
+            .map(u -> new SASearchItem(u.getId(), u.getFullName(), u.getEmail(), "owners:" + u.getId()))
             .toList();
 
         List<SASearchItem> stores = storeRepository.searchByNameOrLocation(trimmed, top5).stream()
@@ -56,7 +56,7 @@ public class SuperAdminSearchService {
                 se.getId(),
                 se.getEmployee().getFullName(),
                 se.getEmployee().getEmail(),
-                "employees"
+                "employees:" + se.getId()
             ))
             .toList();
 
