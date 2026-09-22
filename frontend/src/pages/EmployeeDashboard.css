@@ -386,6 +386,12 @@
   line-height: 1.4;
 }
 
+.checklist-task__makeup-note {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 2px 0 0;
+}
+
 .checklist-task--done .checklist-task__name {
   color: var(--color-text-secondary);
 }

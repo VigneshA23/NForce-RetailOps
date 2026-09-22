@@ -3,6 +3,7 @@ package com.nforce.retailops.controller;
 import com.nforce.retailops.service.LoginRateLimitService;
 import com.nforce.retailops.service.RaisedIssueService;
 import com.nforce.retailops.service.SuperAdminAlertService;
+import com.nforce.retailops.service.TaskMakeupLinkService;
 import com.nforce.retailops.service.TaskService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,7 @@ public class InternalJobController {
     private final SuperAdminAlertService superAdminAlertService;
     private final RaisedIssueService raisedIssueService;
     private final TaskService taskService;
+    private final TaskMakeupLinkService taskMakeupLinkService;
     private final LoginRateLimitService loginRateLimitService;
 
     @Value("${INTERNAL_JOB_SECRET:}")
@@ -39,10 +41,12 @@ public class InternalJobController {
             SuperAdminAlertService superAdminAlertService,
             RaisedIssueService raisedIssueService,
             TaskService taskService,
+            TaskMakeupLinkService taskMakeupLinkService,
             LoginRateLimitService loginRateLimitService) {
         this.superAdminAlertService = superAdminAlertService;
         this.raisedIssueService = raisedIssueService;
         this.taskService = taskService;
+        this.taskMakeupLinkService = taskMakeupLinkService;
         this.loginRateLimitService = loginRateLimitService;
     }
 
@@ -66,7 +70,10 @@ public class InternalJobController {
         return ResponseEntity.ok("overdue-issues-check completed");
     }
 
-    /** 3am daily: purge resolved issues older than 7 days + deactivate tasks past end date. */
+    /**
+     * 3am daily: purge resolved issues older than 7 days, deactivate tasks past end
+     * date, and expire stale PENDING "Missed Tasks" links (linked_date < today).
+     */
     @PostMapping("/nightly-maintenance")
     public ResponseEntity<String> nightlyMaintenance(
             @RequestHeader(value = "X-Internal-Job-Secret", required = false) String secret) {
@@ -74,6 +81,7 @@ public class InternalJobController {
         if (authError != null) return authError;
         raisedIssueService.purgeOldResolvedIssues();
         taskService.deactivateTasksPastEndDate();
+        taskMakeupLinkService.expireStalePendingLinks();
         return ResponseEntity.ok("nightly-maintenance completed");
     }
 

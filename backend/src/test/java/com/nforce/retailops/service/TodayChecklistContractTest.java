@@ -63,6 +63,8 @@ class TodayChecklistContractTest {
     private NotificationService notificationService;
     @Mock
     private ActivityLogService activityLogService;
+    @Mock
+    private TaskMakeupLinkService taskMakeupLinkService;
 
     private TaskService taskService;
 
@@ -71,7 +73,7 @@ class TodayChecklistContractTest {
         taskService = new TaskService(
             taskRepository, categoryRepository, storeOwnerRepository, storeRepository,
             userRepository, userProfileService, taskResponseEntryRepository, storeEmployeeRepository,
-            notificationService, activityLogService
+            notificationService, activityLogService, taskMakeupLinkService
         );
     }
 
@@ -110,6 +112,9 @@ class TodayChecklistContractTest {
         when(taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue(
             org.mockito.ArgumentMatchers.anyList(), anyLong(), org.mockito.ArgumentMatchers.any()))
             .thenReturn(List.of());
+        when(taskMakeupLinkService.findPendingMakeupDatesByTaskId(
+            org.mockito.ArgumentMatchers.anyList(), anyLong(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(java.util.Map.of());
 
         TodayChecklistResponse result = taskService.getTodayChecklistForEmployee(employeeId, storeId);
 

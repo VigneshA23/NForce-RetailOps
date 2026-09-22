@@ -465,6 +465,11 @@ function ChecklistDayHistoryView({
                               <StatusIcon size={14} />
                               {meta.label}
                             </span>
+                            {task.completedVia === 'LINK_FULFILLED' && (
+                              <span className="badge badge--info" title="Auto-completed when today's checklist was completed">
+                                completed via today's checklist
+                              </span>
+                            )}
                           </div>
                         )
                       })}

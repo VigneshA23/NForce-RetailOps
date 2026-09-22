@@ -8,6 +8,8 @@ import com.nforce.retailops.dto.DailyStockCheckItemResponse;
 import com.nforce.retailops.dto.EmployeeSearchResponse;
 import com.nforce.retailops.dto.IssueResponse;
 import com.nforce.retailops.dto.MeResponse;
+import com.nforce.retailops.dto.MissedTaskLinkResponse;
+import com.nforce.retailops.dto.MissedTasksPageResponse;
 import com.nforce.retailops.dto.RaiseIssueRequest;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
@@ -26,6 +28,7 @@ import com.nforce.retailops.service.EmployeeSearchService;
 import com.nforce.retailops.service.MeHistoryService;
 import com.nforce.retailops.service.RaisedIssueService;
 import com.nforce.retailops.service.StockCheckService;
+import com.nforce.retailops.service.TaskMakeupLinkService;
 import com.nforce.retailops.service.TaskService;
 import com.nforce.retailops.service.UserProfileService;
 import jakarta.validation.Valid;
@@ -33,6 +36,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -52,15 +56,17 @@ public class MeController {
 
     private final UserProfileService userProfileService;
     private final TaskService taskService;
+    private final TaskMakeupLinkService taskMakeupLinkService;
     private final MeHistoryService meHistoryService;
     private final RaisedIssueService raisedIssueService;
     private final SuperAdminRepository superAdminRepository;
     private final EmployeeSearchService employeeSearchService;
     private final StockCheckService stockCheckService;
 
-    public MeController(UserProfileService userProfileService, TaskService taskService, MeHistoryService meHistoryService, RaisedIssueService raisedIssueService, SuperAdminRepository superAdminRepository, EmployeeSearchService employeeSearchService, StockCheckService stockCheckService) {
+    public MeController(UserProfileService userProfileService, TaskService taskService, TaskMakeupLinkService taskMakeupLinkService, MeHistoryService meHistoryService, RaisedIssueService raisedIssueService, SuperAdminRepository superAdminRepository, EmployeeSearchService employeeSearchService, StockCheckService stockCheckService) {
         this.userProfileService = userProfileService;
         this.taskService = taskService;
+        this.taskMakeupLinkService = taskMakeupLinkService;
         this.meHistoryService = meHistoryService;
         this.raisedIssueService = raisedIssueService;
         this.superAdminRepository = superAdminRepository;
@@ -189,6 +195,75 @@ public class MeController {
 
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(taskService.undoResponse(userDetails.getUser().getId(), taskId, storeId, responseId));
+    }
+
+    // Employee-facing: "Missed Tasks" -- past-day instances of this store's tasks that
+    // were never completed (see TaskMakeupLinkService for the exact definition and the
+    // server-computed per-row button eligibility). Cursor pagination groups whole dates.
+    @GetMapping("/tasks/missed")
+    public ResponseEntity<MissedTasksPageResponse> missedTasks(
+        @AuthenticationPrincipal UserDetails principal,
+        @RequestParam Long storeId,
+        @RequestParam(required = false) String cursor,
+        @RequestParam(required = false) Integer limit
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(taskMakeupLinkService.getMissedTasks(userDetails.getUser().getId(), storeId, cursor, limit));
+    }
+
+    // Employee-facing: "Missed Tasks" -- Complete Now for a past instance. Identical
+    // response-type validation and SINGLE/MULTIPLE completion rules as a same-day
+    // submission (see TaskService.completeMissedNow).
+    @PostMapping("/tasks/{taskId}/missed/{date}/complete-now")
+    public ResponseEntity<com.nforce.retailops.dto.TaskResponseStateResponse> completeMissedTaskNow(
+        @AuthenticationPrincipal UserDetails principal,
+        @PathVariable Long taskId,
+        @PathVariable java.time.LocalDate date,
+        @RequestParam Long storeId,
+        @Valid @RequestBody TaskResponseSubmitRequest request
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(taskService.completeMissedNow(userDetails.getUser().getId(), taskId, storeId, date, request));
+    }
+
+    // Employee-facing: "Missed Tasks" -- defer a past instance to be auto-completed
+    // when today's occurrence of the same task is completed (see
+    // TaskMakeupLinkService.fulfillPendingLinksIfCompleted).
+    @PostMapping("/tasks/{taskId}/missed/{date}/link-to-today")
+    public ResponseEntity<MissedTaskLinkResponse> linkMissedTaskToToday(
+        @AuthenticationPrincipal UserDetails principal,
+        @PathVariable Long taskId,
+        @PathVariable java.time.LocalDate date,
+        @RequestParam Long storeId
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(taskMakeupLinkService.linkToToday(userDetails.getUser().getId(), taskId, storeId, date));
+    }
+
+    // Employee-facing: remove a PENDING link this employee created -- creator-only,
+    // PENDING-only (see TaskMakeupLinkService.unlink).
+    @DeleteMapping("/tasks/{taskId}/missed/{date}/link")
+    public ResponseEntity<Void> unlinkMissedTask(
+        @AuthenticationPrincipal UserDetails principal,
+        @PathVariable Long taskId,
+        @PathVariable java.time.LocalDate date,
+        @RequestParam Long storeId
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        taskMakeupLinkService.unlink(userDetails.getUser().getId(), taskId, storeId, date);
+        return ResponseEntity.noContent().build();
     }
 
     // Employee-facing: list issues raised by this employee for one of their stores.

@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { PanelLeft } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
-import { useIsMobile, useIsTabletDown } from '../hooks/useMediaQuery';
+import { useIsMobile, useIsTabletNarrow } from '../hooks/useMediaQuery';
 import './Sidebar.css';
 
 interface HoveredTooltip {
@@ -35,11 +35,13 @@ function Sidebar<Key extends string = NavTabKey>({
   tabBadges,
 }: SidebarProps<Key>) {
   const isMobile = useIsMobile();
-  const isTabletDown = useIsTabletDown();
-  // Mirrors the CSS: collapsed explicitly, or forced narrow at tablet-down
-  // widths -- except on mobile, where the drawer is always full width
-  // regardless of the collapsed toggle (see Sidebar.css's --mobile block).
-  const isIconOnly = !isMobile && (collapsed || isTabletDown);
+  const isTabletNarrow = useIsTabletNarrow();
+  // Mirrors the CSS: collapsed explicitly, or forced narrow at the
+  // 481-767px tablet-narrow band -- except on mobile, where the drawer is
+  // always full width regardless of the collapsed toggle (see Sidebar.css's
+  // --mobile block). iPad-width screens (768-1024px) and desktop behave the
+  // same way: icon-only only when actually collapsed.
+  const isIconOnly = !isMobile && (collapsed || isTabletNarrow);
   const [hoveredTooltip, setHoveredTooltip] = useState<HoveredTooltip | null>(null);
 
   useEffect(() => {

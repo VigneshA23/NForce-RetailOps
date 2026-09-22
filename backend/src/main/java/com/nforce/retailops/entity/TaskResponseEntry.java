@@ -86,6 +86,14 @@ public class TaskResponseEntry {
     @Column(name = "superseded_response_id")
     private Long supersededResponseId;
 
+    // How this row came to exist -- NORMAL (default) for a same-day submission,
+    // MAKEUP_NOW/LINK_FULFILLED for the "Missed Tasks" feature (see CompletedVia).
+    // LINK_FULFILLED rows are permanent: TaskService.undoResponse and
+    // AdminCorrectionService both reject acting on them.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "completed_via", nullable = false, length = 20)
+    private CompletedVia completedVia = CompletedVia.NORMAL;
+
     public TaskResponseEntry() {
     }
 
@@ -222,5 +230,13 @@ public class TaskResponseEntry {
 
     public void setSupersededResponseId(Long supersededResponseId) {
         this.supersededResponseId = supersededResponseId;
+    }
+
+    public CompletedVia getCompletedVia() {
+        return completedVia;
+    }
+
+    public void setCompletedVia(CompletedVia completedVia) {
+        this.completedVia = completedVia;
     }
 }

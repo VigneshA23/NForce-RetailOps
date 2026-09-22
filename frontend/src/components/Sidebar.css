@@ -262,7 +262,7 @@
   padding-right: 4px;
 }
 
-@media (--tablet-down) {
+@media (--tablet-narrow) {
   .sidebar:not(.sidebar--collapsed) {
     width: var(--sidebar-width-collapsed);
   }

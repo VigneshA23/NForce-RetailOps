@@ -65,6 +65,7 @@ interface RawResponseEntry {
   // still carry the stale pre-undo value; display an undone/no-answer label
   // instead of formatting them normally.
   undone: boolean;
+  completedVia: 'NORMAL' | 'MAKEUP_NOW' | 'LINK_FULFILLED';
 }
 
 interface RawTaskItem {
@@ -283,6 +284,7 @@ function toHistoryTask(task: RawTaskItem): HistoryTaskDetail {
           ...(undoTransition ? [undoTransition] : []),
         ]
       : [],
+    completedVia: latest?.completedVia ?? 'NORMAL',
   };
 }
 
