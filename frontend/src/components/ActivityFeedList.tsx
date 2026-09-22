@@ -39,6 +39,35 @@ interface ActivityFeedListProps {
   entries: ActivityLogEntry[] | null;
 }
 
+// Exported so pages that need custom grouping (e.g. the Recent Activity "view
+// all" page's day-grouped layout) can render individual rows without pulling
+// in this component's own Loading/empty-state chrome and fixed-height flex
+// sizing, which assumes a single scrollable panel rather than several
+// day-group sections stacked in a page.
+//
+// timeLabel overrides the default "X ago" relative time -- used by a
+// day-grouped layout where the group's own heading ("Yesterday", "Saturday,
+// Sep 19") already establishes which day it was, so repeating "1 day ago" /
+// "4 days ago" on every row is redundant; that caller instead passes the
+// row's plain time-of-day (e.g. "2:15 PM") for anything not from today.
+export function ActivityFeedRow({ entry, timeLabel }: { entry: ActivityLogEntry; timeLabel?: string }) {
+  const { icon: Icon, tone } = visualFor(entry.actionType);
+  return (
+    <div className="activity-feed__row">
+      <span className={`activity-feed__icon activity-feed__icon--${tone}`}>
+        <Icon size={14} />
+      </span>
+      <div className="activity-feed__row-main">
+        <span className="activity-feed__description">
+          <strong>{entry.actorName}</strong> — {entry.description.replace(/^./, (c) => c.toLowerCase())}
+        </span>
+        {entry.storeName && <span className="activity-feed__store">{entry.storeName}</span>}
+      </div>
+      <span className="activity-feed__time">{timeLabel ?? formatRelativeTime(entry.occurredAt)}</span>
+    </div>
+  );
+}
+
 function ActivityFeedList({ entries }: ActivityFeedListProps) {
   return (
     <div className="activity-feed">
@@ -48,23 +77,9 @@ function ActivityFeedList({ entries }: ActivityFeedListProps) {
       )}
       {entries !== null && entries.length > 0 && (
         <div className="activity-feed__rows">
-          {entries.map((entry) => {
-            const { icon: Icon, tone } = visualFor(entry.actionType);
-            return (
-              <div key={entry.id} className="activity-feed__row">
-                <span className={`activity-feed__icon activity-feed__icon--${tone}`}>
-                  <Icon size={14} />
-                </span>
-                <div className="activity-feed__row-main">
-                  <span className="activity-feed__description">
-                    <strong>{entry.actorName}</strong> — {entry.description.replace(/^./, (c) => c.toLowerCase())}
-                  </span>
-                  {entry.storeName && <span className="activity-feed__store">{entry.storeName}</span>}
-                </div>
-                <span className="activity-feed__time">{formatRelativeTime(entry.occurredAt)}</span>
-              </div>
-            );
-          })}
+          {entries.map((entry) => (
+            <ActivityFeedRow key={entry.id} entry={entry} />
+          ))}
         </div>
       )}
     </div>
