@@ -34,6 +34,13 @@ vi.mock('./api/tasks', () => ({
   undoTaskResponse: vi.fn(),
 }))
 
+vi.mock('./api/missedTasks', () => ({
+  getMissedTasks: vi.fn().mockResolvedValue({ groups: [], nextCursor: null, totalInstances: 0 }),
+  completeMissedTaskNow: vi.fn(),
+  linkMissedTaskToToday: vi.fn(),
+  unlinkMissedTask: vi.fn(),
+}))
+
 vi.mock('./api/issues', () => ({
   raiseIssue: vi.fn(),
   getMyIssues: vi.fn().mockResolvedValue([]),

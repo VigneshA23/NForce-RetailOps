@@ -20,6 +20,7 @@ import type { ChecklistCategory, ChecklistTask, TaskResponseSummary } from '../t
 import StatCard from '../components/StatCard'
 import SearchInput from '../components/SearchInput'
 import ButtonDots from '../components/ButtonDots'
+import MissedTasksPanel from '../components/MissedTasksPanel'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import './EmployeeDashboard.css'
 import '../styles/filters.css'
@@ -511,6 +512,8 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
           <StatCard icon={Flag} label="Flagged" value={flagCount} tone="warning" />
         </div>
 
+        <MissedTasksPanel store={store} />
+
         {loading && <p className="employee-dashboard-loading">Loading today's checklist…</p>}
 
         {!loading && error && (
@@ -647,6 +650,13 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
                             <div key={task.id} className={`checklist-task${taskClass}`}>
                               {/* Task name */}
                               <p className="checklist-task__name">{task.name}</p>
+
+                              {/* Pending "Missed Tasks" makeup links -- see types/missedTasks.ts */}
+                              {task.pendingMakeupDates && task.pendingMakeupDates.length > 0 && (
+                                <p className="checklist-task__makeup-note">
+                                  Will also complete {task.pendingMakeupDates.length} missed ({task.pendingMakeupDates.join(', ')})
+                                </p>
+                              )}
 
                               {/* Flag reason */}
                               {myResponseIsFlagged && mine?.flagReason && (

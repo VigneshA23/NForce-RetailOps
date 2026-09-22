@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Flag, Pencil } from 'lucide-react';
+import { CheckCircle2, Flag, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 import { responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -308,7 +308,14 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                       data-label="Response"
                       className={status === 'ISSUE' ? 'store-detail-table__response--issue' : undefined}
                     >
-                      {responseDisplayValue(task)}
+                      <span className={`store-detail-table__response-value store-detail-table__response-value--${status.toLowerCase()}`}>
+                        {status === 'COMPLETE' && (
+                          <span className="store-detail-table__response-icon" aria-hidden="true">
+                            <CheckCircle2 size={12} />
+                          </span>
+                        )}
+                        {responseDisplayValue(task)}
+                      </span>
                     </td>
                     <td data-label="Employee">
                       {responders.length > 0 ? (

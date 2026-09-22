@@ -117,6 +117,18 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
         @Param("storeId") Long storeId, @Param("responseDate") LocalDate responseDate
     );
 
+    // Missed-tasks scan: every active response for a set of candidate tasks across the
+    // whole 90-day lookback window, in one round trip -- lets TaskMakeupLinkService
+    // determine per (task, date) whether the instance is already satisfied
+    // (CompletionType.isSatisfiedBy) without one query per candidate day.
+    @Query("select tre from TaskResponseEntry tre join fetch tre.employee "
+        + "where tre.task.id in :taskIds and tre.store.id = :storeId "
+        + "and tre.responseDate between :startDate and :endDate and tre.active = true")
+    List<TaskResponseEntry> findByTaskIdInAndStoreIdAndResponseDateBetweenAndActiveTrue(
+        @Param("taskIds") Collection<Long> taskIds, @Param("storeId") Long storeId,
+        @Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate
+    );
+
     // Backs the deleteTask history guard. Deliberately has no "active" predicate --
     // an undone (active=false) response is still a historical fact that must block
     // deletion, per TaskResponseEntry's own preserve-history contract.

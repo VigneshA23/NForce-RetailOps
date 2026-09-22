@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import com.nforce.retailops.entity.CompletedVia;
 import com.nforce.retailops.entity.TaskResponseEntry;
 
 import java.time.OffsetDateTime;
@@ -13,7 +14,8 @@ public record TaskResponseSummary(
     String textValue,
     OffsetDateTime respondedAt,
     boolean flaggedNeedsCorrection,
-    String flagReason
+    String flagReason,
+    CompletedVia completedVia
 ) {
     public static TaskResponseSummary from(TaskResponseEntry entry) {
         return new TaskResponseSummary(
@@ -25,7 +27,8 @@ public record TaskResponseSummary(
             entry.getValueText(),
             entry.getCreatedAt(),
             entry.isFlaggedNeedsCorrection(),
-            entry.getFlagReason()
+            entry.getFlagReason(),
+            entry.getCompletedVia()
         );
     }
 }

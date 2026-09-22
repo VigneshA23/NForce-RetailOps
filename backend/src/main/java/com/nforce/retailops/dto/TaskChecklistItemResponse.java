@@ -5,6 +5,7 @@ import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 
+import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
 
@@ -29,10 +30,15 @@ public record TaskChecklistItemResponse(
     // still active in `responses` above.
     int completedByCount,
     int totalActiveEmployees,
-    List<String> completedByNames
+    List<String> completedByNames,
+    // Past dates with a PENDING makeup link to today for this task (see
+    // TaskMakeupLinkService) -- when non-empty, the checklist card shows "Will also
+    // complete N missed (dates)". Empty for every task with no pending links.
+    List<LocalDate> pendingMakeupDates
 ) {
     public static TaskChecklistItemResponse from(
-        Task task, List<TaskResponseEntry> activeResponses, Long employeeUserId, int totalActiveEmployees
+        Task task, List<TaskResponseEntry> activeResponses, Long employeeUserId, int totalActiveEmployees,
+        List<LocalDate> pendingMakeupDates
     ) {
         LinkedHashMap<Long, String> activeResponders = new LinkedHashMap<>();
         for (TaskResponseEntry entry : activeResponses) {
@@ -57,7 +63,8 @@ public record TaskChecklistItemResponse(
             activeResponses.stream().anyMatch(entry -> entry.getEmployee().getId().equals(employeeUserId)),
             activeResponders.size(),
             totalActiveEmployees,
-            List.copyOf(activeResponders.values())
+            List.copyOf(activeResponders.values()),
+            pendingMakeupDates
         );
     }
 }
