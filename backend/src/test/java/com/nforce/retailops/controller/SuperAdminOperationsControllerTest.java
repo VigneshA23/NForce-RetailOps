@@ -152,7 +152,6 @@ class SuperAdminOperationsControllerTest {
         StoreEmployee se = new StoreEmployee();
         se.setEmployee(employee);
         se.setPhone("555-0100");
-        se.setShift("Morning");
         se.setEmployeeType("Full-time");
         se.setGender("Other");
         se.getStores().add(store);
@@ -298,6 +297,34 @@ class SuperAdminOperationsControllerTest {
             .andExpect(jsonPath("$.employeesActiveToday").value(1));
     }
 
+    // Dedicated coverage for the "Owners logged in today" Platform Health row:
+    // two owners, only one of whom actually logs in during the test -- proves
+    // the count reflects a real login (AuthService.login setting lastLoginAt),
+    // not just owner existence, and that an owner who never logs in is
+    // correctly excluded rather than defaulting to "counted".
+    @Test
+    @Transactional
+    void platformStatsCountsOwnersLoggedInToday() throws Exception {
+        superAdmin("sa-ops-admin-i@nforce.test");
+        User ownerLoggedIn = ownerUser("sa-ops-owner-i-loggedin@nforce.test");
+        User ownerNeverLoggedIn = ownerUser("sa-ops-owner-i-never@nforce.test");
+        Store storeA = store("Store Owner Login A", 9230L);
+        Store storeB = store("Store Owner Login B", 9231L);
+        linkOwnerToStore(ownerLoggedIn, storeA);
+        linkOwnerToStore(ownerNeverLoggedIn, storeB);
+
+        login("sa-ops-owner-i-loggedin@nforce.test");
+
+        String token = login("sa-ops-admin-i@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/platform-stats")
+                .header("Authorization", "Bearer " + token)
+                .param("date", LocalDate.now().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalOwners").value(2))
+            .andExpect(jsonPath("$.ownersLoggedInToday").value(1));
+    }
+
     @Test
     @Transactional
     void platformStatsZeroStoresReturnsZeros() throws Exception {
@@ -308,7 +335,9 @@ class SuperAdminOperationsControllerTest {
                 .header("Authorization", "Bearer " + token)
                 .param("date", LocalDate.now().minusYears(10).toString()))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.platformCompletionPercent").value(0));
+            .andExpect(jsonPath("$.platformCompletionPercent").value(0))
+            .andExpect(jsonPath("$.totalOwners").value(0))
+            .andExpect(jsonPath("$.ownersLoggedInToday").value(0));
     }
 
     @Test

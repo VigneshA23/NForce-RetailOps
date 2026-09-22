@@ -58,6 +58,8 @@ function TaskDetailsModal({ task, isOpen, onClose }: TaskDetailsModalProps) {
 
         <DetailRow label="Category">{task.categoryName}</DetailRow>
 
+        {task.ownerName && <DetailRow label="Owner">{task.ownerName}</DetailRow>}
+
         <DetailRow label="Applicable Stores">
           {task.appliesToAllStores ? (
             'All Stores'

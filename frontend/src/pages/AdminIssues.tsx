@@ -6,6 +6,7 @@ import type { Issue } from '../types/issue';
 import StatCard from '../components/StatCard';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
+import ButtonDots from '../components/ButtonDots';
 import './AdminIssues.css';
 
 type StatusFilter = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | null;
@@ -77,8 +78,8 @@ function ResolveModal({ issue, onCancel, onConfirm, busy }: ResolveModalProps) {
           <button type="button" className="btn btn--secondary" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
-          <button type="button" className="btn btn--primary" onClick={() => onConfirm(text)} disabled={busy}>
-            {busy ? 'Resolving…' : 'Confirm Resolve'}
+          <button type="button" className={`btn btn--primary${busy ? ' btn--loading' : ''}`} onClick={() => onConfirm(text)} disabled={busy}>
+            {busy ? <ButtonDots label="Resolving" /> : 'Confirm Resolve'}
           </button>
         </div>
       </div>

@@ -8,7 +8,8 @@ import type { AddOwnerValues, AssignStoreValues, OwnerSummary, UpdateOwnerValues
 import type { GroupedOwner } from '../components/OwnerTable';
 import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
-import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
+import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_BOTTOM_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import OwnerTable from '../components/OwnerTable';
 import OwnerDetailModal from '../components/OwnerDetailModal';
 import OwnerFormModal from '../components/OwnerFormModal';
@@ -27,10 +28,12 @@ import Notifications from '../pages/Notifications';
 import SuperAdminStores from '../pages/SuperAdminStores';
 import SuperAdminEmployees from '../pages/SuperAdminEmployees';
 import SuperAdminCategories from '../pages/SuperAdminCategories';
+import SuperAdminTasks from '../pages/SuperAdminTasks';
 import SuperAdminHome from '../pages/SuperAdminHome';
 import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import SuperAdminIssues from '../pages/SuperAdminIssues';
 import SuperAdminInventory from '../pages/SuperAdminInventory';
+import SuperAdminActivity from '../pages/SuperAdminActivity';
 import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 import './SuperAdminDashboard.css';
@@ -93,7 +96,26 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setChecklistNav({ storeId, ts: Date.now() });
     setShowProfile(false);
     setShowHelp(false);
+    setShowActivity(false);
     setActiveTab('checklist');
+  }
+
+  function viewAllActivity() {
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowNotifications(false);
+    setShowActivity(true);
+  }
+
+  // Both Recent Activity and Notifications are reached only via "View all"/the
+  // bell, not a sidebar tab, so they have no tab of their own to fall back to
+  // on Back -- send the user to Home explicitly instead.
+  function goHome() {
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowNotifications(false);
+    setShowActivity(false);
+    setActiveTab('home');
   }
 
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string | null; emailSent: boolean } | null>(null);
@@ -103,6 +125,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
 
   const { count: unreadCount, setCount } = useUnreadCount();
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
@@ -124,6 +147,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setShowProfile(false);
     setShowHelp(false);
     setShowNotifications(false);
+    setShowActivity(false);
     if (navTarget.startsWith('checklist:')) {
       const storeId = parseInt(navTarget.split(':')[1], 10);
       if (!isNaN(storeId)) {
@@ -321,26 +345,33 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     () => new Set(owners.filter((o) => o.ownerActive).map((o) => o.ownerId)).size,
     [owners],
   );
+  // Owners/Stores move off the mobile bottom nav into the profile menu below --
+  // desktop/tablet Sidebar keeps the full SUPER_ADMIN_NAV_ITEMS list untouched.
+  const isMobile = useIsMobile();
   return (
     <AppShell<SuperAdminNavTabKey>
       navItems={SUPER_ADMIN_NAV_ITEMS}
+      bottomNavItems={SUPER_ADMIN_BOTTOM_NAV_ITEMS}
       activeTab={activeTab}
       onSelectTab={(key) => {
         setShowProfile(false);
         setShowHelp(false);
         setShowNotifications(false);
+        setShowActivity(false);
         setActiveTab(key);
       }}
       title={
         showProfile ? 'My Profile'
         : showHelp ? 'Help & Guidance'
         : showNotifications ? 'Notifications'
+        : showActivity ? 'Recent Activity'
         : SUPER_ADMIN_PAGE_TITLES[activeTab]
       }
       contentKey={
         showProfile ? 'profile'
         : showHelp ? 'help'
         : showNotifications ? 'notifications'
+        : showActivity ? 'activity'
         : activeTab
       }
       logoSrc="/nforce-logo.png"
@@ -350,9 +381,11 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onLogout={onLogout}
       loggingOut={loggingOut}
       avatarUrl={avatarUrl}
-      onProfileClick={() => { setShowHelp(false); setShowNotifications(false); setShowProfile(true); }}
-      onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowHelp(true); }}
-      onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowNotifications(true); }}
+      onProfileClick={() => { setShowHelp(false); setShowNotifications(false); setShowActivity(false); setShowProfile(true); }}
+      onOwnersClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('owners'); } : undefined}
+      onStoresClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('stores'); } : undefined}
+      onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowActivity(false); setShowHelp(true); }}
+      onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowActivity(false); setShowNotifications(true); }}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}
       onNotificationsCountChange={handleNotificationsCountChange}
@@ -365,11 +398,14 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       ) : showHelp ? (
         <Help role={user.role} />
       ) : showNotifications ? (
-        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
+        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} onBackToHome={goHome} />
+      ) : showActivity ? (
+        <SuperAdminActivity onBack={goHome} />
       ) : activeTab === 'checklist' ? (
         <SuperAdminChecklist nav={checklistNav} />
       ) : activeTab === 'home' ? (
         <SuperAdminHome
+          userName={user.fullName}
           owners={owners}
           ownersLoading={isLoading}
           totalStoreCount={totalStoreCount}
@@ -380,6 +416,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
           onStoresClick={() => setActiveTab('stores')}
           onCategoriesClick={() => setActiveTab('categories')}
           onChecklistClick={() => setActiveTab('checklist')}
+          onViewAllActivity={viewAllActivity}
         />
       ) : activeTab === 'stores' ? (
         <SuperAdminStores onNavigateToChecklist={navigateToChecklist} onOwnersDataStale={refreshOwnersSilently} />
@@ -387,6 +424,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminEmployees />
       ) : activeTab === 'categories' ? (
         <SuperAdminCategories />
+      ) : activeTab === 'tasks' ? (
+        <SuperAdminTasks />
       ) : activeTab === 'issues' ? (
         <SuperAdminIssues />
       ) : activeTab === 'inventory' ? (

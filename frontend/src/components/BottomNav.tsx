@@ -13,15 +13,20 @@ function BottomNav<Key extends string = NavTabKey>({ items, activeKey, onSelect,
 
   return (
     <nav className="bottom-nav" aria-label="Primary">
-      {/* Sliding glow highlight — moves to active tab position */}
-      <div
-        className="bottom-nav__highlight"
-        aria-hidden="true"
-        style={{
-          width: `${100 / items.length}%`,
-          transform: `translateX(${activeIndex * 100}%) translateY(-50%)`,
-        }}
-      />
+      {/* Sliding glow highlight — moves to active tab position. Hidden entirely
+          when the active tab isn't one of the ones shown here (e.g. Super
+          Admin's Owners/Stores, reachable via the profile menu instead) —
+          otherwise it'd render at a bogus translateX(-100%) position. */}
+      {activeIndex >= 0 && (
+        <div
+          className="bottom-nav__highlight"
+          aria-hidden="true"
+          style={{
+            width: `${100 / items.length}%`,
+            transform: `translateX(${activeIndex * 100}%) translateY(-50%)`,
+          }}
+        />
+      )}
       {items.map((item) => {
         const Icon = item.icon;
         const isActive = item.key === activeKey;

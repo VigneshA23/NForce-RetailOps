@@ -1,5 +1,4 @@
 import type { Employee } from '../types/employee';
-import { getShiftTimeRange } from '../utils/employeeUtils';
 import Modal from './Modal';
 import './EmployeeDetailModal.css';
 
@@ -46,12 +45,6 @@ function EmployeeDetailModal({ employee, onClose, ownerName }: EmployeeDetailMod
           <div>
             <dt>Assigned Stores</dt>
             <dd>{employee.stores.length > 0 ? employee.stores.map((store) => store.name).join(', ') : 'No stores'}</dd>
-          </div>
-          <div>
-            <dt>Shift</dt>
-            <dd>
-              {employee.shift} ({getShiftTimeRange(employee.shift)})
-            </dd>
           </div>
           <div>
             <dt>Type</dt>

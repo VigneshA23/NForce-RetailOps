@@ -4,6 +4,7 @@ import type { AssignStoreValues, ReassignableStore } from '../types/owner';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
+import ButtonDots from './ButtonDots';
 import './AssignStoreModal.css';
 
 interface AssignStoreModalProps {
@@ -108,8 +109,8 @@ function AssignStoreModal({
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="assign-store-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Add Store'}
+          <button type="submit" form="assign-store-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : 'Add Store'}
           </button>
         </>
       }

@@ -37,6 +37,18 @@ public class CategoryController {
         return ResponseEntity.ok(categoryService.listCategoriesForSuperAdmin());
     }
 
+    // Backs the Super Admin task-creation flow's store-then-category wizard --
+    // narrows the category picker to only categories applicable to the store
+    // scope chosen in step one (see CategoryService.listCategoriesApplicableToStores).
+    @GetMapping("/applicable")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<CategoryResponse>> listApplicable(
+        @RequestParam(defaultValue = "false") boolean appliesToAllStores,
+        @RequestParam(required = false) List<Long> storeIds
+    ) {
+        return ResponseEntity.ok(categoryService.listCategoriesApplicableToStores(appliesToAllStores, storeIds));
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<CategoryResponse> create(@Valid @RequestBody CategoryRequest request) {

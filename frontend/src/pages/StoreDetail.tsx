@@ -45,6 +45,8 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   const [filter, setFilter] = useState<FilterKey>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [outstandingSearch, setOutstandingSearch] = useState('');
+  const [outstandingCategoryFilter, setOutstandingCategoryFilter] = useState('all');
 
   const isToday = date === todayDate();
 
@@ -304,10 +306,13 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
     });
   }
 
-  // Outstanding = today-only OPEN/ISSUE tasks. ISSUE sorted before OPEN,
-  // alphabetical by task name within each group.
+  // Outstanding/Incomplete = OPEN/ISSUE tasks for the currently viewed date
+  // (today or historical). ISSUE sorted before OPEN, alphabetical by task
+  // name within each group. Has its own dedicated search/category filter
+  // (outstandingSearch/outstandingCategoryFilter below, applied via
+  // filteredOutstandingRows) -- deliberately independent from the main
+  // table's filter bar, so filtering one doesn't silently affect the other.
   const outstandingRows = useMemo(() => {
-    if (!isToday) return [];
     return rows
       .filter((row) => {
         const s = taskStatus(row.task);
@@ -319,31 +324,35 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
         if (sa !== sb) return sa === 'ISSUE' ? -1 : 1;
         return a.task.name.localeCompare(b.task.name);
       });
-  }, [rows, isToday]);
+  }, [rows]);
 
   // Open by default when issues exist; close when only open tasks remain.
   // Reset whenever fresh data arrives (date navigation triggers a new detail load).
   const [outstandingOpen, setOutstandingOpen] = useState(false);
   useEffect(() => {
     setOutstandingOpen(counts.issues > 0);
+    setOutstandingSearch('');
+    setOutstandingCategoryFilter('all');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
 
-  // Deferred scroll: reset filter to ALL first so the target row is in the DOM,
-  // then scroll once filteredRows has updated on the next render.
-  const [pendingScrollKey, setPendingScrollKey] = useState<string | null>(null);
-  function scrollToRow(key: string) {
-    setFilter('ALL');
-    setPendingScrollKey(key);
-  }
-  useEffect(() => {
-    if (!pendingScrollKey) return;
-    const el = document.getElementById(`task-row-${pendingScrollKey}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setPendingScrollKey(null);
+  const outstandingCategoryOptions = useMemo<SelectOption[]>(() => {
+    const names = Array.from(new Set(outstandingRows.map((row) => row.categoryName))).sort();
+    return names.map((name) => ({ value: name, label: name }));
+  }, [outstandingRows]);
+
+  const filteredOutstandingRows = useMemo(() => {
+    let result = outstandingRows;
+    if (outstandingCategoryFilter !== 'all') {
+      result = result.filter((row) => row.categoryName === outstandingCategoryFilter);
     }
-  }, [pendingScrollKey, filteredRows]);
+    if (outstandingSearch.trim()) {
+      result = result.filter((row) =>
+        matchesSearch(outstandingSearch, [row.categoryName, row.task.name]),
+      );
+    }
+    return result;
+  }, [outstandingRows, outstandingCategoryFilter, outstandingSearch]);
 
   if (storeId === null) {
     return (
@@ -531,7 +540,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
         </div>
       )}
 
-      {isToday && outstandingRows.length > 0 && (
+      {outstandingRows.length > 0 && (
         <div className="store-detail-outstanding">
           <button
             type="button"
@@ -540,7 +549,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
             aria-expanded={outstandingOpen}
           >
             <span className="store-detail-outstanding__title">
-              Outstanding Tasks
+              {isToday ? 'Outstanding Tasks' : 'Incomplete Tasks'}
               <span className="store-detail-outstanding__count">{outstandingRows.length}</span>
             </span>
             <ChevronDown
@@ -549,26 +558,41 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
             />
           </button>
           {outstandingOpen && (
-            <ul className="store-detail-outstanding__list">
-              {outstandingRows.map((row) => {
-                const status = taskStatus(row.task);
-                return (
-                  <li key={row.key}>
-                    <button
-                      type="button"
-                      className="store-detail-outstanding__row"
-                      onClick={() => scrollToRow(row.key)}
-                    >
-                      <span className="store-detail-outstanding__category">{row.categoryName}</span>
-                      <span className="store-detail-outstanding__task">{row.task.name}</span>
-                      <span className={`badge ${status === 'ISSUE' ? 'badge--danger' : 'badge--outline'}`}>
-                        {status === 'ISSUE' ? 'Issue' : 'Open'}
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <>
+              <div className="filter-bar store-detail-outstanding__filter-bar">
+                <div className="filter filter--search">
+                  <SearchInput
+                    value={outstandingSearch}
+                    onChange={setOutstandingSearch}
+                    placeholder="Search tasks…"
+                    variant="filter"
+                  />
+                </div>
+                {outstandingCategoryOptions.length > 1 && (
+                  <Select
+                    className="filter"
+                    options={[{ value: 'all', label: 'All categories' }, ...outstandingCategoryOptions]}
+                    value={outstandingCategoryFilter}
+                    onChange={setOutstandingCategoryFilter}
+                    ariaLabel="Filter outstanding tasks by category"
+                  />
+                )}
+              </div>
+              {filteredOutstandingRows.length === 0 ? (
+                <p className="store-detail-outstanding__empty">
+                  No {isToday ? 'outstanding' : 'incomplete'} tasks match your filters.
+                </p>
+              ) : (
+                <StoreDetailTable
+                  idPrefix="outstanding-"
+                  rows={filteredOutstandingRows}
+                  hasChecklist={detail?.hasChecklist ?? false}
+                  onResponseCorrected={handleResponseCorrected}
+                  onResponseFlagged={handleResponseCorrected}
+                  repeatOffenderMap={repeatOffenderMap}
+                />
+              )}
+            </>
           )}
         </div>
       )}

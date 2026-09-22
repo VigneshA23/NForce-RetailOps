@@ -36,8 +36,8 @@ function renderModal() {
 }
 
 async function selectShortTextResponseType(user: ReturnType<typeof userEvent.setup>) {
-  const select = screen.getByLabelText(/Response Type/i);
-  await user.selectOptions(select, 'TEXT');
+  await user.click(screen.getByLabelText(/Response Type/i));
+  await user.click(screen.getByRole('button', { name: 'Short Text' }));
   return screen.getByLabelText(/Short Text/i) as HTMLInputElement;
 }
 

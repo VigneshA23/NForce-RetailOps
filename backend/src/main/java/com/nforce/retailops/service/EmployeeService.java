@@ -348,7 +348,6 @@ public class EmployeeService {
         userRepository.save(employee);
 
         storeEmployee.setPhone(request.phone().trim());
-        storeEmployee.setShift(request.shift());
         storeEmployee.setEmployeeType(request.employeeType());
         storeEmployee.setGender(request.gender());
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
@@ -402,7 +401,6 @@ public class EmployeeService {
         userRepository.save(employee);
 
         storeEmployee.setPhone(request.phone().trim());
-        storeEmployee.setShift(request.shift());
         storeEmployee.setEmployeeType(request.employeeType());
         storeEmployee.setGender(request.gender());
         storeEmployee = storeEmployeeRepository.save(storeEmployee);

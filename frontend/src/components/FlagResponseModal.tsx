@@ -3,6 +3,7 @@ import { Flag } from 'lucide-react';
 import { flagResponse } from '../api/checklistHistory';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 import Modal from './Modal';
+import ButtonDots from './ButtonDots';
 
 interface FlagResponseModalProps {
   isOpen: boolean;
@@ -56,11 +57,10 @@ function FlagResponseModal({ isOpen, onClose, responseEntry, task, onFlagged }: 
           <button
             type="submit"
             form="flag-response-form"
-            className="btn btn--warning"
+            className={`btn btn--warning${submitting ? ' btn--loading' : ''}`}
             disabled={submitting || !reason.trim()}
           >
-            <Flag size={14} />
-            {submitting ? 'Flagging…' : 'Flag for Correction'}
+            {submitting ? <ButtonDots label="Flagging" /> : (<><Flag size={14} />Flag for Correction</>)}
           </button>
         </>
       }

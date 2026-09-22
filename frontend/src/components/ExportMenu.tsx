@@ -6,6 +6,7 @@ import { buildOperationsReportWorkbook, summarizeByStore } from '../utils/operat
 import { buildAndDownloadOperationsReportPdf } from '../utils/operationsReportPdfExport';
 import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
+import ButtonDots from './ButtonDots';
 import { MAX_RANGE_DAYS, todayDate } from '../utils/checklistHistoryOptions';
 import './ExportMenu.css';
 
@@ -221,13 +222,12 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
         <div ref={dropdownRef} className="export-menu__dropdown" role="menu" style={{ top: position.top, left: position.left }}>
           <button
             type="button"
-            className="export-menu__item"
+            className={`export-menu__item${exporting ? ' btn--loading' : ''}`}
             role="menuitem"
             onClick={handleExportToday}
             disabled={exporting || !storeId}
           >
-            <FileSpreadsheet size={14} />
-            {exporting ? 'Downloading…' : 'Export this day (Excel)'}
+            {exporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} />Export this day (Excel)</>)}
           </button>
 
           <button
@@ -270,19 +270,19 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
               <div className="export-menu__range-row">
                 <button
                   type="button"
-                  className="btn btn--primary export-menu__range-download"
+                  className={`btn btn--primary export-menu__range-download${rangeExporting ? ' btn--loading' : ''}`}
                   onClick={handleExportRange}
                   disabled={rangeExporting || pdfRangeExporting}
                 >
-                  {rangeExporting ? 'Downloading…' : 'Download Excel'}
+                  {rangeExporting ? <ButtonDots label="Downloading" /> : 'Download Excel'}
                 </button>
                 <button
                   type="button"
-                  className="btn btn--secondary export-menu__range-download"
+                  className={`btn btn--secondary export-menu__range-download${pdfRangeExporting ? ' btn--loading' : ''}`}
                   onClick={handleExportPdfRange}
                   disabled={rangeExporting || pdfRangeExporting}
                 >
-                  {pdfRangeExporting ? 'Generating…' : 'Download PDF'}
+                  {pdfRangeExporting ? <ButtonDots label="Generating" /> : 'Download PDF'}
                 </button>
               </div>
             </div>
@@ -292,13 +292,12 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
 
           <button
             type="button"
-            className="export-menu__item"
+            className={`export-menu__item${pdfExporting ? ' btn--loading' : ''}`}
             role="menuitem"
             onClick={handleExportPdf}
             disabled={pdfExporting || !storeId}
           >
-            <FileText size={14} />
-            {pdfExporting ? 'Generating PDF…' : 'Export as PDF'}
+            {pdfExporting ? <ButtonDots label="Generating PDF" /> : (<><FileText size={14} />Export as PDF</>)}
           </button>
         </div>,
         document.body,

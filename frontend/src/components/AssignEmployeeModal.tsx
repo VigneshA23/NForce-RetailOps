@@ -4,6 +4,7 @@ import { assignEmployeeToMyStore, getEmployeeDirectory, unassignEmployeeFromMySt
 import type { EmployeeDirectoryEntry } from '../types/employee';
 import Modal from './Modal';
 import SearchInput from './SearchInput';
+import ButtonDots from './ButtonDots';
 import './AssignEmployeeModal.css';
 
 interface AssignEmployeeModalProps {
@@ -98,11 +99,11 @@ function AssignEmployeeModal({ isOpen, onClose, onAssignmentChange }: AssignEmpl
                 </div>
                 <button
                   type="button"
-                  className={`btn ${entry.assignedToMyStore ? 'btn--secondary' : 'btn--primary'}`}
+                  className={`btn ${entry.assignedToMyStore ? 'btn--secondary' : 'btn--primary'}${pendingId === entry.id ? ' btn--loading' : ''}`}
                   disabled={pendingId === entry.id}
                   onClick={() => handleToggle(entry)}
                 >
-                  {pendingId === entry.id ? 'Saving...' : entry.assignedToMyStore ? 'Remove from my store' : 'Assign to my store'}
+                  {pendingId === entry.id ? <ButtonDots label="Saving" /> : entry.assignedToMyStore ? 'Remove from my store' : 'Assign to my store'}
                 </button>
               </li>
             ))}

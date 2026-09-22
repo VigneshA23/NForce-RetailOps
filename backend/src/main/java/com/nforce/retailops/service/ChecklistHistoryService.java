@@ -204,7 +204,7 @@ public class ChecklistHistoryService {
         return new ChecklistHistorySummaryRow(
             context.store().getId(), context.store().getName(), context.date(),
             !context.unionTaskIds().isEmpty(), context.unionTaskIds().size(),
-            context.respondedTaskIds().size(), context.issueCount()
+            context.completedTaskIds().size(), context.issueCount()
         );
     }
 
@@ -243,11 +243,15 @@ public class ChecklistHistoryService {
         Set<Long> unionTaskIds,
         // Best-effort resolved Task objects for unionTaskIds -- used only to build
         // task-level detail rows (category/name). Summary counts always come from
-        // unionTaskIds/respondedTaskIds directly, never from this map's size, so an
+        // unionTaskIds/completedTaskIds directly, never from this map's size, so an
         // unresolved task id (should not happen in practice) can never under-count
         // the existing Scheduled/Completed totals.
         Map<Long, Task> unionTasksById,
         Set<Long> respondedTaskIds,
+        // Subset of respondedTaskIds that meet each task's own completion
+        // threshold (CompletionType.isSatisfiedBy) -- for a MULTIPLE task, having
+        // at least one response is not enough to count as Completed here either.
+        Set<Long> completedTaskIds,
         Map<Long, List<TaskResponseEntry>> responsesByTask,
         int issueCount,
         // Currently-deactivated tasks (task itself, or its category) configured for this
@@ -365,6 +369,18 @@ public class ChecklistHistoryService {
                 Map<Long, List<TaskResponseEntry>> responsesByTask = dayResponses.stream()
                     .collect(Collectors.groupingBy(entry -> entry.getTask().getId()));
                 Set<Long> respondedTaskIds = responsesByTask.keySet();
+                Set<Long> completedTaskIds = responsesByTask.entrySet().stream()
+                    .filter(taskResponses -> {
+                        Task task = candidateTasksById.getOrDefault(
+                            taskResponses.getKey(), missingTasksById.get(taskResponses.getKey()));
+                        long distinctResponders = taskResponses.getValue().stream()
+                            .map(entry -> entry.getEmployee().getId())
+                            .distinct()
+                            .count();
+                        return task != null && task.getCompletionType().isSatisfiedBy(distinctResponders);
+                    })
+                    .map(Map.Entry::getKey)
+                    .collect(Collectors.toSet());
 
                 // Only for tasks with zero active responses today -- if a later
                 // resubmission superseded the undo, that resubmission is already the
@@ -420,8 +436,8 @@ public class ChecklistHistoryService {
                     .count();
 
                 contexts.add(new StoreDayContext(
-                    store, date, unionTaskIds, unionTasksById, respondedTaskIds, responsesByTask, (int) issueCount,
-                    inactiveTasksById, danglingUndoneByTask
+                    store, date, unionTaskIds, unionTasksById, respondedTaskIds, completedTaskIds, responsesByTask,
+                    (int) issueCount, inactiveTasksById, danglingUndoneByTask
                 ));
             }
         }
@@ -849,6 +865,12 @@ public class ChecklistHistoryService {
             })
             .toList();
 
+        long activeResponderCount = responses.stream()
+            .filter(TaskResponseEntry::isActive)
+            .map(entry -> entry.getEmployee().getId())
+            .distinct()
+            .count();
+
         return new HistoryTaskItemResponse(
             task.getId(),
             task.getName(),
@@ -857,7 +879,7 @@ public class ChecklistHistoryService {
             task.getCompletionType(),
             task.getScheduleType(),
             task.getNumericUnit(),
-            !responseDtos.isEmpty(),
+            task.getCompletionType().isSatisfiedBy(activeResponderCount),
             task.isActive(),
             responseDtos
         );

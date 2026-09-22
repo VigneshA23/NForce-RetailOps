@@ -33,6 +33,8 @@ interface HeaderProps {
   userName: string;
   avatarUrl?: string | null;
   onProfileClick?: () => void;
+  onOwnersClick?: () => void;
+  onStoresClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
@@ -66,6 +68,8 @@ function Header({
   userName,
   avatarUrl,
   onProfileClick,
+  onOwnersClick,
+  onStoresClick,
   onHelpClick,
   onSettingsClick,
   onIssuesClick,
@@ -113,6 +117,8 @@ function Header({
           fullName={userName}
           avatarUrl={avatarUrl}
           onProfileClick={onProfileClick}
+          onOwnersClick={onOwnersClick}
+          onStoresClick={onStoresClick}
           onHelpClick={onHelpClick}
           onSettingsClick={onSettingsClick}
           onIssuesClick={onIssuesClick}

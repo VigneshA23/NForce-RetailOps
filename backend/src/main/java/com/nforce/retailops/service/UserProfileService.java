@@ -46,7 +46,6 @@ public class UserProfileService {
             .map(Store::getName)
             .toList();
 
-        String shift = null;
         String employeeType = null;
         String phone;
         if (isOwnerAdmin(user)) {
@@ -57,14 +56,13 @@ public class UserProfileService {
             StoreEmployee storeEmployee = storeEmployeeRepository.findByEmployeeId(user.getId()).orElse(null);
             phone = storeEmployee != null ? storeEmployee.getPhone() : null;
             if (storeEmployee != null) {
-                shift = storeEmployee.getShift();
                 employeeType = storeEmployee.getEmployeeType();
             }
         }
 
         return new MeResponse(
             user.getId(), user.getFullName(), user.getEmail(), role, storeNames, user.isMustResetPassword(),
-            shift, employeeType, phone, user.getAvatarUrl());
+            employeeType, phone, user.getAvatarUrl());
     }
 
     /**

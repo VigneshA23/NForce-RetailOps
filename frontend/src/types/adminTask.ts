@@ -40,6 +40,10 @@ export interface AdminTask {
   active: boolean;
   createdAt: string;
   updatedAt: string;
+  // Only populated by the Super Admin tasks API -- an Owner Admin task
+  // response doesn't need it, since every task in that list is already theirs.
+  ownerId?: number;
+  ownerName?: string;
 }
 
 export interface AdminTaskFormValues {

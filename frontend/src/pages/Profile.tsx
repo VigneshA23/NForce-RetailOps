@@ -1,6 +1,6 @@
 import { type ChangeEvent, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  Briefcase, Camera, Clock, Eye, EyeOff, Mail, Pencil,
+  Briefcase, Camera, Eye, EyeOff, Mail, Pencil,
   ShieldCheck, Store as StoreIcon, Trash2, X,
 } from 'lucide-react';
 import { getMe, updateMe, updateAvatar, type MeResponse } from '../api/me';
@@ -8,6 +8,7 @@ import { changePassword } from '../api/auth';
 import { ApiError } from '../api/client';
 import UserAvatar from '../components/UserAvatar';
 import Select from '../components/Select';
+import ButtonDots from '../components/ButtonDots';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import { nfToast } from '../utils/toast';
 import { getInitials } from '../utils/initials';
@@ -359,11 +360,11 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
                       </button>
                       <button
                         type="button"
-                        className="btn btn--danger avatar-delete-confirm__remove"
+                        className={`btn btn--danger avatar-delete-confirm__remove${avatarUploading ? ' btn--loading' : ''}`}
                         onClick={handleRemoveAvatar}
                         disabled={avatarUploading}
                       >
-                        {avatarUploading ? 'Removing…' : 'Remove'}
+                        {avatarUploading ? <ButtonDots label="Removing" /> : 'Remove'}
                       </button>
                     </div>
                   </div>
@@ -429,7 +430,6 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
             {me.storeNames.length > 0 && (
               <span><StoreIcon size={13} />{me.storeNames.join(', ')}</span>
             )}
-            {me.shift && <span><Clock size={13} />{me.shift} shift</span>}
             {me.employeeType && <span><Briefcase size={13} />{me.employeeType}</span>}
           </div>
         </div>
@@ -507,8 +507,8 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
               <button type="button" className="btn btn--ghost" onClick={handleInfoCancel}>
                 Cancel
               </button>
-              <button type="submit" className="btn btn--primary" disabled={infoSaving}>
-                {infoSaving ? 'Saving…' : 'Save changes'}
+              <button type="submit" className={`btn btn--primary${infoSaving ? ' btn--loading' : ''}`} disabled={infoSaving}>
+                {infoSaving ? <ButtonDots label="Saving" /> : 'Save changes'}
               </button>
             </div>
           </form>
@@ -646,8 +646,8 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
                 <button type="button" className="btn btn--ghost" onClick={handlePwCancel}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn--primary" disabled={pwSubmitting}>
-                  {pwSubmitting ? 'Saving…' : 'Update password'}
+                <button type="submit" className={`btn btn--primary${pwSubmitting ? ' btn--loading' : ''}`} disabled={pwSubmitting}>
+                  {pwSubmitting ? <ButtonDots label="Saving" /> : 'Update password'}
                 </button>
               </div>
             </form>

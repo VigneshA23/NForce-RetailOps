@@ -40,6 +40,15 @@ public class StoreOwner {
     @Column(name = "owner_vacant_since")
     private OffsetDateTime ownerVacantSince;
 
+    // The owner who most recently held this link, kept even after `owner` is
+    // cleared to null on release (see V60 migration). Never cleared once set --
+    // it is a read-side fallback for the employee checklist only and plays no
+    // part in reassignment/vacancy logic, which must keep treating a released
+    // store as ownerless.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "last_owner_id")
+    private User lastOwner;
+
     public StoreOwner() {
     }
 
@@ -88,5 +97,29 @@ public class StoreOwner {
 
     public void setOwnerVacantSince(OffsetDateTime ownerVacantSince) {
         this.ownerVacantSince = ownerVacantSince;
+    }
+
+    public User getLastOwner() {
+        return lastOwner;
+    }
+
+    public void setLastOwner(User lastOwner) {
+        this.lastOwner = lastOwner;
+    }
+
+    // The owner id whose tasks/categories an employee should see for this store:
+    // the live owner while the link is active, otherwise whoever last held it,
+    // so the checklist doesn't go empty just because the store is temporarily
+    // ownerless. Null only for a store that has genuinely never had an owner,
+    // or whose access is revoked while the owner reference is kept (a distinct,
+    // intentional "suspended" state -- see OwnerManagementService.setStoreActive).
+    public Long resolveTaskOwnerId() {
+        if (active && owner != null) {
+            return owner.getId();
+        }
+        if (owner == null && lastOwner != null) {
+            return lastOwner.getId();
+        }
+        return null;
     }
 }

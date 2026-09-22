@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { OwnerSummary } from '../types/owner';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import Modal from './Modal';
+import ButtonDots from './ButtonDots';
 
 interface AssignStoreOwnerModalProps {
   store: SuperAdminStore | null;
@@ -48,10 +49,10 @@ function AssignStoreOwnerModal({
           <button
             type="submit"
             form="assign-owner-form"
-            className="btn btn--primary"
+            className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`}
             disabled={isSubmitting || !selectedOwnerId || !hasOwners}
           >
-            {isSubmitting ? 'Saving…' : 'Assign Owner'}
+            {isSubmitting ? <ButtonDots label="Saving" /> : 'Assign Owner'}
           </button>
         </>
       }

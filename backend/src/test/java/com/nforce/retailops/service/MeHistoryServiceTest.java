@@ -132,7 +132,6 @@ class MeHistoryServiceTest {
         storeEmployee.setEmployee(employee);
         storeEmployee.setCreatedByOwner(owner);
         storeEmployee.setPhone("555-0100");
-        storeEmployee.setShift("Morning");
         storeEmployee.setEmployeeType("Full Time");
         storeEmployee.setGender("Female");
         storeEmployee.setStores(new HashSet<>(Set.of(stores)));
@@ -378,6 +377,31 @@ class MeHistoryServiceTest {
         assertThat(employee2Item.responses()).hasSize(2);
         assertThat(employee2Item.responses().stream().map(HistoryResponseEntryResponse::employeeUserId).toList())
             .containsExactlyInAnyOrder(employeeId, employee2.getId());
+    }
+
+    // 7a. Regression test for the reported bug: a MULTIPLE-completion task must
+    // stay Open after only one employee's response, and only flip to Completed
+    // once a second distinct employee responds too.
+    @Test
+    @Transactional
+    void multipleCompletionTaskStaysOpenUntilASecondDistinctEmployeeResponds() {
+        Store store = storeRepository.getReferenceById(storeId);
+        User employee1 = userRepository.getReferenceById(employeeId);
+        User employee2 = saveUser("history-second-responder");
+        saveStoreEmployee(employee2, userRepository.getReferenceById(ownerId), store);
+
+        Task task = saveTask(store);
+        task.setCompletionType(CompletionType.MULTIPLE);
+        taskRepository.save(task);
+        LocalDate today = LocalDate.now();
+
+        saveResponse(task, store, employee1, today, true, CompletionType.MULTIPLE);
+        ChecklistHistoryDetailResponse afterFirst = meHistoryService.getDetail(employeeId, storeId, today);
+        assertThat(afterFirst.categories().get(0).tasks().get(0).completed()).isFalse();
+
+        saveResponse(task, store, employee2, today, true, CompletionType.MULTIPLE);
+        ChecklistHistoryDetailResponse afterSecond = meHistoryService.getDetail(employeeId, storeId, today);
+        assertThat(afterSecond.categories().get(0).tasks().get(0).completed()).isTrue();
     }
 
     // 7b. Same store, same date, two employees, SINGLE-completion task: unchanged

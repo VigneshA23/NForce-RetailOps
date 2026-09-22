@@ -32,6 +32,11 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     Optional<StoreOwner> findByStoreId(Long storeId);
 
+    // Batched form of findByStoreId -- used by the Super Admin task creation
+    // flow to group a set of selected stores by their current owner in one
+    // query instead of one per store.
+    List<StoreOwner> findByStoreIdIn(Collection<Long> storeIds);
+
     Optional<StoreOwner> findByStoreIdAndActiveTrue(Long storeId);
 
     void deleteByStoreId(Long storeId);

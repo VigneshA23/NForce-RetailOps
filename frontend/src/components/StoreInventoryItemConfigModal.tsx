@@ -4,6 +4,7 @@ import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
+import ButtonDots from './ButtonDots';
 
 interface StoreInventoryItemConfigModalProps {
   isOpen: boolean;
@@ -71,8 +72,8 @@ function StoreInventoryItemConfigModal({
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="store-inventory-item-config-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          <button type="submit" form="store-inventory-item-config-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : 'Save Changes'}
           </button>
         </>
       }

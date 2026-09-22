@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, AlertTriangle, ArrowRight, CheckCircle2, ListChecks, Users, Tags } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowRight, Calendar, CheckCircle2, ListChecks, Users, Tags } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { getChecklistHistoryDetail, getChecklistHistorySummary } from '../api/checklistHistory';
 import { getIssues } from '../api/issues';
@@ -12,7 +12,8 @@ import StatCard from '../components/StatCard';
 import RecentActivityCard from '../components/RecentActivityCard';
 import ChartCard from '../components/ChartCard';
 import CompletionRateCard from '../components/CompletionRateCard';
-import { getInitials } from '../utils/initials';
+import { getInitials, firstName } from '../utils/initials';
+import { formatTrendDayLabel } from '../utils/checklistHistoryOptions';
 import './Home.css';
 
 // Cycled by row position so each contributor gets a visually distinct avatar
@@ -31,10 +32,6 @@ interface HomeProps {
   onViewCategories?: () => void;
 }
 
-function firstName(fullName: string): string {
-  return fullName.trim().split(/\s+/)[0] ?? fullName;
-}
-
 const DEFAULT_TREND_DAYS = 7;
 
 // Local calendar date, not UTC -- .toISOString() converts to UTC first, which
@@ -51,16 +48,6 @@ function isoDateDaysAgo(daysAgo: number): string {
   const date = new Date();
   date.setDate(date.getDate() - daysAgo);
   return toLocalIsoDate(date);
-}
-
-// Weekday name at a glance for a short window; "Mon"/"Tue" repeats and gets
-// ambiguous once the window spans more than a week, so a longer period spells
-// out the date instead.
-function formatDayLabel(isoDate: string, periodDays: number): string {
-  const date = new Date(`${isoDate}T00:00:00`);
-  return periodDays <= 7
-    ? date.toLocaleDateString(undefined, { weekday: 'short' })
-    : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 // completedTasks/totalTasks as a whole-number percent, 0 for a day/store with
@@ -206,7 +193,7 @@ function Home({
         setTrend(
           trendDates.map((date) => {
             const totals = trendTotalsByDate.get(date) ?? { totalTasks: 0, completedTasks: 0 };
-            return { day: formatDayLabel(date, trendDays), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
+            return { day: formatTrendDayLabel(date, trendDays), completion: completionPercent(totals.totalTasks, totals.completedTasks) };
           }),
         );
       })
@@ -279,9 +266,20 @@ function Home({
   const openIssueCount = issues ? issues.filter((i) => i.status === 'OPEN').length : 0;
   const hasOpenIssues = openIssueCount > 0;
 
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    [],
+  );
+
   return (
     <div className="home-page">
-      <h1 className="home-page__greeting">Welcome, {firstName(userName)}!</h1>
+      <div className="home-page__heading-row">
+        <h1 className="home-page__greeting">Welcome, {firstName(userName)}!</h1>
+        <span className="home-page__date">
+          <Calendar size={13} aria-hidden="true" />
+          {todayLabel}
+        </span>
+      </div>
 
       {loadError && (
         <div className="home-page__error">
@@ -397,7 +395,7 @@ function Home({
           <div className="home-page__category-health">
             <div className="home-page__category-health-rows">
               {categoryHealth.map((category) => {
-                const tier = category.percent >= 90 ? 'good' : 'risk';
+                const tier = category.percent >= 90 ? 'good' : category.percent >= 50 ? 'warning' : 'risk';
                 return (
                   <div key={category.id} className="home-page__category-health-row">
                     <div className="home-page__category-health-row-top">

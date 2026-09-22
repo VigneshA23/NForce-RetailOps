@@ -105,12 +105,12 @@ function SortableCategoryRow({ category, canManage, onEdit, onDelete, onToggleSt
     <tr
       ref={setNodeRef}
       style={style}
-      className={`category-table__row${isDragging ? ' category-table__row--dragging' : ''}`}
+      className={`category-table__row category-table__row--reorderable${isDragging ? ' category-table__row--dragging' : ''}`}
     >
       <td className="category-table__drag-cell">
         <button
           type="button"
-          className="table-icon-btn category-table__drag-handle"
+          className={`table-icon-btn category-table__drag-handle${isDragging ? ' category-table__drag-handle--dragging' : ''}`}
           aria-label={`Reorder ${category.name}`}
           title="Drag to reorder"
           {...attributes}

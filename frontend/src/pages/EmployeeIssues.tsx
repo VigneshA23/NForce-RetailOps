@@ -10,6 +10,7 @@ import SearchInput from '../components/SearchInput'
 import Select from '../components/Select'
 import Modal from '../components/Modal'
 import FormField from '../components/FormField'
+import ButtonDots from '../components/ButtonDots'
 import './EmployeeIssues.css'
 
 type StatusFilter = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | null
@@ -230,11 +231,11 @@ function EmployeeIssues({ store }: EmployeeIssuesProps) {
             </button>
             <button
               type="button"
-              className="btn btn--danger"
+              className={`btn btn--danger${isSubmittingIssue ? ' btn--loading' : ''}`}
               disabled={isSubmittingIssue || !issueNote.trim()}
               onClick={handleSubmitIssue}
             >
-              {isSubmittingIssue ? 'Sending...' : 'Send to Owner'}
+              {isSubmittingIssue ? <ButtonDots label="Sending" /> : 'Send to Owner'}
             </button>
           </>
         }

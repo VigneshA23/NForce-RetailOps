@@ -8,8 +8,7 @@ export interface MeResponse {
   role: Role;
   storeNames: string[];
   mustResetPassword: boolean;
-  // Employee-only details for the Profile page; null for owners/super admins.
-  shift: string | null;
+  // Employee-only detail for the Profile page; null for owners/super admins.
   employeeType: string | null;
   phone: string | null;
   // Base64 data URL or null when not set.

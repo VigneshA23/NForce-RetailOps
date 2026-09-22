@@ -4,6 +4,17 @@
   overflow: visible;
 }
 
+/* More breathing room than the default dense table padding -- this table's
+   rows carry multi-line content (task name + meta, stacked responders) that
+   reads as cramped at the shared table-card density. */
+.store-detail-table__card .data-table thead th {
+  padding: 12px var(--space-md);
+}
+
+.store-detail-table__card .data-table tbody td {
+  padding: 16px var(--space-md);
+}
+
 .store-detail-table__category {
   color: var(--color-text-secondary);
   font-size: 11px;

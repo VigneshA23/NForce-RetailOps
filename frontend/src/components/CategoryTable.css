@@ -60,7 +60,52 @@
 }
 
 @media (--mobile) {
-  .category-table__drag-cell {
-    display: none;
+  .table-card .data-table tbody tr.category-table__row--reorderable {
+    position: relative;
+    padding-left: calc(var(--space-md) + 28px);
+  }
+
+  .table-card .data-table tbody td.category-table__drag-cell {
+    display: flex;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: var(--space-xs);
+    width: 28px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .category-table__drag-cell::before {
+    content: none;
+  }
+
+  /* Compounded with .table-icon-btn (rather than relying on source order) so
+     this reliably beats table.css's shared .table-icon-btn rule -- App's
+     module graph (and CategoryTable.css with it) evaluates before index.css
+     in main.tsx, so table.css's unconditional border/background otherwise
+     wins the cascade on mobile despite equal specificity. */
+  .table-icon-btn.category-table__drag-handle {
+    border: none;
+    background: transparent;
+    width: auto;
+    height: auto;
+    padding: 10px 6px;
+    color: var(--color-text-muted);
+    opacity: 0.55;
+  }
+
+  .table-icon-btn.category-table__drag-handle:hover,
+  .table-icon-btn.category-table__drag-handle:focus-visible {
+    background: transparent;
+    color: var(--color-text-secondary);
+    opacity: 0.85;
+  }
+
+  .table-icon-btn.category-table__drag-handle--dragging {
+    color: var(--color-text-primary);
+    opacity: 1;
   }
 }

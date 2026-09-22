@@ -1,12 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { Category } from '../types/category';
-import type { OwnerStore } from '../types/ownerStore';
 import type { AdminTask, AdminTaskFormValues, CompletionType, DayCode, ResponseType, ScheduleType } from '../types/adminTask';
 import { emptyTaskFormValues, getTodayDateString, validateTaskForm, type AdminTaskFormErrors } from '../utils/adminTaskValidation';
 import { COMPLETION_TYPE_OPTIONS, DAY_OPTIONS, RESPONSE_TYPE_OPTIONS, SCHEDULE_TYPE_OPTIONS } from '../utils/adminTaskOptions';
 import Modal from './Modal';
 import FormField from './FormField';
 import SearchableSelect from './SearchableSelect';
+import ButtonDots from './ButtonDots';
 import './TaskFormModal.css';
 
 interface TaskFormModalProps {
@@ -18,7 +18,17 @@ interface TaskFormModalProps {
   categoriesError: string | null;
   onRetryCategories: () => void;
   onManageCategories: () => void;
-  stores: OwnerStore[];
+  // Structurally typed rather than OwnerStore[] so the Super Admin page (whose
+  // store list is SuperAdminStore[], a different shape) can pass a simple
+  // {id, name} projection without fabricating unused fields.
+  stores: { id: number; name: string }[];
+  // Super Admin's create flow: store scope is picked inline in this form
+  // (a searchable multi-select with an "All Stores" option up top) instead of
+  // defaulting to stores[0] like the Owner Admin flow does. Category options
+  // stay disabled until a scope is chosen, then `onStoreScopeChange` is used
+  // by the page to fetch the categories applicable to that scope.
+  storeScopeSelectable?: boolean;
+  onStoreScopeChange?: (scope: { appliesToAllStores: boolean; storeIds: number[] }) => void;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -59,6 +69,8 @@ function TaskFormModal({
   onRetryCategories,
   onManageCategories,
   stores,
+  storeScopeSelectable = false,
+  onStoreScopeChange,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -73,14 +85,21 @@ function TaskFormModal({
         setValues(toFormValues(initialTask));
       } else {
         const base = emptyTaskFormValues();
-        if (stores[0]) {
+        if (!storeScopeSelectable && stores[0]) {
           base.storeIds = [stores[0].id];
         }
         setValues(base);
       }
       setErrors({});
     }
-  }, [isOpen, initialTask, stores]);
+  }, [isOpen, initialTask, stores, storeScopeSelectable]);
+
+  function handleStoreScopeChange(scope: { appliesToAllStores: boolean; storeIds: number[] }) {
+    setValues((current) => ({ ...current, ...scope, categoryId: null }));
+    onStoreScopeChange?.(scope);
+  }
+
+  const storeScopeChosen = !storeScopeSelectable || values.appliesToAllStores || values.storeIds.length > 0;
 
   function updateField<K extends keyof AdminTaskFormValues>(field: K, value: AdminTaskFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -142,8 +161,8 @@ function TaskFormModal({
           <button type="button" className="btn btn--secondary" onClick={onClose} disabled={isSubmitting}>
             Cancel
           </button>
-          <button type="submit" form="task-form" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : mode === 'edit' ? 'Save Changes' : 'Create Task'}
+          <button type="submit" form="task-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'edit' ? 'Save Changes' : 'Create Task'}
           </button>
         </>
       }
@@ -173,11 +192,47 @@ function TaskFormModal({
           </FormField>
         </section>
 
-        {/* ── Category & Order ── */}
+        {/* ── Store, Category & Order ── */}
         <section className="task-form__section">
+          {storeScopeSelectable && (
+            <FormField label="Store *" htmlFor="task-store" error={errors.storeIds}>
+              <SearchableSelect
+                id="task-store"
+                placeholder="Select store(s)"
+                multiple
+                options={stores.map((store) => ({ id: store.id, label: store.name }))}
+                selectedIds={values.storeIds}
+                allOption={{
+                  label: 'All Stores',
+                  selected: values.appliesToAllStores,
+                  onToggle: () => handleStoreScopeChange({ appliesToAllStores: !values.appliesToAllStores, storeIds: [] }),
+                }}
+                onChange={(ids) => {
+                  // Checking every individual store by hand is the same intent as
+                  // checking "All Stores" -- promote to it so the category scope
+                  // also covers stores added later, not just today's full list.
+                  const everyStoreSelected = stores.length > 0 && stores.every((store) => ids.includes(store.id));
+                  handleStoreScopeChange(
+                    everyStoreSelected
+                      ? { appliesToAllStores: true, storeIds: [] }
+                      : { appliesToAllStores: false, storeIds: ids },
+                  );
+                }}
+              />
+            </FormField>
+          )}
           <div className="task-form__grid-category">
             <FormField label="Category *" htmlFor="task-category" error={errors.categoryId}>
-              {!categoriesLoading && !categoriesError && categories.length === 0 ? (
+              {!storeScopeChosen ? (
+                <SearchableSelect
+                  id="task-category"
+                  placeholder="Select store(s) first"
+                  options={[]}
+                  selectedIds={[]}
+                  onChange={() => {}}
+                  disabled
+                />
+              ) : !categoriesLoading && !categoriesError && categories.length === 0 ? (
                 <div className="task-form__empty-state">
                   No categories yet.
                   <button type="button" className="btn btn--secondary" onClick={onManageCategories}>
@@ -209,8 +264,10 @@ function TaskFormModal({
             </FormField>
           </div>
           <p className="task-form__hint">
-            Store: <strong>{values.appliesToAllStores ? 'All stores' : (stores[0]?.name ?? '—')}</strong>
-            {' · '}Order controls position within the category on the checklist.
+            {!storeScopeSelectable && (
+              <>Store: <strong>{values.appliesToAllStores ? 'All stores' : (stores[0]?.name ?? '—')}</strong>{' · '}</>
+            )}
+            Order controls position within the category on the checklist.
           </p>
         </section>
 
@@ -218,30 +275,36 @@ function TaskFormModal({
         <section className="task-form__section">
           <div className="task-form__grid-2">
             <FormField label="Response Type *" htmlFor="task-response-type" error={errors.responseType}>
-              <select
+              <SearchableSelect
                 id="task-response-type"
-                className="select"
-                value={values.responseType ?? ''}
-                onChange={(event) => handleResponseTypeChange(event.target.value as ResponseType)}
-              >
-                <option value="" disabled>Select…</option>
-                {RESPONSE_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                placeholder="Select…"
+                options={RESPONSE_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+                selectedIds={
+                  values.responseType
+                    ? [RESPONSE_TYPE_OPTIONS.findIndex((option) => option.value === values.responseType)]
+                    : []
+                }
+                onChange={(ids) => {
+                  const option = RESPONSE_TYPE_OPTIONS[ids[0]];
+                  if (option) handleResponseTypeChange(option.value);
+                }}
+              />
             </FormField>
             <FormField label="Completion Type *" htmlFor="task-completion-type" error={errors.completionType}>
-              <select
+              <SearchableSelect
                 id="task-completion-type"
-                className="select"
-                value={values.completionType ?? ''}
-                onChange={(event) => handleCompletionTypeChange(event.target.value as CompletionType)}
-              >
-                <option value="" disabled>Select…</option>
-                {COMPLETION_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                placeholder="Select…"
+                options={COMPLETION_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+                selectedIds={
+                  values.completionType
+                    ? [COMPLETION_TYPE_OPTIONS.findIndex((option) => option.value === values.completionType)]
+                    : []
+                }
+                onChange={(ids) => {
+                  const option = COMPLETION_TYPE_OPTIONS[ids[0]];
+                  if (option) handleCompletionTypeChange(option.value);
+                }}
+              />
             </FormField>
           </div>
 
@@ -277,22 +340,25 @@ function TaskFormModal({
         {/* ── Schedule & Dates ── */}
         <section className="task-form__section">
           <FormField label="Schedule *" htmlFor="task-schedule-type" error={errors.scheduleType}>
-            <select
+            <SearchableSelect
               id="task-schedule-type"
-              className="select"
-              value={values.scheduleType ?? ''}
-              onChange={(event) => handleScheduleTypeChange(event.target.value as ScheduleType)}
-            >
-              <option value="" disabled>Select Schedule</option>
-              {SCHEDULE_TYPE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
+              placeholder="Select Schedule"
+              options={SCHEDULE_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+              selectedIds={
+                values.scheduleType
+                  ? [SCHEDULE_TYPE_OPTIONS.findIndex((option) => option.value === values.scheduleType)]
+                  : []
+              }
+              onChange={(ids) => {
+                const option = SCHEDULE_TYPE_OPTIONS[ids[0]];
+                if (option) handleScheduleTypeChange(option.value);
+              }}
+            />
           </FormField>
 
           {values.scheduleType === 'SELECTED_DAYS' && (
             <div className="task-form__conditional">
-              <span className="task-form__conditional-label">Select Days *</span>
+              <span className="task-form__conditional-label">Select Days <span className="form-field__required">*</span></span>
               <div className="task-form__days">
                 {DAY_OPTIONS.map((day) => (
                   <label key={day.value} className="task-form__day">
@@ -310,6 +376,7 @@ function TaskFormModal({
             <div className="task-form__conditional">
               <FormField label="Date *" htmlFor="task-one-time-date" error={errors.oneTimeDate}>
                 <input id="task-one-time-date" type="date" className="input" value={values.oneTimeDate}
+                  min={mode === 'create' ? getTodayDateString() : undefined}
                   onChange={(event) => updateField('oneTimeDate', event.target.value)} />
               </FormField>
               <p className="task-form__hint">Appears only on the selected date.</p>

@@ -3,6 +3,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { changePassword } from '../api/auth';
 import Modal from './Modal';
 import FormField from './FormField';
+import ButtonDots from './ButtonDots';
 import './ResetPasswordModal.css';
 
 interface ResetPasswordModalProps {
@@ -113,10 +114,10 @@ function ResetPasswordModal({ isOpen, onClose, centered = false, title = 'Change
             <button
               type="submit"
               form="reset-password-form"
-              className="btn btn--primary"
+              className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`}
               disabled={isSubmitting}
             >
-              {isSubmitting ? 'Saving…' : 'Change Password'}
+              {isSubmitting ? <ButtonDots label="Saving" /> : 'Change Password'}
             </button>
           </>
         )

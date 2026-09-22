@@ -1,21 +1,22 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, BellOff, Building2, Clock, ListChecks, Percent, ShieldCheck, Store as StoreIcon, Tags, Users } from 'lucide-react';
+import { AlertTriangle, BellOff, Building2, Calendar, Clock, ListChecks, Percent, ShieldCheck, Store as StoreIcon, Tags, Users } from 'lucide-react';
 import { getPlatformStats, getOperationsOverview, getPlatformTrend } from '../api/superAdminOperations';
 import type { PlatformStats, StoreOperationsSummary, TrendDataPoint } from '../api/superAdminOperations';
 import type { OwnerSummary } from '../types/owner';
 import StatCard from '../components/StatCard';
 import StoreComparisonTable from '../components/StoreComparisonTable';
 import StoreComparisonDetailModal from '../components/StoreComparisonDetailModal';
-import TrendChart from '../components/TrendChart';
+import CompletionRateCard from '../components/CompletionRateCard';
 import ActivityFeedList from '../components/ActivityFeedList';
-import Select from '../components/Select';
 import { useRecentActivity } from '../hooks/useRecentActivity';
+import { firstName } from '../utils/initials';
+import { formatTrendDayLabel } from '../utils/checklistHistoryOptions';
 import './SuperAdminHome.css';
 
 const ACTIVITY_COLLAPSED_LIMIT = 8;
-const ACTIVITY_EXPANDED_LIMIT = 50;
 
 interface SuperAdminHomeProps {
+  userName: string;
   owners: OwnerSummary[];
   ownersLoading: boolean;
   // Every store platform-wide, independent of ownership -- fetched by the parent
@@ -32,15 +33,11 @@ interface SuperAdminHomeProps {
   onStoresClick?: () => void;
   onCategoriesClick?: () => void;
   onChecklistClick?: () => void;
+  onViewAllActivity?: () => void;
 }
 
-const TREND_PERIOD_OPTIONS = [
-  { value: '7', label: 'Last 7 Days' },
-  { value: '14', label: 'Last 14 Days' },
-  { value: '30', label: 'Last 30 Days' },
-];
-
 function SuperAdminHome({
+  userName,
   owners,
   ownersLoading,
   totalStoreCount,
@@ -51,16 +48,15 @@ function SuperAdminHome({
   onStoresClick,
   onCategoriesClick,
   onChecklistClick,
+  onViewAllActivity,
 }: SuperAdminHomeProps) {
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [overview, setOverview] = useState<StoreOperationsSummary[] | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [trendDays, setTrendDays] = useState(7);
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
-  const [trendLoading, setTrendLoading] = useState(true);
   const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
-  const [activityExpanded, setActivityExpanded] = useState(false);
-  const recentActivity = useRecentActivity(activityExpanded ? ACTIVITY_EXPANDED_LIMIT : ACTIVITY_COLLAPSED_LIMIT);
+  const recentActivity = useRecentActivity(ACTIVITY_COLLAPSED_LIMIT);
 
   useEffect(() => {
     let active = true;
@@ -84,12 +80,24 @@ function SuperAdminHome({
 
   useEffect(() => {
     let active = true;
-    setTrendLoading(true);
     getPlatformTrend(trendDays)
-      .then((data) => { if (active) { setTrendData(data); setTrendLoading(false); } })
-      .catch(() => { if (active) setTrendLoading(false); });
+      .then((data) => { if (active) setTrendData(data); })
+      .catch(() => {});
     return () => { active = false; };
   }, [trendDays]);
+
+  const completionTrend = useMemo(
+    () => trendData.map((point) => ({
+      day: formatTrendDayLabel(point.date, trendDays),
+      completion: point.completionPercent,
+    })),
+    [trendData, trendDays],
+  );
+
+  const todayLabel = useMemo(
+    () => new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+    [],
+  );
 
   const uniqueOwnerCount = useMemo(
     () => new Set(owners.map((o) => o.ownerId)).size,
@@ -105,18 +113,18 @@ function SuperAdminHome({
     const pct = (part: number, whole: number) => (whole === 0 ? 0 : Math.round((part / whole) * 100));
     return [
       {
-        key: 'stores',
-        icon: StoreIcon,
-        label: 'Stores active today',
-        value: platformStats.storesWithActivity,
-        total: platformStats.totalStores,
-        percent: pct(platformStats.storesWithActivity, platformStats.totalStores),
+        key: 'owners',
+        icon: Building2,
+        label: 'Admins logged in today',
+        value: platformStats.ownersLoggedInToday,
+        total: platformStats.totalOwners,
+        percent: pct(platformStats.ownersLoggedInToday, platformStats.totalOwners),
         tone: 'good',
       },
       {
         key: 'employees',
         icon: Users,
-        label: 'Employees active today',
+        label: 'Employees with activity today',
         value: platformStats.employeesActiveToday,
         total: platformStats.totalEmployees,
         percent: pct(platformStats.employeesActiveToday, platformStats.totalEmployees),
@@ -154,6 +162,14 @@ function SuperAdminHome({
 
   return (
     <div className="sa-home">
+      <div className="sa-home__heading-row">
+        <h1 className="sa-home__greeting">Welcome, {firstName(userName)}!</h1>
+        <span className="sa-home__date">
+          <Calendar size={13} aria-hidden="true" />
+          {todayLabel}
+        </span>
+      </div>
+
       <div className="stat-card-row">
         {ownersLoading ? (
           <StatCard icon={Building2} label="Total Owners" value="—" tone="primary" onClick={onOwnersClick} />
@@ -188,18 +204,14 @@ function SuperAdminHome({
       </div>
 
       <div className="sa-home__insights-row">
-        <div className="sa-home__trend-section">
-          <div className="sa-home__trend-header">
-            <h2 className="sa-home__section-title" style={{ margin: 0 }}>Platform Completion Trend</h2>
-            <Select
-              options={TREND_PERIOD_OPTIONS}
-              value={String(trendDays)}
-              onChange={(value) => setTrendDays(Number(value))}
-              ariaLabel="Select time period"
-            />
-          </div>
-          <TrendChart data={trendData} loading={trendLoading} height={200} />
-        </div>
+        <CompletionRateCard
+          title="Platform Completion Trend"
+          trend={completionTrend}
+          periodDays={trendDays}
+          onPeriodChange={setTrendDays}
+          todayCompletion={platformStats?.platformCompletionPercent ?? 0}
+          chartHeight={130}
+        />
 
         <div className="sa-home__health-panel">
           <h2 className="sa-home__health-title">
@@ -237,11 +249,11 @@ function SuperAdminHome({
               <Clock size={18} />
               Recent Activity
             </h2>
-            {!activityExpanded && (
+            {onViewAllActivity && (
               <button
                 type="button"
                 className="chart-card__link-action"
-                onClick={() => setActivityExpanded(true)}
+                onClick={onViewAllActivity}
               >
                 View all
               </button>

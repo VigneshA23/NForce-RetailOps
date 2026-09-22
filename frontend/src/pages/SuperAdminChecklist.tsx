@@ -20,7 +20,10 @@ import { getAllStores } from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import './SuperAdminChecklist.css';
 
-type FilterKey = 'ALL' | 'COMPLETE' | 'OPEN' | 'ISSUE';
+// No 'OPEN' filter option -- open (no-response) tasks are already surfaced
+// in the Outstanding/Incomplete Tasks section above, so the table below only
+// ever shows Completed/Issue rows (see filteredRows). Matches StoreDetail.tsx.
+type FilterKey = 'ALL' | 'COMPLETE' | 'ISSUE';
 
 // Session-scoped repeat-offender cache keyed by storeId (separate from owner-admin's cache in StoreDetail).
 const saRepeatOffenderCache = new Map<number, Map<number, number>>();
@@ -52,6 +55,8 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [filter, setFilter] = useState<FilterKey>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [outstandingSearch, setOutstandingSearch] = useState('');
+  const [outstandingCategoryFilter, setOutstandingCategoryFilter] = useState('all');
 
   const [storeTrendDays, setStoreTrendDays] = useState<7 | 30>(30);
   const [storeTrendData, setStoreTrendData] = useState<TrendDataPoint[]>([]);
@@ -205,7 +210,10 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   }, [detail]);
 
   const filteredRows = useMemo(() => {
-    let result = filter === 'ALL' ? rows : rows.filter((row) => taskStatus(row.task) === filter);
+    let result = rows.filter((row) => taskStatus(row.task) !== 'OPEN');
+    if (filter !== 'ALL') {
+      result = result.filter((row) => taskStatus(row.task) === filter);
+    }
     if (categoryFilter !== 'all') {
       result = result.filter((row) => row.categoryName === categoryFilter);
     }
@@ -271,8 +279,13 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     });
   }
 
+  // Outstanding/Incomplete = OPEN/ISSUE tasks for the currently viewed date
+  // (today or historical). ISSUE sorted before OPEN, alphabetical by task
+  // name within each group. Has its own dedicated search/category filter
+  // (outstandingSearch/outstandingCategoryFilter below, applied via
+  // filteredOutstandingRows) -- deliberately independent from the main
+  // table's filter bar, so filtering one doesn't silently affect the other.
   const outstandingRows = useMemo(() => {
-    if (!isToday) return [];
     return rows
       .filter((row) => {
         const s = taskStatus(row.task);
@@ -284,7 +297,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
         if (sa !== sb) return sa === 'ISSUE' ? -1 : 1;
         return a.task.name.localeCompare(b.task.name);
       });
-  }, [rows, isToday]);
+  }, [rows]);
 
   function handleResponseCorrected(taskId: number, updatedResponse: ChecklistHistoryResponseEntry) {
     setDetail((prev) => {
@@ -306,22 +319,28 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [outstandingOpen, setOutstandingOpen] = useState(false);
   useEffect(() => {
     setOutstandingOpen(counts.issues > 0);
+    setOutstandingSearch('');
+    setOutstandingCategoryFilter('all');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
 
-  const [pendingScrollKey, setPendingScrollKey] = useState<string | null>(null);
-  function scrollToRow(key: string) {
-    setFilter('ALL');
-    setPendingScrollKey(key);
-  }
-  useEffect(() => {
-    if (!pendingScrollKey) return;
-    const el = document.getElementById(`task-row-${pendingScrollKey}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setPendingScrollKey(null);
+  const outstandingCategoryOptions = useMemo<SelectOption[]>(() => {
+    const names = Array.from(new Set(outstandingRows.map((row) => row.categoryName))).sort();
+    return names.map((name) => ({ value: name, label: name }));
+  }, [outstandingRows]);
+
+  const filteredOutstandingRows = useMemo(() => {
+    let result = outstandingRows;
+    if (outstandingCategoryFilter !== 'all') {
+      result = result.filter((row) => row.categoryName === outstandingCategoryFilter);
     }
-  }, [pendingScrollKey, filteredRows]);
+    if (outstandingSearch.trim()) {
+      result = result.filter((row) =>
+        matchesSearch(outstandingSearch, [row.categoryName, row.task.name]),
+      );
+    }
+    return result;
+  }, [outstandingRows, outstandingCategoryFilter, outstandingSearch]);
 
   const storeOptions = useMemo<SelectOption[]>(
     () => stores.map((s) => ({ value: String(s.storeId), label: s.storeName })),
@@ -536,7 +555,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             </div>
           )}
 
-          {selectedStoreId !== null && isToday && outstandingRows.length > 0 && (
+          {selectedStoreId !== null && outstandingRows.length > 0 && (
             <div className="store-detail-outstanding">
               <button
                 type="button"
@@ -545,7 +564,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                 aria-expanded={outstandingOpen}
               >
                 <span className="store-detail-outstanding__title">
-                  Outstanding Tasks
+                  {isToday ? 'Outstanding Tasks' : 'Incomplete Tasks'}
                   <span className="store-detail-outstanding__count">{outstandingRows.length}</span>
                 </span>
                 <ChevronDown
@@ -554,26 +573,41 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                 />
               </button>
               {outstandingOpen && (
-                <ul className="store-detail-outstanding__list">
-                  {outstandingRows.map((row) => {
-                    const status = taskStatus(row.task);
-                    return (
-                      <li key={row.key}>
-                        <button
-                          type="button"
-                          className="store-detail-outstanding__row"
-                          onClick={() => scrollToRow(row.key)}
-                        >
-                          <span className="store-detail-outstanding__category">{row.categoryName}</span>
-                          <span className="store-detail-outstanding__task">{row.task.name}</span>
-                          <span className={`badge ${status === 'ISSUE' ? 'badge--danger' : 'badge--outline'}`}>
-                            {status === 'ISSUE' ? 'Issue' : 'Open'}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                <>
+                  <div className="filter-bar store-detail-outstanding__filter-bar">
+                    <div className="filter filter--search">
+                      <SearchInput
+                        value={outstandingSearch}
+                        onChange={setOutstandingSearch}
+                        placeholder="Search tasks…"
+                        variant="filter"
+                      />
+                    </div>
+                    {outstandingCategoryOptions.length > 1 && (
+                      <Select
+                        className="filter"
+                        options={[{ value: 'all', label: 'All categories' }, ...outstandingCategoryOptions]}
+                        value={outstandingCategoryFilter}
+                        onChange={setOutstandingCategoryFilter}
+                        ariaLabel="Filter outstanding tasks by category"
+                      />
+                    )}
+                  </div>
+                  {filteredOutstandingRows.length === 0 ? (
+                    <p className="store-detail-outstanding__empty">
+                      No {isToday ? 'outstanding' : 'incomplete'} tasks match your filters.
+                    </p>
+                  ) : (
+                    <StoreDetailTable
+                      idPrefix="outstanding-"
+                      rows={filteredOutstandingRows}
+                      hasChecklist={detail?.hasChecklist ?? false}
+                      onResponseCorrected={handleResponseCorrected}
+                      onResponseFlagged={handleResponseCorrected}
+                      repeatOffenderMap={repeatOffenderMap}
+                    />
+                  )}
+                </>
               )}
             </div>
           )}
@@ -601,7 +635,6 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
               options={[
                 { value: 'ALL', label: 'All statuses' },
                 { value: 'COMPLETE', label: 'Completed' },
-                { value: 'OPEN', label: 'No Response' },
                 { value: 'ISSUE', label: 'Issues' },
               ]}
               value={filter}

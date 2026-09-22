@@ -8,7 +8,10 @@ interface TaskTableProps {
   tasks: AdminTask[];
   isLoading?: boolean;
   onRowClick: (task: AdminTask) => void;
-  onEdit: (task: AdminTask) => void;
+  // Omitted by the Super Admin Tasks page, which doesn't support in-place
+  // editing of a task's store/category scope for v1 -- the Edit action is
+  // simply hidden rather than wired to a no-op.
+  onEdit?: (task: AdminTask) => void;
   onDelete: (task: AdminTask) => void;
   onToggleStatus: (task: AdminTask) => void;
 }
@@ -79,18 +82,20 @@ function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onT
                 </td>
                 <td className="table-actions-cell" data-label="Actions">
                   <div className="table-row-actions">
-                    <button
-                      type="button"
-                      className="table-icon-btn"
-                      aria-label={`Edit ${task.name}`}
-                      title="Edit"
-                      onClick={(event) => {
-                        stopRowClick(event);
-                        onEdit(task);
-                      }}
-                    >
-                      <Pencil size={16} />
-                    </button>
+                    {onEdit && (
+                      <button
+                        type="button"
+                        className="table-icon-btn"
+                        aria-label={`Edit ${task.name}`}
+                        title="Edit"
+                        onClick={(event) => {
+                          stopRowClick(event);
+                          onEdit(task);
+                        }}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="table-icon-btn table-icon-btn--danger"

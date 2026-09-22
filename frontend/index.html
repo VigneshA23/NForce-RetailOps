@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- interactive-widget=resizes-content (Chromium 108+, ignored elsewhere as an
+         unknown viewport token) makes the soft keyboard shrink the LAYOUT viewport
+         (and so dvh/svh units) in step with the visual one, instead of just
+         overlapping content -- keeps the two in sync with Modal.tsx's
+         visualViewport-driven --modal-vvh override in Modal.css. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>NForce RetailOps</title>
     <link rel="icon" type="image/png" href="/nforce-logo.png" />
     <meta name="theme-color" content="#0d0d0f" />

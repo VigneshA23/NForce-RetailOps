@@ -206,6 +206,29 @@ class OwnerManagementServiceTest {
         assertThat(revokedLink.getOwnerVacantSince()).isNull();
     }
 
+    // Regression test: hard-deleting an owner must release their store link the
+    // same way setOwnerActive(false) does (active=false, ownerVacantSince stamped),
+    // not just leave owner_id to be nulled by the DB's ON DELETE SET NULL cascade --
+    // otherwise the link is left with active=true and owner=null, which fails
+    // findAllWithRevokedAccess's "active = false" check and the store silently
+    // disappears from the Existing Store picker while still showing as active.
+    @Test
+    void deleteOwnerReleasesStoreLinksSoTheStoreStaysReassignable() {
+        User owner = user(1L, "Alice Owner");
+        Store store = store(10L, "Downtown");
+        StoreOwner link = storeOwner(owner, store);
+        link.setActive(true);
+        when(userRepository.findById(1L)).thenReturn(Optional.of(owner));
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(link));
+
+        ownerManagementService.deleteOwner(1L);
+
+        assertThat(link.isActive()).isFalse();
+        assertThat(link.getOwnerVacantSince()).isNotNull();
+        verify(storeOwnerRepository).saveAll(List.of(link));
+        verify(userRepository).delete(owner);
+    }
+
     // Regression test for the unbounded-listing fix: the response is capped at
     // MAX_OWNER_LISTING_ROWS rather than growing unbounded with the platform.
     @Test

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { ApiError } from '../api/client';
 import { updateMe, type MeResponse } from '../api/me';
 import FormField from './FormField';
+import ButtonDots from './ButtonDots';
 
 interface EditProfileFormProps {
   me: MeResponse;
@@ -102,8 +103,8 @@ function EditProfileForm({ me, onSaved, onCancel, onOpenResetPassword }: EditPro
           <button type="button" className="btn btn--secondary" onClick={onCancel} disabled={isSubmitting}>
             Cancel
           </button>
-          <button type="submit" className="btn btn--primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
+          <button type="submit" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots label="Saving" /> : 'Save Changes'}
           </button>
         </div>
       </div>

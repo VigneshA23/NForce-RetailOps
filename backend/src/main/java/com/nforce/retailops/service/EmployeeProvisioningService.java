@@ -93,7 +93,6 @@ public class EmployeeProvisioningService {
             storeEmployee.setCreatedByOwner(userRepository.getReferenceById(ownerId));
         }
         storeEmployee.setPhone(request.phone().trim());
-        storeEmployee.setShift(request.shift());
         storeEmployee.setEmployeeType(request.employeeType());
         storeEmployee.setGender(request.gender());
         storeEmployee = storeEmployeeRepository.save(storeEmployee);

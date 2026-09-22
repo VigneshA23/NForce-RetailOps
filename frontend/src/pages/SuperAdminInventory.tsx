@@ -28,6 +28,7 @@ import Toggle from '../components/Toggle';
 import Select from '../components/Select';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
+import ButtonDots from '../components/ButtonDots';
 import './SuperAdminInventory.css';
 
 type SubTab = 'categories' | 'items' | 'suppliers' | 'assign';
@@ -516,11 +517,11 @@ function SuperAdminInventory() {
                 />
                 <button
                   type="button"
-                  className="btn btn--primary"
+                  className={`btn btn--primary${isAssigning ? ' btn--loading' : ''}`}
                   disabled={assignPickItemId == null || isAssigning}
                   onClick={handleAssign}
                 >
-                  {isAssigning ? 'Assigning...' : 'Assign'}
+                  {isAssigning ? <ButtonDots label="Assigning" /> : 'Assign'}
                 </button>
               </div>
 

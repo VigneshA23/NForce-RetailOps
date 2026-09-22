@@ -54,7 +54,7 @@ class EmployeeProvisioningServiceTest {
     }
 
     private EmployeeCreateRequest request() {
-        return new EmployeeCreateRequest("Jane Doe", "jane@nforce.test", "555-0100", "Morning", "Full Time", "Female", null);
+        return new EmployeeCreateRequest("Jane Doe", "jane@nforce.test", "555-0100", "Full Time", "Female", null);
     }
 
     @Test

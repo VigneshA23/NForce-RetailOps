@@ -36,9 +36,6 @@ public class StoreEmployee {
     @Column(nullable = false)
     private String phone;
 
-    @Column(nullable = false)
-    private String shift;
-
     @Column(name = "employee_type", nullable = false)
     private String employeeType;
 
@@ -93,14 +90,6 @@ public class StoreEmployee {
 
     public void setPhone(String phone) {
         this.phone = phone;
-    }
-
-    public String getShift() {
-        return shift;
-    }
-
-    public void setShift(String shift) {
-        this.shift = shift;
     }
 
     public String getEmployeeType() {

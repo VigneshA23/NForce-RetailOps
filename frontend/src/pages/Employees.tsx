@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateActio
 import { Users, UserCheck, UserCog, UserX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { unassignEmployeeFromMyStore, setEmployeeStatus, updateEmployee } from '../api/employees';
-import type { Employee, EmployeeCreateValues, EmployeeType, EmployeeUpdateValues, ShiftName } from '../types/employee';
-import { EMPLOYEE_TYPE_OPTIONS, SHIFT_OPTIONS } from '../utils/employeeOptions';
+import type { Employee, EmployeeCreateValues, EmployeeType, EmployeeUpdateValues } from '../types/employee';
+import { EMPLOYEE_TYPE_OPTIONS } from '../utils/employeeOptions';
 import { toEmployeeUpdateValues } from '../utils/employeeUtils';
 import EmployeeTable from '../components/EmployeeTable';
 import EmployeeFormModal from '../components/EmployeeFormModal';
@@ -16,11 +16,6 @@ import Select from '../components/Select';
 
 import StatCard from '../components/StatCard';
 import './Employees.css';
-
-const SHIFT_FILTER_OPTIONS = [
-  { value: 'ALL', label: 'All Shifts' },
-  ...SHIFT_OPTIONS.map((option) => ({ value: option.name, label: option.name })),
-];
 
 const TYPE_FILTER_OPTIONS = [
   { value: 'ALL', label: 'All Types' },
@@ -51,7 +46,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const loadError = employeesError;
 
   const [search, setSearch] = useState('');
-  const [shiftFilter, setShiftFilter] = useState<ShiftName | 'ALL'>('ALL');
   const [typeFilter, setTypeFilter] = useState<EmployeeType | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [page, setPage] = useState(1);
@@ -77,7 +71,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
   const filteredEmployees = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     return employees.filter((employee) => {
-      // Store, shift, type and status each have their own dropdown now, so the
+      // Store, type and status each have their own dropdown now, so the
       // search box covers only the free-text identity fields.
       if (
         normalizedSearch &&
@@ -87,17 +81,16 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
       ) {
         return false;
       }
-      if (shiftFilter !== 'ALL' && employee.shift !== shiftFilter) return false;
       if (typeFilter !== 'ALL' && employee.employeeType !== typeFilter) return false;
       if (statusFilter === 'ACTIVE' && !employee.active) return false;
       if (statusFilter === 'INACTIVE' && employee.active) return false;
       return true;
     });
-  }, [employees, search, shiftFilter, typeFilter, statusFilter]);
+  }, [employees, search, typeFilter, statusFilter]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, shiftFilter, typeFilter, statusFilter]);
+  }, [search, typeFilter, statusFilter]);
 
   // Derived rather than clamped in an effect, so a filter that shrinks the list
   // below the current page still renders correctly on the same pass.
@@ -196,14 +189,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
         <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search employees" variant="filter" />
         </div>
-
-        <Select
-          className="filter"
-          options={SHIFT_FILTER_OPTIONS}
-          value={shiftFilter}
-          onChange={(value) => setShiftFilter(value as ShiftName | 'ALL')}
-          ariaLabel="Filter by shift"
-        />
 
         <Select
           className="filter"

@@ -4,6 +4,7 @@ import { correctResponse, getCorrectionHistory, type AdminCorrectionRequestBody 
 import type { AdminCorrectionEntry, ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 import { formatDateLabel, formatTimeLabel } from '../utils/checklistHistoryOptions';
 import Modal from './Modal';
+import ButtonDots from './ButtonDots';
 import './CorrectionModal.css';
 
 interface CorrectionModalProps {
@@ -132,11 +133,10 @@ function CorrectionModal({ isOpen, onClose, responseEntry, task, onSaved }: Corr
           <button
             type="submit"
             form="correction-form"
-            className="btn btn--primary"
+            className={`btn btn--primary${submitting ? ' btn--loading' : ''}`}
             disabled={submitting || !reason.trim()}
           >
-            <Pencil size={14} />
-            {submitting ? 'Saving…' : 'Save Correction'}
+            {submitting ? <ButtonDots label="Saving" /> : (<><Pencil size={14} />Save Correction</>)}
           </button>
         </>
       }
