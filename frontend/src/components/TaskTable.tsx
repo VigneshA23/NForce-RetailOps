@@ -7,6 +7,10 @@ import './TaskTable.css';
 interface TaskTableProps {
   tasks: AdminTask[];
   isLoading?: boolean;
+  // Shown only on the Super Admin Tasks page, which lists tasks across every
+  // store -- the Owner Admin page omits it since its tasks are already
+  // scoped to that owner's own store(s).
+  showStoreColumn?: boolean;
   onRowClick: (task: AdminTask) => void;
   // Omitted by the Super Admin Tasks page, which doesn't support in-place
   // editing of a task's store/category scope for v1 -- the Edit action is
@@ -25,7 +29,13 @@ function isExpired(endDate?: string | null): boolean {
   return endDate < new Date().toISOString().slice(0, 10);
 }
 
-function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onToggleStatus }: TaskTableProps) {
+function taskStoresLabel(task: AdminTask): string {
+  if (task.appliesToAllStores) return 'All Stores';
+  if (task.stores.length === 0) return '—';
+  return task.stores.map((store) => store.name).join(', ');
+}
+
+function TaskTable({ tasks, isLoading = false, showStoreColumn = false, onRowClick, onEdit, onDelete, onToggleStatus }: TaskTableProps) {
   return (
     <div className="table-card">
       <div className="table-scroll">
@@ -34,6 +44,7 @@ function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onT
             <tr>
               <th scope="col">Task</th>
               <th scope="col">Category</th>
+              {showStoreColumn && <th scope="col">Store</th>}
               <th scope="col">Schedule</th>
               <th scope="col">Response</th>
               <th scope="col">Completion</th>
@@ -49,6 +60,7 @@ function TaskTable({ tasks, isLoading = false, onRowClick, onEdit, onDelete, onT
               <tr key={task.id} className="task-table__row" onClick={() => onRowClick(task)}>
                 <td className="task-table__name" data-label="Task">{task.name}</td>
                 <td data-label="Category">{task.categoryName}</td>
+                {showStoreColumn && <td data-label="Store">{taskStoresLabel(task)}</td>}
                 <td data-label="Schedule">{scheduleSummary(task.scheduleType, task.selectedDays, task.startDate, task.endDate)}</td>
                 <td data-label="Response">
                   <span className={`badge ${responseTypeBadgeClass(task.responseType)}`}>
