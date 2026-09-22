@@ -70,6 +70,16 @@ public class InternalJobController {
         return ResponseEntity.ok("overdue-issues-check completed");
     }
 
+    /** Hourly: notify Super Admins of stores whose Owner/Admin has been vacant over 24 hours. */
+    @PostMapping("/owner-vacancy-check")
+    public ResponseEntity<String> ownerVacancyCheck(
+            @RequestHeader(value = "X-Internal-Job-Secret", required = false) String secret) {
+        ResponseEntity<String> authError = checkSecret(secret);
+        if (authError != null) return authError;
+        superAdminAlertService.runOwnerVacancyCheck();
+        return ResponseEntity.ok("owner-vacancy-check completed");
+    }
+
     /**
      * 3am daily: purge resolved issues older than 7 days, deactivate tasks past end
      * date, and expire stale PENDING "Missed Tasks" links (linked_date < today).

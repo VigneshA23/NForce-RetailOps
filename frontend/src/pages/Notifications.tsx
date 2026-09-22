@@ -2,60 +2,22 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   AlertCircle, ArrowUpRight, Bell, Check, CheckCheck,
-  ChevronLeft, ClipboardList, Inbox, ListPlus, Loader2,
-  PenLine, RefreshCw, Search, Store, Trash2, UserCheck, UserMinus,
-  UserPlus, UserX,
+  ChevronLeft, Inbox, Loader2,
+  RefreshCw, Search, Trash2,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import { deleteNotification, getNotifications, markAllRead, markNotificationRead } from '../api/notifications';
+import { deleteNotification, getNotifications, getUnreadCount, markAllRead, markNotificationRead } from '../api/notifications';
 import type { Notification } from '../types/notification';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { ALL_DISPLAY_CATEGORIES, getCategoryMeta, type DisplayCategory } from '../utils/notificationCategoryMeta';
 import './Notifications.css';
 
 // ── Display metadata per notification category ────────────────────────────────
+// Icon/color/displayCategory lookup lives in utils/notificationCategoryMeta.ts,
+// shared with NotificationBell so the two surfaces stay in sync.
 
-type DisplayCategory =
-  | 'Store Issues'
-  | 'Checklist Updates'
-  | 'Store Management'
-  | 'Account & Access'
-  | 'Employee Management';
+const getMeta = getCategoryMeta;
 
 type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
-
-interface NotifMeta {
-  icon: LucideIcon;
-  iconBgVar: string;
-  iconFgVar: string;
-  displayCategory: DisplayCategory;
-}
-
-const META: Record<string, NotifMeta> = {
-  ISSUE_RAISED:                 { icon: AlertCircle,  iconBgVar: '--color-badge-icon-primary-bg', iconFgVar: '--color-badge-icon-primary-fg', displayCategory: 'Store Issues' },
-  CORRECTION_MADE:              { icon: PenLine,       iconBgVar: '--color-badge-icon-info-bg',    iconFgVar: '--color-badge-icon-info-fg',    displayCategory: 'Checklist Updates' },
-  TASK_ADDED:                   { icon: ClipboardList, iconBgVar: '--color-badge-icon-info-bg',    iconFgVar: '--color-badge-icon-info-fg',    displayCategory: 'Checklist Updates' },
-  CATEGORY_ADDED:               { icon: ListPlus,      iconBgVar: '--color-badge-icon-info-bg',    iconFgVar: '--color-badge-icon-info-fg',    displayCategory: 'Checklist Updates' },
-  STORE_DEACTIVATED:            { icon: Store,         iconBgVar: '--color-badge-icon-warning-bg', iconFgVar: '--color-badge-icon-warning-fg', displayCategory: 'Store Management' },
-  STORE_REACTIVATED:            { icon: Store,         iconBgVar: '--color-badge-icon-success-bg', iconFgVar: '--color-badge-icon-success-fg', displayCategory: 'Store Management' },
-  ACCOUNT_DEACTIVATED:          { icon: UserX,         iconBgVar: '--color-badge-icon-warning-bg', iconFgVar: '--color-badge-icon-warning-fg', displayCategory: 'Account & Access' },
-  ACCOUNT_REACTIVATED:          { icon: UserCheck,     iconBgVar: '--color-badge-icon-success-bg', iconFgVar: '--color-badge-icon-success-fg', displayCategory: 'Account & Access' },
-  EMPLOYEE_ACCOUNT_DEACTIVATED: { icon: UserX,         iconBgVar: '--color-badge-icon-warning-bg', iconFgVar: '--color-badge-icon-warning-fg', displayCategory: 'Account & Access' },
-  EMPLOYEE_ACCOUNT_REACTIVATED: { icon: UserCheck,     iconBgVar: '--color-badge-icon-success-bg', iconFgVar: '--color-badge-icon-success-fg', displayCategory: 'Account & Access' },
-  EMPLOYEE_ASSIGNED:            { icon: UserPlus,      iconBgVar: '--color-badge-icon-success-bg', iconFgVar: '--color-badge-icon-success-fg', displayCategory: 'Employee Management' },
-  EMPLOYEE_REMOVED:             { icon: UserMinus,     iconBgVar: '--color-badge-icon-warning-bg', iconFgVar: '--color-badge-icon-warning-fg', displayCategory: 'Employee Management' },
-  NEW_EMPLOYEE_JOINED:          { icon: UserPlus,      iconBgVar: '--color-badge-icon-success-bg', iconFgVar: '--color-badge-icon-success-fg', displayCategory: 'Employee Management' },
-};
-
-const DEFAULT_META: NotifMeta = {
-  icon: Bell,
-  iconBgVar: '--color-badge-icon-info-bg',
-  iconFgVar: '--color-badge-icon-info-fg',
-  displayCategory: 'Store Issues',
-};
-
-function getMeta(category: string): NotifMeta {
-  return META[category] ?? DEFAULT_META;
-}
 
 function getPriority(n: Notification): Priority {
   const p = n.priority as Priority;
@@ -68,14 +30,6 @@ const PRIORITY_META: Record<Priority, { label: string; colorVar: string; bgVar: 
   MEDIUM: { label: 'Medium', colorVar: '--color-badge-icon-warning-fg', bgVar: '--color-badge-icon-warning-bg' },
   LOW:    { label: 'Low',    colorVar: '--color-text-muted',            bgVar: '--color-border' },
 };
-
-const ALL_DISPLAY_CATEGORIES: DisplayCategory[] = [
-  'Store Issues',
-  'Checklist Updates',
-  'Store Management',
-  'Account & Access',
-  'Employee Management',
-];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -306,7 +260,7 @@ function NotifRow({ n, selected, onSelect, onMarkRead, onDelete, markingId, dele
     >
       <div
         className="nfp-row__icon"
-        style={{ background: `var(${meta.iconBgVar})`, color: `var(${meta.iconFgVar})` }}
+        style={{ background: `var(${meta.bgVar})`, color: `var(${meta.fgVar})` }}
         aria-hidden="true"
       >
         <Icon size={15} strokeWidth={2} />
@@ -319,7 +273,7 @@ function NotifRow({ n, selected, onSelect, onMarkRead, onDelete, markingId, dele
         </div>
         {n.message && <p className="nfp-row__msg">{n.message}</p>}
         <div className="nfp-row__badges">
-          <Pill colorVar={meta.iconFgVar} bgVar={meta.iconBgVar}>{meta.displayCategory}</Pill>
+          <Pill colorVar={meta.fgVar} bgVar={meta.bgVar}>{meta.displayCategory}</Pill>
           <Pill colorVar={pm.colorVar} bgVar={pm.bgVar}>{pm.label}</Pill>
           {!n.read && <span className="nfp-row__dot" aria-hidden="true" />}
         </div>
@@ -397,12 +351,12 @@ function DetailPane({ n, onNavigate, onBack, onDelete, deletingId }: DetailPaneP
       <div className="nfp-detail__header-row">
         <div
           className="nfp-detail__icon"
-          style={{ background: `var(${meta.iconBgVar})`, color: `var(${meta.iconFgVar})` }}
+          style={{ background: `var(${meta.bgVar})`, color: `var(${meta.fgVar})` }}
           aria-hidden="true"
         >
           <Icon size={20} strokeWidth={2} />
         </div>
-        <Pill colorVar={meta.iconFgVar} bgVar={meta.iconBgVar}>{meta.displayCategory}</Pill>
+        <Pill colorVar={meta.fgVar} bgVar={meta.bgVar}>{meta.displayCategory}</Pill>
         <Pill colorVar={pm.colorVar} bgVar={pm.bgVar}>{pm.label} priority</Pill>
         <Pill
           colorVar={n.read ? '--color-text-muted' : '--color-badge-icon-primary-fg'}
@@ -480,13 +434,47 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
   const [statusFilter, setStatus] = useState<StatusFilter>('all');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
 
+  // Tracked separately from `items` because `items` is capped at the backend's
+  // page size (100) -- for an account with more unread notifications than that,
+  // items.filter(!read).length would understate the true unread total. This
+  // mirrors the bell's own /notifications/unread-count-backed figure so the two
+  // surfaces never disagree.
+  const [unreadTotal, setUnreadTotal] = useState(0);
+
+  // Pagination: the backend caps a single page at PAGE_SIZE, so older
+  // notifications beyond the first page are fetched on demand via "Load older".
+  const PAGE_SIZE = 100;
+  const [page, setPage]           = useState(0);
+  const [hasMore, setHasMore]     = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+
   function load(silent = false) {
     if (!silent) { setLoading(true); setError(false); }
     else setFetching(true);
-    getNotifications()
-      .then(data => setItems(data))
+    Promise.all([getNotifications(0, PAGE_SIZE), getUnreadCount()])
+      .then(([data, count]) => {
+        setItems(data);
+        setUnreadTotal(count);
+        setPage(0);
+        setHasMore(data.length === PAGE_SIZE);
+      })
       .catch(() => { if (!silent) setError(true); })
       .finally(() => { setLoading(false); setFetching(false); });
+  }
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const data = await getNotifications(nextPage, PAGE_SIZE);
+      setItems(prev => [...prev, ...data]);
+      setPage(nextPage);
+      setHasMore(data.length === PAGE_SIZE);
+    } catch {
+      // Leave hasMore as-is so the button stays available to retry.
+    } finally {
+      setLoadingMore(false);
+    }
   }
 
   useEffect(() => { load(); }, []);
@@ -495,6 +483,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
     setMarking(true);
     await markAllRead().catch(() => {});
     setItems(prev => prev.map(n => ({ ...n, read: true })));
+    setUnreadTotal(0);
     onUnreadChange(0);
     setMarking(false);
   }
@@ -504,7 +493,10 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
     await deleteNotification(id).catch(() => {});
     const target = items.find(n => n.id === id);
     setItems(prev => prev.filter(n => n.id !== id));
-    if (target && !target.read) onUnreadChange(-1);
+    if (target && !target.read) {
+      onUnreadChange(-1);
+      setUnreadTotal(prev => Math.max(0, prev - 1));
+    }
     if (selectedId === id) {
       setSelectedId(null);
       if (!isWide) setShowDetail(false);
@@ -519,6 +511,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
     await markNotificationRead(id).catch(() => {});
     setItems(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
     onUnreadChange(-1);
+    setUnreadTotal(prev => Math.max(0, prev - 1));
     setMarkingId(null);
   }
 
@@ -554,7 +547,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
 
   const groups   = groupNotifications(visible);
   const selected = items.find(n => n.id === selectedId) ?? null;
-  const unread   = items.filter(n => !n.read).length;
+  const unread   = unreadTotal;
   const total    = items.length;
 
   // Mobile detail view
@@ -740,6 +733,19 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
                   ))}
                 </div>
               ))
+            )}
+            {hasMore && (
+              <button
+                type="button"
+                className="nfp-load-more"
+                onClick={loadMore}
+                disabled={loadingMore}
+              >
+                {loadingMore
+                  ? <Loader2 size={13} className="nfp-spin" />
+                  : null}
+                {loadingMore ? 'Loading…' : 'Load older notifications'}
+              </button>
             )}
           </div>
 

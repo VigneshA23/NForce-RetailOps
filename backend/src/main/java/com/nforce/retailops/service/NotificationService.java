@@ -7,7 +7,7 @@ import com.nforce.retailops.entity.RaisedIssue;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.exception.IssueNotFoundException;
+import com.nforce.retailops.exception.NotificationNotFoundException;
 import com.nforce.retailops.repository.NotificationRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -54,6 +54,14 @@ public class NotificationService {
 
     public NotificationService(NotificationRepository notificationRepository) {
         this.notificationRepository = notificationRepository;
+    }
+
+    // MAX_NOTIFICATIONS is a per-page cap (abuse guard), not an absolute limit --
+    // callers page through with page/size to reach older notifications.
+    private static PageRequest pageRequest(int page, int size) {
+        int clampedPage = Math.max(page, 0);
+        int clampedSize = Math.min(Math.max(size, 1), MAX_NOTIFICATIONS);
+        return PageRequest.of(clampedPage, clampedSize);
     }
 
     // Generic notification creation — the single entry point for all new notification types.
@@ -199,9 +207,9 @@ public class NotificationService {
     }
 
     @Transactional(readOnly = true)
-    public List<NotificationResponse> list(Long userId) {
+    public List<NotificationResponse> list(Long userId, int page, int size) {
         return notificationRepository
-            .findByRecipientUserIdOrderByCreatedAtDesc(userId, PageRequest.of(0, MAX_NOTIFICATIONS))
+            .findByRecipientUserIdOrderByCreatedAtDesc(userId, pageRequest(page, size))
             .stream()
             .map(NotificationResponse::from)
             .toList();
@@ -215,7 +223,7 @@ public class NotificationService {
     @Transactional
     public NotificationResponse markRead(Long notificationId, Long userId) {
         Notification n = notificationRepository.findByIdAndRecipientUserId(notificationId, userId)
-            .orElseThrow(() -> new IssueNotFoundException("Notification not found"));
+            .orElseThrow(() -> new NotificationNotFoundException("Notification not found"));
         n.setRead(true);
         return NotificationResponse.from(notificationRepository.save(n));
     }
@@ -228,15 +236,15 @@ public class NotificationService {
     @Transactional
     public void delete(Long notificationId, Long userId) {
         Notification n = notificationRepository.findByIdAndRecipientUserId(notificationId, userId)
-            .orElseThrow(() -> new IssueNotFoundException("Notification not found"));
+            .orElseThrow(() -> new NotificationNotFoundException("Notification not found"));
         notificationRepository.delete(n);
     }
 
     // Super Admin variants of the same read/list operations
     @Transactional(readOnly = true)
-    public List<NotificationResponse> listForSuperAdmin(Long superAdminId) {
+    public List<NotificationResponse> listForSuperAdmin(Long superAdminId, int page, int size) {
         return notificationRepository
-            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(superAdminId, PageRequest.of(0, MAX_NOTIFICATIONS))
+            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(superAdminId, pageRequest(page, size))
             .stream()
             .map(NotificationResponse::from)
             .toList();
@@ -250,7 +258,7 @@ public class NotificationService {
     @Transactional
     public NotificationResponse markReadForSuperAdmin(Long notificationId, Long superAdminId) {
         Notification n = notificationRepository.findByIdAndRecipientSuperAdminId(notificationId, superAdminId)
-            .orElseThrow(() -> new IssueNotFoundException("Notification not found"));
+            .orElseThrow(() -> new NotificationNotFoundException("Notification not found"));
         n.setRead(true);
         return NotificationResponse.from(notificationRepository.save(n));
     }
@@ -263,7 +271,7 @@ public class NotificationService {
     @Transactional
     public void deleteForSuperAdmin(Long notificationId, Long superAdminId) {
         Notification n = notificationRepository.findByIdAndRecipientSuperAdminId(notificationId, superAdminId)
-            .orElseThrow(() -> new IssueNotFoundException("Notification not found"));
+            .orElseThrow(() -> new NotificationNotFoundException("Notification not found"));
         notificationRepository.delete(n);
     }
 }

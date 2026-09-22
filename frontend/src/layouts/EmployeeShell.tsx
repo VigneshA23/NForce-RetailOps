@@ -160,7 +160,11 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         : overlay === 'help'
         ? <Help role={user.role} />
         : overlay === 'notifications'
-        ? <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} />
+        ? <Notifications
+            onUnreadChange={handleNotificationsCountChange}
+            onNavigate={handleNotificationNavigate}
+            onBackToHome={() => { setOverlay(null); setActiveTab('today'); }}
+          />
         : ALL_EMPLOYEE_TABS.map((tab) =>
             mountedTabs.has(tab) ? (
               <div key={tab} style={activeTab !== tab ? { display: 'none' } : undefined}>

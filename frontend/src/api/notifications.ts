@@ -1,8 +1,8 @@
 import { apiRequest } from './client';
 import type { Notification } from '../types/notification';
 
-export async function getNotifications(): Promise<Notification[]> {
-  return apiRequest<Notification[]>('/notifications');
+export async function getNotifications(page = 0, size = 100): Promise<Notification[]> {
+  return apiRequest<Notification[]>(`/notifications?page=${page}&size=${size}`);
 }
 
 export async function getUnreadCount(): Promise<number> {
