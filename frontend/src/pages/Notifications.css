@@ -129,7 +129,6 @@
   align-items: center;
   gap: 7px;
   flex: 1 1 180px;
-  max-width: 280px;
   background: var(--color-bg-page);
   border: 1px solid var(--color-border);
   border-radius: 6px;
@@ -210,8 +209,13 @@
 }
 
 @media (min-width: 900px) {
+  /* .nfp-page mounts directly inside AppShell's .app-shell__page, which is
+     position:absolute; inset:0 within a flex chain rooted at
+     .app-shell{min-height:100dvh} -- that already gives it a definite height
+     (viewport minus the sticky header), so 100% fills it exactly instead of
+     guessing a fixed px offset to subtract from 100dvh. */
   .nfp-page {
-    height: calc(100dvh - 220px);
+    height: 100%;
   }
   .nfp-body {
     flex: 1 1 auto;
@@ -229,6 +233,11 @@
 @media (min-width: 1200px) {
   .nfp-list-pane {
     flex: 0 0 420px;
+  }
+}
+@media (min-width: 1600px) {
+  .nfp-list-pane {
+    flex: 0 0 480px;
   }
 }
 
@@ -508,6 +517,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  height: 100%;
   min-height: 300px;
 }
 
@@ -532,26 +542,26 @@
   padding: 40px 20px;
 }
 .nfp-detail__placeholder-icon {
-  width: 56px;
-  height: 56px;
+  width: 72px;
+  height: 72px;
   border-radius: 50%;
   background: color-mix(in srgb, var(--color-text-primary) 6%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0 auto 14px;
+  margin: 0 auto 16px;
   color: var(--color-text-muted);
 }
 .nfp-detail__placeholder-title {
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--color-text-secondary);
-  margin: 0 0 5px;
+  margin: 0 0 6px;
 }
 .nfp-detail__placeholder-sub {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--color-text-muted);
-  max-width: 240px;
+  max-width: 280px;
   margin: 0 auto;
 }
 

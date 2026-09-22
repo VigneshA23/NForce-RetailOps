@@ -324,7 +324,7 @@ function DetailPane({ n, onNavigate, onBack, onDelete, deletingId }: DetailPaneP
       <div className="nfp-detail nfp-detail--empty">
         <div className="nfp-detail__placeholder">
           <div className="nfp-detail__placeholder-icon">
-            <Inbox size={24} />
+            <Inbox size={30} />
           </div>
           <p className="nfp-detail__placeholder-title">No notification selected</p>
           <p className="nfp-detail__placeholder-sub">
@@ -538,7 +538,9 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
       const q = search.trim().toLowerCase();
       list = list.filter(n =>
         n.title.toLowerCase().includes(q) ||
-        (n.message ?? '').toLowerCase().includes(q),
+        (n.message ?? '').toLowerCase().includes(q) ||
+        getMeta(n.category).displayCategory.toLowerCase().includes(q) ||
+        PRIORITY_META[getPriority(n)].label.toLowerCase().includes(q),
       );
     }
     if (sortOrder === 'oldest') list = [...list].reverse();
