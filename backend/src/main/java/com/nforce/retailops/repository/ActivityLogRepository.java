@@ -4,6 +4,7 @@ import com.nforce.retailops.entity.ActivityLog;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -32,4 +33,14 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
     // own store(s), newest first.
     List<ActivityLog> findByStoreIdInAndActionTypeOrderByOccurredAtDesc(
         Collection<Long> storeIds, String actionType, Pageable pageable);
+
+    // Date-range variant of the platform feed above, for the Recent Activity
+    // "view all" page's date filter -- occurredAt is an OffsetDateTime, so the
+    // bound is [start, end) rather than a plain date equality check.
+    List<ActivityLog> findByActionTypeNotAndActorRoleNotAndOccurredAtGreaterThanEqualAndOccurredAtLessThanOrderByOccurredAtDesc(
+        String actionType, String actorRole, OffsetDateTime start, OffsetDateTime end, Pageable pageable);
+
+    // Date-range variant of the owner task-activity feed above.
+    List<ActivityLog> findByStoreIdInAndActionTypeAndOccurredAtGreaterThanEqualAndOccurredAtLessThanOrderByOccurredAtDesc(
+        Collection<Long> storeIds, String actionType, OffsetDateTime start, OffsetDateTime end, Pageable pageable);
 }

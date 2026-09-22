@@ -46,6 +46,70 @@
 
 .sa-activity__list-card {
   padding: var(--space-sm) var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.sa-activity__empty {
+  margin: 0;
+  padding: var(--space-md) 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.sa-activity__day-group + .sa-activity__day-group {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-lg);
+}
+
+/* Heading-group and count badge are split into separate flex children (not
+   one flat wrapping row) so the badge always stays pinned top-right -- when
+   they were siblings in a single wrapping row, whichever day's heading text
+   happened to be a few px longer would push the badge onto its own line
+   while shorter days kept it inline, which read as random/inconsistent. */
+.sa-activity__day-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: var(--space-md);
+}
+
+.sa-activity__day-heading-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sa-activity__day-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.sa-activity__day-dot {
+  color: var(--color-text-secondary);
+}
+
+.sa-activity__day-subheading {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.sa-activity__day-count {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.sa-activity__day-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
 }
 
 @media (max-width: 640px) {
