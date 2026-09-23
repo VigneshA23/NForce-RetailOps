@@ -81,6 +81,7 @@ function CompletionRateCard({
           value={String(periodDays)}
           onChange={(value) => onPeriodChange(Number(value))}
           ariaLabel="Select time period"
+          align="right"
         />
       </div>
 

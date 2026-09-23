@@ -465,4 +465,50 @@
   .chart-card-row {
     gap: var(--space-md);
   }
+
+  /* Title + period dropdown now share one row here too (the shared
+     .card__header stacks them at this width by default) -- shrink both so
+     the title doesn't truncate, mirroring Super Admin's Platform Completion
+     Trend card. Desktop is untouched, all inside @media (--mobile). */
+  .chart-card-row--top .completion-rate-card .card__header {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: nowrap;
+  }
+
+  .chart-card-row--top .completion-rate-card .card__title {
+    font-size: 14px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .chart-card-row--top .completion-rate-card .completion-rate-card__period {
+    width: auto;
+    min-width: 0;
+    flex-shrink: 0;
+  }
+
+  .chart-card-row--top .completion-rate-card .completion-rate-card__period .select {
+    padding: 5px 8px;
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  /* Shrinks the big %/delta headline so the trend chart reads as the card's
+     main content instead of competing with it for attention. */
+  .chart-card-row--top .completion-rate-card__value {
+    font-size: 22px;
+  }
+
+  .chart-card-row--top .completion-rate-card__badge {
+    font-size: 11px;
+    padding: 2px 6px;
+  }
+
+  .chart-card-row--top .completion-rate-card__subtext {
+    margin: 2px 0 var(--space-xs);
+    font-size: 11px;
+  }
 }
