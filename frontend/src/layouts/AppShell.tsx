@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
@@ -109,7 +109,38 @@ function AppShell<Key extends string = NavTabKey>({
   const isMobile = useIsMobile();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const useBottomTabs = isMobile && mobileNav === 'bottom-tabs';
-  const showBottomNav = useBottomTabs && !hideBottomNav;
+  const [keyboardActive, setKeyboardActive] = useState(false);
+
+  // Any text/search field opening the on-screen keyboard should tuck the
+  // floating BottomNav away too -- not just the header's full-screen search
+  // overlay (that's what hideBottomNav is for). Tracked globally here
+  // instead of per-page so every filter/search input across the app is
+  // covered without each page wiring its own focus state through.
+  useEffect(() => {
+    if (!useBottomTabs) return undefined;
+    function isTextField(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) return false;
+      if (target instanceof HTMLTextAreaElement) return true;
+      if (target instanceof HTMLInputElement) {
+        return !['checkbox', 'radio', 'button', 'submit', 'range', 'color', 'file'].includes(target.type);
+      }
+      return false;
+    }
+    function handleFocusIn(event: FocusEvent) {
+      if (isTextField(event.target)) setKeyboardActive(true);
+    }
+    function handleFocusOut(event: FocusEvent) {
+      if (isTextField(event.target)) setKeyboardActive(false);
+    }
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, [useBottomTabs]);
+
+  const showBottomNav = useBottomTabs && !hideBottomNav && !keyboardActive;
 
   return (
     <div className="app-shell">

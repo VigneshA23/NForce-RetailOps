@@ -76,8 +76,11 @@
 
   /* Own background gone so each card can float as a distinct surface --
      gap between them stands in for the border-bottom dividers the desktop
-     table uses. */
-  .owner-table-card {
+     table uses. Compound selector (both classes always land on the same
+     element) so this reliably outranks the shared .table-card rule
+     regardless of stylesheet load order -- a single-class override has the
+     same specificity as .table-card and can lose to it. */
+  .table-card.owner-table-card {
     background: transparent;
     box-shadow: none;
     border-radius: 0;
@@ -185,6 +188,7 @@
 
   .owner-mobile-card__email {
     grid-area: email;
+    margin-left: -8px;
   }
 
   .owner-mobile-card__email-link {
@@ -221,6 +225,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
+    margin-left: -8px;
   }
 
   .owner-mobile-card__store-label {
