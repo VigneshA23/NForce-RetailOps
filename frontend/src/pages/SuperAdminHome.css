@@ -94,15 +94,64 @@
 /* Matches the border-card look and fixed height of its Platform Health/
    Recent Activity siblings in this row (CompletionRateCard's own .card
    styling is the shadow-card look Home.tsx uses instead, and its natural
-   content height is taller than this row's usual 320px). chartHeight={130}
-   on the CompletionRateCard instance itself is what actually shrinks it to
-   fit -- overflow:hidden here is only a safety net against sub-pixel
-   rounding, not the primary fit mechanism. */
+   content height is taller than this row's usual 320px). Laid out as a flex
+   column so the chart (below) can flex-grow to fill whatever's left after
+   the header/headline, rather than being stuck at its chartHeight={130}
+   prop with dead space beneath it -- overflow:hidden is a safety net against
+   sub-pixel rounding, not the primary fit mechanism. */
 .sa-home__insights-row .completion-rate-card {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--color-border);
   box-shadow: none;
   height: 320px;
   overflow: hidden;
+  padding-top: var(--space-sm);
+}
+
+/* flex-basis:0 (from the `1` shorthand) overrides CompletionRateCard's own
+   inline height style for layout purposes, so this fills the card's
+   remaining height regardless of the chartHeight prop passed to it. */
+.sa-home__insights-row .completion-rate-card__chart {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Tightens the gap between the "Platform Completion Trend" title and the
+   headline stats below it, so the title sits higher and the stats follow
+   right after it instead of leaving a full card-header's worth of empty
+   space -- scoped to this row only, Home.tsx's own header gap is untouched.
+   Also keeps the title and period Select side by side even on mobile
+   (the shared .card__header stacks them at that width) -- that stacked
+   row used the dropdown's own full-width row for nothing but the dropdown,
+   so keeping them side by side frees that row for the headline stats
+   instead, leaving more vertical room for the chart. */
+.sa-home__insights-row .completion-rate-card .card__header {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  margin-bottom: var(--space-xs);
+}
+
+/* Shrinks the big %/delta headline so the trend chart below it reads as the
+   card's main content instead of competing with it for attention -- scoped
+   to this row only, Home.tsx's own Completion Rate card keeps its full size. */
+.sa-home__insights-row .completion-rate-card__headline {
+  margin-top: 0;
+}
+
+.sa-home__insights-row .completion-rate-card__value {
+  font-size: 22px;
+}
+
+.sa-home__insights-row .completion-rate-card__badge {
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+.sa-home__insights-row .completion-rate-card__subtext {
+  margin: 2px 0 var(--space-xs);
+  font-size: 11px;
 }
 
 .sa-home__health-panel {
@@ -216,5 +265,33 @@
 @media (max-width: 640px) {
   .sa-home {
     padding: var(--space-md);
+  }
+
+  /* Title + dropdown now share one row at this width too (see the
+     .card__header override above) -- shrink both a little and let the
+     title truncate instead of wrap, so they fit without pushing the
+     dropdown onto its own line again. The dropdown's default padding/
+     font-size (from the shared .select styling, sized for a full filter
+     bar) ate most of the row's width on narrower phones, cutting the
+     title down to "Platform Completion Tr..." -- shrinking the dropdown
+     itself is what actually fixed that, not just truncating the title. */
+  .sa-home__insights-row .completion-rate-card .card__title {
+    font-size: 13px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .sa-home__insights-row .completion-rate-card .completion-rate-card__period {
+    width: auto;
+    min-width: 0;
+    flex-shrink: 0;
+  }
+
+  .sa-home__insights-row .completion-rate-card .completion-rate-card__period .select {
+    padding: 5px 8px;
+    font-size: 11px;
+    gap: 4px;
   }
 }
