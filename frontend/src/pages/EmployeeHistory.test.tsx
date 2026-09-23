@@ -156,6 +156,7 @@ describe('EmployeeHistory task responder list', () => {
         {
           id: 10,
           name: 'Cleaning',
+          badgeColor: 'blue',
           tasksCompleted: 1,
           tasksTotal: 1,
           tasks: [
@@ -196,6 +197,7 @@ describe('EmployeeHistory task responder list', () => {
         {
           id: 10,
           name: 'Cleaning',
+          badgeColor: 'blue',
           tasksCompleted: 1,
           tasksTotal: 1,
           tasks: [

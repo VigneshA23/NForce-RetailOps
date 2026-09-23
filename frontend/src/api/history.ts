@@ -1,4 +1,5 @@
 import type { HistoryCategoryEntry, HistoryIssueEntry, HistoryResponderEntry, HistoryResubmissionTransition, HistoryTaskDetail, IssueStatus, ShiftHistory, TaskStatus } from '../types/history';
+import { CATEGORY_BADGE_COLORS, type CategoryBadgeColor } from '../utils/categoryBadge';
 import type { AdminCorrectionEntry } from '../types/checklistHistory';
 import { authHeaders } from '../utils/authStorage';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
@@ -82,6 +83,7 @@ interface RawTaskItem {
 interface RawCategory {
   id: number;
   name: string;
+  badgeColor?: string | null;
   tasks: RawTaskItem[];
 }
 
@@ -288,11 +290,16 @@ function toHistoryTask(task: RawTaskItem): HistoryTaskDetail {
   };
 }
 
+function toBadgeColor(value: string | null | undefined): CategoryBadgeColor {
+  return CATEGORY_BADGE_COLORS.some((color) => color.value === value) ? (value as CategoryBadgeColor) : 'blue';
+}
+
 function toHistoryCategory(category: RawCategory): HistoryCategoryEntry {
   const tasks = category.tasks.map(toHistoryTask);
   return {
     id: category.id,
     name: category.name,
+    badgeColor: toBadgeColor(category.badgeColor),
     tasksCompleted: tasks.filter((task) => task.status !== 'NOT_ANSWERED').length,
     tasksTotal: tasks.length,
     tasks,

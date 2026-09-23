@@ -4,16 +4,19 @@ import {
   Calendar,
   CheckCircle2,
   ChevronDown,
-  ClipboardList,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
   Flag,
   HelpCircle,
   History as HistoryIcon,
   MessageSquareWarning,
   MoonStar,
+  Tag,
 } from 'lucide-react'
 import type { HistoryTaskDetail, ShiftHistory } from '../types/history'
 import type { AdminCorrectionEntry } from '../types/checklistHistory'
-import { formatTimeLabel } from '../utils/checklistHistoryOptions'
+import { formatTimeLabel, stepDate } from '../utils/checklistHistoryOptions'
 import CalendarPopover from './CalendarPopover'
 import StatCard from './StatCard'
 import SearchInput from './SearchInput'
@@ -48,7 +51,7 @@ interface ChecklistDayHistoryViewProps {
 const TASK_STATUS_META = {
   YES: { label: 'Complete', badgeClass: 'badge--success', icon: CheckCircle2 },
   NO: { label: 'Flagged', badgeClass: 'badge--warning', icon: Flag },
-  NOT_ANSWERED: { label: 'Not answered', badgeClass: 'badge--outline', icon: HelpCircle },
+  NOT_ANSWERED: { label: 'Not answered', badgeClass: 'badge--outline', icon: Clock },
 }
 
 function hasActivity(history: ShiftHistory | null): history is ShiftHistory {
@@ -59,6 +62,12 @@ function hasActivity(history: ShiftHistory | null): history is ShiftHistory {
 function formatDateLabel(date: string): string {
   const parsed = new Date(`${date}T00:00:00`)
   return parsed.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+// "23 Sept 2026" style label for the date bar.
+function formatNavDateLabel(date: string): string {
+  const parsed = new Date(`${date}T00:00:00`)
+  return parsed.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
 // Mirrors CorrectionModal's correctionValueLabel (Admin/Super Admin's own
@@ -187,6 +196,8 @@ function ChecklistDayHistoryView({
         .filter((category): category is NonNullable<typeof category> => category !== null)
     : []
   const hasFiltersBar = extraFilters !== undefined || onSearchQueryChange !== undefined
+  const yesterdayDate = stepDate(maxDate, -1)
+  const canGoForward = selectedDate < maxDate
 
   return (
     <div className="employee-history">
@@ -205,6 +216,14 @@ function ChecklistDayHistoryView({
         {extraFilters}
         <div className="employee-history-date-trigger-wrap">
           <button
+            type="button"
+            className="employee-history-date-step"
+            onClick={() => onSelectDate(stepDate(selectedDate, -1))}
+            aria-label="Previous day"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <button
             ref={calendarButtonRef}
             type="button"
             className="employee-history-date-trigger"
@@ -213,8 +232,17 @@ function ChecklistDayHistoryView({
             aria-haspopup="dialog"
             aria-expanded={isCalendarOpen}
           >
-            <Calendar size={13} aria-hidden="true" />
-            <span>{formatDateLabel(selectedDate)}</span>
+            <Calendar size={14} aria-hidden="true" />
+            <span>{formatNavDateLabel(selectedDate)}</span>
+          </button>
+          <button
+            type="button"
+            className="employee-history-date-step"
+            onClick={() => onSelectDate(stepDate(selectedDate, 1))}
+            disabled={!canGoForward}
+            aria-label="Next day"
+          >
+            <ChevronRight size={16} />
           </button>
           <CalendarPopover
             value={selectedDate}
@@ -224,6 +252,24 @@ function ChecklistDayHistoryView({
             onSelect={onSelectDate}
             anchorRef={calendarButtonRef}
           />
+        </div>
+        <div className="employee-history-quick-dates" role="group" aria-label="Quick date">
+          <button
+            type="button"
+            className={`employee-history-quick-date${selectedDate === maxDate ? ' employee-history-quick-date--active' : ''}`}
+            aria-pressed={selectedDate === maxDate}
+            onClick={() => onSelectDate(maxDate)}
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            className={`employee-history-quick-date${selectedDate === yesterdayDate ? ' employee-history-quick-date--active' : ''}`}
+            aria-pressed={selectedDate === yesterdayDate}
+            onClick={() => onSelectDate(yesterdayDate)}
+          >
+            Yesterday
+          </button>
         </div>
         {onSearchQueryChange && (
           <div className="employee-history-extra-filter">
@@ -295,8 +341,6 @@ function ChecklistDayHistoryView({
               </div>
             )}
             {visibleCategories.map((category) => {
-              const Icon = ClipboardList
-              const tone = 'info'
               const isComplete = category.tasksTotal > 0 && category.tasksCompleted === category.tasksTotal
               const isExpanded = expandedKeys.has(category.id)
 
@@ -311,8 +355,8 @@ function ChecklistDayHistoryView({
                     onClick={() => toggleCategory(category.id)}
                     aria-expanded={isExpanded}
                   >
-                    <span className={`employee-history-card-icon employee-history-card-icon--${tone}`}>
-                      <Icon size={18} />
+                    <span className={`employee-history-card-icon employee-history-card-icon--${category.badgeColor}`}>
+                      <Tag size={17} />
                       {isComplete && (
                         <span className="employee-history-card-icon-check" aria-hidden="true">
                           <CheckCircle2 size={12} />

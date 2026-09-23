@@ -187,6 +187,7 @@ public class MeHistoryService {
             .map(tasks -> new HistoryCategoryResponse(
                 tasks.get(0).getCategory().getId(),
                 tasks.get(0).getCategory().getName(),
+                tasks.get(0).getCategory().getBadgeColor(),
                 tasks.stream()
                     .map(task -> toHistoryTaskItem(
                         task, responsesByTask.getOrDefault(task.getId(), List.of()),

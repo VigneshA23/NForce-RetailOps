@@ -35,39 +35,99 @@
 
 .employee-history-date-trigger-wrap {
   display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 48px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  background: var(--color-surface-card);
+  box-shadow: var(--shadow-card);
 }
 
-/* The lone date control now that Today/Yesterday chips are gone -- always
-   shows the currently selected date's label next to the icon, since there's
-   no other visual cue (like a highlighted "Today" chip) telling the owner
-   what's currently in view. */
+/* Center of the date bar: opens the calendar and always shows the selected
+   date, so it's clear what's in view. */
 .employee-history-date-trigger {
   flex: 1;
-  min-height: 48px;
+  min-height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-card);
+  border: none;
+  border-radius: 10px;
+  background: transparent;
   color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: var(--shadow-card);
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
   white-space: nowrap;
 }
 
-.employee-history-date-trigger:hover {
-  border-color: var(--color-accent);
+.employee-history-date-trigger svg {
+  color: var(--color-accent);
 }
 
+.employee-history-date-trigger:hover,
 .employee-history-date-trigger[aria-expanded='true'] {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-  background: var(--color-badge-icon-primary-bg);
+  background: var(--color-bg-page);
+}
+
+/* Previous / next day arrows */
+.employee-history-date-step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.employee-history-date-step:hover:not(:disabled) {
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+}
+
+.employee-history-date-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Today / Yesterday segmented switch */
+.employee-history-quick-dates {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-card);
+}
+
+.employee-history-quick-date {
+  flex: 1;
+  min-height: 34px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.employee-history-quick-date:hover:not(.employee-history-quick-date--active) {
+  background: var(--color-bg-page);
+  color: var(--color-text-primary);
+}
+
+.employee-history-quick-date--active {
+  background: var(--color-badge-solid-bg);
+  color: var(--color-badge-solid-text);
 }
 
 /* Extra filter controls (Super Admin's store picker, the optional search
@@ -223,13 +283,22 @@
   flex-shrink: 0;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   background: var(--color-badge-outline-bg);
   color: var(--color-text-secondary);
 }
+
+/* Category badge colors, as chosen on the Super Admin category page. */
+.employee-history-card-icon--red    { background: var(--color-badge-icon-primary-bg); color: var(--color-badge-icon-primary-fg); }
+.employee-history-card-icon--green  { background: var(--color-badge-icon-success-bg); color: var(--color-badge-icon-success-fg); }
+.employee-history-card-icon--amber  { background: var(--color-badge-icon-warning-bg); color: var(--color-badge-icon-warning-fg); }
+.employee-history-card-icon--blue   { background: var(--color-badge-icon-info-bg);    color: var(--color-badge-icon-info-fg); }
+.employee-history-card-icon--purple { background: var(--color-badge-icon-purple-bg);  color: var(--color-badge-icon-purple-fg); }
+.employee-history-card-icon--slate  { background: var(--color-badge-icon-slate-bg);   color: var(--color-badge-icon-slate-fg); }
 
 /* Each category keeps its own identity/color whether or not it's complete --
    completion is shown as a small check badge on top, not by overwriting the
@@ -326,9 +395,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-sm);
-  padding: var(--space-sm) var(--space-md);
+  padding: 12px 14px;
   background: var(--color-bg-page);
-  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
+  border-radius: 12px;
   transition: box-shadow 0.15s ease;
 }
 
@@ -353,6 +423,34 @@
 .employee-history-task-status {
   flex-shrink: 0;
   gap: 4px;
+  padding: 3px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.employee-history-task-status svg {
+  width: 12px;
+  height: 12px;
+}
+
+.employee-history-task-status.badge--success {
+  border-color: color-mix(in srgb, var(--color-badge-icon-success-fg) 30%, transparent);
+  background: var(--color-badge-icon-success-bg);
+  color: var(--color-badge-icon-success-fg);
+}
+
+.employee-history-task-status.badge--warning {
+  border-color: color-mix(in srgb, var(--color-badge-icon-warning-fg) 30%, transparent);
+  background: var(--color-badge-icon-warning-bg);
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.employee-history-task-status.badge--outline {
+  border-color: var(--color-border);
+  background: var(--color-surface-card);
+  color: var(--color-text-muted);
 }
 
 .employee-history-task-value {

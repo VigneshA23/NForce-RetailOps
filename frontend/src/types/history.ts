@@ -1,3 +1,5 @@
+import type { CategoryBadgeColor } from '../utils/categoryBadge';
+
 // Status is derived client-side (see api/history.ts) from the real backend's
 // per-task `completed` boolean and its responses' `booleanValue` -- there is
 // no such field on the wire. NOT_ANSWERED: no completed response yet. NO
@@ -81,6 +83,8 @@ export interface HistoryTaskDetail {
 export interface HistoryCategoryEntry {
   id: number;
   name: string;
+  // From the Super Admin category page -- colors the category's icon tile.
+  badgeColor: CategoryBadgeColor;
   tasksCompleted: number;
   tasksTotal: number;
   tasks: HistoryTaskDetail[];
