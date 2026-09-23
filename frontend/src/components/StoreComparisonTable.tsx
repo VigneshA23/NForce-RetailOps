@@ -1,4 +1,4 @@
-import { Eye } from 'lucide-react';
+import { Clock, Eye } from 'lucide-react';
 import type { StoreOperationsSummary } from '../api/superAdminOperations';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
@@ -28,6 +28,10 @@ function relativeTime(isoString: string | null): string {
   return `${Math.floor(hours / 24)}d ago`;
 }
 
+function openIssuesLabel(count: number): string {
+  return count === 0 ? 'None' : `${count} Issue${count === 1 ? '' : 's'}`;
+}
+
 function StoreComparisonTable({ stores, isLoading, onStoreClick, onViewDetail }: StoreComparisonTableProps) {
   if (isLoading) {
     return <div className="sct__loading">Loading stores…</div>;
@@ -39,7 +43,7 @@ function StoreComparisonTable({ stores, isLoading, onStoreClick, onViewDetail }:
 
   return (
     <div className="card sct">
-      <table className="sct__table">
+      <table className="sct__table sct__desktop">
         <thead>
           <tr>
             <th className="sct__th">Store</th>
@@ -111,6 +115,88 @@ function StoreComparisonTable({ stores, isLoading, onStoreClick, onViewDetail }:
           })}
         </tbody>
       </table>
+
+      {/* Mobile-only: the table above is hidden below --mobile in favor of this card list. */}
+      <div className="sct__mobile-cards">
+        {stores.map((store) => {
+          const tone = completionTone(store.completionPercent);
+          const hasIssues = store.openIssues > 0;
+          return (
+            <div className="sct-mobile-card" key={store.storeId}>
+              <div className="sct-mobile-card__header">
+                <div className="sct-mobile-card__title-block">
+                  {onStoreClick ? (
+                    <button
+                      type="button"
+                      className="sct-mobile-card__name"
+                      onClick={() => onStoreClick(store.storeId)}
+                    >
+                      {store.storeName}
+                    </button>
+                  ) : (
+                    <span className="sct-mobile-card__name">{store.storeName}</span>
+                  )}
+                  <span className="sct-mobile-card__meta">
+                    Store #{store.storeCode}
+                    {store.storeLocation ? ` • ${store.storeLocation}` : ''}
+                  </span>
+                </div>
+                {onViewDetail && (
+                  <button
+                    type="button"
+                    className="sct-mobile-card__view-btn"
+                    aria-label={`View category detail for ${store.storeName}`}
+                    title="View category detail"
+                    onClick={() => onViewDetail(store)}
+                  >
+                    <Eye size={16} />
+                  </button>
+                )}
+              </div>
+
+              <div className="sct-mobile-card__row">
+                <span className="sct-mobile-card__label">Owner</span>
+                <span className="sct-mobile-card__owner">
+                  <UserAvatar initials={getInitials(store.ownerName)} src={store.ownerAvatarUrl} size={22} />
+                  {store.ownerName}
+                </span>
+              </div>
+
+              <div className="sct-mobile-card__row">
+                <span className="sct-mobile-card__label">Today's Completion</span>
+                <span className="sct-mobile-card__completion">
+                  <span className="sct-mobile-card__bar-track">
+                    <span
+                      className={`sct-mobile-card__bar-fill sct-mobile-card__bar-fill--${tone}`}
+                      style={{ width: `${store.completionPercent}%` }}
+                    />
+                  </span>
+                  <span className={`sct__badge sct__badge--${tone}`}>{store.completionPercent}%</span>
+                </span>
+              </div>
+
+              <div className="sct-mobile-card__row">
+                <span className="sct-mobile-card__label">Open Issues</span>
+                <span className="sct-mobile-card__issues">
+                  <span
+                    className={`sct-mobile-card__dot sct-mobile-card__dot--${hasIssues ? 'issue' : 'none'}`}
+                    aria-hidden="true"
+                  />
+                  {openIssuesLabel(store.openIssues)}
+                </span>
+              </div>
+
+              <div className="sct-mobile-card__row">
+                <span className="sct-mobile-card__label">Last Activity</span>
+                <span className="sct-mobile-card__activity">
+                  <Clock size={13} aria-hidden="true" />
+                  {relativeTime(store.lastActivityAt)}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
