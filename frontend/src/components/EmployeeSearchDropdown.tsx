@@ -7,6 +7,9 @@ import './EmployeeSearchDropdown.css';
 interface EmployeeSearchDropdownProps {
   storeId: number;
   onNavigate: (target: 'today' | 'issues', id: number) => void;
+  // Notified whenever the mobile full-screen search overlay opens/closes, so
+  // the parent shell can hide its BottomNav while search is active.
+  onMobileOpenChange?: (open: boolean) => void;
 }
 
 const EMPTY: EmployeeSearchResponse = { tasks: [], issues: [] };
@@ -105,7 +108,7 @@ function SearchResults({
   );
 }
 
-function EmployeeSearchDropdown({ storeId, onNavigate }: EmployeeSearchDropdownProps) {
+function EmployeeSearchDropdown({ storeId, onNavigate, onMobileOpenChange }: EmployeeSearchDropdownProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<EmployeeSearchResponse>(EMPTY);
   const [open, setOpen] = useState(false);
@@ -138,6 +141,10 @@ function EmployeeSearchDropdown({ storeId, onNavigate }: EmployeeSearchDropdownP
       setResults(EMPTY);
     }
   }, [mobileOpen]);
+
+  useEffect(() => {
+    onMobileOpenChange?.(mobileOpen);
+  }, [mobileOpen, onMobileOpenChange]);
 
   useDismissablePanel({
     isOpen: open,

@@ -6,6 +6,9 @@ import './SACommandPalette.css';
 
 interface SACommandPaletteProps {
   onNavigate: (navTarget: string) => void;
+  // Notified whenever the mobile full-screen search overlay opens/closes, so
+  // the parent shell can hide its BottomNav while search is active.
+  onMobileOpenChange?: (open: boolean) => void;
 }
 
 const EMPTY: SASearchResponse = { owners: [], stores: [], employees: [] };
@@ -111,7 +114,7 @@ function SearchResults({
   );
 }
 
-function SACommandPalette({ onNavigate }: SACommandPaletteProps) {
+function SACommandPalette({ onNavigate, onMobileOpenChange }: SACommandPaletteProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SASearchResponse>(EMPTY);
   const [open, setOpen] = useState(false);
@@ -144,6 +147,10 @@ function SACommandPalette({ onNavigate }: SACommandPaletteProps) {
       setResults(EMPTY);
     }
   }, [mobileOpen]);
+
+  useEffect(() => {
+    onMobileOpenChange?.(mobileOpen);
+  }, [mobileOpen, onMobileOpenChange]);
 
   useDismissablePanel({
     isOpen: open,

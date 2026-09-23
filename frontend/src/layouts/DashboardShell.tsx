@@ -34,6 +34,7 @@ type Overlay = 'profile' | 'help' | 'notifications' | null;
 
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate }: DashboardShellProps) {
   const [activeTab, setActiveTab] = useState<NavTabKey>('home');
+  const [mobileSearchActive, setMobileSearchActive] = useState(false);
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [searchSeed, setSearchSeed] = useState<{ term: string; id: number; recordId?: number } | undefined>(undefined);
   // Lazy-mount: tabs mount on first visit and stay alive — no refetch on tab switch.
@@ -181,8 +182,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
       bottomNavItems={OWNER_BOTTOM_NAV_ITEMS}
+      hideBottomNav={mobileSearchActive}
       showSearch={false}
-      headerActions={<AdminSearchDropdown onNavigate={handleSearchNavigate} />}
+      headerActions={
+        <AdminSearchDropdown onNavigate={handleSearchNavigate} onMobileOpenChange={setMobileSearchActive} />
+      }
     >
       {overlay === 'profile' ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} onProfileUpdate={onProfileUpdate} />

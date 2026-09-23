@@ -41,6 +41,7 @@ type Overlay = 'profile' | 'help' | 'notifications' | null
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate, employeeId = null }: EmployeeShellProps) {
   const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
   const [overlay, setOverlay] = useState<Overlay>(null)
+  const [mobileSearchActive, setMobileSearchActive] = useState(false)
   // Seeds History's initial date with the clicked notification's own
   // createdAt, rather than History always defaulting to yesterday -- id
   // makes each click a distinct seed even if the same notification (and
@@ -137,10 +138,15 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       onNotificationsCountChange={handleNotificationsCountChange}
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
+      hideBottomNav={mobileSearchActive}
       showSearch={false}
       headerActions={
         <>
-          <EmployeeSearchDropdown storeId={store.id} onNavigate={handleSearchNavigate} />
+          <EmployeeSearchDropdown
+            storeId={store.id}
+            onNavigate={handleSearchNavigate}
+            onMobileOpenChange={setMobileSearchActive}
+          />
           {canSwitchStore && (
             <button
               type="button"
