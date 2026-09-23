@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, Clock, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, Clock, MessageSquare, User, X } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { getIssues, updateIssueStatus } from '../api/issues';
 import type { Issue } from '../types/issue';
@@ -156,54 +156,82 @@ function AdminIssues({ storeId }: AdminIssuesProps) {
   const resolveIssue = issues.find((i) => i.id === resolveModalId) ?? null;
   const showActionsCol = statusFilter !== 'RESOLVED';
 
-  function renderRow(issue: Issue) {
+  function renderCard(issue: Issue) {
     return (
-      <tr key={issue.id}>
-        <td data-label="Employee">{issue.employeeFullName}</td>
-        <td data-label="Issue">
-          <span className="admin-issues-page__note">{issue.note}</span>
+      <div className="issue-card" key={issue.id}>
+        <div className="issue-card__icon" aria-hidden="true">
+          <MessageSquare size={16} strokeWidth={2} />
+        </div>
+        <div className="issue-card__body">
+          <div className="issue-card__top">
+            <div className="issue-card__field">
+              <span className="issue-card__label">Employee</span>
+              <span className="issue-card__value">{issue.employeeFullName}</span>
+            </div>
+            <div className="issue-card__field issue-card__field--grow">
+              <span className="issue-card__label">Issue</span>
+              <span className="issue-card__value admin-issues-page__note">{issue.note}</span>
+            </div>
+            <div className="issue-card__field">
+              <span className="issue-card__label">Raised</span>
+              <span className="issue-card__value admin-issues-page__date-cell">
+                <span>{formatDate(issue.raisedDate)}</span>
+                <span className="admin-issues-page__time">{formatTime(issue.raisedDate)}</span>
+              </span>
+            </div>
+            <div className="issue-card__field issue-card__field--status">
+              <span className="issue-card__label">Status</span>
+              <span className={`badge ${STATUS_BADGE[issue.status]}`}>{STATUS_LABEL[issue.status]}</span>
+            </div>
+          </div>
+
           {issue.responseText && (
-            <span className="admin-issues-page__response">Response: {issue.responseText}</span>
-          )}
-        </td>
-        <td data-label="Raised" className="admin-issues-page__date-cell">
-          <span>{formatDate(issue.raisedDate)}</span>
-          <span className="admin-issues-page__time">{formatTime(issue.raisedDate)}</span>
-        </td>
-        <td data-label="Status">
-          <span className={`badge ${STATUS_BADGE[issue.status]}`}>{STATUS_LABEL[issue.status]}</span>
-        </td>
-        {showActionsCol && (
-          <td data-label="Actions" className="admin-issues-page__action-col">
-            {issue.status === 'RESOLVED' ? (
-              <span className="admin-issues-page__resolved-label">—</span>
-            ) : (
-              <div className="admin-issues-page__actions">
-                {issue.status === 'OPEN' && statusFilter !== 'ACKNOWLEDGED' && (
-                  <button
-                    type="button"
-                    className="btn btn--secondary btn--sm"
-                    disabled={busyId === issue.id}
-                    onClick={() => handleAcknowledge(issue)}
-                  >
-                    Acknowledge
-                  </button>
-                )}
-                {issue.status === 'ACKNOWLEDGED' && statusFilter !== 'OPEN' && (
-                  <button
-                    type="button"
-                    className="btn btn--primary btn--sm"
-                    disabled={busyId === issue.id}
-                    onClick={() => setResolveModalId(issue.id)}
-                  >
-                    Resolve
-                  </button>
-                )}
+            <>
+              <hr className="issue-card__divider" />
+              <div className="issue-card__response-block">
+                <span className="issue-card__response-label">Admin Response</span>
+                <div className="issue-card__response-box">
+                  <span className="issue-card__response-avatar" aria-hidden="true">
+                    <User size={14} strokeWidth={2} />
+                  </span>
+                  <span className="admin-issues-page__response">{issue.responseText}</span>
+                </div>
               </div>
-            )}
-          </td>
-        )}
-      </tr>
+            </>
+          )}
+
+          {showActionsCol && (
+            <div className="issue-card__actions-row">
+              {issue.status === 'RESOLVED' ? (
+                <span className="admin-issues-page__resolved-label">—</span>
+              ) : (
+                <div className="admin-issues-page__actions">
+                  {issue.status === 'OPEN' && statusFilter !== 'ACKNOWLEDGED' && (
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      disabled={busyId === issue.id}
+                      onClick={() => handleAcknowledge(issue)}
+                    >
+                      Acknowledge
+                    </button>
+                  )}
+                  {issue.status === 'ACKNOWLEDGED' && statusFilter !== 'OPEN' && (
+                    <button
+                      type="button"
+                      className="btn btn--primary btn--sm"
+                      disabled={busyId === issue.id}
+                      onClick={() => setResolveModalId(issue.id)}
+                    >
+                      Resolve
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -249,39 +277,24 @@ function AdminIssues({ storeId }: AdminIssuesProps) {
       </div>
 
       <div className="table-card">
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th scope="col">Employee</th>
-                <th scope="col">Issue</th>
-                <th scope="col">Raised</th>
-                <th scope="col">Status</th>
-                {showActionsCol && <th scope="col" className="admin-issues-page__action-col">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {statusFilter !== null ? (
-                filtered.map(renderRow)
-              ) : (
-                STATUS_GROUPS.map(({ status, label }) => {
-                  const group = filtered.filter((i) => i.status === status);
-                  if (group.length === 0) return null;
-                  return (
-                    <Fragment key={status}>
-                      <tr className="issues-group-header-row">
-                        <td colSpan={5} className="issues-group-header-cell">
-                          <span className={`badge ${STATUS_BADGE[status]}`}>{label}</span>
-                          <span className="issues-group-count">{group.length}</span>
-                        </td>
-                      </tr>
-                      {group.map(renderRow)}
-                    </Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+        <div className="issue-card-list">
+          {statusFilter !== null ? (
+            filtered.map(renderCard)
+          ) : (
+            STATUS_GROUPS.map(({ status, label }) => {
+              const group = filtered.filter((i) => i.status === status);
+              if (group.length === 0) return null;
+              return (
+                <Fragment key={status}>
+                  <div className="issues-group-header-cell">
+                    <span className={`badge ${STATUS_BADGE[status]}`}>{label}</span>
+                    <span className="issues-group-count">{group.length}</span>
+                  </div>
+                  {group.map(renderCard)}
+                </Fragment>
+              );
+            })
+          )}
         </div>
         {!isLoading && filtered.length === 0 && (
           <div className="table-card__empty">
