@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronDown, HelpCircle } from 'lucide-react';
+import { BookOpen, ChevronDown } from 'lucide-react';
 import type { Role } from '../types/auth';
 import SearchInput from '../components/SearchInput';
 import { matchesSearch } from '../utils/search';
@@ -10,13 +10,20 @@ interface HelpProps {
   role?: Role | null;
 }
 
+// Cycled by each section's position within its group, purely for visual
+// variety -- not tied to section identity/content, so adding or reordering
+// sections in helpContent.ts never needs a matching color assignment here.
+const ICON_TONES = ['primary', 'success', 'warning', 'info', 'purple'] as const;
+type IconTone = (typeof ICON_TONES)[number];
+
 interface HelpSectionCardProps {
   section: HelpSection;
+  tone: IconTone;
   isExpanded: boolean;
   onToggle: () => void;
 }
 
-function HelpSectionCard({ section, isExpanded, onToggle }: HelpSectionCardProps) {
+function HelpSectionCard({ section, tone, isExpanded, onToggle }: HelpSectionCardProps) {
   const Icon = section.icon;
   const panelId = `help-panel-${section.id}`;
 
@@ -29,7 +36,7 @@ function HelpSectionCard({ section, isExpanded, onToggle }: HelpSectionCardProps
         aria-expanded={isExpanded}
         aria-controls={panelId}
       >
-        <span className="help-section__icon">
+        <span className={`help-section__icon help-section__icon--${tone}`}>
           <Icon size={18} />
         </span>
         <span className="help-section__title">{section.title}</span>
@@ -113,18 +120,19 @@ function Help({ role }: HelpProps) {
   return (
     <div className="help-page">
       <div className="help-page__header">
-        <div className="help-page__heading">
+        <div className="help-page__banner">
+          <span className="help-page__banner-glow" aria-hidden="true" />
           <span className="help-page__icon">
-            <HelpCircle size={22} />
+            <BookOpen size={22} />
           </span>
-          <div>
-            <h2 className="help-page__title">Help &amp; Guide</h2>
+          <div className="help-page__banner-text">
+            <h2 className="help-page__title">Help &amp; Guidance</h2>
             <p className="help-page__subtitle">
-              Learn what you can do in NForce RetailOps based on your role.
+              Find quick answers, guides and resources to help you get the most out of NForce RetailOps.
             </p>
           </div>
         </div>
-        <SearchInput value={query} onChange={setQuery} placeholder="Search help topics…" variant="card" />
+        <SearchInput value={query} onChange={setQuery} placeholder="Search help articles, guides, or topics…" variant="card" />
       </div>
 
       {!hasResults && (
@@ -135,10 +143,11 @@ function Help({ role }: HelpProps) {
         <section key={group.id} className="help-group">
           <h3 className="help-group__title">{group.title}</h3>
           <div className="help-group__list">
-            {group.sections.map((section) => (
+            {group.sections.map((section, index) => (
               <HelpSectionCard
                 key={section.id}
                 section={section}
+                tone={ICON_TONES[index % ICON_TONES.length]}
                 isExpanded={expanded.has(section.id)}
                 onToggle={() => toggle(section.id)}
               />
