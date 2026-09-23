@@ -10,7 +10,10 @@ import type { TaskResponseSubmitPayload, TaskResponseStateResponse } from './tas
 export async function getMissedTasks(storeId: number, cursor?: string | null, signal?: AbortSignal): Promise<MissedTasksPage> {
   const params = new URLSearchParams({ storeId: String(storeId) })
   if (cursor) params.set('cursor', cursor)
-  return apiRequest<MissedTasksPage>(`/me/tasks/missed?${params.toString()}`, { timeoutMs: 30_000, signal })
+  // Temporarily bumped to 60s (from 30s) to check whether this endpoint's slow
+  // responses are a DB/backend issue that just needs more time to complete, or
+  // a genuine hang -- revert once that's confirmed.
+  return apiRequest<MissedTasksPage>(`/me/tasks/missed?${params.toString()}`, { timeoutMs: 90_000, signal })
 }
 
 export async function completeMissedTaskNow(
