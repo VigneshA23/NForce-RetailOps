@@ -75,6 +75,8 @@
   --color-badge-icon-info-fg: #1d6fd6;
   --color-badge-icon-purple-bg: #f1e8fd;
   --color-badge-icon-purple-fg: #7c3aed;
+  --color-badge-icon-slate-bg: #eef1f5;
+  --color-badge-icon-slate-fg: #5b6b82;
 
   --color-toggle-on-bg: #1a9c5c;
   --color-toggle-off-bg: #e0384a;
@@ -130,6 +132,8 @@
   --color-badge-icon-info-fg: #5aa4f2;
   --color-badge-icon-purple-bg: #2c2140;
   --color-badge-icon-purple-fg: #b794f6;
+  --color-badge-icon-slate-bg: #232a35;
+  --color-badge-icon-slate-fg: #9aa8bc;
 
   --color-toggle-on-bg: #3ddc8b;
   --color-toggle-off-bg: #ff5a6a;

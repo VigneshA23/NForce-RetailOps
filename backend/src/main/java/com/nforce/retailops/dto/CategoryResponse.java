@@ -2,6 +2,7 @@ package com.nforce.retailops.dto;
 
 import com.nforce.retailops.entity.Category;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 
@@ -14,7 +15,9 @@ public record CategoryResponse(
     boolean appliesToAllStores,
     List<StoreOptionResponse> stores,
     Long createdByOwnerId,
-    String createdByOwnerName
+    String createdByOwnerName,
+    String badgeColor,
+    LocalDate startDate
 ) {
     public static CategoryResponse from(Category category, int taskCount, List<StoreOptionResponse> stores) {
         List<StoreOptionResponse> sortedStores = stores.stream()
@@ -33,7 +36,9 @@ public record CategoryResponse(
             category.isAppliesToAllStores(),
             sortedStores,
             ownerId,
-            ownerName
+            ownerName,
+            category.getBadgeColor(),
+            category.getStartDate()
         );
     }
 }

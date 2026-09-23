@@ -1,0 +1,232 @@
+@import '../styles/breakpoints.css';
+
+/* Add / Edit Category form (Super Admin). Scoped to .category-form-modal so
+   the shared Modal/FormField styles elsewhere are untouched. */
+
+.category-form-modal .modal__header {
+  padding-top: var(--space-lg);
+  border-bottom: none;
+}
+
+.category-form-modal .modal__title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.category-form-modal .modal__subtitle {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.category-form-modal .modal__body {
+  padding-top: var(--space-sm);
+}
+
+/* Section labels: small uppercase, red asterisk (from FormField). */
+.category-form .form-field__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.category-form .form-field__required {
+  color: var(--color-accent);
+}
+
+.category-form .form-field {
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+/* Leading icon inside the name input and the stores trigger. */
+.category-form__input-wrap {
+  position: relative;
+}
+
+.category-form__input-icon {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.category-form__input-wrap .input,
+.category-form__input-wrap .searchable-select__trigger {
+  min-height: 44px;
+  padding-left: 38px;
+  border-radius: 12px;
+  background: var(--color-bg-page);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Badge color */
+.category-form__badge {
+  margin-bottom: 18px;
+}
+
+.category-form__badge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin-bottom: 8px;
+}
+
+.category-form__icon-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.category-form__icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.category-form__swatches {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-page);
+}
+
+.category-form__swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  color: #ffffff;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.category-form__swatch:hover {
+  transform: scale(1.06);
+}
+
+.category-form__swatch:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 3px;
+}
+
+/* Selected: a soft ring in the swatch's own color. */
+.category-form__swatch--selected {
+  box-shadow: 0 0 0 3px var(--color-surface-card), 0 0 0 5px color-mix(in srgb, var(--swatch) 45%, transparent);
+}
+
+/* Swatch fill and icon-preview tile share the badge-icon palette tokens so
+   the picker matches the category card's icon tile in both themes. */
+.category-form__swatch--red    { --swatch: var(--color-badge-icon-primary-fg); background: var(--swatch); }
+.category-form__swatch--green  { --swatch: var(--color-badge-icon-success-fg); background: var(--swatch); }
+.category-form__swatch--amber  { --swatch: var(--color-badge-icon-warning-fg); background: var(--swatch); }
+.category-form__swatch--blue   { --swatch: var(--color-badge-icon-info-fg);    background: var(--swatch); }
+.category-form__swatch--purple { --swatch: var(--color-badge-icon-purple-fg);  background: var(--swatch); }
+.category-form__swatch--slate  { --swatch: var(--color-badge-icon-slate-fg);   background: var(--swatch); }
+
+.category-form__icon-tile--red    { background: var(--color-badge-icon-primary-bg); color: var(--color-badge-icon-primary-fg); }
+.category-form__icon-tile--green  { background: var(--color-badge-icon-success-bg); color: var(--color-badge-icon-success-fg); }
+.category-form__icon-tile--amber  { background: var(--color-badge-icon-warning-bg); color: var(--color-badge-icon-warning-fg); }
+.category-form__icon-tile--blue   { background: var(--color-badge-icon-info-bg);    color: var(--color-badge-icon-info-fg); }
+.category-form__icon-tile--purple { background: var(--color-badge-icon-purple-bg);  color: var(--color-badge-icon-purple-fg); }
+.category-form__icon-tile--slate  { background: var(--color-badge-icon-slate-bg);   color: var(--color-badge-icon-slate-fg); }
+
+/* Enable Immediately */
+.category-form__enable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 12px 14px;
+  margin-bottom: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-page);
+}
+
+.category-form__enable-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.category-form__enable-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.category-form__enable-hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* Footer */
+.category-form-modal .modal__footer {
+  gap: 12px;
+}
+
+.category-form-modal .category-form__cancel,
+.category-form-modal .category-form__submit {
+  min-height: 46px;
+  border-radius: 14px;
+}
+
+.category-form-modal .category-form__cancel {
+  min-width: 96px;
+}
+
+.category-form-modal .category-form__submit {
+  min-width: 180px;
+  gap: 8px;
+}
+
+.category-form__submit-icon {
+  color: var(--color-accent);
+}
+
+/* Mobile bottom sheet: grab handle above the header, full-width footer. */
+@media (--mobile) {
+  .category-form-modal::before {
+    content: '';
+    align-self: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 4px;
+    margin-top: 10px;
+    border-radius: 999px;
+    background: var(--color-border);
+  }
+
+  .category-form-modal .modal__header {
+    padding-top: var(--space-sm);
+  }
+
+  .category-form-modal .category-form__submit {
+    flex: 1;
+    min-width: 0;
+  }
+}

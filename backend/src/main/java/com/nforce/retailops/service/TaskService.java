@@ -867,7 +867,14 @@ public class TaskService {
             : new HashSet<>();
         task.setSelectedDays(selectedDays);
 
-        task.setStartDate(request.startDate());
+        // A category created with "Enable Immediately" off only goes live from
+        // its own start date -- push the task's start forward to match so it
+        // stays off the checklist until then.
+        LocalDate startDate = request.startDate();
+        if (startDate != null && category.getStartDate() != null && startDate.isBefore(category.getStartDate())) {
+            startDate = category.getStartDate();
+        }
+        task.setStartDate(startDate);
         task.setEndDate(request.endDate());
 
         task.setTimeMode(request.timeMode());

@@ -4,10 +4,12 @@ import { nfToast } from '../utils/toast';
 import { createCategory, updateCategory, updateCategoryStatus, deleteCategory } from '../api/categories';
 import { getAllStores } from '../api/superAdminStores';
 import { useSuperAdminCategories } from '../hooks/useSuperAdminCategories';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Category, CategoryFormValues, CategoryStoreOption } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
 import CategoryFormModal from '../components/CategoryFormModal';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Pagination from '../components/Pagination';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
 import SpecularButton from '../components/SpecularButton';
@@ -19,6 +21,9 @@ const STATUS_FILTER_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
   { value: 'INACTIVE', label: 'Inactive' },
 ];
+
+// Desktop/tablet table only; the mobile card list shows every category.
+const PAGE_SIZE = 10;
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
@@ -47,6 +52,12 @@ function SuperAdminCategories() {
   const [statusError, setStatusError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
+  const [page, setPage] = useState(1);
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
 
   async function handleFormSubmit(values: CategoryFormValues) {
     setFormError(null);
@@ -115,8 +126,14 @@ function SuperAdminCategories() {
     });
   }, [categories, search, statusFilter]);
 
+  const pageCount = Math.max(1, Math.ceil(filteredCategories.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const visibleCategories = isMobile
+    ? filteredCategories
+    : filteredCategories.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return (
-    <div className="categories-page">
+    <div className="categories-page categories-page--super-admin">
       <div className="stat-card-row">
         <StatCard icon={Tags} label="Total Categories" value={categories.length} tone="primary" />
         <StatCard icon={CircleCheck} label="Active" value={activeCount} tone="success" />
@@ -177,7 +194,7 @@ function SuperAdminCategories() {
           </div>
 
           <CategoryTable
-            categories={filteredCategories}
+            categories={visibleCategories}
             canManage
             isLoading={isLoading}
             onEdit={(category) => {
@@ -189,6 +206,18 @@ function SuperAdminCategories() {
               setDeleteTarget(category);
             }}
             onToggleStatus={handleToggleStatus}
+            footer={
+              !isMobile && !isLoading && filteredCategories.length > 0 ? (
+                <Pagination
+                  page={currentPage}
+                  pageCount={pageCount}
+                  totalItems={filteredCategories.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                  itemLabel="categories"
+                />
+              ) : null
+            }
           />
         </>
       )}
@@ -202,6 +231,7 @@ function SuperAdminCategories() {
                 name: formModalState.category.name,
                 appliesToAllStores: formModalState.category.appliesToAllStores,
                 storeIds: formModalState.category.stores.map((s) => s.id),
+                badgeColor: formModalState.category.badgeColor,
               }
             : undefined
         }

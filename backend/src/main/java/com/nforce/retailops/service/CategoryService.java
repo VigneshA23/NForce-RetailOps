@@ -20,6 +20,7 @@ import com.nforce.retailops.repository.TaskRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -127,6 +128,10 @@ public class CategoryService {
         category.setDisplayOrder(categoryRepository.findMaxDisplayOrder() + 1);
         category.setAppliesToAllStores(request.appliesToAllStores());
         category.setStores(resolvedStores);
+        category.setBadgeColor(request.badgeColor() != null ? request.badgeColor() : "blue");
+        if (Boolean.FALSE.equals(request.enableImmediately())) {
+            category.setStartDate(LocalDate.now().plusDays(1));
+        }
         category = categoryRepository.save(category);
 
         notifyStores(category, targetStoreIds);
@@ -157,6 +162,9 @@ public class CategoryService {
         category.setName(name);
         category.setAppliesToAllStores(request.appliesToAllStores());
         category.setStores(resolvedStores);
+        if (request.badgeColor() != null) {
+            category.setBadgeColor(request.badgeColor());
+        }
         category = categoryRepository.save(category);
 
         activityLogService.logForStores(

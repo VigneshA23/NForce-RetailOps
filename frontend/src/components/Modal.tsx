@@ -15,9 +15,14 @@ interface ModalProps {
   // layout. Off by default; the logout confirmation dialog opts in across
   // all three shells (Employee, Owner/Admin, Super Admin).
   centered?: boolean;
+  // Extra class on the dialog card, for per-form styling.
+  className?: string;
+  // Optional icon before the title, and element after it (e.g. a status pill).
+  titleIcon?: ReactNode;
+  titleExtra?: ReactNode;
 }
 
-function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md', centered = false }: ModalProps) {
+function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md', centered = false, className, titleIcon, titleExtra }: ModalProps) {
   const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2)}`).current;
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -178,7 +183,7 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
       }}
     >
       <div
-        className={`modal${size === 'lg' ? ' modal--lg' : ''}`}
+        className={`modal${size === 'lg' ? ' modal--lg' : ''}${className ? ` ${className}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -186,9 +191,13 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
       >
         <div className="modal__header">
           <div>
-            <h2 className="modal__title" id={titleId}>
-              {title}
-            </h2>
+            <div className="modal__title-row">
+              {titleIcon && <span className="modal__title-icon" aria-hidden="true">{titleIcon}</span>}
+              <h2 className="modal__title" id={titleId}>
+                {title}
+              </h2>
+              {titleExtra}
+            </div>
             {subtitle && <p className="modal__subtitle">{subtitle}</p>}
           </div>
           <button type="button" className="modal__close" aria-label="Close dialog" onClick={onClose}>

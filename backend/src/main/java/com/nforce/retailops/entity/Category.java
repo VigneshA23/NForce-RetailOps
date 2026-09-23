@@ -2,6 +2,7 @@ package com.nforce.retailops.entity;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -29,6 +30,14 @@ public class Category {
 
     @Column(name = "applies_to_all_stores", nullable = false)
     private boolean appliesToAllStores;
+
+    @Column(name = "badge_color", nullable = false, length = 16)
+    private String badgeColor = "blue";
+
+    // Null = live from creation. Set to tomorrow when created with "Enable
+    // Immediately" off; tasks in this category can't start before it.
+    @Column(name = "start_date")
+    private LocalDate startDate;
 
     @ManyToMany
     @JoinTable(
@@ -101,6 +110,22 @@ public class Category {
 
     public void setAppliesToAllStores(boolean appliesToAllStores) {
         this.appliesToAllStores = appliesToAllStores;
+    }
+
+    public String getBadgeColor() {
+        return badgeColor;
+    }
+
+    public void setBadgeColor(String badgeColor) {
+        this.badgeColor = badgeColor;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(LocalDate startDate) {
+        this.startDate = startDate;
     }
 
     public Set<Store> getStores() {
