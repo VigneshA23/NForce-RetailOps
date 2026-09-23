@@ -10,7 +10,7 @@ import type { ChecklistHistoryDetail, ChecklistHistoryResponseEntry } from '../t
 import StoreDetailTable, { type StoreDetailRow } from '../components/StoreDetailTable';
 import CalendarPopover from '../components/CalendarPopover';
 import ExportMenu from '../components/ExportMenu';
-import { taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, formatDateNavLabel, responseDisplayValue, TASK_STATUS_LABELS } from '../utils/checklistHistoryOptions';
+import { hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, formatDateNavLabel, responseDisplayValue, TASK_STATUS_LABELS } from '../utils/checklistHistoryOptions';
 import { matchesSearch } from '../utils/search';
 import './StoreDetail.css';
 
@@ -126,36 +126,6 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
 
   const completionPercent = counts.total === 0 ? 0 : Math.round((counts.completed / counts.total) * 100);
 
-  // Fetch yesterday's completion % in parallel when viewing today.
-  // Silently absent on failure or when no checklist existed yesterday.
-  const [yesterdayPercent, setYesterdayPercent] = useState<number | null>(null);
-  useEffect(() => {
-    if (storeId === null || !isToday) {
-      setYesterdayPercent(null);
-      return;
-    }
-    getChecklistHistoryDetail(storeId, yesterday())
-      .then((yd) => {
-        const allTasks = yd.categories.flatMap((c) => c.tasks);
-        if (allTasks.length === 0) { setYesterdayPercent(null); return; }
-        const completedCount = allTasks.filter((t) => taskStatus(t) === 'COMPLETE').length;
-        setYesterdayPercent(Math.round((completedCount / allTasks.length) * 100));
-      })
-      .catch(() => setYesterdayPercent(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, isToday]);
-
-  const trendIndicator = useMemo(() => {
-    if (!isToday || yesterdayPercent === null) return null;
-    if (completionPercent > yesterdayPercent) {
-      return { symbol: '↑', text: `Ahead of yesterday (${completionPercent}% vs ${yesterdayPercent}%)`, kind: 'ahead' as const };
-    }
-    if (completionPercent < yesterdayPercent) {
-      return { symbol: '↓', text: `Behind yesterday's pace (${completionPercent}% vs ${yesterdayPercent}%)`, kind: 'behind' as const };
-    }
-    return { symbol: '≈', text: 'On pace with yesterday', kind: 'same' as const };
-  }, [isToday, completionPercent, yesterdayPercent]);
-
   // Fetch last 7 days in parallel on store mount to compute repeat-offender counts.
   // Results cached at module level so date navigation within the same session skips re-fetching.
   const [repeatOffenderMap, setRepeatOffenderMap] = useState<Map<number, number>>(new Map());
@@ -234,7 +204,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   }, [detail]);
 
   const filteredRows = useMemo(() => {
-    let result = rows.filter((row) => taskStatus(row.task) !== 'OPEN');
+    let result = rows.filter((row) => hasActiveResponse(row.task));
     if (filter !== 'ALL') {
       result = result.filter((row) => taskStatus(row.task) === filter);
     }
@@ -306,7 +276,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
     });
   }
 
-  // Outstanding/Incomplete = OPEN tasks (no response yet) for the currently
+  // Outstanding/Incomplete = tasks nobody has responded to yet (see hasActiveResponse) for the currently
   // viewed date (today or historical), alphabetical by task name. ISSUE
   // tasks have a response (just a flagged/failing one) so they belong in the
   // main table alongside Complete, not here. Has its own dedicated
@@ -316,19 +286,38 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   // affect the other.
   const outstandingRows = useMemo(() => {
     return rows
-      .filter((row) => taskStatus(row.task) === 'OPEN')
+      .filter((row) => !hasActiveResponse(row.task))
       .sort((a, b) => a.task.name.localeCompare(b.task.name));
   }, [rows]);
 
-  // Open by default when issues exist; close when only open tasks remain.
-  // Reset whenever fresh data arrives (date navigation triggers a new detail load).
-  const [outstandingOpen, setOutstandingOpen] = useState(false);
+  // Both sections start open and reopen whenever the viewed date changes;
+  // their filters reset whenever fresh data arrives. Matches SuperAdminChecklist.
+  const [outstandingOpen, setOutstandingOpen] = useState(true);
+  const [completedOpen, setCompletedOpen] = useState(true);
   useEffect(() => {
-    setOutstandingOpen(counts.issues > 0);
     setOutstandingSearch('');
     setOutstandingCategoryFilter('all');
+    setSearchQuery('');
+    setCategoryFilter('all');
+    setFilter('ALL');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
+
+  useEffect(() => {
+    setOutstandingOpen(true);
+    setCompletedOpen(true);
+  }, [storeId, date]);
+
+  const completedFlaggedCounts = useMemo(() => {
+    let completed = 0;
+    let issues = 0;
+    for (const row of rows) {
+      const status = taskStatus(row.task);
+      if (status === 'COMPLETE') completed += 1;
+      if (status === 'ISSUE') issues += 1;
+    }
+    return { completed, issues };
+  }, [rows]);
 
   const outstandingCategoryOptions = useMemo<SelectOption[]>(() => {
     const names = Array.from(new Set(outstandingRows.map((row) => row.categoryName))).sort();
@@ -478,11 +467,6 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
         </div>
       )}
 
-      {trendIndicator && (
-        <p className={`store-detail-page__trend store-detail-page__trend--${trendIndicator.kind}`}>
-          {trendIndicator.symbol} {trendIndicator.text}
-        </p>
-      )}
 
 
       {employeeContributions.length > 0 && (
@@ -592,45 +576,92 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
         </div>
       )}
 
-      <div className="filter-bar store-detail-page__task-filter">
-        <div className="filter filter--search">
-          <SearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            placeholder="Search tasks, employees, status…"
-            variant="filter"
+      <div className="store-detail-outstanding store-detail-outstanding--completed">
+        <button
+          type="button"
+          className="store-detail-outstanding__toggle"
+          onClick={() => setCompletedOpen((v) => !v)}
+          aria-expanded={completedOpen}
+        >
+          <span className="store-detail-outstanding__title">
+            Completed &amp; Flagged Tasks
+            {completedFlaggedCounts.completed > 0 && (
+              <span
+                className="store-detail-outstanding__count store-detail-outstanding__count--completed"
+                aria-label={`${completedFlaggedCounts.completed} completed tasks`}
+              >
+                {completedFlaggedCounts.completed}
+              </span>
+            )}
+            {completedFlaggedCounts.issues > 0 && (
+              <span
+                className="store-detail-outstanding__count store-detail-outstanding__count--issues"
+                aria-label={`${completedFlaggedCounts.issues} flagged tasks`}
+              >
+                {completedFlaggedCounts.issues}
+              </span>
+            )}
+          </span>
+          <ChevronDown
+            size={14}
+            className={`store-detail-outstanding__chevron${completedOpen ? ' store-detail-outstanding__chevron--open' : ''}`}
           />
-        </div>
-        {availableCategories.length > 0 && (
-          <Select
-            className="filter"
-            options={[{ value: 'all', label: 'All categories' }, ...availableCategories]}
-            value={categoryFilter}
-            onChange={setCategoryFilter}
-            ariaLabel="Filter by category"
-          />
-        )}
-        <Select
-          className="filter"
-          options={[
-            { value: 'ALL', label: 'All statuses' },
-            { value: 'COMPLETE', label: 'Completed' },
-            { value: 'ISSUE', label: 'Issues' },
-          ]}
-          value={filter}
-          onChange={(v) => setFilter(v as FilterKey)}
-          ariaLabel="Filter by status"
-        />
-        {(searchQuery || categoryFilter !== 'all' || filter !== 'ALL') && (
-          <button
-            type="button"
-            className="store-detail-page__filter-clear"
-            onClick={() => { setSearchQuery(''); setCategoryFilter('all'); setFilter('ALL'); }}
-            aria-label="Clear filters"
-          >
-            <X size={12} />
-            Clear
-          </button>
+        </button>
+        {completedOpen && (
+          <>
+            <div className="filter-bar store-detail-outstanding__filter-bar">
+              <div className="filter filter--search">
+                <SearchInput
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  placeholder="Search tasks, employees, status…"
+                  variant="filter"
+                />
+              </div>
+              {availableCategories.length > 0 && (
+                <Select
+                  className="filter"
+                  options={[{ value: 'all', label: 'All categories' }, ...availableCategories]}
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  ariaLabel="Filter completed and flagged tasks by category"
+                />
+              )}
+              <Select
+                className="filter"
+                options={[
+                  { value: 'ALL', label: 'All statuses' },
+                  { value: 'COMPLETE', label: 'Completed' },
+                  { value: 'ISSUE', label: 'Issues' },
+                ]}
+                value={filter}
+                onChange={(v) => setFilter(v as FilterKey)}
+                ariaLabel="Filter completed and flagged tasks by status"
+              />
+              {(searchQuery || categoryFilter !== 'all' || filter !== 'ALL') && (
+                <button
+                  type="button"
+                  className="store-detail-page__filter-clear"
+                  onClick={() => { setSearchQuery(''); setCategoryFilter('all'); setFilter('ALL'); }}
+                  aria-label="Clear completed and flagged task filters"
+                >
+                  <X size={12} />
+                  Clear
+                </button>
+              )}
+            </div>
+            {!detailError && (
+              <StoreDetailTable
+                idPrefix="completed-"
+                rows={filteredRows}
+                isLoading={detailLoading}
+                hasChecklist={detail?.hasChecklist ?? false}
+                onResponseCorrected={handleResponseCorrected}
+                onResponseFlagged={handleResponseCorrected}
+                repeatOffenderMap={repeatOffenderMap}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -645,16 +676,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
             Retry
           </button>
         </div>
-      ) : (
-        <StoreDetailTable
-          rows={filteredRows}
-          isLoading={detailLoading}
-          hasChecklist={detail?.hasChecklist ?? false}
-          onResponseCorrected={handleResponseCorrected}
-          onResponseFlagged={handleResponseCorrected}
-          repeatOffenderMap={repeatOffenderMap}
-        />
-      )}
+      ) : null}
     </div>
   );
 }

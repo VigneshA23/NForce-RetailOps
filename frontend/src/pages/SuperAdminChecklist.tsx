@@ -14,7 +14,7 @@ import StoreDetailTable, { type StoreDetailRow } from '../components/StoreDetail
 import TrendChart from '../components/TrendChart';
 import CalendarPopover from '../components/CalendarPopover';
 import ExportMenu from '../components/ExportMenu';
-import { taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, formatDateNavLabel, responseDisplayValue, TASK_STATUS_LABELS } from '../utils/checklistHistoryOptions';
+import { hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, formatDateNavLabel, responseDisplayValue, TASK_STATUS_LABELS } from '../utils/checklistHistoryOptions';
 import { matchesSearch } from '../utils/search';
 import { getAllStores } from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
@@ -210,7 +210,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   }, [detail]);
 
   const filteredRows = useMemo(() => {
-    let result = rows.filter((row) => taskStatus(row.task) !== 'OPEN');
+    let result = rows.filter((row) => hasActiveResponse(row.task));
     if (filter !== 'ALL') {
       result = result.filter((row) => taskStatus(row.task) === filter);
     }
@@ -290,7 +290,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     });
   }
 
-  // Outstanding/Incomplete = OPEN tasks (no response yet) for the currently
+  // Outstanding/Incomplete = tasks nobody has responded to yet (see hasActiveResponse) for the currently
   // viewed date (today or historical), alphabetical by task name. ISSUE
   // tasks have a response (just a flagged/failing one) so they belong in the
   // main table alongside Complete, not here. Has its own dedicated
@@ -300,7 +300,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   // affect the other.
   const outstandingRows = useMemo(() => {
     return rows
-      .filter((row) => taskStatus(row.task) === 'OPEN')
+      .filter((row) => !hasActiveResponse(row.task))
       .sort((a, b) => a.task.name.localeCompare(b.task.name));
   }, [rows]);
 

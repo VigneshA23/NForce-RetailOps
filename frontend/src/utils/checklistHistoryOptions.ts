@@ -44,6 +44,15 @@ function activeResponderCount(task: ChecklistHistoryTaskItem): number {
   return new Set(task.responses.filter((r) => !r.undone).map((r) => r.employeeUserId)).size;
 }
 
+// Whether any employee has a current (non-undone) response to this task.
+// Drives the Daily Checklist split: a task an employee has responded to --
+// including a flagged one, or a MULTIPLE-completion task still waiting on
+// its second responder -- belongs under Completed & Flagged, never under
+// Outstanding/Incomplete, even when taskStatus() still reports it as OPEN.
+export function hasActiveResponse(task: ChecklistHistoryTaskItem): boolean {
+  return task.responses.some((response) => !response.undone);
+}
+
 export function taskStatus(task: ChecklistHistoryTaskItem): ChecklistTaskStatus {
   const response = latestResponse(task);
   if (!response) return 'OPEN';
