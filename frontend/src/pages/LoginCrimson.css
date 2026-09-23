@@ -670,7 +670,10 @@
   animation: nf1-sweep 6.5s ease-in-out infinite 1.5s;
 }
 
-.login3-submit--success {
+/* Doubled-up selector so this beats the mobile block's `.login3-submit`
+   background override below (same specificity would otherwise let source
+   order pick the red mobile background over this green one on mobile). */
+.login3-submit.login3-submit--success {
   background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   box-shadow: 0 12px 24px -8px rgba(34, 197, 94, 0.45);
   cursor: default;
