@@ -1,8 +1,9 @@
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { Eye, MapPin, Pencil, Trash2 } from 'lucide-react';
 import type { SuperAdminEmployee } from '../types/superAdminEmployee';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './EmployeeTable.css';
+import './SuperAdminEmployeeTable.css';
 
 interface SuperAdminEmployeeTableProps {
   employees: SuperAdminEmployee[];
@@ -24,7 +25,7 @@ function SuperAdminEmployeeTable({
   onDelete,
 }: SuperAdminEmployeeTableProps) {
   return (
-    <div className="table-card">
+    <div className="table-card sa-employee-table">
       <div className="table-scroll">
         <table className="data-table">
           <thead>
@@ -40,7 +41,7 @@ function SuperAdminEmployeeTable({
           <tbody>
             {employees.map((employee) => (
               <tr key={employee.id}>
-                <td data-label="Emp ID">
+                <td className="sa-employee-table__id" data-label="Emp ID">
                   <button
                     type="button"
                     className="employee-table__emp-id employee-table__id-link"
@@ -51,15 +52,29 @@ function SuperAdminEmployeeTable({
                 </td>
                 <td className="employee-table__name" data-label="Employee Name">
                   <div className="employee-table__name-cell">
-                    <UserAvatar
-                      initials={getInitials(employee.name)}
-                      src={employee.avatarUrl}
-                      size={32}
-                    />
-                    <span>{employee.name}</span>
+                    <span className="sa-employee-table__avatar">
+                      <UserAvatar
+                        initials={getInitials(employee.name)}
+                        src={employee.avatarUrl}
+                        size={32}
+                      />
+                      {/* Mobile-only presence dot: green active, grey inactive. */}
+                      <span
+                        className={`sa-employee-table__status-dot${employee.active ? ' sa-employee-table__status-dot--active' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </span>
+                    <span className="sa-employee-table__name-text">{employee.name}</span>
                   </div>
                 </td>
-                <td data-label="Stores">
+                <td className="sa-employee-table__stores" data-label="Stores">
+                  {/* Mobile-only heading (hidden on desktop via CSS). */}
+                  <span className="sa-employee-table__stores-heading">
+                    <MapPin size={12} aria-hidden="true" />
+                    {employee.stores.length === 1
+                      ? 'Assigned Store'
+                      : `Assigned Stores (${employee.stores.length})`}
+                  </span>
                   {employee.stores.length === 0 ? (
                     <span className="employee-table__no-stores">—</span>
                   ) : (
@@ -70,8 +85,8 @@ function SuperAdminEmployeeTable({
                     </div>
                   )}
                 </td>
-                <td data-label="Contact">{employee.phone}</td>
-                <td data-label="Status">
+                <td className="sa-employee-table__contact" data-label="Contact">{employee.phone}</td>
+                <td className="sa-employee-table__status" data-label="Status">
                   <label
                     className="status-toggle"
                     title={employee.active ? 'Deactivate employee' : 'Activate employee'}
