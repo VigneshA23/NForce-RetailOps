@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
+import { CalendarCheck, CalendarX, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
@@ -7,11 +7,13 @@ import { getInitials } from '../utils/initials'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { useUnreadCount } from '../hooks/useUnreadCount'
 import { useIssueUnreadBadge } from '../hooks/useIssueUnreadBadge'
+import { useMissedTasksBadge } from '../hooks/useMissedTasksBadge'
 import AppShell from './AppShell'
 import EmployeeDashboard from '../pages/EmployeeDashboard'
 import EmployeeHistory from '../pages/EmployeeHistory'
 import EmployeeIssues from '../pages/EmployeeIssues'
 import EmployeeStockCheck from '../pages/EmployeeStockCheck'
+import MissingTasks from '../pages/MissingTasks'
 import Notifications from '../pages/Notifications'
 import Profile from '../pages/Profile'
 import Help from '../pages/Help'
@@ -33,8 +35,16 @@ interface EmployeeShellProps {
 const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'today', label: 'Checklist', icon: CalendarCheck },
   { key: 'audits', label: 'History', icon: ClipboardList },
+  { key: 'missing', label: 'Missing Tasks', icon: CalendarX },
   { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
 ]
+
+// "Missing Tasks" is too wide alongside 3 other labels at phone width, so the
+// bottom tab bar uses a shorter "Missing" label -- same pattern as Owner's
+// "Daily Checklist" -> "Checklist" shortening (see OWNER_BOTTOM_NAV_ITEMS).
+const BOTTOM_NAV_ITEMS: EmployeeNavItem[] = NAV_ITEMS.map((item) =>
+  item.key === 'missing' ? { ...item, label: 'Missing' } : item,
+)
 
 type Overlay = 'profile' | 'help' | 'notifications' | null
 
@@ -65,6 +75,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   const isMobile = useIsMobile()
   const { count: unreadCount, setCount } = useUnreadCount()
   const { hasUnread: issuesBadge, markSeen: markIssuesSeen } = useIssueUnreadBadge(employeeId ?? null, store.id)
+  const { count: missedCount, refresh: refreshMissedCount } = useMissedTasksBadge(store.id)
   const canSwitchStore = stores.length > 1
 
   useEffect(() => {
@@ -90,7 +101,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     }
   }
 
-  const ALL_EMPLOYEE_TABS: EmployeeNavTabKey[] = ['today', 'audits', 'issues', 'stock-check']
+  const ALL_EMPLOYEE_TABS: EmployeeNavTabKey[] = ['today', 'audits', 'issues', 'missing', 'stock-check']
 
   const contextLabel = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
@@ -107,8 +118,11 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   }
 
   const tabBadges = useMemo(
-    () => (issuesBadge ? { issues: true as const } : {}),
-    [issuesBadge],
+    () => ({
+      ...(issuesBadge ? { issues: true as const } : {}),
+      ...(missedCount > 0 ? { missing: true as const } : {}),
+    }),
+    [issuesBadge, missedCount],
   )
 
   return (
@@ -122,7 +136,13 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       }}
       title={headerTitle}
       subtitle={headerSubtitle}
-      contentKey={overlay ?? activeTab}
+      // Only overlay changes (Profile/Help/Notifications) should trigger
+      // AppShell's cross-fade, which unmounts+remounts everything inside it --
+      // keying this off activeTab too would fight the mountedTabs/display:none
+      // persistence below, forcing every already-visited tab (including this
+      // one's own missed-tasks fetch, the heaviest of the bunch) to refetch on
+      // every single tab switch.
+      contentKey={overlay ?? 'tabs'}
       logoSrc="/nforce-logo.png"
       hideLogoOnDesktop
       centeredModals
@@ -137,6 +157,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       onNotificationsCountChange={handleNotificationsCountChange}
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
+      bottomNavItems={BOTTOM_NAV_ITEMS}
       showSearch={false}
       headerActions={
         <>
@@ -175,12 +196,14 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                     loggingOut={false}
                     employeeId={employeeId}
                     employeeName={user.fullName}
+                    missedTasksCount={missedCount}
                     onNavigate={(t) => { setOverlay(null); setActiveTab(t) }}
                     focusTaskId={focusTaskId}
                   />
                 )}
                 {tab === 'audits' && <EmployeeHistory store={store} dateSeed={historyDateSeed} />}
                 {tab === 'issues' && <EmployeeIssues store={store} focusIssueId={focusIssueId} />}
+                {tab === 'missing' && <MissingTasks store={store} onCompleted={refreshMissedCount} />}
                 {tab === 'stock-check' && <EmployeeStockCheck store={store} />}
               </div>
             ) : null,
