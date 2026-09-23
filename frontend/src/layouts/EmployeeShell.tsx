@@ -3,6 +3,7 @@ import { CalendarCheck, CalendarX, ClipboardList, MessageSquareWarning, Store as
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
+import { getEmployeeOverlay, getEmployeeTab, setEmployeeOverlay, setEmployeeTab } from '../utils/navigationStorage'
 import { getInitials } from '../utils/initials'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { useUnreadCount } from '../hooks/useUnreadCount'
@@ -49,8 +50,14 @@ const BOTTOM_NAV_ITEMS: EmployeeNavItem[] = NAV_ITEMS.map((item) =>
 type Overlay = 'profile' | 'help' | 'notifications' | null
 
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate, employeeId = null }: EmployeeShellProps) {
-  const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
-  const [overlay, setOverlay] = useState<Overlay>(null)
+  // Restores the tab across a refresh, since there's no router to reflect it
+  // in the URL -- see navigationStorage.ts for why.
+  const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>(() => getEmployeeTab() ?? 'today')
+  useEffect(() => setEmployeeTab(activeTab), [activeTab])
+  // Notifications/Profile/Help are an overlay on top of a tab, not a tab
+  // itself, so restoring activeTab alone isn't enough -- restore this too.
+  const [overlay, setOverlay] = useState<Overlay>(() => getEmployeeOverlay())
+  useEffect(() => setEmployeeOverlay(overlay), [overlay])
   const [mobileSearchActive, setMobileSearchActive] = useState(false)
   // Seeds History's initial date with the clicked notification's own
   // createdAt, rather than History always defaulting to yesterday -- id
