@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock, MessageSquareWarning, Plus } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, MessageSquare, MessageSquareWarning, Plus, User } from 'lucide-react'
 import { getMyIssues, raiseIssue } from '../api/issues'
 import { ApiError } from '../api/client'
 import { nfToast } from '../utils/toast'
@@ -182,56 +182,61 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
           </div>
 
           <div className="table-card">
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Date</th>
-                    <th scope="col">Issue</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Admin Response</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((issue) => (
-                    <tr
-                      key={issue.id}
-                      id={`emp-issue-row-${issue.id}`}
-                      className={highlightedIssueId === issue.id ? 'emp-issues-page__row--highlighted' : undefined}
-                    >
-                      <td data-label="Date" className="emp-issues-page__date-cell">
-                        {formatDate(issue.raisedDate)}
-                      </td>
-                      <td data-label="Issue">
-                        <span className="emp-issues-page__note">
-                          {issue.note}
+            <div className="issue-card-list">
+              {filtered.map((issue) => (
+                <div
+                  className={`issue-card${highlightedIssueId === issue.id ? ' emp-issues-page__row--highlighted' : ''}`}
+                  key={issue.id}
+                  id={`emp-issue-row-${issue.id}`}
+                >
+                  <div className="issue-card__icon" aria-hidden="true">
+                    <MessageSquare size={16} strokeWidth={2} />
+                  </div>
+                  <div className="issue-card__body">
+                    <div className="issue-card__top">
+                      <div className="issue-card__field">
+                        <span className="issue-card__label">Date</span>
+                        <span className="issue-card__value emp-issues-page__date-cell">
+                          {formatDate(issue.raisedDate)}
                         </span>
-                      </td>
-                      <td data-label="Status">
+                      </div>
+                      <div className="issue-card__field issue-card__field--grow">
+                        <span className="issue-card__label">Issue</span>
+                        <span className="issue-card__value emp-issues-page__note">{issue.note}</span>
+                      </div>
+                      <div className="issue-card__field issue-card__field--status">
+                        <span className="issue-card__label">Status</span>
                         <span className={`badge ${STATUS_BADGE[issue.status]}`}>
                           {STATUS_LABEL[issue.status]}
                         </span>
-                      </td>
-                      <td data-label="Admin Response">
-                        {issue.responseText ? (
+                      </div>
+                    </div>
+                    <hr className="issue-card__divider" />
+                    <div className="issue-card__response-block">
+                      <span className="issue-card__response-label">Admin Response</span>
+                      {issue.responseText ? (
+                        <div className="issue-card__response-box">
+                          <span className="issue-card__response-avatar" aria-hidden="true">
+                            <User size={14} strokeWidth={2} />
+                          </span>
                           <span className="emp-issues-page__response">
                             {issue.responseText}
                             {issue.respondedByFullName && (
                               <span className="emp-issues-page__response-by"> — {issue.respondedByFullName}</span>
                             )}
                           </span>
-                        ) : issue.status === 'ACKNOWLEDGED' ? (
-                          <span className="emp-issues-page__response emp-issues-page__response--hint">
-                            Being looked into
-                          </span>
-                        ) : (
-                          <span className="emp-issues-page__response emp-issues-page__response--none">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        </div>
+                      ) : issue.status === 'ACKNOWLEDGED' ? (
+                        <span className="emp-issues-page__response emp-issues-page__response--hint">
+                          Being looked into
+                        </span>
+                      ) : (
+                        <span className="emp-issues-page__response emp-issues-page__response--none">—</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
             {filtered.length === 0 && (
               <div className="table-card__empty">
