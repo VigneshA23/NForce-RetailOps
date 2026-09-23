@@ -73,6 +73,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       case '/employees': setActiveTab('employees'); setOverlay(null); break;
       case '/tasks': setActiveTab('tasks'); setOverlay(null); break;
       case '/issues': setActiveTab('issues'); setOverlay(null); break;
+      case '/profile': setOverlay('profile'); break;
       default: setOverlay('notifications'); break;
     }
   }
