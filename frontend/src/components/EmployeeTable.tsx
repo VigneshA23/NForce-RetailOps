@@ -1,8 +1,9 @@
-import { Eye, Pencil, Trash2 } from 'lucide-react';
+import { Eye, MapPin, Pencil, Trash2 } from 'lucide-react';
 import type { Employee } from '../types/employee';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './EmployeeTable.css';
+import './EmployeeCards.css';
 
 interface EmployeeTableProps {
   /** Already searched, filtered and paged by the page. */
@@ -26,7 +27,7 @@ function EmployeeTable({
   onToggleStatus,
 }: EmployeeTableProps) {
   return (
-    <div className="table-card employee-table__card">
+    <div className="table-card employee-table__card employee-cards">
       <div className="table-scroll">
         <table className="data-table">
           <thead>
@@ -41,7 +42,7 @@ function EmployeeTable({
           <tbody>
             {employees.map((employee) => (
               <tr key={employee.empId}>
-                <td data-label="Emp ID">
+                <td className="employee-cards__id" data-label="Emp ID">
                   <button
                     type="button"
                     className="employee-table__emp-id employee-table__id-link"
@@ -52,12 +53,35 @@ function EmployeeTable({
                 </td>
                 <td className="employee-table__name" data-label="Employee Name">
                   <div className="employee-table__name-cell">
-                    <UserAvatar initials={getInitials(employee.name)} src={employee.avatarUrl} size={28} />
-                    <span>{employee.name}</span>
+                    <span className="employee-cards__avatar">
+                      <UserAvatar initials={getInitials(employee.name)} src={employee.avatarUrl} size={28} />
+                      {/* Mobile-only presence dot: green active, grey inactive. */}
+                      <span
+                        className={`employee-cards__status-dot${employee.active ? ' employee-cards__status-dot--active' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </span>
+                    <span className="employee-cards__name-text">{employee.name}</span>
+                    {/* Mobile-only: this table has no Stores column on wider screens. */}
+                    <span className="employee-cards__stores-heading">
+                      <MapPin size={12} aria-hidden="true" />
+                      {employee.stores.length === 1
+                        ? 'Assigned Store'
+                        : `Assigned Stores (${employee.stores.length})`}
+                    </span>
+                    {employee.stores.length === 0 ? (
+                      <span className="employee-table__no-stores employee-cards__mobile-only">—</span>
+                    ) : (
+                      <span className="employee-table__store-badges employee-cards__mobile-only">
+                        {employee.stores.map((store) => (
+                          <span key={store.id} className="employee-table__store-badge">{store.name}</span>
+                        ))}
+                      </span>
+                    )}
                   </div>
                 </td>
-                <td data-label="Contact">{employee.phone}</td>
-                <td data-label="Status">
+                <td className="employee-cards__contact" data-label="Contact">{employee.phone}</td>
+                <td className="employee-cards__status" data-label="Status">
                   <label
                     className="status-toggle"
                     title={employee.active ? 'Deactivate employee' : 'Activate employee'}

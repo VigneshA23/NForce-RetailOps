@@ -64,3 +64,36 @@
     margin-left: auto;
   }
 }
+
+/* Mobile: search and the two filters become standalone fields (search full
+   width, type + status side by side) instead of sitting in one filter card. */
+@media (--mobile) {
+  .employees-page .filter-bar {
+    gap: 8px;
+    padding: 0;
+    background: transparent;
+    border: none;
+  }
+
+  .employees-page .filter-bar .filter,
+  .employees-page .filter-bar .filter--narrow {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  /* After the rule above: the search wrapper also carries .filter. */
+  .employees-page .filter-bar .filter--search {
+    flex: 1 1 100%;
+  }
+
+  .employees-page .search-input--filter,
+  .employees-page .filter-bar .select {
+    min-height: 40px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--color-surface-card);
+  }
+
+  .employees-page .search-input--filter__field {
+    font-size: 13px;
+  }
+}

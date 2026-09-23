@@ -3,7 +3,7 @@ import type { SuperAdminEmployee } from '../types/superAdminEmployee';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './EmployeeTable.css';
-import './SuperAdminEmployeeTable.css';
+import './EmployeeCards.css';
 
 interface SuperAdminEmployeeTableProps {
   employees: SuperAdminEmployee[];
@@ -25,7 +25,7 @@ function SuperAdminEmployeeTable({
   onDelete,
 }: SuperAdminEmployeeTableProps) {
   return (
-    <div className="table-card sa-employee-table">
+    <div className="table-card employee-cards">
       <div className="table-scroll">
         <table className="data-table">
           <thead>
@@ -41,7 +41,7 @@ function SuperAdminEmployeeTable({
           <tbody>
             {employees.map((employee) => (
               <tr key={employee.id}>
-                <td className="sa-employee-table__id" data-label="Emp ID">
+                <td className="employee-cards__id" data-label="Emp ID">
                   <button
                     type="button"
                     className="employee-table__emp-id employee-table__id-link"
@@ -52,7 +52,7 @@ function SuperAdminEmployeeTable({
                 </td>
                 <td className="employee-table__name" data-label="Employee Name">
                   <div className="employee-table__name-cell">
-                    <span className="sa-employee-table__avatar">
+                    <span className="employee-cards__avatar">
                       <UserAvatar
                         initials={getInitials(employee.name)}
                         src={employee.avatarUrl}
@@ -60,16 +60,16 @@ function SuperAdminEmployeeTable({
                       />
                       {/* Mobile-only presence dot: green active, grey inactive. */}
                       <span
-                        className={`sa-employee-table__status-dot${employee.active ? ' sa-employee-table__status-dot--active' : ''}`}
+                        className={`employee-cards__status-dot${employee.active ? ' employee-cards__status-dot--active' : ''}`}
                         aria-hidden="true"
                       />
                     </span>
-                    <span className="sa-employee-table__name-text">{employee.name}</span>
+                    <span className="employee-cards__name-text">{employee.name}</span>
                   </div>
                 </td>
-                <td className="sa-employee-table__stores" data-label="Stores">
+                <td className="employee-cards__stores" data-label="Stores">
                   {/* Mobile-only heading (hidden on desktop via CSS). */}
-                  <span className="sa-employee-table__stores-heading">
+                  <span className="employee-cards__stores-heading">
                     <MapPin size={12} aria-hidden="true" />
                     {employee.stores.length === 1
                       ? 'Assigned Store'
@@ -85,8 +85,8 @@ function SuperAdminEmployeeTable({
                     </div>
                   )}
                 </td>
-                <td className="sa-employee-table__contact" data-label="Contact">{employee.phone}</td>
-                <td className="sa-employee-table__status" data-label="Status">
+                <td className="employee-cards__contact" data-label="Contact">{employee.phone}</td>
+                <td className="employee-cards__status" data-label="Status">
                   <label
                     className="status-toggle"
                     title={employee.active ? 'Deactivate employee' : 'Activate employee'}
