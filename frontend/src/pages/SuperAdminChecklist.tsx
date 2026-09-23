@@ -231,6 +231,17 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     return result;
   }, [rows, filter, categoryFilter, searchQuery]);
 
+  const completedFlaggedCounts = useMemo(() => {
+    let completed = 0;
+    let issues = 0;
+    for (const row of rows) {
+      const status = taskStatus(row.task);
+      if (status === 'COMPLETE') completed += 1;
+      if (status === 'ISSUE') issues += 1;
+    }
+    return { completed, issues };
+  }, [rows]);
+
   const employeeContributions = useMemo(() => {
     if (!detail) return [];
     type EmpData = { totalResponses: number; issueCount: number; byCategory: Map<string, number>; avatarUrl?: string | null };
@@ -310,13 +321,21 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     });
   }
 
-  const [outstandingOpen, setOutstandingOpen] = useState(false);
+  const [outstandingOpen, setOutstandingOpen] = useState(true);
+  const [completedOpen, setCompletedOpen] = useState(true);
   useEffect(() => {
-    setOutstandingOpen(counts.issues > 0);
     setOutstandingSearch('');
     setOutstandingCategoryFilter('all');
+    setSearchQuery('');
+    setCategoryFilter('all');
+    setFilter('ALL');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail]);
+
+  useEffect(() => {
+    setOutstandingOpen(true);
+    setCompletedOpen(true);
+  }, [selectedStoreId, date]);
 
   const outstandingCategoryOptions = useMemo<SelectOption[]>(() => {
     const names = Array.from(new Set(outstandingRows.map((row) => row.categoryName))).sort();
@@ -597,47 +616,96 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             </div>
           )}
 
-          <div className="filter-bar store-detail-page__task-filter">
-            <div className="filter filter--search">
-              <SearchInput
-                value={searchQuery}
-                onChange={setSearchQuery}
-                placeholder="Search tasks, employees, status…"
-                variant="filter"
-              />
-            </div>
-            {availableCategories.length > 0 && (
-              <Select
-                className="filter"
-                options={[{ value: 'all', label: 'All categories' }, ...availableCategories]}
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-                ariaLabel="Filter by category"
-              />
-            )}
-            <Select
-              className="filter"
-              options={[
-                { value: 'ALL', label: 'All statuses' },
-                { value: 'COMPLETE', label: 'Completed' },
-                { value: 'ISSUE', label: 'Issues' },
-              ]}
-              value={filter}
-              onChange={(v) => setFilter(v as FilterKey)}
-              ariaLabel="Filter by status"
-            />
-            {(searchQuery || categoryFilter !== 'all' || filter !== 'ALL') && (
+          {selectedStoreId !== null && (
+            <div className="store-detail-outstanding store-detail-outstanding--completed">
               <button
                 type="button"
-                className="store-detail-page__filter-clear"
-                onClick={() => { setSearchQuery(''); setCategoryFilter('all'); setFilter('ALL'); }}
-                aria-label="Clear filters"
+                className="store-detail-outstanding__toggle"
+                onClick={() => setCompletedOpen((v) => !v)}
+                aria-expanded={completedOpen}
               >
-                <X size={12} />
-                Clear
+                <span className="store-detail-outstanding__title">
+                  Completed &amp; Flagged Tasks
+                  {completedFlaggedCounts.completed > 0 && (
+                    <span
+                      className="store-detail-outstanding__count store-detail-outstanding__count--completed"
+                      aria-label={`${completedFlaggedCounts.completed} completed tasks`}
+                    >
+                      {completedFlaggedCounts.completed}
+                    </span>
+                  )}
+                  {completedFlaggedCounts.issues > 0 && (
+                    <span
+                      className="store-detail-outstanding__count store-detail-outstanding__count--issues"
+                      aria-label={`${completedFlaggedCounts.issues} flagged tasks`}
+                    >
+                      {completedFlaggedCounts.issues}
+                    </span>
+                  )}
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`store-detail-outstanding__chevron${completedOpen ? ' store-detail-outstanding__chevron--open' : ''}`}
+                />
               </button>
-            )}
-          </div>
+              {completedOpen && (
+                <>
+                  <div className="filter-bar store-detail-outstanding__filter-bar">
+                    <div className="filter filter--search">
+                      <SearchInput
+                        value={searchQuery}
+                        onChange={setSearchQuery}
+                        placeholder="Search tasks, employees, status…"
+                        variant="filter"
+                      />
+                    </div>
+                    {availableCategories.length > 0 && (
+                      <Select
+                        className="filter"
+                        options={[{ value: 'all', label: 'All categories' }, ...availableCategories]}
+                        value={categoryFilter}
+                        onChange={setCategoryFilter}
+                        ariaLabel="Filter completed and flagged tasks by category"
+                      />
+                    )}
+                    <Select
+                      className="filter"
+                      options={[
+                        { value: 'ALL', label: 'All statuses' },
+                        { value: 'COMPLETE', label: 'Completed' },
+                        { value: 'ISSUE', label: 'Issues' },
+                      ]}
+                      value={filter}
+                      onChange={(v) => setFilter(v as FilterKey)}
+                      ariaLabel="Filter completed and flagged tasks by status"
+                    />
+                    {(searchQuery || categoryFilter !== 'all' || filter !== 'ALL') && (
+                      <button
+                        type="button"
+                        className="store-detail-page__filter-clear"
+                        onClick={() => { setSearchQuery(''); setCategoryFilter('all'); setFilter('ALL'); }}
+                        aria-label="Clear completed and flagged task filters"
+                      >
+                        <X size={12} />
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  {selectedStoreId === null || detailError ? null : (
+                    <StoreDetailTable
+                      idPrefix="completed-"
+                      rows={filteredRows}
+                      isLoading={detailLoading}
+                      hasChecklist={detail?.hasChecklist ?? false}
+                      repeatOffenderMap={repeatOffenderMap}
+                      onResponseCorrected={handleResponseCorrected}
+                      onResponseFlagged={handleResponseCorrected}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          )}
 
           {selectedStoreId === null ? (
             <div className="table-card">
@@ -656,16 +724,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                 Retry
               </button>
             </div>
-          ) : (
-            <StoreDetailTable
-              rows={filteredRows}
-              isLoading={detailLoading}
-              hasChecklist={detail?.hasChecklist ?? false}
-              repeatOffenderMap={repeatOffenderMap}
-              onResponseCorrected={handleResponseCorrected}
-              onResponseFlagged={handleResponseCorrected}
-            />
-          )}</>
+          ) : null}</>
       </div>
     </div>
   );

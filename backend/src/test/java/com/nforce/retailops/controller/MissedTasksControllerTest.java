@@ -376,11 +376,12 @@ class MissedTasksControllerTest {
             .andExpect(jsonPath("$.groups[0].instances[0].state").value("ACTIONABLE"));
     }
 
-    // The 90-day hard cap is enforced server-side: paging all the way back must land
-    // exactly on today-90 as the oldest missed date, never earlier, even though the
-    // task itself has been active for 200 days.
+    // The lookback hard cap (TaskMakeupLinkService.MAX_LOOKBACK_DAYS, TEMPORARILY 7
+    // instead of 90 -- see that constant's comment) is enforced server-side: paging
+    // all the way back must land exactly on today-cap as the oldest missed date,
+    // never earlier, even though the task itself has been active for 200 days.
     @Test
-    void missedTasksNeverReachesBeyondTheNinetyDayLookbackCap() throws Exception {
+    void missedTasksNeverReachesBeyondTheLookbackCap() throws Exception {
         User owner = createUser("mt-owner-7@nforce.test", "OWNER_ADMIN");
         Store store = createStore(owner);
         Category category = createCategory(owner, store);
@@ -418,8 +419,8 @@ class MissedTasksControllerTest {
             }
         }
 
-        assertThat(oldestSeen).isEqualTo(LocalDate.now().minusDays(90));
-        assertThat(totalGroups).isEqualTo(90);
+        assertThat(oldestSeen).isEqualTo(LocalDate.now().minusDays(7));
+        assertThat(totalGroups).isEqualTo(7);
     }
 
     private record LoginPayload(String email, String password) {

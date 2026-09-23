@@ -46,7 +46,7 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   orders: 'Orders',
 };
 
-export type EmployeeNavTabKey = 'today' | 'audits' | 'issues' | 'stock-check';
+export type EmployeeNavTabKey = 'today' | 'audits' | 'issues' | 'missing' | 'stock-check';
 
 export interface EmployeeNavItem {
   key: EmployeeNavTabKey;
@@ -66,10 +66,10 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
 ];
 
-// Mobile bottom tab bar: home, employees, categories, tasks, daily checklist.
-// Owners and Stores are accessible via the profile menu instead (mobile only) --
-// 7 tabs doesn't fit comfortably at phone width.
-const SUPER_ADMIN_BOTTOM_NAV_ORDER: SuperAdminNavTabKey[] = ['home', 'employees', 'categories', 'tasks', 'checklist'];
+// Mobile bottom tab bar: home, tasks, daily checklist. Owners, Stores,
+// Employees, and Categories are all accessible via the profile menu instead
+// (mobile only) -- 7 tabs doesn't fit comfortably at phone width.
+const SUPER_ADMIN_BOTTOM_NAV_ORDER: SuperAdminNavTabKey[] = ['home', 'tasks', 'checklist'];
 export const SUPER_ADMIN_BOTTOM_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = SUPER_ADMIN_BOTTOM_NAV_ORDER.map(
   (key) => SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!,
 );
