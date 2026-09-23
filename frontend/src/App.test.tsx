@@ -37,9 +37,7 @@ vi.mock('./api/tasks', () => ({
 
 vi.mock('./api/missedTasks', () => ({
   getMissedTasks: vi.fn().mockResolvedValue({ groups: [], nextCursor: null, totalInstances: 0 }),
-  completeMissedTaskNow: vi.fn(),
-  linkMissedTaskToToday: vi.fn(),
-  unlinkMissedTask: vi.fn(),
+  moveMissedTask: vi.fn(),
 }))
 
 vi.mock('./api/issues', () => ({
@@ -457,6 +455,12 @@ describe('employee tab persistence', () => {
   // visited tab (including this one's own missed-tasks call, the most expensive)
   // on every single switch -- see EmployeeShell's contentKey comment.
   it('does not refetch an already-visited tab when switching back to it', async () => {
+    // The missed-tasks page has no side-nav entry (see EmployeeShell) -- reach
+    // it via the daily checklist's banner instead, which only renders once
+    // there's a nonzero missed count.
+    mockGetMissedTasks.mockResolvedValue({
+      groups: [{ date: '2026-09-20', instances: [] }], nextCursor: null, totalInstances: 3,
+    })
     const user = userEvent.setup()
     render(<App />)
 
@@ -464,19 +468,34 @@ describe('employee tab persistence', () => {
     await selectFirstOpenStore(user)
     expect(mockGetDailyChecklist).toHaveBeenCalledTimes(1)
 
-    await user.click(screen.getByRole('button', { name: /missing tasks/i }))
-    await screen.findByRole('heading', { name: /missing tasks/i })
+    await user.click(await screen.findByRole('button', { name: /missed task.*from previous days/i }))
+    await screen.findByRole('heading', { name: /missed tasks/i })
     const missedCallsAfterFirstVisit = mockGetMissedTasks.mock.calls.length
     expect(missedCallsAfterFirstVisit).toBeGreaterThan(0)
 
     await user.click(screen.getByRole('button', { name: /checklist/i }))
     await screen.findByRole('heading', { name: /today's tasks/i })
 
-    await user.click(screen.getByRole('button', { name: /missing tasks/i }))
-    await screen.findByRole('heading', { name: /missing tasks/i })
+    await user.click(screen.getByRole('button', { name: /missed task.*from previous days/i }))
+    await screen.findByRole('heading', { name: /missed tasks/i })
 
     // Neither tab remounted on the way back, so neither refetched.
     expect(mockGetDailyChecklist).toHaveBeenCalledTimes(1)
     expect(mockGetMissedTasks.mock.calls.length).toBe(missedCallsAfterFirstVisit)
+  })
+
+  it('has no side-nav or bottom-tab entry for missed tasks', async () => {
+    mockGetMissedTasks.mockResolvedValue({
+      groups: [{ date: '2026-09-20', instances: [] }], nextCursor: null, totalInstances: 3,
+    })
+    const user = userEvent.setup()
+    render(<App />)
+
+    await loginAsEmployee(user)
+    await selectFirstOpenStore(user)
+    await screen.findByRole('heading', { name: /today's tasks/i })
+
+    expect(screen.queryByRole('button', { name: /^missing tasks$/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^missed tasks$/i })).not.toBeInTheDocument()
   })
 })

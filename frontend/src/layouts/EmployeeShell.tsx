@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarCheck, CalendarX, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
+import { CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
@@ -32,19 +32,19 @@ interface EmployeeShellProps {
   employeeId?: number | null
 }
 
+// "Missing Tasks" (now "Missed Tasks") is deliberately NOT listed here -- the
+// missed-tasks page has no side-nav entry; it's only reachable via the daily
+// checklist's banner or the Home stat tile (see EmployeeDashboard). The
+// 'missing' tab itself still exists (ALL_EMPLOYEE_TABS below) and stays
+// mounted/reachable via onNavigate, the same unlisted-tab pattern
+// 'stock-check' already uses.
 const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'today', label: 'Checklist', icon: CalendarCheck },
   { key: 'audits', label: 'History', icon: ClipboardList },
-  { key: 'missing', label: 'Missing Tasks', icon: CalendarX },
   { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
 ]
 
-// "Missing Tasks" is too wide alongside 3 other labels at phone width, so the
-// bottom tab bar uses a shorter "Missing" label -- same pattern as Owner's
-// "Daily Checklist" -> "Checklist" shortening (see OWNER_BOTTOM_NAV_ITEMS).
-const BOTTOM_NAV_ITEMS: EmployeeNavItem[] = NAV_ITEMS.map((item) =>
-  item.key === 'missing' ? { ...item, label: 'Missing' } : item,
-)
+const BOTTOM_NAV_ITEMS: EmployeeNavItem[] = NAV_ITEMS
 
 type Overlay = 'profile' | 'help' | 'notifications' | null
 
@@ -120,9 +120,8 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   const tabBadges = useMemo(
     () => ({
       ...(issuesBadge ? { issues: true as const } : {}),
-      ...(missedCount > 0 ? { missing: true as const } : {}),
     }),
-    [issuesBadge, missedCount],
+    [issuesBadge],
   )
 
   return (
@@ -203,7 +202,9 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                 )}
                 {tab === 'audits' && <EmployeeHistory store={store} dateSeed={historyDateSeed} />}
                 {tab === 'issues' && <EmployeeIssues store={store} focusIssueId={focusIssueId} />}
-                {tab === 'missing' && <MissingTasks store={store} onCompleted={refreshMissedCount} />}
+                {tab === 'missing' && (
+                  <MissingTasks store={store} onMoved={refreshMissedCount} onBack={() => setActiveTab('today')} />
+                )}
                 {tab === 'stock-check' && <EmployeeStockCheck store={store} />}
               </div>
             ) : null,

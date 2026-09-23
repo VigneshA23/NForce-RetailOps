@@ -91,7 +91,7 @@ public class InternalJobController {
         if (authError != null) return authError;
         raisedIssueService.purgeOldResolvedIssues();
         taskService.deactivateTasksPastEndDate();
-        taskMakeupLinkService.expireStalePendingLinks();
+        taskMakeupLinkService.expireStalePendingMoves();
         return ResponseEntity.ok("nightly-maintenance completed");
     }
 

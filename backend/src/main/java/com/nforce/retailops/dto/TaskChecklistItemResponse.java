@@ -31,14 +31,15 @@ public record TaskChecklistItemResponse(
     int completedByCount,
     int totalActiveEmployees,
     List<String> completedByNames,
-    // Past dates with a PENDING makeup link to today for this task (see
-    // TaskMakeupLinkService) -- when non-empty, the checklist card shows "Will also
-    // complete N missed (dates)". Empty for every task with no pending links.
-    List<LocalDate> pendingMakeupDates
+    // Null for the task's own normal today occurrence. Non-null identifies this item
+    // as an independent "moved" unit (see TaskMakeupLinkService), attributed to its
+    // original due date -- the frontend renders a "Due <date>" badge and never merges
+    // it with the task's normal unit or any other moved unit of the same task.
+    LocalDate originalDueDate
 ) {
     public static TaskChecklistItemResponse from(
         Task task, List<TaskResponseEntry> activeResponses, Long employeeUserId, int totalActiveEmployees,
-        List<LocalDate> pendingMakeupDates
+        LocalDate originalDueDate
     ) {
         LinkedHashMap<Long, String> activeResponders = new LinkedHashMap<>();
         for (TaskResponseEntry entry : activeResponses) {
@@ -64,7 +65,7 @@ public record TaskChecklistItemResponse(
             activeResponders.size(),
             totalActiveEmployees,
             List.copyOf(activeResponders.values()),
-            pendingMakeupDates
+            originalDueDate
         );
     }
 }

@@ -33,6 +33,20 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
 
     Optional<TaskResponseEntry> findByIdAndTaskIdAndStoreId(Long id, Long taskId, Long storeId);
 
+    // Moved-unit checklist rendering: active responses for a store across a small set of
+    // (taskId, originalDueDate) pairs, fetched with one query instead of one per moved
+    // unit -- callers group the (typically few) results by (taskId, responseDate) in Java
+    // the same way TaskMakeupLinkService.getMissedTasks already groups its own scan
+    // (see TaskService.getTodayChecklistForEmployee). responseDates is the distinct set of
+    // original due dates among today's moved units; taskIds narrows the scan further.
+    @Query("select tre from TaskResponseEntry tre join fetch tre.employee "
+        + "where tre.store.id = :storeId and tre.task.id in :taskIds "
+        + "and tre.responseDate in :responseDates and tre.active = true")
+    List<TaskResponseEntry> findByStoreIdAndTaskIdInAndResponseDateInAndActiveTrue(
+        @Param("storeId") Long storeId, @Param("taskIds") Collection<Long> taskIds,
+        @Param("responseDates") Collection<LocalDate> responseDates
+    );
+
     // Chain-continuation lookup for submitResponse: after an employee undoes their
     // own response (active=false, no supersededResponseId set on anything -- Undo
     // itself never links forward), this finds that same employee's most recent row
@@ -118,9 +132,10 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     );
 
     // Missed-tasks scan: every active response for a set of candidate tasks across the
-    // whole 90-day lookback window, in one round trip -- lets TaskMakeupLinkService
-    // determine per (task, date) whether the instance is already satisfied
-    // (CompletionType.isSatisfiedBy) without one query per candidate day.
+    // whole lookback window (TaskMakeupLinkService.MAX_LOOKBACK_DAYS), in one round
+    // trip -- lets TaskMakeupLinkService determine per (task, date) whether the
+    // instance is already satisfied (CompletionType.isSatisfiedBy) without one query
+    // per candidate day.
     @Query("select tre from TaskResponseEntry tre join fetch tre.employee "
         + "where tre.task.id in :taskIds and tre.store.id = :storeId "
         + "and tre.responseDate between :startDate and :endDate and tre.active = true")

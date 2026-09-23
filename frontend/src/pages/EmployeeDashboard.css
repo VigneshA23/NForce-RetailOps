@@ -384,12 +384,18 @@
   color: var(--color-text-primary);
   margin: 0;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.checklist-task__makeup-note {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  margin: 2px 0 0;
+/* Marks a moved unit's card with its original due date -- see
+   types/task.ts's originalDueDate. */
+.checklist-task__due-badge {
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .checklist-task--done .checklist-task__name {
@@ -615,6 +621,53 @@
   font-size: 13px;
   color: var(--color-text-secondary);
   flex-shrink: 0;
+}
+
+/* Big circular black tick button -- the explicit submit action for TEXT/
+   NUMERIC responses, distinct from the pill-shaped Yes/No/Done buttons.
+   Always solid black with a white tick, in every state (default, hover,
+   disabled) -- !important because this one button is a deliberate, narrow
+   exception to .btn's shared disabled-fade convention (buttons.css), and
+   that shared rule's plain `.btn:disabled` selector ties this class's own
+   specificity, so which one wins would otherwise depend on unpredictable
+   CSS-chunk load order rather than intent. */
+.checklist-task__submit {
+  flex-shrink: 0;
+  /* !important throughout: .btn (buttons.css) sets its own width/height/
+     padding/min-height via equally-specific rules, so which one wins a tie
+     otherwise depends on unpredictable CSS load order -- exactly the same
+     trap as the background/color overrides above, and without it the
+     button renders oval instead of circular. */
+  width: 38px !important;
+  height: 38px !important;
+  min-height: 0 !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+  border-radius: 50% !important;
+  background: #000 !important;
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
+/* The icon's width/height SVG attributes alone don't reliably size it as a
+   flex item inside the circular button (it's a replaced element, and
+   flexbox's default min-width:auto can shrink it to 0 on its cross-browser
+   default flex-basis instead of respecting the attribute) -- pin the size
+   with real CSS and stop it from ever shrinking. */
+.checklist-task__submit svg {
+  flex-shrink: 0;
+  width: 18px !important;
+  height: 18px !important;
+  color: inherit;
+  stroke: currentColor;
+}
+
+.checklist-task__submit:hover:not(:disabled) {
+  background: #262626 !important;
+}
+
+.checklist-task__submit:disabled {
+  cursor: not-allowed;
 }
 
 /* ── All Done completion card ─────────────────────────────────────────── */

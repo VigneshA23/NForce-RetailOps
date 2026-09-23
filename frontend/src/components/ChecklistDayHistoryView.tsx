@@ -465,6 +465,11 @@ function ChecklistDayHistoryView({
                               <StatusIcon size={14} />
                               {meta.label}
                             </span>
+                            {task.completedVia === 'MOVED' && (
+                              <span className="badge badge--info" title="Completed as a moved task, attributed to its original due date">
+                                Moved completion
+                              </span>
+                            )}
                             {task.completedVia === 'LINK_FULFILLED' && (
                               <span className="badge badge--info" title="Auto-completed when today's checklist was completed">
                                 completed via today's checklist

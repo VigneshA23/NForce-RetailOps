@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   Calendar,
+  CalendarX,
+  Check,
   CheckCircle2,
   ChevronDown,
   Circle,
@@ -17,6 +19,7 @@ import { getDailyChecklist, submitTaskResponse, undoTaskResponse } from '../api/
 import type { TaskResponseStateResponse } from '../api/tasks'
 import type { StoreSummary } from '../types/store'
 import type { ChecklistCategory, ChecklistTask, TaskResponseSummary } from '../types/task'
+import { checklistUnitKey } from '../types/task'
 import StatCard from '../components/StatCard'
 import SearchInput from '../components/SearchInput'
 import ButtonDots from '../components/ButtonDots'
@@ -46,8 +49,15 @@ function todayDateKey(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 }
 
-function localDraftKey(storeId: number, taskId: number, date: string): string {
-  return `draft:${storeId}:${taskId}:${date}`
+function localDraftKey(storeId: number, unitKey: string, date: string): string {
+  return `draft:${storeId}:${unitKey}:${date}`
+}
+
+// "Due 12 May" -- the badge on a moved unit's card, showing its original due
+// date (see types/task.ts's originalDueDate / checklistUnitKey).
+function dueBadgeLabel(originalDueDate: string): string {
+  const [year, month, day] = originalDueDate.split('-').map(Number)
+  return `Due ${new Date(year, month - 1, day).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
 }
 
 interface CategoryProgressGridItem {
@@ -252,11 +262,11 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [pendingTaskId, setPendingTaskId] = useState<number | null>(null)
-  const [undoingTaskId, setUndoingTaskId] = useState<number | null>(null)
-  const [taskErrors, setTaskErrors] = useState<Record<number, string>>({})
-  const [drafts, setDrafts] = useState<Record<number, string>>({})
-  const [openCompletedByTaskId, setOpenCompletedByTaskId] = useState<number | null>(null)
+  const [pendingUnitKey, setPendingUnitKey] = useState<string | null>(null)
+  const [undoingUnitKey, setUndoingUnitKey] = useState<string | null>(null)
+  const [taskErrors, setTaskErrors] = useState<Record<string, string>>({})
+  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [openCompletedByUnitKey, setOpenCompletedByUnitKey] = useState<string | null>(null)
   const [taskSearch, setTaskSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<Set<number>>(new Set())
   const [statusFilter, setStatusFilter] = useState<'complete' | 'open' | 'needs-correction' | null>(null)
@@ -278,23 +288,31 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
     })
   }
 
-  const [highlightedTaskId, setHighlightedTaskId] = useState<number | null>(null)
+  const [highlightedUnitKey, setHighlightedUnitKey] = useState<string | null>(null)
 
   // Clear any filter/collapse that would hide the targeted task, expand its
   // category, then scroll it into view and flash a highlight once rendered.
+  // Search only ever knows a bare taskId, never which unit -- resolve to the
+  // task's own normal unit (originalDueDate == null) when present, else the
+  // first moved unit found for that taskId.
   useEffect(() => {
     if (!focusTaskId) return
     const owningCategory = categories.find((cat) => cat.tasks.some((t) => t.id === focusTaskId.taskId))
     if (!owningCategory) return
+    const targetTask =
+      owningCategory.tasks.find((t) => t.id === focusTaskId.taskId && t.originalDueDate == null) ??
+      owningCategory.tasks.find((t) => t.id === focusTaskId.taskId)
+    if (!targetTask) return
+    const unitKey = checklistUnitKey(targetTask)
     setTaskSearch('')
     setCategoryFilter(new Set())
     setStatusFilter(null)
     setOpenCategories((prev) => (prev.has(owningCategory.id) ? prev : new Set(prev).add(owningCategory.id)))
     const timer = window.setTimeout(() => {
-      document.getElementById(`checklist-task-${focusTaskId.taskId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-      setHighlightedTaskId(focusTaskId.taskId)
+      document.getElementById(`checklist-task-${unitKey}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      setHighlightedUnitKey(unitKey)
     }, 0)
-    const clearTimer = window.setTimeout(() => setHighlightedTaskId(null), 2500)
+    const clearTimer = window.setTimeout(() => setHighlightedUnitKey(null), 2500)
     return () => { window.clearTimeout(timer); window.clearTimeout(clearTimer) }
   }, [focusTaskId, categories])
 
@@ -307,12 +325,13 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
         if (active) {
           setCategories(result)
           const today = todayDateKey()
-          const seeded: Record<number, string> = {}
+          const seeded: Record<string, string> = {}
           for (const cat of result) {
             for (const task of cat.tasks) {
               if (task.responseType !== 'TEXT' || task.responses.length > 0) continue
-              const saved = localStorage.getItem(localDraftKey(store.id, task.id, today))
-              if (saved) seeded[task.id] = saved
+              const unitKey = checklistUnitKey(task)
+              const saved = localStorage.getItem(localDraftKey(store.id, unitKey, today))
+              if (saved) seeded[unitKey] = saved
             }
           }
           if (Object.keys(seeded).length > 0) setDrafts(seeded)
@@ -349,8 +368,8 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
     if (Object.keys(drafts).length === 0) return
     const today = todayDateKey()
     const timeout = setTimeout(() => {
-      for (const [taskId, value] of Object.entries(drafts)) {
-        const key = localDraftKey(store.id, Number(taskId), today)
+      for (const [unitKey, value] of Object.entries(drafts)) {
+        const key = localDraftKey(store.id, unitKey, today)
         if (value) localStorage.setItem(key, value)
         else localStorage.removeItem(key)
       }
@@ -428,7 +447,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
       previous.map((category) => ({
         ...category,
         tasks: category.tasks.map((task) =>
-          task.id === state.taskId
+          task.id === state.taskId && (task.originalDueDate ?? null) === (state.originalDueDate ?? null)
             ? {
                 ...task,
                 responses: state.responses,
@@ -447,37 +466,43 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
     task: ChecklistTask,
     value: { booleanValue?: boolean; numericValue?: number; textValue?: string },
   ) {
-    if (pendingTaskId != null) return
-    setPendingTaskId(task.id)
-    setTaskErrors((previous) => ({ ...previous, [task.id]: '' }))
+    const unitKey = checklistUnitKey(task)
+    if (pendingUnitKey != null) return
+    setPendingUnitKey(unitKey)
+    setTaskErrors((previous) => ({ ...previous, [unitKey]: '' }))
     try {
-      const state = await submitTaskResponse(task.id, { storeId: store.id, ...value })
+      const state = await submitTaskResponse(task.id, {
+        storeId: store.id,
+        ...value,
+        ...(task.originalDueDate ? { originalDueDate: task.originalDueDate } : {}),
+      })
       applyTaskState(state)
       setDrafts((previous) => {
         const next = { ...previous }
-        delete next[task.id]
+        delete next[unitKey]
         return next
       })
-      localStorage.removeItem(localDraftKey(store.id, task.id, todayDateKey()))
+      localStorage.removeItem(localDraftKey(store.id, unitKey, todayDateKey()))
     } catch (err) {
       const message = err instanceof ApiError ? err.message : GENERIC_TASK_ERROR
-      setTaskErrors((previous) => ({ ...previous, [task.id]: message }))
+      setTaskErrors((previous) => ({ ...previous, [unitKey]: message }))
       if (err instanceof ApiError && err.status === 409) loadChecklist()
     } finally {
-      setPendingTaskId(null)
+      setPendingUnitKey(null)
     }
   }
 
   async function undoAnswer(task: ChecklistTask) {
     const response = ownResponse(task, employeeId)
-    if (!response || undoingTaskId === task.id) return
-    setUndoingTaskId(task.id)
-    setTaskErrors((previous) => ({ ...previous, [task.id]: '' }))
+    const unitKey = checklistUnitKey(task)
+    if (!response || undoingUnitKey === unitKey) return
+    setUndoingUnitKey(unitKey)
+    setTaskErrors((previous) => ({ ...previous, [unitKey]: '' }))
     setCategories((previous) =>
       previous.map((cat) => ({
         ...cat,
         tasks: cat.tasks.map((t) =>
-          t.id === task.id
+          t.id === task.id && (t.originalDueDate ?? null) === (task.originalDueDate ?? null)
             ? { ...t, responses: t.responses.filter((r) => r.id !== response.id), canUndo: false }
             : t,
         ),
@@ -485,24 +510,25 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
     )
     setDrafts((previous) => {
       const next = { ...previous }
-      delete next[task.id]
+      delete next[unitKey]
       return next
     })
-    localStorage.removeItem(localDraftKey(store.id, task.id, todayDateKey()))
+    localStorage.removeItem(localDraftKey(store.id, unitKey, todayDateKey()))
     try {
       const state = await undoTaskResponse(task.id, response.id, store.id)
       applyTaskState(state)
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Couldn't undo this response. Please try again."
-      setTaskErrors((previous) => ({ ...previous, [task.id]: message }))
+      setTaskErrors((previous) => ({ ...previous, [unitKey]: message }))
       loadChecklist()
     } finally {
-      setUndoingTaskId(null)
+      setUndoingUnitKey(null)
     }
   }
 
   function submitTextDraft(task: ChecklistTask) {
-    const draft = drafts[task.id]
+    const unitKey = checklistUnitKey(task)
+    const draft = drafts[unitKey]
     if (draft === undefined) return
     const trimmed = draft.trim()
     const current = ownResponse(task, employeeId)
@@ -511,7 +537,8 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   }
 
   function submitNumericDraft(task: ChecklistTask) {
-    const draft = drafts[task.id]
+    const unitKey = checklistUnitKey(task)
+    const draft = drafts[unitKey]
     if (draft === undefined) return
     const value = draft === '' ? NaN : Number(draft)
     const current = ownResponse(task, employeeId)
@@ -537,6 +564,13 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
           <StatCard icon={CheckCircle2} label="Tasks Done" value={completedTasks} tone="success" />
           <StatCard icon={ListTodo} label="Remaining" value={remainingTasks} tone="info" />
           <StatCard icon={Flag} label="Flagged" value={flagCount} tone="warning" />
+          <StatCard
+            icon={CalendarX}
+            label="Missed Tasks"
+            value={missedTasksCount}
+            tone="warning"
+            onClick={() => onNavigate?.('missing')}
+          />
         </div>
 
         <MissedTasksBanner count={missedTasksCount} onClick={() => onNavigate?.('missing')} />
@@ -655,14 +689,15 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
 
                       <div className="checklist-tasks">
                         {category.tasks.map((task) => {
-                          const isPending = pendingTaskId === task.id
+                          const unitKey = checklistUnitKey(task)
+                          const isPending = pendingUnitKey === unitKey
                           const mine = ownResponse(task, employeeId)
                           const myResponseIsFlagged = mine?.flaggedNeedsCorrection === true
                           const isSingleLocked = task.completionType === 'SINGLE' && task.responses.length > 0 && !myResponseIsFlagged
                           const isLockedByOther = isSingleLocked && !task.canUndo
                           const controlsDisabled = isPending || isSingleLocked
-                          const draft = drafts[task.id]
-                          const taskError = taskErrors[task.id]
+                          const draft = drafts[unitKey]
+                          const taskError = taskErrors[unitKey]
                           const isMyAnswerDone = mine != null && !myResponseIsFlagged
 
                           const taskClass = isLockedByOther
@@ -675,19 +710,22 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
 
                           return (
                             <div
-                              key={task.id}
-                              id={`checklist-task-${task.id}`}
-                              className={`checklist-task${taskClass}${highlightedTaskId === task.id ? ' checklist-task--highlighted' : ''}`}
+                              key={unitKey}
+                              id={`checklist-task-${unitKey}`}
+                              className={`checklist-task${taskClass}${highlightedUnitKey === unitKey ? ' checklist-task--highlighted' : ''}`}
                             >
-                              {/* Task name */}
-                              <p className="checklist-task__name">{task.name}</p>
-
-                              {/* Pending "Missed Tasks" makeup links -- see types/missedTasks.ts */}
-                              {task.pendingMakeupDates && task.pendingMakeupDates.length > 0 && (
-                                <p className="checklist-task__makeup-note">
-                                  Will also complete {task.pendingMakeupDates.length} missed ({task.pendingMakeupDates.join(', ')})
-                                </p>
-                              )}
+                              {/* Task name, with a "Due <date>" badge for a moved unit
+                                  (see types/task.ts's originalDueDate) -- an independent
+                                  completion unit, never merged with the task's normal
+                                  unit or any other moved unit of the same task. */}
+                              <p className="checklist-task__name">
+                                {task.name}
+                                {task.originalDueDate && (
+                                  <span className="badge badge--info checklist-task__due-badge">
+                                    {dueBadgeLabel(task.originalDueDate)}
+                                  </span>
+                                )}
+                              </p>
 
                               {/* Flag reason */}
                               {myResponseIsFlagged && mine?.flagReason && (
@@ -716,10 +754,10 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                                     <button
                                       type="button"
                                       className="checklist-task__undo"
-                                      disabled={undoingTaskId === task.id}
+                                      disabled={undoingUnitKey === unitKey}
                                       onClick={() => undoAnswer(task)}
                                     >
-                                      {undoingTaskId === task.id ? <ButtonDots label="Undoing" /> : 'Undo'}
+                                      {undoingUnitKey === unitKey ? <ButtonDots label="Undoing" /> : 'Undo'}
                                     </button>
                                   )}
                                 </div>
@@ -739,20 +777,20 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                               {!mine && task.completionType === 'MULTIPLE' && showsCompletedByCount(task) && (
                                 <div className="checklist-task__multi-info">
                                   <span>{task.completedByCount}/{task.totalActiveEmployees} responded</span>
-                                  <span className="checklist-task-completed-by-info" onMouseEnter={() => setOpenCompletedByTaskId(task.id)} onMouseLeave={() => setOpenCompletedByTaskId((c) => (c === task.id ? null : c))}>
+                                  <span className="checklist-task-completed-by-info" onMouseEnter={() => setOpenCompletedByUnitKey(unitKey)} onMouseLeave={() => setOpenCompletedByUnitKey((c) => (c === unitKey ? null : c))}>
                                     <button
                                       type="button"
                                       className="checklist-task-completed-by-icon"
                                       aria-label={`Who completed ${task.name} today`}
-                                      aria-expanded={openCompletedByTaskId === task.id}
-                                      onClick={() => setOpenCompletedByTaskId((c) => (c === task.id ? null : task.id))}
-                                      onFocus={() => setOpenCompletedByTaskId(task.id)}
-                                      onBlur={() => setOpenCompletedByTaskId((c) => (c === task.id ? null : c))}
+                                      aria-expanded={openCompletedByUnitKey === unitKey}
+                                      onClick={() => setOpenCompletedByUnitKey((c) => (c === unitKey ? null : unitKey))}
+                                      onFocus={() => setOpenCompletedByUnitKey(unitKey)}
+                                      onBlur={() => setOpenCompletedByUnitKey((c) => (c === unitKey ? null : c))}
                                     >
                                       <Info size={13} />
                                     </button>
-                                    {openCompletedByTaskId === task.id && (
-                                      <div className="checklist-task-completed-by-tooltip" role="tooltip" id={`completed-by-tooltip-${task.id}`}>
+                                    {openCompletedByUnitKey === unitKey && (
+                                      <div className="checklist-task-completed-by-tooltip" role="tooltip" id={`completed-by-tooltip-${unitKey}`}>
                                         {completedByNamesForTooltip(task).map((name) => (
                                           <div key={name} className="checklist-task-completed-by-tooltip-name">{name}</div>
                                         ))}
@@ -797,48 +835,83 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                                     </button>
                                   )}
 
-                                  {task.responseType === 'TEXT' && (
-                                    <div className="checklist-task__input-row">
-                                      <input
-                                        type="text"
-                                        className="input checklist-task__text-input"
-                                        disabled={controlsDisabled}
-                                        maxLength={task.textMaxLength ?? undefined}
-                                        placeholder={task.responseNote ?? 'Enter your response…'}
-                                        value={draft ?? mine?.textValue ?? ''}
-                                        onChange={(e) => setDrafts((prev) => ({ ...prev, [task.id]: e.target.value }))}
-                                        onBlur={() => submitTextDraft(task)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
-                                      />
-                                      {mine && task.canUndo && (
-                                        <button type="button" className="checklist-task__undo" disabled={undoingTaskId === task.id} onClick={() => undoAnswer(task)}>
-                                          {undoingTaskId === task.id ? <ButtonDots label="Undoing" /> : 'Undo'}
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
+                                  {task.responseType === 'TEXT' && (() => {
+                                    // Already answered (and not flagged back for correction) --
+                                    // no submit action needed; Undo is the only way to revise it.
+                                    const alreadyAnswered = mine != null && !myResponseIsFlagged
+                                    const textDraft = (draft ?? mine?.textValue ?? '').trim()
+                                    const canSubmitText = !controlsDisabled && !alreadyAnswered && textDraft !== '' && textDraft !== (mine?.textValue ?? '')
+                                    return (
+                                      <div className="checklist-task__input-row">
+                                        <input
+                                          type="text"
+                                          className="input checklist-task__text-input"
+                                          disabled={controlsDisabled || alreadyAnswered}
+                                          maxLength={task.textMaxLength ?? undefined}
+                                          placeholder={task.responseNote ?? 'Enter your response…'}
+                                          value={draft ?? mine?.textValue ?? ''}
+                                          onChange={(e) => setDrafts((prev) => ({ ...prev, [unitKey]: e.target.value }))}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') submitTextDraft(task) }}
+                                        />
+                                        {!alreadyAnswered && (
+                                          <button
+                                            type="button"
+                                            className="btn checklist-task__submit"
+                                            disabled={!canSubmitText}
+                                            aria-label="Submit"
+                                            onClick={() => submitTextDraft(task)}
+                                          >
+                                            {isPending ? <ButtonDots label="Submitting" /> : <Check size={18} aria-hidden="true" />}
+                                          </button>
+                                        )}
+                                        {mine && task.canUndo && (
+                                          <button type="button" className="checklist-task__undo" disabled={undoingUnitKey === unitKey} onClick={() => undoAnswer(task)}>
+                                            {undoingUnitKey === unitKey ? <ButtonDots label="Undoing" /> : 'Undo'}
+                                          </button>
+                                        )}
+                                      </div>
+                                    )
+                                  })()}
 
-                                  {task.responseType === 'NUMERIC' && (
-                                    <div className="checklist-task__input-row">
-                                      <input
-                                        type="number"
-                                        className="input checklist-task__numeric-input"
-                                        disabled={controlsDisabled}
-                                        min={task.numericMin ?? undefined}
-                                        max={task.numericMax ?? undefined}
-                                        value={draft ?? (mine?.numericValue != null ? String(mine.numericValue) : '')}
-                                        onChange={(e) => setDrafts((prev) => ({ ...prev, [task.id]: e.target.value }))}
-                                        onBlur={() => submitNumericDraft(task)}
-                                        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
-                                      />
-                                      {task.numericUnit && <span className="checklist-task__unit">{task.numericUnit}</span>}
-                                      {mine && task.canUndo && (
-                                        <button type="button" className="checklist-task__undo" disabled={undoingTaskId === task.id} onClick={() => undoAnswer(task)}>
-                                          {undoingTaskId === task.id ? <ButtonDots label="Undoing" /> : 'Undo'}
-                                        </button>
-                                      )}
-                                    </div>
-                                  )}
+                                  {task.responseType === 'NUMERIC' && (() => {
+                                    // Already answered (and not flagged back for correction) --
+                                    // no submit action needed; Undo is the only way to revise it.
+                                    const alreadyAnswered = mine != null && !myResponseIsFlagged
+                                    const numericDraft = draft ?? (mine?.numericValue != null ? String(mine.numericValue) : '')
+                                    const numericDraftValue = numericDraft === '' ? NaN : Number(numericDraft)
+                                    const canSubmitNumeric = !controlsDisabled && !alreadyAnswered && Number.isFinite(numericDraftValue) && numericDraftValue !== mine?.numericValue
+                                    return (
+                                      <div className="checklist-task__input-row">
+                                        <input
+                                          type="number"
+                                          className="input checklist-task__numeric-input"
+                                          disabled={controlsDisabled || alreadyAnswered}
+                                          min={task.numericMin ?? undefined}
+                                          max={task.numericMax ?? undefined}
+                                          value={draft ?? (mine?.numericValue != null ? String(mine.numericValue) : '')}
+                                          onChange={(e) => setDrafts((prev) => ({ ...prev, [unitKey]: e.target.value }))}
+                                          onKeyDown={(e) => { if (e.key === 'Enter') submitNumericDraft(task) }}
+                                        />
+                                        {task.numericUnit && <span className="checklist-task__unit">{task.numericUnit}</span>}
+                                        {!alreadyAnswered && (
+                                          <button
+                                            type="button"
+                                            className="btn checklist-task__submit"
+                                            disabled={!canSubmitNumeric}
+                                            aria-label="Submit"
+                                            onClick={() => submitNumericDraft(task)}
+                                          >
+                                            {isPending ? <ButtonDots label="Submitting" /> : <Check size={18} aria-hidden="true" />}
+                                          </button>
+                                        )}
+                                        {mine && task.canUndo && (
+                                          <button type="button" className="checklist-task__undo" disabled={undoingUnitKey === unitKey} onClick={() => undoAnswer(task)}>
+                                            {undoingUnitKey === unitKey ? <ButtonDots label="Undoing" /> : 'Undo'}
+                                          </button>
+                                        )}
+                                      </div>
+                                    )
+                                  })()}
                                 </div>
                               )}
                             </div>
