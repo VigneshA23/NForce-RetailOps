@@ -89,8 +89,8 @@ class TaskServiceTest {
     @BeforeEach
     void setUp() {
         org.mockito.Mockito.lenient()
-            .when(taskMakeupLinkService.findPendingMakeupDatesByTaskId(any(), any(), any()))
-            .thenReturn(java.util.Map.of());
+            .when(taskMakeupLinkService.findMovedUnitsTargetingDate(any(), any()))
+            .thenReturn(java.util.List.of());
 
         category = new Category();
         ReflectionTestUtils.setField(category, "id", CATEGORY_ID);
@@ -317,7 +317,7 @@ class TaskServiceTest {
         when(taskResponseEntryRepository.save(any()))
             .thenThrow(new DataIntegrityViolationException("duplicate key value violates unique constraint"));
 
-        TaskResponseSubmitRequest request = new TaskResponseSubmitRequest(1L, true, null, null);
+        TaskResponseSubmitRequest request = new TaskResponseSubmitRequest(1L, true, null, null, null);
 
         assertThatThrownBy(() -> taskService.submitResponse(42L, taskId, request))
             .isInstanceOf(TaskAlreadyCompletedException.class);

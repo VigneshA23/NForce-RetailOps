@@ -224,11 +224,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
-    @ExceptionHandler(TaskMakeupLinkNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleTaskMakeupLinkNotFound(TaskMakeupLinkNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
-    }
-
     @ExceptionHandler(MakeupResponsePermanentException.class)
     public ResponseEntity<Map<String, String>> handleMakeupResponsePermanent(MakeupResponsePermanentException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));

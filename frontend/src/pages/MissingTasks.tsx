@@ -1,22 +1,32 @@
-import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, CalendarX, CheckCircle2, Clock, Link2, Users } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertTriangle, CalendarPlus, CheckCircle2, ChevronLeft, Clock } from 'lucide-react'
 import { ApiError } from '../api/client'
-import { completeMissedTaskNow, getMissedTasks, linkMissedTaskToToday, unlinkMissedTask } from '../api/missedTasks'
+import { getMissedTasks, moveMissedTask } from '../api/missedTasks'
 import type { StoreSummary } from '../types/store'
 import type { MissedTaskDateGroup, MissedTaskInstance } from '../types/missedTasks'
 import { responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions'
 import ButtonDots from '../components/ButtonDots'
+import CalendarPopover from '../components/CalendarPopover'
+import Select from '../components/Select'
+import SearchInput from '../components/SearchInput'
 import './MissingTasks.css'
 
 interface MissingTasksProps {
   store: StoreSummary
-  // Lets the caller (EmployeeShell) refresh its "Missing Tasks" nav badge and
-  // dashboard banner right away after a completion, instead of waiting out
-  // the poll interval.
-  onCompleted?: () => void
+  // Lets the caller (EmployeeShell) refresh its "Missed Tasks" badge/tile and
+  // dashboard banner right away after a move, instead of waiting out the poll
+  // interval.
+  onMoved?: () => void
+  // Returns the employee to the page they navigated from (the daily
+  // checklist) -- this page has no side-nav entry, so it's only ever reached
+  // via the checklist's banner or the Home stat tile.
+  onBack?: () => void
 }
 
-const GENERIC_ERROR = "Couldn't save your response. Please try again."
+const GENERIC_ERROR = "Couldn't move this task. Please try again."
+// Interim cap: a move's target date may be at most this many days out.
+const MAX_MOVE_DAYS_AHEAD = 7
+const ALL = 'all'
 
 function instanceKey(instance: MissedTaskInstance): string {
   return `${instance.taskId}:${instance.date}`
@@ -29,7 +39,20 @@ function parseLocalDate(date: string): Date {
   return new Date(year, month - 1, day)
 }
 
-function formatGroupDate(date: string): string {
+function localDateKey(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function addDays(base: Date, days: number): Date {
+  const next = new Date(base)
+  next.setDate(next.getDate() + days)
+  return next
+}
+
+function formatDate(date: string): string {
   return parseLocalDate(date).toLocaleDateString(undefined, {
     weekday: 'short',
     month: 'short',
@@ -37,12 +60,8 @@ function formatGroupDate(date: string): string {
   })
 }
 
-function formatShortDate(date: string): string {
-  return formatGroupDate(date)
-}
-
-// Only the most recent missed date reads as "Yesterday" -- older groups just
-// show their plain date, same as the reference layout.
+// Only yesterday reads as "Yesterday" -- older dates just show their plain
+// date, same as the reference layout.
 function relativeDayLabel(date: string): string | null {
   const yesterday = new Date()
   yesterday.setHours(0, 0, 0, 0)
@@ -57,46 +76,25 @@ const RESPONSE_TYPE_ORDER: Record<MissedTaskInstance['responseType'], number> = 
   TEXT: 3,
 }
 
-// A stable-but-varied color per category name -- the same category always
-// lands on the same tone, so it doubles as a quick visual grouping cue
-// across rows without needing a legend. Dedicated colors (not the shared
-// badge--info/success/etc tones) so tuning these can't shift the color of
-// unrelated badges elsewhere in the app -- see the .missing-task-row__category--*
-// rules in MissingTasks.css.
-const CATEGORY_TONES = ['blue', 'green', 'yellow', 'purple', 'red'] as const
-
-function categoryTone(categoryName: string): (typeof CATEGORY_TONES)[number] {
-  let hash = 0
-  for (let index = 0; index < categoryName.length; index++) {
-    hash = (hash * 31 + categoryName.charCodeAt(index)) | 0
-  }
-  return CATEGORY_TONES[Math.abs(hash) % CATEGORY_TONES.length]
-}
-
-// Triage ordering within a date: tasks you can clear via today's checklist
-// (no separate answer needed) sort first, then everything else still
-// actionable, then tasks already in flight -- linked, or blocked on a second
-// person -- at the bottom since they need no action from this employee right
-// now. Response type is the tiebreaker within each group so the same kind of
-// control repeats consecutively instead of jumping around the list.
+// Newest date first; within a date, actionable rows before rows already
+// blocked on a second person (nothing to do there right now), with response
+// type as the final tiebreaker so the same kind of task reads consecutively.
 function compareInstances(a: MissedTaskInstance, b: MissedTaskInstance): number {
-  const priority = (instance: MissedTaskInstance): number => {
-    if (instance.state === 'ACTIONABLE' && instance.canCompleteWithToday) return 0
-    if (instance.state === 'ACTIONABLE') return 1
-    if (instance.state === 'LINKED') return 2
-    return 3
-  }
+  if (a.date !== b.date) return a.date < b.date ? 1 : -1
+  const priority = (instance: MissedTaskInstance): number => (instance.state === 'ACTIONABLE' ? 0 : 1)
   const priorityDiff = priority(a) - priority(b)
   if (priorityDiff !== 0) return priorityDiff
   return RESPONSE_TYPE_ORDER[a.responseType] - RESPONSE_TYPE_ORDER[b.responseType]
 }
 
 /**
- * Dedicated "Missing Tasks" page: past-day instances of this store's tasks
- * that were never completed, grouped by date, with actions to complete them
- * now or link them to today's occurrence of the same recurring task.
+ * Dedicated "Missed Tasks" page: past-day instances of this store's tasks
+ * that were never completed, listed as a table (Daily Checklist's own
+ * Outstanding Tasks look) filterable by date and category. The only action
+ * here is Move -- completion always happens through the normal checklist,
+ * once the instance has been moved onto a target date.
  */
-function MissingTasks({ store, onCompleted }: MissingTasksProps) {
+function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
   const [groups, setGroups] = useState<MissedTaskDateGroup[]>([])
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -104,11 +102,18 @@ function MissingTasks({ store, onCompleted }: MissingTasksProps) {
   const [error, setError] = useState<string | null>(null)
   const [pendingKey, setPendingKey] = useState<string | null>(null)
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({})
-  const [drafts, setDrafts] = useState<Record<string, string>>({})
+  const [openCalendarKey, setOpenCalendarKey] = useState<string | null>(null)
+  const [taskSearch, setTaskSearch] = useState('')
+  const [dateFilter, setDateFilter] = useState<string>(ALL)
+  const [categoryFilter, setCategoryFilter] = useState<string>(ALL)
+  const anchorRef = useRef<HTMLButtonElement | null>(null)
   // Cancels a still-in-flight load before starting another -- without this,
   // React's dev-mode double-invoked mount effect fires two real requests to
   // this (slow) endpoint for what is logically a single page load.
   const controllerRef = useRef<AbortController | null>(null)
+
+  const todayKey = localDateKey(new Date())
+  const maxTargetKey = localDateKey(addDays(new Date(), MAX_MOVE_DAYS_AHEAD))
 
   function loadFirstPage() {
     controllerRef.current?.abort()
@@ -126,8 +131,8 @@ function MissingTasks({ store, onCompleted }: MissingTasksProps) {
         if (err instanceof DOMException && err.name === 'AbortError') return
         const message =
           err instanceof ApiError && err.status === 404
-            ? "You're not assigned to this store, so no missing tasks are available."
-            : "Couldn't load missing tasks. Please try again."
+            ? "You're not assigned to this store, so no missed tasks are available."
+            : "Couldn't load missed tasks. Please try again."
         setError(message)
         setGroups([])
         setLoading(false)
@@ -147,7 +152,7 @@ function MissingTasks({ store, onCompleted }: MissingTasksProps) {
       setGroups((previous) => [...previous, ...page.groups])
       setNextCursor(page.nextCursor)
     } catch {
-      setError('Could not load older missing tasks. Please try again.')
+      setError('Could not load older missed tasks. Please try again.')
     } finally {
       setLoadingMore(false)
     }
@@ -166,122 +171,83 @@ function MissingTasks({ store, onCompleted }: MissingTasksProps) {
     )
   }
 
-  async function completeNow(instance: MissedTaskInstance, value: { booleanValue?: boolean; numericValue?: number; textValue?: string }) {
+  async function move(instance: MissedTaskInstance, targetDate: string) {
     const key = instanceKey(instance)
     if (pendingKey) return
     setPendingKey(key)
     setRowErrors((previous) => ({ ...previous, [key]: '' }))
     try {
-      await completeMissedTaskNow(instance.taskId, instance.date, { storeId: store.id, ...value })
-      // A completed instance is no longer missing -- drop it from the list
-      // rather than refetching the whole page.
+      await moveMissedTask(instance.taskId, instance.date, store.id, targetDate)
+      // Creating a move makes the instance disappear from the missed list
+      // immediately -- it now lives on targetDate's checklist instead.
       replaceInstance(key, () => null)
-      setDrafts((previous) => {
-        const next = { ...previous }
-        delete next[key]
-        return next
-      })
-      onCompleted?.()
+      onMoved?.()
     } catch (err) {
       const message = err instanceof ApiError ? err.message : GENERIC_ERROR
       setRowErrors((previous) => ({ ...previous, [key]: message }))
       if (err instanceof ApiError && err.status === 409) loadFirstPage()
     } finally {
       setPendingKey(null)
+      setOpenCalendarKey(null)
     }
   }
 
-  async function linkToday(instance: MissedTaskInstance) {
-    const key = instanceKey(instance)
-    if (pendingKey) return
-    setPendingKey(key)
-    setRowErrors((previous) => ({ ...previous, [key]: '' }))
-    try {
-      const link = await linkMissedTaskToToday(instance.taskId, instance.date, store.id)
-      replaceInstance(key, (current) => ({
-        ...current,
-        state: 'LINKED',
-        canUnlink: true,
-        linkedDate: link.linkedDate,
-      }))
-    } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Couldn't link this task to today. Please try again."
-      setRowErrors((previous) => ({ ...previous, [key]: message }))
-    } finally {
-      setPendingKey(null)
-    }
-  }
+  const allInstances = useMemo(() => groups.flatMap((group) => group.instances), [groups])
+  const totalMissing = allInstances.length
 
-  async function unlink(instance: MissedTaskInstance) {
-    const key = instanceKey(instance)
-    if (pendingKey) return
-    setPendingKey(key)
-    setRowErrors((previous) => ({ ...previous, [key]: '' }))
-    try {
-      await unlinkMissedTask(instance.taskId, instance.date, store.id)
-      replaceInstance(key, (current) => ({
-        ...current,
-        state: 'ACTIONABLE',
-        canUnlink: false,
-        linkedDate: null,
-      }))
-    } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Couldn't remove this link. Please try again."
-      setRowErrors((previous) => ({ ...previous, [key]: message }))
-    } finally {
-      setPendingKey(null)
+  const dateOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const instance of allInstances) {
+      if (!seen.has(instance.date)) {
+        const relative = relativeDayLabel(instance.date)
+        seen.set(instance.date, `${formatDate(instance.date)}${relative ? ` · ${relative}` : ''}`)
+      }
     }
-  }
+    const entries = [...seen.entries()].sort(([a], [b]) => (a < b ? 1 : -1))
+    return [{ value: ALL, label: 'All dates' }, ...entries.map(([value, label]) => ({ value, label }))]
+  }, [allInstances])
 
-  // A single "Complete" button (in the Actions column) drives every response
-  // type -- Yes/No and Number/Text stage their answer in `drafts` first (the
-  // input/requirement column), Done/Checkbox has nothing to stage and
-  // completes directly.
-  function submitDraft(instance: MissedTaskInstance) {
-    const key = instanceKey(instance)
-    if (instance.responseType === 'DONE_NOT_DONE') {
-      completeNow(instance, { booleanValue: true })
-      return
-    }
-    const draft = drafts[key]
-    if (draft === undefined || draft === '') return
-    if (instance.responseType === 'YES_NO') {
-      completeNow(instance, { booleanValue: draft === 'true' })
-    } else if (instance.responseType === 'NUMERIC') {
-      const value = Number(draft)
-      if (!Number.isFinite(value)) return
-      completeNow(instance, { numericValue: value })
-    } else if (instance.responseType === 'TEXT') {
-      const trimmed = draft.trim()
-      if (!trimmed) return
-      completeNow(instance, { textValue: trimmed })
-    }
-  }
+  const categoryOptions = useMemo(() => {
+    const names = [...new Set(allInstances.map((instance) => instance.categoryName))].sort()
+    return [{ value: ALL, label: 'All categories' }, ...names.map((name) => ({ value: name, label: name }))]
+  }, [allInstances])
 
-  const totalMissing = groups.reduce((sum, group) => sum + group.instances.length, 0)
+  const filteredInstances = useMemo(() => {
+    const q = taskSearch.trim().toLowerCase()
+    return allInstances
+      .filter((instance) => dateFilter === ALL || instance.date === dateFilter)
+      .filter((instance) => categoryFilter === ALL || instance.categoryName === categoryFilter)
+      .filter((instance) => !q || instance.taskName.toLowerCase().includes(q) || instance.categoryName.toLowerCase().includes(q))
+      .sort(compareInstances)
+  }, [allInstances, taskSearch, dateFilter, categoryFilter])
 
   return (
     <div className="missing-tasks-page">
       <div className="missing-tasks-page__body">
+        {onBack && (
+          <button type="button" className="missing-tasks-page__back" onClick={onBack}>
+            <ChevronLeft size={16} aria-hidden="true" /> Back
+          </button>
+        )}
         <div className="missing-tasks-page__heading-row">
           <div>
-            <h1 className="missing-tasks-page__heading">Missing Tasks</h1>
-            <p className="missing-tasks-page__subtitle">Catch up on tasks you missed on previous days.</p>
+            <h1 className="missing-tasks-page__heading">Missed Tasks</h1>
+            <p className="missing-tasks-page__subtitle">Move tasks you missed on previous days onto a day you'll complete them.</p>
           </div>
           {!loading && !error && totalMissing > 0 && (
             <span className="missing-tasks-page__count">
-              <CalendarX size={13} aria-hidden="true" />
-              {totalMissing} missing
+              <CalendarPlus size={13} aria-hidden="true" />
+              {totalMissing} missed
             </span>
           )}
         </div>
 
-        {loading && <p className="missing-tasks-page__loading">Loading missing tasks…</p>}
+        {loading && <p className="missing-tasks-page__loading">Loading missed tasks…</p>}
 
         {!loading && error && (
           <div className="missing-tasks-page__empty">
             <AlertTriangle size={32} />
-            <h2>Couldn't load missing tasks</h2>
+            <h2>Couldn't load missed tasks</h2>
             <p>{error}</p>
           </div>
         )}
@@ -289,198 +255,129 @@ function MissingTasks({ store, onCompleted }: MissingTasksProps) {
         {!loading && !error && groups.length === 0 && (
           <div className="missing-tasks-page__empty missing-tasks-page__empty--success">
             <CheckCircle2 size={32} />
-            <h2>Nothing missing</h2>
-            <p>Every scheduled task in the last 90 days has been completed.</p>
+            <h2>Nothing missed</h2>
+            <p>Every scheduled task in the last 7 days has been completed.</p>
           </div>
         )}
 
-        {!loading && !error && groups.map((group) => {
-          const relativeLabel = relativeDayLabel(group.date)
-          return (
-            <section key={group.date} className="missing-tasks-page__group">
-              <div className="missing-tasks-page__group-header">
-                <h2 className="missing-tasks-page__group-date">
-                  {formatGroupDate(group.date)}
-                  {relativeLabel && <span className="missing-tasks-page__group-relative">{relativeLabel}</span>}
-                </h2>
-                <span className="missing-tasks-page__group-count">
-                  {group.instances.length} task{group.instances.length === 1 ? '' : 's'}
-                </span>
+        {!loading && !error && groups.length > 0 && (
+          <>
+            <div className="filter-bar">
+              <div className="filter filter--search">
+                <SearchInput value={taskSearch} onChange={setTaskSearch} placeholder="Search tasks…" variant="filter" />
               </div>
+              <Select
+                className="filter"
+                options={dateOptions}
+                value={dateFilter}
+                onChange={setDateFilter}
+                ariaLabel="Filter missed tasks by date"
+              />
+              <Select
+                className="filter"
+                options={categoryOptions}
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                ariaLabel="Filter missed tasks by category"
+              />
+            </div>
 
-              <div className="missing-tasks-page__table-header">
-                <span>Task information &amp; details</span>
-                <span>Input / requirement</span>
-                <span>Actions</span>
+            {filteredInstances.length === 0 ? (
+              <div className="table-card">
+                <p className="table-card__empty">No missed tasks match your filters.</p>
               </div>
+            ) : (
+              <div className="table-card">
+                <div className="table-scroll">
+                  <table className="data-table missing-tasks-table">
+                    <thead>
+                      <tr>
+                        <th scope="col" className="missing-tasks-table__category-col">Category</th>
+                        <th scope="col">Task</th>
+                        <th scope="col">Date Missed</th>
+                        <th scope="col" className="missing-tasks-table__actions-col">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredInstances.map((instance) => {
+                        const key = instanceKey(instance)
+                        const isPending = pendingKey === key
+                        const rowError = rowErrors[key]
+                        const relativeLabel = relativeDayLabel(instance.date)
+                        const hasResponders = instance.completionType === 'MULTIPLE' && instance.completedByCount > 0
 
-              <div className="missing-tasks-page__list-card">
-                {[...group.instances].sort(compareInstances).map((instance, index) => {
-                  const key = instanceKey(instance)
-                  const isPending = pendingKey === key
-                  const rowError = rowErrors[key]
-                  const draft = drafts[key]
-
-                  return (
-                    <div key={key} className="missing-task-row">
-                      <div className="missing-task-row__col missing-task-row__col--info">
-                        <span className="missing-task-row__index">{index + 1}</span>
-                        <div className="missing-task-row__info">
-                          <span className={`badge missing-task-row__category missing-task-row__category--${categoryTone(instance.categoryName)}`}>
-                            {instance.categoryName}
-                          </span>
-                          <span className="missing-task-row__name">{instance.taskName}</span>
-                          <span className="missing-task-row__meta">
-                            {scheduleSummary(instance.scheduleType, instance.selectedDays, instance.taskStartDate, instance.taskEndDate)}
-                            {' · '}
-                            {responseTypeLabel(instance.responseType)}
-                          </span>
-                          {instance.completionType === 'MULTIPLE' && (
-                            <span className="missing-task-row__multi">
-                              <Users size={11} aria-hidden="true" />
-                              {instance.completedByCount}/{instance.totalActiveEmployees} responded
-                            </span>
-                          )}
-                          {rowError && <p className="missing-task-row__error">{rowError}</p>}
-                        </div>
-                      </div>
-
-                      <div className="missing-task-row__col missing-task-row__col--input">
-                        {instance.state === 'ACTIONABLE' && instance.responseType === 'YES_NO' && (
-                          <div className="missing-task-row__btn-pair">
-                            <button
-                              type="button"
-                              className={`btn btn--sm ${draft === 'false' ? 'btn--dark' : 'btn--secondary'}`}
-                              disabled={isPending}
-                              onClick={() => setDrafts((previous) => ({ ...previous, [key]: 'false' }))}
-                            >
-                              No
-                            </button>
-                            <button
-                              type="button"
-                              className={`btn btn--sm ${draft === 'true' ? 'btn--dark' : 'btn--secondary'}`}
-                              disabled={isPending}
-                              onClick={() => setDrafts((previous) => ({ ...previous, [key]: 'true' }))}
-                            >
-                              Yes
-                            </button>
-                          </div>
-                        )}
-
-                        {instance.state === 'ACTIONABLE' && instance.responseType === 'NUMERIC' && (
-                          <div className="missing-task-row__input-wrap">
-                            <input
-                              type="number"
-                              className="input missing-task-row__numeric-input"
-                              disabled={isPending}
-                              min={instance.numericMin ?? undefined}
-                              max={instance.numericMax ?? undefined}
-                              placeholder={
-                                instance.numericMin != null && instance.numericMax != null
-                                  ? `${instance.numericMin.toLocaleString()} – ${instance.numericMax.toLocaleString()}`
-                                  : undefined
-                              }
-                              value={draft ?? ''}
-                              onChange={(e) => setDrafts((previous) => ({ ...previous, [key]: e.target.value }))}
-                            />
-                            {instance.numericUnit && <span className="missing-task-row__unit">{instance.numericUnit}</span>}
-                          </div>
-                        )}
-
-                        {instance.state === 'ACTIONABLE' && instance.responseType === 'TEXT' && (
-                          <div className="missing-task-row__input-wrap">
-                            <input
-                              type="text"
-                              className="input missing-task-row__text-input"
-                              disabled={isPending}
-                              maxLength={instance.textMaxLength ?? undefined}
-                              placeholder={instance.responseNote ?? 'Enter your response…'}
-                              value={draft ?? ''}
-                              onChange={(e) => setDrafts((previous) => ({ ...previous, [key]: e.target.value }))}
-                            />
-                            {instance.textMaxLength != null && (
-                              <span className="missing-task-row__char-count">{(draft ?? '').length}/{instance.textMaxLength}</span>
-                            )}
-                          </div>
-                        )}
-
-                        {instance.description && <span className="missing-task-row__hint">{instance.description}</span>}
-                      </div>
-
-                      <div className="missing-task-row__col missing-task-row__col--actions">
-                        {instance.state === 'LINKED' && (
-                          <>
-                            <span className="badge badge--info">
-                              <Link2 size={12} aria-hidden="true" /> Linked to today
-                            </span>
-                            <span className="missing-task-row__linked-by">
-                              {instance.canUnlink ? 'Linked by you' : 'Linked by a teammate'}
-                            </span>
-                            {instance.canUnlink && (
-                              <button
-                                type="button"
-                                className="btn btn--secondary btn--sm"
-                                disabled={isPending}
-                                onClick={() => unlink(instance)}
-                              >
-                                {isPending ? <ButtonDots label="Removing" /> : 'Cancel link'}
-                              </button>
-                            )}
-                          </>
-                        )}
-
-                        {instance.state === 'WAITING_ON_SECOND' && (
-                          <>
-                            <span className="badge badge--warning">
-                              <Clock size={12} aria-hidden="true" /> Waiting on second person
-                            </span>
-                            <span className="missing-task-row__waiting-note">You responded · any teammate can finish it</span>
-                          </>
-                        )}
-
-                        {instance.state === 'ACTIONABLE' && (
-                          <>
-                            <button
-                              type="button"
-                              className="btn btn--dark btn--sm"
-                              disabled={isPending}
-                              onClick={() => submitDraft(instance)}
-                            >
-                              {isPending ? <ButtonDots label="Saving" /> : 'Complete'}
-                            </button>
-
-                            {instance.canCompleteWithToday && (
-                              <div className="missing-task-row__link-today">
+                        return (
+                          <tr key={key}>
+                            <td data-label="Category" className="missing-tasks-table__category-col">{instance.categoryName}</td>
+                            <td data-label="Task">
+                              <div className="missing-tasks-table__task-cell">
+                                <span className="missing-tasks-table__task-name">{instance.taskName}</span>
+                                <span className="missing-tasks-table__task-meta">
+                                  {scheduleSummary(instance.scheduleType, instance.selectedDays, instance.taskStartDate, instance.taskEndDate)}
+                                  {' · '}
+                                  {responseTypeLabel(instance.responseType)}
+                                </span>
+                                {instance.description && <span className="missing-tasks-table__task-meta">{instance.description}</span>}
+                                {hasResponders && (
+                                  <span className="missing-tasks-table__task-meta">
+                                    {instance.completedByCount}/{instance.totalActiveEmployees} responded
+                                  </span>
+                                )}
+                                {rowError && <span className="missing-task-row__error">{rowError}</span>}
+                              </div>
+                            </td>
+                            <td data-label="Date Missed">
+                              <span className="missing-tasks-table__date-cell">
+                                {formatDate(instance.date)}
+                                {relativeLabel && <span className="missing-tasks-table__date-relative">{relativeLabel}</span>}
+                              </span>
+                            </td>
+                            <td data-label="Actions" className="missing-tasks-table__actions-col">
+                              {instance.state === 'ACTIONABLE' ? (
                                 <button
                                   type="button"
-                                  className="btn btn--ghost btn--sm missing-task-row__link-today-btn"
+                                  className="btn btn--dark btn--sm missing-tasks-table__move-btn"
                                   disabled={isPending}
-                                  onClick={() => linkToday(instance)}
-                                  aria-describedby={`link-today-hint-${key}`}
+                                  ref={(el) => {
+                                    if (openCalendarKey === key) anchorRef.current = el
+                                  }}
+                                  onClick={() => setOpenCalendarKey((current) => (current === key ? null : key))}
                                 >
-                                  <Link2 size={13} aria-hidden="true" />
-                                  {isPending ? <ButtonDots label="Linking" /> : 'Complete with Today'}
+                                  <CalendarPlus size={13} aria-hidden="true" />
+                                  {isPending ? <ButtonDots label="Moving" /> : 'Move'}
                                 </button>
-                                <span className="missing-task-row__link-today-hint" id={`link-today-hint-${key}`}>
-                                  When today's task is marked complete, this one from {formatShortDate(instance.date)} is marked complete too.
+                              ) : (
+                                <span className="badge badge--warning">
+                                  <Clock size={12} aria-hidden="true" /> Waiting on 2nd
                                 </span>
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
+                              )}
+                              {openCalendarKey === key && (
+                                <CalendarPopover
+                                  value={todayKey}
+                                  min={todayKey}
+                                  max={maxTargetKey}
+                                  isOpen
+                                  onClose={() => setOpenCalendarKey(null)}
+                                  onSelect={(date) => move(instance, date)}
+                                  anchorRef={anchorRef}
+                                />
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </section>
-          )
-        })}
+            )}
+          </>
+        )}
 
         {!loading && !error && nextCursor && (
           <div className="missing-tasks-page__load-more">
             <button type="button" className="btn btn--secondary btn--sm" disabled={loadingMore} onClick={loadMore}>
-              {loadingMore ? <ButtonDots label="Loading" /> : 'Load older missing tasks'}
+              {loadingMore ? <ButtonDots label="Loading" /> : 'Load older missed tasks'}
             </button>
           </div>
         )}
