@@ -256,6 +256,8 @@ public class SuperAdminOperationsService {
         return new StoreOperationsSummaryResponse(
             storeId,
             link.getStore().getName(),
+            link.getStore().getStoreCode(),
+            link.getStore().getLocation(),
             link.getOwner().getFullName(),
             link.getOwner().getAvatarUrl(),
             total,
