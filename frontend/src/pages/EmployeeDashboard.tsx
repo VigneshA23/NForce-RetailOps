@@ -20,7 +20,7 @@ import type { ChecklistCategory, ChecklistTask, TaskResponseSummary } from '../t
 import StatCard from '../components/StatCard'
 import SearchInput from '../components/SearchInput'
 import ButtonDots from '../components/ButtonDots'
-import MissedTasksPanel from '../components/MissedTasksPanel'
+import MissedTasksBanner from '../components/MissedTasksBanner'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import './EmployeeDashboard.css'
 import '../styles/filters.css'
@@ -31,10 +31,14 @@ interface EmployeeDashboardProps {
   loggingOut?: boolean
   employeeId: number | null
   employeeName?: string
-  onNavigate?: (tab: 'audits' | 'issues') => void
   // Set from a search-result click to scroll to and briefly highlight that
   // exact task's card -- `ts` makes re-selecting the same task fire again.
   focusTaskId?: { taskId: number; ts: number }
+  // Count of past-day tasks still missing -- powers the banner that links to
+  // the dedicated Missing Tasks page. Owned by EmployeeShell (useMissedTasksBadge)
+  // so it stays in sync with the nav badge instead of being fetched twice.
+  missedTasksCount?: number
+  onNavigate?: (tab: 'audits' | 'issues' | 'missing') => void
 }
 
 function todayDateKey(): string {
@@ -243,7 +247,7 @@ function showsCompletedByCount(task: ChecklistTask): boolean {
   return task.completionType === 'MULTIPLE' && task.completedByCount > 0
 }
 
-function EmployeeDashboard({ store, employeeId, employeeName, onNavigate, focusTaskId }: EmployeeDashboardProps) {
+function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount = 0, onNavigate, focusTaskId }: EmployeeDashboardProps) {
   const isMobile = useIsMobile()
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
   const [loading, setLoading] = useState(true)
@@ -535,7 +539,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate, focusT
           <StatCard icon={Flag} label="Flagged" value={flagCount} tone="warning" />
         </div>
 
-        <MissedTasksPanel store={store} />
+        <MissedTasksBanner count={missedTasksCount} onClick={() => onNavigate?.('missing')} />
 
         {loading && <p className="employee-dashboard-loading">Loading today's checklist…</p>}
 

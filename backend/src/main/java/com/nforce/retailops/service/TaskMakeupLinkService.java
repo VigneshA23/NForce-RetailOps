@@ -23,6 +23,8 @@ import com.nforce.retailops.repository.TaskMakeupLinkRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import com.nforce.retailops.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -39,6 +41,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -57,8 +60,14 @@ import java.util.stream.Collectors;
 @Service
 public class TaskMakeupLinkService {
 
-    // 90-day hard cap, enforced server-side regardless of what a client requests.
-    static final int MAX_LOOKBACK_DAYS = 90;
+    private static final Logger log = LoggerFactory.getLogger(TaskMakeupLinkService.class);
+
+    // Hard cap, enforced server-side regardless of what a client requests.
+    // TEMPORARILY dropped from 90 to 7 to shrink the query/response size while we
+    // check whether that's what's behind this endpoint's slow (~28-30s) responses.
+    // Revert to 90 once that's confirmed either way, and design the real fix
+    // (e.g. a narrower default with explicit "load more history" paging) properly.
+    static final int MAX_LOOKBACK_DAYS = 7;
     private static final int DEFAULT_PAGE_DATE_GROUPS = 10;
     private static final int MAX_PAGE_DATE_GROUPS = 30;
 
@@ -114,16 +123,32 @@ public class TaskMakeupLinkService {
     // here would mark that same transaction read-only and could reject the UPDATE).
     @Transactional
     public MissedTasksPageResponse getMissedTasks(Long employeeUserId, Long storeId, String cursor, Integer limit) {
-        userProfileService.requireAssignedStore(employeeUserId, storeId);
-        expireStalePendingLinks();
+        // Diagnostic timing: each timed() call brackets exactly one round trip to the
+        // database (request sent -> response received). Anything NOT inside a timed()
+        // call -- the per-day matching loop, DTO construction -- is local, in-process
+        // computation, not a DB wait. Compare the sum of the DB lines below against
+        // "TOTAL" to see how much of a slow request is the database vs. this server.
+        long overallStart = System.nanoTime();
+        log.info("[MissedTasks] START employeeUserId={} storeId={}", employeeUserId, storeId);
+
+        timed("userProfileService.requireAssignedStore", () -> {
+            userProfileService.requireAssignedStore(employeeUserId, storeId);
+            return null;
+        });
+        timed("expireStalePendingLinks", () -> {
+            expireStalePendingLinks();
+            return null;
+        });
 
         int pageSize = limit == null ? DEFAULT_PAGE_DATE_GROUPS : Math.min(Math.max(limit, 1), MAX_PAGE_DATE_GROUPS);
         LocalDate before = parseCursor(cursor);
 
-        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
+        StoreOwner storeOwner = timed("storeOwnerRepository.findByStoreId",
+            () -> storeOwnerRepository.findByStoreId(storeId))
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         Long ownerId = storeOwner.resolveTaskOwnerId();
         if (ownerId == null) {
+            log.info("[MissedTasks] TOTAL {} ms (no task owner)", elapsedMs(overallStart));
             return new MissedTasksPageResponse(List.of(), null, 0);
         }
 
@@ -131,35 +156,46 @@ public class TaskMakeupLinkService {
         LocalDate cutoff = today.minusDays(MAX_LOOKBACK_DAYS);
         LocalDate lastMissableDay = today.minusDays(1);
         if (lastMissableDay.isBefore(cutoff)) {
+            log.info("[MissedTasks] TOTAL {} ms (store younger than lookback window)", elapsedMs(overallStart));
             return new MissedTasksPageResponse(List.of(), null, 0);
         }
 
-        List<Task> candidateTasks = taskRepository.findForStoreAndDateRange(ownerId, storeId, cutoff, lastMissableDay);
+        List<Task> candidateTasks = timed("taskRepository.findForStoreAndDateRange",
+            () -> taskRepository.findForStoreAndDateRange(ownerId, storeId, cutoff, lastMissableDay));
+        log.info("[MissedTasks] candidateTasks={}", candidateTasks.size());
         if (candidateTasks.isEmpty()) {
+            log.info("[MissedTasks] TOTAL {} ms (no candidate tasks)", elapsedMs(overallStart));
             return new MissedTasksPageResponse(List.of(), null, 0);
         }
         List<Long> taskIds = candidateTasks.stream().map(Task::getId).toList();
 
+        List<TaskResponseEntry> pastResponses = timed(
+            "taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateBetweenAndActiveTrue",
+            () -> taskResponseEntryRepository
+                .findByTaskIdInAndStoreIdAndResponseDateBetweenAndActiveTrue(taskIds, storeId, cutoff, lastMissableDay));
+        log.info("[MissedTasks] pastResponses={}", pastResponses.size());
         Map<TaskDateKey, Set<Long>> respondersByTaskDate = new HashMap<>();
-        for (TaskResponseEntry entry : taskResponseEntryRepository
-            .findByTaskIdInAndStoreIdAndResponseDateBetweenAndActiveTrue(taskIds, storeId, cutoff, lastMissableDay)) {
+        for (TaskResponseEntry entry : pastResponses) {
             respondersByTaskDate
                 .computeIfAbsent(new TaskDateKey(entry.getTask().getId(), entry.getResponseDate()), key -> new HashSet<>())
                 .add(entry.getEmployee().getId());
         }
 
-        List<TaskMakeupLink> pendingLinks = taskMakeupLinkRepository
-            .findByTaskIdInAndStoreIdAndStatus(taskIds, storeId, MakeupLinkStatus.PENDING);
+        List<TaskMakeupLink> pendingLinks = timed("taskMakeupLinkRepository.findByTaskIdInAndStoreIdAndStatus",
+            () -> taskMakeupLinkRepository.findByTaskIdInAndStoreIdAndStatus(taskIds, storeId, MakeupLinkStatus.PENDING));
         Map<TaskDateKey, TaskMakeupLink> pendingByTaskPastDate = pendingLinks.stream()
             .collect(Collectors.toMap(l -> new TaskDateKey(l.getTask().getId(), l.getPastDate()), l -> l));
 
+        List<TaskResponseEntry> todayResponses = timed(
+            "taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue",
+            () -> taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue(taskIds, storeId, today));
         Map<Long, Set<Long>> todayRespondersByTask = new HashMap<>();
-        for (TaskResponseEntry entry : taskResponseEntryRepository
-            .findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue(taskIds, storeId, today)) {
+        for (TaskResponseEntry entry : todayResponses) {
             todayRespondersByTask.computeIfAbsent(entry.getTask().getId(), key -> new HashSet<>()).add(entry.getEmployee().getId());
         }
 
-        int totalActiveEmployees = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId);
+        int totalActiveEmployees = timed("storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue",
+            () -> storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId));
 
         // TreeMap with a reverse comparator keeps every date bucket in descending order
         // as instances are appended, task-by-task -- candidateTasks already arrives
@@ -167,6 +203,7 @@ public class TaskMakeupLinkService {
         // ordered too, with no extra sort needed.
         TreeMap<LocalDate, List<MissedTaskInstanceResponse>> instancesByDate = new TreeMap<>(Collections.reverseOrder());
 
+        long loopStart = System.nanoTime();
         for (Task task : candidateTasks) {
             LocalDate taskStart = task.getStartDate().isAfter(cutoff) ? task.getStartDate() : cutoff;
             LocalDate taskEnd = task.getEndDate() != null && task.getEndDate().isBefore(lastMissableDay)
@@ -196,15 +233,20 @@ public class TaskMakeupLinkService {
                     && !task.getCompletionType().isSatisfiedBy(todayRespondersByTask.getOrDefault(task.getId(), Set.of()).size());
 
                 instancesByDate.computeIfAbsent(date, key -> new ArrayList<>()).add(new MissedTaskInstanceResponse(
-                    task.getId(), task.getName(), task.getDescription(), task.getResponseType(), task.getResponseNote(),
+                    task.getId(), task.getName(), task.getCategory().getName(), task.getDescription(),
+                    task.getResponseType(), task.getResponseNote(),
                     task.getNumericUnit(), task.getNumericMin(), task.getNumericMax(), task.getTextMaxLength(),
-                    task.getCompletionType(), date, state, responders.size(), totalActiveEmployees,
+                    task.getCompletionType(),
+                    task.getScheduleType(), task.getSelectedDays().stream().sorted().toList(),
+                    task.getStartDate(), task.getEndDate(),
+                    date, state, responders.size(), totalActiveEmployees,
                     canCompleteWithToday,
                     pendingLink != null && pendingLink.getCreatedBy().getId().equals(employeeUserId),
                     pendingLink != null ? pendingLink.getLinkedDate() : null
                 ));
             }
         }
+        log.info("[MissedTasks] in-memory day-matching loop (LOCAL, no DB) took {} ms", elapsedMs(loopStart));
 
         List<LocalDate> pageDates = instancesByDate.keySet().stream()
             .filter(date -> before == null || date.isBefore(before))
@@ -220,7 +262,24 @@ public class TaskMakeupLinkService {
         String nextCursor = hasMore ? pageDates.get(pageDates.size() - 1).toString() : null;
 
         int totalInstances = instancesByDate.values().stream().mapToInt(List::size).sum();
+        log.info("[MissedTasks] TOTAL {} ms (request received -> response ready, DB + local combined)", elapsedMs(overallStart));
         return new MissedTasksPageResponse(groups, nextCursor, totalInstances);
+    }
+
+    // Brackets exactly one DB round trip: request sent -> response received. Every
+    // repository call in getMissedTasks is wrapped in this so the log makes it
+    // unambiguous which lines are "waiting on the database" vs. everything else
+    // (in-process Java, no network/DB involved).
+    private <T> T timed(String label, Supplier<T> query) {
+        long start = System.nanoTime();
+        log.info("[MissedTasks] -> sending to DB: {}", label);
+        T result = query.get();
+        log.info("[MissedTasks] <- received from DB: {} ({} ms)", label, elapsedMs(start));
+        return result;
+    }
+
+    private static long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000;
     }
 
     @Transactional
