@@ -5,6 +5,8 @@ import java.time.OffsetDateTime;
 public record StoreOperationsSummaryResponse(
     Long storeId,
     String storeName,
+    Long storeCode,
+    String storeLocation,
     String ownerName,
     String ownerAvatarUrl,
     int totalTasks,
