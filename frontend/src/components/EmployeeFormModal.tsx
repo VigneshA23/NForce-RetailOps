@@ -8,6 +8,7 @@ import EmployeeFormFields, {
 } from './EmployeeFormFields';
 import Modal from './Modal';
 import ButtonDots from './ButtonDots';
+import SearchableSelect from './SearchableSelect';
 import './EmployeeFormModal.css';
 
 interface EmployeeFormModalProps {
@@ -50,12 +51,6 @@ function EmployeeFormModal({
 
   function updateField<K extends keyof EmployeeFormValues>(field: K, value: EmployeeFormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
-  }
-
-  function toggleStore(storeId: number) {
-    setSelectedStoreIds((current) =>
-      current.includes(storeId) ? current.filter((id) => id !== storeId) : [...current, storeId],
-    );
   }
 
   function handleSubmit(event: FormEvent) {
@@ -108,18 +103,26 @@ function EmployeeFormModal({
           {availableStores && availableStores.length > 0 && (
             <div className="form-field--full employee-form__store-section">
               <span className="form-field__label">Assign to Stores <span className="form-field__required">*</span></span>
-              <div className="employee-form__store-list">
-                {availableStores.map((store) => (
-                  <label key={store.id} className="employee-form__store-option">
-                    <input
-                      type="checkbox"
-                      checked={selectedStoreIds.includes(store.id)}
-                      onChange={() => toggleStore(store.id)}
-                    />
-                    {store.name}
-                  </label>
-                ))}
-              </div>
+              <SearchableSelect
+                id="employee-stores"
+                placeholder="Select store(s)"
+                multiple
+                options={availableStores.map((store) => ({ id: store.id, label: store.name }))}
+                selectedIds={selectedStoreIds}
+                // Employees don't have a persisted "applies to all stores" concept
+                // (unlike Tasks/Categories) -- this is a pure select-all/clear-all
+                // convenience, not a separate stored flag.
+                allOption={{
+                  label: 'All Stores',
+                  selected: availableStores.every((store) => selectedStoreIds.includes(store.id)),
+                  onToggle: () => setSelectedStoreIds((current) =>
+                    availableStores.every((store) => current.includes(store.id))
+                      ? []
+                      : availableStores.map((store) => store.id),
+                  ),
+                }}
+                onChange={setSelectedStoreIds}
+              />
               {errors.storeIds && <p className="form-field__error">{errors.storeIds}</p>}
             </div>
           )}

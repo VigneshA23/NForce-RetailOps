@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { CategoryFormValues, CategoryStoreOption } from '../types/category';
 import Modal from './Modal';
 import FormField from './FormField';
-import CategoryStorePicker from './CategoryStorePicker';
+import SearchableSelect from './SearchableSelect';
 import ButtonDots from './ButtonDots';
 
 interface CategoryFormModalProps {
@@ -16,7 +16,10 @@ interface CategoryFormModalProps {
   onSubmit: (values: CategoryFormValues) => void;
 }
 
-const EMPTY_VALUES: CategoryFormValues = { name: '', appliesToAllStores: true, storeIds: [] };
+// Matches the Task form's default -- starts with nothing selected (no store
+// pre-chosen) rather than pre-checking "All Stores", so creating a category
+// requires a deliberate choice instead of silently defaulting to every store.
+const EMPTY_VALUES: CategoryFormValues = { name: '', appliesToAllStores: false, storeIds: [] };
 
 function CategoryFormModal({
   isOpen,
@@ -79,10 +82,29 @@ function CategoryFormModal({
           />
         </FormField>
         <FormField label="Applies To" htmlFor="category-stores">
-          <CategoryStorePicker
-            stores={availableStores}
-            value={{ appliesToAllStores: values.appliesToAllStores, storeIds: values.storeIds }}
-            onChange={(next) => setValues((current) => ({ ...current, ...next }))}
+          <SearchableSelect
+            id="category-stores"
+            placeholder="Select store(s)"
+            multiple
+            options={availableStores.map((store) => ({ id: store.id, label: store.name }))}
+            selectedIds={values.storeIds}
+            allOption={{
+              label: 'All Stores',
+              selected: values.appliesToAllStores,
+              onToggle: () => setValues((current) => ({ ...current, appliesToAllStores: !current.appliesToAllStores, storeIds: [] })),
+            }}
+            onChange={(ids) => {
+              // Checking every individual store by hand is the same intent as
+              // checking "All Stores" -- promote to it so the category also
+              // covers stores added later, not just today's full list.
+              const everyStoreSelected = availableStores.length > 0 && availableStores.every((store) => ids.includes(store.id));
+              setValues((current) => ({
+                ...current,
+                ...(everyStoreSelected
+                  ? { appliesToAllStores: true, storeIds: [] }
+                  : { appliesToAllStores: false, storeIds: ids }),
+              }));
+            }}
           />
         </FormField>
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
