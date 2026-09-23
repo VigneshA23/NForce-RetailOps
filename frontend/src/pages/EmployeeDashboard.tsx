@@ -20,7 +20,7 @@ import type { ChecklistCategory, ChecklistTask, TaskResponseSummary } from '../t
 import StatCard from '../components/StatCard'
 import SearchInput from '../components/SearchInput'
 import ButtonDots from '../components/ButtonDots'
-import MissedTasksPanel from '../components/MissedTasksPanel'
+import MissedTasksBanner from '../components/MissedTasksBanner'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import './EmployeeDashboard.css'
 import '../styles/filters.css'
@@ -31,7 +31,11 @@ interface EmployeeDashboardProps {
   loggingOut?: boolean
   employeeId: number | null
   employeeName?: string
-  onNavigate?: (tab: 'audits' | 'issues') => void
+  // Count of past-day tasks still missing -- powers the banner that links to
+  // the dedicated Missing Tasks page. Owned by EmployeeShell (useMissedTasksBadge)
+  // so it stays in sync with the nav badge instead of being fetched twice.
+  missedTasksCount?: number
+  onNavigate?: (tab: 'audits' | 'issues' | 'missing') => void
 }
 
 function todayDateKey(): string {
@@ -240,7 +244,7 @@ function showsCompletedByCount(task: ChecklistTask): boolean {
   return task.completionType === 'MULTIPLE' && task.completedByCount > 0
 }
 
-function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: EmployeeDashboardProps) {
+function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount = 0, onNavigate }: EmployeeDashboardProps) {
   const isMobile = useIsMobile()
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
   const [loading, setLoading] = useState(true)
@@ -512,7 +516,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, onNavigate }: Empl
           <StatCard icon={Flag} label="Flagged" value={flagCount} tone="warning" />
         </div>
 
-        <MissedTasksPanel store={store} />
+        <MissedTasksBanner count={missedTasksCount} onClick={() => onNavigate?.('missing')} />
 
         {loading && <p className="employee-dashboard-loading">Loading today's checklist…</p>}
 

@@ -5,6 +5,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,6 +20,8 @@ import java.io.IOException;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtService jwtService;
     private final AppUserDetailsService userDetailsService;
@@ -48,13 +52,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authHeader.substring(7);
 
+        // Diagnostic timing: this runs on EVERY authenticated request, BEFORE it
+        // reaches any controller -- so if a request looks fast once it hits a
+        // controller's own timing (e.g. TaskMakeupLinkService's [MissedTasks] log)
+        // but the client already timed out, the gap is almost always sitting here,
+        // in one of these two DB calls, not in the endpoint's own logic.
+        long filterStart = System.nanoTime();
+        log.info("[JwtFilter] START {} {}", request.getMethod(), request.getRequestURI());
+
         if (jwtService.isTokenValid(token)) {
             String tokenId = jwtService.extractTokenId(token);
 
             // The JWT signature/expiry is valid, but the session behind it may have
             // been revoked (logout) or expired from inactivity — that check is the
             // server-side source of truth, not just the token's own expiry.
-            if (sessionService.validateAndTouch(tokenId)) {
+            long sessionStart = System.nanoTime();
+            log.info("[JwtFilter] -> sending to DB: sessionService.validateAndTouch");
+            boolean sessionValid = sessionService.validateAndTouch(tokenId);
+            log.info("[JwtFilter] <- received from DB: sessionService.validateAndTouch ({} ms)", elapsedMs(sessionStart));
+
+            if (sessionValid) {
                 String email = jwtService.extractEmail(token);
 
                 // The account itself is re-read on every request, so an account
@@ -62,9 +79,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // rather than at token expiry. Leaving the SecurityContext unset
                 // makes this fall through to a clean 401 from the entry point.
                 UserDetails userDetails;
+                long userLookupStart = System.nanoTime();
+                log.info("[JwtFilter] -> sending to DB: userDetailsService.loadUserByUsername");
                 try {
                     userDetails = userDetailsService.loadUserByUsername(email);
+                    log.info("[JwtFilter] <- received from DB: userDetailsService.loadUserByUsername ({} ms)", elapsedMs(userLookupStart));
                 } catch (UsernameNotFoundException ex) {
+                    log.info("[JwtFilter] <- received from DB: userDetailsService.loadUserByUsername, not found ({} ms)", elapsedMs(userLookupStart));
                     sessionService.invalidate(tokenId);
                     filterChain.doFilter(request, response);
                     return;
@@ -91,7 +112,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
 
+        log.info("[JwtFilter] DONE {} {} -- handing off to controller ({} ms)",
+            request.getMethod(), request.getRequestURI(), elapsedMs(filterStart));
         filterChain.doFilter(request, response);
+    }
+
+    private static long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000;
     }
 
     // Only a plain owner/employee account (AppUserDetails) can carry a temp

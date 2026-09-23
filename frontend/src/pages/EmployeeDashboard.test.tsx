@@ -13,13 +13,6 @@ vi.mock('../api/tasks', () => ({
   undoTaskResponse: vi.fn(),
 }))
 
-vi.mock('../api/missedTasks', () => ({
-  getMissedTasks: vi.fn().mockResolvedValue({ groups: [], nextCursor: null, totalInstances: 0 }),
-  completeMissedTaskNow: vi.fn(),
-  linkMissedTaskToToday: vi.fn(),
-  unlinkMissedTask: vi.fn(),
-}))
-
 const mockGetDailyChecklist = vi.mocked(tasksApi.getDailyChecklist)
 const mockSubmitTaskResponse = vi.mocked(tasksApi.submitTaskResponse)
 
