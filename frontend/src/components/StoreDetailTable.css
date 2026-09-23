@@ -673,26 +673,40 @@
      two-column Response/Employee key-value row. ── */
   .store-detail-table__card--outstanding .data-table tbody tr {
     display: grid !important;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr auto;
     align-items: start;
     column-gap: var(--space-sm);
+    row-gap: 2px;
     grid-template-areas:
-      'category header-right'
-      'task     task'
-      'response employee';
+      'category status'
+      'task     task';
   }
 
   .store-detail-table__card--outstanding .data-table tbody td.store-detail-table__category {
     grid-area: category;
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    max-width: 100%;
+    padding: 3px 7px !important;
+    border: 1px solid var(--color-badge-outline-border);
+    border-radius: 4px;
+    background: var(--color-badge-outline-bg);
+    color: var(--color-text-secondary);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
   }
 
   .store-detail-table__card--outstanding .data-table tbody td.store-detail-table__status-cell {
-    grid-area: header-right;
+    grid-area: status;
     display: flex !important;
     align-items: center;
     justify-content: flex-end;
-    gap: 6px;
-    padding-top: 0 !important;
+    gap: 0;
+    padding: 0 !important;
     border-top: none !important;
   }
 
@@ -702,66 +716,41 @@
   }
 
   .store-detail-table__card--outstanding .store-detail-table__row-menu-trigger {
-    display: inline-flex;
+    display: none;
   }
 
   .store-detail-table__card--outstanding .data-table tbody td[data-label='Task'] {
     grid-area: task;
+    margin-top: 4px;
   }
 
   .store-detail-table__card--outstanding .data-table tbody td[data-label='Response'],
   .store-detail-table__card--outstanding .data-table tbody td[data-label='Employee'] {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 10px 12px;
-    background: var(--color-bg-page);
-    border-radius: var(--radius-sm);
-    border-top: none !important;
+    display: none !important;
   }
 
-  .store-detail-table__card--outstanding .data-table tbody td[data-label='Response'] {
-    grid-area: response;
-  }
-
-  /* The shared rule above hides the "Employee" caption unconditionally
-     (the history-variant avatar row doesn't need it) -- restore it here so
-     the outstanding variant's two-column boxes both get a label. `display:
-     block` keeps it on its own line even when the value is a bare "—" text
-     node (no wrapping span), which otherwise renders inline right after it. */
-  .store-detail-table__card--outstanding .data-table tbody td[data-label='Employee']::before {
-    content: attr(data-label);
+  .store-detail-table__card--outstanding .store-detail-table__task-name {
     display: block;
-  }
-
-  .store-detail-table__card--outstanding .data-table tbody td[data-label='Response']::before {
-    display: block;
-  }
-
-  .store-detail-table__card--outstanding .data-table tbody td[data-label='Employee'] {
-    grid-area: employee;
-  }
-
-  .store-detail-table__card--outstanding .store-detail-table__response-value {
-    background: transparent;
-    padding: 0;
-    font-size: 14px;
-    font-weight: 700;
+    font-size: 13px;
+    line-height: 1.3;
     color: var(--color-text-primary);
   }
 
-  /* Two-column boxes are plain key/value text -- avatar, response time and
-     the per-responder edit/flag icons (replaced by the "⋮" row menu above)
-     stay in the "history" card only. */
-  .store-detail-table__card--outstanding .user-avatar,
-  .store-detail-table__card--outstanding .store-detail-table__response-time,
-  .store-detail-table__card--outstanding .store-detail-table__inline-actions {
-    display: none;
+  .store-detail-table__card--outstanding .store-detail-table__task-meta {
+    display: block;
+    margin-top: 2px;
+    font-size: 10px;
+    line-height: 1.25;
+    color: var(--color-text-muted);
   }
 
-  .store-detail-table__card--outstanding .store-detail-table__employee-name {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--color-text-primary);
+  .store-detail-table__card--outstanding .badge--outline {
+    padding: 3px 8px;
+    border-color: var(--color-badge-outline-border);
+    background: var(--color-badge-outline-bg);
+    color: var(--color-text-secondary);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
   }
 }

@@ -615,10 +615,11 @@
 
 .store-detail-outstanding__filter-bar {
   border: none;
-  border-top: 1px solid var(--color-border);
+  border-top: 0;
   border-radius: 0;
   margin-bottom: 0;
   background: transparent;
+  box-shadow: none;
   padding: 10px 14px;
 }
 
@@ -628,6 +629,84 @@
   font-size: 13px;
   color: var(--color-text-muted);
   text-align: center;
+}
+
+@media (--mobile) {
+  .store-detail-outstanding {
+    margin-bottom: var(--space-md);
+    border-radius: 16px;
+    background: var(--color-surface-card);
+  }
+
+  .store-detail-outstanding__toggle {
+    min-height: 42px;
+    padding: 10px 14px 8px;
+  }
+
+  .store-detail-outstanding__title {
+    gap: 6px;
+    font-size: 12px;
+    letter-spacing: 0.01em;
+  }
+
+  .store-detail-outstanding__count {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .store-detail-outstanding__filter-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 4px 10px 8px;
+    border: 0 !important;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: none;
+  }
+
+  .store-detail-outstanding__filter-bar .filter,
+  .store-detail-outstanding__filter-bar .filter--search {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+
+  .store-detail-outstanding__filter-bar .filter--search input,
+  .store-detail-outstanding__filter-bar .select {
+    min-height: 30px;
+    font-size: 11px;
+  }
+
+  .store-detail-outstanding--completed .store-detail-outstanding__filter-bar {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .store-detail-outstanding--completed .store-detail-outstanding__filter-bar .filter--search {
+    flex: 1 0 100%;
+  }
+
+  .store-detail-outstanding--completed .store-detail-outstanding__filter-bar > .filter:not(.filter--search) {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .store-detail-outstanding .store-detail-table__card {
+    border-top: 0;
+    padding: 0 10px 10px;
+  }
+
+  .store-detail-outstanding .store-detail-table__card .data-table {
+    background: transparent;
+  }
+
+  .store-detail-outstanding .store-detail-table__card .data-table tbody {
+    gap: 8px;
+  }
 }
 
 /* Employee Contributions */
