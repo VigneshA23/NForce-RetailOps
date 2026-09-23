@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
@@ -30,6 +30,8 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onProfileClick?: () => void;
   onOwnersClick?: () => void;
   onStoresClick?: () => void;
+  onEmployeesClick?: () => void;
+  onCategoriesClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
@@ -59,6 +61,10 @@ interface AppShellProps<Key extends string = NavTabKey> {
   bottomNavItems?: NavItem<Key>[];
   // Optional per-tab badge dots (e.g. issues badge). Key is the nav tab key.
   tabBadges?: Partial<Record<string, boolean>>;
+  // When true, suppresses the BottomNav even on a 'bottom-tabs' mobile layout --
+  // used while a full-screen mobile overlay (e.g. the header search) is active,
+  // so the pill nav doesn't float on top of it or the keyboard.
+  hideBottomNav?: boolean;
   children: ReactNode;
 }
 
@@ -77,6 +83,8 @@ function AppShell<Key extends string = NavTabKey>({
   onProfileClick,
   onOwnersClick,
   onStoresClick,
+  onEmployeesClick,
+  onCategoriesClick,
   onHelpClick,
   onSettingsClick,
   onIssuesClick,
@@ -90,6 +98,7 @@ function AppShell<Key extends string = NavTabKey>({
   mobileNav = 'drawer',
   bottomNavItems,
   tabBadges,
+  hideBottomNav = false,
   showSearch = true,
   children,
 }: AppShellProps<Key>) {
@@ -100,6 +109,38 @@ function AppShell<Key extends string = NavTabKey>({
   const isMobile = useIsMobile();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const useBottomTabs = isMobile && mobileNav === 'bottom-tabs';
+  const [keyboardActive, setKeyboardActive] = useState(false);
+
+  // Any text/search field opening the on-screen keyboard should tuck the
+  // floating BottomNav away too -- not just the header's full-screen search
+  // overlay (that's what hideBottomNav is for). Tracked globally here
+  // instead of per-page so every filter/search input across the app is
+  // covered without each page wiring its own focus state through.
+  useEffect(() => {
+    if (!useBottomTabs) return undefined;
+    function isTextField(target: EventTarget | null) {
+      if (!(target instanceof HTMLElement)) return false;
+      if (target instanceof HTMLTextAreaElement) return true;
+      if (target instanceof HTMLInputElement) {
+        return !['checkbox', 'radio', 'button', 'submit', 'range', 'color', 'file'].includes(target.type);
+      }
+      return false;
+    }
+    function handleFocusIn(event: FocusEvent) {
+      if (isTextField(event.target)) setKeyboardActive(true);
+    }
+    function handleFocusOut(event: FocusEvent) {
+      if (isTextField(event.target)) setKeyboardActive(false);
+    }
+    document.addEventListener('focusin', handleFocusIn);
+    document.addEventListener('focusout', handleFocusOut);
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn);
+      document.removeEventListener('focusout', handleFocusOut);
+    };
+  }, [useBottomTabs]);
+
+  const showBottomNav = useBottomTabs && !hideBottomNav && !keyboardActive;
 
   return (
     <div className="app-shell">
@@ -132,6 +173,8 @@ function AppShell<Key extends string = NavTabKey>({
             onProfileClick={onProfileClick}
             onOwnersClick={onOwnersClick}
             onStoresClick={onStoresClick}
+            onEmployeesClick={onEmployeesClick}
+            onCategoriesClick={onCategoriesClick}
             onHelpClick={onHelpClick}
             onSettingsClick={onSettingsClick}
             onIssuesClick={onIssuesClick}
@@ -160,7 +203,7 @@ function AppShell<Key extends string = NavTabKey>({
           </AnimatePresence>
         </main>
       </div>
-      {useBottomTabs && (
+      {showBottomNav && (
         <BottomNav<Key> items={bottomNavItems ?? navItems} activeKey={activeTab} onSelect={onSelectTab} tabBadges={tabBadges} />
       )}
     </div>

@@ -2,9 +2,8 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.MissedTaskDateGroupResponse;
 import com.nforce.retailops.dto.MissedTaskInstanceResponse;
-import com.nforce.retailops.dto.MissedTaskLinkResponse;
+import com.nforce.retailops.dto.MissedTaskMoveResponse;
 import com.nforce.retailops.dto.MissedTasksPageResponse;
-import com.nforce.retailops.entity.CompletedVia;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.MakeupLinkStatus;
 import com.nforce.retailops.entity.StoreOwner;
@@ -13,9 +12,7 @@ import com.nforce.retailops.entity.TaskMakeupLink;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.TaskMakeupLinkNotEligibleException;
-import com.nforce.retailops.exception.TaskMakeupLinkNotFoundException;
 import com.nforce.retailops.exception.TaskNotFoundException;
-import com.nforce.retailops.exception.UnauthorizedTaskResponseActionException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -33,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,11 +41,12 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
- * "Missed Tasks": lets any employee complete a past-day task instance that was never
- * answered (a "missed instance"), either immediately (Complete Now) or by deferring it
- * to today's occurrence of the same task (a PENDING TaskMakeupLink, auto-fulfilled when
- * today's instance is completed -- see fulfillPendingLinksIfCompleted, called from
- * TaskService.submitResponse).
+ * "Missed Tasks" / "Move missed task instance to a day": lets any employee move a past-day
+ * task instance that was never answered (a "missed instance") onto a target date (today,
+ * up to 7 days out). The moved instance then renders on the target date's checklist as its
+ * own independent completion unit (see TaskService.getTodayChecklistForEmployee), completed
+ * through the normal checklist submit flow -- there is no copying/auto-fulfillment fan-out
+ * and no direct completion from this page.
  *
  * A missed instance is defined the same way "is this task/day Completed" is determined
  * everywhere else in the app (CompletionType.isSatisfiedBy on distinct active
@@ -62,17 +59,18 @@ public class TaskMakeupLinkService {
 
     private static final Logger log = LoggerFactory.getLogger(TaskMakeupLinkService.class);
 
-    // Hard cap, enforced server-side regardless of what a client requests.
-    // TEMPORARILY dropped from 90 to 7 to shrink the query/response size while we
-    // check whether that's what's behind this endpoint's slow (~28-30s) responses.
-    // Revert to 90 once that's confirmed either way, and design the real fix
-    // (e.g. a narrower default with explicit "load more history" paging) properly.
+    // Hard cap, enforced server-side regardless of what a client requests: a missed
+    // instance older than this never appears on the missed-tasks list. Measured from
+    // the instance's original due date, not from when a move (if any) targets it.
     static final int MAX_LOOKBACK_DAYS = 7;
+
+    // Interim cap on how far into the future a move's target date may be.
+    private static final int MAX_MOVE_DAYS_AHEAD = 7;
+
     private static final int DEFAULT_PAGE_DATE_GROUPS = 10;
     private static final int MAX_PAGE_DATE_GROUPS = 30;
 
     private static final String STATE_ACTIONABLE = "ACTIONABLE";
-    private static final String STATE_LINKED = "LINKED";
     private static final String STATE_WAITING_ON_SECOND = "WAITING_ON_SECOND";
 
     private final TaskRepository taskRepository;
@@ -83,7 +81,6 @@ public class TaskMakeupLinkService {
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final UserRepository userRepository;
     private final UserProfileService userProfileService;
-    private final NotificationService notificationService;
 
     public TaskMakeupLinkService(
         TaskRepository taskRepository,
@@ -93,8 +90,7 @@ public class TaskMakeupLinkService {
         StoreRepository storeRepository,
         StoreEmployeeRepository storeEmployeeRepository,
         UserRepository userRepository,
-        UserProfileService userProfileService,
-        NotificationService notificationService
+        UserProfileService userProfileService
     ) {
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
@@ -104,21 +100,19 @@ public class TaskMakeupLinkService {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.userRepository = userRepository;
         this.userProfileService = userProfileService;
-        this.notificationService = notificationService;
     }
 
-    // Lazy expiry: a PENDING link whose target day (linked_date) has already passed
+    // Lazy expiry: a PENDING move whose target day (linked_date) has already passed
     // unfulfilled returns its missed instance to the missed list instead of silently
-    // staying "Linked to today" forever. Called before every link read/write below,
-    // and directly by the nightly sweep / its /internal/jobs/* twin
-    // (InternalJobController.nightlyMaintenance).
+    // staying pending forever. Called before every move read/write below, and directly
+    // by the nightly sweep / its /internal/jobs/* twin (InternalJobController.nightlyMaintenance).
     @Scheduled(cron = "0 0 3 * * *")
     @Transactional
-    public void expireStalePendingLinks() {
+    public void expireStalePendingMoves() {
         taskMakeupLinkRepository.expireStalePending(LocalDate.now(), OffsetDateTime.now());
     }
 
-    // Not readOnly: expireStalePendingLinks() below is a write (a self-invocation, so
+    // Not readOnly: expireStalePendingMoves() below is a write (a self-invocation, so
     // it runs inside THIS method's transaction rather than one of its own -- readOnly
     // here would mark that same transaction read-only and could reject the UPDATE).
     @Transactional
@@ -135,8 +129,8 @@ public class TaskMakeupLinkService {
             userProfileService.requireAssignedStore(employeeUserId, storeId);
             return null;
         });
-        timed("expireStalePendingLinks", () -> {
-            expireStalePendingLinks();
+        timed("expireStalePendingMoves", () -> {
+            expireStalePendingMoves();
             return null;
         });
 
@@ -181,18 +175,10 @@ public class TaskMakeupLinkService {
                 .add(entry.getEmployee().getId());
         }
 
-        List<TaskMakeupLink> pendingLinks = timed("taskMakeupLinkRepository.findByTaskIdInAndStoreIdAndStatus",
+        List<TaskMakeupLink> pendingMoves = timed("taskMakeupLinkRepository.findByTaskIdInAndStoreIdAndStatus",
             () -> taskMakeupLinkRepository.findByTaskIdInAndStoreIdAndStatus(taskIds, storeId, MakeupLinkStatus.PENDING));
-        Map<TaskDateKey, TaskMakeupLink> pendingByTaskPastDate = pendingLinks.stream()
+        Map<TaskDateKey, TaskMakeupLink> pendingByTaskPastDate = pendingMoves.stream()
             .collect(Collectors.toMap(l -> new TaskDateKey(l.getTask().getId(), l.getPastDate()), l -> l));
-
-        List<TaskResponseEntry> todayResponses = timed(
-            "taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue",
-            () -> taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue(taskIds, storeId, today));
-        Map<Long, Set<Long>> todayRespondersByTask = new HashMap<>();
-        for (TaskResponseEntry entry : todayResponses) {
-            todayRespondersByTask.computeIfAbsent(entry.getTask().getId(), key -> new HashSet<>()).add(entry.getEmployee().getId());
-        }
 
         int totalActiveEmployees = timed("storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue",
             () -> storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId));
@@ -217,20 +203,20 @@ public class TaskMakeupLinkService {
                     continue;
                 }
 
-                TaskMakeupLink pendingLink = pendingByTaskPastDate.get(new TaskDateKey(task.getId(), date));
+                // A pending move excludes the instance from the missed list entirely --
+                // it's no longer actionable here, it reappears on its target date's
+                // checklist instead (TaskService.getTodayChecklistForEmployee).
+                if (pendingByTaskPastDate.containsKey(new TaskDateKey(task.getId(), date))) {
+                    continue;
+                }
+
                 String state;
-                if (pendingLink != null) {
-                    state = STATE_LINKED;
-                } else if (task.getCompletionType() == CompletionType.MULTIPLE
+                if (task.getCompletionType() == CompletionType.MULTIPLE
                     && responders.size() == 1 && responders.contains(employeeUserId)) {
                     state = STATE_WAITING_ON_SECOND;
                 } else {
                     state = STATE_ACTIONABLE;
                 }
-
-                boolean canCompleteWithToday = pendingLink == null
-                    && isScheduledTodayAndActive(task, today)
-                    && !task.getCompletionType().isSatisfiedBy(todayRespondersByTask.getOrDefault(task.getId(), Set.of()).size());
 
                 instancesByDate.computeIfAbsent(date, key -> new ArrayList<>()).add(new MissedTaskInstanceResponse(
                     task.getId(), task.getName(), task.getCategory().getName(), task.getDescription(),
@@ -239,10 +225,7 @@ public class TaskMakeupLinkService {
                     task.getCompletionType(),
                     task.getScheduleType(), task.getSelectedDays().stream().sorted().toList(),
                     task.getStartDate(), task.getEndDate(),
-                    date, state, responders.size(), totalActiveEmployees,
-                    canCompleteWithToday,
-                    pendingLink != null && pendingLink.getCreatedBy().getId().equals(employeeUserId),
-                    pendingLink != null ? pendingLink.getLinkedDate() : null
+                    date, state, responders.size(), totalActiveEmployees
                 ));
             }
         }
@@ -282,164 +265,98 @@ public class TaskMakeupLinkService {
         return (System.nanoTime() - startNanos) / 1_000_000;
     }
 
+    // Creates a PENDING move of a missed instance (taskId, storeId, originalDueDate)
+    // onto targetDate (today..+MAX_MOVE_DAYS_AHEAD). The instance disappears from the
+    // missed list immediately (getMissedTasks skips any instance with a PENDING move);
+    // it reappears on targetDate's checklist as its own independent unit
+    // (TaskService.getTodayChecklistForEmployee) until completed, undone, or the move
+    // expires. task.active is deliberately ignored -- a moved unit's eligibility never
+    // depends on the task's current configuration.
     @Transactional
-    public MissedTaskLinkResponse linkToToday(Long employeeUserId, Long taskId, Long storeId, LocalDate pastDate) {
+    public MissedTaskMoveResponse moveToDate(Long employeeUserId, Long taskId, Long storeId, LocalDate originalDueDate, LocalDate targetDate) {
         userProfileService.requireAssignedStore(employeeUserId, storeId);
-        expireStalePendingLinks();
+        expireStalePendingMoves();
 
         LocalDate today = LocalDate.now();
-        Task task = requireMissableTask(taskId, storeId, pastDate, today);
+        if (targetDate.isBefore(today) || targetDate.isAfter(today.plusDays(MAX_MOVE_DAYS_AHEAD))) {
+            throw new TaskMakeupLinkNotEligibleException(
+                "Choose a date between today and " + MAX_MOVE_DAYS_AHEAD + " days from now");
+        }
+        Task task = requireMissableTask(taskId, storeId, originalDueDate, today);
 
         boolean hasActiveResponse = !taskResponseEntryRepository
-            .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, storeId, pastDate).isEmpty();
+            .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, storeId, originalDueDate).isEmpty();
         if (hasActiveResponse) {
             throw new TaskMakeupLinkNotEligibleException("This task has already been completed for that day");
         }
 
-        if (!isScheduledTodayAndActive(task, today)) {
-            throw new TaskMakeupLinkNotEligibleException("This task is not on today's checklist");
-        }
-        long todayResponders = taskResponseEntryRepository
-            .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, storeId, today)
-            .stream().map(entry -> entry.getEmployee().getId()).distinct().count();
-        if (task.getCompletionType().isSatisfiedBy(todayResponders)) {
-            throw new TaskMakeupLinkNotEligibleException("Today's task has already been completed");
-        }
-
-        TaskMakeupLink link = new TaskMakeupLink();
-        link.setTask(task);
-        link.setStore(storeRepository.getReferenceById(storeId));
-        link.setPastDate(pastDate);
-        link.setLinkedDate(today);
-        link.setCreatedBy(userRepository.getReferenceById(employeeUserId));
-        link.setStatus(MakeupLinkStatus.PENDING);
+        TaskMakeupLink move = new TaskMakeupLink();
+        move.setTask(task);
+        move.setStore(storeRepository.getReferenceById(storeId));
+        move.setPastDate(originalDueDate);
+        move.setLinkedDate(targetDate);
+        move.setCreatedBy(userRepository.getReferenceById(employeeUserId));
+        move.setStatus(MakeupLinkStatus.PENDING);
 
         try {
-            taskMakeupLinkRepository.save(link);
+            taskMakeupLinkRepository.save(move);
             taskMakeupLinkRepository.flush();
         } catch (DataIntegrityViolationException ex) {
-            throw new TaskMakeupLinkNotEligibleException("This missed task is already linked to today");
+            throw new TaskMakeupLinkNotEligibleException("This task is already moved to another date");
         }
 
-        return new MissedTaskLinkResponse(task.getId(), pastDate, today, link.getStatus().name());
+        return new MissedTaskMoveResponse(task.getId(), originalDueDate, targetDate, move.getStatus().name());
     }
 
+    // Invariant: a missed instance has either an active response or a PENDING move,
+    // never both. Called unconditionally from TaskService.writeResponse right after
+    // any TaskResponseEntry is saved for (taskId, storeId, date) -- a no-op (one
+    // indexed UPDATE matching zero rows) for the common case of no pending move.
+    // Sets status to FULFILLED (never CANCELLED -- CANCELLED is reserved for task
+    // hard-delete orphan cleanup).
     @Transactional
-    public void unlink(Long employeeUserId, Long taskId, Long storeId, LocalDate pastDate) {
-        userProfileService.requireAssignedStore(employeeUserId, storeId);
-        expireStalePendingLinks();
-
-        TaskMakeupLink link = taskMakeupLinkRepository
-            .findByTaskIdAndStoreIdAndPastDateAndStatus(taskId, storeId, pastDate, MakeupLinkStatus.PENDING)
-            .orElseThrow(() -> new TaskMakeupLinkNotFoundException("No pending link found for this task"));
-
-        if (!link.getCreatedBy().getId().equals(employeeUserId)) {
-            throw new UnauthorizedTaskResponseActionException("Only the employee who linked this task can remove the link");
-        }
-
-        link.setStatus(MakeupLinkStatus.CANCELLED);
-        link.setResolvedAt(OffsetDateTime.now());
-        link.setResolvedBy(userRepository.getReferenceById(employeeUserId));
-        taskMakeupLinkRepository.save(link);
+    public void terminatePendingMoveIfAny(Long taskId, Long storeId, LocalDate originalDueDate, Long resolvedByUserId) {
+        taskMakeupLinkRepository.terminatePendingMove(
+            taskId, storeId, originalDueDate, OffsetDateTime.now(), userRepository.getReferenceById(resolvedByUserId));
     }
 
-    // Invariant: a missed instance has either an active response or a PENDING link,
-    // never both. Called by TaskService.completeMissedNow right after a direct
-    // response lands on (task, pastDate) via Complete Now.
-    @Transactional
-    public void cancelPendingLinkIfAny(Long taskId, Long storeId, LocalDate pastDate) {
-        taskMakeupLinkRepository.findByTaskIdAndStoreIdAndPastDateAndStatus(taskId, storeId, pastDate, MakeupLinkStatus.PENDING)
-            .ifPresent(link -> {
-                link.setStatus(MakeupLinkStatus.CANCELLED);
-                link.setResolvedAt(OffsetDateTime.now());
-                taskMakeupLinkRepository.save(link);
-            });
-    }
-
-    // Called from TaskService.submitResponse inside the same transaction that just
-    // completed today's instance for `todayEntry`'s task/store -- fulfils every PENDING
-    // link whose linked_date is today, inserting one LINK_FULFILLED response per linked
-    // past date, copying the value the fulfilling employee just submitted for today.
-    // A no-op (and cheap: one indexed lookup) for the common case of a task with no
-    // pending links, and for a MULTIPLE task whose 1st (not yet satisfying) responder
-    // triggered this call.
-    @Transactional
-    public void fulfillPendingLinksIfCompleted(TaskResponseEntry todayEntry) {
-        Task task = todayEntry.getTask();
-        Long storeId = todayEntry.getStore().getId();
-        LocalDate today = todayEntry.getResponseDate();
-
-        long distinctResponders = taskResponseEntryRepository
-            .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(task.getId(), storeId, today)
-            .stream().map(entry -> entry.getEmployee().getId()).distinct().count();
-        if (!task.getCompletionType().isSatisfiedBy(distinctResponders)) {
-            return;
-        }
-
-        List<TaskMakeupLink> pendingLinks = taskMakeupLinkRepository
-            .lockPendingForFulfillment(task.getId(), storeId, today);
-        if (pendingLinks.isEmpty()) {
-            return;
-        }
-
-        for (TaskMakeupLink link : pendingLinks) {
-            link.setStatus(MakeupLinkStatus.FULFILLED);
-            link.setResolvedAt(OffsetDateTime.now());
-            link.setResolvedBy(todayEntry.getEmployee());
-            taskMakeupLinkRepository.save(link);
-
-            TaskResponseEntry makeup = new TaskResponseEntry();
-            makeup.setTask(task);
-            makeup.setStore(todayEntry.getStore());
-            makeup.setEmployee(todayEntry.getEmployee());
-            makeup.setResponseDate(link.getPastDate());
-            makeup.setResponseType(task.getResponseType());
-            makeup.setCompletionType(task.getCompletionType());
-            makeup.setValueBoolean(todayEntry.getValueBoolean());
-            makeup.setValueNumeric(todayEntry.getValueNumeric());
-            makeup.setValueText(todayEntry.getValueText());
-            makeup.setCompletedVia(CompletedVia.LINK_FULFILLED);
-            taskResponseEntryRepository.save(makeup);
-
-            notificationService.send(link.getCreatedBy(), "TASK_MAKEUP_FULFILLED",
-                "Missed task completed: " + task.getName(),
-                "Your linked missed task from " + link.getPastDate() + " was completed via today's checklist.",
-                "/checklist");
-        }
-        taskResponseEntryRepository.flush();
-    }
-
-    // Every task/store pair with at least one PENDING link whose linked_date is today,
-    // for the live checklist's "Will also complete N missed (dates)" card -- batched
-    // for an entire checklist read, one query instead of one per task.
+    // Checklist read: every moved unit (PENDING or FULFILLED) targeting one date for a
+    // store. FULFILLED rows must be included, not just PENDING -- otherwise a MULTIPLE
+    // moved unit would vanish the instant the first of two distinct responders answers
+    // it (terminating the move), even though the second responder still needs to see
+    // and answer it; and a completed moved unit needs to keep rendering with its
+    // "Done"/Undo state, not disappear. TaskService.getTodayChecklistForEmployee
+    // additionally filters out any FULFILLED row whose response has since been undone.
     @Transactional(readOnly = true)
-    public Map<Long, List<LocalDate>> findPendingMakeupDatesByTaskId(Collection<Long> taskIds, Long storeId, LocalDate today) {
-        if (taskIds.isEmpty()) {
-            return Map.of();
-        }
-        Map<Long, List<LocalDate>> result = new HashMap<>();
-        for (TaskMakeupLink link : taskMakeupLinkRepository.findByTaskIdInAndStoreIdAndStatus(taskIds, storeId, MakeupLinkStatus.PENDING)) {
-            if (link.getLinkedDate().equals(today)) {
-                result.computeIfAbsent(link.getTask().getId(), key -> new ArrayList<>()).add(link.getPastDate());
-            }
-        }
-        return result;
+    public List<TaskMakeupLink> findMovedUnitsTargetingDate(Long storeId, LocalDate targetDate) {
+        return taskMakeupLinkRepository.findByStoreIdAndLinkedDateAndStatusIn(
+            storeId, targetDate, List.of(MakeupLinkStatus.PENDING, MakeupLinkStatus.FULFILLED));
     }
 
-    private boolean isScheduledTodayAndActive(Task task, LocalDate today) {
-        return task.isActive() && task.getCategory().isActive()
-            && !task.getStartDate().isAfter(today)
-            && (task.getEndDate() == null || !task.getEndDate().isBefore(today))
-            && TaskScheduleMatcher.matches(task, today);
+    // Guards a moved-unit submission (TaskService.submitResponse): the instance must
+    // have a move (PENDING, or already FULFILLED by an earlier responder/resubmission)
+    // targeting the day being submitted on -- otherwise the move has expired/never
+    // existed, and the submission is rejected rather than silently creating an orphaned
+    // response. FULFILLED must count too: a MULTIPLE moved unit's move already went
+    // FULFILLED the moment the first of two distinct responders answered it, but the
+    // second responder still needs to submit; same for a flag -> resubmit cycle on an
+    // already-completed moved unit.
+    @Transactional(readOnly = true)
+    public void requireMoveTargeting(Long taskId, Long storeId, LocalDate originalDueDate, LocalDate targetDate) {
+        boolean exists = taskMakeupLinkRepository
+            .findByTaskIdAndStoreIdAndPastDateAndStatusIn(
+                taskId, storeId, originalDueDate, List.of(MakeupLinkStatus.PENDING, MakeupLinkStatus.FULFILLED))
+            .stream()
+            .anyMatch(move -> move.getLinkedDate().equals(targetDate));
+        if (!exists) {
+            throw new TaskMakeupLinkNotEligibleException("This moved task is no longer available");
+        }
     }
 
     // Re-validates that (taskId, storeId, pastDate) is still a genuine missed-instance
     // candidate: task exists and applies to this store (ignoring its CURRENT active
     // flag, same reasoning as TaskRepository.findForStoreAndDateRange), pastDate is a
-    // real past day within the 90-day cap and within the task's own start/end range.
-    // Shared by linkToToday here and TaskService.completeMissedNow (duplicated there in
-    // miniature rather than shared via a cross-service call, to avoid a circular
-    // dependency between TaskService and this service).
+    // real past day within the MAX_LOOKBACK_DAYS cap and within the task's own start/end range.
     private Task requireMissableTask(Long taskId, Long storeId, LocalDate pastDate, LocalDate today) {
         if (!pastDate.isBefore(today) || pastDate.isBefore(today.minusDays(MAX_LOOKBACK_DAYS))) {
             throw new TaskNotFoundException("This task instance is not available");

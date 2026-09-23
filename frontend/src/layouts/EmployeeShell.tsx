@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarCheck, CalendarX, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
+import { CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
+import { getEmployeeOverlay, getEmployeeTab, setEmployeeOverlay, setEmployeeTab } from '../utils/navigationStorage'
 import { getInitials } from '../utils/initials'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { useUnreadCount } from '../hooks/useUnreadCount'
@@ -32,25 +33,32 @@ interface EmployeeShellProps {
   employeeId?: number | null
 }
 
+// "Missing Tasks" (now "Missed Tasks") is deliberately NOT listed here -- the
+// missed-tasks page has no side-nav entry; it's only reachable via the daily
+// checklist's banner or the Home stat tile (see EmployeeDashboard). The
+// 'missing' tab itself still exists (ALL_EMPLOYEE_TABS below) and stays
+// mounted/reachable via onNavigate, the same unlisted-tab pattern
+// 'stock-check' already uses.
 const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'today', label: 'Checklist', icon: CalendarCheck },
   { key: 'audits', label: 'History', icon: ClipboardList },
-  { key: 'missing', label: 'Missing Tasks', icon: CalendarX },
   { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
 ]
 
-// "Missing Tasks" is too wide alongside 3 other labels at phone width, so the
-// bottom tab bar uses a shorter "Missing" label -- same pattern as Owner's
-// "Daily Checklist" -> "Checklist" shortening (see OWNER_BOTTOM_NAV_ITEMS).
-const BOTTOM_NAV_ITEMS: EmployeeNavItem[] = NAV_ITEMS.map((item) =>
-  item.key === 'missing' ? { ...item, label: 'Missing' } : item,
-)
+const BOTTOM_NAV_ITEMS: EmployeeNavItem[] = NAV_ITEMS
 
 type Overlay = 'profile' | 'help' | 'notifications' | null
 
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate, employeeId = null }: EmployeeShellProps) {
-  const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>('today')
-  const [overlay, setOverlay] = useState<Overlay>(null)
+  // Restores the tab across a refresh, since there's no router to reflect it
+  // in the URL -- see navigationStorage.ts for why.
+  const [activeTab, setActiveTab] = useState<EmployeeNavTabKey>(() => getEmployeeTab() ?? 'today')
+  useEffect(() => setEmployeeTab(activeTab), [activeTab])
+  // Notifications/Profile/Help are an overlay on top of a tab, not a tab
+  // itself, so restoring activeTab alone isn't enough -- restore this too.
+  const [overlay, setOverlay] = useState<Overlay>(() => getEmployeeOverlay())
+  useEffect(() => setEmployeeOverlay(overlay), [overlay])
+  const [mobileSearchActive, setMobileSearchActive] = useState(false)
   // Seeds History's initial date with the clicked notification's own
   // createdAt, rather than History always defaulting to yesterday -- id
   // makes each click a distinct seed even if the same notification (and
@@ -120,9 +128,8 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   const tabBadges = useMemo(
     () => ({
       ...(issuesBadge ? { issues: true as const } : {}),
-      ...(missedCount > 0 ? { missing: true as const } : {}),
     }),
-    [issuesBadge, missedCount],
+    [issuesBadge],
   )
 
   return (
@@ -157,11 +164,16 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       onNotificationsCountChange={handleNotificationsCountChange}
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
+      hideBottomNav={mobileSearchActive}
       bottomNavItems={BOTTOM_NAV_ITEMS}
       showSearch={false}
       headerActions={
         <>
-          <EmployeeSearchDropdown storeId={store.id} onNavigate={handleSearchNavigate} />
+          <EmployeeSearchDropdown
+            storeId={store.id}
+            onNavigate={handleSearchNavigate}
+            onMobileOpenChange={setMobileSearchActive}
+          />
           {canSwitchStore && (
             <button
               type="button"
@@ -203,7 +215,9 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                 )}
                 {tab === 'audits' && <EmployeeHistory store={store} dateSeed={historyDateSeed} />}
                 {tab === 'issues' && <EmployeeIssues store={store} focusIssueId={focusIssueId} />}
-                {tab === 'missing' && <MissingTasks store={store} onCompleted={refreshMissedCount} />}
+                {tab === 'missing' && (
+                  <MissingTasks store={store} onMoved={refreshMissedCount} onBack={() => setActiveTab('today')} />
+                )}
                 {tab === 'stock-check' && <EmployeeStockCheck store={store} />}
               </div>
             ) : null,

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
+import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon, UserX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { addOwner, assignStore, deleteOwner, getOwners, setOwnerStatus, setStoreStatus, updateOwner } from '../api/owners';
 import { getAllStores } from '../api/superAdminStores';
@@ -9,6 +9,7 @@ import type { GroupedOwner } from '../components/OwnerTable';
 import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
 import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_BOTTOM_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
+import { getSuperAdminOverlay, getSuperAdminTab, setSuperAdminOverlay, setSuperAdminTab } from '../utils/navigationStorage';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import OwnerTable, { groupOwners } from '../components/OwnerTable';
 import OwnerDetailModal from '../components/OwnerDetailModal';
@@ -127,11 +128,23 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string | null; emailSent: boolean } | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
-  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
-  const [showProfile, setShowProfile] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showActivity, setShowActivity] = useState(false);
+  // Restores the tab across a refresh, since there's no router to reflect it
+  // in the URL -- see navigationStorage.ts for why.
+  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>(() => getSuperAdminTab() ?? 'home');
+  useEffect(() => setSuperAdminTab(activeTab), [activeTab]);
+  const [mobileSearchActive, setMobileSearchActive] = useState(false);
+  // Recent Activity/Notifications/Profile/Help are overlays on top of a tab,
+  // not tabs themselves, so restoring activeTab alone isn't enough -- restore
+  // whichever one (if any) was open too, same as activeTab above.
+  const [showProfile, setShowProfile] = useState(() => getSuperAdminOverlay() === 'profile');
+  const [showHelp, setShowHelp] = useState(() => getSuperAdminOverlay() === 'help');
+  const [showNotifications, setShowNotifications] = useState(() => getSuperAdminOverlay() === 'notifications');
+  const [showActivity, setShowActivity] = useState(() => getSuperAdminOverlay() === 'activity');
+  useEffect(() => {
+    setSuperAdminOverlay(
+      showProfile ? 'profile' : showHelp ? 'help' : showNotifications ? 'notifications' : showActivity ? 'activity' : null,
+    );
+  }, [showProfile, showHelp, showNotifications, showActivity]);
 
   const { count: unreadCount, setCount } = useUnreadCount();
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
@@ -363,6 +376,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     () => new Set(owners.filter((o) => o.ownerActive).map((o) => o.ownerId)).size,
     [owners],
   );
+  const inactiveOwnerCount = uniqueOwnerCount - activeOwnerCount;
   // Owners/Stores move off the mobile bottom nav into the profile menu below --
   // desktop/tablet Sidebar keeps the full SUPER_ADMIN_NAV_ITEMS list untouched.
   const isMobile = useIsMobile();
@@ -402,14 +416,19 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onProfileClick={() => { setShowHelp(false); setShowNotifications(false); setShowActivity(false); setShowProfile(true); }}
       onOwnersClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('owners'); } : undefined}
       onStoresClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('stores'); } : undefined}
+      onEmployeesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('employees'); } : undefined}
+      onCategoriesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('categories'); } : undefined}
       onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowActivity(false); setShowHelp(true); }}
       onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowActivity(false); setShowNotifications(true); }}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}
       onNotificationsCountChange={handleNotificationsCountChange}
       mobileNav="bottom-tabs"
+      hideBottomNav={mobileSearchActive}
       showSearch={false}
-      headerActions={<SACommandPalette onNavigate={handleSearchNavigate} />}
+      headerActions={
+        <SACommandPalette onNavigate={handleSearchNavigate} onMobileOpenChange={setMobileSearchActive} />
+      }
     >
       {showProfile ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} onProfileUpdate={onProfileUpdate} />
@@ -454,6 +473,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
             <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
             <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
             <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '—'} tone="info" />
+            <StatCard icon={UserX} label="Inactive Owners" value={inactiveOwnerCount} tone="warning" />
           </div>
 
           {statusError && (
@@ -538,7 +558,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                 />
               </div>
 
-              <div className="card">
+              <div className="card owners-page__table-wrap">
               <OwnerTable
                 owners={filteredOwners}
                 isLoading={isLoading}

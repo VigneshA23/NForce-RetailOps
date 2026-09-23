@@ -25,6 +25,9 @@ import com.nforce.retailops.repository.TaskMakeupLinkRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import com.nforce.retailops.repository.UserRepository;
+import com.nforce.retailops.service.TaskMakeupLinkService;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -36,7 +39,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -73,7 +75,11 @@ class MissedTasksControllerTest {
     @Autowired
     private TaskMakeupLinkRepository taskMakeupLinkRepository;
     @Autowired
+    private TaskMakeupLinkService taskMakeupLinkService;
+    @Autowired
     private PasswordEncoder passwordEncoder;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
     private static final AtomicLong STORE_CODE = new AtomicLong(900_000);
@@ -160,12 +166,22 @@ class MissedTasksControllerTest {
         return objectMapper.readTree(response).get("token").asText();
     }
 
+    private void move(String token, Long taskId, LocalDate missedDate, Long storeId, LocalDate targetDate, int expectedStatus) throws Exception {
+        var result = mockMvc.perform(post("/api/me/tasks/" + taskId + "/missed/" + missedDate + "/move")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", storeId.toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"targetDate\":\"" + targetDate + "\"}"))
+            .andReturn();
+        assertThat(result.getResponse().getStatus()).isEqualTo(expectedStatus);
+    }
+
     @Test
     void missedTasksListsPastUncompletedInstancesGroupedByDateDesc() throws Exception {
         User owner = createUser("mt-owner-1@nforce.test", "OWNER_ADMIN");
         Store store = createStore(owner);
         Category category = createCategory(owner, store);
-        User employee = assignEmployee(store, "mt-emp-1@nforce.test", owner);
+        assignEmployee(store, "mt-emp-1@nforce.test", owner);
         createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(3));
 
         String token = login("mt-emp-1@nforce.test");
@@ -180,215 +196,19 @@ class MissedTasksControllerTest {
             .andExpect(jsonPath("$.nextCursor").doesNotExist());
     }
 
+    // The lookback hard cap (TaskMakeupLinkService.MAX_LOOKBACK_DAYS) is enforced
+    // server-side: paging all the way back must land exactly on today-MAX_LOOKBACK_DAYS
+    // as the oldest missed date, never earlier, even though the task itself has been
+    // active for 200 days.
     @Test
-    void completeNowInsertsAMakeupResponseAndRemovesTheInstanceFromTheMissedList() throws Exception {
+    void missedTasksNeverReachesBeyondTheLookbackCap() throws Exception {
         User owner = createUser("mt-owner-2@nforce.test", "OWNER_ADMIN");
         Store store = createStore(owner);
         Category category = createCategory(owner, store);
-        User employee = assignEmployee(store, "mt-emp-2@nforce.test", owner);
-        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
-        LocalDate missedDate = LocalDate.now().minusDays(1);
-
-        String token = login("mt-emp-2@nforce.test");
-
-        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/complete-now")
-                .header("Authorization", "Bearer " + token)
-                .param("storeId", store.getId().toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true}"))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.responses[0].completedVia").value("MAKEUP_NOW"))
-            .andExpect(jsonPath("$.canUndo").value(true));
-
-        mockMvc.perform(get("/api/me/tasks/missed")
-                .header("Authorization", "Bearer " + token)
-                .param("storeId", store.getId().toString()))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.groups.length()").value(0));
-    }
-
-    @Test
-    void completeNowIsRejectedOnceASingleTaskInstanceIsAlreadyCompleted() throws Exception {
-        User owner = createUser("mt-owner-3@nforce.test", "OWNER_ADMIN");
-        Store store = createStore(owner);
-        Category category = createCategory(owner, store);
-        assignEmployee(store, "mt-emp-3a@nforce.test", owner);
-        assignEmployee(store, "mt-emp-3b@nforce.test", owner);
-        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
-        LocalDate missedDate = LocalDate.now().minusDays(1);
-
-        String tokenA = login("mt-emp-3a@nforce.test");
-        String tokenB = login("mt-emp-3b@nforce.test");
-
-        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/complete-now")
-                .header("Authorization", "Bearer " + tokenA)
-                .param("storeId", store.getId().toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true}"))
-            .andExpect(status().isOk());
-
-        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/complete-now")
-                .header("Authorization", "Bearer " + tokenB)
-                .param("storeId", store.getId().toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true}"))
-            .andExpect(status().isConflict());
-    }
-
-    // A MULTIPLE task's missed instance needs two distinct employees, exactly like the
-    // live checklist: the first responder sees WAITING_ON_SECOND (no buttons), any other
-    // employee still sees it as ACTIONABLE.
-    @Test
-    void multipleCompletionTypeShowsWaitingOnSecondPersonAfterOneEmployeeRespondsButRemainsActionableForOthers() throws Exception {
-        User owner = createUser("mt-owner-4@nforce.test", "OWNER_ADMIN");
-        Store store = createStore(owner);
-        Category category = createCategory(owner, store);
-        assignEmployee(store, "mt-emp-4a@nforce.test", owner);
-        assignEmployee(store, "mt-emp-4b@nforce.test", owner);
-        Task task = createTask(owner, category, store, CompletionType.MULTIPLE, LocalDate.now().minusDays(1));
-        LocalDate missedDate = LocalDate.now().minusDays(1);
-
-        String tokenA = login("mt-emp-4a@nforce.test");
-        String tokenB = login("mt-emp-4b@nforce.test");
-
-        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/complete-now")
-                .header("Authorization", "Bearer " + tokenA)
-                .param("storeId", store.getId().toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true}"))
-            .andExpect(status().isOk());
-
-        mockMvc.perform(get("/api/me/tasks/missed")
-                .header("Authorization", "Bearer " + tokenA)
-                .param("storeId", store.getId().toString()))
-            .andExpect(jsonPath("$.groups[0].instances[0].state").value("WAITING_ON_SECOND"));
-
-        mockMvc.perform(get("/api/me/tasks/missed")
-                .header("Authorization", "Bearer " + tokenB)
-                .param("storeId", store.getId().toString()))
-            .andExpect(jsonPath("$.groups[0].instances[0].state").value("ACTIONABLE"));
-
-        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/complete-now")
-                .header("Authorization", "Bearer " + tokenB)
-                .param("storeId", store.getId().toString())
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true}"))
-            .andExpect(status().isOk());
-
-        mockMvc.perform(get("/api/me/tasks/missed")
-                .header("Authorization", "Bearer " + tokenA)
-                .param("storeId", store.getId().toString()))
-            .andExpect(jsonPath("$.groups.length()").value(0));
-    }
-
-    // Link-to-today, then completing TODAY'S occurrence of the same task fulfils the
-    // link in the same transaction: the past date gets an auto-generated
-    // LINK_FULFILLED response, and it can never be undone.
-    @Test
-    void linkingToTodayThenCompletingTodayAutoCompletesThePastInstancePermanently() throws Exception {
-        User owner = createUser("mt-owner-5@nforce.test", "OWNER_ADMIN");
-        Store store = createStore(owner);
-        Category category = createCategory(owner, store);
-        assignEmployee(store, "mt-emp-5@nforce.test", owner);
-        // Task must also be scheduled today for the link to be eligible. startDate is
-        // exactly yesterday so there's a single missed instance, not two, keeping the
-        // "groups[0]" assertions below unambiguous.
-        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
-        LocalDate missedDate = LocalDate.now().minusDays(1);
-
-        String token = login("mt-emp-5@nforce.test");
-
-        String linkResponse = mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/link-to-today")
-                .header("Authorization", "Bearer " + token)
-                .param("storeId", store.getId().toString()))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value("PENDING"))
-            .andReturn().getResponse().getContentAsString();
-        assertThat(objectMapper.readTree(linkResponse).get("linkedDate").asText()).isEqualTo(LocalDate.now().toString());
-
-        mockMvc.perform(get("/api/me/tasks/missed")
-                .header("Authorization", "Bearer " + token)
-                .param("storeId", store.getId().toString()))
-            .andExpect(jsonPath("$.groups[0].instances[0].state").value("LINKED"))
-            .andExpect(jsonPath("$.groups[0].instances[0].canUnlink").value(true));
-
-        // Completing TODAY'S instance fulfils the link inside the same transaction.
-        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses")
-                .header("Authorization", "Bearer " + token)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true}"))
-            .andExpect(status().isOk());
-
-        var fulfilledResponse = taskResponseEntryRepository
-            .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(task.getId(), store.getId(), missedDate);
-        assertThat(fulfilledResponse).hasSize(1);
-        TaskResponseEntry fulfilled = fulfilledResponse.get(0);
-        assertThat(fulfilled.getCompletedVia()).isEqualTo(CompletedVia.LINK_FULFILLED);
-
-        TaskMakeupLink link = taskMakeupLinkRepository
-            .findByTaskIdAndStoreIdAndPastDateAndStatus(task.getId(), store.getId(), missedDate, MakeupLinkStatus.FULFILLED)
-            .orElseThrow();
-        assertThat(link.getStatus()).isEqualTo(MakeupLinkStatus.FULFILLED);
-
-        // Permanent: the fulfilled makeup row can never be undone.
-        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses/" + fulfilled.getId() + "/undo")
-                .header("Authorization", "Bearer " + token)
-                .param("storeId", store.getId().toString()))
-            .andExpect(status().isConflict());
-
-        mockMvc.perform(get("/api/me/tasks/missed")
-                .header("Authorization", "Bearer " + token)
-                .param("storeId", store.getId().toString()))
-            .andExpect(jsonPath("$.groups.length()").value(0));
-    }
-
-    @Test
-    void unlinkIsRejectedForAnyoneOtherThanTheLinkCreator() throws Exception {
-        User owner = createUser("mt-owner-6@nforce.test", "OWNER_ADMIN");
-        Store store = createStore(owner);
-        Category category = createCategory(owner, store);
-        assignEmployee(store, "mt-emp-6a@nforce.test", owner);
-        assignEmployee(store, "mt-emp-6b@nforce.test", owner);
-        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
-        LocalDate missedDate = LocalDate.now().minusDays(1);
-
-        String tokenA = login("mt-emp-6a@nforce.test");
-        String tokenB = login("mt-emp-6b@nforce.test");
-
-        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/link-to-today")
-                .header("Authorization", "Bearer " + tokenA)
-                .param("storeId", store.getId().toString()))
-            .andExpect(status().isOk());
-
-        mockMvc.perform(delete("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/link")
-                .header("Authorization", "Bearer " + tokenB)
-                .param("storeId", store.getId().toString()))
-            .andExpect(status().isForbidden());
-
-        mockMvc.perform(delete("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/link")
-                .header("Authorization", "Bearer " + tokenA)
-                .param("storeId", store.getId().toString()))
-            .andExpect(status().isNoContent());
-
-        mockMvc.perform(get("/api/me/tasks/missed")
-                .header("Authorization", "Bearer " + tokenA)
-                .param("storeId", store.getId().toString()))
-            .andExpect(jsonPath("$.groups[0].instances[0].state").value("ACTIONABLE"));
-    }
-
-    // The lookback hard cap (TaskMakeupLinkService.MAX_LOOKBACK_DAYS, TEMPORARILY 7
-    // instead of 90 -- see that constant's comment) is enforced server-side: paging
-    // all the way back must land exactly on today-cap as the oldest missed date,
-    // never earlier, even though the task itself has been active for 200 days.
-    @Test
-    void missedTasksNeverReachesBeyondTheLookbackCap() throws Exception {
-        User owner = createUser("mt-owner-7@nforce.test", "OWNER_ADMIN");
-        Store store = createStore(owner);
-        Category category = createCategory(owner, store);
-        assignEmployee(store, "mt-emp-7@nforce.test", owner);
+        assignEmployee(store, "mt-emp-2@nforce.test", owner);
         createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(200));
 
-        String token = login("mt-emp-7@nforce.test");
+        String token = login("mt-emp-2@nforce.test");
 
         String cursor = null;
         LocalDate oldestSeen = null;
@@ -421,6 +241,444 @@ class MissedTasksControllerTest {
 
         assertThat(oldestSeen).isEqualTo(LocalDate.now().minusDays(7));
         assertThat(totalGroups).isEqualTo(7);
+    }
+
+    @Test
+    void moveCreatesAPendingMoveAndRemovesInstanceFromMissedList() throws Exception {
+        User owner = createUser("mt-owner-3@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-3@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+        LocalDate today = LocalDate.now();
+
+        String token = login("mt-emp-3@nforce.test");
+
+        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/missed/" + missedDate + "/move")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", store.getId().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"targetDate\":\"" + today + "\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("PENDING"))
+            .andExpect(jsonPath("$.originalDueDate").value(missedDate.toString()))
+            .andExpect(jsonPath("$.targetDate").value(today.toString()));
+
+        mockMvc.perform(get("/api/me/tasks/missed")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", store.getId().toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.groups.length()").value(0));
+
+        assertThat(taskMakeupLinkRepository
+            .findByTaskIdAndStoreIdAndPastDateAndStatus(task.getId(), store.getId(), missedDate, MakeupLinkStatus.PENDING))
+            .isPresent();
+    }
+
+    @Test
+    void moveRejectsPastAndBeyondSevenDayTargetsButAcceptsTheSevenDayBoundary() throws Exception {
+        User owner = createUser("mt-owner-4@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-4@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+
+        String token = login("mt-emp-4@nforce.test");
+
+        move(token, task.getId(), missedDate, store.getId(), LocalDate.now().minusDays(1), 409);
+        move(token, task.getId(), missedDate, store.getId(), LocalDate.now().plusDays(8), 409);
+        assertThat(taskMakeupLinkRepository.findByTaskIdAndStoreIdAndPastDateAndStatus(
+            task.getId(), store.getId(), missedDate, MakeupLinkStatus.PENDING)).isEmpty();
+
+        move(token, task.getId(), missedDate, store.getId(), LocalDate.now().plusDays(7), 200);
+    }
+
+    @Test
+    void movingAnAlreadyCompletedInstanceIsRejected() throws Exception {
+        User owner = createUser("mt-owner-5@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        User employee = assignEmployee(store, "mt-emp-5@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+
+        TaskResponseEntry entry = new TaskResponseEntry();
+        entry.setTask(task);
+        entry.setStore(store);
+        entry.setEmployee(employee);
+        entry.setResponseDate(missedDate);
+        entry.setResponseType(ResponseType.YES_NO);
+        entry.setCompletionType(CompletionType.SINGLE);
+        entry.setValueBoolean(true);
+        entry.setCompletedVia(CompletedVia.NORMAL);
+        taskResponseEntryRepository.save(entry);
+
+        String token = login("mt-emp-5@nforce.test");
+        move(token, task.getId(), missedDate, store.getId(), LocalDate.now(), 409);
+    }
+
+    @Test
+    void moveIgnoresTaskActiveFlag() throws Exception {
+        User owner = createUser("mt-owner-6@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-6@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+        task.setActive(false);
+        taskRepository.save(task);
+
+        String token = login("mt-emp-6@nforce.test");
+        move(token, task.getId(), missedDate, store.getId(), LocalDate.now(), 200);
+    }
+
+    // Task is ALSO scheduled today (start date = 2 days ago, EVERY_DAY): moving
+    // yesterday's missed instance to today must not merge with today's own normal
+    // occurrence -- the checklist shows both as independent units.
+    @Test
+    void movedUnitAppearsOnTargetDatesChecklistAsIndependentUnitWithOriginalDueDateBadge() throws Exception {
+        User owner = createUser("mt-owner-7@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-7@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(2));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+
+        String token = login("mt-emp-7@nforce.test");
+        move(token, task.getId(), missedDate, store.getId(), LocalDate.now(), 200);
+
+        String response = mockMvc.perform(get("/api/me/tasks/today")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", store.getId().toString()))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+
+        var tasks = objectMapper.readTree(response).get("categories").get(0).get("tasks");
+        assertThat(tasks).hasSize(2);
+        boolean hasNormal = false;
+        boolean hasMoved = false;
+        for (var item : tasks) {
+            if (item.get("originalDueDate").isNull()) {
+                hasNormal = true;
+            } else if (item.get("originalDueDate").asText().equals(missedDate.toString())) {
+                hasMoved = true;
+            }
+        }
+        assertThat(hasNormal).isTrue();
+        assertThat(hasMoved).isTrue();
+    }
+
+    // 3 missed dates of one task moved to today, PLUS the task's own today
+    // occurrence, yields 4 independent units -- completing one leaves the other 3
+    // untouched (no auto-fulfillment fan-out).
+    @Test
+    void threeMovedUnitsPlusTodaysOwnOccurrenceYieldFourIndependentUnits() throws Exception {
+        User owner = createUser("mt-owner-8@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-8@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(3));
+
+        String token = login("mt-emp-8@nforce.test");
+        LocalDate today = LocalDate.now();
+        move(token, task.getId(), today.minusDays(1), store.getId(), today, 200);
+        move(token, task.getId(), today.minusDays(2), store.getId(), today, 200);
+        move(token, task.getId(), today.minusDays(3), store.getId(), today, 200);
+
+        String response = mockMvc.perform(get("/api/me/tasks/today")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", store.getId().toString()))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        var tasks = objectMapper.readTree(response).get("categories").get(0).get("tasks");
+        assertThat(tasks).hasSize(4);
+
+        // Complete only the normal (today, originalDueDate == null) unit.
+        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true}"))
+            .andExpect(status().isOk());
+
+        String afterResponse = mockMvc.perform(get("/api/me/tasks/today")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", store.getId().toString()))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        var afterTasks = objectMapper.readTree(afterResponse).get("categories").get(0).get("tasks");
+        int completedCount = 0;
+        int incompleteCount = 0;
+        for (var item : afterTasks) {
+            if (item.get("responses").size() > 0) {
+                completedCount++;
+            } else {
+                incompleteCount++;
+            }
+        }
+        assertThat(completedCount).isEqualTo(1);
+        assertThat(incompleteCount).isEqualTo(3);
+    }
+
+    @Test
+    void singleCompletionOfAMovedUnitTerminatesTheMoveAndAttributesTheResponseToTheOriginalDate() throws Exception {
+        User owner = createUser("mt-owner-9@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-9@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+
+        String token = login("mt-emp-9@nforce.test");
+        move(token, task.getId(), missedDate, store.getId(), LocalDate.now(), 200);
+
+        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true,\"originalDueDate\":\"" + missedDate + "\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.originalDueDate").value(missedDate.toString()))
+            .andExpect(jsonPath("$.responses[0].completedVia").value("MOVED"))
+            .andExpect(jsonPath("$.canUndo").value(true));
+
+        // The move row (already loaded once by move()'s own save()) was updated by a
+        // bulk JPQL UPDATE (TaskMakeupLinkRepository.terminatePendingMove), which bypasses
+        // the persistence context -- force a fresh read for the assertions below.
+        entityManager.clear();
+
+        var active = taskResponseEntryRepository
+            .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(task.getId(), store.getId(), missedDate);
+        assertThat(active).hasSize(1);
+        assertThat(active.get(0).getCompletedVia()).isEqualTo(CompletedVia.MOVED);
+
+        TaskMakeupLink move = taskMakeupLinkRepository
+            .findByTaskIdAndStoreIdAndPastDateAndStatus(task.getId(), store.getId(), missedDate, MakeupLinkStatus.FULFILLED)
+            .orElseThrow();
+        assertThat(move.getStatus()).isEqualTo(MakeupLinkStatus.FULFILLED);
+    }
+
+    // The move already went FULFILLED the moment the first of two distinct
+    // employees answered -- the second employee must still be able to submit.
+    @Test
+    void multipleMovedUnitRequiresASecondDistinctEmployeeEvenAfterTheMoveIsFulfilled() throws Exception {
+        User owner = createUser("mt-owner-10@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-10a@nforce.test", owner);
+        assignEmployee(store, "mt-emp-10b@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.MULTIPLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+
+        String tokenA = login("mt-emp-10a@nforce.test");
+        String tokenB = login("mt-emp-10b@nforce.test");
+        move(tokenA, task.getId(), missedDate, store.getId(), LocalDate.now(), 200);
+
+        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses")
+                .header("Authorization", "Bearer " + tokenA)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true,\"originalDueDate\":\"" + missedDate + "\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.completedByCount").value(1));
+
+        entityManager.clear();
+        assertThat(taskMakeupLinkRepository
+            .findByTaskIdAndStoreIdAndPastDateAndStatus(task.getId(), store.getId(), missedDate, MakeupLinkStatus.FULFILLED))
+            .isPresent();
+
+        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses")
+                .header("Authorization", "Bearer " + tokenB)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true,\"originalDueDate\":\"" + missedDate + "\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.completedByCount").value(2));
+    }
+
+    @Test
+    void undoOfAMovedUnitResponseReturnsInstanceToMissedListAndOldMoveRowStaysTerminal() throws Exception {
+        User owner = createUser("mt-owner-11@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-11@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+
+        String token = login("mt-emp-11@nforce.test");
+        move(token, task.getId(), missedDate, store.getId(), LocalDate.now(), 200);
+
+        String submitResponse = mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true,\"originalDueDate\":\"" + missedDate + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        Long responseId = objectMapper.readTree(submitResponse).get("responses").get(0).get("id").asLong();
+
+        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses/" + responseId + "/undo")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", store.getId().toString()))
+            .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/me/tasks/missed")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", store.getId().toString()))
+            .andExpect(jsonPath("$.groups[0].date").value(missedDate.toString()))
+            .andExpect(jsonPath("$.groups[0].instances[0].state").value("ACTIONABLE"));
+
+        entityManager.clear();
+        TaskMakeupLink oldMove = taskMakeupLinkRepository
+            .findByTaskIdAndStoreIdAndPastDateAndStatus(task.getId(), store.getId(), missedDate, MakeupLinkStatus.FULFILLED)
+            .orElseThrow();
+        assertThat(oldMove.getStatus()).isEqualTo(MakeupLinkStatus.FULFILLED);
+
+        // Re-movable: a fresh move for the same instance is allowed.
+        move(token, task.getId(), missedDate, store.getId(), LocalDate.now(), 200);
+    }
+
+    // Unlike CompletedVia.LINK_FULFILLED, a MOVED response is not permanent --
+    // admin resubmission-flag follows the same rules as any normal response.
+    @Test
+    void adminResubmissionFlagOnAMovedUnitResponseFollowsNormalNonPermanentRules() throws Exception {
+        User owner = createUser("mt-owner-12@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-12@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+
+        String employeeToken = login("mt-emp-12@nforce.test");
+        String ownerToken = login("mt-owner-12@nforce.test");
+        move(employeeToken, task.getId(), missedDate, store.getId(), LocalDate.now(), 200);
+
+        String submitResponse = mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses")
+                .header("Authorization", "Bearer " + employeeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":true,\"originalDueDate\":\"" + missedDate + "\"}"))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        Long responseId = objectMapper.readTree(submitResponse).get("responses").get(0).get("id").asLong();
+
+        mockMvc.perform(post("/api/checklist-history/responses/" + responseId + "/flag")
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reason\":\"Please redo this\"}"))
+            .andExpect(status().isOk());
+
+        // Resubmission on the flagged moved unit is accepted (not blocked like
+        // LINK_FULFILLED would be) and produces a new active MOVED response.
+        mockMvc.perform(post("/api/me/tasks/" + task.getId() + "/responses")
+                .header("Authorization", "Bearer " + employeeToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"storeId\":" + store.getId() + ",\"booleanValue\":false,\"originalDueDate\":\"" + missedDate + "\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.responses[0].completedVia").value("MOVED"));
+    }
+
+    // Expiry is evaluated lazily on every missed-list/checklist read AND by the
+    // nightly sweep (TaskMakeupLinkService.expireStalePendingMoves, which is also
+    // exactly what /internal/jobs/nightly-maintenance calls -- exercised directly
+    // here since that endpoint's shared-secret auth isn't configured for the test
+    // profile). A move can never be created with a past target date via the API, so
+    // the stale PENDING row is seeded directly.
+    @Test
+    void nightlySweepExpiresStalePendingMovesAndInstanceReturnsToMissedList() throws Exception {
+        User owner = createUser("mt-owner-13@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        User employee = assignEmployee(store, "mt-emp-13@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(2));
+        LocalDate missedDate = LocalDate.now().minusDays(2);
+        // Constrain the task's own range to exactly missedDate, so the missed-list scan
+        // below yields exactly the one instance this test is about -- otherwise the
+        // task's still-open range would also surface yesterday as a second, unrelated
+        // missed instance.
+        task.setEndDate(missedDate);
+        taskRepository.save(task);
+
+        TaskMakeupLink staleMove = new TaskMakeupLink();
+        staleMove.setTask(task);
+        staleMove.setStore(store);
+        staleMove.setPastDate(missedDate);
+        staleMove.setLinkedDate(LocalDate.now().minusDays(1));
+        staleMove.setCreatedBy(employee);
+        staleMove.setStatus(MakeupLinkStatus.PENDING);
+        taskMakeupLinkRepository.save(staleMove);
+
+        String token = login("mt-emp-13@nforce.test");
+        mockMvc.perform(get("/api/me/tasks/missed")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", store.getId().toString()))
+            .andExpect(jsonPath("$.groups.length()").value(1))
+            .andExpect(jsonPath("$.groups[0].date").value(missedDate.toString()));
+
+        entityManager.clear();
+        assertThat(taskMakeupLinkRepository.findById(staleMove.getId()).orElseThrow().getStatus())
+            .isEqualTo(MakeupLinkStatus.EXPIRED);
+    }
+
+    // Hard-deleting a task with a PENDING move must not error, and the orphaned move row
+    // is expected to be cascade-deleted with it (task_makeup_links.task_id references
+    // tasks on delete cascade, V65/V66). NOTE: that FK cascade lives entirely in the
+    // Flyway migration DDL. This test profile runs with Flyway disabled and the schema
+    // generated by Hibernate straight from the JPA entities (see application-test.yml /
+    // CLAUDE.md's backend Commands section) -- Hibernate's auto-DDL does not reproduce a
+    // raw "on delete cascade" clause from a plain @JoinColumn, so the cascade itself is
+    // not exercised here (the same kind of DB-level-only gap the existing SINGLE-completion
+    // race is worked around for in TaskServiceTest, via a Mockito-simulated constraint
+    // violation instead of a real one). What IS verified here, and does hold regardless
+    // of schema-generation strategy, is that the delete itself succeeds without error
+    // even though a PENDING move still references the task.
+    @Test
+    void hardDeletingATaskWithAPendingMoveSucceeds() throws Exception {
+        User owner = createUser("mt-owner-14@nforce.test", "OWNER_ADMIN");
+        Store store = createStore(owner);
+        Category category = createCategory(owner, store);
+        assignEmployee(store, "mt-emp-14@nforce.test", owner);
+        Task task = createTask(owner, category, store, CompletionType.SINGLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+        Long taskId = task.getId();
+
+        String employeeToken = login("mt-emp-14@nforce.test");
+        move(employeeToken, taskId, missedDate, store.getId(), LocalDate.now(), 200);
+        assertThat(taskMakeupLinkRepository
+            .findByTaskIdAndStoreIdAndPastDateAndStatus(taskId, store.getId(), missedDate, MakeupLinkStatus.PENDING))
+            .isPresent();
+
+        String ownerToken = login("mt-owner-14@nforce.test");
+        mockMvc.perform(delete("/api/tasks/" + taskId)
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isNoContent());
+
+        assertThat(taskRepository.findById(taskId)).isEmpty();
+    }
+
+    // Store-scoped like everything else: an employee assigned only to store A must
+    // never see or act on store B's missed instances/moves, even by guessing IDs.
+    @Test
+    void missedTasksAndMoveAreStoreScoped() throws Exception {
+        User ownerA = createUser("mt-owner-15a@nforce.test", "OWNER_ADMIN");
+        Store storeA = createStore(ownerA);
+        Category categoryA = createCategory(ownerA, storeA);
+        assignEmployee(storeA, "mt-emp-15@nforce.test", ownerA);
+        Task taskA = createTask(ownerA, categoryA, storeA, CompletionType.SINGLE, LocalDate.now().minusDays(1));
+        LocalDate missedDate = LocalDate.now().minusDays(1);
+
+        User ownerB = createUser("mt-owner-15b@nforce.test", "OWNER_ADMIN");
+        Store storeB = createStore(ownerB);
+
+        String token = login("mt-emp-15@nforce.test");
+
+        mockMvc.perform(get("/api/me/tasks/missed")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", storeB.getId().toString()))
+            .andExpect(status().isNotFound());
+
+        mockMvc.perform(post("/api/me/tasks/" + taskA.getId() + "/missed/" + missedDate + "/move")
+                .header("Authorization", "Bearer " + token)
+                .param("storeId", storeB.getId().toString())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"targetDate\":\"" + LocalDate.now() + "\"}"))
+            .andExpect(status().isNotFound());
     }
 
     private record LoginPayload(String email, String password) {

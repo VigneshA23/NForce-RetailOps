@@ -6,6 +6,9 @@ import './AdminSearchDropdown.css';
 
 interface AdminSearchDropdownProps {
   onNavigate: (group: 'tasks' | 'categories' | 'employees', id: number, term: string) => void;
+  // Notified whenever the mobile full-screen search overlay opens/closes, so
+  // the parent shell can hide its BottomNav while search is active.
+  onMobileOpenChange?: (open: boolean) => void;
 }
 
 const EMPTY: AdminSearchResponse = { tasks: [], categories: [], employees: [] };
@@ -123,7 +126,7 @@ function SearchResults({
   );
 }
 
-function AdminSearchDropdown({ onNavigate }: AdminSearchDropdownProps) {
+function AdminSearchDropdown({ onNavigate, onMobileOpenChange }: AdminSearchDropdownProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<AdminSearchResponse>(EMPTY);
   const [open, setOpen] = useState(false);
@@ -156,6 +159,10 @@ function AdminSearchDropdown({ onNavigate }: AdminSearchDropdownProps) {
       setResults(EMPTY);
     }
   }, [mobileOpen]);
+
+  useEffect(() => {
+    onMobileOpenChange?.(mobileOpen);
+  }, [mobileOpen, onMobileOpenChange]);
 
   useDismissablePanel({
     isOpen: open,

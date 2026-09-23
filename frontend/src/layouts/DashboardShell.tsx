@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { NavTabKey } from '../types/navigation';
 import { OWNER_BOTTOM_NAV_ITEMS, OWNER_NAV_ITEMS, PAGE_TITLES } from '../types/navigation';
+import { getOwnerOverlay, getOwnerTab, setOwnerOverlay, setOwnerTab } from '../utils/navigationStorage';
 import type { AuthUser } from '../types/auth';
 import AppShell from './AppShell';
 import Employees from '../pages/Employees';
@@ -33,8 +34,15 @@ interface DashboardShellProps {
 type Overlay = 'profile' | 'help' | 'notifications' | null;
 
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate }: DashboardShellProps) {
-  const [activeTab, setActiveTab] = useState<NavTabKey>('home');
-  const [overlay, setOverlay] = useState<Overlay>(null);
+  // Restores the tab across a refresh, since there's no router to reflect it
+  // in the URL -- see navigationStorage.ts for why.
+  const [activeTab, setActiveTab] = useState<NavTabKey>(() => getOwnerTab() ?? 'home');
+  useEffect(() => setOwnerTab(activeTab), [activeTab]);
+  const [mobileSearchActive, setMobileSearchActive] = useState(false);
+  // Notifications/Profile/Help are an overlay on top of a tab, not a tab
+  // itself, so restoring activeTab alone isn't enough -- restore this too.
+  const [overlay, setOverlay] = useState<Overlay>(() => getOwnerOverlay());
+  useEffect(() => setOwnerOverlay(overlay), [overlay]);
   const [searchSeed, setSearchSeed] = useState<{ term: string; id: number; recordId?: number } | undefined>(undefined);
   // Lazy-mount: tabs mount on first visit and stay alive — no refetch on tab switch.
   const [mountedTabs, setMountedTabs] = useState<Set<NavTabKey>>(new Set(['home']));
@@ -73,6 +81,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       case '/employees': setActiveTab('employees'); setOverlay(null); break;
       case '/tasks': setActiveTab('tasks'); setOverlay(null); break;
       case '/issues': setActiveTab('issues'); setOverlay(null); break;
+      case '/profile': setOverlay('profile'); break;
       default: setOverlay('notifications'); break;
     }
   }
@@ -181,8 +190,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       avatarUrl={avatarUrl}
       mobileNav="bottom-tabs"
       bottomNavItems={OWNER_BOTTOM_NAV_ITEMS}
+      hideBottomNav={mobileSearchActive}
       showSearch={false}
-      headerActions={<AdminSearchDropdown onNavigate={handleSearchNavigate} />}
+      headerActions={
+        <AdminSearchDropdown onNavigate={handleSearchNavigate} onMobileOpenChange={setMobileSearchActive} />
+      }
     >
       {overlay === 'profile' ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} onProfileUpdate={onProfileUpdate} />

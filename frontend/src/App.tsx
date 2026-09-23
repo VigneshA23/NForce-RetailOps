@@ -23,6 +23,14 @@ import {
   wasRememberedLogin,
 } from './utils/authStorage'
 import {
+  clearEmployeeOverlay,
+  clearEmployeeTab,
+  clearOwnerOverlay,
+  clearOwnerTab,
+  clearSuperAdminOverlay,
+  clearSuperAdminTab,
+} from './utils/navigationStorage'
+import {
   DEFAULT_INACTIVITY_TIMEOUT_MINUTES,
   DEFAULT_REMEMBER_ME_TIMEOUT_MINUTES,
   onUnauthorizedResponse,
@@ -73,6 +81,12 @@ function App() {
     clearAuthToken()
     clearActiveStoreId()
     clearStoredAvatarUrl()
+    clearSuperAdminTab()
+    clearOwnerTab()
+    clearEmployeeTab()
+    clearSuperAdminOverlay()
+    clearOwnerOverlay()
+    clearEmployeeOverlay()
     setUser(null)
     setNeedsPasswordReset(false)
     setActiveStore(null)
@@ -330,6 +344,8 @@ function App() {
       onLogout={handleLogout}
       onSwitchStore={() => {
         clearActiveStoreId()
+        clearEmployeeTab()
+        clearEmployeeOverlay()
         setActiveStore(null)
       }}
       loggingOut={loggingOut}

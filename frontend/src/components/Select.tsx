@@ -18,11 +18,18 @@ interface SelectProps {
   className?: string;
   placeholder?: string;
   disabled?: boolean;
+  // 'left' (default): panel's left edge lines up with the trigger's left
+  // edge, growing rightward -- fine when there's room to the right. 'right':
+  // panel's right edge lines up with the trigger's right edge instead,
+  // growing leftward -- for a trigger already sitting at the right edge of
+  // its own container (e.g. a card header's period dropdown), where growing
+  // rightward has nowhere to go and pushes the panel past the container.
+  align?: 'left' | 'right';
 }
 
 const VIEWPORT_MARGIN = 8;
 
-function Select({ id, options, value, onChange, ariaLabel, className, placeholder, disabled }: SelectProps) {
+function Select({ id, options, value, onChange, ariaLabel, className, placeholder, disabled, align = 'left' }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -31,6 +38,9 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
   function openPanel() {
     const rect = triggerRef.current?.getBoundingClientRect();
     if (rect) {
+      // Placeholder position for the very first paint -- the panel's real
+      // (possibly wider) rendered width isn't known until repositionPanel
+      // measures it just after, via useLayoutEffect below.
       setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
     }
     setIsOpen(true);
@@ -65,7 +75,7 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
     // Clamp horizontally too -- a narrow trigger near the right edge of a
     // mobile viewport can otherwise leave the (wider) option panel rendered
     // partly off-screen.
-    let left = triggerRect.left;
+    let left = align === 'right' ? triggerRect.right - panelRect.width : triggerRect.left;
     left = Math.min(left, viewportWidth - panelRect.width - VIEWPORT_MARGIN);
     left = Math.max(VIEWPORT_MARGIN, left);
 

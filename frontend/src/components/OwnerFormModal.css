@@ -1,5 +1,63 @@
 @import '../styles/breakpoints.css';
 
+/* Scoped to this modal only (via Modal's `className` prop) -- other modals
+   keep the shared Modal.css defaults untouched. */
+.owner-form-modal .modal__title {
+  font-size: 19px;
+}
+
+.owner-form-modal .modal__footer .btn--primary {
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.owner-form__section + .owner-form__section {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.owner-form__section-title {
+  margin: 0 0 var(--space-md);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.owner-form .form-field__label {
+  font-weight: 500;
+}
+
+.owner-form .input,
+.owner-form .select {
+  background: var(--color-bg-page);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s ease;
+}
+
+.owner-form .input:hover,
+.owner-form .select:hover {
+  border-color: var(--color-text-muted);
+}
+
+.owner-form__input-icon-wrap {
+  position: relative;
+}
+
+.owner-form__input-icon-wrap .input {
+  padding-left: 34px;
+}
+
+.owner-form__input-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
 .owner-form__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;

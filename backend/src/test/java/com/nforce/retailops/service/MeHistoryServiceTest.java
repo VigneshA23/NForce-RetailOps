@@ -588,7 +588,7 @@ class MeHistoryServiceTest {
         ChecklistHistoryDetailResponse historyBeforeSubmit = meHistoryService.getDetail(employeeId, storeId, today);
         assertThat(historyBeforeSubmit.categories().get(0).tasks().get(0).completed()).isFalse();
 
-        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null, null));
 
         TodayChecklistResponse afterSubmit = taskService.getTodayChecklistForEmployee(employeeId, storeId);
         assertThat(afterSubmit.categories().get(0).tasks().get(0).responses()).hasSize(1);
@@ -656,12 +656,12 @@ class MeHistoryServiceTest {
         LocalDate today = LocalDate.now();
 
         TaskResponseStateResponse firstSubmit =
-            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null, null));
         Long originalResponseId = firstSubmit.responses().get(0).id();
 
         adminCorrectionService.flagResponse(originalResponseId, ownerId, null, "Please recheck the lock");
 
-        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null, null));
 
         ChecklistHistoryDetailResponse history = meHistoryService.getDetail(employeeId, storeId, today);
         HistoryTaskItemResponse item = history.categories().get(0).tasks().get(0);
@@ -699,11 +699,11 @@ class MeHistoryServiceTest {
         LocalDate today = LocalDate.now();
 
         TaskResponseStateResponse firstSubmit =
-            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null, null));
         Long firstResponseId = firstSubmit.responses().get(0).id();
 
         taskService.undoResponse(employeeId, task.getId(), storeId, firstResponseId);
-        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null, null));
 
         ChecklistHistoryDetailResponse history = meHistoryService.getDetail(employeeId, storeId, today);
         HistoryTaskItemResponse item = history.categories().get(0).tasks().get(0);
@@ -727,7 +727,7 @@ class MeHistoryServiceTest {
         LocalDate today = LocalDate.now();
 
         TaskResponseStateResponse submitted =
-            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null, null));
         Long responseId = submitted.responses().get(0).id();
 
         adminCorrectionService.correctResponse(
@@ -765,9 +765,9 @@ class MeHistoryServiceTest {
         taskRepository.save(task);
         LocalDate today = LocalDate.now();
 
-        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
-        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
-        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null, null));
 
         ChecklistHistoryDetailResponse detail = meHistoryService.getDetail(employeeId, storeId, today);
         HistoryTaskItemResponse item = detail.categories().get(0).tasks().get(0);
@@ -786,7 +786,7 @@ class MeHistoryServiceTest {
         Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
 
         TaskResponseStateResponse submitted =
-            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null, null));
         Long responseId = submitted.responses().get(0).id();
 
         adminCorrectionService.correctResponse(
@@ -809,7 +809,7 @@ class MeHistoryServiceTest {
     void getCorrectionHistoryRejectsResponseFromStoreNotAssignedToEmployee() {
         Task task = saveTask(storeRepository.getReferenceById(storeId), LocalDate.now().minusDays(1));
         TaskResponseStateResponse submitted =
-            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null, null));
         Long responseId = submitted.responses().get(0).id();
 
         User unassignedEmployee = saveUser("history-corrections-unassigned");
@@ -832,10 +832,10 @@ class MeHistoryServiceTest {
         task.setCompletionType(CompletionType.MULTIPLE);
         taskRepository.save(task);
 
-        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
-        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null, null));
+        taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, false, null, null, null));
         TaskResponseStateResponse afterThird =
-            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null));
+            taskService.submitResponse(employeeId, task.getId(), new TaskResponseSubmitRequest(storeId, true, null, null, null));
         Long latestResponseId = afterThird.responses().get(0).id();
 
         List<AdminCorrectionEntry> history = adminCorrectionService.getCorrectionHistory(latestResponseId, ownerId);

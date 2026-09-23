@@ -181,7 +181,7 @@ class TaskResponsePersistenceTest {
         Long taskId = createTask(ResponseType.YES_NO, CompletionType.SINGLE);
 
         TaskResponseStateResponse state = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null));
 
         assertThat(state.responses()).hasSize(1);
         assertThat(state.responses().get(0).booleanValue()).isTrue();
@@ -201,7 +201,7 @@ class TaskResponsePersistenceTest {
         Long taskId = createTask(ResponseType.DONE_NOT_DONE, CompletionType.SINGLE);
 
         TaskResponseStateResponse state = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null));
 
         assertThat(state.responses()).hasSize(1);
         assertThat(state.responses().get(0).booleanValue()).isTrue();
@@ -217,7 +217,7 @@ class TaskResponsePersistenceTest {
         Long taskId = createTask(ResponseType.NUMERIC, CompletionType.SINGLE);
 
         TaskResponseStateResponse state = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 38.5, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 38.5, null, null));
 
         assertThat(state.responses()).hasSize(1);
         assertThat(state.responses().get(0).numericValue()).isEqualTo(38.5);
@@ -233,7 +233,7 @@ class TaskResponsePersistenceTest {
         Long taskId = createTask(ResponseType.TEXT, CompletionType.SINGLE);
 
         TaskResponseStateResponse state = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, null, "Temperature OK"));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, null, "Temperature OK", null));
 
         assertThat(state.responses()).hasSize(1);
         assertThat(state.responses().get(0).textValue()).isEqualTo("Temperature OK");
@@ -251,15 +251,15 @@ class TaskResponsePersistenceTest {
         Long textTaskId = createTask(ResponseType.TEXT, CompletionType.SINGLE);
 
         assertThatThrownBy(() -> taskService.submitResponse(
-            employee1Id, yesNoTaskId, new TaskResponseSubmitRequest(storeId, null, 5.0, null)))
+            employee1Id, yesNoTaskId, new TaskResponseSubmitRequest(storeId, null, 5.0, null, null)))
             .isInstanceOf(InvalidTaskResponseException.class);
 
         assertThatThrownBy(() -> taskService.submitResponse(
-            employee1Id, numericTaskId, new TaskResponseSubmitRequest(storeId, true, null, null)))
+            employee1Id, numericTaskId, new TaskResponseSubmitRequest(storeId, true, null, null, null)))
             .isInstanceOf(InvalidTaskResponseException.class);
 
         assertThatThrownBy(() -> taskService.submitResponse(
-            employee1Id, textTaskId, new TaskResponseSubmitRequest(storeId, null, null, null)))
+            employee1Id, textTaskId, new TaskResponseSubmitRequest(storeId, null, null, null, null)))
             .isInstanceOf(InvalidTaskResponseException.class);
     }
 
@@ -284,17 +284,17 @@ class TaskResponsePersistenceTest {
             TimeMode.ANYTIME, null, null, true));
 
         assertThatThrownBy(() -> taskService.submitResponse(
-            employee1Id, numericTask.id(), new TaskResponseSubmitRequest(storeId, null, 15.0, null)))
+            employee1Id, numericTask.id(), new TaskResponseSubmitRequest(storeId, null, 15.0, null, null)))
             .isInstanceOf(InvalidTaskResponseException.class);
         // TEXT tasks always carry the fixed 25-character Short Text limit
         // (TaskService.SHORT_TEXT_MAX_LENGTH) once applyRequest saves them.
         assertThatThrownBy(() -> taskService.submitResponse(
-            employee1Id, textTask.id(), new TaskResponseSubmitRequest(storeId, null, null, "this response text is deliberately far longer than the limit")))
+            employee1Id, textTask.id(), new TaskResponseSubmitRequest(storeId, null, null, "this response text is deliberately far longer than the limit", null)))
             .isInstanceOf(InvalidTaskResponseException.class);
 
         // A value within the configured limit is accepted.
         TaskResponseStateResponse state = taskService.submitResponse(
-            employee1Id, numericTask.id(), new TaskResponseSubmitRequest(storeId, null, 8.0, null));
+            employee1Id, numericTask.id(), new TaskResponseSubmitRequest(storeId, null, 8.0, null, null));
         assertThat(state.responses().get(0).numericValue()).isEqualTo(8.0);
     }
 
@@ -304,10 +304,10 @@ class TaskResponsePersistenceTest {
     void singleFirstActiveResponseBlocksAnotherEmployee() {
         Long taskId = createTask(ResponseType.YES_NO, CompletionType.SINGLE);
 
-        taskService.submitResponse(employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null));
 
         assertThatThrownBy(() -> taskService.submitResponse(
-            employee2Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null)))
+            employee2Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null)))
             .isInstanceOf(TaskAlreadyCompletedException.class);
     }
 
@@ -317,7 +317,7 @@ class TaskResponsePersistenceTest {
     void singleSubmittingEmployeeCanUndo() {
         Long taskId = createTask(ResponseType.YES_NO, CompletionType.SINGLE);
         TaskResponseStateResponse submitted = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null));
         Long responseId = submitted.responses().get(0).id();
 
         TaskResponseStateResponse afterUndo = taskService.undoResponse(employee1Id, taskId, storeId, responseId);
@@ -332,7 +332,7 @@ class TaskResponsePersistenceTest {
     void singleUndoPreservesRowAndReopensTask() {
         Long taskId = createTask(ResponseType.YES_NO, CompletionType.SINGLE);
         TaskResponseStateResponse submitted = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null));
         Long responseId = submitted.responses().get(0).id();
 
         taskService.undoResponse(employee1Id, taskId, storeId, responseId);
@@ -345,7 +345,7 @@ class TaskResponsePersistenceTest {
 
         // The task is available again -- a new (or the same) employee can complete it.
         TaskResponseStateResponse resubmitted = taskService.submitResponse(
-            employee2Id, taskId, new TaskResponseSubmitRequest(storeId, false, null, null));
+            employee2Id, taskId, new TaskResponseSubmitRequest(storeId, false, null, null, null));
         assertThat(resubmitted.responses()).hasSize(1);
         assertThat(resubmitted.responses().get(0).employeeUserId()).isEqualTo(employee2Id);
 
@@ -361,7 +361,7 @@ class TaskResponsePersistenceTest {
     void anotherEmployeeCannotUndoSomeoneElsesResponse() {
         Long taskId = createTask(ResponseType.YES_NO, CompletionType.SINGLE);
         TaskResponseStateResponse submitted = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null));
         Long responseId = submitted.responses().get(0).id();
 
         assertThatThrownBy(() -> taskService.undoResponse(employee2Id, taskId, storeId, responseId))
@@ -379,9 +379,9 @@ class TaskResponsePersistenceTest {
     void multipleAllowsDifferentEmployeesToRespond() {
         Long taskId = createTask(ResponseType.YES_NO, CompletionType.MULTIPLE);
 
-        taskService.submitResponse(employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null));
         TaskResponseStateResponse afterSecond = taskService.submitResponse(
-            employee2Id, taskId, new TaskResponseSubmitRequest(storeId, false, null, null));
+            employee2Id, taskId, new TaskResponseSubmitRequest(storeId, false, null, null, null));
 
         assertThat(afterSecond.responses()).hasSize(2);
         assertThat(afterSecond.responses()).extracting(r -> r.employeeUserId())
@@ -398,11 +398,11 @@ class TaskResponsePersistenceTest {
         Long taskId = createTask(ResponseType.NUMERIC, CompletionType.MULTIPLE);
 
         TaskResponseStateResponse afterFirst = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 10.0, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 10.0, null, null));
         Long firstResponseId = afterFirst.responses().get(0).id();
 
         TaskResponseStateResponse afterSecond = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 20.0, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 20.0, null, null));
 
         assertThat(afterSecond.responses()).hasSize(1);
         assertThat(afterSecond.responses().get(0).employeeUserId()).isEqualTo(employee1Id);
@@ -427,12 +427,12 @@ class TaskResponsePersistenceTest {
     void undoThenResubmitBySameEmployeePreservesTheChain() {
         Long singleTaskId = createTask(ResponseType.NUMERIC, CompletionType.SINGLE);
         TaskResponseStateResponse firstSubmit = taskService.submitResponse(
-            employee1Id, singleTaskId, new TaskResponseSubmitRequest(storeId, null, 8.0, null));
+            employee1Id, singleTaskId, new TaskResponseSubmitRequest(storeId, null, 8.0, null, null));
         Long firstResponseId = firstSubmit.responses().get(0).id();
 
         taskService.undoResponse(employee1Id, singleTaskId, storeId, firstResponseId);
         TaskResponseStateResponse afterResubmit = taskService.submitResponse(
-            employee1Id, singleTaskId, new TaskResponseSubmitRequest(storeId, null, 5.0, null));
+            employee1Id, singleTaskId, new TaskResponseSubmitRequest(storeId, null, 5.0, null, null));
 
         assertThat(afterResubmit.responses()).hasSize(1);
         TaskResponseEntry latest = taskResponseEntryRepository.findById(afterResubmit.responses().get(0).id()).orElseThrow();
@@ -440,12 +440,12 @@ class TaskResponsePersistenceTest {
 
         Long multipleTaskId = createTask(ResponseType.NUMERIC, CompletionType.MULTIPLE);
         TaskResponseStateResponse multiFirst = taskService.submitResponse(
-            employee1Id, multipleTaskId, new TaskResponseSubmitRequest(storeId, null, 3.0, null));
+            employee1Id, multipleTaskId, new TaskResponseSubmitRequest(storeId, null, 3.0, null, null));
         Long multiFirstId = multiFirst.responses().get(0).id();
 
         taskService.undoResponse(employee1Id, multipleTaskId, storeId, multiFirstId);
         TaskResponseStateResponse multiResubmit = taskService.submitResponse(
-            employee1Id, multipleTaskId, new TaskResponseSubmitRequest(storeId, null, 6.0, null));
+            employee1Id, multipleTaskId, new TaskResponseSubmitRequest(storeId, null, 6.0, null, null));
 
         TaskResponseEntry multiLatest = taskResponseEntryRepository.findById(multiResubmit.responses().get(0).id()).orElseThrow();
         assertThat(multiLatest.getSupersededResponseId()).isEqualTo(multiFirstId);
@@ -460,7 +460,7 @@ class TaskResponsePersistenceTest {
         User unassignedEmployee = saveUser("unassigned");
 
         assertThatThrownBy(() -> taskService.submitResponse(
-            unassignedEmployee.getId(), taskId, new TaskResponseSubmitRequest(storeId, true, null, null)))
+            unassignedEmployee.getId(), taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null)))
             .isInstanceOf(StoreNotFoundException.class);
     }
 
@@ -485,7 +485,7 @@ class TaskResponsePersistenceTest {
             ownerId, taskRequest(ResponseType.YES_NO, CompletionType.SINGLE, false, List.of(storeId)));
 
         assertThatThrownBy(() -> taskService.submitResponse(
-            employee1Id, created.id(), new TaskResponseSubmitRequest(otherStore.getId(), true, null, null)))
+            employee1Id, created.id(), new TaskResponseSubmitRequest(otherStore.getId(), true, null, null, null)))
             .isInstanceOf(TaskNotFoundException.class);
     }
 
@@ -498,18 +498,18 @@ class TaskResponsePersistenceTest {
         Long taskId = createTask(ResponseType.NUMERIC, CompletionType.MULTIPLE);
 
         TaskResponseStateResponse afterFirst = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 10.0, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 10.0, null, null));
         assertThat(afterFirst.totalActiveEmployees()).isEqualTo(2);
         assertThat(afterFirst.completedByCount()).isEqualTo(1);
         assertThat(afterFirst.completedByNames()).containsExactly("Test employee1");
 
         // A repeat submission by the same employee must not double-count.
         TaskResponseStateResponse afterRepeat = taskService.submitResponse(
-            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 20.0, null));
+            employee1Id, taskId, new TaskResponseSubmitRequest(storeId, null, 20.0, null, null));
         assertThat(afterRepeat.completedByCount()).isEqualTo(1);
 
         TaskResponseStateResponse afterSecondEmployee = taskService.submitResponse(
-            employee2Id, taskId, new TaskResponseSubmitRequest(storeId, null, 5.0, null));
+            employee2Id, taskId, new TaskResponseSubmitRequest(storeId, null, 5.0, null, null));
         assertThat(afterSecondEmployee.completedByCount()).isEqualTo(2);
         assertThat(afterSecondEmployee.completedByNames()).containsExactlyInAnyOrder("Test employee1", "Test employee2");
 
@@ -534,8 +534,8 @@ class TaskResponsePersistenceTest {
     void deactivatedEmployeesExcludedFromCompletedByCounts() {
         Long taskId = createTask(ResponseType.YES_NO, CompletionType.MULTIPLE);
 
-        taskService.submitResponse(employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
-        taskService.submitResponse(employee2Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null));
+        taskService.submitResponse(employee1Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null));
+        taskService.submitResponse(employee2Id, taskId, new TaskResponseSubmitRequest(storeId, true, null, null, null));
 
         User employee2 = userRepository.getReferenceById(employee2Id);
         employee2.setActive(false);
