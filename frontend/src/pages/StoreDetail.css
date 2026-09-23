@@ -522,10 +522,11 @@
 /* Outstanding Tasks (collapsible; shown for any viewed date, not just today) */
 .store-detail-outstanding {
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
   background: var(--color-surface-card);
-  margin-bottom: var(--space-lg);
+  margin-bottom: var(--space-xl);
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
 }
 
 .store-detail-outstanding__toggle {
@@ -567,6 +568,39 @@
   font-size: 11px;
   font-weight: 700;
   border-radius: var(--radius-pill);
+}
+
+.store-detail-outstanding__count--completed {
+  background: var(--color-badge-icon-success-fg, #16a34a);
+}
+
+.store-detail-outstanding__count--issues {
+  background: var(--color-accent, #e11d33);
+}
+
+.store-detail-outstanding .store-detail-table__card {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+.store-detail-outstanding .store-detail-table__card .table-scroll {
+  border-radius: 0;
+}
+
+.store-detail-outstanding .store-detail-table__card .data-table {
+  border-radius: 0;
+}
+
+.store-detail-outstanding .store-detail-table__card .data-table tbody {
+  background: transparent;
+}
+
+.store-detail-outstanding--completed {
+  margin-top: var(--space-xl);
 }
 
 .store-detail-outstanding__chevron {
@@ -808,4 +842,3 @@
     rgba(255, 255, 255, 0.06) 0%
   );
 }
-
