@@ -35,9 +35,105 @@
   color: var(--color-badge-success-text, #166534);
 }
 
+.category-table__status {
+  white-space: nowrap;
+}
+
+.category-table__starts {
+  margin-left: var(--space-sm);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-badge-icon-warning-fg);
+}
+
 .category-table__status-badge.is-inactive {
   background: var(--color-badge-neutral-bg, #f4f4f5);
   color: var(--color-badge-neutral-text, #71717a);
+}
+
+/* Mobile-card-only pieces (Super Admin view): hidden on wider screens, where
+   the plain comma-separated stores text and bare task count are shown. */
+.category-table__icon,
+.category-table__stores-heading,
+.category-table__store-chips,
+.category-table__task-icon,
+.category-table__task-suffix {
+  display: none;
+}
+
+/* Badge palette (the category's chosen color): the desktop inline tag icon
+   uses --badge-fg; the mobile icon tile uses both. */
+.category-table__icon--red    { --badge-bg: var(--color-badge-icon-primary-bg); --badge-fg: var(--color-badge-icon-primary-fg); }
+.category-table__icon--green  { --badge-bg: var(--color-badge-icon-success-bg); --badge-fg: var(--color-badge-icon-success-fg); }
+.category-table__icon--amber  { --badge-bg: var(--color-badge-icon-warning-bg); --badge-fg: var(--color-badge-icon-warning-fg); }
+.category-table__icon--blue   { --badge-bg: var(--color-badge-icon-info-bg);    --badge-fg: var(--color-badge-icon-info-fg); }
+.category-table__icon--purple { --badge-bg: var(--color-badge-icon-purple-bg);  --badge-fg: var(--color-badge-icon-purple-fg); }
+.category-table__icon--slate  { --badge-bg: var(--color-badge-icon-slate-bg);   --badge-fg: var(--color-badge-icon-slate-fg); }
+
+/* -- Super Admin desktop/tablet table --
+   Tag icon before the name, stores as chips, tinted header row, red-outlined
+   delete, and a pagination footer inside the card. */
+.category-table__card--managed .data-table thead th {
+  background: var(--color-bg-page);
+}
+
+.category-table__card--managed .category-table__icon {
+  display: inline-flex;
+  margin-right: 10px;
+  vertical-align: -2px;
+  color: var(--badge-fg);
+}
+
+.category-table__card--managed .category-table__icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.category-table__card--managed .category-table__stores-text {
+  display: none;
+}
+
+.category-table__card--managed .category-table__store-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-width: 440px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.category-table__store-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-info-fg) 20%, transparent);
+  border-radius: 4px;
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.category-table__store-chip--empty {
+  border-color: var(--color-border);
+  background: var(--color-bg-page);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.category-table__card--managed .category-table__task-number {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.category-table__card--managed .table-icon-btn--danger {
+  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
+.category-table__footer {
+  border-top: 1px solid var(--color-border);
 }
 
 .category-table__drag-header,
@@ -107,5 +203,211 @@
   .table-icon-btn.category-table__drag-handle--dragging {
     color: var(--color-text-primary);
     opacity: 1;
+  }
+}
+
+/* -- Super Admin mobile cards --
+   Each row becomes a standalone card:
+     [icon] Name              [toggle]
+     [icon] [16 Tasks]
+     ASSIGNED STORES (2)      [edit][delete]
+     - store chip
+     - store chip
+   The name and stores cells use `display: contents` so their inner pieces
+   (icon/name, heading/chips) can sit in separate grid areas. Selectors are
+   compounded with .table-card so they beat table.css's shared mobile rules
+   regardless of stylesheet load order (see drag-handle note above). */
+@media (--mobile) {
+  .table-card.category-table__card--managed {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .table-card.category-table__card--managed .data-table {
+    background: transparent;
+  }
+
+  .table-card.category-table__card--managed .data-table tbody tr {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) auto;
+    grid-template-areas:
+      'icon    name    status'
+      'icon    tasks   status'
+      'heading heading actions'
+      'chips   chips   chips';
+    column-gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 14px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .table-card.category-table__card--managed .data-table tbody tr:last-child {
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .table-card.category-table__card--managed .data-table tbody td {
+    padding: 0;
+  }
+
+  .table-card.category-table__card--managed .data-table tbody td::before {
+    content: none;
+  }
+
+  .table-card.category-table__card--managed .data-table tbody td.category-table__name,
+  .table-card.category-table__card--managed .data-table tbody td.category-table__stores {
+    display: contents;
+  }
+
+  .category-table__card--managed .category-table__icon {
+    grid-area: icon;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-right: 0;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+    background: var(--badge-bg);
+    color: var(--badge-fg);
+  }
+
+  .category-table__card--managed .category-table__icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .category-table__card--managed .category-table__name-text {
+    grid-area: name;
+    align-self: end;
+    min-width: 0;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--color-text-primary);
+    overflow-wrap: anywhere;
+  }
+
+  .table-card.category-table__card--managed .data-table tbody td.category-table__task-count {
+    grid-area: tasks;
+    justify-self: start;
+    align-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 2px 7px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg-page);
+    font-size: 11px;
+    color: var(--color-text-secondary);
+  }
+
+  .category-table__card--managed .category-table__task-icon {
+    display: inline-block;
+    color: var(--color-text-muted);
+  }
+
+  .category-table__card--managed .category-table__task-number {
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+
+  .category-table__card--managed .category-table__task-suffix {
+    display: inline;
+  }
+
+  .category-table__card--managed .category-table__starts {
+    margin-left: 0;
+    font-size: 10px;
+  }
+
+  .table-card.category-table__card--managed .data-table tbody td.category-table__status {
+    grid-area: status;
+    align-self: start;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+
+  .category-table__card--managed .category-table__stores-text {
+    display: none;
+  }
+
+  .category-table__card--managed .category-table__stores-heading {
+    grid-area: heading;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 16px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .table-card.category-table__card--managed .data-table tbody td.table-actions-cell {
+    grid-area: actions;
+    margin-top: 16px;
+    justify-content: flex-end;
+  }
+
+  .category-table__card--managed .table-row-actions {
+    gap: 8px;
+  }
+
+  .category-table__card--managed .table-icon-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: var(--color-text-secondary);
+  }
+
+  .category-table__card--managed .table-icon-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .category-table__card--managed .category-table__store-chips {
+    grid-area: chips;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    margin: 10px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .category-table__store-chip {
+    gap: 8px;
+    max-width: 100%;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .category-table__store-chip::before {
+    content: '';
+    flex-shrink: 0;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .category-table__store-chip--empty::before {
+    content: none;
   }
 }

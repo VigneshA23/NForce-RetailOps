@@ -1,4 +1,5 @@
 import type { Employee } from '../types/employee';
+import { getInitials } from '../utils/initials';
 import Modal from './Modal';
 import './EmployeeDetailModal.css';
 
@@ -18,49 +19,66 @@ function EmployeeDetailModal({ employee, onClose, ownerName }: EmployeeDetailMod
     <Modal
       isOpen={employee !== null}
       onClose={onClose}
-      title={employee.name}
-      subtitle={employee.empId}
+      title="Employee"
+      titleExtra={
+        <span className={`emp-detail__status${employee.active ? ' emp-detail__status--active' : ''}`}>
+          {employee.active ? 'Active' : 'Inactive'}
+        </span>
+      }
+      className="emp-detail-modal"
       footer={
-        <button type="button" className="btn btn--secondary" onClick={onClose}>
+        <button type="button" className="btn btn--secondary emp-detail__close" onClick={onClose}>
           Close
         </button>
       }
     >
-      <div className="employee-detail">
-        <span className={`badge ${employee.active ? 'badge--solid' : 'badge--outline'}`}>
-          {employee.active ? 'Active' : 'Inactive'}
-        </span>
+      <div className="emp-detail">
+        <div className="emp-detail__profile">
+          {employee.avatarUrl ? (
+            <img className="emp-detail__avatar emp-detail__avatar--img" src={employee.avatarUrl} alt="" aria-hidden="true" />
+          ) : (
+            <span className="emp-detail__avatar" aria-hidden="true">{getInitials(employee.name)}</span>
+          )}
+          <span className="emp-detail__name">{employee.name}</span>
+          <span className="emp-detail__emp-id">{employee.empId}</span>
+        </div>
 
-        <dl className="employee-detail__grid">
-          <div>
-            <dt>Employee ID</dt>
-            <dd>{employee.empId}</dd>
+        <dl className="emp-detail__info">
+          <div className="emp-detail__row emp-detail__row--stacked">
+            <dt>Assigned Stores</dt>
+            <dd>
+              {employee.stores.length > 0 ? (
+                <span className="emp-detail__stores">
+                  {employee.stores.map((store) => (
+                    <span key={store.id} className="emp-detail__store">{store.name}</span>
+                  ))}
+                </span>
+              ) : (
+                <span className="emp-detail__muted">No stores</span>
+              )}
+            </dd>
           </div>
           {ownerName && (
-            <div>
+            <div className="emp-detail__row">
               <dt>Owner</dt>
               <dd>{ownerName}</dd>
             </div>
           )}
-          <div>
-            <dt>Assigned Stores</dt>
-            <dd>{employee.stores.length > 0 ? employee.stores.map((store) => store.name).join(', ') : 'No stores'}</dd>
-          </div>
-          <div>
-            <dt>Type</dt>
+          <div className="emp-detail__row">
+            <dt>Employment Type</dt>
             <dd>{employee.employeeType}</dd>
           </div>
-          <div>
-            <dt>Contact</dt>
-            <dd>{employee.phone}</dd>
-          </div>
-          <div>
-            <dt>Email</dt>
-            <dd>{employee.email}</dd>
-          </div>
-          <div>
+          <div className="emp-detail__row">
             <dt>Gender</dt>
             <dd>{employee.gender}</dd>
+          </div>
+          <div className="emp-detail__row">
+            <dt>Phone</dt>
+            <dd className="emp-detail__accent">{employee.phone}</dd>
+          </div>
+          <div className="emp-detail__row">
+            <dt>Email</dt>
+            <dd className="emp-detail__accent">{employee.email}</dd>
           </div>
         </dl>
       </div>

@@ -71,9 +71,11 @@ export interface HistoryTaskDetail {
   resubmissionHistory: HistoryResubmissionTransition[];
   // How the current response came to exist -- see types/task.ts's CompletedVia.
   // Optional: only populated on the employee-facing history view for now.
-  // 'LINK_FULFILLED' shows a "completed via today's checklist" tag and is
-  // permanent (never undoable -- already reflected server-side, not derived here).
-  completedVia?: 'NORMAL' | 'MAKEUP_NOW' | 'LINK_FULFILLED';
+  // 'MOVED' shows a "moved completion" tag (not permanent -- undoes/corrects
+  // normally). 'LINK_FULFILLED' shows a "completed via today's checklist" tag
+  // and is permanent (never undoable -- already reflected server-side, not
+  // derived here); retired but may still appear on historical responses.
+  completedVia?: 'NORMAL' | 'MOVED' | 'MAKEUP_NOW' | 'LINK_FULFILLED';
 }
 
 export interface HistoryCategoryEntry {

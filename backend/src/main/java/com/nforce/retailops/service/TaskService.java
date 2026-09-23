@@ -13,11 +13,13 @@ import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletedVia;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.DayOfWeekCode;
+import com.nforce.retailops.entity.MakeupLinkStatus;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
+import com.nforce.retailops.entity.TaskMakeupLink;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
@@ -426,11 +428,19 @@ public class TaskService {
      * active tasks belonging to that store's owner, scoped to the store (either
      * applies-to-all-stores or a specific task_stores entry), whose schedule
      * matches today's day of week and whose active date range covers today --
-     * grouped by category in the owner's configured category and task order.
+     * grouped by category in the owner's configured category and task order --
+     * PLUS every "moved" unit (see TaskMakeupLinkService) targeting today, each
+     * rendered as its own independent item under its task's category, tagged with
+     * its original due date. A task can appear more than once (its normal unit, plus
+     * any number of moved units) -- these are never merged into one card.
      */
-    @Transactional(readOnly = true)
+    @Transactional
     public TodayChecklistResponse getTodayChecklistForEmployee(Long employeeUserId, Long storeId) {
         userProfileService.requireAssignedStore(employeeUserId, storeId);
+        // Not readOnly (see TaskMakeupLinkService.getMissedTasks for the identical trap):
+        // expireStalePendingMoves() is a write, self-invoked inside its own @Transactional,
+        // so it runs inside whatever transaction called it rather than one of its own.
+        taskMakeupLinkService.expireStalePendingMoves();
 
         // Owner/Admin is optional here: a Super Admin deactivating the store's
         // Owner/Admin releases the StoreOwner link (owner set to null, active
@@ -463,38 +473,68 @@ public class TaskService {
         // so it's computed once rather than per task.
         int totalActiveEmployees = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId);
 
-        // "Will also complete N missed (dates)": past dates with a PENDING makeup link
-        // to today, per task (see TaskMakeupLinkService).
-        Map<Long, List<LocalDate>> pendingMakeupDatesByTask =
-            taskMakeupLinkService.findPendingMakeupDatesByTaskId(taskIds, storeId, today);
+        // Moved units targeting today (PENDING or FULFILLED -- see
+        // TaskMakeupLinkService.findMovedUnitsTargetingDate for why FULFILLED is
+        // included too), sorted oldest-due-date-first so multiple moved units of the
+        // same task render in a stable, predictable order.
+        List<TaskMakeupLink> movedUnits = taskMakeupLinkService.findMovedUnitsTargetingDate(storeId, today).stream()
+            .sorted(Comparator.comparing(TaskMakeupLink::getPastDate))
+            .toList();
+        List<Long> movedTaskIds = movedUnits.stream().map(link -> link.getTask().getId()).distinct().toList();
+        List<LocalDate> movedOriginalDates = movedUnits.stream().map(TaskMakeupLink::getPastDate).distinct().toList();
+        Map<TaskDateKey, List<TaskResponseEntry>> movedResponsesByTaskDate = movedUnits.isEmpty()
+            ? Map.of()
+            : taskResponseEntryRepository
+                .findByStoreIdAndTaskIdInAndResponseDateInAndActiveTrue(storeId, movedTaskIds, movedOriginalDates).stream()
+                .collect(Collectors.groupingBy(entry -> new TaskDateKey(entry.getTask().getId(), entry.getResponseDate())));
 
-        LinkedHashMap<Long, List<Task>> tasksByCategory = new LinkedHashMap<>();
+        LinkedHashMap<Long, String> categoryNames = new LinkedHashMap<>();
+        LinkedHashMap<Long, List<TaskChecklistItemResponse>> itemsByCategory = new LinkedHashMap<>();
+
         for (Task task : applicableTasks) {
-            tasksByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(task);
+            categoryNames.putIfAbsent(task.getCategory().getId(), task.getCategory().getName());
+            itemsByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(
+                TaskChecklistItemResponse.from(
+                    task, responsesByTask.getOrDefault(task.getId(), List.of()), employeeUserId, totalActiveEmployees, null));
         }
 
-        List<CategoryChecklistResponse> categories = tasksByCategory.values().stream()
-            .map(tasks -> new CategoryChecklistResponse(
-                tasks.get(0).getCategory().getId(),
-                tasks.get(0).getCategory().getName(),
-                tasks.stream()
-                    .map(task -> TaskChecklistItemResponse.from(
-                        task, responsesByTask.getOrDefault(task.getId(), List.of()), employeeUserId, totalActiveEmployees,
-                        pendingMakeupDatesByTask.getOrDefault(task.getId(), List.of())))
-                    .toList()
-            ))
+        for (TaskMakeupLink link : movedUnits) {
+            List<TaskResponseEntry> responses = movedResponsesByTaskDate.getOrDefault(
+                new TaskDateKey(link.getTask().getId(), link.getPastDate()), List.of());
+            // A FULFILLED move whose response has since been undone has no active
+            // response left -- the unit is no longer live on today's checklist (it's
+            // back in the missed list instead), so skip it rather than rendering a
+            // phantom "Due" card with nothing to undo.
+            if (link.getStatus() == MakeupLinkStatus.FULFILLED && responses.isEmpty()) {
+                continue;
+            }
+            Task task = link.getTask();
+            categoryNames.putIfAbsent(task.getCategory().getId(), task.getCategory().getName());
+            itemsByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(
+                TaskChecklistItemResponse.from(task, responses, employeeUserId, totalActiveEmployees, link.getPastDate()));
+        }
+
+        List<CategoryChecklistResponse> categories = itemsByCategory.entrySet().stream()
+            .map(entry -> new CategoryChecklistResponse(entry.getKey(), categoryNames.get(entry.getKey()), entry.getValue()))
             .toList();
 
         return new TodayChecklistResponse(storeId, today, categories);
     }
 
     /**
-     * Submit an employee's answer to a task for one of their assigned stores, for
-     * today's scheduled date. SINGLE: rejected outright if an active response already
-     * exists for this task/store/day (first employee to respond wins, regardless of
-     * who they are). MULTIPLE: an employee can resubmit any number of times, but each
-     * resubmission supersedes their own previous active response for that task/store/day
-     * -- only their latest answer stays visible/active, with earlier ones chained via
+     * Submit an employee's answer to a task for one of their assigned stores.
+     * request.originalDueDate() == null: today's own scheduled occurrence (requires the
+     * task currently active). Non-null: completing a "moved" unit (see
+     * TaskMakeupLinkService) -- the task lookup ignores the task's current active flag
+     * (a missed instance is defined regardless of whether the task has since been
+     * deactivated), the instance must still have a live PENDING move targeting today,
+     * and the response is attributed to originalDueDate rather than today.
+     *
+     * SINGLE: rejected outright if an active response already exists for this
+     * task/store/day (first employee to respond wins, regardless of who they are).
+     * MULTIPLE: an employee can resubmit any number of times, but each resubmission
+     * supersedes their own previous active response for that task/store/day -- only
+     * their latest answer stays visible/active, with earlier ones chained via
      * supersededResponseId (same mechanism SINGLE uses for its flag -> resubmit cycle),
      * so admins see one current row per employee with prior submissions in history.
      * Other employees' active responses for the same task/day are never touched.
@@ -502,68 +542,39 @@ public class TaskService {
     @Transactional
     public TaskResponseStateResponse submitResponse(Long employeeUserId, Long taskId, TaskResponseSubmitRequest request) {
         userProfileService.requireAssignedStore(employeeUserId, request.storeId());
-        Task task = requireTaskForStore(taskId, request.storeId());
         LocalDate today = LocalDate.now();
+        LocalDate originalDueDate = request.originalDueDate();
 
-        TaskResponseEntry entry = writeResponse(employeeUserId, task, request.storeId(), today, request, CompletedVia.NORMAL);
+        Task task;
+        LocalDate responseDate;
+        CompletedVia completedVia;
+        if (originalDueDate == null) {
+            task = requireTaskForStore(taskId, request.storeId());
+            responseDate = today;
+            completedVia = CompletedVia.NORMAL;
+        } else {
+            taskMakeupLinkService.expireStalePendingMoves();
+            task = requireTaskForStoreIgnoringActive(taskId, request.storeId());
+            taskMakeupLinkService.requireMoveTargeting(taskId, request.storeId(), originalDueDate, today);
+            responseDate = originalDueDate;
+            completedVia = CompletedVia.MOVED;
+        }
+
+        TaskResponseEntry entry = writeResponse(employeeUserId, task, request.storeId(), responseDate, request, completedVia);
 
         activityLogService.log(
             ActivityLogService.TASK_COMPLETED, entry.getEmployee().getFullName(), "EMPLOYEE",
             entry.getStore().getId(), entry.getStore().getName(), "TASK", task.getName(),
-            "Completed " + task.getName()
+            originalDueDate == null ? "Completed " + task.getName() : "Completed " + task.getName() + " (moved from " + originalDueDate + ")"
         );
 
-        // Inside this same transaction: if this submission just brought today's instance
-        // to Completed (SINGLE: always; MULTIPLE: the 2nd distinct responder), fulfil any
-        // PENDING "Missed Tasks" links pointing at today for this task/store.
-        taskMakeupLinkService.fulfillPendingLinksIfCompleted(entry);
-
-        return buildResponseState(taskId, request.storeId(), today, employeeUserId);
+        return buildResponseState(taskId, request.storeId(), responseDate, employeeUserId, originalDueDate);
     }
 
-    /**
-     * "Missed Tasks" -- Complete Now: an employee completes a past-day instance
-     * (date < today, within the 90-day lookback cap) that was never answered.
-     * Identical response-type validation and SINGLE/MULTIPLE completion rules as a
-     * same-day submission (writeResponse below is shared with submitResponse), except
-     * the task lookup ignores the task's current active flag, mirroring how a missed
-     * instance is defined regardless of whether the task has since been deactivated.
-     */
-    @Transactional
-    public TaskResponseStateResponse completeMissedNow(
-        Long employeeUserId, Long taskId, Long storeId, LocalDate date, TaskResponseSubmitRequest request
-    ) {
-        userProfileService.requireAssignedStore(employeeUserId, storeId);
-        taskMakeupLinkService.expireStalePendingLinks();
-
-        LocalDate today = LocalDate.now();
-        if (!date.isBefore(today) || date.isBefore(today.minusDays(TaskMakeupLinkService.MAX_LOOKBACK_DAYS))) {
-            throw new TaskNotFoundException("This task instance is not available for a makeup completion");
-        }
-        Task task = requireTaskForStoreIgnoringActive(taskId, storeId);
-        if (date.isBefore(task.getStartDate()) || (task.getEndDate() != null && date.isAfter(task.getEndDate()))) {
-            throw new TaskNotFoundException("This task instance is not available for a makeup completion");
-        }
-
-        TaskResponseEntry entry = writeResponse(employeeUserId, task, storeId, date, request, CompletedVia.MAKEUP_NOW);
-
-        activityLogService.log(
-            ActivityLogService.TASK_COMPLETED, entry.getEmployee().getFullName(), "EMPLOYEE",
-            entry.getStore().getId(), entry.getStore().getName(), "TASK", task.getName(),
-            "Completed " + task.getName() + " (missed " + date + ")"
-        );
-
-        // Invariant: a missed instance has either an active response or a PENDING link,
-        // never both -- this response just landed directly on (task, date).
-        taskMakeupLinkService.cancelPendingLinkIfAny(taskId, storeId, date);
-
-        return buildResponseState(taskId, storeId, date, employeeUserId);
-    }
-
-    // Shared by submitResponse (date = today, requires the task currently active) and
-    // completeMissedNow (date = a past missed instance) -- SINGLE's flag-aware resubmit
+    // Shared by every TaskResponseEntry-creating path (normal submit, moved-unit
+    // submit, flag -> resubmit, MULTIPLE resubmit) -- SINGLE's flag-aware resubmit
     // guard, MULTIPLE's own-employee resubmit-supersede, and the partial-unique-index
-    // race-safety backstop (V19) are all identical between the two callers.
+    // race-safety backstop (V19) are identical regardless of caller.
     private TaskResponseEntry writeResponse(
         Long employeeUserId, Task task, Long storeId, LocalDate date,
         TaskResponseSubmitRequest request, CompletedVia completedVia
@@ -645,6 +656,14 @@ public class TaskService {
         } catch (DataIntegrityViolationException ex) {
             throw new TaskAlreadyCompletedException(alreadyCompletedMessage(date));
         }
+
+        // Invariant: an instance never simultaneously has an active response and a
+        // pending move. A no-op (one indexed UPDATE matching zero rows) unless this
+        // instance had a PENDING move targeting `date` -- covers moved-unit completion,
+        // and also a normal/flag-resubmit/MULTIPLE-resubmit landing on an instance that
+        // happens to have one, with no special-casing needed per caller.
+        taskMakeupLinkService.terminatePendingMoveIfAny(task.getId(), storeId, date, employeeUserId);
+
         return entry;
     }
 
@@ -683,10 +702,17 @@ public class TaskService {
         entry.setUndoneByUser(true);
         taskResponseEntryRepository.save(entry);
 
-        return buildResponseState(taskId, storeId, entry.getResponseDate(), employeeUserId);
+        // A moved unit's response date IS its original due date (see submitResponse) --
+        // undoing it doesn't create or touch a move row (the old move, if any, already
+        // went terminal when this response was created), it just leaves the instance
+        // with no active response, so it's picked up again by the next missed-list read.
+        LocalDate originalDueDate = entry.getCompletedVia() == CompletedVia.MOVED ? entry.getResponseDate() : null;
+        return buildResponseState(taskId, storeId, entry.getResponseDate(), employeeUserId, originalDueDate);
     }
 
-    private TaskResponseStateResponse buildResponseState(Long taskId, Long storeId, LocalDate date, Long employeeUserId) {
+    private TaskResponseStateResponse buildResponseState(
+        Long taskId, Long storeId, LocalDate date, Long employeeUserId, LocalDate originalDueDate
+    ) {
         List<TaskResponseEntry> active = taskResponseEntryRepository
             .findByTaskIdAndStoreIdAndResponseDateAndActiveTrue(taskId, storeId, date);
         List<TaskResponseSummary> summaries = active.stream().map(TaskResponseSummary::from).toList();
@@ -704,7 +730,8 @@ public class TaskService {
         int totalActiveEmployees = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId);
 
         return new TaskResponseStateResponse(
-            taskId, summaries, canUndo, activeResponders.size(), totalActiveEmployees, List.copyOf(activeResponders.values()));
+            taskId, summaries, canUndo, activeResponders.size(), totalActiveEmployees,
+            List.copyOf(activeResponders.values()), originalDueDate);
     }
 
     // Same store-membership check the checklist query applies (applies-to-all-stores,
@@ -725,7 +752,7 @@ public class TaskService {
 
     // "Missed Tasks" variant of requireTaskForStore: a missed instance is defined
     // regardless of the task's CURRENT active flag (it may have been deactivated since
-    // the missed day), so Complete Now must still be able to find it -- same
+    // the missed day), so a moved-unit submission must still be able to find it -- same
     // store-membership check as requireTaskForStore, just without Task::isActive.
     private Task requireTaskForStoreIgnoringActive(Long taskId, Long storeId) {
         Task task = taskRepository.findById(taskId)
@@ -867,7 +894,14 @@ public class TaskService {
             : new HashSet<>();
         task.setSelectedDays(selectedDays);
 
-        task.setStartDate(request.startDate());
+        // A category created with "Enable Immediately" off only goes live from
+        // its own start date -- push the task's start forward to match so it
+        // stays off the checklist until then.
+        LocalDate startDate = request.startDate();
+        if (startDate != null && category.getStartDate() != null && startDate.isBefore(category.getStartDate())) {
+            startDate = category.getStartDate();
+        }
+        task.setStartDate(startDate);
         task.setEndDate(request.endDate());
 
         task.setTimeMode(request.timeMode());
@@ -942,5 +976,8 @@ public class TaskService {
         if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private record TaskDateKey(Long taskId, LocalDate date) {
     }
 }

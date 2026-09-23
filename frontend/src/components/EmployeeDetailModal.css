@@ -27,3 +27,212 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* -- Employee details popup (EmployeeDetailModal; all screen sizes) --
+   The .employee-detail__grid rules above remain for OwnerDetailModal. */
+.modal.emp-detail-modal {
+  max-width: 440px;
+}
+
+.emp-detail-modal .modal__header {
+  align-items: center;
+  border-bottom: none;
+}
+
+.emp-detail-modal .modal__title {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.emp-detail-modal .modal__close {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-bg-page);
+}
+
+.emp-detail-modal .modal__body {
+  padding-top: 0;
+}
+
+.emp-detail-modal .modal__footer {
+  border-top: none;
+}
+
+.emp-detail__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-bg-page);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.emp-detail__status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.emp-detail__status--active {
+  border-color: color-mix(in srgb, var(--color-badge-icon-success-fg) 30%, transparent);
+  background: var(--color-badge-icon-success-bg);
+  color: var(--color-badge-icon-success-fg);
+}
+
+.emp-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Profile card: avatar, name, emp id pill */
+.emp-detail__profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.emp-detail__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--color-badge-solid-bg);
+  color: var(--color-badge-solid-text);
+  font-size: 15px;
+  font-weight: 700;
+  object-fit: cover;
+}
+
+.emp-detail__name {
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.emp-detail__emp-id {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-page);
+  color: var(--color-text-secondary);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Info card: label left, value right; stores stacked */
+.emp-detail__info {
+  margin: 0;
+  padding: 4px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+}
+
+.emp-detail__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.emp-detail__row:last-child {
+  border-bottom: none;
+}
+
+.emp-detail__row dt {
+  flex-shrink: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.emp-detail__row dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.emp-detail__row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.emp-detail__row--stacked dd {
+  text-align: left;
+}
+
+.emp-detail__stores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.emp-detail__store {
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-info-fg) 20%, transparent);
+  border-radius: 6px;
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.emp-detail__accent {
+  color: var(--color-badge-icon-info-fg) !important;
+}
+
+.emp-detail__muted {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.emp-detail__close {
+  flex: 1;
+  border-radius: 12px;
+}
+
+@media (--mobile) {
+  .modal.emp-detail-modal {
+    max-width: 100%;
+  }
+
+  .emp-detail-modal::before {
+    content: '';
+    align-self: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 4px;
+    margin-top: 10px;
+    border-radius: 999px;
+    background: var(--color-border);
+  }
+
+  .emp-detail-modal .modal__header {
+    padding-top: var(--space-sm);
+  }
+}

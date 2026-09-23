@@ -19,13 +19,15 @@ interface ModalProps {
   // "Add New Owner"). Purely decorative -- omitted entirely by default so
   // every existing caller renders exactly as before.
   titleIcon?: ReactNode;
+  // Optional element rendered right after the title (e.g. a status pill).
+  titleExtra?: ReactNode;
   // Extra class appended to the outer `.modal` card, letting a specific
   // caller scope its own title/body/footer styling (see OwnerFormModal.css)
   // without touching every other modal's shared chrome.
   className?: string;
 }
 
-function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md', centered = false, titleIcon, className }: ModalProps) {
+function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md', centered = false, titleIcon, titleExtra, className }: ModalProps) {
   const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2)}`).current;
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -194,14 +196,17 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
       >
         <div className="modal__header">
           <div>
-            <h2 className="modal__title" id={titleId}>
-              {titleIcon && (
-                <span className="modal__title-icon" aria-hidden="true">
-                  {titleIcon}
-                </span>
-              )}
-              {title}
-            </h2>
+            <div className="modal__title-row">
+              <h2 className="modal__title" id={titleId}>
+                {titleIcon && (
+                  <span className="modal__title-icon" aria-hidden="true">
+                    {titleIcon}
+                  </span>
+                )}
+                {title}
+              </h2>
+              {titleExtra}
+            </div>
             {subtitle && <p className="modal__subtitle">{subtitle}</p>}
           </div>
           <button type="button" className="modal__close" aria-label="Close dialog" onClick={onClose}>

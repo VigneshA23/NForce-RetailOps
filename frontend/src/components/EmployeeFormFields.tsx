@@ -1,6 +1,7 @@
 import type { EmployeeCreateValues, EmployeeUpdateValues } from '../types/employee';
 import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS } from '../utils/employeeOptions';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
+import { Mail, User } from 'lucide-react';
 import FormField from './FormField';
 import Select from './Select';
 
@@ -40,12 +41,15 @@ function EmployeeFormFields({ values, errors, onChange, idPrefix = 'employee' }:
     <>
       <div className="form-field--full">
         <FormField label="Name" htmlFor={`${idPrefix}-name`} required error={errors.name}>
-          <input
-            id={`${idPrefix}-name`}
-            className="input"
-            value={values.name}
-            onChange={(event) => onChange('name', event.target.value)}
-          />
+          <div className="employee-form__input-wrap">
+            <User size={15} className="employee-form__input-icon" aria-hidden="true" />
+            <input
+              id={`${idPrefix}-name`}
+              className="input"
+              value={values.name}
+              onChange={(event) => onChange('name', event.target.value)}
+            />
+          </div>
         </FormField>
       </div>
 
@@ -92,13 +96,16 @@ function EmployeeFormFields({ values, errors, onChange, idPrefix = 'employee' }:
 
       <div className="form-field--full">
         <FormField label="Email" htmlFor={`${idPrefix}-email`} required error={errors.email}>
-          <input
-            id={`${idPrefix}-email`}
-            type="email"
-            className="input"
-            value={values.email}
-            onChange={(event) => onChange('email', event.target.value)}
-          />
+          <div className="employee-form__input-wrap">
+            <Mail size={15} className="employee-form__input-icon" aria-hidden="true" />
+            <input
+              id={`${idPrefix}-email`}
+              type="email"
+              className="input"
+              value={values.email}
+              onChange={(event) => onChange('email', event.target.value)}
+            />
+          </div>
         </FormField>
       </div>
     </>

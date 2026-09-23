@@ -38,6 +38,35 @@
   color: var(--color-text-muted);
 }
 
+/* Super Admin: search and status are separate standalone fields rather than
+   sitting together inside one filter card. */
+.categories-page--super-admin .filter-bar {
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.categories-page--super-admin .filter-bar .filter--search {
+  flex: 1 1 0;
+}
+
+.categories-page--super-admin .filter-bar .filter--narrow {
+  flex: 0 0 190px;
+}
+
+.categories-page--super-admin .search-input--filter,
+.categories-page--super-admin .filter-bar .select {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--color-surface-card);
+}
+
+.categories-page--super-admin .search-input--filter__field {
+  font-size: 13px;
+}
+
 @media (--mobile) {
   .categories-page__header {
     flex-wrap: wrap;
@@ -45,5 +74,22 @@
 
   .categories-page__header .specular-button {
     margin-left: auto;
+  }
+
+  .categories-page--super-admin .categories-page__header {
+    flex-wrap: nowrap;
+  }
+
+  .categories-page--super-admin .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .categories-page--super-admin .filter-bar .filter,
+  .categories-page--super-admin .filter-bar .filter--search,
+  .categories-page--super-admin .filter-bar .filter--narrow {
+    flex: 1 1 auto;
+    width: 100%;
   }
 }

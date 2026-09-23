@@ -10,6 +10,7 @@ interface CalendarPopoverProps {
   // YYYY-MM-DD, local calendar -- matches the rest of EmployeeHistory's date
   // handling (deliberately not UTC, see toDateKey below).
   value: string
+  min?: string
   max?: string
   isOpen: boolean
   onClose: () => void
@@ -26,7 +27,7 @@ function toDateKey(date: Date): string {
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
-function CalendarPopover({ value, max, isOpen, onClose, onSelect, anchorRef }: CalendarPopoverProps) {
+function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef }: CalendarPopoverProps) {
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const [viewDate, setViewDate] = useState(() => new Date(`${value}T00:00:00`))
   const panelRef = useRef<HTMLDivElement>(null)
@@ -72,8 +73,10 @@ function CalendarPopover({ value, max, isOpen, onClose, onSelect, anchorRef }: C
   const startOffset = firstOfMonth.getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const todayKey = toDateKey(new Date())
+  const minDate = min ? new Date(`${min}T00:00:00`) : null
   const maxDate = max ? new Date(`${max}T00:00:00`) : null
   const isNextDisabled = maxDate != null && new Date(year, month + 1, 1) > maxDate
+  const isPrevDisabled = minDate != null && new Date(year, month, 0) < minDate
 
   const cells: (number | null)[] = [
     ...Array.from({ length: startOffset }, () => null),
@@ -88,6 +91,7 @@ function CalendarPopover({ value, max, isOpen, onClose, onSelect, anchorRef }: C
           type="button"
           className="calendar-popover__nav"
           aria-label="Previous month"
+          disabled={isPrevDisabled}
           onClick={() => setViewDate(new Date(year, month - 1, 1))}
         >
           <ChevronLeft size={16} />
@@ -117,7 +121,7 @@ function CalendarPopover({ value, max, isOpen, onClose, onSelect, anchorRef }: C
           if (day == null) return <span key={index} className="calendar-popover__cell calendar-popover__cell--empty" />
           const cellDate = new Date(year, month, day)
           const dateKey = toDateKey(cellDate)
-          const isDisabled = maxDate != null && cellDate > maxDate
+          const isDisabled = (maxDate != null && cellDate > maxDate) || (minDate != null && cellDate < minDate)
           const isSelected = dateKey === value
           const isToday = dateKey === todayKey
           return (

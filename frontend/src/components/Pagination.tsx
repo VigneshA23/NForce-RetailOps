@@ -7,9 +7,11 @@ interface PaginationProps {
   totalItems: number;
   pageSize: number;
   onPageChange: (page: number) => void;
+  // Optional noun after the count, e.g. "categories" -> "Showing 1-7 of 7 categories".
+  itemLabel?: string;
 }
 
-function Pagination({ page, pageCount, totalItems, pageSize, onPageChange }: PaginationProps) {
+function Pagination({ page, pageCount, totalItems, pageSize, onPageChange, itemLabel }: PaginationProps) {
   if (totalItems === 0) return null;
 
   const start = (page - 1) * pageSize + 1;
@@ -19,6 +21,7 @@ function Pagination({ page, pageCount, totalItems, pageSize, onPageChange }: Pag
     <div className="pagination">
       <span className="pagination__summary">
         Showing {start}-{end} of {totalItems}
+        {itemLabel && ` ${itemLabel}`}
       </span>
       <div className="pagination__controls">
         <button

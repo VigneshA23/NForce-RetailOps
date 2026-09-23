@@ -203,7 +203,7 @@ public class NotificationService {
             active
                 ? "Your NForce account has been reactivated by a Super Admin."
                 : "Your NForce account has been deactivated by a Super Admin.",
-            active ? "/home" : null);
+            active ? "/profile" : null);
     }
 
     @Transactional(readOnly = true)

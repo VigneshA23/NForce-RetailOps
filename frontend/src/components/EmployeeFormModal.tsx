@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Info, Plus, UserPen, UserPlus } from 'lucide-react';
 import type { EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
 import { validateEmployeeForm } from '../utils/employeeUtils';
 import EmployeeFormFields, {
@@ -79,13 +80,32 @@ function EmployeeFormModal({
       isOpen={isOpen}
       onClose={onClose}
       title={mode === 'create' ? 'Add Employee' : 'Edit Employee'}
+      titleIcon={mode === 'create' ? <UserPlus size={18} /> : <UserPen size={18} />}
+      subtitle={
+        mode === 'create'
+          ? 'Enter staff profile & assigned store locations'
+          : 'Update staff profile & assigned store locations'
+      }
+      className="employee-form-modal"
       footer={
         <>
-          <button type="button" className="btn btn--secondary" onClick={onClose}>
+          <button type="button" className="btn btn--secondary employee-form__cancel" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="employee-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
-            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'create' ? 'Add Employee' : 'Save Changes'}
+          <button
+            type="submit"
+            form="employee-form"
+            className={`btn btn--primary employee-form__submit${isSubmitting ? ' btn--loading' : ''}`}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ButtonDots label="Saving" />
+            ) : (
+              <>
+                {mode === 'create' && <Plus size={16} className="employee-form__submit-icon" aria-hidden="true" />}
+                {mode === 'create' ? 'Add Employee' : 'Save Changes'}
+              </>
+            )}
           </button>
         </>
       }
@@ -96,7 +116,10 @@ function EmployeeFormModal({
 
           {mode === 'create' && (
             <div className="form-field--full">
-              <p className="employee-form__hint">A temporary password will be emailed to this address.</p>
+              <p className="employee-form__hint">
+                <Info size={13} className="employee-form__hint-icon" aria-hidden="true" />
+                A temporary password will be emailed to this address.
+              </p>
             </div>
           )}
 

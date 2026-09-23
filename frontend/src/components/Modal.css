@@ -50,6 +50,13 @@
   flex-shrink: 0;
 }
 
+.modal__title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .modal__title {
   display: flex;
   align-items: center;

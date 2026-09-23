@@ -1,4 +1,11 @@
-import { Pencil, Trash2, GripVertical } from 'lucide-react';
+import {
+  Pencil,
+  Trash2,
+  GripVertical,
+  ClipboardList,
+  MapPin,
+  Tag,
+} from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -14,7 +21,9 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import type { ReactNode } from 'react';
 import type { Category } from '../types/category';
+import { formatDateLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
 import Toggle from './Toggle';
 import './CategoryTable.css';
 
@@ -27,6 +36,8 @@ interface CategoryTableProps {
   onDelete?: (category: Category) => void;
   onToggleStatus?: (category: Category, active: boolean) => void;
   onReorder?: (orderedIds: number[]) => void;
+  // Rendered inside the card below the table (e.g. pagination).
+  footer?: ReactNode;
 }
 
 interface RowSharedProps {
@@ -43,21 +54,67 @@ function storesLabel(category: Category): string {
   return category.stores.map((store) => store.name).join(', ');
 }
 
+// "Starts tomorrow" / "Starts Sep 30, 2026" for a category created with
+// "Enable Immediately" off that hasn't gone live yet; null once it has.
+function startsLabel(category: Category): string | null {
+  if (!category.startDate) return null;
+  const today = todayDate();
+  if (category.startDate <= today) return null;
+  return category.startDate === stepDate(today, 1)
+    ? 'Starts tomorrow'
+    : `Starts ${formatDateLabel(category.startDate)}`;
+}
+
 function CategoryRowCells({ category, canManage, onEdit, onDelete, onToggleStatus }: RowSharedProps) {
+  const starts = startsLabel(category);
   return (
     <>
-      <td className="category-table__name" data-label="Category Name">{category.name}</td>
+      <td className="category-table__name" data-label="Category Name">
+        {canManage && (
+          <span className={`category-table__icon category-table__icon--${category.badgeColor ?? 'blue'}`} aria-hidden="true">
+            <Tag size={18} />
+          </span>
+        )}
+        <span className="category-table__name-text">{category.name}</span>
+      </td>
       {canManage && (
-        <td className="category-table__stores" data-label="Stores">{storesLabel(category)}</td>
+        <td className="category-table__stores" data-label="Stores">
+          <span className="category-table__stores-text">{storesLabel(category)}</span>
+          {/* Mobile-only: heading + one chip per store (hidden on desktop via CSS). */}
+          <span className="category-table__stores-heading">
+            <MapPin size={12} aria-hidden="true" />
+            {category.appliesToAllStores
+              ? 'Assigned Stores'
+              : `Assigned Stores (${category.stores.length})`}
+          </span>
+          <ul className="category-table__store-chips">
+            {category.appliesToAllStores ? (
+              <li className="category-table__store-chip">All Stores</li>
+            ) : category.stores.length === 0 ? (
+              <li className="category-table__store-chip category-table__store-chip--empty">No stores assigned</li>
+            ) : (
+              category.stores.map((store) => (
+                <li key={store.id} className="category-table__store-chip">{store.name}</li>
+              ))
+            )}
+          </ul>
+        </td>
       )}
-      <td className="category-table__task-count" data-label="Tasks">{category.taskCount}</td>
-      <td data-label="Status">
+      <td className="category-table__task-count" data-label="Tasks">
+        {canManage && <ClipboardList size={12} className="category-table__task-icon" aria-hidden="true" />}
+        <span className="category-table__task-number">{category.taskCount}</span>
+        {canManage && <span className="category-table__task-suffix">Tasks</span>}
+      </td>
+      <td className="category-table__status" data-label="Status">
         {canManage && onToggleStatus ? (
-          <Toggle
-            checked={category.active}
-            onChange={(checked) => onToggleStatus(category, checked)}
-            label={`${category.active ? 'Deactivate' : 'Activate'} ${category.name}`}
-          />
+          <>
+            <Toggle
+              checked={category.active}
+              onChange={(checked) => onToggleStatus(category, checked)}
+              label={`${category.active ? 'Deactivate' : 'Activate'} ${category.name}`}
+            />
+            {starts && <span className="category-table__starts">{starts}</span>}
+          </>
         ) : (
           <span className={`category-table__status-badge ${category.active ? 'is-active' : 'is-inactive'}`}>
             {category.active ? 'Active' : 'Inactive'}
@@ -153,6 +210,7 @@ function CategoryTable({
   onDelete,
   onToggleStatus,
   onReorder,
+  footer,
 }: CategoryTableProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -191,14 +249,14 @@ function CategoryTable({
   );
 
   return (
-    <div className="category-table__card table-card">
+    <div className={`category-table__card table-card${canManage ? ' category-table__card--managed' : ''}`}>
       <div className="table-scroll">
         <table className="data-table">
           <thead>
             <tr>
               {canReorder && <th scope="col" className="category-table__drag-header" aria-hidden="true" />}
               <th scope="col">Category Name</th>
-              {canManage && <th scope="col">Stores</th>}
+              {canManage && <th scope="col">Assigned Stores</th>}
               <th scope="col">Tasks</th>
               <th scope="col">Status</th>
               {canManage && <th scope="col" className="task-table__actions-header">Actions</th>}
@@ -222,6 +280,7 @@ function CategoryTable({
         <div className="category-table__empty">No categories match your filters.</div>
       )}
       {isLoading && <div className="category-table__empty">Loading categories...</div>}
+      {footer && <div className="category-table__footer">{footer}</div>}
     </div>
   );
 }

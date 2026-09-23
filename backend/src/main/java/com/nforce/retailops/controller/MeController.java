@@ -8,8 +8,9 @@ import com.nforce.retailops.dto.DailyStockCheckItemResponse;
 import com.nforce.retailops.dto.EmployeeSearchResponse;
 import com.nforce.retailops.dto.IssueResponse;
 import com.nforce.retailops.dto.MeResponse;
-import com.nforce.retailops.dto.MissedTaskLinkResponse;
+import com.nforce.retailops.dto.MissedTaskMoveResponse;
 import com.nforce.retailops.dto.MissedTasksPageResponse;
+import com.nforce.retailops.dto.MoveMissedTaskRequest;
 import com.nforce.retailops.dto.RaiseIssueRequest;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
@@ -36,7 +37,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -163,9 +163,10 @@ public class MeController {
         return ResponseEntity.ok(taskService.getTodayChecklistForEmployee(userDetails.getUser().getId(), storeId));
     }
 
-    // Employee-facing: submit today's answer to one task. requireAssignedStore (called
-    // inside TaskService) enforces the store belongs to this employee the same way the
-    // checklist read does.
+    // Employee-facing: submit an answer to one task -- today's own occurrence
+    // (request.originalDueDate() == null), or a moved unit's instance (non-null; see
+    // TaskService.submitResponse). requireAssignedStore (called inside TaskService)
+    // enforces the store belongs to this employee the same way the checklist read does.
     @PostMapping("/tasks/{taskId}/responses")
     public ResponseEntity<TaskResponseStateResponse> submitTaskResponse(
         @AuthenticationPrincipal UserDetails principal,
@@ -214,56 +215,24 @@ public class MeController {
         return ResponseEntity.ok(taskMakeupLinkService.getMissedTasks(userDetails.getUser().getId(), storeId, cursor, limit));
     }
 
-    // Employee-facing: "Missed Tasks" -- Complete Now for a past instance. Identical
-    // response-type validation and SINGLE/MULTIPLE completion rules as a same-day
-    // submission (see TaskService.completeMissedNow).
-    @PostMapping("/tasks/{taskId}/missed/{date}/complete-now")
-    public ResponseEntity<com.nforce.retailops.dto.TaskResponseStateResponse> completeMissedTaskNow(
+    // Employee-facing: "Missed Tasks" -- Move a past instance onto a target date (today,
+    // up to 7 days out). The instance then renders on the target date's checklist as its
+    // own independent unit, completed through submitTaskResponse above (see
+    // TaskMakeupLinkService.moveToDate).
+    @PostMapping("/tasks/{taskId}/missed/{date}/move")
+    public ResponseEntity<MissedTaskMoveResponse> moveMissedTask(
         @AuthenticationPrincipal UserDetails principal,
         @PathVariable Long taskId,
         @PathVariable java.time.LocalDate date,
         @RequestParam Long storeId,
-        @Valid @RequestBody TaskResponseSubmitRequest request
+        @Valid @RequestBody MoveMissedTaskRequest request
     ) {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
         AppUserDetails userDetails = (AppUserDetails) principal;
-        return ResponseEntity.ok(taskService.completeMissedNow(userDetails.getUser().getId(), taskId, storeId, date, request));
-    }
-
-    // Employee-facing: "Missed Tasks" -- defer a past instance to be auto-completed
-    // when today's occurrence of the same task is completed (see
-    // TaskMakeupLinkService.fulfillPendingLinksIfCompleted).
-    @PostMapping("/tasks/{taskId}/missed/{date}/link-to-today")
-    public ResponseEntity<MissedTaskLinkResponse> linkMissedTaskToToday(
-        @AuthenticationPrincipal UserDetails principal,
-        @PathVariable Long taskId,
-        @PathVariable java.time.LocalDate date,
-        @RequestParam Long storeId
-    ) {
-        if (principal instanceof SuperAdminUserDetails) {
-            throw new StoreNotFoundException("Store not found");
-        }
-        AppUserDetails userDetails = (AppUserDetails) principal;
-        return ResponseEntity.ok(taskMakeupLinkService.linkToToday(userDetails.getUser().getId(), taskId, storeId, date));
-    }
-
-    // Employee-facing: remove a PENDING link this employee created -- creator-only,
-    // PENDING-only (see TaskMakeupLinkService.unlink).
-    @DeleteMapping("/tasks/{taskId}/missed/{date}/link")
-    public ResponseEntity<Void> unlinkMissedTask(
-        @AuthenticationPrincipal UserDetails principal,
-        @PathVariable Long taskId,
-        @PathVariable java.time.LocalDate date,
-        @RequestParam Long storeId
-    ) {
-        if (principal instanceof SuperAdminUserDetails) {
-            throw new StoreNotFoundException("Store not found");
-        }
-        AppUserDetails userDetails = (AppUserDetails) principal;
-        taskMakeupLinkService.unlink(userDetails.getUser().getId(), taskId, storeId, date);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(taskMakeupLinkService.moveToDate(
+            userDetails.getUser().getId(), taskId, storeId, date, request.targetDate()));
     }
 
     // Employee-facing: list issues raised by this employee for one of their stores.

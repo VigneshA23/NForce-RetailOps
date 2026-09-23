@@ -30,15 +30,12 @@ public record MissedTaskInstanceResponse(
     LocalDate taskStartDate,
     LocalDate taskEndDate,
     LocalDate date,
-    // ACTIONABLE: Complete Now (and, if canCompleteWithToday, Complete with Today)
-    // are available. LINKED: already linked to today, no buttons (except Unlink for
-    // the link's creator). WAITING_ON_SECOND: a MULTIPLE task the current employee
-    // already answered, awaiting a second distinct employee -- no buttons.
+    // ACTIONABLE: the Move button is available. WAITING_ON_SECOND: a MULTIPLE task the
+    // current employee already answered, awaiting a second distinct employee -- no
+    // button. An instance with a PENDING move is excluded from the list entirely
+    // (never surfaced with a "LINKED"-style state) -- see TaskMakeupLinkService.
     String state,
     int completedByCount,
-    int totalActiveEmployees,
-    boolean canCompleteWithToday,
-    boolean canUnlink,
-    LocalDate linkedDate
+    int totalActiveEmployees
 ) {
 }

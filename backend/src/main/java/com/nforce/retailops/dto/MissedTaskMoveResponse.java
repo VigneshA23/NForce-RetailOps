@@ -2,10 +2,10 @@ package com.nforce.retailops.dto;
 
 import java.time.LocalDate;
 
-public record MissedTaskLinkResponse(
+public record MissedTaskMoveResponse(
     Long taskId,
-    LocalDate pastDate,
-    LocalDate linkedDate,
+    LocalDate originalDueDate,
+    LocalDate targetDate,
     String status
 ) {
 }

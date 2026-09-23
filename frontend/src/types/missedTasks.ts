@@ -2,8 +2,10 @@ import type { CompletionType, TaskResponseType } from './task'
 import type { DayCode, ScheduleType } from './adminTask'
 
 // Server-computed row state -- the frontend never derives this itself, it just
-// renders it. Mirrors MissedTaskInstanceResponse.state on the backend.
-export type MissedTaskState = 'ACTIONABLE' | 'LINKED' | 'WAITING_ON_SECOND'
+// renders it. Mirrors MissedTaskInstanceResponse.state on the backend. An
+// instance with a pending move is excluded from the list entirely rather than
+// surfaced with a "linked" state (see TaskMakeupLinkService.getMissedTasks).
+export type MissedTaskState = 'ACTIONABLE' | 'WAITING_ON_SECOND'
 
 export interface MissedTaskInstance {
   taskId: number
@@ -29,9 +31,6 @@ export interface MissedTaskInstance {
   state: MissedTaskState
   completedByCount: number
   totalActiveEmployees: number
-  canCompleteWithToday: boolean
-  canUnlink: boolean
-  linkedDate: string | null
 }
 
 export interface MissedTaskDateGroup {
@@ -47,9 +46,11 @@ export interface MissedTasksPage {
   totalInstances: number
 }
 
-export interface MissedTaskLink {
+// A move's server-returned state right after creating it (POST .../move) --
+// mirrors MissedTaskMoveResponse on the backend.
+export interface MissedTaskMove {
   taskId: number
-  pastDate: string
-  linkedDate: string
+  originalDueDate: string
+  targetDate: string
   status: string
 }

@@ -15,6 +15,8 @@ const categories: Category[] = [{
   stores: [],
   createdByOwnerId: null,
   createdByOwnerName: 'Super Admin',
+  badgeColor: 'blue',
+  startDate: null,
 }];
 const stores: OwnerStore[] = [{ id: 1, storeCode: 10001, name: 'Store 1', active: true, employeeCount: 0, taskCount: 0 }];
 

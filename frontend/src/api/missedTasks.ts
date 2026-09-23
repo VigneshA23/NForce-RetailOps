@@ -1,6 +1,5 @@
 import { apiRequest } from './client'
-import type { MissedTaskLink, MissedTasksPage } from '../types/missedTasks'
-import type { TaskResponseSubmitPayload, TaskResponseStateResponse } from './tasks'
+import type { MissedTaskMove, MissedTasksPage } from '../types/missedTasks'
 
 /**
  * "Missed Tasks": past-day instances of this store's tasks that were never
@@ -16,24 +15,14 @@ export async function getMissedTasks(storeId: number, cursor?: string | null, si
   return apiRequest<MissedTasksPage>(`/me/tasks/missed?${params.toString()}`, { timeoutMs: 90_000, signal })
 }
 
-export async function completeMissedTaskNow(
-  taskId: number,
-  date: string,
-  payload: TaskResponseSubmitPayload,
-): Promise<TaskResponseStateResponse> {
-  return apiRequest<TaskResponseStateResponse>(
-    `/me/tasks/${taskId}/missed/${date}/complete-now?storeId=${payload.storeId}`,
-    { method: 'POST', body: payload },
+/**
+ * Move a missed instance onto a target date (today, up to 7 days out). The
+ * instance then renders on the target date's checklist as its own independent
+ * unit -- see POST /api/me/tasks/{taskId}/missed/{date}/move.
+ */
+export async function moveMissedTask(taskId: number, date: string, storeId: number, targetDate: string): Promise<MissedTaskMove> {
+  return apiRequest<MissedTaskMove>(
+    `/me/tasks/${taskId}/missed/${date}/move?storeId=${storeId}`,
+    { method: 'POST', body: { targetDate } },
   )
-}
-
-export async function linkMissedTaskToToday(taskId: number, date: string, storeId: number): Promise<MissedTaskLink> {
-  return apiRequest<MissedTaskLink>(
-    `/me/tasks/${taskId}/missed/${date}/link-to-today?storeId=${storeId}`,
-    { method: 'POST' },
-  )
-}
-
-export async function unlinkMissedTask(taskId: number, date: string, storeId: number): Promise<void> {
-  await apiRequest<void>(`/me/tasks/${taskId}/missed/${date}/link?storeId=${storeId}`, { method: 'DELETE' })
 }

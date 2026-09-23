@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, AlertTriangle, Bell, CheckCircle2, Clock, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Bell, CheckCircle2, Clock, MessageSquare, User, X } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { getSAIssues, nudgeOwner, updateSAIssueStatus, type SAIssue } from '../api/superAdminIssues';
 import StatCard from '../components/StatCard';
@@ -171,67 +171,96 @@ function SuperAdminIssues() {
   const resolveIssue = issues.find((i) => i.id === resolveModalId) ?? null;
   const showActionsCol = statusFilter !== 'RESOLVED';
 
-  function renderRow(issue: SAIssue) {
+  function renderCard(issue: SAIssue) {
     return (
-      <tr key={issue.id}>
-        <td data-label="Store">
-          <span className="sa-issues-page__store-name">{issue.storeName}</span>
-        </td>
-        <td data-label="Employee">{issue.employeeFullName}</td>
-        <td data-label="Issue">
-          <span className="sa-issues-page__note">{issue.note}</span>
+      <div className="issue-card" key={issue.id}>
+        <div className="issue-card__icon" aria-hidden="true">
+          <MessageSquare size={16} strokeWidth={2} />
+        </div>
+        <div className="issue-card__body">
+          <div className="issue-card__top">
+            <div className="issue-card__field">
+              <span className="issue-card__label">Store</span>
+              <span className="issue-card__value sa-issues-page__store-name">{issue.storeName}</span>
+            </div>
+            <div className="issue-card__field">
+              <span className="issue-card__label">Employee</span>
+              <span className="issue-card__value">{issue.employeeFullName}</span>
+            </div>
+            <div className="issue-card__field issue-card__field--grow">
+              <span className="issue-card__label">Issue</span>
+              <span className="issue-card__value sa-issues-page__note">{issue.note}</span>
+            </div>
+            <div className="issue-card__field">
+              <span className="issue-card__label">Raised</span>
+              <span className="issue-card__value sa-issues-page__date-cell">
+                <span>{formatDate(issue.createdAt)}</span>
+                <span className="sa-issues-page__time">{formatTime(issue.createdAt)}</span>
+              </span>
+            </div>
+            <div className="issue-card__field issue-card__field--status">
+              <span className="issue-card__label">Status</span>
+              <span className={`badge ${STATUS_BADGE[issue.status]}`}>{STATUS_LABEL[issue.status]}</span>
+            </div>
+          </div>
+
           {issue.responseText && (
-            <span className="sa-issues-page__response">Response: {issue.responseText}</span>
-          )}
-        </td>
-        <td data-label="Raised" className="sa-issues-page__date-cell">
-          <span>{formatDate(issue.createdAt)}</span>
-          <span className="sa-issues-page__time">{formatTime(issue.createdAt)}</span>
-        </td>
-        <td data-label="Status">
-          <span className={`badge ${STATUS_BADGE[issue.status]}`}>{STATUS_LABEL[issue.status]}</span>
-        </td>
-        {showActionsCol && (
-          <td data-label="Actions" className="sa-issues-page__action-col">
-            {issue.status === 'RESOLVED' ? (
-              <span className="sa-issues-page__resolved-label">—</span>
-            ) : (
-              <div className="sa-issues-page__actions">
-                {issue.status === 'OPEN' && statusFilter !== 'ACKNOWLEDGED' && (
-                  <button
-                    type="button"
-                    className="btn btn--secondary btn--sm"
-                    disabled={busyId === issue.id}
-                    onClick={() => handleAcknowledge(issue)}
-                  >
-                    Acknowledge
-                  </button>
-                )}
-                {issue.status === 'ACKNOWLEDGED' && statusFilter !== 'OPEN' && (
-                  <button
-                    type="button"
-                    className="btn btn--primary btn--sm"
-                    disabled={busyId === issue.id}
-                    onClick={() => setResolveModalId(issue.id)}
-                  >
-                    Resolve
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className={`btn btn--ghost btn--sm sa-issues-page__nudge-btn${nudgingId === issue.id ? ' btn--loading' : ''}`}
-                  onClick={() => handleNudge(issue)}
-                  disabled={nudgingId === issue.id}
-                  title="Notify store owner to take action"
-                >
-                  <Bell size={12} />
-                  {nudgingId === issue.id ? <ButtonDots label="Sending" /> : 'Nudge'}
-                </button>
+            <>
+              <hr className="issue-card__divider" />
+              <div className="issue-card__response-block">
+                <span className="issue-card__response-label">Admin Response</span>
+                <div className="issue-card__response-box">
+                  <span className="issue-card__response-avatar" aria-hidden="true">
+                    <User size={14} strokeWidth={2} />
+                  </span>
+                  <span className="sa-issues-page__response">{issue.responseText}</span>
+                </div>
               </div>
-            )}
-          </td>
-        )}
-      </tr>
+            </>
+          )}
+
+          {showActionsCol && (
+            <div className="issue-card__actions-row">
+              {issue.status === 'RESOLVED' ? (
+                <span className="sa-issues-page__resolved-label">—</span>
+              ) : (
+                <div className="sa-issues-page__actions">
+                  {issue.status === 'OPEN' && statusFilter !== 'ACKNOWLEDGED' && (
+                    <button
+                      type="button"
+                      className="btn btn--secondary btn--sm"
+                      disabled={busyId === issue.id}
+                      onClick={() => handleAcknowledge(issue)}
+                    >
+                      Acknowledge
+                    </button>
+                  )}
+                  {issue.status === 'ACKNOWLEDGED' && statusFilter !== 'OPEN' && (
+                    <button
+                      type="button"
+                      className="btn btn--primary btn--sm"
+                      disabled={busyId === issue.id}
+                      onClick={() => setResolveModalId(issue.id)}
+                    >
+                      Resolve
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className={`btn btn--ghost btn--sm sa-issues-page__nudge-btn${nudgingId === issue.id ? ' btn--loading' : ''}`}
+                    onClick={() => handleNudge(issue)}
+                    disabled={nudgingId === issue.id}
+                    title="Notify store owner to take action"
+                  >
+                    <Bell size={12} />
+                    {nudgingId === issue.id ? <ButtonDots label="Sending" /> : 'Nudge'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     );
   }
 
@@ -288,40 +317,24 @@ function SuperAdminIssues() {
       </div>
 
       <div className="table-card">
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th scope="col">Store</th>
-                <th scope="col">Employee</th>
-                <th scope="col">Issue</th>
-                <th scope="col">Raised</th>
-                <th scope="col">Status</th>
-                {showActionsCol && <th scope="col" className="sa-issues-page__action-col">Actions</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {statusFilter !== null ? (
-                filtered.map(renderRow)
-              ) : (
-                STATUS_GROUPS.map(({ status, label }) => {
-                  const group = filtered.filter((i) => i.status === status);
-                  if (group.length === 0) return null;
-                  return (
-                    <Fragment key={status}>
-                      <tr className="issues-group-header-row">
-                        <td colSpan={6} className="issues-group-header-cell">
-                          <span className={`badge ${STATUS_BADGE[status]}`}>{label}</span>
-                          <span className="issues-group-count">{group.length}</span>
-                        </td>
-                      </tr>
-                      {group.map(renderRow)}
-                    </Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+        <div className="issue-card-list">
+          {statusFilter !== null ? (
+            filtered.map(renderCard)
+          ) : (
+            STATUS_GROUPS.map(({ status, label }) => {
+              const group = filtered.filter((i) => i.status === status);
+              if (group.length === 0) return null;
+              return (
+                <Fragment key={status}>
+                  <div className="issues-group-header-cell">
+                    <span className={`badge ${STATUS_BADGE[status]}`}>{label}</span>
+                    <span className="issues-group-count">{group.length}</span>
+                  </div>
+                  {group.map(renderCard)}
+                </Fragment>
+              );
+            })
+          )}
         </div>
         {!isLoading && filtered.length === 0 && (
           <div className="table-card__empty">

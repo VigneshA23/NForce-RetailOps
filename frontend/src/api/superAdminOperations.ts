@@ -3,6 +3,8 @@ import { apiRequest } from './client';
 export interface StoreOperationsSummary {
   storeId: number;
   storeName: string;
+  storeCode: number;
+  storeLocation: string | null;
   ownerName: string;
   ownerAvatarUrl?: string | null;
   totalTasks: number;

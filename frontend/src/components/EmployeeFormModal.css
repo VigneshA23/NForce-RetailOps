@@ -39,3 +39,201 @@
 .employee-form__store-section {
   margin-top: var(--space-sm);
 }
+
+/* -- Add / Edit Employee (all screen sizes) -- */
+.employee-form__input-wrap {
+  position: relative;
+}
+
+.employee-form-modal .modal__header {
+  border-bottom: none;
+}
+
+.employee-form-modal .modal__title-icon {
+  display: inline-flex;
+  color: var(--color-text-primary);
+}
+
+.employee-form-modal .modal__title {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.employee-form-modal .modal__subtitle {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* Close button as a small outlined circle */
+.employee-form-modal .modal__close {
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background: var(--color-bg-page);
+}
+
+.employee-form-modal .modal__body {
+  padding-top: var(--space-sm);
+}
+
+/* Type + Gender side by side; everything else stays full width */
+.employee-form-modal .employee-form__grid {
+  grid-template-columns: 1fr 1fr;
+  column-gap: 12px;
+}
+
+.employee-form-modal .form-field {
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.employee-form-modal .form-field__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.employee-form-modal .form-field__required {
+  color: var(--color-accent);
+}
+
+.employee-form-modal .input,
+.employee-form-modal .select {
+  min-height: 42px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.employee-form-modal .employee-form__input-icon {
+  display: block;
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.employee-form-modal .employee-form__input-wrap .input {
+  padding-left: 36px;
+}
+
+.employee-form-modal .employee-form__country-code {
+  flex: 0 0 42%;
+  max-width: 42%;
+}
+
+/* Temporary-password note with info icon */
+.employee-form-modal .employee-form__hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -6px 0 14px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.employee-form-modal .employee-form__hint-icon {
+  display: block;
+  flex-shrink: 0;
+  color: var(--color-badge-icon-info-fg);
+}
+
+/* Stores: one bordered box -- selected chips on top, picker below */
+.employee-form-modal .employee-form__store-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 0;
+}
+
+.employee-form-modal .employee-form__store-section .searchable-select {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-bg-page);
+}
+
+.employee-form-modal .employee-form__store-section .searchable-select__chips {
+  order: -1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 0;
+}
+
+.employee-form-modal .employee-form__store-section .searchable-select__chip {
+  gap: 8px;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-info-fg) 20%, transparent);
+  border-radius: 6px;
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+  font-size: 12px;
+}
+
+.employee-form-modal .employee-form__store-section .searchable-select__chip::before {
+  content: '';
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.employee-form-modal .employee-form__store-section .searchable-select__trigger {
+  min-height: 38px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+/* Footer: outlined Cancel + wide dark submit */
+.employee-form-modal .modal__footer {
+  gap: 12px;
+}
+
+.employee-form-modal .employee-form__cancel,
+.employee-form-modal .employee-form__submit {
+  min-height: 46px;
+  border-radius: 14px;
+}
+
+.employee-form-modal .employee-form__cancel {
+  min-width: 96px;
+}
+
+.employee-form-modal .employee-form__submit {
+  flex: 1;
+  gap: 8px;
+}
+
+.employee-form-modal .employee-form__submit-icon {
+  display: block;
+  color: var(--color-badge-icon-success-fg);
+}
+
+/* Mobile bottom sheet: grab handle above the header. */
+@media (--mobile) {
+  /* Grab handle above the header */
+  .employee-form-modal::before {
+    content: '';
+    align-self: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 4px;
+    margin-top: 10px;
+    border-radius: 999px;
+    background: var(--color-border);
+  }
+
+  .employee-form-modal .modal__header {
+    padding-top: var(--space-sm);
+  }
+}

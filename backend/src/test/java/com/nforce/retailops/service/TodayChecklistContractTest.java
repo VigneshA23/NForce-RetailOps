@@ -112,9 +112,8 @@ class TodayChecklistContractTest {
         when(taskResponseEntryRepository.findByTaskIdInAndStoreIdAndResponseDateAndActiveTrue(
             org.mockito.ArgumentMatchers.anyList(), anyLong(), org.mockito.ArgumentMatchers.any()))
             .thenReturn(List.of());
-        when(taskMakeupLinkService.findPendingMakeupDatesByTaskId(
-            org.mockito.ArgumentMatchers.anyList(), anyLong(), org.mockito.ArgumentMatchers.any()))
-            .thenReturn(java.util.Map.of());
+        when(taskMakeupLinkService.findMovedUnitsTargetingDate(anyLong(), org.mockito.ArgumentMatchers.any()))
+            .thenReturn(List.of());
 
         TodayChecklistResponse result = taskService.getTodayChecklistForEmployee(employeeId, storeId);
 

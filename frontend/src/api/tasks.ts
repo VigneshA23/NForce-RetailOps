@@ -21,6 +21,9 @@ export interface TaskResponseSubmitPayload {
   booleanValue?: boolean;
   numericValue?: number;
   textValue?: string;
+  // Set only when submitting for a moved unit (see types/missedTasks.ts) --
+  // identifies the instance by its original due date rather than today.
+  originalDueDate?: string;
 }
 
 // Returned by both submit and undo: the resulting current state for that
@@ -33,6 +36,7 @@ export interface TaskResponseStateResponse {
   completedByCount: number;
   totalActiveEmployees: number;
   completedByNames: string[];
+  originalDueDate: string | null;
 }
 
 export async function submitTaskResponse(

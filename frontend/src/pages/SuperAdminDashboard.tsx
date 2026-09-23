@@ -9,6 +9,7 @@ import type { GroupedOwner } from '../components/OwnerTable';
 import type { AuthUser } from '../types/auth';
 import type { SuperAdminNavTabKey } from '../types/navigation';
 import { SUPER_ADMIN_NAV_ITEMS, SUPER_ADMIN_BOTTOM_NAV_ITEMS, SUPER_ADMIN_PAGE_TITLES } from '../types/navigation';
+import { getSuperAdminOverlay, getSuperAdminTab, setSuperAdminOverlay, setSuperAdminTab } from '../utils/navigationStorage';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import OwnerTable, { groupOwners } from '../components/OwnerTable';
 import OwnerDetailModal from '../components/OwnerDetailModal';
@@ -127,12 +128,23 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string | null; emailSent: boolean } | null>(null);
   const [searchValue, setSearchValue] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
-  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
+  // Restores the tab across a refresh, since there's no router to reflect it
+  // in the URL -- see navigationStorage.ts for why.
+  const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>(() => getSuperAdminTab() ?? 'home');
+  useEffect(() => setSuperAdminTab(activeTab), [activeTab]);
   const [mobileSearchActive, setMobileSearchActive] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showActivity, setShowActivity] = useState(false);
+  // Recent Activity/Notifications/Profile/Help are overlays on top of a tab,
+  // not tabs themselves, so restoring activeTab alone isn't enough -- restore
+  // whichever one (if any) was open too, same as activeTab above.
+  const [showProfile, setShowProfile] = useState(() => getSuperAdminOverlay() === 'profile');
+  const [showHelp, setShowHelp] = useState(() => getSuperAdminOverlay() === 'help');
+  const [showNotifications, setShowNotifications] = useState(() => getSuperAdminOverlay() === 'notifications');
+  const [showActivity, setShowActivity] = useState(() => getSuperAdminOverlay() === 'activity');
+  useEffect(() => {
+    setSuperAdminOverlay(
+      showProfile ? 'profile' : showHelp ? 'help' : showNotifications ? 'notifications' : showActivity ? 'activity' : null,
+    );
+  }, [showProfile, showHelp, showNotifications, showActivity]);
 
   const { count: unreadCount, setCount } = useUnreadCount();
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);

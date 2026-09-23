@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .sa-issues-page {
   display: flex;
   flex-direction: column;
@@ -6,7 +8,7 @@
 }
 
 
-/* ── Table cell content ─────────────────────────────── */
+/* ── Card field content ─────────────────────────────── */
 
 .sa-issues-page__store-name {
   font-weight: 600;
@@ -16,16 +18,12 @@
 .sa-issues-page__note {
   display: block;
   color: var(--color-text-primary);
-  max-width: 320px;
   line-height: 1.45;
 }
 
 .sa-issues-page__response {
-  display: block;
-  font-size: 12px;
-  color: var(--color-text-muted);
-  margin-top: 3px;
-  max-width: 320px;
+  font-size: 13px;
+  color: var(--color-text-primary);
 }
 
 .sa-issues-page__date-cell {
@@ -40,15 +38,10 @@
   color: var(--color-text-muted);
 }
 
-/* ── Action column ──────────────────────────────────── */
+/* ── Actions row (card footer) ──────────────────────── */
 
-.sa-issues-page__action-col {
-  white-space: nowrap;
-  width: 1%;
-}
-
-.data-table thead th.sa-issues-page__action-col {
-  text-align: left;
+.issue-card__actions-row {
+  margin-top: var(--space-md);
 }
 
 .sa-issues-page__actions {
@@ -69,18 +62,14 @@
   color: var(--color-text-muted);
 }
 
-/* ── Group header rows (grouped view) ───────────────── */
-
-.issues-group-header-row td {
-  padding: 12px 12px 6px;
-  background: var(--color-bg-page);
-  border-bottom: none;
-}
+/* ── Group headers (grouped view) ───────────────────── */
 
 .issues-group-header-cell {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 12px var(--space-md) 6px;
+  background: var(--color-bg-page);
 }
 
 .issues-group-count {
@@ -92,6 +81,130 @@
   padding: 0 7px;
   line-height: 18px;
   color: var(--color-text-muted);
+}
+
+/* ── Activity-log style issue cards ─────────────────── */
+
+.issue-card-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.issue-card {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.issue-card:last-child {
+  border-bottom: none;
+}
+
+.issue-card__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+}
+
+.issue-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.issue-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-lg);
+}
+
+.issue-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 90px;
+}
+
+.issue-card__field--grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.issue-card__field--status {
+  margin-left: auto;
+}
+
+.issue-card__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.issue-card__value {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.issue-card__divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-md) 0;
+}
+
+.issue-card__response-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.issue-card__response-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.issue-card__response-box {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.issue-card__response-avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+}
+
+@media (--mobile) {
+  .issue-card__top {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .issue-card__field--status {
+    margin-left: 0;
+  }
 }
 
 /* ── Resolve modal (shared class with AdminIssues) ──── */

@@ -6,9 +6,9 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 /**
- * A pending (or resolved) offer to complete a past missed task instance
- * (task_id, store_id, past_date) automatically once today's occurrence
- * (linked_date) of the same task is completed. See
+ * A pending (or resolved) move of a past missed task instance
+ * (task_id, store_id, past_date) onto a target date (linked_date, today or up
+ * to 7 days out) as its own independent completion unit. See
  * TaskMakeupLinkService for the full lifecycle (PENDING -> FULFILLED /
  * EXPIRED / CANCELLED).
  */
