@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -29,12 +30,15 @@ public class NotificationController {
     }
 
     @GetMapping
-    public ResponseEntity<List<NotificationResponse>> list(Authentication auth) {
+    public ResponseEntity<List<NotificationResponse>> list(
+            Authentication auth,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
         if (auth.getPrincipal() instanceof SuperAdminUserDetails sa) {
-            return ResponseEntity.ok(notificationService.listForSuperAdmin(sa.getSuperAdmin().getId()));
+            return ResponseEntity.ok(notificationService.listForSuperAdmin(sa.getSuperAdmin().getId(), page, size));
         }
         AppUserDetails principal = (AppUserDetails) auth.getPrincipal();
-        return ResponseEntity.ok(notificationService.list(principal.getUser().getId()));
+        return ResponseEntity.ok(notificationService.list(principal.getUser().getId(), page, size));
     }
 
     @GetMapping("/unread-count")

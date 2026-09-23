@@ -86,16 +86,41 @@
 }
 
 @media (max-width: 600px) {
+  /* Two compact rows instead of the desktop single line: (1) store select +
+     Export side by side, (2) date nav + Live/Historical badge -- rather than
+     each control wrapping onto its own full-width line. */
   .sa-checklist__top-row {
     flex-wrap: wrap;
     row-gap: var(--space-sm);
   }
 
+  /* Row 1, left: grows to fill the space Export doesn't need */
   .sa-checklist__store-select {
-    width: 100%;
+    order: 1;
+    width: auto;
     min-width: 0;
-    max-width: 100%;
-    order: -1;
-    flex-shrink: 1;
+    max-width: none;
+    flex: 1 1 auto;
+  }
+
+  /* Row 1, right: shrinks to its own content */
+  .sa-checklist__top-row .export-menu {
+    order: 2;
+    flex-shrink: 0;
+  }
+
+  /* Row 2: date nav + badge -- row 1 (store select + Export) already fills
+     the full width, so these two naturally wrap onto their own shared line
+     without needing a forced flex-basis. Spacer no longer needed either. */
+  .sa-checklist__top-row .store-detail-page__date-nav {
+    order: 3;
+  }
+
+  .sa-checklist__top-row .store-detail-page__mode-badge {
+    order: 4;
+  }
+
+  .sa-checklist__top-row-spacer {
+    display: none;
   }
 }

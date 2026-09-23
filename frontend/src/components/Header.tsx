@@ -25,7 +25,7 @@ interface HeaderProps {
   notificationUnreadCount?: number;
   onNotificationsCountChange?: (count: number) => void;
   onNotificationsClick?: () => void;
-  onNotificationNavigate?: (path: string) => void;
+  onNotificationNavigate?: (path: string, createdAt?: string) => void;
   searchValue: string;
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;

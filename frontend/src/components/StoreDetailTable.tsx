@@ -1,9 +1,10 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, Flag, Pencil } from 'lucide-react';
+import { CheckCircle2, Flag, MoreVertical, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 import { responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 import CorrectionModal from './CorrectionModal';
 import FlagResponseModal from './FlagResponseModal';
 import UserAvatar from './UserAvatar';
@@ -27,6 +28,10 @@ interface StoreDetailTableProps {
   // same page (e.g. Outstanding Tasks above the main table) -- a task can
   // appear in both, and duplicate DOM ids break getElementById-based scrolling.
   idPrefix?: string;
+  // Mobile-only card layout to use ('history' = the main/day-history table,
+  // 'outstanding' = the Outstanding/Incomplete Tasks panel). Purely a
+  // presentational switch -- desktop/tablet render identically either way.
+  variant?: 'history' | 'outstanding';
 }
 
 const STATUS_BADGE_CLASS: Record<ChecklistTaskStatus, string> = {
@@ -216,7 +221,92 @@ function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHisto
   );
 }
 
-function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCorrected, onResponseFlagged, repeatOffenderMap, idPrefix = '' }: StoreDetailTableProps) {
+const ROW_MENU_WIDTH = 190;
+const ROW_MENU_MARGIN = 8;
+
+// Mobile-only ("outstanding" variant): collapses the Correct/Flag actions
+// that are otherwise always-visible icons (see renderManagerActions below)
+// into a single "⋮" trigger, matching the compact card design for the
+// Outstanding/Incomplete Tasks list. Same underlying handlers either way.
+function TaskRowMenu({ onCorrect, onFlag }: { onCorrect?: () => void; onFlag?: () => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [position, setPosition] = useState({ top: 0, left: 0 });
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  function openPanel() {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (rect) {
+      const left = Math.max(
+        ROW_MENU_MARGIN,
+        Math.min(rect.right - ROW_MENU_WIDTH, window.innerWidth - ROW_MENU_WIDTH - ROW_MENU_MARGIN),
+      );
+      setPosition({ top: rect.bottom + 4, left });
+    }
+    setIsOpen(true);
+  }
+
+  useDismissablePanel({ isOpen, onClose: () => setIsOpen(false), refs: [triggerRef, panelRef] });
+
+  if (!onCorrect && !onFlag) return null;
+
+  return (
+    <span className="store-detail-table__row-menu">
+      <button
+        ref={triggerRef}
+        type="button"
+        className="store-detail-table__row-menu-trigger"
+        aria-label="Task actions"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        onClick={() => (isOpen ? setIsOpen(false) : openPanel())}
+      >
+        <MoreVertical size={16} />
+      </button>
+      {isOpen &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className="store-detail-table__row-menu-panel"
+            role="menu"
+            style={{ top: position.top, left: position.left, width: ROW_MENU_WIDTH }}
+          >
+            {onCorrect && (
+              <button
+                type="button"
+                role="menuitem"
+                className="store-detail-table__row-menu-item"
+                onClick={() => {
+                  setIsOpen(false);
+                  onCorrect();
+                }}
+              >
+                <Pencil size={13} />
+                Correct response
+              </button>
+            )}
+            {onFlag && (
+              <button
+                type="button"
+                role="menuitem"
+                className="store-detail-table__row-menu-item"
+                onClick={() => {
+                  setIsOpen(false);
+                  onFlag();
+                }}
+              >
+                <Flag size={13} />
+                Flag for correction
+              </button>
+            )}
+          </div>,
+          document.body,
+        )}
+    </span>
+  );
+}
+
+function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCorrected, onResponseFlagged, repeatOffenderMap, idPrefix = '', variant = 'history' }: StoreDetailTableProps) {
   const [correctionTarget, setCorrectionTarget] = useState<ResponseTarget | null>(null);
   const [flagTarget, setFlagTarget] = useState<ResponseTarget | null>(null);
 
@@ -267,7 +357,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
 
   return (
     <>
-      <div className="table-card store-detail-table__card">
+      <div className={`table-card store-detail-table__card${variant === 'outstanding' ? ' store-detail-table__card--outstanding' : ''}`}>
         <div className="table-scroll">
           <table className="data-table">
             <thead>
@@ -286,10 +376,16 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
               {rows.map(({ key, categoryName, task }) => {
                 const status = taskStatus(task);
                 const responders = task.responses;
+                // Matches taskStatus/responseDisplayValue's own "latest response"
+                // semantics, so the row-level Correct/Flag menu (outstanding
+                // variant) acts on the same response the card's Response/Employee
+                // values are actually showing.
+                const primaryResponder = responders.length > 0 ? responders[responders.length - 1] : null;
                 return (
                   <tr key={key} id={`${idPrefix}task-row-${key}`}>
                     <td data-label="Category" className="store-detail-table__category">
                       {categoryName}
+                      <span className="store-detail-table__category-meta"> · {taskFrequencyLabel(task)}</span>
                     </td>
                     <td data-label="Task">
                       <span className="store-detail-table__task-name">
@@ -353,6 +449,12 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                     </td>
                     <td data-label="Status" className="store-detail-table__status-cell">
                       <span className={`badge ${STATUS_BADGE_CLASS[status]}`}>{TASK_STATUS_LABELS[status]}</span>
+                      {variant === 'outstanding' && primaryResponder && !primaryResponder.flaggedNeedsCorrection && (
+                        <TaskRowMenu
+                          onCorrect={onResponseCorrected ? () => setCorrectionTarget({ responseEntry: primaryResponder, task }) : undefined}
+                          onFlag={onResponseFlagged ? () => setFlagTarget({ responseEntry: primaryResponder, task }) : undefined}
+                        />
+                      )}
                     </td>
                   </tr>
                 );

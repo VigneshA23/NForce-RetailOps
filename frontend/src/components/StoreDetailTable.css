@@ -15,6 +15,69 @@
   padding: 16px var(--space-md);
 }
 
+/* Frequency/type text appended after the category name -- only surfaced in
+   the mobile "history" card's combined header line (see @media (--mobile)
+   below); hidden everywhere else so the desktop Category column keeps
+   showing just the category name. */
+.store-detail-table__category-meta {
+  display: none;
+}
+
+/* "⋮" row-actions trigger + its portaled menu -- mobile "outstanding" card
+   only (see TaskRowMenu in StoreDetailTable.tsx); hidden by default so it
+   never affects desktop/tablet even though it's already conditionally
+   unrendered there via the `variant` prop. */
+.store-detail-table__row-menu-trigger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.store-detail-table__row-menu-trigger:hover,
+.store-detail-table__row-menu-trigger:focus-visible {
+  color: var(--color-text-primary);
+  border-color: var(--color-text-secondary);
+}
+
+.store-detail-table__row-menu-panel {
+  position: fixed;
+  z-index: 30;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.store-detail-table__row-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.store-detail-table__row-menu-item:hover {
+  background: var(--color-bg-page);
+}
+
 .store-detail-table__category {
   color: var(--color-text-secondary);
   font-size: 11px;
@@ -287,8 +350,15 @@
     gap: var(--space-sm);
   }
 
+  /* !important on display: table.css's generic mobile row rule
+     (`.table-card .data-table tbody tr { display: block; ... }`) ties this
+     selector's specificity and loads later in the bundle, so it silently
+     wins the cascade otherwise -- harmless for a plain flex column (still
+     reads as stacked full-width children either way), but it completely
+     defeats the variant-specific `display: grid` overrides below, which
+     need a real grid container to place `grid-area`s at all. */
   .store-detail-table__card .data-table tbody tr {
-    display: flex;
+    display: flex !important;
     flex-direction: column;
     gap: 10px;
     background: var(--color-surface-card);
@@ -315,17 +385,18 @@
     overflow: hidden;
   }
 
-  /* Category — a small pill at the top of the tile, no "Category" caption */
+  /* Category — plain single-line label at the top of the tile (no pill, no
+     "Category" caption); truncates instead of wrapping so a long category
+     name can't break the card layout. */
   .store-detail-table__card .data-table tbody td.store-detail-table__category {
-    display: inline-flex;
+    display: block;
     align-self: flex-start;
-    width: auto;
+    width: 100%;
     max-width: 100%;
-    padding: 3px 10px;
-    border-radius: var(--radius-pill);
-    background: var(--color-badge-icon-primary-bg);
-    color: var(--color-badge-icon-primary-fg);
-    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 11px;
   }
 
   .store-detail-table__card .data-table tbody td.store-detail-table__category::before {
@@ -343,6 +414,12 @@
 
   .store-detail-table__card .store-detail-table__task-name {
     font-size: 15px;
+  }
+
+  /* Repeat-offender dot is a desktop-only affordance -- too noisy next to
+     the task name in the compact mobile card. */
+  .store-detail-table__card .store-detail-table__repeat-dot {
+    display: none;
   }
 
   /* Task name and meta wrap naturally */
@@ -479,5 +556,212 @@
 
   .store-detail-table__actions-entry {
     justify-content: flex-end;
+  }
+}
+
+/* ── Variant-specific mobile card layouts ──────────────────────────────
+   "history" (default, no idPrefix -- the main/day-history table) and
+   "outstanding" (the Outstanding/Incomplete Tasks panel) reuse the same tile
+   shell above but rearrange which grid area each existing <td> lands in, and
+   layer on a status-colored left border / response tint. `:has()` reads the
+   row's own status badge class for the color, so no separate status class is
+   needed on the <tr> itself. Desktop/tablet are untouched -- everything here
+   is still inside @media (--mobile). */
+@media (--mobile) {
+  .store-detail-table__card .data-table tbody tr {
+    border-left: 4px solid var(--color-border);
+  }
+
+  .store-detail-table__card .data-table tbody tr:has(.badge--success) {
+    border-left-color: var(--color-badge-icon-success-fg);
+  }
+
+  .store-detail-table__card .data-table tbody tr:has(.badge--danger) {
+    border-left-color: var(--color-badge-icon-primary-fg);
+  }
+
+  /* ── History variant: category+status header row, then task (with its own
+     schedule/response-type subtitle beneath it), then employee, then a
+     full-width tinted response panel. ── */
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr {
+    display: grid !important;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    column-gap: var(--space-sm);
+    /* Tight row-gap so category sits right above the task name with no
+       extra space; task/employee/response get their own margin-top below
+       instead, so those stay visually separated. */
+    row-gap: 2px;
+    grid-template-areas:
+      'category status'
+      'task     task'
+      'employee employee'
+      'response response';
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody td.store-detail-table__category {
+    grid-area: category;
+  }
+
+  /* Combined into the category line only for the outstanding card's own
+     rules -- the history card keeps category and frequency/type separate
+     (frequency shows under the task name instead, via .task-meta below). */
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .store-detail-table__category-meta {
+    display: none;
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody td.store-detail-table__status-cell {
+    grid-area: status;
+    justify-self: end;
+    padding-top: 0 !important;
+    border-top: none !important;
+  }
+
+  /* No "Status" caption -- the colored pill alone is enough. */
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody td.store-detail-table__status-cell::before {
+    content: none;
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody td[data-label='Task'] {
+    grid-area: task;
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody td[data-label='Employee'] {
+    grid-area: employee;
+    margin-top: 8px;
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody td[data-label='Response'] {
+    grid-area: response;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody td[data-label='Response']::before {
+    font-size: 10px;
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .store-detail-table__response-value {
+    background: transparent;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--success) td[data-label='Response'] {
+    background: var(--color-badge-icon-success-bg);
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--success) td[data-label='Response']::before,
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--success) .store-detail-table__response-value {
+    color: var(--color-badge-icon-success-fg);
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--danger) td[data-label='Response'] {
+    background: var(--color-badge-icon-primary-bg);
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--danger) td[data-label='Response']::before,
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--danger) .store-detail-table__response-value {
+    color: var(--color-badge-icon-primary-fg);
+  }
+
+  /* ── Outstanding variant: category+status/menu header row, task, then a
+     two-column Response/Employee key-value row. ── */
+  .store-detail-table__card--outstanding .data-table tbody tr {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+    column-gap: var(--space-sm);
+    grid-template-areas:
+      'category header-right'
+      'task     task'
+      'response employee';
+  }
+
+  .store-detail-table__card--outstanding .data-table tbody td.store-detail-table__category {
+    grid-area: category;
+  }
+
+  .store-detail-table__card--outstanding .data-table tbody td.store-detail-table__status-cell {
+    grid-area: header-right;
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    padding-top: 0 !important;
+    border-top: none !important;
+  }
+
+  /* No "Status" caption -- the colored pill alone is enough. */
+  .store-detail-table__card--outstanding .data-table tbody td.store-detail-table__status-cell::before {
+    content: none;
+  }
+
+  .store-detail-table__card--outstanding .store-detail-table__row-menu-trigger {
+    display: inline-flex;
+  }
+
+  .store-detail-table__card--outstanding .data-table tbody td[data-label='Task'] {
+    grid-area: task;
+  }
+
+  .store-detail-table__card--outstanding .data-table tbody td[data-label='Response'],
+  .store-detail-table__card--outstanding .data-table tbody td[data-label='Employee'] {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 10px 12px;
+    background: var(--color-bg-page);
+    border-radius: var(--radius-sm);
+    border-top: none !important;
+  }
+
+  .store-detail-table__card--outstanding .data-table tbody td[data-label='Response'] {
+    grid-area: response;
+  }
+
+  /* The shared rule above hides the "Employee" caption unconditionally
+     (the history-variant avatar row doesn't need it) -- restore it here so
+     the outstanding variant's two-column boxes both get a label. `display:
+     block` keeps it on its own line even when the value is a bare "—" text
+     node (no wrapping span), which otherwise renders inline right after it. */
+  .store-detail-table__card--outstanding .data-table tbody td[data-label='Employee']::before {
+    content: attr(data-label);
+    display: block;
+  }
+
+  .store-detail-table__card--outstanding .data-table tbody td[data-label='Response']::before {
+    display: block;
+  }
+
+  .store-detail-table__card--outstanding .data-table tbody td[data-label='Employee'] {
+    grid-area: employee;
+  }
+
+  .store-detail-table__card--outstanding .store-detail-table__response-value {
+    background: transparent;
+    padding: 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+
+  /* Two-column boxes are plain key/value text -- avatar, response time and
+     the per-responder edit/flag icons (replaced by the "⋮" row menu above)
+     stay in the "history" card only. */
+  .store-detail-table__card--outstanding .user-avatar,
+  .store-detail-table__card--outstanding .store-detail-table__response-time,
+  .store-detail-table__card--outstanding .store-detail-table__inline-actions {
+    display: none;
+  }
+
+  .store-detail-table__card--outstanding .store-detail-table__employee-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--color-text-primary);
   }
 }

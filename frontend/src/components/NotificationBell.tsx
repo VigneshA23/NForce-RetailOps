@@ -1,25 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import {
-  AlertCircle,
-  Bell,
-  CheckCheck,
-  CheckCircle2,
-  ChevronRight,
-  ClipboardList,
-  Clock,
-  ListPlus,
-  MailX,
-  PenLine,
-  Store,
-  TriangleAlert,
-  UserCheck,
-  UserMinus,
-  UserPlus,
-  UserX,
-  type LucideIcon,
-} from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertCircle, Bell, CheckCheck, ChevronRight, RefreshCw } from 'lucide-react';
 import { getNotifications, markAllRead, markNotificationRead } from '../api/notifications';
 import type { Notification } from '../types/notification';
+import { getCategoryMeta } from '../utils/notificationCategoryMeta';
 import './NotificationBell.css';
 
 interface NotificationBellProps {
@@ -44,52 +27,6 @@ function badgeLabel(count: number): string {
   return count > 9 ? '9+' : String(count);
 }
 
-interface CategoryMeta {
-  icon: LucideIcon;
-  bgVar: string;
-  fgVar: string;
-}
-
-function categoryMeta(category: string): CategoryMeta {
-  switch (category) {
-    case 'ISSUE_RAISED':
-      return { icon: AlertCircle, bgVar: '--color-badge-icon-primary-bg', fgVar: '--color-badge-icon-primary-fg' };
-    case 'ISSUE_ACKNOWLEDGED':
-      return { icon: Clock, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
-    case 'ISSUE_RESOLVED':
-      return { icon: CheckCircle2, bgVar: '--color-badge-icon-success-bg', fgVar: '--color-badge-icon-success-fg' };
-    case 'CORRECTION_MADE':
-      return { icon: PenLine, bgVar: '--color-badge-icon-info-bg', fgVar: '--color-badge-icon-info-fg' };
-    case 'STORE_DEACTIVATED':
-      return { icon: Store, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
-    case 'STORE_REACTIVATED':
-      return { icon: Store, bgVar: '--color-badge-icon-success-bg', fgVar: '--color-badge-icon-success-fg' };
-    case 'ACCOUNT_DEACTIVATED':
-    case 'EMPLOYEE_ACCOUNT_DEACTIVATED':
-      return { icon: UserX, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
-    case 'ACCOUNT_REACTIVATED':
-    case 'EMPLOYEE_ACCOUNT_REACTIVATED':
-      return { icon: UserCheck, bgVar: '--color-badge-icon-success-bg', fgVar: '--color-badge-icon-success-fg' };
-    case 'TASK_ADDED':
-      return { icon: ClipboardList, bgVar: '--color-badge-icon-info-bg', fgVar: '--color-badge-icon-info-fg' };
-    case 'CATEGORY_ADDED':
-      return { icon: ListPlus, bgVar: '--color-badge-icon-info-bg', fgVar: '--color-badge-icon-info-fg' };
-    case 'EMPLOYEE_ASSIGNED':
-    case 'NEW_EMPLOYEE_JOINED':
-      return { icon: UserPlus, bgVar: '--color-badge-icon-success-bg', fgVar: '--color-badge-icon-success-fg' };
-    case 'EMPLOYEE_REMOVED':
-      return { icon: UserMinus, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
-    case 'STORE_ZERO_ACTIVITY':
-      return { icon: TriangleAlert, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
-    case 'ISSUES_OVERDUE':
-      return { icon: Clock, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
-    case 'OWNER_EMAIL_FAILED':
-      return { icon: MailX, bgVar: '--color-badge-icon-warning-bg', fgVar: '--color-badge-icon-warning-fg' };
-    default:
-      return { icon: Bell, bgVar: '--color-badge-icon-info-bg', fgVar: '--color-badge-icon-info-fg' };
-  }
-}
-
 interface NotifItemProps {
   notification: Notification;
   onRead: (id: number) => void;
@@ -98,7 +35,7 @@ interface NotifItemProps {
 }
 
 function NotifItem({ notification, onRead, onViewAll, onNavigate }: NotifItemProps) {
-  const { icon: Icon, bgVar, fgVar } = categoryMeta(notification.category);
+  const { icon: Icon, bgVar, fgVar } = getCategoryMeta(notification.category);
 
   function handleClick() {
     onRead(notification.id);
@@ -136,16 +73,22 @@ function NotificationBell({ unreadCount, onCountChange, onViewAll, onNavigate }:
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = useCallback(() => {
+    setLoading(true);
+    setError(false);
+    getNotifications()
+      .then((data) => setNotifications(data.slice(0, 4)))
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
-    getNotifications()
-      .then((data) => setNotifications(data.slice(0, 4)))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [open]);
+    fetchNotifications();
+  }, [open, fetchNotifications]);
 
   useEffect(() => {
     if (!open) return;
@@ -231,6 +174,15 @@ function NotificationBell({ unreadCount, onCountChange, onViewAll, onNavigate }:
                 <span className="nb__loading-dot" />
                 <span className="nb__loading-dot" />
                 <span className="nb__loading-dot" />
+              </div>
+            ) : error ? (
+              <div className="nb__error">
+                <AlertCircle size={24} strokeWidth={1.5} />
+                <p>Failed to load notifications.</p>
+                <button type="button" className="nb__retry" onClick={fetchNotifications}>
+                  <RefreshCw size={12} />
+                  Retry
+                </button>
               </div>
             ) : notifications.length === 0 ? (
               <div className="nb__empty">

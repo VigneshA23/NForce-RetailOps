@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, ChevronDown } from 'lucide-react';
+import CalendarPopover from './CalendarPopover';
 import { MAX_RANGE_DAYS, daysAgo, formatDateLabel, todayDate, yesterday } from '../utils/checklistHistoryOptions';
 import './DateRangePicker.css';
 
@@ -110,8 +111,13 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   const [draftEnd, setDraftEnd] = useState(value.customEnd);
   const [error, setError] = useState<string | null>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
+  // Which of the two inline date pickers (if either) is open -- mutually
+  // exclusive so only one small calendar shows at a time.
+  const [openCalendar, setOpenCalendar] = useState<'from' | 'to' | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const fromTriggerRef = useRef<HTMLButtonElement>(null);
+  const toTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -119,6 +125,7 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       setDraftStart(value.customStart);
       setDraftEnd(value.customEnd);
       setError(null);
+      setOpenCalendar(null);
     }
   }, [isOpen, value]);
 
@@ -150,6 +157,11 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       const target = event.target as Node;
       if (triggerRef.current?.contains(target)) return;
       if (panelRef.current?.contains(target)) return;
+      // CalendarPopover portals its own panel straight to document.body, so
+      // it's never a descendant of panelRef -- without this, clicking a day
+      // in the inline From/To calendar would register as "outside" and close
+      // the whole Date Range popover before Apply could even be pressed.
+      if (target instanceof Element && target.closest('.calendar-popover')) return;
       setIsOpen(false);
     }
     function handleKeyDown(event: KeyboardEvent) {
@@ -222,27 +234,44 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
 
           {draftPreset === 'CUSTOM' && (
             <div className="date-range-picker__inputs">
-              <label className="date-range-picker__input-label">
+              <div className="date-range-picker__input-label">
                 From
-                <input
-                  type="date"
-                  className="date-range-picker__input"
+                <button
+                  ref={fromTriggerRef}
+                  type="button"
+                  className="date-range-picker__date-trigger"
+                  onClick={() => setOpenCalendar((current) => (current === 'from' ? null : 'from'))}
+                >
+                  {formatDateLabel(draftStart)}
+                </button>
+                <CalendarPopover
                   value={draftStart}
                   max={todayDate()}
-                  onChange={(e) => { setDraftStart(e.target.value); setError(null); }}
+                  isOpen={openCalendar === 'from'}
+                  onClose={() => setOpenCalendar(null)}
+                  onSelect={(date) => { setDraftStart(date); setError(null); }}
+                  anchorRef={fromTriggerRef}
                 />
-              </label>
-              <label className="date-range-picker__input-label">
+              </div>
+              <div className="date-range-picker__input-label">
                 To
-                <input
-                  type="date"
-                  className="date-range-picker__input"
+                <button
+                  ref={toTriggerRef}
+                  type="button"
+                  className="date-range-picker__date-trigger"
+                  onClick={() => setOpenCalendar((current) => (current === 'to' ? null : 'to'))}
+                >
+                  {formatDateLabel(draftEnd)}
+                </button>
+                <CalendarPopover
                   value={draftEnd}
-                  min={draftStart}
                   max={todayDate()}
-                  onChange={(e) => { setDraftEnd(e.target.value); setError(null); }}
+                  isOpen={openCalendar === 'to'}
+                  onClose={() => setOpenCalendar(null)}
+                  onSelect={(date) => { setDraftEnd(date); setError(null); }}
+                  anchorRef={toTriggerRef}
                 />
-              </label>
+              </div>
             </div>
           )}
 
