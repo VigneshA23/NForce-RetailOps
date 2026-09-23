@@ -62,4 +62,15 @@
   .owners-page__error .btn {
     width: 100%;
   }
+
+  /* The mobile owner card list (see OwnerTable.css) draws its own
+     per-owner elevated cards, so this wrapper's card chrome would just
+     double up as a flat panel behind them -- strip it down to a plain
+     container here only. */
+  .owners-page__table-wrap {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+  }
 }

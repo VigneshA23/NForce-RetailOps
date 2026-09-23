@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Mail, User, UserPlus } from 'lucide-react';
 import { getNextStoreCode, getReassignableStores } from '../api/owners';
 import type { AddOwnerValues, OwnerStoreMode, ReassignableStore } from '../types/owner';
 import { COUNTRY_CODE_OPTIONS } from '../utils/countryCodes';
@@ -133,7 +134,10 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Add Owner"
+      title="Add New Owner"
+      subtitle="Fill in the details below to create a new owner."
+      titleIcon={<UserPlus size={18} />}
+      className="owner-form-modal"
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
@@ -145,151 +149,171 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
         </>
       }
     >
-      <form id="owner-form" onSubmit={handleSubmit} noValidate>
-        <div className="owner-form__grid">
-          <FormField label="Name" htmlFor="owner-name" required error={errors.ownerName}>
-            <input
-              id="owner-name"
-              className="input"
-              value={values.ownerName}
-              onChange={(event) => updateField('ownerName', event.target.value)}
-              autoFocus
-            />
-          </FormField>
+      <form id="owner-form" className="owner-form" onSubmit={handleSubmit} noValidate>
+        <div className="owner-form__section">
+          <h3 className="owner-form__section-title">Owner Information</h3>
+          <div className="owner-form__grid">
+            <FormField label="Name" htmlFor="owner-name" required error={errors.ownerName}>
+              <div className="owner-form__input-icon-wrap">
+                <User className="owner-form__input-icon" size={15} aria-hidden="true" />
+                <input
+                  id="owner-name"
+                  className="input"
+                  value={values.ownerName}
+                  onChange={(event) => updateField('ownerName', event.target.value)}
+                  autoFocus
+                />
+              </div>
+            </FormField>
 
-          <FormField label="Email" htmlFor="owner-email" required error={errors.ownerEmail}>
-            <input
-              id="owner-email"
-              type="email"
-              className="input"
-              value={values.ownerEmail}
-              onChange={(event) => updateField('ownerEmail', event.target.value)}
-            />
-          </FormField>
+            <FormField label="Email" htmlFor="owner-email" required error={errors.ownerEmail}>
+              <div className="owner-form__input-icon-wrap">
+                <Mail className="owner-form__input-icon" size={15} aria-hidden="true" />
+                <input
+                  id="owner-email"
+                  type="email"
+                  className="input"
+                  value={values.ownerEmail}
+                  onChange={(event) => updateField('ownerEmail', event.target.value)}
+                />
+              </div>
+            </FormField>
 
-          <FormField label="Contact" htmlFor="owner-phone" required error={errors.ownerPhone}>
-            <div className="owner-form__phone-row">
+            <FormField label="Contact" htmlFor="owner-phone" required error={errors.ownerPhone}>
+              <div className="owner-form__phone-row">
+                <Select
+                  id="owner-country-code"
+                  className="owner-form__country-code"
+                  ariaLabel="Country code"
+                  value={values.ownerCountryCode}
+                  onChange={(value) => updateField('ownerCountryCode', value)}
+                  options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
+                />
+                <input
+                  id="owner-phone"
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={10}
+                  className="input"
+                  value={values.ownerPhone}
+                  onChange={(event) => updateField('ownerPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                  placeholder="10-digit number"
+                />
+              </div>
+            </FormField>
+
+            <FormField label="Gender" htmlFor="owner-gender" required error={errors.ownerGender}>
               <Select
-                id="owner-country-code"
-                className="owner-form__country-code"
-                ariaLabel="Country code"
-                value={values.ownerCountryCode}
-                onChange={(value) => updateField('ownerCountryCode', value)}
-                options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
-              />
-              <input
-                id="owner-phone"
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                className="input"
-                value={values.ownerPhone}
-                onChange={(event) => updateField('ownerPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                placeholder="10-digit number"
-              />
-            </div>
-          </FormField>
-
-          <FormField label="Gender" htmlFor="owner-gender" required error={errors.ownerGender}>
-            <Select
-              id="owner-gender"
-              value={values.ownerGender}
-              onChange={(value) => updateField('ownerGender', value as OwnerGender)}
-              options={[{ value: '', label: 'Select gender' }, ...GENDER_OPTIONS]}
-            />
-          </FormField>
-
-          <FormField label="Owner ID" htmlFor="owner-id">
-            <input
-              id="owner-id"
-              className="input"
-              value="Auto-assigned on save"
-              disabled
-              readOnly
-            />
-          </FormField>
-
-          <div className="form-field--full">
-            <p className="owner-form__hint">A temporary password will be emailed to this address.</p>
-          </div>
-
-          <div className="form-field--full">
-            <FormField label="Store" htmlFor="owner-store-mode">
-              <Select
-                id="owner-store-mode"
-                value={values.storeMode}
-                onChange={(value) => updateField('storeMode', value as OwnerStoreMode)}
-                options={STORE_MODE_OPTIONS}
+                id="owner-gender"
+                value={values.ownerGender}
+                onChange={(value) => updateField('ownerGender', value as OwnerGender)}
+                options={[{ value: '', label: 'Select gender' }, ...GENDER_OPTIONS]}
               />
             </FormField>
           </div>
-
-          {values.storeMode === 'new' && (
-            <>
-              <FormField label="Store Name" htmlFor="owner-store-name" error={errors.storeName}>
-                <input
-                  id="owner-store-name"
-                  className="input"
-                  value={values.storeName}
-                  onChange={(event) => updateField('storeName', event.target.value)}
-                  placeholder="e.g. Downtown Ice Cream Co."
-                />
-              </FormField>
-
-              <FormField label="Store Location" htmlFor="owner-store-location" error={errors.storeLocation}>
-                <input
-                  id="owner-store-location"
-                  className="input"
-                  value={values.storeLocation}
-                  onChange={(event) => updateField('storeLocation', event.target.value)}
-                  placeholder="e.g. Downtown, Austin TX"
-                />
-              </FormField>
-
-              <FormField label="Store ID" htmlFor="owner-store-id">
-                <input
-                  id="owner-store-id"
-                  className="input"
-                  value={nextStoreCode != null ? `#${nextStoreCode}` : 'Assigned automatically'}
-                  disabled
-                  readOnly
-                />
-              </FormField>
-            </>
-          )}
-
-          {values.storeMode === 'existing' && (
-            <div className="form-field--full">
-              <FormField label="Existing Store" htmlFor="owner-existing-store" error={errors.existingStoreId}>
-                {reassignableLoading ? (
-                  <p className="owner-form__hint">Loading stores...</p>
-                ) : reassignableError ? (
-                  <p className="owner-form__hint owner-form__hint--error">{reassignableError}</p>
-                ) : reassignableStores.length === 0 ? (
-                  <p className="owner-form__hint">No stores with a deactivated owner are available to reassign.</p>
-                ) : (
-                  <Select
-                    id="owner-existing-store"
-                    value={values.existingStoreId != null ? String(values.existingStoreId) : ''}
-                    onChange={(value) => updateField('existingStoreId', Number(value))}
-                    options={reassignableStores.map((store) => ({
-                      value: String(store.storeId),
-                      label: store.currentOwnerName
-                        ? `#${store.storeCode} · ${store.storeName} — was ${store.currentOwnerName}`
-                        : `#${store.storeCode} · ${store.storeName} — unassigned`,
-                    }))}
-                  />
-                )}
-              </FormField>
-            </div>
-          )}
-
-          {values.storeMode === 'none' && (
-            <div className="form-field--full">
-              <p className="owner-form__hint">This owner won't have a store yet. You can add one later from their card.</p>
-            </div>
-          )}
         </div>
+
+        <div className="owner-form__section">
+          <h3 className="owner-form__section-title">Owner Details</h3>
+          <div className="owner-form__grid">
+            <FormField label="Owner ID" htmlFor="owner-id">
+              <input
+                id="owner-id"
+                className="input"
+                value="Auto-assigned on save"
+                disabled
+                readOnly
+              />
+            </FormField>
+
+            <div className="form-field--full">
+              <p className="owner-form__hint">A temporary password will be emailed to this address.</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="owner-form__section">
+          <h3 className="owner-form__section-title">Store Information</h3>
+          <div className="owner-form__grid">
+            <div className="form-field--full">
+              <FormField label="Store" htmlFor="owner-store-mode">
+                <Select
+                  id="owner-store-mode"
+                  value={values.storeMode}
+                  onChange={(value) => updateField('storeMode', value as OwnerStoreMode)}
+                  options={STORE_MODE_OPTIONS}
+                />
+              </FormField>
+            </div>
+
+            {values.storeMode === 'new' && (
+              <>
+                <FormField label="Store Name" htmlFor="owner-store-name" error={errors.storeName}>
+                  <input
+                    id="owner-store-name"
+                    className="input"
+                    value={values.storeName}
+                    onChange={(event) => updateField('storeName', event.target.value)}
+                    placeholder="e.g. Downtown Ice Cream Co."
+                  />
+                </FormField>
+
+                <FormField label="Store Location" htmlFor="owner-store-location" error={errors.storeLocation}>
+                  <input
+                    id="owner-store-location"
+                    className="input"
+                    value={values.storeLocation}
+                    onChange={(event) => updateField('storeLocation', event.target.value)}
+                    placeholder="e.g. Downtown, Austin TX"
+                  />
+                </FormField>
+
+                <FormField label="Store ID" htmlFor="owner-store-id">
+                  <input
+                    id="owner-store-id"
+                    className="input"
+                    value={nextStoreCode != null ? `#${nextStoreCode}` : 'Assigned automatically'}
+                    disabled
+                    readOnly
+                  />
+                </FormField>
+              </>
+            )}
+
+            {values.storeMode === 'existing' && (
+              <div className="form-field--full">
+                <FormField label="Existing Store" htmlFor="owner-existing-store" error={errors.existingStoreId}>
+                  {reassignableLoading ? (
+                    <p className="owner-form__hint">Loading stores...</p>
+                  ) : reassignableError ? (
+                    <p className="owner-form__hint owner-form__hint--error">{reassignableError}</p>
+                  ) : reassignableStores.length === 0 ? (
+                    <p className="owner-form__hint">No stores with a deactivated owner are available to reassign.</p>
+                  ) : (
+                    <Select
+                      id="owner-existing-store"
+                      value={values.existingStoreId != null ? String(values.existingStoreId) : ''}
+                      onChange={(value) => updateField('existingStoreId', Number(value))}
+                      options={reassignableStores.map((store) => ({
+                        value: String(store.storeId),
+                        label: store.currentOwnerName
+                          ? `#${store.storeCode} · ${store.storeName} — was ${store.currentOwnerName}`
+                          : `#${store.storeCode} · ${store.storeName} — unassigned`,
+                      }))}
+                    />
+                  )}
+                </FormField>
+              </div>
+            )}
+
+            {values.storeMode === 'none' && (
+              <div className="form-field--full">
+                <p className="owner-form__hint">This owner won't have a store yet. You can add one later from their card.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>
     </Modal>

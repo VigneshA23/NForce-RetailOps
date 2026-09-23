@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Building2, HelpCircle, LogOut, Settings, Store, User as UserIcon } from 'lucide-react';
+import { AlertTriangle, Building2, HelpCircle, LogOut, Settings, Store, Tags, User as UserIcon, Users } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import ConfirmDialog from './ConfirmDialog';
 import './ProfileMenu.css';
@@ -8,10 +8,13 @@ interface ProfileMenuProps {
   fullName: string;
   avatarUrl?: string | null;
   onProfileClick?: () => void;
-  // Super Admin, mobile only -- Owners/Stores move here off the bottom nav
-  // to leave room for the tabs that stay there. See SuperAdminDashboard.tsx.
+  // Super Admin, mobile only -- Owners/Stores/Employees/Categories move here
+  // off the bottom nav to leave room for the tabs that stay there. See
+  // SuperAdminDashboard.tsx.
   onOwnersClick?: () => void;
   onStoresClick?: () => void;
+  onEmployeesClick?: () => void;
+  onCategoriesClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
@@ -25,7 +28,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onHelpClick, onSettingsClick, onIssuesClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onEmployeesClick, onCategoriesClick, onHelpClick, onSettingsClick, onIssuesClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -112,6 +115,34 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
             >
               <Store size={14} />
               Stores
+            </button>
+          )}
+          {onEmployeesClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onEmployeesClick();
+              }}
+            >
+              <Users size={14} />
+              Employees
+            </button>
+          )}
+          {onCategoriesClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onCategoriesClick();
+              }}
+            >
+              <Tags size={14} />
+              Categories
             </button>
           )}
           {onHelpClick && (

@@ -30,6 +30,8 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onProfileClick?: () => void;
   onOwnersClick?: () => void;
   onStoresClick?: () => void;
+  onEmployeesClick?: () => void;
+  onCategoriesClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
@@ -59,6 +61,10 @@ interface AppShellProps<Key extends string = NavTabKey> {
   bottomNavItems?: NavItem<Key>[];
   // Optional per-tab badge dots (e.g. issues badge). Key is the nav tab key.
   tabBadges?: Partial<Record<string, boolean>>;
+  // When true, suppresses the BottomNav even on a 'bottom-tabs' mobile layout --
+  // used while a full-screen mobile overlay (e.g. the header search) is active,
+  // so the pill nav doesn't float on top of it or the keyboard.
+  hideBottomNav?: boolean;
   children: ReactNode;
 }
 
@@ -77,6 +83,8 @@ function AppShell<Key extends string = NavTabKey>({
   onProfileClick,
   onOwnersClick,
   onStoresClick,
+  onEmployeesClick,
+  onCategoriesClick,
   onHelpClick,
   onSettingsClick,
   onIssuesClick,
@@ -90,6 +98,7 @@ function AppShell<Key extends string = NavTabKey>({
   mobileNav = 'drawer',
   bottomNavItems,
   tabBadges,
+  hideBottomNav = false,
   showSearch = true,
   children,
 }: AppShellProps<Key>) {
@@ -100,6 +109,7 @@ function AppShell<Key extends string = NavTabKey>({
   const isMobile = useIsMobile();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const useBottomTabs = isMobile && mobileNav === 'bottom-tabs';
+  const showBottomNav = useBottomTabs && !hideBottomNav;
 
   return (
     <div className="app-shell">
@@ -132,6 +142,8 @@ function AppShell<Key extends string = NavTabKey>({
             onProfileClick={onProfileClick}
             onOwnersClick={onOwnersClick}
             onStoresClick={onStoresClick}
+            onEmployeesClick={onEmployeesClick}
+            onCategoriesClick={onCategoriesClick}
             onHelpClick={onHelpClick}
             onSettingsClick={onSettingsClick}
             onIssuesClick={onIssuesClick}
@@ -160,7 +172,7 @@ function AppShell<Key extends string = NavTabKey>({
           </AnimatePresence>
         </main>
       </div>
-      {useBottomTabs && (
+      {showBottomNav && (
         <BottomNav<Key> items={bottomNavItems ?? navItems} activeKey={activeTab} onSelect={onSelectTab} tabBadges={tabBadges} />
       )}
     </div>
