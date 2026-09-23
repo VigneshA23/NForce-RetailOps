@@ -191,10 +191,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                   />
                 )}
                 {tab === 'audits' && <EmployeeHistory store={store} dateSeed={historyDateSeed} />}
-<<<<<<< Updated upstream
-=======
-                {tab === 'issues' && <EmployeeIssues store={store} focusIssueId={focusIssueId} />}
->>>>>>> Stashed changes
                 {tab === 'issues' && <EmployeeIssues store={store} />}
                 {tab === 'missing' && <MissingTasks store={store} onCompleted={refreshMissedCount} />}
                 {tab === 'stock-check' && <EmployeeStockCheck store={store} />}

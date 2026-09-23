@@ -62,8 +62,12 @@ public class TaskMakeupLinkService {
 
     private static final Logger log = LoggerFactory.getLogger(TaskMakeupLinkService.class);
 
-    // 90-day hard cap, enforced server-side regardless of what a client requests.
-    static final int MAX_LOOKBACK_DAYS = 90;
+    // Hard cap, enforced server-side regardless of what a client requests.
+    // TEMPORARILY dropped from 90 to 7 to shrink the query/response size while we
+    // check whether that's what's behind this endpoint's slow (~28-30s) responses.
+    // Revert to 90 once that's confirmed either way, and design the real fix
+    // (e.g. a narrower default with explicit "load more history" paging) properly.
+    static final int MAX_LOOKBACK_DAYS = 7;
     private static final int DEFAULT_PAGE_DATE_GROUPS = 10;
     private static final int MAX_PAGE_DATE_GROUPS = 30;
 
