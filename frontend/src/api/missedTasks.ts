@@ -7,10 +7,10 @@ import type { TaskResponseSubmitPayload, TaskResponseStateResponse } from './tas
  * completed -- see GET /api/me/tasks/missed. Cursor pagination groups whole
  * dates; pass the previous page's `nextCursor` to load older dates.
  */
-export async function getMissedTasks(storeId: number, cursor?: string | null): Promise<MissedTasksPage> {
+export async function getMissedTasks(storeId: number, cursor?: string | null, signal?: AbortSignal): Promise<MissedTasksPage> {
   const params = new URLSearchParams({ storeId: String(storeId) })
   if (cursor) params.set('cursor', cursor)
-  return apiRequest<MissedTasksPage>(`/me/tasks/missed?${params.toString()}`, { timeoutMs: 30_000 })
+  return apiRequest<MissedTasksPage>(`/me/tasks/missed?${params.toString()}`, { timeoutMs: 30_000, signal })
 }
 
 export async function completeMissedTaskNow(

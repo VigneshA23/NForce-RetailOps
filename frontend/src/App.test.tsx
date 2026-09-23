@@ -6,6 +6,7 @@ import * as authApi from './api/auth'
 import * as storesApi from './api/stores'
 import * as meApi from './api/me'
 import * as tasksApi from './api/tasks'
+import * as missedTasksApi from './api/missedTasks'
 import { ApiError } from './api/client'
 import type { StoreSummary } from './types/store'
 
@@ -61,6 +62,7 @@ const mockGetSessionStatus = vi.mocked(authApi.getSessionStatus)
 const mockGetAuthorizedStores = vi.mocked(storesApi.getAuthorizedStores)
 const mockGetMe = vi.mocked(meApi.getMe)
 const mockGetDailyChecklist = vi.mocked(tasksApi.getDailyChecklist)
+const mockGetMissedTasks = vi.mocked(missedTasksApi.getMissedTasks)
 
 const STORE_1: StoreSummary = { id: 1, name: 'Store 1', location: 'Main St', status: 'Open' }
 const STORE_2: StoreSummary = { id: 2, name: 'Store 2', location: 'Oak Ave', status: 'Open' }
@@ -114,6 +116,8 @@ beforeEach(() => {
   mockGetDailyChecklist.mockReset()
   // These tests exercise auth/navigation, not checklist content.
   mockGetDailyChecklist.mockResolvedValue([])
+  mockGetMissedTasks.mockReset()
+  mockGetMissedTasks.mockResolvedValue({ groups: [], nextCursor: null, totalInstances: 0 })
 })
 
 describe('sign-out', () => {
@@ -442,5 +446,37 @@ describe('store selection', () => {
     await selectFirstOpenStore(user)
 
     expect(localStorage.getItem(ACTIVE_STORE_KEY)).toBe(String(STORE_1.id))
+  })
+})
+
+describe('employee tab persistence', () => {
+  // Regression test: EmployeeShell keeps every visited tab mounted (display:none
+  // when inactive) specifically so switching tabs doesn't refetch. That was being
+  // undermined by AppShell's cross-fade wrapper keying its remount-on-change
+  // transition off the active tab itself, which force-remounted every already-
+  // visited tab (including this one's own missed-tasks call, the most expensive)
+  // on every single switch -- see EmployeeShell's contentKey comment.
+  it('does not refetch an already-visited tab when switching back to it', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await loginAsEmployee(user)
+    await selectFirstOpenStore(user)
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole('button', { name: /missing tasks/i }))
+    await screen.findByRole('heading', { name: /missing tasks/i })
+    const missedCallsAfterFirstVisit = mockGetMissedTasks.mock.calls.length
+    expect(missedCallsAfterFirstVisit).toBeGreaterThan(0)
+
+    await user.click(screen.getByRole('button', { name: /checklist/i }))
+    await screen.findByRole('heading', { name: /today's tasks/i })
+
+    await user.click(screen.getByRole('button', { name: /missing tasks/i }))
+    await screen.findByRole('heading', { name: /missing tasks/i })
+
+    // Neither tab remounted on the way back, so neither refetched.
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(1)
+    expect(mockGetMissedTasks.mock.calls.length).toBe(missedCallsAfterFirstVisit)
   })
 })
