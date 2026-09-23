@@ -1,9 +1,19 @@
-import { Eye, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
+import { Copy, Eye, Mail, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
 import { useMemo } from 'react';
 import type { OwnerSummary } from '../types/owner';
+import { nfToast } from '../utils/toast';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './OwnerTable.css';
+
+async function copyEmail(email: string) {
+  try {
+    await navigator.clipboard.writeText(email);
+    nfToast.success('Email copied to clipboard.');
+  } catch {
+    nfToast.error('Could not copy the email. Please copy it manually.');
+  }
+}
 
 export interface GroupedOwner {
   ownerId: number;
@@ -66,8 +76,8 @@ function OwnerTable({
   const grouped = useMemo(() => groupOwners(owners), [owners]);
 
   return (
-    <div className="table-card">
-      <div className="table-scroll">
+    <div className="table-card owner-table-card">
+      <div className="table-scroll owner-table__desktop">
         <table className="data-table">
           <thead>
             <tr>
@@ -181,6 +191,119 @@ function OwnerTable({
           </tbody>
         </table>
       </div>
+
+      {/* Mobile-only: the table above is hidden below --mobile in favor of this card list. */}
+      <div className="owner-table__mobile-cards">
+        {grouped.map((owner) => {
+          const storeToShow = owner.activeStore ?? (owner.ownerActive ? owner.anyStore : null);
+          return (
+            <div className="owner-mobile-card" key={owner.ownerId}>
+              <div className="owner-mobile-card__grid">
+                <span className="owner-mobile-card__avatar">
+                  <UserAvatar initials={getInitials(owner.ownerName)} src={owner.avatarUrl} size={44} />
+                  <span
+                    className={`owner-mobile-card__avatar-dot ${owner.ownerActive ? 'owner-mobile-card__avatar-dot--active' : 'owner-mobile-card__avatar-dot--inactive'}`}
+                    aria-hidden="true"
+                  />
+                </span>
+                <div className="owner-mobile-card__identity">
+                  <span className="owner-mobile-card__name">{owner.ownerName}</span>
+                  <span className="owner-mobile-card__id">{owner.adminCode}</span>
+                </div>
+                <label
+                  className="status-toggle owner-mobile-card__status"
+                  title={owner.ownerActive ? 'Deactivate owner' : 'Activate owner'}
+                >
+                  <input
+                    type="checkbox"
+                    checked={owner.ownerActive}
+                    onChange={() => onToggleStatus(owner)}
+                    aria-label={`${owner.ownerActive ? 'Deactivate' : 'Activate'} ${owner.ownerName}`}
+                  />
+                  <span className="status-toggle__track" aria-hidden="true">
+                    <span className="status-toggle__thumb" />
+                  </span>
+                </label>
+
+                <div className="owner-mobile-card__row owner-mobile-card__email">
+                  <Mail size={14} aria-hidden="true" />
+                  <a href={`mailto:${owner.ownerEmail}`} className="owner-mobile-card__email-link">
+                    {owner.ownerEmail}
+                  </a>
+                  <button
+                    type="button"
+                    className="owner-mobile-card__copy-btn"
+                    aria-label={`Copy ${owner.ownerName}'s email`}
+                    title="Copy email"
+                    onClick={() => copyEmail(owner.ownerEmail)}
+                  >
+                    <Copy size={14} />
+                  </button>
+                </div>
+
+                <div className="owner-mobile-card__store-block">
+                  <span className="owner-mobile-card__store-label">Assigned Store</span>
+                  <div className="owner-mobile-card__store-row">
+                    {storeToShow ? (
+                      <span className="owner-mobile-card__store-pill">
+                        <StoreIcon size={12} aria-hidden="true" />
+                        {storeToShow.storeName}
+                        {!owner.activeStore && (
+                          <span className="badge badge--outline">Inactive</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="owner-table__no-store">No store assigned</span>
+                    )}
+
+                    <div className="owner-mobile-card__icon-actions">
+                      <button
+                        type="button"
+                        className="owner-mobile-card__icon-btn"
+                        aria-label={`View details for ${owner.ownerName}`}
+                        title="View details"
+                        onClick={() => onView(owner)}
+                      >
+                        <Eye size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="owner-mobile-card__icon-btn"
+                        aria-label={`Edit ${owner.ownerName}`}
+                        title="Edit owner"
+                        onClick={() => onEdit(owner)}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        className="owner-mobile-card__icon-btn"
+                        aria-label={`Delete ${owner.ownerName}`}
+                        title="Delete owner permanently"
+                        onClick={() => onDelete(owner)}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                      {owner.ownerActive && !owner.activeStore && (
+                        <button
+                          type="button"
+                          className="owner-mobile-card__icon-btn"
+                          aria-label={`Add store for ${owner.ownerName}`}
+                          title="Add store"
+                          onClick={() => onAddStore(owner)}
+                        >
+                          <StoreIcon size={16} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {!isLoading && grouped.length === 0 && (
         <div className="table-card__empty">{emptyMessage}</div>
       )}

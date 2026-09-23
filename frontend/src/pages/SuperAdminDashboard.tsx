@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon } from 'lucide-react';
+import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon, UserX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { addOwner, assignStore, deleteOwner, getOwners, setOwnerStatus, setStoreStatus, updateOwner } from '../api/owners';
 import { getAllStores } from '../api/superAdminStores';
@@ -128,6 +128,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [searchValue, setSearchValue] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [activeTab, setActiveTab] = useState<SuperAdminNavTabKey>('home');
+  const [mobileSearchActive, setMobileSearchActive] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -363,6 +364,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     () => new Set(owners.filter((o) => o.ownerActive).map((o) => o.ownerId)).size,
     [owners],
   );
+  const inactiveOwnerCount = uniqueOwnerCount - activeOwnerCount;
   // Owners/Stores move off the mobile bottom nav into the profile menu below --
   // desktop/tablet Sidebar keeps the full SUPER_ADMIN_NAV_ITEMS list untouched.
   const isMobile = useIsMobile();
@@ -408,8 +410,11 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       notificationUnreadCount={unreadCount}
       onNotificationsCountChange={handleNotificationsCountChange}
       mobileNav="bottom-tabs"
+      hideBottomNav={mobileSearchActive}
       showSearch={false}
-      headerActions={<SACommandPalette onNavigate={handleSearchNavigate} />}
+      headerActions={
+        <SACommandPalette onNavigate={handleSearchNavigate} onMobileOpenChange={setMobileSearchActive} />
+      }
     >
       {showProfile ? (
         <Profile initials={userInitials} avatarUrl={avatarUrl} onAvatarChange={onAvatarChange} onProfileUpdate={onProfileUpdate} />
@@ -454,6 +459,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
             <StatCard icon={Building2} label="Total Owners" value={uniqueOwnerCount} tone="primary" />
             <StatCard icon={CircleCheck} label="Active Owners" value={activeOwnerCount} tone="success" />
             <StatCard icon={StoreIcon} label="Total Stores" value={totalStoreCount ?? '—'} tone="info" />
+            <StatCard icon={UserX} label="Inactive Owners" value={inactiveOwnerCount} tone="warning" />
           </div>
 
           {statusError && (
@@ -538,7 +544,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                 />
               </div>
 
-              <div className="card">
+              <div className="card owners-page__table-wrap">
               <OwnerTable
                 owners={filteredOwners}
                 isLoading={isLoading}

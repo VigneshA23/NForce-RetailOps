@@ -51,10 +51,19 @@
 }
 
 .modal__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 16px;
   font-weight: 700;
   margin: 0;
   color: var(--color-text-primary);
+}
+
+.modal__title-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-accent);
 }
 
 .modal__subtitle {

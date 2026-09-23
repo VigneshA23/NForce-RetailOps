@@ -15,9 +15,17 @@ interface ModalProps {
   // layout. Off by default; the logout confirmation dialog opts in across
   // all three shells (Employee, Owner/Admin, Super Admin).
   centered?: boolean;
+  // Small icon rendered ahead of the title text (e.g. a UserPlus glyph on
+  // "Add New Owner"). Purely decorative -- omitted entirely by default so
+  // every existing caller renders exactly as before.
+  titleIcon?: ReactNode;
+  // Extra class appended to the outer `.modal` card, letting a specific
+  // caller scope its own title/body/footer styling (see OwnerFormModal.css)
+  // without touching every other modal's shared chrome.
+  className?: string;
 }
 
-function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md', centered = false }: ModalProps) {
+function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md', centered = false, titleIcon, className }: ModalProps) {
   const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2)}`).current;
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -178,7 +186,7 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
       }}
     >
       <div
-        className={`modal${size === 'lg' ? ' modal--lg' : ''}`}
+        className={`modal${size === 'lg' ? ' modal--lg' : ''}${className ? ` ${className}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -187,6 +195,11 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
         <div className="modal__header">
           <div>
             <h2 className="modal__title" id={titleId}>
+              {titleIcon && (
+                <span className="modal__title-icon" aria-hidden="true">
+                  {titleIcon}
+                </span>
+              )}
               {title}
             </h2>
             {subtitle && <p className="modal__subtitle">{subtitle}</p>}
