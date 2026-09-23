@@ -71,10 +71,13 @@
 .category-table__icon--slate  { --badge-bg: var(--color-badge-icon-slate-bg);   --badge-fg: var(--color-badge-icon-slate-fg); }
 
 /* -- Super Admin desktop/tablet table --
-   Tag icon before the name, stores as chips, tinted header row, red-outlined
-   delete, and a pagination footer inside the card. */
-.category-table__card--managed .data-table thead th {
-  background: var(--color-bg-page);
+   Tag icon before the name, stores as chips, red-outlined delete, and a
+   pagination footer inside the card. Header row uses the shared table style.
+
+   Actions header and buttons both sit flush right. */
+.category-table__card--managed .data-table thead th:last-child,
+.category-table__card--managed .data-table tbody td.table-actions-cell {
+  text-align: right;
 }
 
 .category-table__card--managed .category-table__icon {
