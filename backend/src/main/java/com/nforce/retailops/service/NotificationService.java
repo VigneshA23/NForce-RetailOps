@@ -91,6 +91,13 @@ public class NotificationService {
     // Super Admins have their own identity table and are not in the users table.
     @Transactional
     public void sendToSuperAdmin(SuperAdmin recipient, String category, String title, String message, String linkPath, String dedupKey) {
+        sendToSuperAdmin(recipient, category, title, message, linkPath, dedupKey, null);
+    }
+
+    // Store-scoped form — lets a '/checklist' notification deep-link straight into
+    // that store instead of leaving the Super Admin to pick one from a dropdown.
+    @Transactional
+    public void sendToSuperAdmin(SuperAdmin recipient, String category, String title, String message, String linkPath, String dedupKey, Store store) {
         Notification n = new Notification();
         n.setRecipientSuperAdmin(recipient);
         n.setCategory(category);
@@ -98,6 +105,7 @@ public class NotificationService {
         n.setMessage(message);
         n.setLinkPath(linkPath);
         n.setDedupKey(dedupKey);
+        n.setStore(store);
         n.setPriority(PRIORITY_BY_CATEGORY.getOrDefault(category, "MEDIUM"));
         notificationRepository.save(n);
     }

@@ -163,6 +163,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     if (target === 'issues' && context?.relatedIssueId != null) {
       setIssueFocus({ issueId: context.relatedIssueId, ts: Date.now() });
     }
+    if (target === 'checklist' && context?.storeId != null) {
+      setChecklistNav({ storeId: context.storeId, ts: Date.now() });
+    }
     setShowProfile(false);
     setShowHelp(false);
     setShowActivity(false);

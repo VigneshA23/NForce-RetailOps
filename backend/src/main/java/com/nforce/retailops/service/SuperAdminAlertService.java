@@ -106,7 +106,8 @@ public class SuperAdminAlertService {
                     store.getName() + " — no activity today",
                     "No task responses have been recorded at " + store.getName() + " for " + date + ".",
                     "/checklist",
-                    dedupKey
+                    dedupKey,
+                    store
                 );
             }
         }

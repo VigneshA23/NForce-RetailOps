@@ -377,7 +377,7 @@ function DetailPane({ n, onNavigate, onBack, onDelete, deletingId }: DetailPaneP
           <button
             type="button"
             className="nfp-detail__open-btn"
-            onClick={() => onNavigate(n.linkPath!, { createdAt: n.createdAt, relatedIssueId: n.relatedIssueId })}
+            onClick={() => onNavigate(n.linkPath!, { createdAt: n.createdAt, relatedIssueId: n.relatedIssueId, storeId: n.storeId })}
           >
             Open related page <ArrowUpRight size={14} aria-hidden="true" />
           </button>

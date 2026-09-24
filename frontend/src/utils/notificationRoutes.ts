@@ -15,6 +15,7 @@ import type { EmployeeNavTabKey, NavTabKey, SuperAdminNavTabKey } from '../types
 export interface NotificationNavContext {
   createdAt?: string;
   relatedIssueId?: number | null;
+  storeId?: number | null;
 }
 
 export type NotificationNavigateHandler = (path: string, context?: NotificationNavContext) => void;
