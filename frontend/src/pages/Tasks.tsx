@@ -13,6 +13,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Tasks.css';
@@ -323,6 +324,11 @@ function Tasks({
           onChange={(value) => setScheduleFilter(value as ScheduleType | 'ALL')}
           ariaLabel="Filter by schedule"
         />
+        {(categoryFilter !== 'ALL' || statusFilter !== 'ALL' || scheduleFilter !== 'ALL') && (
+          <FilterClearButton
+            onClick={() => { setCategoryFilter('ALL'); setStatusFilter('ALL'); setScheduleFilter('ALL'); }}
+          />
+        )}
       </div>
 
       {actionError && <div className="tasks-page__error">{actionError}</div>}

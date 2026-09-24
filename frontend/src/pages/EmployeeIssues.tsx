@@ -8,6 +8,7 @@ import type { StoreSummary } from '../types/store'
 import StatCard from '../components/StatCard'
 import SearchInput from '../components/SearchInput'
 import Select from '../components/Select'
+import FilterClearButton from '../components/FilterClearButton'
 import Modal from '../components/Modal'
 import FormField from '../components/FormField'
 import ButtonDots from '../components/ButtonDots'
@@ -164,6 +165,9 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
                 ariaLabel="Filter by status"
               />
             </div>
+            {statusFilter !== null && (
+              <FilterClearButton onClick={() => setStatusFilter(null)} />
+            )}
           </div>
 
           <div className="table-card">

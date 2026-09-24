@@ -13,6 +13,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 
 import StatCard from '../components/StatCard';
 import './Employees.css';
@@ -219,6 +220,9 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
           onChange={(value) => setStatusFilter(value as StatusFilter)}
           ariaLabel="Filter by status"
         />
+        {(typeFilter !== 'ALL' || statusFilter !== 'ALL') && (
+          <FilterClearButton onClick={() => { setTypeFilter('ALL'); setStatusFilter('ALL'); }} />
+        )}
       </div>
 
       {statusError && <div className="employees-page__error">{statusError}</div>}

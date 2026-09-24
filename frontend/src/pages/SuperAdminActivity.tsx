@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import SearchInput from '../components/SearchInput';
 import Select, { type SelectOption } from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange, type DateRangeSelection } from '../components/DateRangePicker';
 import Pagination from '../components/Pagination';
 import { ActivityFeedRow } from '../components/ActivityFeedList';
@@ -157,6 +158,9 @@ function SuperAdminActivity({ onBack }: SuperAdminActivityProps) {
           />
         )}
         <DateRangePicker value={dateRange} onChange={setDateRange} />
+        {(storeFilter !== 'all' || dateRange.preset !== 'ALL_TIME') && (
+          <FilterClearButton onClick={() => { setStoreFilter('all'); setDateRange(DEFAULT_DATE_RANGE); }} />
+        )}
       </div>
 
       <div className="card sa-activity__list-card">

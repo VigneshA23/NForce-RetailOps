@@ -6,6 +6,7 @@ import type { Issue } from '../types/issue';
 import StatCard from '../components/StatCard';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import IssueCard from '../components/IssueCard';
 import IssueResponseModal, { type IssueResponseAction } from '../components/IssueResponseModal';
 import { useIssueList } from '../hooks/useIssueList';
@@ -181,6 +182,9 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
             ariaLabel="Filter by status"
           />
         </div>
+        {statusFilter !== 'ACTIVE' && (
+          <FilterClearButton onClick={() => setStatusFilter('ACTIVE')} />
+        )}
       </div>
 
       <div className="table-card">

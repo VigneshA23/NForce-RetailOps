@@ -5,6 +5,7 @@ import { getSAIssues, nudgeOwner, updateSAIssueStatus, type SAIssue } from '../a
 import StatCard from '../components/StatCard';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import ButtonDots from '../components/ButtonDots';
 import IssueCard from '../components/IssueCard';
 import IssueResponseModal, { type IssueResponseAction } from '../components/IssueResponseModal';
@@ -214,6 +215,9 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
             ariaLabel="Filter by status"
           />
         </div>
+        {(statusFilter !== 'ACTIVE' || storeFilter !== '') && (
+          <FilterClearButton onClick={() => { setStatusFilter('ACTIVE'); setStoreFilter(''); }} />
+        )}
       </div>
 
       <div className="table-card">

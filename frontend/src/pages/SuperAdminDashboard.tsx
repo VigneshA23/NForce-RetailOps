@@ -22,6 +22,7 @@ import SpecularButton from '../components/SpecularButton';
 import SACommandPalette from '../components/SACommandPalette';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import StatCard from '../components/StatCard';
 import AppShell from '../layouts/AppShell';
 import Profile from '../pages/Profile';
@@ -469,7 +470,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       ) : activeTab === 'employees' ? (
         <SuperAdminEmployees focusEmployee={employeeFocus} />
       ) : activeTab === 'categories' ? (
-        <SuperAdminCategories />
+        <SuperAdminCategories onNavigateToTasks={() => setActiveTab('tasks')} />
       ) : activeTab === 'tasks' ? (
         <SuperAdminTasks />
       ) : activeTab === 'issues' ? (
@@ -565,6 +566,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                   onChange={(value) => setStatusFilter(value as StatusFilter)}
                   ariaLabel="Filter by status"
                 />
+                {statusFilter !== 'ALL' && (
+                  <FilterClearButton onClick={() => setStatusFilter('ALL')} />
+                )}
               </div>
 
               <div className="card owners-page__table-wrap">

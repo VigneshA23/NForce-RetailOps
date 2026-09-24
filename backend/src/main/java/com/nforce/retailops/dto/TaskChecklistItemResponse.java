@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Task;
@@ -8,6 +9,7 @@ import com.nforce.retailops.entity.TaskResponseEntry;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public record TaskChecklistItemResponse(
     Long id,
@@ -41,6 +43,13 @@ public record TaskChecklistItemResponse(
         Task task, List<TaskResponseEntry> activeResponses, Long employeeUserId, int totalActiveEmployees,
         LocalDate originalDueDate
     ) {
+        return from(task, activeResponses, employeeUserId, totalActiveEmployees, originalDueDate, Map.of());
+    }
+
+    public static TaskChecklistItemResponse from(
+        Task task, List<TaskResponseEntry> activeResponses, Long employeeUserId, int totalActiveEmployees,
+        LocalDate originalDueDate, Map<Long, AdminCorrection> latestCorrectionsByResponseId
+    ) {
         LinkedHashMap<Long, String> activeResponders = new LinkedHashMap<>();
         for (TaskResponseEntry entry : activeResponses) {
             if (entry.getEmployee().isActive()) {
@@ -60,7 +69,9 @@ public record TaskChecklistItemResponse(
             task.getTextMaxLength(),
             task.getCompletionType(),
             task.getMaxCompletions(),
-            activeResponses.stream().map(TaskResponseSummary::from).toList(),
+            activeResponses.stream()
+                .map(entry -> TaskResponseSummary.from(entry, latestCorrectionsByResponseId.get(entry.getId())))
+                .toList(),
             activeResponses.stream().anyMatch(entry -> entry.getEmployee().getId().equals(employeeUserId)),
             activeResponders.size(),
             totalActiveEmployees,

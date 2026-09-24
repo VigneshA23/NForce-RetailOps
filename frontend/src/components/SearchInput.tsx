@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import './SearchInput.css';
 
 interface SearchInputProps {
@@ -21,6 +21,16 @@ function SearchInput({ value, onChange, placeholder = 'Search...', variant = 'he
           placeholder={placeholder}
           aria-label="Search"
         />
+        {value.length > 0 && (
+          <button
+            type="button"
+            className="search-input__clear"
+            aria-label="Clear search"
+            onClick={() => onChange('')}
+          >
+            <X size={13} />
+          </button>
+        )}
       </div>
     );
   }
@@ -36,6 +46,16 @@ function SearchInput({ value, onChange, placeholder = 'Search...', variant = 'he
         placeholder={placeholder}
         aria-label="Search"
       />
+      {value.length > 0 && (
+        <button
+          type="button"
+          className="search-input__clear"
+          aria-label="Clear search"
+          onClick={(event) => { event.preventDefault(); onChange(''); }}
+        >
+          <X size={14} />
+        </button>
+      )}
     </label>
   );
 }

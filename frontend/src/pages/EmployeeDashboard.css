@@ -237,6 +237,11 @@
   margin: 0;
 }
 
+.checklist-category-alert {
+  color: #d97706;
+  flex-shrink: 0;
+}
+
 .checklist-category-icon {
   width: 34px;
   height: 34px;
@@ -522,6 +527,18 @@
   flex-shrink: 0;
   margin-top: 1px;
   color: #d97706;
+}
+
+/* Edit notice -- an admin corrected the value directly (no resubmission
+   needed), so it reads as informational rather than the flag box's warning. */
+.checklist-task__flag-box--edited {
+  color: var(--color-badge-icon-info-fg);
+  background: var(--color-badge-icon-info-bg);
+  border-color: transparent;
+}
+
+.checklist-task__flag-box--edited svg {
+  color: var(--color-badge-icon-info-fg);
 }
 
 /* Error */

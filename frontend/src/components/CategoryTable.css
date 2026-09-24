@@ -13,6 +13,24 @@
   color: var(--color-text-secondary);
 }
 
+.category-table__assign-tasks {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-badge-icon-warning-fg);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.category-table__assign-tasks:hover {
+  text-decoration: underline;
+}
+
 .category-table__empty {
   padding: var(--space-xl);
   text-align: center;
