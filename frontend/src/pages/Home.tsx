@@ -33,6 +33,7 @@ interface HomeProps {
 }
 
 const DEFAULT_TREND_DAYS = 7;
+const ISSUES_POLL_INTERVAL_MS = 60_000;
 
 // Local calendar date, not UTC -- .toISOString() converts to UTC first, which
 // silently rolls the date back a day for any timezone ahead of UTC (e.g.
@@ -206,13 +207,21 @@ function Home({
     };
   }, [storesLoading, stores, trendDays, retryTick]);
 
-  // Fetch open issue count for the stat tile indicator
+  // Fetch the active issue count for the stat tile indicator. Home stays
+  // mounted across tab switches, so keep it fresh on the same 60s cadence as
+  // the Issues page itself rather than showing the count from first load.
   useEffect(() => {
     const storeId = stores[0]?.id;
     if (!storeId) return;
-    getIssues(storeId)
-      .then(setIssues)
-      .catch(() => {});
+    let active = true;
+    const load = () => {
+      getIssues(storeId)
+        .then((data) => { if (active) setIssues(data); })
+        .catch(() => {});
+    };
+    load();
+    const id = window.setInterval(load, ISSUES_POLL_INTERVAL_MS);
+    return () => { active = false; window.clearInterval(id); };
   }, [stores]);
 
   const storeName = stores[0]?.name ?? null;
@@ -263,7 +272,9 @@ function Home({
   );
 
   const issuesLoading = issues === null;
-  const openIssueCount = issues ? issues.filter((i) => i.status === 'OPEN').length : 0;
+  // Acknowledged-but-unresolved issues still need the owner, so they count too
+  // (matches the Issues page's default "Active" filter).
+  const openIssueCount = issues ? issues.filter((i) => i.status !== 'RESOLVED').length : 0;
   const hasOpenIssues = openIssueCount > 0;
 
   const todayLabel = useMemo(
@@ -314,11 +325,11 @@ function Home({
           onClick={onViewStoreDetail}
         />
         {issuesLoading ? (
-          <StatCard icon={AlertTriangle} label="Open Issues" value="—" tone="info" />
+          <StatCard icon={AlertTriangle} label="Active Issues" value="—" tone="info" />
         ) : (
           <StatCard
             icon={hasOpenIssues ? AlertTriangle : CheckCircle2}
-            label="Open Issues"
+            label="Active Issues"
             value={hasOpenIssues ? openIssueCount : 'All clear'}
             tone={hasOpenIssues ? 'primary' : 'success'}
             onClick={onViewIssues}

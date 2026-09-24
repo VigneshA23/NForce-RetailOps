@@ -46,6 +46,12 @@ public class RaisedIssue {
     @JoinColumn(name = "responded_by_user_id")
     private User respondedByUser;
 
+    // Set instead of respondedByUser when a Super Admin (not a users row)
+    // acknowledged/resolved the issue -- see V68.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "responded_by_super_admin_id")
+    private SuperAdmin respondedBySuperAdmin;
+
     @Column(name = "responded_at")
     private OffsetDateTime respondedAt;
 
@@ -73,6 +79,8 @@ public class RaisedIssue {
     public void setResponseText(String responseText) { this.responseText = responseText; }
     public User getRespondedByUser() { return respondedByUser; }
     public void setRespondedByUser(User respondedByUser) { this.respondedByUser = respondedByUser; }
+    public SuperAdmin getRespondedBySuperAdmin() { return respondedBySuperAdmin; }
+    public void setRespondedBySuperAdmin(SuperAdmin respondedBySuperAdmin) { this.respondedBySuperAdmin = respondedBySuperAdmin; }
     public OffsetDateTime getRespondedAt() { return respondedAt; }
     public void setRespondedAt(OffsetDateTime respondedAt) { this.respondedAt = respondedAt; }
     public OffsetDateTime getCreatedAt() { return createdAt; }

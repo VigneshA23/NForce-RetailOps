@@ -52,7 +52,7 @@ describe('NotificationBell — passing the notification date through navigation'
     const item = await screen.findByText("Today's item")
     await user.click(item)
 
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/audit', '2026-09-17T09:00:00Z'))
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null }))
   })
 
   it('passes each distinct notification\'s own createdAt, not a shared/default value', async () => {
@@ -67,10 +67,33 @@ describe('NotificationBell — passing the notification date through navigation'
     await user.click(screen.getByLabelText(/notifications/i))
 
     await user.click(await screen.findByText("Yesterday's item"))
-    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', '2026-09-16T09:00:00Z'))
+    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-16T09:00:00Z', relatedIssueId: null }))
 
     await user.click(screen.getByLabelText(/notifications/i))
     await user.click(await screen.findByText("Today's item"))
-    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', '2026-09-17T09:00:00Z'))
+    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null }))
+  })
+})
+
+describe('NotificationBell — issue deep links', () => {
+  it('passes the related issue id so the Issues page can focus that issue', async () => {
+    const user = userEvent.setup()
+    mockGetNotifications.mockResolvedValue([
+      makeNotification({
+        id: 3,
+        title: 'Jane raised an issue at Downtown',
+        category: 'ISSUE_RAISED',
+        linkPath: '/issues',
+        relatedIssueId: 42,
+        createdAt: '2026-09-18T09:00:00Z',
+      }),
+    ])
+    const onNavigate = vi.fn()
+
+    render(<NotificationBell unreadCount={1} onCountChange={vi.fn()} onViewAll={vi.fn()} onNavigate={onNavigate} />)
+    await user.click(screen.getByLabelText(/notifications/i))
+    await user.click(await screen.findByText('Jane raised an issue at Downtown'))
+
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/issues', { createdAt: '2026-09-18T09:00:00Z', relatedIssueId: 42 }))
   })
 })

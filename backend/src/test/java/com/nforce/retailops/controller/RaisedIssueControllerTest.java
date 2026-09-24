@@ -202,6 +202,13 @@ class RaisedIssueControllerTest {
             .andExpect(jsonPath("$.status").value("RESOLVED"))
             .andExpect(jsonPath("$.responseText").value("Called the AC technician"))
             .andExpect(jsonPath("$.respondedByFullName").value("Test User"));
+
+        // A resolved issue is final: trying to move it back is a 409, not a silent reopen.
+        mockMvc.perform(patch("/api/issues/{id}/status", issueId)
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(new UpdateIssueStatusRequest("ACKNOWLEDGED", null))))
+            .andExpect(status().isConflict());
     }
 
     @Test

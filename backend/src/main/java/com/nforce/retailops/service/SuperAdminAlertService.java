@@ -26,8 +26,10 @@ import java.util.List;
  *   per SA per day.  Guards against repeated alerting via a dedup_key.
  *
  * Trigger 2 — ISSUES_OVERDUE (09:00 daily):
- *   Any store whose OPEN issues are older than 48 hours gets one aggregated
- *   alert per SA per day (count included in the message).
+ *   Any active store whose unresolved (OPEN or ACKNOWLEDGED) issues are older
+ *   than 48 hours gets one aggregated alert per SA per day (count included in
+ *   the message). Acknowledged counts too -- acknowledging an issue must not
+ *   silence the alert indefinitely.
  *
  * Trigger 3 — STORE_OWNER_VACANT (hourly):
  *   Any store whose StoreOwner link has been ownerless (owner deactivated, or
@@ -44,6 +46,7 @@ public class SuperAdminAlertService {
 
     private static final Logger log = LoggerFactory.getLogger(SuperAdminAlertService.class);
     private static final long OWNER_VACANCY_NOTIFY_AFTER_HOURS = 24;
+    private static final List<String> UNRESOLVED_ISSUE_STATUSES = List.of("OPEN", "ACKNOWLEDGED");
 
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
@@ -112,7 +115,7 @@ public class SuperAdminAlertService {
 
     /**
      * Trigger 2 — scheduled at 09:00 server time every day.
-     * For each store with OPEN issues older than 48 hours, fires ONE aggregated
+     * For each active store with unresolved issues older than 48 hours, fires ONE aggregated
      * ISSUES_OVERDUE notification per SA per day (dedup-guarded).
      */
     @Scheduled(cron = "0 0 9 * * ?")
@@ -127,13 +130,15 @@ public class SuperAdminAlertService {
         OffsetDateTime cutoff = now.minusHours(48);
         LocalDate today = now.toLocalDate();
 
-        List<Store> allStores = storeRepository.findAll();
+        List<Store> activeStores = storeRepository.findAll().stream()
+            .filter(Store::isActive)
+            .toList();
         List<SuperAdmin> superAdmins = superAdminRepository.findAll();
         if (superAdmins.isEmpty()) return;
 
-        for (Store store : allStores) {
+        for (Store store : activeStores) {
             long overdueCount = raisedIssueRepository
-                .countByStoreIdAndStatusAndCreatedAtBefore(store.getId(), "OPEN", cutoff);
+                .countByStoreIdAndStatusInAndCreatedAtBefore(store.getId(), UNRESOLVED_ISSUE_STATUSES, cutoff);
             if (overdueCount == 0) continue;
 
             String dedupKey = "ISSUES_OVERDUE:" + store.getId() + ":" + today;
@@ -141,8 +146,8 @@ public class SuperAdminAlertService {
                 if (notificationService.superAdminNotificationExists(sa.getId(), dedupKey)) continue;
                 String title = store.getName() + " — " + overdueCount + " overdue issue" + (overdueCount == 1 ? "" : "s");
                 String message = store.getName() + " has " + overdueCount + " issue"
-                    + (overdueCount == 1 ? "" : "s") + " open for more than 48 hours.";
-                notificationService.sendToSuperAdmin(sa, "ISSUES_OVERDUE", title, message, "/checklist", dedupKey);
+                    + (overdueCount == 1 ? "" : "s") + " unresolved for more than 48 hours.";
+                notificationService.sendToSuperAdmin(sa, "ISSUES_OVERDUE", title, message, "/issues", dedupKey);
             }
         }
         log.info("Overdue-issues check complete for cutoff={}", cutoff);

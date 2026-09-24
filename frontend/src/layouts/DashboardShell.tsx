@@ -21,6 +21,8 @@ import { useOwnerCategories } from '../hooks/useOwnerCategories';
 import { useOwnerEmployees } from '../hooks/useOwnerEmployees';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 import AdminSearchDropdown from '../components/AdminSearchDropdown';
+import type { IssueFocusRequest } from '../hooks/useIssueFocus';
+import { OWNER_NOTIFICATION_ROUTES, resolveNotificationRoute, type NotificationNavContext } from '../utils/notificationRoutes';
 
 interface DashboardShellProps {
   user: AuthUser;
@@ -44,6 +46,8 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
   const [overlay, setOverlay] = useState<Overlay>(() => getOwnerOverlay());
   useEffect(() => setOwnerOverlay(overlay), [overlay]);
   const [searchSeed, setSearchSeed] = useState<{ term: string; id: number; recordId?: number } | undefined>(undefined);
+  // Notification-click navigation into a specific issue (see useIssueFocus).
+  const [focusIssueId, setFocusIssueId] = useState<IssueFocusRequest | undefined>(undefined);
   // Lazy-mount: tabs mount on first visit and stay alive — no refetch on tab switch.
   const [mountedTabs, setMountedTabs] = useState<Set<NavTabKey>>(new Set(['home']));
   useEffect(() => {
@@ -74,16 +78,15 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
     else setCount((prev) => Math.max(0, prev + value));
   }
 
-  function handleNotificationNavigate(path: string) {
-    switch (path) {
-      case '/home': setActiveTab('home'); setOverlay(null); break;
-      case '/store-detail': setActiveTab('store-detail'); setOverlay(null); break;
-      case '/employees': setActiveTab('employees'); setOverlay(null); break;
-      case '/tasks': setActiveTab('tasks'); setOverlay(null); break;
-      case '/issues': setActiveTab('issues'); setOverlay(null); break;
-      case '/profile': setOverlay('profile'); break;
-      default: setOverlay('notifications'); break;
+  function handleNotificationNavigate(path: string, context?: NotificationNavContext) {
+    const target = resolveNotificationRoute(OWNER_NOTIFICATION_ROUTES, path);
+    if (target === null) { setOverlay('notifications'); return; }
+    if (target === 'profile') { setOverlay('profile'); return; }
+    if (target === 'issues' && context?.relatedIssueId != null) {
+      setFocusIssueId({ issueId: context.relatedIssueId, ts: Date.now() });
     }
+    setActiveTab(target);
+    setOverlay(null);
   }
 
   function handleSearchNavigate(group: 'tasks' | 'categories' | 'employees', id: number, term: string) {
@@ -149,7 +152,14 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
           />
         );
       case 'issues':
-        return <AdminIssues storeId={storesState.stores[0]?.id ?? null} />;
+        return (
+          <AdminIssues
+            storeId={storesState.stores[0]?.id ?? null}
+            storesLoading={storesState.isLoading}
+            isActive={activeTab === 'issues' && overlay === null}
+            focusIssueId={focusIssueId}
+          />
+        );
       case 'inventory':
         return <StoreInventory />;
       case 'orders':

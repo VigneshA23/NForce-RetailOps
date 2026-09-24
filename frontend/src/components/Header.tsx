@@ -4,6 +4,7 @@ import SearchInput from './SearchInput';
 import IconButton from './IconButton';
 import ProfileMenu from './ProfileMenu';
 import NotificationBell from './NotificationBell';
+import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
 import './Header.css';
 
 interface HeaderProps {
@@ -25,7 +26,7 @@ interface HeaderProps {
   notificationUnreadCount?: number;
   onNotificationsCountChange?: (count: number) => void;
   onNotificationsClick?: () => void;
-  onNotificationNavigate?: (path: string, createdAt?: string) => void;
+  onNotificationNavigate?: NotificationNavigateHandler;
   searchValue: string;
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;
