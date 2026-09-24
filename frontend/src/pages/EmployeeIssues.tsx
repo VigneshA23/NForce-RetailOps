@@ -170,7 +170,7 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
             </div>
           </div>
 
-          <div className="table-card">
+          <div>
             <div className="issue-card-list">
               {filtered.map((issue) => (
                 <IssueCard
@@ -183,7 +183,7 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
               ))}
             </div>
             {filtered.length === 0 && (
-              <div className="table-card__empty">
+              <div className="issue-card-list__empty">
                 {search ? 'No issues match your search.' : 'No issues match the selected filter.'}
               </div>
             )}

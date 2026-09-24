@@ -216,7 +216,7 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
         </div>
       </div>
 
-      <div className="table-card">
+      <div>
         <div className="issue-card-list">
           {groupStatuses === null ? (
             filtered.map(renderCard)
@@ -237,9 +237,9 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
             })
           )}
         </div>
-        {isLoading && <div className="table-card__empty">Loading issues…</div>}
+        {isLoading && <div className="issue-card-list__empty">Loading issues…</div>}
         {!isLoading && !error && filtered.length === 0 && (
-          <div className="table-card__empty">
+          <div className="issue-card-list__empty">
             {issues.length === 0 ? 'No issues have been raised yet.'
               : statusFilter === 'ACTIVE' && !search && !storeFilter ? 'All caught up — no open issues across stores.'
               : 'No issues match your filters.'}

@@ -5,18 +5,38 @@
 .issue-card-list {
   display: flex;
   flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* Empty / loading state shown in place of (or below) the card list. */
+.issue-card-list__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.issue-card-list:not(:empty) + .issue-card-list__empty {
+  margin-top: var(--space-md);
 }
 
 .issue-card {
+  --issue-accent: var(--color-border);
   display: flex;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  border-bottom: 1px solid var(--color-border);
+  flex-direction: column;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--issue-accent);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
 }
 
-.issue-card:last-child {
-  border-bottom: none;
-}
+.issue-card--open { --issue-accent: var(--color-badge-icon-primary-fg); }
+.issue-card--acknowledged { --issue-accent: var(--color-badge-icon-warning-fg); }
+.issue-card--resolved { --issue-accent: var(--color-badge-icon-success-fg); }
 
 /* Brief flash when a notification or search result deep-links to this card. */
 .issue-card--highlighted {
@@ -25,47 +45,83 @@
 
 @keyframes issue-card-flash {
   0%, 40% { background: var(--color-accent-soft, rgba(59, 130, 246, 0.16)); }
-  100% { background: transparent; }
+  100% { background: var(--color-surface-card); }
 }
 
-.issue-card__icon {
-  flex-shrink: 0;
+/* ── Header: raised date/time + status badge ── */
+
+.issue-card__header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-badge-icon-info-bg);
-  color: var(--color-badge-icon-info-fg);
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-md) var(--space-sm);
 }
 
-.issue-card__body {
-  flex: 1;
+.issue-card__raised {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+/* ── Store / employee line (admin views) ── */
+
+.issue-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  padding: 0 var(--space-md) var(--space-sm);
+}
+
+.issue-card__meta-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
 }
 
-.issue-card__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-lg);
+.issue-card__meta-value {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
 }
 
-.issue-card__field {
+.issue-card__meta-value--strong {
+  font-weight: 600;
+}
+
+/* ── Issue row: icon beside the note, no divider above it ── */
+
+.issue-card__issue {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0 var(--space-md) var(--space-md);
+}
+
+.issue-card__section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 90px;
+  gap: 8px;
+  padding: var(--space-md);
 }
 
-.issue-card__field--grow {
-  flex: 1;
-  min-width: 200px;
-}
-
-.issue-card__field--status {
-  margin-left: auto;
+.issue-card__section-icon {
+  flex-shrink: 0;
+  /* Centers the 20px icon on the note's first 14px/1.55 line. */
+  margin-top: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
 }
 
 .issue-card__label {
@@ -76,52 +132,20 @@
   color: var(--color-text-muted);
 }
 
-.issue-card__value {
-  font-size: 13px;
-  color: var(--color-text-primary);
-}
-
-.issue-card__value--strong {
-  font-weight: 600;
-}
-
 .issue-card__note {
-  display: block;
-  line-height: 1.45;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--color-text-primary);
   overflow-wrap: anywhere;
   white-space: pre-line;
 }
 
-.issue-card__date-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  white-space: nowrap;
-}
-
-.issue-card__time {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.issue-card__divider {
-  border: none;
-  border-top: 1px solid var(--color-border);
-  margin: var(--space-md) 0;
-}
-
+/* The only divider inside the card: separates the issue from the response. */
 .issue-card__response-block {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.issue-card__response-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
+  border-top: 1px solid var(--color-border);
 }
 
 .issue-card__response-time {
@@ -154,12 +178,14 @@
 
 .issue-card__response {
   font-size: 13px;
+  line-height: 24px;
   color: var(--color-text-primary);
   overflow-wrap: anywhere;
   white-space: pre-line;
 }
 
 .issue-card__response--hint {
+  line-height: 1.45;
   color: var(--color-text-muted);
   font-style: italic;
 }
@@ -171,7 +197,8 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--color-border);
 }
 
 /* ── Group headers (grouped "All" view) ── */
@@ -180,8 +207,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px var(--space-md) 6px;
-  background: var(--color-bg-page);
+  padding: var(--space-sm) 2px 0;
 }
 
 .issues-group-count {
@@ -223,12 +249,8 @@
 }
 
 @media (--mobile) {
-  .issue-card__top {
-    flex-direction: column;
-    gap: var(--space-sm);
-  }
-
-  .issue-card__field--status {
-    margin-left: 0;
+  .issue-card__actions-row .btn {
+    flex: 1;
+    justify-content: center;
   }
 }

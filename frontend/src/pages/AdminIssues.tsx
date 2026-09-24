@@ -183,7 +183,7 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
         </div>
       </div>
 
-      <div className="table-card">
+      <div>
         <div className="issue-card-list">
           {groupStatuses === null ? (
             filtered.map(renderCard)
@@ -204,9 +204,9 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
             })
           )}
         </div>
-        {(isLoading || storesLoading) && <div className="table-card__empty">Loading issues…</div>}
+        {(isLoading || storesLoading) && <div className="issue-card-list__empty">Loading issues…</div>}
         {!isLoading && !storesLoading && !error && filtered.length === 0 && (
-          <div className="table-card__empty">
+          <div className="issue-card-list__empty">
             {issues.length === 0 ? 'No issues have been raised yet.'
               : statusFilter === 'ACTIVE' && !search ? 'All caught up — no open issues.'
               : 'No issues match your filters.'}

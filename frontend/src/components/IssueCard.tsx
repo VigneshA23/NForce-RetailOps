@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { MessageSquare, User } from 'lucide-react';
+import { Clock, MessageSquare, User } from 'lucide-react';
 import type { Issue } from '../types/issue';
 import { ISSUE_STATUS_META, formatIssueDate, formatIssueTime } from '../utils/issueStatusMeta';
 import './IssueCard.css';
@@ -37,77 +37,73 @@ function IssueCard({
 
   return (
     <div
-      className={`issue-card${highlighted ? ' issue-card--highlighted' : ''}`}
+      className={`issue-card issue-card--${issue.status.toLowerCase()}${highlighted ? ' issue-card--highlighted' : ''}`}
       id={`${idPrefix}-${issue.id}`}
     >
-      <div className="issue-card__icon" aria-hidden="true">
-        <MessageSquare size={16} strokeWidth={2} />
+      <div className="issue-card__header">
+        <span className="issue-card__raised">
+          <Clock size={14} strokeWidth={2} aria-hidden="true" />
+          <span>{formatIssueDate(issue.createdAt)}</span>
+          <span aria-hidden="true">·</span>
+          <span>{formatIssueTime(issue.createdAt)}</span>
+        </span>
+        <span className={`badge ${meta.badgeClass}`}>{meta.label}</span>
       </div>
-      <div className="issue-card__body">
-        <div className="issue-card__top">
+
+      {(showStore || showEmployee) && (
+        <div className="issue-card__meta">
           {showStore && (
-            <div className="issue-card__field">
+            <span className="issue-card__meta-item">
               <span className="issue-card__label">Store</span>
-              <span className="issue-card__value issue-card__value--strong">{issue.storeName}</span>
-            </div>
+              <span className="issue-card__meta-value issue-card__meta-value--strong">{issue.storeName}</span>
+            </span>
           )}
           {showEmployee && (
-            <div className="issue-card__field">
+            <span className="issue-card__meta-item">
               <span className="issue-card__label">Employee</span>
-              <span className="issue-card__value">{issue.employeeFullName}</span>
-            </div>
-          )}
-          <div className="issue-card__field issue-card__field--grow">
-            <span className="issue-card__label">Issue</span>
-            <span className="issue-card__value issue-card__note">{issue.note}</span>
-          </div>
-          <div className="issue-card__field">
-            <span className="issue-card__label">Raised</span>
-            <span className="issue-card__value issue-card__date-cell">
-              <span>{formatIssueDate(issue.createdAt)}</span>
-              <span className="issue-card__time">{formatIssueTime(issue.createdAt)}</span>
+              <span className="issue-card__meta-value">{issue.employeeFullName}</span>
             </span>
-          </div>
-          <div className="issue-card__field issue-card__field--status">
-            <span className="issue-card__label">Status</span>
-            <span className={`badge ${meta.badgeClass}`}>{meta.label}</span>
-          </div>
+          )}
         </div>
+      )}
 
-        {(issue.responseText || showResponsePlaceholder) && (
-          <>
-            <hr className="issue-card__divider" />
-            <div className="issue-card__response-block">
-              <span className="issue-card__response-label">
-                {issue.responseText && responder ? `Response from ${responder}` : 'Response'}
-                {issue.responseText && issue.respondedAt && (
-                  <span className="issue-card__response-time">
-                    {' · '}{formatIssueDate(issue.respondedAt)}, {formatIssueTime(issue.respondedAt)}
-                  </span>
-                )}
-              </span>
-              {issue.responseText ? (
-                <div className="issue-card__response-box">
-                  <span className="issue-card__response-avatar" aria-hidden="true">
-                    <User size={14} strokeWidth={2} />
-                  </span>
-                  <span className="issue-card__response">{issue.responseText}</span>
-                </div>
-              ) : (
-                <span className="issue-card__response issue-card__response--hint">
-                  {issue.status === 'ACKNOWLEDGED'
-                    ? `Being looked into${responder ? ` by ${responder}` : ''}`
-                    : issue.status === 'RESOLVED'
-                      ? `Resolved${responder ? ` by ${responder}` : ''}`
-                      : 'Awaiting response'}
-                </span>
-              )}
-            </div>
-          </>
-        )}
-
-        {actions && <div className="issue-card__actions-row">{actions}</div>}
+      <div className="issue-card__issue">
+        <span className="issue-card__section-icon" role="img" aria-label="Issue">
+          <MessageSquare size={11} strokeWidth={2.25} aria-hidden="true" />
+        </span>
+        <p className="issue-card__note">{issue.note}</p>
       </div>
+
+      {(issue.responseText || showResponsePlaceholder) && (
+        <div className="issue-card__section issue-card__response-block">
+          <span className="issue-card__label">
+            {issue.responseText && responder ? `Response from ${responder}` : 'Response'}
+            {issue.responseText && issue.respondedAt && (
+              <span className="issue-card__response-time">
+                {' · '}{formatIssueDate(issue.respondedAt)}, {formatIssueTime(issue.respondedAt)}
+              </span>
+            )}
+          </span>
+          {issue.responseText ? (
+            <div className="issue-card__response-box">
+              <span className="issue-card__response-avatar" aria-hidden="true">
+                <User size={14} strokeWidth={2} />
+              </span>
+              <span className="issue-card__response">{issue.responseText}</span>
+            </div>
+          ) : (
+            <span className="issue-card__response issue-card__response--hint">
+              {issue.status === 'ACKNOWLEDGED'
+                ? `Being looked into${responder ? ` by ${responder}` : ''}`
+                : issue.status === 'RESOLVED'
+                  ? `Resolved${responder ? ` by ${responder}` : ''}`
+                  : 'Awaiting response'}
+            </span>
+          )}
+        </div>
+      )}
+
+      {actions && <div className="issue-card__actions-row">{actions}</div>}
     </div>
   );
 }
