@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Clock, MessageSquare, User } from 'lucide-react';
+import { Clock, MessageSquare } from 'lucide-react';
 import type { Issue } from '../types/issue';
 import { ISSUE_STATUS_META, formatIssueDate, formatIssueTime } from '../utils/issueStatusMeta';
 import './IssueCard.css';
@@ -86,9 +86,6 @@ function IssueCard({
           </span>
           {issue.responseText ? (
             <div className="issue-card__response-box">
-              <span className="issue-card__response-avatar" aria-hidden="true">
-                <User size={14} strokeWidth={2} />
-              </span>
               <span className="issue-card__response">{issue.responseText}</span>
             </div>
           ) : (

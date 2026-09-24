@@ -155,37 +155,22 @@
 }
 
 .issue-card__response-box {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
   background: var(--color-bg-page);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   padding: var(--space-sm) var(--space-md);
 }
 
-.issue-card__response-avatar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-surface-card);
-  color: var(--color-text-secondary);
-}
-
 .issue-card__response {
+  display: block;
   font-size: 13px;
-  line-height: 24px;
+  line-height: 1.45;
   color: var(--color-text-primary);
   overflow-wrap: anywhere;
   white-space: pre-line;
 }
 
 .issue-card__response--hint {
-  line-height: 1.45;
   color: var(--color-text-muted);
   font-style: italic;
 }
