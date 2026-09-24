@@ -89,25 +89,26 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
 
   const noteNearLimit = issueNote.length >= ISSUE_NOTE_MAX_LENGTH * 0.9
 
+  // Sits below the status cards (or inside the empty state when there are
+  // none), so the page reads summary first, then the action, then the list.
+  const raiseButton = (
+    <button
+      type="button"
+      className="btn btn--danger"
+      onClick={() => setIsRaiseModalOpen(true)}
+    >
+      <Plus size={16} />
+      Raise Issue
+    </button>
+  )
+
   return (
     <div className="emp-issues-page">
       <div className="emp-issues-page__header">
-        <div className="emp-issues-page__title-row">
-          <div>
-            <h1 className="emp-issues-page__heading">Issues</h1>
-            <p className="emp-issues-page__subheading">
-              Issues you have raised at {store.name} and their current status.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn btn--danger"
-            onClick={() => setIsRaiseModalOpen(true)}
-          >
-            <Plus size={16} />
-            Raise Issue
-          </button>
-        </div>
+        <h1 className="emp-issues-page__heading">Issues</h1>
+        <p className="emp-issues-page__subheading">
+          Issues you have raised at {store.name} and their current status.
+        </p>
       </div>
 
       {isLoading && <p className="emp-issues-page__loading">Loading your issues…</p>}
@@ -124,7 +125,8 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
         <div className="emp-issues-page__empty">
           <MessageSquareWarning size={36} className="emp-issues-page__empty-icon" />
           <h3>No issues raised yet</h3>
-          <p>Use "Raise Issue" above to flag something for the owner.</p>
+          <p>Flag anything that needs the owner's attention.</p>
+          {raiseButton}
         </div>
       )}
 
@@ -146,6 +148,8 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
               )
             })}
           </div>
+
+          <div className="emp-issues-page__actions">{raiseButton}</div>
 
           <div className="filter-bar">
             <div className="filter filter--search">

@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 /* Card and counter styles live in components/IssueCard.css. */
 
 .emp-issues-page {
@@ -7,15 +9,7 @@
   padding: var(--space-lg);
 }
 
-/* ── Header row: title + Raise Issue button ── */
-
-.emp-issues-page__title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
-  flex-wrap: wrap;
-}
+/* ── Header: title + subtitle ── */
 
 .emp-issues-page__heading {
   font-size: 1.5rem;
@@ -80,6 +74,20 @@
 .emp-issues-page__empty-icon {
   color: var(--color-text-tertiary, var(--color-text-secondary));
   opacity: 0.6;
+}
+
+/* ── Raise Issue action: below the status cards ── */
+
+.emp-issues-page__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (--mobile) {
+  .emp-issues-page__actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 .emp-issues-page__retention-hint {
