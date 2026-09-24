@@ -19,6 +19,8 @@ import Notifications from '../pages/Notifications'
 import Profile from '../pages/Profile'
 import Help from '../pages/Help'
 import EmployeeSearchDropdown from '../components/EmployeeSearchDropdown'
+import type { IssueFocusRequest } from '../hooks/useIssueFocus'
+import { EMPLOYEE_NOTIFICATION_ROUTES, resolveNotificationRoute, type NotificationNavContext } from '../utils/notificationRoutes'
 
 interface EmployeeShellProps {
   user: AuthUser
@@ -67,7 +69,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   // Search-result navigation into a specific task/issue -- `ts` makes
   // re-selecting the same result fire again even if it's already focused.
   const [focusTaskId, setFocusTaskId] = useState<{ taskId: number; ts: number } | undefined>(undefined)
-  const [focusIssueId, setFocusIssueId] = useState<{ issueId: number; ts: number } | undefined>(undefined)
+  const [focusIssueId, setFocusIssueId] = useState<IssueFocusRequest | undefined>(undefined)
   const [mountedTabs, setMountedTabs] = useState<Set<EmployeeNavTabKey>>(new Set(['today']))
   const prevTab = useRef<EmployeeNavTabKey>('today')
   useEffect(() => {
@@ -86,9 +88,11 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   const { count: missedCount, refresh: refreshMissedCount } = useMissedTasksBadge(store.id)
   const canSwitchStore = stores.length > 1
 
+  // Also re-runs when the badge poll flips on while the Issues tab is already
+  // open -- the page is refreshing itself then, so the response is being seen.
   useEffect(() => {
-    if (activeTab === 'issues') markIssuesSeen()
-  }, [activeTab])
+    if (activeTab === 'issues' && overlay === null) markIssuesSeen()
+  }, [activeTab, overlay, issuesBadge])
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName])
 
@@ -97,16 +101,17 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     else setCount((prev) => Math.max(0, prev + value))
   }
 
-  function handleNotificationNavigate(path: string, createdAt?: string) {
-    switch (path) {
-      case '/checklist': setActiveTab('today'); setOverlay(null); break
-      case '/audit':
-        if (createdAt) setHistoryDateSeed({ createdAt, id: Date.now() })
-        setActiveTab('audits'); setOverlay(null)
-        break
-      case '/issues': setActiveTab('issues'); setOverlay(null); break
-      default: setOverlay('notifications'); break
+  function handleNotificationNavigate(path: string, context?: NotificationNavContext) {
+    const target = resolveNotificationRoute(EMPLOYEE_NOTIFICATION_ROUTES, path)
+    if (target === null) { setOverlay('notifications'); return }
+    if (target === 'audits' && context?.createdAt) {
+      setHistoryDateSeed({ createdAt: context.createdAt, id: Date.now() })
     }
+    if (target === 'issues' && context?.relatedIssueId != null) {
+      setFocusIssueId({ issueId: context.relatedIssueId, ts: Date.now() })
+    }
+    setActiveTab(target)
+    setOverlay(null)
   }
 
   const ALL_EMPLOYEE_TABS: EmployeeNavTabKey[] = ['today', 'audits', 'issues', 'missing', 'stock-check']
@@ -214,7 +219,13 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                   />
                 )}
                 {tab === 'audits' && <EmployeeHistory store={store} dateSeed={historyDateSeed} />}
-                {tab === 'issues' && <EmployeeIssues store={store} focusIssueId={focusIssueId} />}
+                {tab === 'issues' && (
+                  <EmployeeIssues
+                    store={store}
+                    isActive={activeTab === 'issues' && overlay === null}
+                    focusIssueId={focusIssueId}
+                  />
+                )}
                 {tab === 'missing' && (
                   <MissingTasks store={store} onMoved={refreshMissedCount} onBack={() => setActiveTab('today')} />
                 )}

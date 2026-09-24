@@ -75,6 +75,19 @@ public class TaskController {
         return ResponseEntity.ok(taskService.updateTask(principal.getUser().getId(), id, request));
     }
 
+    // Super Admin editing any task regardless of which owner it belongs to --
+    // its store/category scope stays whatever it already was (validated
+    // against that same owner in TaskService.applyRequest), only the content
+    // fields are actually meant to change here.
+    @PutMapping("/{id}/super-admin")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<TaskResponse> updateAsSuperAdmin(
+        @PathVariable Long id,
+        @Valid @RequestBody TaskRequest request
+    ) {
+        return ResponseEntity.ok(taskService.updateTaskAsSuperAdmin(id, request));
+    }
+
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('OWNER_ADMIN')")
     public ResponseEntity<TaskResponse> updateStatus(

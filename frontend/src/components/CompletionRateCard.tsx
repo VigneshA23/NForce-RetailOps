@@ -1,7 +1,7 @@
 import { useId } from 'react';
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react';
 import {
-  Area, AreaChart, CartesianGrid, ReferenceDot, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
   type TooltipProps,
 } from 'recharts';
 import Select from './Select';
@@ -22,27 +22,6 @@ interface CompletionRateCardProps {
   // Admin's dashboard row, which must match its Platform Health/Recent
   // Activity siblings) without changing Home.tsx's own look.
   chartHeight?: number;
-  // Pins a permanent callout on the most recent point (today), so its value
-  // is visible without hovering -- opt-in so Home.tsx's own card is unaffected.
-  highlightLatestPoint?: boolean;
-}
-
-// Custom ReferenceLine label: a small dark rounded callout (value + day),
-// matching the hover tooltip's own look, anchored near the top of the chart
-// and connected down to the actual point by the reference line itself.
-function LatestPointCallout({ viewBox, value, day }: { viewBox?: { x?: number; y?: number }; value: number; day: string }) {
-  if (!viewBox || viewBox.x == null || viewBox.y == null) return null;
-  const boxWidth = 56;
-  const boxHeight = 36;
-  const x = viewBox.x;
-  const y = viewBox.y + 6;
-  return (
-    <g>
-      <rect x={x - boxWidth / 2} y={y} width={boxWidth} height={boxHeight} rx={8} fill="#0d0d0f" />
-      <text x={x} y={y + 16} textAnchor="middle" fill="#ffffff" fontSize={12} fontWeight={700}>{value}%</text>
-      <text x={x} y={y + 29} textAnchor="middle" fill="rgba(255,255,255,0.7)" fontSize={10}>{day}</text>
-    </g>
-  );
 }
 
 const PERIOD_OPTIONS = [
@@ -63,11 +42,9 @@ function RateTooltip({ active, payload, label }: TooltipProps<number, string>) {
 
 function CompletionRateCard({
   title = 'Completion Rate', trend, periodDays, onPeriodChange, todayCompletion, chartHeight = 220,
-  highlightLatestPoint = false,
 }: CompletionRateCardProps) {
   const gradientId = useId();
   const firstPoint = trend[0];
-  const lastPoint = trend[trend.length - 1];
   const delta = firstPoint ? todayCompletion - firstPoint.completion : 0;
   const direction = delta > 0 ? 'up' : delta < 0 ? 'down' : 'flat';
 
@@ -129,26 +106,6 @@ function CompletionRateCard({
               strokeWidth={2}
               fill={`url(#${gradientId})`}
             />
-            {highlightLatestPoint && lastPoint && (
-              <>
-                <ReferenceLine
-                  x={lastPoint.day}
-                  stroke="var(--color-border)"
-                  strokeDasharray="4 4"
-                  label={(props: { viewBox?: { x?: number; y?: number } }) => (
-                    <LatestPointCallout viewBox={props.viewBox} value={todayCompletion} day={lastPoint.day} />
-                  )}
-                />
-                <ReferenceDot
-                  x={lastPoint.day}
-                  y={lastPoint.completion}
-                  r={4}
-                  fill="var(--color-accent)"
-                  stroke="#ffffff"
-                  strokeWidth={2}
-                />
-              </>
-            )}
           </AreaChart>
         </ResponsiveContainer>
       </div>

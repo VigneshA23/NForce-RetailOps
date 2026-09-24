@@ -13,6 +13,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,12 +69,20 @@ public class NotificationService {
     // Priority is resolved automatically from the category; callers do not need to set it.
     @Transactional
     public void send(User recipient, String category, String title, String message, String linkPath) {
+        send(recipient, category, title, message, linkPath, null);
+    }
+
+    // Issue-related form: relatedIssue lets the frontend deep-link straight to
+    // the issue, and cascades the notification away if the issue is purged.
+    @Transactional
+    public void send(User recipient, String category, String title, String message, String linkPath, RaisedIssue relatedIssue) {
         Notification n = new Notification();
         n.setRecipientUser(recipient);
         n.setCategory(category);
         n.setTitle(title);
         n.setMessage(message);
         n.setLinkPath(linkPath);
+        n.setRelatedIssue(relatedIssue);
         n.setPriority(PRIORITY_BY_CATEGORY.getOrDefault(category, "MEDIUM"));
         notificationRepository.save(n);
     }
@@ -129,21 +138,39 @@ public class NotificationService {
             ? issue.getNote().substring(0, 60) + "…"
             : issue.getNote();
 
+        String responseText = issue.getResponseText();
+        boolean hasResponse = responseText != null && !responseText.isBlank();
+
         if ("ACKNOWLEDGED".equals(newStatus)) {
             send(employee, "ISSUE_ACKNOWLEDGED",
                 "Your issue at " + storeName + " was acknowledged",
-                "The admin has seen your issue: \"" + notePreview + "\"",
-                "/issues");
+                hasResponse
+                    ? "Response: " + responseText
+                    : "The admin has seen your issue: \"" + notePreview + "\"",
+                "/issues", issue);
         } else if ("RESOLVED".equals(newStatus)) {
-            String responseText = issue.getResponseText();
-            String msg = (responseText != null && !responseText.isBlank())
-                ? "Response: " + responseText
-                : "The admin has resolved your issue: \"" + notePreview + "\"";
             send(employee, "ISSUE_RESOLVED",
                 "Your issue at " + storeName + " has been resolved",
-                msg,
-                "/issues");
+                hasResponse
+                    ? "Response: " + responseText
+                    : "The admin has resolved your issue: \"" + notePreview + "\"",
+                "/issues", issue);
         }
+    }
+
+    // Tells the store owner a Super Admin acted on one of their store's issues,
+    // so the owner's own Issues view isn't silently changed under them.
+    @Transactional
+    public void notifyOwnerOfSuperAdminIssueUpdate(RaisedIssue issue, User owner, String newStatus) {
+        String storeName = issue.getStore().getName();
+        String notePreview = issue.getNote().length() > 80
+            ? issue.getNote().substring(0, 80) + "…"
+            : issue.getNote();
+        boolean resolved = "RESOLVED".equals(newStatus);
+        send(owner, resolved ? "ISSUE_RESOLVED" : "ISSUE_ACKNOWLEDGED",
+            "A Super Admin " + (resolved ? "resolved" : "acknowledged") + " an issue at " + storeName,
+            "\"" + notePreview + "\"",
+            "/issues", issue);
     }
 
     @Transactional
@@ -155,7 +182,12 @@ public class NotificationService {
         send(owner, "ISSUE_NUDGE",
             "Action required: unresolved issue at " + storeName,
             "A Super Admin is requesting you resolve this issue: \"" + notePreview + "\"",
-            "/issues");
+            "/issues", issue);
+    }
+
+    @Transactional(readOnly = true)
+    public boolean issueNudgedSince(Long issueId, OffsetDateTime since) {
+        return notificationRepository.existsByRelatedIssueIdAndCategoryAndCreatedAtAfter(issueId, "ISSUE_NUDGE", since);
     }
 
     @Transactional

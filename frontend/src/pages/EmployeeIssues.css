@@ -1,5 +1,7 @@
 @import '../styles/breakpoints.css';
 
+/* Card and counter styles live in components/IssueCard.css. */
+
 .emp-issues-page {
   display: flex;
   flex-direction: column;
@@ -7,15 +9,7 @@
   padding: var(--space-lg);
 }
 
-/* ── Header row: title + Raise Issue button ── */
-
-.emp-issues-page__title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-md);
-  flex-wrap: wrap;
-}
+/* ── Header: title + subtitle ── */
 
 .emp-issues-page__heading {
   font-size: 1.5rem;
@@ -30,14 +24,6 @@
   margin: 0;
 }
 
-/* ── Total count line ── */
-
-.emp-issues-page__total {
-  font-size: 13px;
-  color: var(--color-text-muted);
-  margin: 0;
-}
-
 /* ── Loading / error / empty ── */
 
 .emp-issues-page__loading {
@@ -48,6 +34,7 @@
 .emp-issues-page__error {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   padding: 14px 16px;
   background: rgba(220, 38, 38, 0.08);
@@ -55,6 +42,10 @@
   border-radius: 10px;
   color: #dc2626;
   font-size: 0.875rem;
+}
+
+.emp-issues-page__error .btn {
+  margin-left: auto;
 }
 
 .emp-issues-page__empty {
@@ -85,168 +76,24 @@
   opacity: 0.6;
 }
 
-/* ── Card field content ── */
+/* ── Raise Issue action: below the status cards ── */
 
-.emp-issues-page__date-cell {
-  white-space: nowrap;
-  color: var(--color-text-secondary);
-}
-
-.emp-issues-page__note {
-  display: block;
-  color: var(--color-text-primary);
-}
-
-.emp-issues-page__response {
-  font-size: 13px;
-  color: var(--color-text-primary);
-}
-
-.emp-issues-page__response-by {
-  color: var(--color-text-muted);
-}
-
-.emp-issues-page__response--hint {
-  color: var(--color-text-muted);
-  font-style: italic;
-}
-
-.emp-issues-page__response--none {
-  color: var(--color-text-muted);
-}
-
-/* Brief flash when a search result scrolls this exact card into view. */
-.emp-issues-page__row--highlighted {
-  animation: emp-issues-row-flash 2.5s ease-out;
-}
-
-@keyframes emp-issues-row-flash {
-  0%, 40% { background: var(--color-accent-soft, rgba(59, 130, 246, 0.16)); }
-  100% { background: transparent; }
-}
-
-/* ── Activity-log style issue cards ── */
-
-.issue-card-list {
+.emp-issues-page__actions {
   display: flex;
-  flex-direction: column;
-}
-
-.issue-card {
-  display: flex;
-  gap: var(--space-md);
-  padding: var(--space-md);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.issue-card:last-child {
-  border-bottom: none;
-}
-
-.issue-card__icon {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--color-badge-icon-info-bg);
-  color: var(--color-badge-icon-info-fg);
-}
-
-.issue-card__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.issue-card__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-lg);
-}
-
-.issue-card__field {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 90px;
-}
-
-.issue-card__field--grow {
-  flex: 1;
-  min-width: 180px;
-}
-
-.issue-card__field--status {
-  margin-left: auto;
-}
-
-.issue-card__label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-}
-
-.issue-card__value {
-  font-size: 13px;
-  color: var(--color-text-primary);
-}
-
-.issue-card__divider {
-  border: none;
-  border-top: 1px solid var(--color-border);
-  margin: var(--space-md) 0;
-}
-
-.issue-card__response-block {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.issue-card__response-label {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-}
-
-.issue-card__response-box {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-sm);
-  background: var(--color-bg-page);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-sm) var(--space-md);
-}
-
-.issue-card__response-avatar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--color-surface-card);
-  color: var(--color-text-secondary);
+  justify-content: flex-end;
 }
 
 @media (--mobile) {
-  .issue-card__top {
-    flex-direction: column;
-    gap: var(--space-sm);
+  .emp-issues-page__actions .btn {
+    width: 100%;
+    justify-content: center;
   }
+}
 
-  .issue-card__field--status {
-    margin-left: 0;
-  }
+.emp-issues-page__retention-hint {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 
 /* Dark mode */

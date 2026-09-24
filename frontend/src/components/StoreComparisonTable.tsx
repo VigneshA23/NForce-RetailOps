@@ -136,10 +136,6 @@ function StoreComparisonTable({ stores, isLoading, onStoreClick, onViewDetail }:
                   ) : (
                     <span className="sct-mobile-card__name">{store.storeName}</span>
                   )}
-                  <span className="sct-mobile-card__meta">
-                    Store #{store.storeCode}
-                    {store.storeLocation ? ` • ${store.storeLocation}` : ''}
-                  </span>
                 </div>
                 {onViewDetail && (
                   <button

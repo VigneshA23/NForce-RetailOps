@@ -3,13 +3,14 @@ import { AlertCircle, Bell, CheckCheck, ChevronRight, RefreshCw } from 'lucide-r
 import { getNotifications, markAllRead, markNotificationRead } from '../api/notifications';
 import type { Notification } from '../types/notification';
 import { getCategoryMeta } from '../utils/notificationCategoryMeta';
+import type { NotificationNavContext, NotificationNavigateHandler } from '../utils/notificationRoutes';
 import './NotificationBell.css';
 
 interface NotificationBellProps {
   unreadCount: number;
   onCountChange: (count: number) => void;
   onViewAll: () => void;
-  onNavigate?: (path: string, createdAt?: string) => void;
+  onNavigate?: NotificationNavigateHandler;
 }
 
 function relativeTime(iso: string): string {
@@ -31,7 +32,7 @@ interface NotifItemProps {
   notification: Notification;
   onRead: (id: number) => void;
   onViewAll: () => void;
-  onNavigate?: (path: string, createdAt?: string) => void;
+  onNavigate?: NotificationNavigateHandler;
 }
 
 function NotifItem({ notification, onRead, onViewAll, onNavigate }: NotifItemProps) {
@@ -40,7 +41,7 @@ function NotifItem({ notification, onRead, onViewAll, onNavigate }: NotifItemPro
   function handleClick() {
     onRead(notification.id);
     if (notification.linkPath && onNavigate) {
-      onNavigate(notification.linkPath, notification.createdAt);
+      onNavigate(notification.linkPath, { createdAt: notification.createdAt, relatedIssueId: notification.relatedIssueId });
     } else {
       onViewAll();
     }
@@ -129,9 +130,9 @@ function NotificationBell({ unreadCount, onCountChange, onViewAll, onNavigate }:
     onViewAll();
   }
 
-  function handleNavigate(path: string, createdAt?: string) {
+  function handleNavigate(path: string, context?: NotificationNavContext) {
     setOpen(false);
-    if (onNavigate) onNavigate(path, createdAt);
+    if (onNavigate) onNavigate(path, context);
   }
 
   return (

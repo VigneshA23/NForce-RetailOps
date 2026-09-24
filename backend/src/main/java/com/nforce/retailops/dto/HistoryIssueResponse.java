@@ -22,7 +22,7 @@ public record HistoryIssueResponse(
             issue.getNote(),
             issue.getStatus(),
             issue.getResponseText(),
-            issue.getRespondedByUser() != null ? issue.getRespondedByUser().getFullName() : null,
+            IssueResponse.respondedByName(issue),
             issue.getRespondedAt(),
             issue.getCreatedAt()
         );

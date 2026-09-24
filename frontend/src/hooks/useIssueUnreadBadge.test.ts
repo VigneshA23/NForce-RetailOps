@@ -21,6 +21,7 @@ function makeIssue(overrides: Partial<{ respondedAt: string | null }> = {}) {
     raisedDate: '2026-09-01',
     responseText: 'Fixed it',
     respondedByFullName: 'Owner',
+    respondedBySuperAdmin: false,
     respondedAt: new Date().toISOString(),
     createdAt: '2026-09-01T09:00:00Z',
     ...overrides,

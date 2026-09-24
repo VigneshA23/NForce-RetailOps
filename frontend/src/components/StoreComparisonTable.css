@@ -146,6 +146,7 @@
     gap: 10px;
     padding: 14px 16px;
     background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
     border-radius: 12px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
   }
@@ -155,8 +156,6 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-sm);
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--color-border);
   }
 
   .sct-mobile-card__title-block {
@@ -185,14 +184,6 @@
   span.sct-mobile-card__name {
     color: var(--color-text-primary);
     cursor: default;
-  }
-
-  .sct-mobile-card__meta {
-    font-size: 12px;
-    color: var(--color-text-secondary);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   .sct-mobile-card__view-btn {

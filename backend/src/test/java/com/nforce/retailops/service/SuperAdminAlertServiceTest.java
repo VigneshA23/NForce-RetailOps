@@ -294,6 +294,59 @@ class SuperAdminAlertServiceTest {
         assertThat(count).isEqualTo(1);
     }
 
+    @Test
+    @Transactional
+    void overdueIssuesCheck_acknowledgedIssuesStillCountAndLinkToIssues() {
+        SuperAdmin sa = createSuperAdmin("sa-alert-overdue-4@nforce.test");
+        Store store = createActiveStore("Ack Overdue Store 4", 8203L);
+        User emp = createEmployee("emp-overdue-ack-4@nforce.test");
+
+        RaisedIssue issue = new RaisedIssue();
+        issue.setStore(store);
+        issue.setEmployeeUser(emp);
+        issue.setNote("Acknowledged but never resolved");
+        issue.setStatus("ACKNOWLEDGED");
+        raisedIssueRepository.save(issue);
+
+        superAdminAlertService.runOverdueIssuesCheck(OffsetDateTime.now().plusHours(49));
+
+        List<?> notifications = notificationRepository
+            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(sa.getId(), org.springframework.data.domain.PageRequest.of(0, 50));
+        boolean hasOverdueAlert = notifications.stream()
+            .anyMatch(o -> {
+                var notif = (com.nforce.retailops.entity.Notification) o;
+                return "ISSUES_OVERDUE".equals(notif.getCategory())
+                    && notif.getTitle().contains("Ack Overdue Store 4")
+                    && "/issues".equals(notif.getLinkPath());
+            });
+        assertThat(hasOverdueAlert).isTrue();
+    }
+
+    @Test
+    @Transactional
+    void overdueIssuesCheck_inactiveStore_doesNotNotify() {
+        SuperAdmin sa = createSuperAdmin("sa-alert-overdue-5@nforce.test");
+        Store store = createActiveStore("Closed Overdue Store 5", 8204L);
+        store.setActive(false);
+        storeRepository.save(store);
+        User emp = createEmployee("emp-overdue-closed-5@nforce.test");
+
+        RaisedIssue issue = new RaisedIssue();
+        issue.setStore(store);
+        issue.setEmployeeUser(emp);
+        issue.setNote("Issue at a closed store");
+        issue.setStatus("OPEN");
+        raisedIssueRepository.save(issue);
+
+        superAdminAlertService.runOverdueIssuesCheck(OffsetDateTime.now().plusHours(49));
+
+        List<?> notifications = notificationRepository
+            .findByRecipientSuperAdminIdOrderByCreatedAtDesc(sa.getId(), org.springframework.data.domain.PageRequest.of(0, 50));
+        boolean hasOverdueAlert = notifications.stream()
+            .anyMatch(o -> ((com.nforce.retailops.entity.Notification) o).getTitle().contains("Closed Overdue Store 5"));
+        assertThat(hasOverdueAlert).isFalse();
+    }
+
     // ── Trigger 3: Store Owner Vacant ───────────────────────────────────────
 
     @Test

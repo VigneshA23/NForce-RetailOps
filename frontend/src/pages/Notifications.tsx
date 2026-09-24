@@ -9,6 +9,7 @@ import { deleteNotification, getNotifications, getUnreadCount, markAllRead, mark
 import type { Notification } from '../types/notification';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { ALL_DISPLAY_CATEGORIES, getCategoryMeta, type DisplayCategory } from '../utils/notificationCategoryMeta';
+import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
 import './Notifications.css';
 
 // ── Display metadata per notification category ────────────────────────────────
@@ -312,7 +313,7 @@ function NotifRow({ n, selected, onSelect, onMarkRead, onDelete, markingId, dele
 
 interface DetailPaneProps {
   n: Notification | null;
-  onNavigate?: (path: string, createdAt?: string) => void;
+  onNavigate?: NotificationNavigateHandler;
   onBack?: () => void;
   onDelete?: (id: number) => void;
   deletingId?: number | null;
@@ -376,7 +377,7 @@ function DetailPane({ n, onNavigate, onBack, onDelete, deletingId }: DetailPaneP
           <button
             type="button"
             className="nfp-detail__open-btn"
-            onClick={() => onNavigate(n.linkPath!, n.createdAt)}
+            onClick={() => onNavigate(n.linkPath!, { createdAt: n.createdAt, relatedIssueId: n.relatedIssueId })}
           >
             Open related page <ArrowUpRight size={14} aria-hidden="true" />
           </button>
@@ -406,7 +407,7 @@ type SortOrder = 'newest' | 'oldest';
 
 interface NotificationsProps {
   onUnreadChange: (count: number) => void;
-  onNavigate?: (path: string, createdAt?: string) => void;
+  onNavigate?: NotificationNavigateHandler;
   // Leaves the Notifications page entirely (e.g. back to Home) -- distinct
   // from DetailPane's own onBack, which just returns from the mobile detail
   // view to this page's list.

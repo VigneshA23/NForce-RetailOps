@@ -1,0 +1,234 @@
+@import '../styles/breakpoints.css';
+
+/* Shared by the Employee, Owner/Admin and Super Admin Issues pages. */
+
+.issue-card-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.issue-card {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.issue-card:last-child {
+  border-bottom: none;
+}
+
+/* Brief flash when a notification or search result deep-links to this card. */
+.issue-card--highlighted {
+  animation: issue-card-flash 2.5s ease-out;
+}
+
+@keyframes issue-card-flash {
+  0%, 40% { background: var(--color-accent-soft, rgba(59, 130, 246, 0.16)); }
+  100% { background: transparent; }
+}
+
+.issue-card__icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+}
+
+.issue-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.issue-card__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-lg);
+}
+
+.issue-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 90px;
+}
+
+.issue-card__field--grow {
+  flex: 1;
+  min-width: 200px;
+}
+
+.issue-card__field--status {
+  margin-left: auto;
+}
+
+.issue-card__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.issue-card__value {
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.issue-card__value--strong {
+  font-weight: 600;
+}
+
+.issue-card__note {
+  display: block;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.issue-card__date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.issue-card__time {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.issue-card__divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-md) 0;
+}
+
+.issue-card__response-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.issue-card__response-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.issue-card__response-time {
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.issue-card__response-box {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.issue-card__response-avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+}
+
+.issue-card__response {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.issue-card__response--hint {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* ── Actions row (card footer) ── */
+
+.issue-card__actions-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--space-md);
+}
+
+/* ── Group headers (grouped "All" view) ── */
+
+.issues-group-header-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px var(--space-md) 6px;
+  background: var(--color-bg-page);
+}
+
+.issues-group-count {
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: 100px;
+  padding: 0 7px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+/* ── Response modal (IssueResponseModal) ── */
+
+.issue-response-modal__note {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-page);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin: 0 0 var(--space-md);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.issue-text-counter {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  text-align: right;
+  color: var(--color-text-muted);
+}
+
+.issue-text-counter--near-limit {
+  color: var(--color-warning, #b45309);
+}
+
+@media (--mobile) {
+  .issue-card__top {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .issue-card__field--status {
+    margin-left: 0;
+  }
+}

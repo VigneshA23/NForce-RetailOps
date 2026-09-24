@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import SuperAdminStores from './SuperAdminStores';
@@ -43,6 +43,15 @@ function ownerSummary(overrides: Partial<OwnerSummary> = {}): OwnerSummary {
   } as OwnerSummary;
 }
 
+// SuperAdminStoreTable renders the same store twice -- once in the desktop
+// table, once in the mobile card list, toggled purely by CSS media query --
+// so a bare screen query matching either copy's text/labels is ambiguous
+// under jsdom (which doesn't evaluate media queries). Scope to the desktop
+// table, matching what a desktop-viewport user interacts with.
+function desktopScope() {
+  return within(document.querySelector('.super-admin-store-table__desktop') as HTMLElement);
+}
+
 describe('SuperAdminStores cross-page owner sync', () => {
   it('notifies the parent to refresh owners data after a store rename', async () => {
     vi.mocked(storesApi.getAllStores).mockResolvedValue([store()]);
@@ -54,8 +63,8 @@ describe('SuperAdminStores cross-page owner sync', () => {
 
     render(<SuperAdminStores onNavigateToChecklist={vi.fn()} onOwnersDataStale={onOwnersDataStale} />);
 
-    await screen.findByText('Downtown Store');
-    await userEvent.click(screen.getByRole('button', { name: /edit downtown store/i }));
+    await desktopScope().findByText('Downtown Store');
+    await userEvent.click(desktopScope().getByRole('button', { name: /edit downtown store/i }));
 
     const nameInput = await screen.findByLabelText('Store Name');
     await userEvent.clear(nameInput);
@@ -77,8 +86,8 @@ describe('SuperAdminStores cross-page owner sync', () => {
 
     render(<SuperAdminStores onNavigateToChecklist={vi.fn()} onOwnersDataStale={onOwnersDataStale} />);
 
-    await screen.findByText('Downtown Store');
-    await userEvent.click(screen.getByRole('button', { name: /assign owner to downtown store/i }));
+    await desktopScope().findByText('Downtown Store');
+    await userEvent.click(desktopScope().getByRole('button', { name: /assign owner to downtown store/i }));
 
     const select = await screen.findByLabelText('Select Owner');
     await userEvent.selectOptions(select, '9');

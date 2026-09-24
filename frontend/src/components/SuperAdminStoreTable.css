@@ -1,3 +1,7 @@
+/* @import must be the first statement in the file, or PostCSS drops it and the
+   @custom-media queries below silently never resolve. */
+@import '../styles/breakpoints.css';
+
 .super-admin-store-table__name-link {
   display: flex;
   flex-direction: column;
@@ -37,4 +41,212 @@
   font-size: 12px;
   color: var(--color-text-secondary);
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+/* Mobile card list -- hidden by default, swapped in for the table below
+   --mobile (see .super-admin-store-table__desktop below). */
+.super-admin-store-table__mobile-cards {
+  display: none;
+}
+
+@media (--mobile) {
+  .super-admin-store-table__desktop {
+    display: none;
+  }
+
+  /* Compounded with .table-card so this beats table.css's shared .table-card
+     background/shadow rule regardless of stylesheet load order (same
+     technique EmployeeCards.css uses) -- otherwise the white card-list
+     wrapper shows through as a visible band behind/between the cards. */
+  .table-card.super-admin-store-table {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .super-admin-store-table__mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .sa-store-mobile-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .sa-store-mobile-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  .sa-store-mobile-card__name-link {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .sa-store-mobile-card__name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #2563eb;
+    overflow-wrap: anywhere;
+  }
+
+  .sa-store-mobile-card__name-link:hover .sa-store-mobile-card__name {
+    text-decoration: underline;
+    opacity: 0.85;
+  }
+
+  .sa-store-mobile-card__code {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  }
+
+  .sa-store-mobile-card__status {
+    flex-shrink: 0;
+  }
+
+  /* Off state reads as a neutral grey on these cards (matches employee cards). */
+  .sa-store-mobile-card__status .status-toggle__track {
+    width: 40px;
+    height: 24px;
+    background: var(--color-border);
+  }
+
+  .sa-store-mobile-card__status .status-toggle__thumb {
+    width: 20px;
+    height: 20px;
+  }
+
+  .sa-store-mobile-card__status input:checked + .status-toggle__track {
+    background: var(--color-badge-icon-success-fg);
+  }
+
+  .sa-store-mobile-card__status input:checked + .status-toggle__track .status-toggle__thumb {
+    transform: translateX(16px);
+  }
+
+  .sa-store-mobile-card__staff-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  .sa-store-mobile-card__staff-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: var(--radius-pill);
+    background: var(--color-badge-icon-info-bg);
+    color: var(--color-badge-icon-info-fg);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .sa-store-mobile-card__owner-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  .sa-store-mobile-card__owner-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .sa-store-mobile-card__owner-info .user-avatar {
+    flex-shrink: 0;
+  }
+
+  .sa-store-mobile-card__owner-placeholder {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  .sa-store-mobile-card__owner-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .sa-store-mobile-card__owner-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+  }
+
+  .sa-store-mobile-card__owner-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sa-store-mobile-card__owner-name--unassigned {
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  .sa-store-mobile-card__actions {
+    flex-shrink: 0;
+    gap: 8px;
+  }
+
+  .sa-store-mobile-card__actions .table-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .sa-store-mobile-card__actions .table-icon-btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .sa-store-mobile-card__assign-btn {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+  }
+
+  .sa-store-mobile-card__assign-btn svg {
+    width: 15px;
+    height: 15px;
+  }
 }

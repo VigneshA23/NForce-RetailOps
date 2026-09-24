@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CheckSquare, ClipboardList, LayoutGrid, Store, Tags, Users, Home } from 'lucide-react';
+import { Building2, CheckSquare, ClipboardList, LayoutGrid, MessageSquareWarning, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -23,10 +23,12 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
+  { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
 ];
 
 // Mobile bottom tab bar: home, daily checklist, tasks, employees, categories.
-// Issues is accessible via the Home page tile and the profile menu.
+// Issues is in the desktop sidebar; on mobile it is reached via the Home page
+// tile and the profile menu.
 // 'store-detail' uses a shorter label on mobile — "Checklist" vs "Daily Checklist" on desktop —
 // because 5 tabs at 375px gives ~60px text width; "Daily Checklist" truncates, "Checklist" fits.
 const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['home', 'store-detail', 'tasks', 'employees', 'categories'];
@@ -64,11 +66,12 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
+  { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
 ];
 
 // Mobile bottom tab bar: home, tasks, daily checklist. Owners, Stores,
-// Employees, and Categories are all accessible via the profile menu instead
-// (mobile only) -- 7 tabs doesn't fit comfortably at phone width.
+// Employees, Categories and Issues are all accessible via the profile menu
+// instead (mobile only) -- 8 tabs doesn't fit comfortably at phone width.
 const SUPER_ADMIN_BOTTOM_NAV_ORDER: SuperAdminNavTabKey[] = ['home', 'tasks', 'checklist'];
 export const SUPER_ADMIN_BOTTOM_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = SUPER_ADMIN_BOTTOM_NAV_ORDER.map(
   (key) => SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!,

@@ -38,6 +38,8 @@ import SuperAdminInventory from '../pages/SuperAdminInventory';
 import SuperAdminActivity from '../pages/SuperAdminActivity';
 import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
+import type { IssueFocusRequest } from '../hooks/useIssueFocus';
+import { SUPER_ADMIN_NOTIFICATION_ROUTES, resolveNotificationRoute, type NotificationNavContext } from '../utils/notificationRoutes';
 import './SuperAdminDashboard.css';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -98,6 +100,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   // the same result from search re-opens its detail even if it was closed.
   const [ownerFocus, setOwnerFocus] = useState<{ id: number; ts: number } | null>(null);
   const [employeeFocus, setEmployeeFocus] = useState<{ id: number; ts: number } | null>(null);
+  const [issueFocus, setIssueFocus] = useState<IssueFocusRequest | undefined>(undefined);
 
   function navigateToChecklist(storeId: number) {
     setChecklistNav({ storeId, ts: Date.now() });
@@ -154,12 +157,17 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     else setCount((prev) => Math.max(0, prev + value));
   }
 
-  function handleNotificationNavigate(path: string) {
-    switch (path) {
-      case '/checklist': setActiveTab('checklist'); setShowNotifications(false); break;
-      case '/owners': setActiveTab('owners'); setShowNotifications(false); break;
-      default: setShowNotifications(true); break;
+  function handleNotificationNavigate(path: string, context?: NotificationNavContext) {
+    const target = resolveNotificationRoute(SUPER_ADMIN_NOTIFICATION_ROUTES, path);
+    if (target === null) { setShowNotifications(true); return; }
+    if (target === 'issues' && context?.relatedIssueId != null) {
+      setIssueFocus({ issueId: context.relatedIssueId, ts: Date.now() });
     }
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowActivity(false);
+    setShowNotifications(false);
+    setActiveTab(target);
   }
 
   function handleSearchNavigate(navTarget: string) {
@@ -418,6 +426,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onStoresClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('stores'); } : undefined}
       onEmployeesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('employees'); } : undefined}
       onCategoriesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('categories'); } : undefined}
+      onIssuesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('issues'); } : undefined}
       onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowActivity(false); setShowHelp(true); }}
       onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowActivity(false); setShowNotifications(true); }}
       onNotificationNavigate={handleNotificationNavigate}
@@ -464,7 +473,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       ) : activeTab === 'tasks' ? (
         <SuperAdminTasks />
       ) : activeTab === 'issues' ? (
-        <SuperAdminIssues />
+        <SuperAdminIssues focusIssueId={issueFocus} />
       ) : activeTab === 'inventory' ? (
         <SuperAdminInventory />
       ) : (

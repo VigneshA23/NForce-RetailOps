@@ -171,6 +171,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler({
+        InvalidIssueTransitionException.class,
+        IssueAlreadyResolvedException.class,
+        StoreHasNoActiveOwnerException.class
+    })
+    public ResponseEntity<Map<String, String>> handleIssueConflict(RuntimeException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(NudgeCooldownException.class)
+    public ResponseEntity<Map<String, String>> handleNudgeCooldown(NudgeCooldownException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(LoginRateLimitException.class)
     public ResponseEntity<Map<String, String>> handleLoginRateLimit(LoginRateLimitException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));

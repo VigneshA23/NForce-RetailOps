@@ -213,7 +213,6 @@ function SuperAdminHome({
           onPeriodChange={setTrendDays}
           todayCompletion={platformStats?.platformCompletionPercent ?? 0}
           chartHeight={130}
-          highlightLatestPoint
         />
 
         <div className="sa-home__health-panel">
