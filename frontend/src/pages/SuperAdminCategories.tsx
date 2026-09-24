@@ -8,10 +8,12 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Category, CategoryFormValues, CategoryStoreOption } from '../types/category';
 import CategoryTable from '../components/CategoryTable';
 import CategoryFormModal from '../components/CategoryFormModal';
+import AssignTasksModal from '../components/AssignTasksModal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Pagination from '../components/Pagination';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import '../pages/Categories.css';
@@ -28,7 +30,13 @@ const PAGE_SIZE = 10;
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type FormModalState = { mode: 'create' } | { mode: 'edit'; category: Category } | null;
 
-function SuperAdminCategories() {
+interface SuperAdminCategoriesProps {
+  // Lets "Create a new task instead" inside the Assign Tasks modal redirect
+  // to the Tasks page, same as new-task creation always has.
+  onNavigateToTasks?: () => void;
+}
+
+function SuperAdminCategories({ onNavigateToTasks }: SuperAdminCategoriesProps) {
   const { categories, setCategories, isLoading, error: loadError, reload } = useSuperAdminCategories();
   const [allStores, setAllStores] = useState<CategoryStoreOption[]>([]);
 
@@ -48,6 +56,7 @@ function SuperAdminCategories() {
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [assignTasksTarget, setAssignTasksTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -191,6 +200,9 @@ function SuperAdminCategories() {
               onChange={(value) => setStatusFilter(value as StatusFilter)}
               ariaLabel="Filter by status"
             />
+            {statusFilter !== 'ALL' && (
+              <FilterClearButton onClick={() => setStatusFilter('ALL')} />
+            )}
           </div>
 
           <CategoryTable
@@ -206,6 +218,7 @@ function SuperAdminCategories() {
               setDeleteTarget(category);
             }}
             onToggleStatus={handleToggleStatus}
+            onAssignTasks={(category) => setAssignTasksTarget(category)}
             footer={
               !isMobile && !isLoading && filteredCategories.length > 0 ? (
                 <Pagination
@@ -240,6 +253,14 @@ function SuperAdminCategories() {
         isSubmitting={isSubmitting}
         onClose={() => setFormModalState(null)}
         onSubmit={handleFormSubmit}
+      />
+
+      <AssignTasksModal
+        isOpen={assignTasksTarget !== null}
+        category={assignTasksTarget}
+        onClose={() => setAssignTasksTarget(null)}
+        onAssigned={() => reload()}
+        onCreateNewTask={() => { setAssignTasksTarget(null); onNavigateToTasks?.(); }}
       />
 
       <ConfirmDialog

@@ -12,6 +12,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.repository.AdminCorrectionRepository;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -65,6 +66,8 @@ class TodayChecklistContractTest {
     private ActivityLogService activityLogService;
     @Mock
     private TaskMakeupLinkService taskMakeupLinkService;
+    @Mock
+    private AdminCorrectionRepository adminCorrectionRepository;
 
     private TaskService taskService;
 
@@ -73,7 +76,7 @@ class TodayChecklistContractTest {
         taskService = new TaskService(
             taskRepository, categoryRepository, storeOwnerRepository, storeRepository,
             userRepository, userProfileService, taskResponseEntryRepository, storeEmployeeRepository,
-            notificationService, activityLogService, taskMakeupLinkService
+            notificationService, activityLogService, taskMakeupLinkService, adminCorrectionRepository
         );
     }
 
