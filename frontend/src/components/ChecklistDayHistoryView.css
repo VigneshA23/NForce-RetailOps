@@ -402,6 +402,16 @@
   transition: box-shadow 0.15s ease;
 }
 
+/* Brief flash when a notification click scrolls this exact task into view. */
+.employee-history-task--highlighted {
+  animation: employee-history-task-flash 2.5s ease-out;
+}
+
+@keyframes employee-history-task-flash {
+  0%, 40% { background: var(--color-accent-soft, rgba(59, 130, 246, 0.16)); }
+  100% { background: var(--color-bg-page); }
+}
+
 .employee-history-task-info {
   flex: 1 1 220px;
   min-width: 0;

@@ -46,6 +46,10 @@ interface ChecklistDayHistoryViewProps {
   // endpoints), so each caller passes its own. Omitted entirely -> falls back to
   // the bulk-derived resubmissionHistory only (no full-trail fetch).
   getCorrectionHistory?: (responseId: number) => Promise<AdminCorrectionEntry[]>
+  // Deep-link from a notification click -- expands the owning category, scrolls
+  // the task into view and briefly highlights it, once its data has loaded for
+  // `selectedDate`. `ts` re-fires the same scroll/highlight if clicked again.
+  focusTaskId?: { taskId: number; ts: number }
 }
 
 const TASK_STATUS_META = {
@@ -110,6 +114,7 @@ function ChecklistDayHistoryView({
   onSearchQueryChange,
   extraFilters,
   getCorrectionHistory,
+  focusTaskId,
 }: ChecklistDayHistoryViewProps) {
   // Which category cards are expanded, independently of one another -- a
   // Set rather than a single id, so opening one no longer closes the rest.
@@ -135,6 +140,26 @@ function ChecklistDayHistoryView({
     const firstCategoryId = hasActivity(history) ? history.categories[0]?.id : undefined
     setExpandedKeys(firstCategoryId !== undefined ? new Set([firstCategoryId]) : new Set())
   }, [history])
+
+  const [highlightedTaskId, setHighlightedTaskId] = useState<number | null>(null)
+  const handledFocusTs = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!focusTaskId || !hasActivity(history) || handledFocusTs.current === focusTaskId.ts) return
+    const owningCategory = history.categories.find((cat) => cat.tasks.some((t) => t.id === focusTaskId.taskId))
+    if (!owningCategory) return
+    handledFocusTs.current = focusTaskId.ts
+    setExpandedKeys((current) => (current.has(owningCategory.id) ? current : new Set(current).add(owningCategory.id)))
+    const scrollTimer = window.setTimeout(() => {
+      document.getElementById(`history-task-${focusTaskId.taskId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      setHighlightedTaskId(focusTaskId.taskId)
+    }, 0)
+    const clearTimer = window.setTimeout(() => setHighlightedTaskId(null), 2500)
+    return () => {
+      window.clearTimeout(scrollTimer)
+      window.clearTimeout(clearTimer)
+    }
+  }, [focusTaskId, history])
 
   let complete = 0, flagged = 0, notAnswered = 0
   if (hasActivity(history)) {
@@ -381,7 +406,11 @@ function ChecklistDayHistoryView({
                         const StatusIcon = meta.icon
                         const isHistoryExpanded = expandedHistoryKeys.has(task.id)
                         return (
-                          <div key={task.id} className="employee-history-task">
+                          <div
+                            key={task.id}
+                            id={`history-task-${task.id}`}
+                            className={`employee-history-task${highlightedTaskId === task.id ? ' employee-history-task--highlighted' : ''}`}
+                          >
                             <div className="employee-history-task-info">
                               <p className="employee-history-task-name">{task.name}</p>
                               {task.responseValue ? (

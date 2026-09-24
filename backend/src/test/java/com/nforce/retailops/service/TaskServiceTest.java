@@ -20,6 +20,7 @@ import com.nforce.retailops.exception.InvalidTaskConfigurationException;
 import com.nforce.retailops.exception.TaskAlreadyCompletedException;
 import com.nforce.retailops.exception.TaskHasHistoryException;
 import com.nforce.retailops.exception.TaskNotFoundException;
+import com.nforce.retailops.repository.AdminCorrectionRepository;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -80,6 +81,8 @@ class TaskServiceTest {
     private ActivityLogService activityLogService;
     @Mock
     private TaskMakeupLinkService taskMakeupLinkService;
+    @Mock
+    private AdminCorrectionRepository adminCorrectionRepository;
 
     @InjectMocks
     private TaskService taskService;

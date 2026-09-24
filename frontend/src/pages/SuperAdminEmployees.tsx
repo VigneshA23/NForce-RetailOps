@@ -19,6 +19,7 @@ import SpecularButton from '../components/SpecularButton';
 import Pagination from '../components/Pagination';
 import StatCard from '../components/StatCard';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import './SuperAdminEmployees.css';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -240,6 +241,9 @@ function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
           onChange={(value) => setStatusFilter(value as StatusFilter)}
           ariaLabel="Filter by status"
         />
+        {(typeFilter !== 'ALL' || statusFilter !== 'ALL') && (
+          <FilterClearButton onClick={() => { setTypeFilter('ALL'); setStatusFilter('ALL'); }} />
+        )}
       </div>
 
       {loadError ? (

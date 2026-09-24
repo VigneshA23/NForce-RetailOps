@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Clock, Percent, X } from 'lucide-react';
+import { Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Clock, Percent } from 'lucide-react';
 import SearchInput from '../components/SearchInput';
 import Select, { type SelectOption } from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
 import { getInitials } from '../utils/initials';
@@ -647,6 +648,12 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
                     ariaLabel="Filter outstanding tasks by category"
                   />
                 )}
+                {(outstandingSearch || outstandingCategoryFilter !== 'all') && (
+                  <FilterClearButton
+                    ariaLabel="Clear outstanding task filters"
+                    onClick={() => { setOutstandingSearch(''); setOutstandingCategoryFilter('all'); }}
+                  />
+                )}
               </div>
               {filteredOutstandingRows.length === 0 ? (
                 <p className="store-detail-outstanding__empty">
@@ -731,15 +738,10 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
                 ariaLabel="Filter completed and flagged tasks by status"
               />
               {(searchQuery || categoryFilter !== 'all' || filter !== 'ALL') && (
-                <button
-                  type="button"
-                  className="store-detail-page__filter-clear"
+                <FilterClearButton
+                  ariaLabel="Clear completed and flagged task filters"
                   onClick={() => { setSearchQuery(''); setCategoryFilter('all'); setFilter('ALL'); }}
-                  aria-label="Clear completed and flagged task filters"
-                >
-                  <X size={12} />
-                  Clear
-                </button>
+                />
               )}
             </div>
             {!detailError && (

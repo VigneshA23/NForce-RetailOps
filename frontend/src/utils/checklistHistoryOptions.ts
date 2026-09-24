@@ -39,10 +39,16 @@ function latestResponse(task: ChecklistHistoryTaskItem) {
 }
 
 // Distinct employees with a real (non-undone) response today -- mirrors the
-// backend's CompletionType.isSatisfiedBy threshold check.
-function activeResponderCount(task: ChecklistHistoryTaskItem): number {
+// backend's CompletionType.isSatisfiedBy threshold check. Exported so the
+// admin/super-admin Completed/Flagged table can show "x/2 responded" on a
+// MULTIPLE-completion task that's still In Progress (see StoreDetailTable.tsx).
+export function activeResponderCount(task: ChecklistHistoryTaskItem): number {
   return new Set(task.responses.filter((r) => !r.undone).map((r) => r.employeeUserId)).size;
 }
+
+// A MULTIPLE-completion task needs exactly this many distinct employees to
+// respond before taskStatus() calls it COMPLETE -- see taskStatus below.
+export const MULTIPLE_COMPLETION_THRESHOLD = 2;
 
 // Whether any employee has a current (non-undone) response to this task.
 // Drives the Daily Checklist split: a task an employee has responded to --
@@ -65,7 +71,7 @@ export function taskStatus(task: ChecklistHistoryTaskItem): ChecklistTaskStatus 
   if (response.flaggedNeedsCorrection) return 'ISSUE';
   // A MULTIPLE-completion task needs at least 2 distinct employees to have
   // responded -- one employee's response alone leaves it Open, not Complete.
-  if (task.completionType === 'MULTIPLE' && activeResponderCount(task) < 2) return 'OPEN';
+  if (task.completionType === 'MULTIPLE' && activeResponderCount(task) < MULTIPLE_COMPLETION_THRESHOLD) return 'OPEN';
   return 'COMPLETE';
 }
 

@@ -65,10 +65,14 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   // createdAt, rather than History always defaulting to yesterday -- id
   // makes each click a distinct seed even if the same notification (and
   // therefore the same date) is opened twice in a row.
-  const [historyDateSeed, setHistoryDateSeed] = useState<{ createdAt: string; id: number } | undefined>(undefined)
+  const [historyDateSeed, setHistoryDateSeed] = useState<{ date?: string; createdAt?: string; id: number } | undefined>(undefined)
   // Search-result navigation into a specific task/issue -- `ts` makes
   // re-selecting the same result fire again even if it's already focused.
   const [focusTaskId, setFocusTaskId] = useState<{ taskId: number; ts: number } | undefined>(undefined)
+  // Same shape, but for a task on the History page (a flag/correction
+  // notification for a past-date response) -- kept separate from focusTaskId
+  // above since that one only ever targets today's checklist.
+  const [focusHistoryTaskId, setFocusHistoryTaskId] = useState<{ taskId: number; ts: number } | undefined>(undefined)
   const [focusIssueId, setFocusIssueId] = useState<IssueFocusRequest | undefined>(undefined)
   const [mountedTabs, setMountedTabs] = useState<Set<EmployeeNavTabKey>>(new Set(['today']))
   const prevTab = useRef<EmployeeNavTabKey>('today')
@@ -101,11 +105,29 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     else setCount((prev) => Math.max(0, prev + value))
   }
 
+  // A flag/correction notification's linkPath carries the specific task (and,
+  // for a past-date response, its date) as a query string, e.g.
+  // '/checklist?taskId=123&date=2026-09-20' -- see NotificationService.java's
+  // employeeTaskLinkPath. Query string only, never a path segment, so it's
+  // independent of the '/checklist' vs '/audit' -> tab lookup above.
+  function parseTaskLinkQuery(path: string): { taskId?: number; date?: string } {
+    const queryString = path.split('?')[1]
+    if (!queryString) return {}
+    const params = new URLSearchParams(queryString)
+    const taskIdRaw = params.get('taskId')
+    return { taskId: taskIdRaw ? Number(taskIdRaw) : undefined, date: params.get('date') ?? undefined }
+  }
+
   function handleNotificationNavigate(path: string, context?: NotificationNavContext) {
     const target = resolveNotificationRoute(EMPLOYEE_NOTIFICATION_ROUTES, path)
     if (target === null) { setOverlay('notifications'); return }
-    if (target === 'audits' && context?.createdAt) {
-      setHistoryDateSeed({ createdAt: context.createdAt, id: Date.now() })
+    const { taskId, date } = parseTaskLinkQuery(path)
+    if (target === 'audits') {
+      if (date || context?.createdAt) setHistoryDateSeed({ date, createdAt: context?.createdAt, id: Date.now() })
+      if (taskId != null) setFocusHistoryTaskId({ taskId, ts: Date.now() })
+    }
+    if (target === 'today' && taskId != null) {
+      setFocusTaskId({ taskId, ts: Date.now() })
     }
     if (target === 'issues' && context?.relatedIssueId != null) {
       setFocusIssueId({ issueId: context.relatedIssueId, ts: Date.now() })
@@ -218,7 +240,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                     focusTaskId={focusTaskId}
                   />
                 )}
-                {tab === 'audits' && <EmployeeHistory store={store} dateSeed={historyDateSeed} />}
+                {tab === 'audits' && <EmployeeHistory store={store} dateSeed={historyDateSeed} focusTaskId={focusHistoryTaskId} />}
                 {tab === 'issues' && (
                   <EmployeeIssues
                     store={store}

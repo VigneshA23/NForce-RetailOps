@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, Flag, MoreVertical, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
-import { hasActiveResponse, responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
+import { activeResponderCount, hasActiveResponse, MULTIPLE_COMPLETION_THRESHOLD, responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import CorrectionModal from './CorrectionModal';
@@ -48,15 +48,27 @@ const STATUS_BADGE_CLASS: Record<ChecklistTaskStatus, string> = {
 // OPEN (taskStatus() needs a second distinct responder to call it COMPLETE),
 // but it already has an active response so it stays out of Outstanding and
 // shows in this table -- displaying it as a plain "Open" pill there reads as
-// nobody has responded yet, which is wrong. Status-column-only relabel.
+// nobody has responded yet, which is wrong. Display-only relabel, applied
+// consistently to the status pill, the response value box and the mobile
+// card's left border so none of them fall back to the muted "open" grey.
+function isInProgressDisplay(task: ChecklistHistoryTaskItem, status: ChecklistTaskStatus): boolean {
+  return status === 'OPEN' && hasActiveResponse(task);
+}
+
 function statusPillLabel(task: ChecklistHistoryTaskItem, status: ChecklistTaskStatus): string {
-  if (status === 'OPEN' && hasActiveResponse(task)) return 'In Progress';
+  if (isInProgressDisplay(task, status)) return 'In Progress';
   return TASK_STATUS_LABELS[status];
 }
 
 function statusPillClass(task: ChecklistHistoryTaskItem, status: ChecklistTaskStatus): string {
-  if (status === 'OPEN' && hasActiveResponse(task)) return 'badge--warning';
+  if (isInProgressDisplay(task, status)) return 'badge--warning';
   return STATUS_BADGE_CLASS[status];
+}
+
+// Matches statusPillClass's suffix, but as the kebab-case token
+// store-detail-table__response-value--<suffix> expects.
+function responseValueSuffix(task: ChecklistHistoryTaskItem, status: ChecklistTaskStatus): string {
+  return isInProgressDisplay(task, status) ? 'in-progress' : status.toLowerCase();
 }
 
 interface ResponseTarget {
@@ -427,7 +439,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                       data-label="Response"
                       className={status === 'ISSUE' ? 'store-detail-table__response--issue' : undefined}
                     >
-                      <span className={`store-detail-table__response-value store-detail-table__response-value--${status.toLowerCase()}`}>
+                      <span className={`store-detail-table__response-value store-detail-table__response-value--${responseValueSuffix(task, status)}`}>
                         {status === 'COMPLETE' && (
                           <span className="store-detail-table__response-icon" aria-hidden="true">
                             <CheckCircle2 size={12} />
@@ -435,6 +447,11 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                         )}
                         {responseDisplayValue(task)}
                       </span>
+                      {task.completionType === 'MULTIPLE' && (
+                        <span className="store-detail-table__response-responder-count">
+                          {activeResponderCount(task)}/{MULTIPLE_COMPLETION_THRESHOLD} responded
+                        </span>
+                      )}
                     </td>
                     <td data-label="Employee">
                       {responders.length > 0 ? (

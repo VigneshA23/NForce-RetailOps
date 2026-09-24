@@ -22,6 +22,7 @@ import type { ChecklistCategory, ChecklistTask, TaskResponseSummary } from '../t
 import { checklistUnitKey } from '../types/task'
 import StatCard from '../components/StatCard'
 import SearchInput from '../components/SearchInput'
+import FilterClearButton from '../components/FilterClearButton'
 import ButtonDots from '../components/ButtonDots'
 import MissedTasksBanner from '../components/MissedTasksBanner'
 import { useIsMobile } from '../hooks/useMediaQuery'
@@ -240,6 +241,21 @@ function ownResponse(task: ChecklistTask, employeeId: number | null): TaskRespon
   if (employeeId == null) return undefined
   const mine = task.responses.filter((response) => response.employeeUserId === employeeId)
   return mine[mine.length - 1]
+}
+
+// A task this employee was asked to resubmit floats to the top of its
+// category until they do -- everything else keeps its normal (stable) order.
+function sortFlaggedForMeFirst(tasks: ChecklistTask[], employeeId: number | null): ChecklistTask[] {
+  return [...tasks].sort((a, b) => {
+    const aFlagged = ownResponse(a, employeeId)?.flaggedNeedsCorrection === true
+    const bFlagged = ownResponse(b, employeeId)?.flaggedNeedsCorrection === true
+    if (aFlagged === bFlagged) return 0
+    return aFlagged ? -1 : 1
+  })
+}
+
+function categoryHasFlaggedForMe(category: ChecklistCategory, employeeId: number | null): boolean {
+  return category.tasks.some((task) => ownResponse(task, employeeId)?.flaggedNeedsCorrection === true)
 }
 
 function responderTooltip(task: ChecklistTask): string | undefined {
@@ -641,6 +657,9 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                   onChange={setStatusFilter}
                 />
               </div>
+              {(categoryFilter.size > 0 || statusFilter !== null) && (
+                <FilterClearButton onClick={() => { setCategoryFilter(new Set()); setStatusFilter(null); }} />
+              )}
             </div>
 
             {filteredCategories.length === 0 ? (
@@ -671,6 +690,13 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                               <ClipboardList size={18} />
                             </span>
                             <h3>{category.name}</h3>
+                            {categoryHasFlaggedForMe(category, employeeId) && (
+                              <AlertTriangle
+                                size={15}
+                                className="checklist-category-alert"
+                                aria-label="A task in this category needs your attention"
+                              />
+                            )}
                           </div>
                           <div className="checklist-category-meta">
                             <span className={`checklist-category-count${progressTone ? ` checklist-category-count--${progressTone}` : ''}`}>
@@ -688,7 +714,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                       </summary>
 
                       <div className="checklist-tasks">
-                        {category.tasks.map((task) => {
+                        {sortFlaggedForMeFirst(category.tasks, employeeId).map((task) => {
                           const unitKey = checklistUnitKey(task)
                           const isPending = pendingUnitKey === unitKey
                           const mine = ownResponse(task, employeeId)
@@ -727,11 +753,27 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                                 )}
                               </p>
 
-                              {/* Flag reason */}
-                              {myResponseIsFlagged && mine?.flagReason && (
+                              {/* Flag notice -- only the employee this response belongs to ever
+                                  sees it, since `mine` is already scoped to the logged-in employee. */}
+                              {myResponseIsFlagged && (
                                 <div className="checklist-task__flag-box">
                                   <MessageSquareWarning size={13} />
-                                  {mine.flagReason}
+                                  <span>
+                                    <strong>
+                                      Requested to resubmit{mine?.correctionAdminName ? ` by ${mine.correctionAdminName}` : ''}.
+                                    </strong>
+                                    {mine?.flagReason ? ` ${mine.flagReason}` : ''}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Edit notice -- a DIRECT admin correction to this response's
+                                  value, shown only while it's still the current answer (see
+                                  correctionAdminName's null-out-on-resubmit semantics). */}
+                              {!myResponseIsFlagged && mine?.correctionType === 'DIRECT' && mine.correctionAdminName && (
+                                <div className="checklist-task__flag-box checklist-task__flag-box--edited">
+                                  <Info size={13} />
+                                  Response edited by {mine.correctionAdminName}
                                 </div>
                               )}
 
