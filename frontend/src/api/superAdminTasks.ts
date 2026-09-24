@@ -58,6 +58,13 @@ export async function createTasks(values: AdminTaskFormValues): Promise<AdminTas
   return apiRequest<AdminTask[]>('/tasks/super-admin', { method: 'POST', body: toPayload(values) });
 }
 
+// Editing an existing task's content -- its store/category scope stays
+// whatever it already was (validated against that task's own owner
+// server-side), only the other fields are actually meant to change here.
+export async function updateTask(id: number, values: AdminTaskFormValues): Promise<AdminTask> {
+  return apiRequest<AdminTask>(`/tasks/${id}/super-admin`, { method: 'PUT', body: toPayload(values) });
+}
+
 export async function setTaskActive(id: number, active: boolean): Promise<AdminTask> {
   return apiRequest<AdminTask>(`/tasks/${id}/status/super-admin`, { method: 'PATCH', body: { active } });
 }
