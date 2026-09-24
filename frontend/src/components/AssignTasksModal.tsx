@@ -35,7 +35,7 @@ function AssignTasksModal({ isOpen, category, onClose, onAssigned, onCreateNewTa
     setLoadError(null);
     setIsLoading(true);
     getAllTasks()
-      .then((allTasks) => setTasks(allTasks.filter((task) => task.categoryId !== category?.id)))
+      .then((allTasks) => setTasks(allTasks.filter((task) => task.active && task.categoryId !== category?.id)))
       .catch((error) => setLoadError(error instanceof Error ? error.message : 'Failed to load tasks'))
       .finally(() => setIsLoading(false));
   }, [isOpen, category?.id]);

@@ -128,6 +128,16 @@
   display: none;
 }
 
+/* "1/2 responded" on a MULTIPLE-completion task -- explains at a glance why
+   an In Progress task still needs another employee's response. */
+.store-detail-table__response-responder-count {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
 .store-detail-table__response-time {
   color: var(--color-text-muted);
 }
@@ -464,6 +474,11 @@
     color: var(--color-text-muted);
   }
 
+  .store-detail-table__response-value--in-progress {
+    background: var(--color-badge-icon-warning-bg);
+    color: var(--color-badge-icon-warning-fg);
+  }
+
   .store-detail-table__response-icon {
     display: inline-flex;
   }
@@ -580,6 +595,10 @@
     border-left-color: var(--color-badge-icon-primary-fg);
   }
 
+  .store-detail-table__card .data-table tbody tr:has(.badge--warning) {
+    border-left-color: var(--color-badge-icon-warning-fg);
+  }
+
   /* ── History variant: category+status header row, then task (with its own
      schedule/response-type subtitle beneath it), then employee, then a
      full-width tinted response panel. ── */
@@ -667,6 +686,17 @@
   .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--danger) td[data-label='Response']::before,
   .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--danger) .store-detail-table__response-value {
     color: var(--color-badge-icon-primary-fg);
+  }
+
+  /* In Progress (a MULTIPLE-completion task with only one response so far) --
+     same treatment, keyed off its own badge--warning pill. */
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--warning) td[data-label='Response'] {
+    background: var(--color-badge-icon-warning-bg);
+  }
+
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--warning) td[data-label='Response']::before,
+  .store-detail-table__card:not(.store-detail-table__card--outstanding) .data-table tbody tr:has(.badge--warning) .store-detail-table__response-value {
+    color: var(--color-badge-icon-warning-fg);
   }
 
   /* ── Outstanding variant: category+status/menu header row, task, then a
