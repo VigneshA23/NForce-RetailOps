@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Clock, MessageSquare } from 'lucide-react';
+import { Clock, MessageSquare, Store, User } from 'lucide-react';
 import type { Issue } from '../types/issue';
 import { ISSUE_STATUS_META, formatIssueDate, formatIssueTime } from '../utils/issueStatusMeta';
 import './IssueCard.css';
@@ -42,7 +42,7 @@ function IssueCard({
     >
       <div className="issue-card__header">
         <span className="issue-card__raised">
-          <span className="issue-card__raised-icon" aria-hidden="true">
+          <span className="issue-card__inline-icon" aria-hidden="true">
             <Clock size={14} strokeWidth={2} />
           </span>
           <span>{formatIssueDate(issue.createdAt)}</span>
@@ -56,13 +56,17 @@ function IssueCard({
         <div className="issue-card__meta">
           {showStore && (
             <span className="issue-card__meta-item">
-              <span className="issue-card__label">Store</span>
+              <span className="issue-card__inline-icon" role="img" aria-label="Store">
+                <Store size={14} strokeWidth={2} aria-hidden="true" />
+              </span>
               <span className="issue-card__meta-value issue-card__meta-value--strong">{issue.storeName}</span>
             </span>
           )}
           {showEmployee && (
             <span className="issue-card__meta-item">
-              <span className="issue-card__label">Employee</span>
+              <span className="issue-card__inline-icon" role="img" aria-label="Employee">
+                <User size={14} strokeWidth={2} aria-hidden="true" />
+              </span>
               <span className="issue-card__meta-value">{issue.employeeFullName}</span>
             </span>
           )}
