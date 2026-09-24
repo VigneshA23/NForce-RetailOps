@@ -255,5 +255,6 @@
   .issue-card__actions-row .btn {
     flex: 1;
     justify-content: center;
+    white-space: nowrap;
   }
 }

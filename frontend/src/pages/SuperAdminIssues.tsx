@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useMemo, useState } from 'react';
-import { AlertCircle, Bell } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { getSAIssues, nudgeOwner, updateSAIssueStatus, type SAIssue } from '../api/superAdminIssues';
 import StatCard from '../components/StatCard';
@@ -131,12 +131,11 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
         </button>
         <button
           type="button"
-          className={`btn btn--ghost btn--sm sa-issues-page__nudge-btn${nudgingId === issue.id ? ' btn--loading' : ''}`}
+          className={`btn btn--secondary btn--sm${nudgingId === issue.id ? ' btn--loading' : ''}`}
           onClick={() => handleNudge(issue)}
           disabled={nudgingId === issue.id || nudged}
           title={nudged ? 'Owner already nudged — you can nudge again after 24 hours' : 'Notify the store owner to take action'}
         >
-          <Bell size={12} />
           {nudgingId === issue.id ? <ButtonDots label="Sending" /> : nudged ? 'Nudged' : 'Nudge owner'}
         </button>
       </>

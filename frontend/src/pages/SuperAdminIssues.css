@@ -6,9 +6,3 @@
   gap: var(--space-lg);
   padding: var(--space-lg);
 }
-
-.sa-issues-page__nudge-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
