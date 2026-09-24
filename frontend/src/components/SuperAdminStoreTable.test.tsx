@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import SuperAdminStoreTable from './SuperAdminStoreTable';
@@ -27,38 +27,51 @@ function renderTable(stores: SuperAdminStore[], props: Partial<Parameters<typeof
   );
 }
 
+// The component renders the same data twice -- once in the desktop table,
+// once in the mobile card list, toggled purely by CSS media query -- so any
+// query matching either copy's text/labels is ambiguous under jsdom (which
+// doesn't evaluate media queries). Scope interaction/assertion queries to the
+// desktop table specifically, matching what a desktop-viewport user sees.
+function desktopScope() {
+  return within(document.querySelector('.super-admin-store-table__desktop') as HTMLElement);
+}
+
+function mobileScope() {
+  return within(document.querySelector('.super-admin-store-table__mobile-cards') as HTMLElement);
+}
+
 describe('SuperAdminStoreTable', () => {
   it('shows the owner name when the store has active owner access', () => {
     renderTable([baseStore({ ownerName: 'Jamie Rivera', ownerAccessActive: true })]);
 
-    expect(screen.getByText('Jamie Rivera')).toBeInTheDocument();
-    expect(screen.queryByText('Unassigned')).not.toBeInTheDocument();
+    expect(desktopScope().getByText('Jamie Rivera')).toBeInTheDocument();
+    expect(desktopScope().queryByText('Unassigned')).not.toBeInTheDocument();
   });
 
   it('shows "Unassigned" when the store has no owner at all', () => {
     renderTable([baseStore({ ownerId: null, ownerName: null, ownerActive: null, ownerAccessActive: false })]);
 
-    expect(screen.getByText('Unassigned')).toBeInTheDocument();
+    expect(desktopScope().getByText('Unassigned')).toBeInTheDocument();
   });
 
   it('shows "Unassigned" when an owner is assigned but their access was revoked', () => {
     renderTable([baseStore({ ownerName: 'Jamie Rivera', ownerAccessActive: false })]);
 
-    expect(screen.getByText('Unassigned')).toBeInTheDocument();
-    expect(screen.queryByText('Jamie Rivera')).not.toBeInTheDocument();
+    expect(desktopScope().getByText('Unassigned')).toBeInTheDocument();
+    expect(desktopScope().queryByText('Jamie Rivera')).not.toBeInTheDocument();
   });
 
   it("renders the status toggle checked for an active store, unaffected by owner access", () => {
     renderTable([baseStore({ storeActive: true, ownerAccessActive: false })]);
 
-    const toggle = screen.getByLabelText('Deactivate Downtown Store');
+    const toggle = desktopScope().getByLabelText('Deactivate Downtown Store');
     expect(toggle).toBeChecked();
   });
 
   it('renders the status toggle unchecked for an inactive store', () => {
     renderTable([baseStore({ storeActive: false })]);
 
-    expect(screen.getByLabelText('Activate Downtown Store')).not.toBeChecked();
+    expect(desktopScope().getByLabelText('Activate Downtown Store')).not.toBeChecked();
   });
 
   it('calls onToggleStatus when the row status switch is clicked', async () => {
@@ -66,7 +79,7 @@ describe('SuperAdminStoreTable', () => {
     const store = baseStore({ storeActive: true });
     renderTable([store], { onToggleStatus });
 
-    await userEvent.click(screen.getByLabelText('Deactivate Downtown Store'));
+    await userEvent.click(desktopScope().getByLabelText('Deactivate Downtown Store'));
 
     expect(onToggleStatus).toHaveBeenCalledWith(store);
   });
@@ -76,7 +89,7 @@ describe('SuperAdminStoreTable', () => {
     const store = baseStore();
     renderTable([store], { onViewDetails });
 
-    await userEvent.click(screen.getByRole('button', { name: /view downtown store/i }));
+    await userEvent.click(desktopScope().getByRole('button', { name: /view downtown store/i }));
 
     expect(onViewDetails).toHaveBeenCalledWith(store);
   });
@@ -86,9 +99,21 @@ describe('SuperAdminStoreTable', () => {
     const store = baseStore();
     renderTable([store], { onEdit });
 
-    await userEvent.click(screen.getByRole('button', { name: /edit downtown store/i }));
+    await userEvent.click(desktopScope().getByRole('button', { name: /edit downtown store/i }));
 
     expect(onEdit).toHaveBeenCalledWith(store);
+  });
+
+  it('shows the staff count pill on the mobile card', () => {
+    renderTable([baseStore({ employeeCount: 4 })]);
+
+    expect(mobileScope().getByText('4 Staff Members')).toBeInTheDocument();
+  });
+
+  it('shows the owner placeholder icon and "Unassigned" on the mobile card when there is no owner', () => {
+    renderTable([baseStore({ ownerId: null, ownerName: null, ownerActive: null, ownerAccessActive: false })]);
+
+    expect(mobileScope().getByText('Unassigned')).toBeInTheDocument();
   });
 
   it('renders the supplied empty message when there are no rows', () => {

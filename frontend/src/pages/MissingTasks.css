@@ -163,3 +163,141 @@
     padding: var(--space-lg) var(--space-md) 100px;
   }
 }
+
+/* ── Mobile card layout ─────────────────────────────────────────────────
+   Same card-per-row tile treatment as the admin Daily Checklist's own
+   Outstanding Tasks table (StoreDetailTable, @media (--mobile)) -- rounded
+   tile, shadow, grey accent stripe -- but plain grey throughout rather than
+   status-colored (success/danger): a missed instance has no "complete" vs
+   "issue" state to color-code, so var(--color-border) is used as-is instead
+   of being swapped per status. No employee row (not shown on this page at
+   all) and exactly one action, so unlike the reference table's Employee/
+   Status cells there's nothing to move into a second tile section --
+   Actions is just the tile's own bottom-right corner.
+
+   !important throughout this block: table.css's generic mobile fallback
+   (`.table-card .data-table tbody td/tr { ... }`, incl. the `::before {
+   content: attr(data-label) }` caption) ties every one of these selectors'
+   specificity and loads later in the bundle, so without it the generic
+   label/value list silently wins instead of this tile layout -- same trap
+   documented on .checklist-task__submit in EmployeeDashboard.css. */
+@media (--mobile) {
+  .missing-tasks-table {
+    background: transparent;
+  }
+
+  .missing-tasks-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  /* Row-wrap, not column: Category and Actions share the tile's first
+     line (Actions pinned to the right via margin-left: auto), then Task
+     and Date Missed each force a line break with flex-basis: 100%. */
+  .missing-tasks-table tbody tr {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .missing-tasks-table tbody tr:last-child {
+    border-bottom: 1px solid var(--color-border) !important;
+  }
+
+  .missing-tasks-table tbody td {
+    padding: 0 !important;
+  }
+
+  /* Category: top-left of the tile's first line, no caption */
+  .missing-tasks-table tbody td.missing-tasks-table__category-col {
+    display: block !important;
+    order: 1;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted, var(--color-text-secondary));
+    white-space: normal;
+  }
+
+  .missing-tasks-table tbody td.missing-tasks-table__category-col::before {
+    content: none !important;
+  }
+
+  /* Actions: top-right of the tile's first line, alongside Category -- the
+     single Move button (or the "Waiting on 2nd" badge) is the tile's
+     primary action so it's the first thing seen, not buried at the bottom. */
+  .missing-tasks-table tbody td.missing-tasks-table__actions-col {
+    display: flex !important;
+    justify-content: flex-end !important;
+    order: 2;
+    margin-left: auto;
+  }
+
+  .missing-tasks-table tbody td.missing-tasks-table__actions-col::before {
+    content: none !important;
+  }
+
+  /* A little larger than the desktop table's btn--sm -- this is the tile's
+     main tap target, not a compact inline action. */
+  .missing-tasks-table tbody .missing-tasks-table__move-btn {
+    min-height: 30px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  /* Task: name + meta stacked as the tile's headline, full-width so it
+     forces a line break below the Category/Actions row, no caption */
+  .missing-tasks-table tbody td[data-label='Task'] {
+    display: block !important;
+    order: 3;
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .missing-tasks-table tbody td[data-label='Task']::before {
+    content: none !important;
+  }
+
+  .missing-tasks-table__task-name {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  .missing-tasks-table__task-meta {
+    white-space: normal;
+  }
+
+  /* Date Missed: full-width bottom row, separated from the task headline
+     by a light divider, matching the reference tile's own top-divider
+     treatment for its own bottom section. */
+  .missing-tasks-table tbody td[data-label='Date Missed'] {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    order: 4;
+    flex-basis: 100%;
+    width: 100%;
+    padding-top: 8px !important;
+    border-top: 1px solid var(--color-border);
+    font-size: 12px;
+    color: var(--color-text-secondary);
+  }
+
+  .missing-tasks-table tbody td[data-label='Date Missed']::before {
+    content: attr(data-label) !important;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+  }
+}

@@ -13,6 +13,12 @@ interface UseDismissablePanelOptions {
   // callers opt out to keep their existing behavior unchanged.
   closeOnEscape?: boolean;
   closeOnScrollOrResize?: boolean;
+  // A selector for content that's "inside" the panel logically but not a DOM
+  // descendant of any `refs` entry -- e.g. a nested popover (CalendarPopover)
+  // that portals straight to document.body. Without this, a click inside it
+  // registers as outside and closes the parent panel before the nested
+  // popover's own click handler (e.g. selecting a day) can fire.
+  ignoreSelector?: string;
 }
 
 // Consolidates the outside-pointerdown + Escape + outside-scroll/resize
@@ -24,20 +30,23 @@ function useDismissablePanel({
   refs,
   closeOnEscape = true,
   closeOnScrollOrResize = true,
+  ignoreSelector,
 }: UseDismissablePanelOptions) {
   // Read the latest onClose/refs via a ref so the effect below only needs to
   // re-subscribe when `isOpen` (or the opt-out flags) change, same as
   // Modal.tsx's onCloseRef pattern — callers rarely memoize these.
-  const latest = useRef({ onClose, refs });
+  const latest = useRef({ onClose, refs, ignoreSelector });
   useEffect(() => {
-    latest.current = { onClose, refs };
+    latest.current = { onClose, refs, ignoreSelector };
   });
 
   useEffect(() => {
     if (!isOpen) return;
 
     function isInside(target: Node) {
-      return latest.current.refs.some((ref) => ref.current?.contains(target));
+      if (latest.current.refs.some((ref) => ref.current?.contains(target))) return true;
+      const selector = latest.current.ignoreSelector;
+      return selector != null && target instanceof Element && target.closest(selector) != null;
     }
 
     function handlePointerDown(event: MouseEvent) {

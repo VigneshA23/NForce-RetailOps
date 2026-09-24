@@ -7,7 +7,8 @@ import { buildAndDownloadOperationsReportPdf } from '../utils/operationsReportPd
 import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import ButtonDots from './ButtonDots';
-import { MAX_RANGE_DAYS, todayDate } from '../utils/checklistHistoryOptions';
+import CalendarPopover from './CalendarPopover';
+import { MAX_RANGE_DAYS, formatDateLabel, todayDate } from '../utils/checklistHistoryOptions';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import './ExportMenu.css';
 
@@ -48,9 +49,14 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
   const [pdfRangeExporting, setPdfRangeExporting] = useState(false);
   const [rangeError, setRangeError] = useState<string | null>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
+  // Which of the two inline date pickers (if either) is open -- mutually
+  // exclusive, same pattern as DateRangePicker's From/To calendars.
+  const [openCalendar, setOpenCalendar] = useState<'from' | 'to' | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const fromTriggerRef = useRef<HTMLButtonElement>(null);
+  const toTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setRangeStart(date);
@@ -61,6 +67,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     setMenuOpen(false);
     setMode('idle');
     setRangeError(null);
+    setOpenCalendar(null);
   }
 
   useDismissablePanel({
@@ -68,6 +75,11 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
     onClose: closeMenu,
     refs: [menuRef, dropdownRef],
     closeOnEscape: false,
+    // CalendarPopover portals its own panel straight to document.body, so
+    // it's never a descendant of menuRef/dropdownRef -- without this,
+    // clicking a day in the inline From/To calendar would register as
+    // "outside" and close the whole Export menu before the click could land.
+    ignoreSelector: '.calendar-popover',
   });
 
   // Anchored absolute positioning (right: 0 on the dropdown, relative to the
@@ -219,7 +231,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
             type="button"
             className="export-menu__item"
             role="menuitem"
-            onClick={() => { setMode((m) => (m === 'range' ? 'idle' : 'range')); setRangeError(null); }}
+            onClick={() => { setMode((m) => (m === 'range' ? 'idle' : 'range')); setRangeError(null); setOpenCalendar(null); }}
             aria-expanded={mode === 'range'}
           >
             <Calendar size={14} />
@@ -229,27 +241,49 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
           {mode === 'range' && (
             <div className="export-menu__range-form">
               <div className="export-menu__range-row">
-                <label className="export-menu__range-label">
+                <div className="export-menu__range-label">
                   From
-                  <input
-                    type="date"
-                    className="export-menu__range-input"
+                  <button
+                    ref={fromTriggerRef}
+                    type="button"
+                    className="export-menu__date-trigger"
+                    onClick={() => setOpenCalendar((current) => (current === 'from' ? null : 'from'))}
+                  >
+                    {formatDateLabel(rangeStart)}
+                  </button>
+                  <CalendarPopover
                     value={rangeStart}
                     max={todayDate()}
-                    onChange={(e) => { setRangeStart(e.target.value); setRangeError(null); }}
+                    isOpen={openCalendar === 'from'}
+                    onClose={() => setOpenCalendar(null)}
+                    onSelect={(value) => { setRangeStart(value); setRangeError(null); }}
+                    onClear={() => { setRangeStart(date); setRangeError(null); }}
+                    onToday={() => { setRangeStart(todayDate()); setRangeError(null); }}
+                    anchorRef={fromTriggerRef}
                   />
-                </label>
-                <label className="export-menu__range-label">
+                </div>
+                <div className="export-menu__range-label">
                   To
-                  <input
-                    type="date"
-                    className="export-menu__range-input"
+                  <button
+                    ref={toTriggerRef}
+                    type="button"
+                    className="export-menu__date-trigger"
+                    onClick={() => setOpenCalendar((current) => (current === 'to' ? null : 'to'))}
+                  >
+                    {formatDateLabel(rangeEnd)}
+                  </button>
+                  <CalendarPopover
                     value={rangeEnd}
                     min={rangeStart}
                     max={todayDate()}
-                    onChange={(e) => { setRangeEnd(e.target.value); setRangeError(null); }}
+                    isOpen={openCalendar === 'to'}
+                    onClose={() => setOpenCalendar(null)}
+                    onSelect={(value) => { setRangeEnd(value); setRangeError(null); }}
+                    onClear={() => { setRangeEnd(date); setRangeError(null); }}
+                    onToday={() => { setRangeEnd(todayDate()); setRangeError(null); }}
+                    anchorRef={toTriggerRef}
                   />
-                </label>
+                </div>
               </div>
               {rangeError && <p className="export-menu__range-error">{rangeError}</p>}
               <div className="export-menu__range-row">
