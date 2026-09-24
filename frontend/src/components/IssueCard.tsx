@@ -42,7 +42,9 @@ function IssueCard({
     >
       <div className="issue-card__header">
         <span className="issue-card__raised">
-          <Clock size={14} strokeWidth={2} aria-hidden="true" />
+          <span className="issue-card__raised-icon" aria-hidden="true">
+            <Clock size={14} strokeWidth={2} />
+          </span>
           <span>{formatIssueDate(issue.createdAt)}</span>
           <span aria-hidden="true">·</span>
           <span>{formatIssueTime(issue.createdAt)}</span>

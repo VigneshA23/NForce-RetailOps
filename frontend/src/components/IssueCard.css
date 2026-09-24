@@ -68,6 +68,17 @@
   white-space: nowrap;
 }
 
+/* Same 20px slot as .issue-card__section-icon so the clock centers over the
+   issue icon, and the date text starts where the note text does (20px + 8px). */
+.issue-card__raised-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  margin-right: 2px; /* 6px row gap + 2px = the issue row's 8px gap */
+}
+
 /* ── Store / employee line (admin views) ── */
 
 .issue-card__meta {
