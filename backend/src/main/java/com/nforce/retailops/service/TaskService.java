@@ -352,6 +352,29 @@ public class TaskService {
         return TaskResponse.from(task);
     }
 
+    // Super Admin editing any task regardless of which owner it belongs to.
+    // Reuses applyRequest scoped to the task's own owner -- since a Task
+    // always belongs to exactly one owner, its category/store selections must
+    // still resolve against that owner, the same as if that owner had edited
+    // it themselves; this endpoint doesn't let Super Admin move a task to a
+    // different owner or store scope, only edit its other fields.
+    @Transactional
+    public TaskResponse updateTaskAsSuperAdmin(Long taskId, TaskRequest request) {
+        Task task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+        Long ownerId = task.getOwner().getId();
+        applyRequest(task, ownerId, request);
+        task = taskRepository.save(task);
+
+        activityLogService.logForStores(
+            "TASK_UPDATED", "Super Admin", "SUPER_ADMIN",
+            resolveTaskStoresForLog(task, ownerId), "TASK", task.getName(),
+            "Updated task \"" + task.getName() + "\""
+        );
+
+        return TaskResponse.from(task);
+    }
+
     @Transactional
     public TaskResponse setActive(Long ownerId, Long taskId, boolean active) {
         Task task = requireOwnedTask(ownerId, taskId);

@@ -32,9 +32,129 @@
   justify-content: center;
 }
 
+/* Mobile card list -- hidden by default, swapped in for the table below
+   --mobile (see .task-table__desktop below). Same two-tree approach as
+   OwnerTable: a real <table> for desktop plus a separate, always-rendered
+   card list toggled purely via CSS at the breakpoint. */
+.task-table__mobile-cards {
+  display: none;
+}
+
 @media (--mobile) {
   .task-table__name {
     min-width: 0;
     white-space: normal;
+  }
+
+  .task-table__desktop {
+    display: none;
+  }
+
+  /* Compound selector so this reliably outranks the shared .table-card rule
+     regardless of stylesheet load order (see OwnerTable.css). */
+  .table-card.task-table-card {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .task-table__mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .task-mobile-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--color-surface-card);
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    cursor: pointer;
+  }
+
+  .task-mobile-card__top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .task-mobile-card__identity {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .task-mobile-card__name {
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--color-text-primary);
+    word-break: break-word;
+  }
+
+  .task-mobile-card__status {
+    flex-shrink: 0;
+  }
+
+  .task-mobile-card__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    font-size: 13px;
+  }
+
+  .task-mobile-card__label {
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+  }
+
+  .task-mobile-card__value {
+    color: var(--color-text-secondary);
+    text-align: right;
+  }
+
+  .task-mobile-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .task-mobile-card__actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+  }
+
+  .task-mobile-card__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--radius-pill);
+    background: var(--color-badge-outline-bg);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: color 0.15s ease, opacity 0.15s ease;
+  }
+
+  .task-mobile-card__icon-btn:hover {
+    opacity: 0.8;
+  }
+
+  .task-mobile-card__icon-btn--danger {
+    color: var(--color-danger, #d92d20);
   }
 }
