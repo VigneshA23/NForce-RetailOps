@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, Flag, MoreVertical, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
-import { responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
+import { hasActiveResponse, responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import CorrectionModal from './CorrectionModal';
@@ -39,6 +39,21 @@ const STATUS_BADGE_CLASS: Record<ChecklistTaskStatus, string> = {
   COMPLETE: 'badge--success',
   ISSUE: 'badge--danger',
 };
+
+// A MULTIPLE-completion task with exactly one response is technically still
+// OPEN (taskStatus() needs a second distinct responder to call it COMPLETE),
+// but it already has an active response so it stays out of Outstanding and
+// shows in this table -- displaying it as a plain "Open" pill there reads as
+// nobody has responded yet, which is wrong. Status-column-only relabel.
+function statusPillLabel(task: ChecklistHistoryTaskItem, status: ChecklistTaskStatus): string {
+  if (status === 'OPEN' && hasActiveResponse(task)) return 'In Progress';
+  return TASK_STATUS_LABELS[status];
+}
+
+function statusPillClass(task: ChecklistHistoryTaskItem, status: ChecklistTaskStatus): string {
+  if (status === 'OPEN' && hasActiveResponse(task)) return 'badge--warning';
+  return STATUS_BADGE_CLASS[status];
+}
 
 interface ResponseTarget {
   responseEntry: ChecklistHistoryResponseEntry;
@@ -448,7 +463,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                       )}
                     </td>
                     <td data-label="Status" className="store-detail-table__status-cell">
-                      <span className={`badge ${STATUS_BADGE_CLASS[status]}`}>{TASK_STATUS_LABELS[status]}</span>
+                      <span className={`badge ${statusPillClass(task, status)}`}>{statusPillLabel(task, status)}</span>
                       {variant === 'outstanding' && primaryResponder && !primaryResponder.flaggedNeedsCorrection && (
                         <TaskRowMenu
                           onCorrect={onResponseCorrected ? () => setCorrectionTarget({ responseEntry: primaryResponder, task }) : undefined}

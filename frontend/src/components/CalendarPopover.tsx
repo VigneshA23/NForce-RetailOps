@@ -16,6 +16,11 @@ interface CalendarPopoverProps {
   onClose: () => void
   onSelect: (date: string) => void
   anchorRef: React.RefObject<HTMLElement>
+  // Optional bottom-corner shortcuts (Clear bottom-left, Today bottom-right).
+  // Both are opt-in -- omitting them keeps every existing caller (date nav,
+  // DateRangePicker, ChecklistDayHistoryView, MissingTasks) unchanged.
+  onClear?: () => void
+  onToday?: () => void
 }
 
 function toDateKey(date: Date): string {
@@ -27,7 +32,7 @@ function toDateKey(date: Date): string {
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
-function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef }: CalendarPopoverProps) {
+function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef, onClear, onToday }: CalendarPopoverProps) {
   const [position, setPosition] = useState({ top: 0, left: 0 })
   const [viewDate, setViewDate] = useState(() => new Date(`${value}T00:00:00`))
   const panelRef = useRef<HTMLDivElement>(null)
@@ -77,6 +82,9 @@ function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef
   const maxDate = max ? new Date(`${max}T00:00:00`) : null
   const isNextDisabled = maxDate != null && new Date(year, month + 1, 1) > maxDate
   const isPrevDisabled = minDate != null && new Date(year, month, 0) < minDate
+  const now = new Date()
+  const todayCellDate = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const isTodayDisabled = (maxDate != null && todayCellDate > maxDate) || (minDate != null && todayCellDate < minDate)
 
   const cells: (number | null)[] = [
     ...Array.from({ length: startOffset }, () => null),
@@ -140,6 +148,30 @@ function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef
           )
         })}
       </div>
+
+      {(onClear || onToday) && (
+        <div className="calendar-popover__footer">
+          {onClear ? (
+            <button
+              type="button"
+              className="calendar-popover__footer-action"
+              onClick={() => { onClear(); onClose() }}
+            >
+              Clear
+            </button>
+          ) : <span />}
+          {onToday ? (
+            <button
+              type="button"
+              className="calendar-popover__footer-action calendar-popover__footer-action--today"
+              disabled={isTodayDisabled}
+              onClick={() => { onToday(); onClose() }}
+            >
+              Today
+            </button>
+          ) : <span />}
+        </div>
+      )}
     </div>,
     document.body,
   )
