@@ -6,11 +6,15 @@ import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
 import { getInitials } from '../utils/initials';
 import { getChecklistHistoryDetail } from '../api/checklistHistory';
-import type { ChecklistHistoryDetail, ChecklistHistoryResponseEntry } from '../types/checklistHistory';
+import type { ChecklistHistoryCategory, ChecklistHistoryDetail, ChecklistHistoryResponseEntry } from '../types/checklistHistory';
 import StoreDetailTable, { type StoreDetailRow } from '../components/StoreDetailTable';
 import CalendarPopover from '../components/CalendarPopover';
 import ExportMenu from '../components/ExportMenu';
-import { hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, formatDateNavLabel, responseDisplayValue, TASK_STATUS_LABELS } from '../utils/checklistHistoryOptions';
+import {
+  hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, stepDate, formatDateNavLabel,
+  formatDateLabel, formatDateRangeLabel, previousCalendarWeekRange, datesInRange, responseDisplayValue,
+  TASK_STATUS_LABELS, type DateRange,
+} from '../utils/checklistHistoryOptions';
 import { matchesSearch } from '../utils/search';
 import './StoreDetail.css';
 
@@ -28,10 +32,25 @@ interface StoreDetailProps {
   storeName?: string | null;
 }
 
+// One store-day's worth of detail, tagged with which date it's for -- the
+// building block "Last Week" merges 7 of into one view without losing which
+// day each row came from (see categoryDays below).
+interface WeeklyDay {
+  date: string;
+  detail: ChecklistHistoryDetail;
+}
+
 function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   const [date, setDate] = useState(todayDate);
   const [pickerOpen, setPickerOpen] = useState(false);
   const dateTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // Non-null while "Last Week" is the active filter -- single-day navigation
+  // (arrows, calendar, Today/Yesterday) always clears this and falls back to
+  // the plain `date` behavior below, unchanged from before this range mode
+  // existed.
+  const [weekRange, setWeekRange] = useState<DateRange | null>(null);
+  const [weeklyDays, setWeeklyDays] = useState<WeeklyDay[]>([]);
 
   const [detail, setDetail] = useState<ChecklistHistoryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -48,7 +67,12 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   const [outstandingSearch, setOutstandingSearch] = useState('');
   const [outstandingCategoryFilter, setOutstandingCategoryFilter] = useState('all');
 
-  const isToday = date === todayDate();
+  // Never "live" for a historical week range, same as any other past date.
+  const isToday = weekRange === null && date === todayDate();
+
+  function exitWeekMode() {
+    setWeekRange(null);
+  }
 
   function loadDetail(id: number, forDate: string, silent = false) {
     if (!silent) setDetailLoading(true);
@@ -87,13 +111,13 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   }
 
   useEffect(() => {
-    if (storeId === null) return;
+    if (storeId === null || weekRange) return;
     setFilter('ALL');
     setSearchQuery('');
     setCategoryFilter('all');
     loadDetail(storeId, date);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, date]);
+  }, [storeId, date, weekRange]);
 
   // 60-second background refresh when viewing today's live data.
   // Silent = no loading spinner; corrections update inline regardless of mode.
@@ -104,12 +128,66 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, date, isToday]);
 
+  // "Last Week": the backend's detail endpoint is single-day-only, so this
+  // fetches each of the 7 days in the range in parallel (bounded, small) and
+  // keeps them as separate per-day results -- see categoryDays below for how
+  // they're combined without double-counting or merging distinct days'
+  // occurrences of the same recurring task into one.
+  useEffect(() => {
+    if (storeId === null || !weekRange) return;
+    let active = true;
+    setDetailLoading(true);
+    setDetailError(null);
+    setFilter('ALL');
+    setSearchQuery('');
+    setCategoryFilter('all');
+
+    const dates = datesInRange(weekRange);
+    Promise.all(dates.map((d) => getChecklistHistoryDetail(storeId, d).then((dayDetail) => ({ date: d, detail: dayDetail }))))
+      .then((days) => {
+        if (!active) return;
+        setWeeklyDays(days);
+        setLastUpdatedAt(new Date());
+        setDetailLoading(false);
+      })
+      .catch((error: Error) => {
+        if (!active) return;
+        setDetailError(error.message);
+        setDetailLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [storeId, weekRange]);
+
+  // Every category occurrence across whichever mode is active, tagged with its
+  // own date -- single-day mode has exactly one entry per category (identical
+  // to the old behavior); week mode has up to 7 (one per day that category had
+  // tasks), which downstream computations either group by category id
+  // (categoryProgress) or leave as distinct rows (rows/outstandingRows), never
+  // silently merged into one blended count.
+  const categoryDays = useMemo(() => {
+    if (weekRange) {
+      return weeklyDays.flatMap(({ date: d, detail: dayDetail }) =>
+        dayDetail.categories.map((category) => ({ date: d, category })),
+      );
+    }
+    return detail ? detail.categories.map((category) => ({ date, category })) : [];
+  }, [weekRange, weeklyDays, detail, date]);
+
+  const hasChecklist = weekRange
+    ? weeklyDays.some(({ detail: dayDetail }) => dayDetail.hasChecklist)
+    : (detail?.hasChecklist ?? false);
+
   const rows = useMemo<StoreDetailRow[]>(() => {
-    if (!detail) return [];
-    return detail.categories.flatMap((category) =>
-      category.tasks.map((task) => ({ key: `${category.id}-${task.id}`, categoryName: category.name, task })),
+    return categoryDays.flatMap(({ date: d, category }) =>
+      category.tasks.map((task) => ({
+        key: weekRange ? `${d}-${category.id}-${task.id}` : `${category.id}-${task.id}`,
+        categoryName: category.name,
+        task,
+        dateLabel: weekRange ? formatDateLabel(d) : undefined,
+      })),
     );
-  }, [detail]);
+  }, [categoryDays, weekRange]);
 
   const counts = useMemo(() => {
     let completed = 0;
@@ -168,40 +246,55 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
 
   // When an admin corrects a response, replace that response entry inline so
   // the table reflects the new value immediately without a full re-fetch.
-  function handleResponseCorrected(taskId: number, updatedResponse: ChecklistHistoryResponseEntry) {
-    setDetail((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        categories: prev.categories.map((category) => ({
-          ...category,
-          tasks: category.tasks.map((task) =>
-            task.id !== taskId
-              ? task
-              : {
-                  ...task,
-                  responses: task.responses.map((r) =>
-                    r.id === updatedResponse.id ? updatedResponse : r,
-                  ),
-                },
-          ),
-        })),
-      };
-    });
+  // Matches by response id (globally unique), so patching every day's
+  // categories in week mode is a safe no-op for the days that don't actually
+  // contain that response.
+  function patchCategories(categories: ChecklistHistoryCategory[], taskId: number, updatedResponse: ChecklistHistoryResponseEntry): ChecklistHistoryCategory[] {
+    return categories.map((category) => ({
+      ...category,
+      tasks: category.tasks.map((task) =>
+        task.id !== taskId
+          ? task
+          : {
+              ...task,
+              responses: task.responses.map((r) =>
+                r.id === updatedResponse.id ? updatedResponse : r,
+              ),
+            },
+      ),
+    }));
   }
 
+  function handleResponseCorrected(taskId: number, updatedResponse: ChecklistHistoryResponseEntry) {
+    if (weekRange) {
+      setWeeklyDays((prev) => prev.map((day) => ({
+        ...day,
+        detail: { ...day.detail, categories: patchCategories(day.detail.categories, taskId, updatedResponse) },
+      })));
+      return;
+    }
+    setDetail((prev) => (prev ? { ...prev, categories: patchCategories(prev.categories, taskId, updatedResponse) } : prev));
+  }
+
+  // Grouped by category id -- week mode has one categoryDays entry per day
+  // that category had tasks (up to 7), summed here into one progress bar per
+  // category rather than one per day. Single-day mode has exactly one entry
+  // per category already, so this is equivalent to the old direct `.map()`.
   const categoryProgress = useMemo(() => {
-    if (!detail) return [];
-    return detail.categories.map((category) => {
-      const completed = category.tasks.filter((task) => taskStatus(task) === 'COMPLETE').length;
-      return { id: category.id, name: category.name, completed, total: category.tasks.length };
-    });
-  }, [detail]);
+    const byId = new Map<number, { id: number; name: string; completed: number; total: number }>();
+    for (const { category } of categoryDays) {
+      const entry = byId.get(category.id) ?? { id: category.id, name: category.name, completed: 0, total: 0 };
+      entry.completed += category.tasks.filter((task) => taskStatus(task) === 'COMPLETE').length;
+      entry.total += category.tasks.length;
+      byId.set(category.id, entry);
+    }
+    return Array.from(byId.values());
+  }, [categoryDays]);
 
   const availableCategories = useMemo<SelectOption[]>(() => {
-    if (!detail) return [];
-    return detail.categories.map((c) => ({ value: c.name, label: c.name }));
-  }, [detail]);
+    const names = Array.from(new Set(categoryDays.map(({ category }) => category.name)));
+    return names.map((name) => ({ value: name, label: name }));
+  }, [categoryDays]);
 
   const filteredRows = useMemo(() => {
     let result = rows.filter((row) => hasActiveResponse(row.task));
@@ -229,10 +322,9 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   // Counts every response submitted (MULTIPLE tasks each responder counted once per
   // response). Issue count = YES_NO responses where booleanValue is false.
   const employeeContributions = useMemo(() => {
-    if (!detail) return [];
     type EmpData = { totalResponses: number; issueCount: number; byCategory: Map<string, number>; avatarUrl?: string | null };
     const byEmployee = new Map<string, EmpData>();
-    for (const category of detail.categories) {
+    for (const { category } of categoryDays) {
       for (const task of category.tasks) {
         for (const response of task.responses) {
           const name = response.employeeFullName;
@@ -260,7 +352,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
         })),
       }))
       .sort((a, b) => b.totalResponses - a.totalResponses);
-  }, [detail]);
+  }, [categoryDays]);
 
   const maxContributions = useMemo(
     () => employeeContributions.reduce((max, emp) => Math.max(max, emp.totalResponses), 0),
@@ -301,12 +393,12 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
     setCategoryFilter('all');
     setFilter('ALL');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detail]);
+  }, [detail, weeklyDays]);
 
   useEffect(() => {
     setOutstandingOpen(true);
     setCompletedOpen(true);
-  }, [storeId, date]);
+  }, [storeId, date, weekRange]);
 
   const completedFlaggedCounts = useMemo(() => {
     let completed = 0;
@@ -379,7 +471,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
             <button
               type="button"
               className="store-detail-page__date-arrow"
-              onClick={() => setDate(stepDate(date, -1))}
+              onClick={() => { exitWeekMode(); setDate(stepDate(date, -1)); }}
               aria-label="Previous day"
             >
               <ChevronLeft size={16} />
@@ -393,48 +485,48 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
               aria-label="Pick a date"
             >
               <Calendar size={13} />
-              {formatDateNavLabel(date)}
+              {weekRange ? formatDateRangeLabel(weekRange) : formatDateNavLabel(date)}
             </button>
             <button
               type="button"
               className="store-detail-page__date-arrow"
-              onClick={() => setDate(stepDate(date, 1))}
-              disabled={date >= todayDate()}
+              onClick={() => { exitWeekMode(); setDate(stepDate(date, 1)); }}
+              disabled={weekRange === null && date >= todayDate()}
               aria-label="Next day"
             >
               <ChevronRight size={16} />
             </button>
           </div>
-          <ExportMenu storeId={storeId} date={date} storeName={storeName} />
+          <ExportMenu storeId={storeId} date={date} storeName={storeName} rangeOverride={weekRange ?? undefined} />
         </div>
         <CalendarPopover
           value={date}
           max={todayDate()}
           isOpen={pickerOpen}
           onClose={() => setPickerOpen(false)}
-          onSelect={(d) => setDate(d)}
+          onSelect={(d) => { exitWeekMode(); setDate(d); }}
           anchorRef={dateTriggerRef}
         />
         <div className="store-detail-page__date-pills">
           <button
             type="button"
-            className={`store-detail-page__date-pill${date === yesterday() ? ' store-detail-page__date-pill--active' : ''}`}
-            onClick={() => setDate(yesterday())}
+            className={`store-detail-page__date-pill${weekRange === null && date === yesterday() ? ' store-detail-page__date-pill--active' : ''}`}
+            onClick={() => { exitWeekMode(); setDate(yesterday()); }}
           >
             Yesterday
           </button>
           <button
             type="button"
-            className="store-detail-page__date-pill"
-            onClick={() => setDate(lastWeekSameDay(date))}
+            className={`store-detail-page__date-pill${weekRange !== null ? ' store-detail-page__date-pill--active' : ''}`}
+            onClick={() => setWeekRange(previousCalendarWeekRange(date))}
           >
             Last Week
           </button>
-          {date !== todayDate() && (
+          {(weekRange !== null || date !== todayDate()) && (
             <button
               type="button"
               className="store-detail-page__date-pill store-detail-page__date-pill--today"
-              onClick={() => setDate(todayDate())}
+              onClick={() => { exitWeekMode(); setDate(todayDate()); }}
             >
               Today
             </button>
@@ -565,7 +657,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
                   idPrefix="outstanding-"
                   variant="outstanding"
                   rows={filteredOutstandingRows}
-                  hasChecklist={detail?.hasChecklist ?? false}
+                  hasChecklist={hasChecklist}
                   onResponseCorrected={handleResponseCorrected}
                   onResponseFlagged={handleResponseCorrected}
                   repeatOffenderMap={repeatOffenderMap}
@@ -655,7 +747,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
                 idPrefix="completed-"
                 rows={filteredRows}
                 isLoading={detailLoading}
-                hasChecklist={detail?.hasChecklist ?? false}
+                hasChecklist={hasChecklist}
                 onResponseCorrected={handleResponseCorrected}
                 onResponseFlagged={handleResponseCorrected}
                 repeatOffenderMap={repeatOffenderMap}
@@ -671,7 +763,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
           <button
             type="button"
             className="btn btn--secondary"
-            onClick={() => loadDetail(storeId, date)}
+            onClick={() => (weekRange ? setWeekRange({ ...weekRange }) : loadDetail(storeId, date))}
           >
             Retry
           </button>

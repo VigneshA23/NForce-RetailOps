@@ -16,6 +16,10 @@ interface ExportMenuProps {
   storeId: number | null;
   date: string;
   storeName?: string | null;
+  // Set while a multi-day filter (e.g. "Last Week") is active, so Export
+  // defaults to that same range instead of a single day that no longer
+  // matches what's on screen -- see StoreDetail.tsx/SuperAdminChecklist.tsx.
+  rangeOverride?: { start: string; end: string };
 }
 
 const VIEWPORT_MARGIN = 12;
@@ -38,7 +42,7 @@ function validateRange(rangeStart: string, rangeEnd: string): string | null {
   return null;
 }
 
-function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
+function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [mode, setMode] = useState<'idle' | 'range'>('idle');
   const [rangeStart, setRangeStart] = useState(date);
@@ -59,9 +63,15 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
   const toTriggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    setRangeStart(date);
-    setRangeEnd(date);
-  }, [date]);
+    setRangeStart(rangeOverride?.start ?? date);
+    setRangeEnd(rangeOverride?.end ?? date);
+  }, [date, rangeOverride?.start, rangeOverride?.end]);
+
+  // With a range already selected outside this menu (e.g. "Last Week"), the
+  // single-day export buttons below (which always act on `date`) no longer
+  // make sense -- the range form is the only option, so it's shown directly
+  // instead of behind the "Export date range…" toggle.
+  const showRangeForm = mode === 'range' || rangeOverride != null;
 
   function closeMenu() {
     setMenuOpen(false);
@@ -217,28 +227,32 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
 
       {menuOpen && createPortal(
         <div ref={dropdownRef} className="export-menu__dropdown" role="menu" style={{ top: position.top, left: position.left }}>
-          <button
-            type="button"
-            className={`export-menu__item${exporting ? ' btn--loading' : ''}`}
-            role="menuitem"
-            onClick={handleExportToday}
-            disabled={exporting || !storeId}
-          >
-            {exporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} />Export this day (Excel)</>)}
-          </button>
+          {!rangeOverride && (
+            <button
+              type="button"
+              className={`export-menu__item${exporting ? ' btn--loading' : ''}`}
+              role="menuitem"
+              onClick={handleExportToday}
+              disabled={exporting || !storeId}
+            >
+              {exporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} />Export this day (Excel)</>)}
+            </button>
+          )}
 
-          <button
-            type="button"
-            className="export-menu__item"
-            role="menuitem"
-            onClick={() => { setMode((m) => (m === 'range' ? 'idle' : 'range')); setRangeError(null); setOpenCalendar(null); }}
-            aria-expanded={mode === 'range'}
-          >
-            <Calendar size={14} />
-            Export date range…
-          </button>
+          {!rangeOverride && (
+            <button
+              type="button"
+              className="export-menu__item"
+              role="menuitem"
+              onClick={() => { setMode((m) => (m === 'range' ? 'idle' : 'range')); setRangeError(null); setOpenCalendar(null); }}
+              aria-expanded={mode === 'range'}
+            >
+              <Calendar size={14} />
+              Export date range…
+            </button>
+          )}
 
-          {mode === 'range' && (
+          {showRangeForm && (
             <div className="export-menu__range-form">
               <div className="export-menu__range-row">
                 <div className="export-menu__range-label">
@@ -257,7 +271,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
                     isOpen={openCalendar === 'from'}
                     onClose={() => setOpenCalendar(null)}
                     onSelect={(value) => { setRangeStart(value); setRangeError(null); }}
-                    onClear={() => { setRangeStart(date); setRangeError(null); }}
+                    onClear={() => { setRangeStart(rangeOverride?.start ?? date); setRangeError(null); }}
                     onToday={() => { setRangeStart(todayDate()); setRangeError(null); }}
                     anchorRef={fromTriggerRef}
                   />
@@ -279,7 +293,7 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
                     isOpen={openCalendar === 'to'}
                     onClose={() => setOpenCalendar(null)}
                     onSelect={(value) => { setRangeEnd(value); setRangeError(null); }}
-                    onClear={() => { setRangeEnd(date); setRangeError(null); }}
+                    onClear={() => { setRangeEnd(rangeOverride?.end ?? date); setRangeError(null); }}
                     onToday={() => { setRangeEnd(todayDate()); setRangeError(null); }}
                     anchorRef={toTriggerRef}
                   />
@@ -307,17 +321,21 @@ function ExportMenu({ storeId, date, storeName }: ExportMenuProps) {
             </div>
           )}
 
-          <div className="export-menu__divider" role="separator" />
+          {!rangeOverride && (
+            <>
+              <div className="export-menu__divider" role="separator" />
 
-          <button
-            type="button"
-            className={`export-menu__item${pdfExporting ? ' btn--loading' : ''}`}
-            role="menuitem"
-            onClick={handleExportPdf}
-            disabled={pdfExporting || !storeId}
-          >
-            {pdfExporting ? <ButtonDots label="Generating PDF" /> : (<><FileText size={14} />Export as PDF</>)}
-          </button>
+              <button
+                type="button"
+                className={`export-menu__item${pdfExporting ? ' btn--loading' : ''}`}
+                role="menuitem"
+                onClick={handleExportPdf}
+                disabled={pdfExporting || !storeId}
+              >
+                {pdfExporting ? <ButtonDots label="Generating PDF" /> : (<><FileText size={14} />Export as PDF</>)}
+              </button>
+            </>
+          )}
         </div>,
         document.body,
       )}

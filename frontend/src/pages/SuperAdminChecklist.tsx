@@ -6,7 +6,7 @@ import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
 import { getInitials } from '../utils/initials';
 import { getChecklistHistoryDetail } from '../api/checklistHistory';
-import type { ChecklistHistoryResponseEntry } from '../types/checklistHistory';
+import type { ChecklistHistoryCategory, ChecklistHistoryResponseEntry } from '../types/checklistHistory';
 import { getStoreTrend } from '../api/superAdminOperations';
 import type { TrendDataPoint } from '../api/superAdminOperations';
 import type { ChecklistHistoryDetail } from '../types/checklistHistory';
@@ -14,7 +14,11 @@ import StoreDetailTable, { type StoreDetailRow } from '../components/StoreDetail
 import TrendChart from '../components/TrendChart';
 import CalendarPopover from '../components/CalendarPopover';
 import ExportMenu from '../components/ExportMenu';
-import { hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, lastWeekSameDay, stepDate, formatDateNavLabel, responseDisplayValue, TASK_STATUS_LABELS } from '../utils/checklistHistoryOptions';
+import {
+  hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, stepDate, formatDateNavLabel,
+  formatDateLabel, formatDateRangeLabel, previousCalendarWeekRange, datesInRange, responseDisplayValue,
+  TASK_STATUS_LABELS, type DateRange,
+} from '../utils/checklistHistoryOptions';
 import { matchesSearch } from '../utils/search';
 import { getAllStores } from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
@@ -37,6 +41,13 @@ interface SuperAdminChecklistProps {
   nav?: ChecklistNav | null;
 }
 
+// One store-day's worth of detail, tagged with which date it's for -- see
+// StoreDetail.tsx's identical type/approach for "Last Week".
+interface WeeklyDay {
+  date: string;
+  detail: ChecklistHistoryDetail;
+}
+
 function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [stores, setStores] = useState<SuperAdminStore[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
@@ -47,6 +58,12 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [date, setDate] = useState(todayDate);
   const [pickerOpen, setPickerOpen] = useState(false);
   const dateTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // Non-null while "Last Week" is the active filter -- single-day navigation
+  // (arrows, calendar, Today/Yesterday) always clears this. See
+  // StoreDetail.tsx for the full rationale behind this range mode.
+  const [weekRange, setWeekRange] = useState<DateRange | null>(null);
+  const [weeklyDays, setWeeklyDays] = useState<WeeklyDay[]>([]);
 
   const [detail, setDetail] = useState<ChecklistHistoryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -62,7 +79,12 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [storeTrendData, setStoreTrendData] = useState<TrendDataPoint[]>([]);
   const [storeTrendLoading, setStoreTrendLoading] = useState(false);
 
-  const isToday = date === todayDate();
+  // Never "live" for a historical week range, same as any other past date.
+  const isToday = weekRange === null && date === todayDate();
+
+  function exitWeekMode() {
+    setWeekRange(null);
+  }
 
   // When parent navigates to a specific store (e.g. from Home table or Owners table),
   // update selectedStoreId. ts-based check ensures re-navigation to the same store still fires.
@@ -94,12 +116,13 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
       setDetail(null);
       return;
     }
+    if (weekRange) return;
     setFilter('ALL');
     setSearchQuery('');
     setCategoryFilter('all');
     loadDetail(selectedStoreId, date);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStoreId, date]);
+  }, [selectedStoreId, date, weekRange]);
 
   // 60-second background refresh for today's live data.
   useEffect(() => {
@@ -108,6 +131,27 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     return () => window.clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStoreId, date, isToday]);
+
+  // "Last Week": the backend's detail endpoint is single-day-only, so this
+  // fetches each of the 7 days in the range in parallel and keeps them as
+  // separate per-day results -- see categoryDays below, and StoreDetail.tsx
+  // for the full rationale.
+  useEffect(() => {
+    if (selectedStoreId === null || !weekRange) return;
+    let active = true;
+    setDetailLoading(true);
+    setDetailError(null);
+    setFilter('ALL');
+    setSearchQuery('');
+    setCategoryFilter('all');
+
+    const dates = datesInRange(weekRange);
+    Promise.all(dates.map((d) => getChecklistHistoryDetail(selectedStoreId, d).then((dayDetail) => ({ date: d, detail: dayDetail }))))
+      .then((days) => { if (active) { setWeeklyDays(days); setDetailLoading(false); } })
+      .catch((error: Error) => { if (active) { setDetailError(error.message); setDetailLoading(false); } });
+
+    return () => { active = false; };
+  }, [selectedStoreId, weekRange]);
 
   useEffect(() => {
     if (selectedStoreId === null) { setStoreTrendData([]); return; }
@@ -119,12 +163,33 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     return () => { active = false; };
   }, [selectedStoreId, storeTrendDays]);
 
+  // Every category occurrence across whichever mode is active, tagged with
+  // its own date -- see StoreDetail.tsx's identical categoryDays for the
+  // full rationale (single-day mode has one entry per category; week mode
+  // has up to 7, grouped by id for progress bars, left distinct for rows).
+  const categoryDays = useMemo(() => {
+    if (weekRange) {
+      return weeklyDays.flatMap(({ date: d, detail: dayDetail }) =>
+        dayDetail.categories.map((category) => ({ date: d, category })),
+      );
+    }
+    return detail ? detail.categories.map((category) => ({ date, category })) : [];
+  }, [weekRange, weeklyDays, detail, date]);
+
+  const hasChecklist = weekRange
+    ? weeklyDays.some(({ detail: dayDetail }) => dayDetail.hasChecklist)
+    : (detail?.hasChecklist ?? false);
+
   const rows = useMemo<StoreDetailRow[]>(() => {
-    if (!detail) return [];
-    return detail.categories.flatMap((category) =>
-      category.tasks.map((task) => ({ key: `${category.id}-${task.id}`, categoryName: category.name, task })),
+    return categoryDays.flatMap(({ date: d, category }) =>
+      category.tasks.map((task) => ({
+        key: weekRange ? `${d}-${category.id}-${task.id}` : `${category.id}-${task.id}`,
+        categoryName: category.name,
+        task,
+        dateLabel: weekRange ? formatDateLabel(d) : undefined,
+      })),
     );
-  }, [detail]);
+  }, [categoryDays, weekRange]);
 
   const counts = useMemo(() => {
     let completed = 0;
@@ -196,18 +261,22 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStoreId]);
 
+  // Grouped by category id -- see StoreDetail.tsx's identical categoryProgress.
   const categoryProgress = useMemo(() => {
-    if (!detail) return [];
-    return detail.categories.map((category) => {
-      const completed = category.tasks.filter((task) => taskStatus(task) === 'COMPLETE').length;
-      return { id: category.id, name: category.name, completed, total: category.tasks.length };
-    });
-  }, [detail]);
+    const byId = new Map<number, { id: number; name: string; completed: number; total: number }>();
+    for (const { category } of categoryDays) {
+      const entry = byId.get(category.id) ?? { id: category.id, name: category.name, completed: 0, total: 0 };
+      entry.completed += category.tasks.filter((task) => taskStatus(task) === 'COMPLETE').length;
+      entry.total += category.tasks.length;
+      byId.set(category.id, entry);
+    }
+    return Array.from(byId.values());
+  }, [categoryDays]);
 
   const availableCategories = useMemo<SelectOption[]>(() => {
-    if (!detail) return [];
-    return detail.categories.map((c) => ({ value: c.name, label: c.name }));
-  }, [detail]);
+    const names = Array.from(new Set(categoryDays.map(({ category }) => category.name)));
+    return names.map((name) => ({ value: name, label: name }));
+  }, [categoryDays]);
 
   const filteredRows = useMemo(() => {
     let result = rows.filter((row) => hasActiveResponse(row.task));
@@ -243,10 +312,9 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   }, [rows]);
 
   const employeeContributions = useMemo(() => {
-    if (!detail) return [];
     type EmpData = { totalResponses: number; issueCount: number; byCategory: Map<string, number>; avatarUrl?: string | null };
     const byEmployee = new Map<string, EmpData>();
-    for (const category of detail.categories) {
+    for (const { category } of categoryDays) {
       for (const task of category.tasks) {
         for (const response of task.responses) {
           const name = response.employeeFullName;
@@ -274,7 +342,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
         })),
       }))
       .sort((a, b) => b.totalResponses - a.totalResponses);
-  }, [detail]);
+  }, [categoryDays]);
 
   const maxContributions = useMemo(
     () => employeeContributions.reduce((max, emp) => Math.max(max, emp.totalResponses), 0),
@@ -304,21 +372,29 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
       .sort((a, b) => a.task.name.localeCompare(b.task.name));
   }, [rows]);
 
+  // Matches by response id (globally unique), so patching every day's
+  // categories in week mode is a safe no-op for the days that don't actually
+  // contain that response -- see StoreDetail.tsx's identical handler.
+  function patchCategories(categories: ChecklistHistoryCategory[], taskId: number, updatedResponse: ChecklistHistoryResponseEntry): ChecklistHistoryCategory[] {
+    return categories.map((category) => ({
+      ...category,
+      tasks: category.tasks.map((task) =>
+        task.id !== taskId
+          ? task
+          : { ...task, responses: task.responses.map((r) => (r.id === updatedResponse.id ? updatedResponse : r)) },
+      ),
+    }));
+  }
+
   function handleResponseCorrected(taskId: number, updatedResponse: ChecklistHistoryResponseEntry) {
-    setDetail((prev) => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        categories: prev.categories.map((category) => ({
-          ...category,
-          tasks: category.tasks.map((task) =>
-            task.id !== taskId
-              ? task
-              : { ...task, responses: task.responses.map((r) => (r.id === updatedResponse.id ? updatedResponse : r)) },
-          ),
-        })),
-      };
-    });
+    if (weekRange) {
+      setWeeklyDays((prev) => prev.map((day) => ({
+        ...day,
+        detail: { ...day.detail, categories: patchCategories(day.detail.categories, taskId, updatedResponse) },
+      })));
+      return;
+    }
+    setDetail((prev) => (prev ? { ...prev, categories: patchCategories(prev.categories, taskId, updatedResponse) } : prev));
   }
 
   const [outstandingOpen, setOutstandingOpen] = useState(true);
@@ -330,12 +406,12 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     setCategoryFilter('all');
     setFilter('ALL');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detail]);
+  }, [detail, weeklyDays]);
 
   useEffect(() => {
     setOutstandingOpen(true);
     setCompletedOpen(true);
-  }, [selectedStoreId, date]);
+  }, [selectedStoreId, date, weekRange]);
 
   const outstandingCategoryOptions = useMemo<SelectOption[]>(() => {
     const names = Array.from(new Set(outstandingRows.map((row) => row.categoryName))).sort();
@@ -370,7 +446,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
               <button
                 type="button"
                 className="store-detail-page__date-arrow"
-                onClick={() => setDate(stepDate(date, -1))}
+                onClick={() => { exitWeekMode(); setDate(stepDate(date, -1)); }}
                 aria-label="Previous day"
               >
                 <ChevronLeft size={16} />
@@ -384,13 +460,13 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                 aria-label="Pick a date"
               >
                 <Calendar size={13} />
-                {formatDateNavLabel(date)}
+                {weekRange ? formatDateRangeLabel(weekRange) : formatDateNavLabel(date)}
               </button>
               <button
                 type="button"
                 className="store-detail-page__date-arrow"
-                onClick={() => setDate(stepDate(date, 1))}
-                disabled={date >= todayDate()}
+                onClick={() => { exitWeekMode(); setDate(stepDate(date, 1)); }}
+                disabled={weekRange === null && date >= todayDate()}
                 aria-label="Next day"
               >
                 <ChevronRight size={16} />
@@ -419,36 +495,36 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
               ariaLabel="Select a store"
               disabled={storesLoading}
             />
-            {selectedStoreId !== null && <ExportMenu storeId={selectedStoreId} date={date} />}
+            {selectedStoreId !== null && <ExportMenu storeId={selectedStoreId} date={date} rangeOverride={weekRange ?? undefined} />}
           </div>
             <CalendarPopover
               value={date}
               max={todayDate()}
               isOpen={pickerOpen}
               onClose={() => setPickerOpen(false)}
-              onSelect={(d) => setDate(d)}
+              onSelect={(d) => { exitWeekMode(); setDate(d); }}
               anchorRef={dateTriggerRef}
             />
             <div className="store-detail-page__date-pills">
               <button
                 type="button"
-                className={`store-detail-page__date-pill${date === yesterday() ? ' store-detail-page__date-pill--active' : ''}`}
-                onClick={() => setDate(yesterday())}
+                className={`store-detail-page__date-pill${weekRange === null && date === yesterday() ? ' store-detail-page__date-pill--active' : ''}`}
+                onClick={() => { exitWeekMode(); setDate(yesterday()); }}
               >
                 Yesterday
               </button>
               <button
                 type="button"
-                className="store-detail-page__date-pill"
-                onClick={() => setDate(lastWeekSameDay(date))}
+                className={`store-detail-page__date-pill${weekRange !== null ? ' store-detail-page__date-pill--active' : ''}`}
+                onClick={() => setWeekRange(previousCalendarWeekRange(date))}
               >
                 Last Week
               </button>
-              {date !== todayDate() && (
+              {(weekRange !== null || date !== todayDate()) && (
                 <button
                   type="button"
                   className="store-detail-page__date-pill store-detail-page__date-pill--today"
-                  onClick={() => setDate(todayDate())}
+                  onClick={() => { exitWeekMode(); setDate(todayDate()); }}
                 >
                   Today
                 </button>
@@ -605,7 +681,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                       idPrefix="outstanding-"
                       variant="outstanding"
                       rows={filteredOutstandingRows}
-                      hasChecklist={detail?.hasChecklist ?? false}
+                      hasChecklist={hasChecklist}
                       onResponseCorrected={handleResponseCorrected}
                       onResponseFlagged={handleResponseCorrected}
                       repeatOffenderMap={repeatOffenderMap}
@@ -696,7 +772,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                       idPrefix="completed-"
                       rows={filteredRows}
                       isLoading={detailLoading}
-                      hasChecklist={detail?.hasChecklist ?? false}
+                      hasChecklist={hasChecklist}
                       repeatOffenderMap={repeatOffenderMap}
                       onResponseCorrected={handleResponseCorrected}
                       onResponseFlagged={handleResponseCorrected}
@@ -719,7 +795,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
               <button
                 type="button"
                 className="btn btn--secondary"
-                onClick={() => loadDetail(selectedStoreId, date)}
+                onClick={() => (weekRange ? setWeekRange({ ...weekRange }) : loadDetail(selectedStoreId, date))}
               >
                 Retry
               </button>

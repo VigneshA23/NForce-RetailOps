@@ -117,6 +117,50 @@ export function lastWeekSameDay(date: string): string {
   return localDateString(d);
 }
 
+export interface DateRange {
+  start: string;
+  end: string;
+}
+
+// The complete Monday-Sunday calendar week immediately before the week
+// containing `date` -- e.g. from a Thursday, "last week" is the full prior
+// Mon-Sun span, not "7 days ago" (a single day). Independent of which
+// weekday `date` falls on, and correct across month/year boundaries since
+// it's built entirely from Date's own day-stepping (same local-date
+// convention as the rest of this file -- no UTC conversion).
+export function previousCalendarWeekRange(date: string): DateRange {
+  const d = new Date(`${date}T00:00:00`);
+  // getDay(): 0=Sun..6=Sat -- convert to days-since-Monday (0=Mon..6=Sun).
+  const daysSinceMonday = (d.getDay() + 6) % 7;
+  const thisWeekMonday = new Date(d);
+  thisWeekMonday.setDate(d.getDate() - daysSinceMonday);
+  const lastWeekMonday = new Date(thisWeekMonday);
+  lastWeekMonday.setDate(thisWeekMonday.getDate() - 7);
+  const lastWeekSunday = new Date(lastWeekMonday);
+  lastWeekSunday.setDate(lastWeekMonday.getDate() + 6);
+  return { start: localDateString(lastWeekMonday), end: localDateString(lastWeekSunday) };
+}
+
+// Every ISO date from `range.start` to `range.end`, inclusive.
+export function datesInRange(range: DateRange): string[] {
+  const dates: string[] = [];
+  let cursor = range.start;
+  while (cursor <= range.end) {
+    dates.push(cursor);
+    cursor = stepDate(cursor, 1);
+  }
+  return dates;
+}
+
+export function formatDateRangeLabel(range: DateRange): string {
+  const start = new Date(`${range.start}T00:00:00`);
+  const end = new Date(`${range.end}T00:00:00`);
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startLabel = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: sameYear ? undefined : 'numeric' });
+  const endLabel = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${startLabel} – ${endLabel}`;
+}
+
 // toISOString() renders in UTC, which silently shifts the result back a day
 // in any timezone ahead of UTC (e.g. IST, UTC+5:30) -- local midnight lands
 // on the *previous* UTC day. That made every step net one day short, so the

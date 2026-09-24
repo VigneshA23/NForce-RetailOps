@@ -1,9 +1,11 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import SuperAdminChecklist from './SuperAdminChecklist';
 import * as checklistHistoryApi from '../api/checklistHistory';
 import * as superAdminStoresApi from '../api/superAdminStores';
 import * as superAdminOperationsApi from '../api/superAdminOperations';
+import { todayDate, previousCalendarWeekRange, datesInRange } from '../utils/checklistHistoryOptions';
 import type { ChecklistHistoryDetail, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 
 vi.mock('../api/checklistHistory', () => ({
@@ -144,5 +146,105 @@ describe('SuperAdminChecklist task sections', () => {
 
     expect(mockGetDetail).toHaveBeenCalledTimes(3);
     expect(outstandingToggle).toHaveAttribute('aria-expanded', 'false');
+  });
+});
+
+// Regression coverage for the reported bug: "Last Week" was collapsing to a
+// single day (today minus 7) instead of the complete previous Mon-Sun week.
+// Mirrors StoreDetail.test.tsx's identical coverage for the Admin page.
+describe('SuperAdminChecklist "Last Week" filter', () => {
+  it('fetches all 7 days of the complete previous Mon-Sun week, not a single day', async () => {
+    renderChecklist();
+    await screen.findByText('Outstanding Tasks');
+    mockGetDetail.mockClear();
+
+    await userEvent.click(screen.getByText('Last Week'));
+
+    const expectedDates = datesInRange(previousCalendarWeekRange(todayDate()));
+    await waitFor(() => expect(mockGetDetail).toHaveBeenCalledTimes(7));
+    const requestedDates = mockGetDetail.mock.calls.map(([, d]) => d);
+    expect(new Set(requestedDates)).toEqual(new Set(expectedDates));
+    expect(new Set(requestedDates).size).toBe(7);
+  });
+
+  it('sums stats across the complete week instead of showing one day', async () => {
+    // Every day resolves to the same 2-task/1-completed detail (the mock
+    // can't vary per date) -- 7 identical days must sum to 14/7, not 2/1.
+    renderChecklist();
+    await screen.findByText('Outstanding Tasks');
+
+    await userEvent.click(screen.getByText('Last Week'));
+
+    await waitFor(() => {
+      const totalTasksCard = screen.getByText('Total Tasks').closest('.stat-card');
+      expect(within(totalTasksCard as HTMLElement).getByText('14')).toBeInTheDocument();
+    });
+    const completedCard = screen.getByText('Completed').closest('.stat-card');
+    expect(within(completedCard as HTMLElement).getByText('7')).toBeInTheDocument();
+  });
+
+  it('keeps the "Last Week" pill selected while active', async () => {
+    renderChecklist();
+    await screen.findByText('Outstanding Tasks');
+
+    const lastWeekPill = screen.getByText('Last Week');
+    await userEvent.click(lastWeekPill);
+    await waitFor(() => {
+      const totalTasksCard = screen.getByText('Total Tasks').closest('.stat-card');
+      expect(within(totalTasksCard as HTMLElement).getByText('14')).toBeInTheDocument();
+    });
+
+    expect(lastWeekPill).toHaveClass('store-detail-page__date-pill--active');
+  });
+
+  it('returns to a single day (today) when "Today" is clicked afterward', async () => {
+    renderChecklist();
+    await screen.findByText('Outstanding Tasks');
+
+    await userEvent.click(screen.getByText('Last Week'));
+    await waitFor(() => {
+      const totalTasksCard = screen.getByText('Total Tasks').closest('.stat-card');
+      expect(within(totalTasksCard as HTMLElement).getByText('14')).toBeInTheDocument();
+    });
+    mockGetDetail.mockClear();
+
+    await userEvent.click(screen.getByText('Today'));
+
+    await waitFor(() => expect(mockGetDetail).toHaveBeenCalledWith(1, todayDate()));
+    await waitFor(() => {
+      const totalTasksCard = screen.getByText('Total Tasks').closest('.stat-card');
+      expect(within(totalTasksCard as HTMLElement).getByText('2')).toBeInTheDocument();
+    });
+  });
+
+  it('still fetches only a single day for Yesterday', async () => {
+    renderChecklist();
+    await screen.findByText('Outstanding Tasks');
+    mockGetDetail.mockClear();
+
+    await userEvent.click(screen.getByText('Yesterday'));
+
+    await waitFor(() => expect(mockGetDetail).toHaveBeenCalledTimes(1));
+    expect(mockGetDetail).toHaveBeenCalledWith(1, expect.any(String));
+  });
+
+  it('keeps the Export button visible and defaults its range to the selected week', async () => {
+    renderChecklist();
+    await screen.findByText('Outstanding Tasks');
+
+    await userEvent.click(screen.getByText('Last Week'));
+    await waitFor(() => {
+      const totalTasksCard = screen.getByText('Total Tasks').closest('.stat-card');
+      expect(within(totalTasksCard as HTMLElement).getByText('14')).toBeInTheDocument();
+    });
+
+    const exportButton = screen.getByRole('button', { name: /Export/i });
+    expect(exportButton).toBeInTheDocument();
+    await userEvent.click(exportButton);
+
+    const range = previousCalendarWeekRange(todayDate());
+    expect(screen.queryByText('Export this day (Excel)')).not.toBeInTheDocument();
+    expect(screen.getByText(new Date(`${range.start}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))).toBeInTheDocument();
+    expect(screen.getByText(new Date(`${range.end}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))).toBeInTheDocument();
   });
 });
