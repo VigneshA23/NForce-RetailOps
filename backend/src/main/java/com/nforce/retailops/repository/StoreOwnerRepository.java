@@ -30,6 +30,10 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     Optional<StoreOwner> findByStoreIdAndOwnerId(Long storeId, Long ownerId);
 
+    // Access check form of the above: a revoked (inactive) link no longer
+    // grants the former owner access to the store's data.
+    Optional<StoreOwner> findByStoreIdAndOwnerIdAndActiveTrue(Long storeId, Long ownerId);
+
     Optional<StoreOwner> findByStoreId(Long storeId);
 
     // Batched form of findByStoreId -- used by the Super Admin task creation

@@ -2,10 +2,12 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.IssueResponse;
 import com.nforce.retailops.dto.UpdateIssueStatusRequest;
+import com.nforce.retailops.security.SuperAdminUserDetails;
 import com.nforce.retailops.service.RaisedIssueService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,10 +39,11 @@ public class SuperAdminIssueController {
 
     @PatchMapping("/{issueId}/status")
     public ResponseEntity<IssueResponse> updateStatus(
+        @AuthenticationPrincipal SuperAdminUserDetails principal,
         @PathVariable Long issueId,
         @Valid @RequestBody UpdateIssueStatusRequest request
     ) {
-        return ResponseEntity.ok(raisedIssueService.updateStatusForSuperAdmin(issueId, request));
+        return ResponseEntity.ok(raisedIssueService.updateStatusForSuperAdmin(issueId, principal.getSuperAdmin(), request));
     }
 
     @PostMapping("/{issueId}/nudge")

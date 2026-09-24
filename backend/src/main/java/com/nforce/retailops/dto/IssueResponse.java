@@ -16,6 +16,9 @@ public record IssueResponse(
     LocalDate raisedDate,
     String responseText,
     String respondedByFullName,
+    // True when the responder was a Super Admin rather than the store's owner,
+    // so the UI can label the response accordingly.
+    boolean respondedBySuperAdmin,
     OffsetDateTime respondedAt,
     OffsetDateTime createdAt
 ) {
@@ -30,9 +33,18 @@ public record IssueResponse(
             issue.getStatus(),
             issue.getRaisedDate(),
             issue.getResponseText(),
-            issue.getRespondedByUser() != null ? issue.getRespondedByUser().getFullName() : null,
+            respondedByName(issue),
+            issue.getRespondedBySuperAdmin() != null,
             issue.getRespondedAt(),
             issue.getCreatedAt()
         );
+    }
+
+    // Owner (users row) or Super Admin (own identity table) -- whichever
+    // made the last status change. Null while the issue is untouched.
+    static String respondedByName(RaisedIssue issue) {
+        if (issue.getRespondedByUser() != null) return issue.getRespondedByUser().getFullName();
+        if (issue.getRespondedBySuperAdmin() != null) return issue.getRespondedBySuperAdmin().getName();
+        return null;
     }
 }

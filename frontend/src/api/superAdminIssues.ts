@@ -1,19 +1,8 @@
 import { apiRequest } from './client';
+import type { Issue } from '../types/issue';
 
-export interface SAIssue {
-  id: number;
-  storeId: number;
-  storeName: string;
-  employeeUserId: number;
-  employeeFullName: string;
-  note: string;
-  status: 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
-  raisedDate: string;
-  responseText: string | null;
-  respondedByFullName: string | null;
-  respondedAt: string | null;
-  createdAt: string;
-}
+// Same shape as the owner-facing Issue -- both come from IssueResponse.
+export type SAIssue = Issue;
 
 export async function getSAIssues(status?: string): Promise<SAIssue[]> {
   const params = status ? `?status=${encodeURIComponent(status)}` : '';
@@ -31,6 +20,9 @@ export async function updateSAIssueStatus(
   });
 }
 
+// Rejected with 409 if the issue is resolved or the store has no active
+// owner, and 429 if the owner was already nudged in the last 24 hours --
+// the ApiError message says which.
 export async function nudgeOwner(issueId: number): Promise<void> {
   return apiRequest<void>(`/admin/issues/${issueId}/nudge`, { method: 'POST' });
 }

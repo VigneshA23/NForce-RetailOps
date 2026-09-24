@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, Clock, MessageSquare, MessageSquareWarning, Plus, User } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { AlertTriangle, MessageSquareWarning, Plus } from 'lucide-react'
 import { getMyIssues, raiseIssue } from '../api/issues'
 import { ApiError } from '../api/client'
 import { nfToast } from '../utils/toast'
@@ -11,81 +11,59 @@ import Select from '../components/Select'
 import Modal from '../components/Modal'
 import FormField from '../components/FormField'
 import ButtonDots from '../components/ButtonDots'
+import IssueCard from '../components/IssueCard'
+import { useIssueList } from '../hooks/useIssueList'
+import { useIssueFocus, type IssueFocusRequest } from '../hooks/useIssueFocus'
+import {
+  ISSUE_NOTE_MAX_LENGTH,
+  ISSUE_STATUSES,
+  ISSUE_STATUS_FILTER_OPTIONS,
+  ISSUE_STATUS_META,
+  matchesIssueStatusFilter,
+  parseIssueStatusFilter,
+  type IssueStatusFilter,
+} from '../utils/issueStatusMeta'
 import './EmployeeIssues.css'
 
-type StatusFilter = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | null
-
-const STATUS_BADGE: Record<Issue['status'], string> = {
-  OPEN: 'badge--warning',
-  ACKNOWLEDGED: 'badge--info',
-  RESOLVED: 'badge--success',
-}
-
-const STATUS_LABEL: Record<Issue['status'], string> = {
-  OPEN: 'Open',
-  ACKNOWLEDGED: 'Acknowledged',
-  RESOLVED: 'Resolved',
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-}
+const CARD_ID_PREFIX = 'emp-issue-row'
 
 interface EmployeeIssuesProps {
   store: StoreSummary
-  // Set from a search-result click to scroll to and briefly highlight that
-  // exact issue's row -- `ts` makes re-selecting the same issue fire again.
-  focusIssueId?: { issueId: number; ts: number }
+  // False while this tab is hidden (the shell keeps it mounted) -- see useIssueList.
+  isActive?: boolean
+  // Set from a search-result or notification click to scroll to and briefly
+  // highlight that exact issue's card.
+  focusIssueId?: IssueFocusRequest
 }
 
-function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
-  const [issues, setIssues] = useState<Issue[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>(null)
+function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssuesProps) {
+  const load = useCallback(() => getMyIssues(store.id), [store.id])
+  const { issues, setIssues, isLoading, error, refresh } = useIssueList<Issue>(
+    load, isActive, 'Could not load your issues. Please try again.',
+  )
+
+  const [statusFilter, setStatusFilter] = useState<IssueStatusFilter>(null)
   const [search, setSearch] = useState('')
   const [isRaiseModalOpen, setIsRaiseModalOpen] = useState(false)
+  // Kept across an accidental close -- only cleared once the issue is sent.
   const [issueNote, setIssueNote] = useState('')
   const [isSubmittingIssue, setIsSubmittingIssue] = useState(false)
-  const [highlightedIssueId, setHighlightedIssueId] = useState<number | null>(null)
 
-  // Clear any filter that would hide the targeted issue, then scroll its row
-  // into view and flash a highlight once it's actually rendered.
-  useEffect(() => {
-    if (!focusIssueId) return
-    if (!issues.some((issue) => issue.id === focusIssueId.issueId)) return
-    setStatusFilter(null)
-    setSearch('')
-    const timer = window.setTimeout(() => {
-      document.getElementById(`emp-issue-row-${focusIssueId.issueId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-      setHighlightedIssueId(focusIssueId.issueId)
-    }, 0)
-    const clearTimer = window.setTimeout(() => setHighlightedIssueId(null), 2500)
-    return () => { window.clearTimeout(timer); window.clearTimeout(clearTimer) }
-  }, [focusIssueId, issues])
+  const clearFilters = useCallback(() => { setStatusFilter(null); setSearch('') }, [])
+  const issueIds = useMemo(() => issues.map((i) => i.id), [issues])
+  const highlightedId = useIssueFocus(focusIssueId, issueIds, CARD_ID_PREFIX, clearFilters)
 
-  function loadIssues() {
-    let active = true
-    setLoading(true)
-    setError(null)
-    getMyIssues(store.id)
-      .then((data) => { if (active) setIssues(data) })
-      .catch(() => { if (active) setError('Could not load your issues. Please try again.') })
-      .finally(() => { if (active) setLoading(false) })
-    return () => { active = false }
-  }
-
-  useEffect(() => loadIssues(), [store.id])
-
-  const openCount = useMemo(() => issues.filter((i) => i.status === 'OPEN').length, [issues])
-  const acknowledgedCount = useMemo(() => issues.filter((i) => i.status === 'ACKNOWLEDGED').length, [issues])
-  const resolvedCount = useMemo(() => issues.filter((i) => i.status === 'RESOLVED').length, [issues])
+  const counts = useMemo(() => ({
+    OPEN: issues.filter((i) => i.status === 'OPEN').length,
+    ACKNOWLEDGED: issues.filter((i) => i.status === 'ACKNOWLEDGED').length,
+    RESOLVED: issues.filter((i) => i.status === 'RESOLVED').length,
+  }), [issues])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
     return issues.filter((issue) => {
-      if (statusFilter !== null && issue.status !== statusFilter) return false
-      if (q) return issue.note.toLowerCase().includes(q)
+      if (!matchesIssueStatusFilter(issue, statusFilter)) return false
+      if (q) return issue.note.toLowerCase().includes(q) || (issue.responseText ?? '').toLowerCase().includes(q)
       return true
     })
   }, [issues, statusFilter, search])
@@ -97,6 +75,8 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
     try {
       const newIssue = await raiseIssue(store.id, note)
       setIssues((prev) => [newIssue, ...prev])
+      // Make sure the new issue is visible rather than hidden by a filter.
+      clearFilters()
       setIssueNote('')
       setIsRaiseModalOpen(false)
       nfToast.success('Issue raised. Owner has been notified.')
@@ -106,6 +86,8 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
       setIsSubmittingIssue(false)
     }
   }
+
+  const noteNearLimit = issueNote.length >= ISSUE_NOTE_MAX_LENGTH * 0.9
 
   return (
     <div className="emp-issues-page">
@@ -120,7 +102,7 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
           <button
             type="button"
             className="btn btn--danger"
-            onClick={() => { setIssueNote(''); setIsRaiseModalOpen(true) }}
+            onClick={() => setIsRaiseModalOpen(true)}
           >
             <Plus size={16} />
             Raise Issue
@@ -128,16 +110,17 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
         </div>
       </div>
 
-      {loading && <p className="emp-issues-page__loading">Loading your issues…</p>}
+      {isLoading && <p className="emp-issues-page__loading">Loading your issues…</p>}
 
-      {!loading && error && (
+      {!isLoading && error && (
         <div className="emp-issues-page__error">
           <AlertTriangle size={18} />
           <span>{error}</span>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={refresh}>Retry</button>
         </div>
       )}
 
-      {!loading && !error && issues.length === 0 && (
+      {!isLoading && !error && issues.length === 0 && (
         <div className="emp-issues-page__empty">
           <MessageSquareWarning size={36} className="emp-issues-page__empty-icon" />
           <h3>No issues raised yet</h3>
@@ -145,16 +128,23 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
         </div>
       )}
 
-      {!loading && !error && issues.length > 0 && (
+      {!isLoading && !error && issues.length > 0 && (
         <>
-          <p className="emp-issues-page__total">
-            {issues.length} issue{issues.length !== 1 ? 's' : ''} total
-          </p>
-
           <div className="stat-card-row">
-            <StatCard icon={AlertTriangle} label="Open" value={openCount} tone="primary" />
-            <StatCard icon={Clock} label="Acknowledged" value={acknowledgedCount} tone="warning" />
-            <StatCard icon={CheckCircle2} label="Resolved" value={resolvedCount} tone="success" />
+            {ISSUE_STATUSES.map((status) => {
+              const meta = ISSUE_STATUS_META[status]
+              return (
+                <StatCard
+                  key={status}
+                  icon={meta.icon}
+                  label={meta.label}
+                  value={counts[status]}
+                  tone={meta.tone}
+                  onClick={() => setStatusFilter((current) => (current === status ? null : status))}
+                  active={statusFilter === status}
+                />
+              )
+            })}
           </div>
 
           <div className="filter-bar">
@@ -168,14 +158,9 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
             </div>
             <div className="filter">
               <Select
-                options={[
-                  { value: '', label: 'All Status' },
-                  { value: 'OPEN', label: 'Open' },
-                  { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
-                  { value: 'RESOLVED', label: 'Resolved' },
-                ]}
+                options={ISSUE_STATUS_FILTER_OPTIONS}
                 value={statusFilter ?? ''}
-                onChange={(val) => setStatusFilter(val === '' ? null : val as NonNullable<StatusFilter>)}
+                onChange={(val) => setStatusFilter(parseIssueStatusFilter(val))}
                 ariaLabel="Filter by status"
               />
             </div>
@@ -184,58 +169,13 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
           <div className="table-card">
             <div className="issue-card-list">
               {filtered.map((issue) => (
-                <div
-                  className={`issue-card${highlightedIssueId === issue.id ? ' emp-issues-page__row--highlighted' : ''}`}
+                <IssueCard
                   key={issue.id}
-                  id={`emp-issue-row-${issue.id}`}
-                >
-                  <div className="issue-card__icon" aria-hidden="true">
-                    <MessageSquare size={16} strokeWidth={2} />
-                  </div>
-                  <div className="issue-card__body">
-                    <div className="issue-card__top">
-                      <div className="issue-card__field">
-                        <span className="issue-card__label">Date</span>
-                        <span className="issue-card__value emp-issues-page__date-cell">
-                          {formatDate(issue.raisedDate)}
-                        </span>
-                      </div>
-                      <div className="issue-card__field issue-card__field--grow">
-                        <span className="issue-card__label">Issue</span>
-                        <span className="issue-card__value emp-issues-page__note">{issue.note}</span>
-                      </div>
-                      <div className="issue-card__field issue-card__field--status">
-                        <span className="issue-card__label">Status</span>
-                        <span className={`badge ${STATUS_BADGE[issue.status]}`}>
-                          {STATUS_LABEL[issue.status]}
-                        </span>
-                      </div>
-                    </div>
-                    <hr className="issue-card__divider" />
-                    <div className="issue-card__response-block">
-                      <span className="issue-card__response-label">Admin Response</span>
-                      {issue.responseText ? (
-                        <div className="issue-card__response-box">
-                          <span className="issue-card__response-avatar" aria-hidden="true">
-                            <User size={14} strokeWidth={2} />
-                          </span>
-                          <span className="emp-issues-page__response">
-                            {issue.responseText}
-                            {issue.respondedByFullName && (
-                              <span className="emp-issues-page__response-by"> — {issue.respondedByFullName}</span>
-                            )}
-                          </span>
-                        </div>
-                      ) : issue.status === 'ACKNOWLEDGED' ? (
-                        <span className="emp-issues-page__response emp-issues-page__response--hint">
-                          Being looked into
-                        </span>
-                      ) : (
-                        <span className="emp-issues-page__response emp-issues-page__response--none">—</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                  issue={issue}
+                  idPrefix={CARD_ID_PREFIX}
+                  highlighted={highlightedId === issue.id}
+                  showResponsePlaceholder
+                />
               ))}
             </div>
             {filtered.length === 0 && (
@@ -244,17 +184,26 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
               </div>
             )}
           </div>
+
+          <p className="emp-issues-page__retention-hint">
+            Resolved issues are cleared from this list 7 days after they're resolved.
+          </p>
         </>
       )}
 
       <Modal
         isOpen={isRaiseModalOpen}
-        onClose={() => setIsRaiseModalOpen(false)}
+        onClose={() => { if (!isSubmittingIssue) setIsRaiseModalOpen(false) }}
         centered
         title="Raise an issue"
         footer={
           <>
-            <button type="button" className="btn btn--secondary" onClick={() => setIsRaiseModalOpen(false)}>
+            <button
+              type="button"
+              className="btn btn--secondary"
+              onClick={() => setIsRaiseModalOpen(false)}
+              disabled={isSubmittingIssue}
+            >
               Cancel
             </button>
             <button
@@ -274,10 +223,14 @@ function EmployeeIssues({ store, focusIssueId }: EmployeeIssuesProps) {
             className="input"
             rows={4}
             value={issueNote}
+            maxLength={ISSUE_NOTE_MAX_LENGTH}
             onChange={(e) => setIssueNote(e.target.value)}
             placeholder="Describe what needs the owner's attention..."
             autoFocus
           />
+          <span className={`issue-text-counter${noteNearLimit ? ' issue-text-counter--near-limit' : ''}`} aria-live="polite">
+            {issueNote.length}/{ISSUE_NOTE_MAX_LENGTH}
+          </span>
         </FormField>
       </Modal>
     </div>

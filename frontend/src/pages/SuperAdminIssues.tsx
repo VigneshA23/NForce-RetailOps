@@ -1,123 +1,71 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, AlertTriangle, Bell, CheckCircle2, Clock, MessageSquare, User, X } from 'lucide-react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
+import { AlertCircle, Bell } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { getSAIssues, nudgeOwner, updateSAIssueStatus, type SAIssue } from '../api/superAdminIssues';
 import StatCard from '../components/StatCard';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
 import ButtonDots from '../components/ButtonDots';
+import IssueCard from '../components/IssueCard';
+import IssueResponseModal, { type IssueResponseAction } from '../components/IssueResponseModal';
+import { useIssueList } from '../hooks/useIssueList';
+import { useIssueFocus, type IssueFocusRequest } from '../hooks/useIssueFocus';
+import {
+  ISSUE_STATUSES,
+  ISSUE_STATUS_FILTER_OPTIONS,
+  ISSUE_STATUS_META,
+  matchesIssueStatusFilter,
+  parseIssueStatusFilter,
+  type IssueStatusFilter,
+} from '../utils/issueStatusMeta';
 import './SuperAdminIssues.css';
 
-type StatusFilter = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED' | null;
+const CARD_ID_PREFIX = 'sa-issue-row';
 
-const STATUS_BADGE: Record<SAIssue['status'], string> = {
-  OPEN: 'badge--danger',
-  ACKNOWLEDGED: 'badge--warning',
-  RESOLVED: 'badge--success',
-};
-
-const STATUS_LABEL: Record<SAIssue['status'], string> = {
-  OPEN: 'Open',
-  ACKNOWLEDGED: 'Acknowledged',
-  RESOLVED: 'Resolved',
-};
-
-const STATUS_GROUPS: Array<{ status: NonNullable<StatusFilter>; label: string }> = [
-  { status: 'OPEN', label: 'Open' },
-  { status: 'ACKNOWLEDGED', label: 'Acknowledged' },
-  { status: 'RESOLVED', label: 'Resolved' },
-];
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+interface SuperAdminIssuesProps {
+  // Set from a notification click to scroll to and highlight that issue.
+  focusIssueId?: IssueFocusRequest;
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-}
+function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
+  // SuperAdminDashboard unmounts this page when another tab is shown, so it
+  // is always "active" while mounted; useIssueList still polls for us.
+  const { issues, setIssues, isLoading, error, refresh } = useIssueList<SAIssue>(getSAIssues, true, 'Failed to load issues');
 
-interface ResolveModalProps {
-  issue: SAIssue;
-  onCancel: () => void;
-  onConfirm: (responseText: string) => void;
-  busy: boolean;
-}
-
-function ResolveModal({ issue, onCancel, onConfirm, busy }: ResolveModalProps) {
-  const [text, setText] = useState('');
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, []);
-
-  return (
-    <div className="issues-modal-backdrop" onClick={onCancel}>
-      <div className="issues-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Resolve issue">
-        <div className="issues-modal__header">
-          <span className="issues-modal__title">Resolve Issue</span>
-          <button type="button" className="issues-modal__close" onClick={onCancel} aria-label="Cancel">
-            <X size={16} />
-          </button>
-        </div>
-        <p className="issues-modal__note">{issue.note}</p>
-        <textarea
-          ref={textareaRef}
-          className="input issues-modal__input"
-          placeholder="Optional response to employee…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={3}
-        />
-        <div className="issues-modal__footer">
-          <button type="button" className="btn btn--secondary" onClick={onCancel} disabled={busy}>
-            Cancel
-          </button>
-          <button type="button" className={`btn btn--primary${busy ? ' btn--loading' : ''}`} onClick={() => onConfirm(text)} disabled={busy}>
-            {busy ? <ButtonDots label="Resolving" /> : 'Confirm Resolve'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function SuperAdminIssues() {
-  const [issues, setIssues] = useState<SAIssue[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('OPEN');
+  const [statusFilter, setStatusFilter] = useState<IssueStatusFilter>('ACTIVE');
+  // Keyed by storeId, not name -- two stores can share a display name.
   const [storeFilter, setStoreFilter] = useState<string>('');
   const [search, setSearch] = useState('');
   const [nudgingId, setNudgingId] = useState<number | null>(null);
+  // Nudged this session: the backend enforces a 24h cooldown, this just
+  // reflects it on the button without waiting for a rejected click.
+  const [nudgedIds, setNudgedIds] = useState<Set<number>>(() => new Set());
   const [busyId, setBusyId] = useState<number | null>(null);
-  const [resolveModalId, setResolveModalId] = useState<number | null>(null);
+  const [pending, setPending] = useState<{ issueId: number; action: IssueResponseAction } | null>(null);
 
-  function loadIssues() {
-    setIsLoading(true);
-    setLoadError(null);
-    getSAIssues()
-      .then(setIssues)
-      .catch((err: unknown) => setLoadError(err instanceof Error ? err.message : 'Failed to load issues'))
-      .finally(() => setIsLoading(false));
-  }
+  const clearFilters = useCallback(() => { setStatusFilter(null); setStoreFilter(''); setSearch(''); }, []);
+  const issueIds = useMemo(() => issues.map((i) => i.id), [issues]);
+  const highlightedId = useIssueFocus(focusIssueId, issueIds, CARD_ID_PREFIX, clearFilters);
 
-  useEffect(() => { loadIssues(); }, []);
-
-  const storeNames = useMemo(() => {
-    const names = [...new Set(issues.map((i) => i.storeName))].sort();
-    return names;
+  const storeOptions = useMemo(() => {
+    const byId = new Map<number, string>();
+    issues.forEach((i) => byId.set(i.storeId, i.storeName));
+    return [...byId.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, name]) => ({ value: String(id), label: name }));
   }, [issues]);
 
-  const openCount = useMemo(() => issues.filter((i) => i.status === 'OPEN').length, [issues]);
-  const acknowledgedCount = useMemo(() => issues.filter((i) => i.status === 'ACKNOWLEDGED').length, [issues]);
-  const resolvedCount = useMemo(() => issues.filter((i) => i.status === 'RESOLVED').length, [issues]);
+  const counts = useMemo(() => ({
+    OPEN: issues.filter((i) => i.status === 'OPEN').length,
+    ACKNOWLEDGED: issues.filter((i) => i.status === 'ACKNOWLEDGED').length,
+    RESOLVED: issues.filter((i) => i.status === 'RESOLVED').length,
+  }), [issues]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return issues.filter((issue) => {
-      if (statusFilter !== null && issue.status !== statusFilter) return false;
-      if (storeFilter && issue.storeName !== storeFilter) return false;
+      if (!matchesIssueStatusFilter(issue, statusFilter)) return false;
+      if (storeFilter && String(issue.storeId) !== storeFilter) return false;
       if (q) {
         return (
           issue.storeName.toLowerCase().includes(q) ||
@@ -133,7 +81,8 @@ function SuperAdminIssues() {
     setNudgingId(issue.id);
     try {
       await nudgeOwner(issue.id);
-      nfToast.success(`Nudge sent to ${issue.storeName} owner.`);
+      setNudgedIds((prev) => new Set(prev).add(issue.id));
+      nfToast.success(`Nudge sent to the ${issue.storeName} owner.`);
     } catch (err) {
       nfToast.error(err instanceof Error ? err.message : 'Failed to send nudge');
     } finally {
@@ -141,148 +90,107 @@ function SuperAdminIssues() {
     }
   }
 
-  async function handleAcknowledge(issue: SAIssue) {
+  async function handleConfirm(issue: SAIssue, action: IssueResponseAction, responseText: string) {
     setBusyId(issue.id);
     try {
-      const updated = await updateSAIssueStatus(issue.id, 'ACKNOWLEDGED');
+      const updated = await updateSAIssueStatus(issue.id, action, responseText || undefined);
       setIssues((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-      nfToast.success('Issue acknowledged.');
+      setPending(null);
+      nfToast.success(action === 'RESOLVED'
+        ? 'Issue resolved. The employee and store owner have been notified.'
+        : 'Issue acknowledged. The employee and store owner have been notified.');
     } catch (err) {
-      nfToast.error(err instanceof Error ? err.message : 'Failed to acknowledge issue');
+      nfToast.error(err instanceof Error ? err.message : 'Failed to update issue');
     } finally {
       setBusyId(null);
     }
   }
 
-  async function handleResolveConfirm(issue: SAIssue, responseText: string) {
-    setBusyId(issue.id);
-    try {
-      const updated = await updateSAIssueStatus(issue.id, 'RESOLVED', responseText || undefined);
-      setIssues((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
-      setResolveModalId(null);
-      nfToast.success('Issue resolved.');
-    } catch (err) {
-      nfToast.error(err instanceof Error ? err.message : 'Failed to resolve issue');
-    } finally {
-      setBusyId(null);
-    }
+  function renderActions(issue: SAIssue) {
+    if (issue.status === 'RESOLVED') return undefined;
+    const nudged = nudgedIds.has(issue.id);
+    return (
+      <>
+        {issue.status === 'OPEN' && (
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={busyId === issue.id}
+            onClick={() => setPending({ issueId: issue.id, action: 'ACKNOWLEDGED' })}
+          >
+            Acknowledge
+          </button>
+        )}
+        <button
+          type="button"
+          className="btn btn--primary btn--sm"
+          disabled={busyId === issue.id}
+          onClick={() => setPending({ issueId: issue.id, action: 'RESOLVED' })}
+        >
+          Resolve
+        </button>
+        <button
+          type="button"
+          className={`btn btn--ghost btn--sm sa-issues-page__nudge-btn${nudgingId === issue.id ? ' btn--loading' : ''}`}
+          onClick={() => handleNudge(issue)}
+          disabled={nudgingId === issue.id || nudged}
+          title={nudged ? 'Owner already nudged — you can nudge again after 24 hours' : 'Notify the store owner to take action'}
+        >
+          <Bell size={12} />
+          {nudgingId === issue.id ? <ButtonDots label="Sending" /> : nudged ? 'Nudged' : 'Nudge owner'}
+        </button>
+      </>
+    );
   }
-
-  const resolveIssue = issues.find((i) => i.id === resolveModalId) ?? null;
-  const showActionsCol = statusFilter !== 'RESOLVED';
 
   function renderCard(issue: SAIssue) {
     return (
-      <div className="issue-card" key={issue.id}>
-        <div className="issue-card__icon" aria-hidden="true">
-          <MessageSquare size={16} strokeWidth={2} />
-        </div>
-        <div className="issue-card__body">
-          <div className="issue-card__top">
-            <div className="issue-card__field">
-              <span className="issue-card__label">Store</span>
-              <span className="issue-card__value sa-issues-page__store-name">{issue.storeName}</span>
-            </div>
-            <div className="issue-card__field">
-              <span className="issue-card__label">Employee</span>
-              <span className="issue-card__value">{issue.employeeFullName}</span>
-            </div>
-            <div className="issue-card__field issue-card__field--grow">
-              <span className="issue-card__label">Issue</span>
-              <span className="issue-card__value sa-issues-page__note">{issue.note}</span>
-            </div>
-            <div className="issue-card__field">
-              <span className="issue-card__label">Raised</span>
-              <span className="issue-card__value sa-issues-page__date-cell">
-                <span>{formatDate(issue.createdAt)}</span>
-                <span className="sa-issues-page__time">{formatTime(issue.createdAt)}</span>
-              </span>
-            </div>
-            <div className="issue-card__field issue-card__field--status">
-              <span className="issue-card__label">Status</span>
-              <span className={`badge ${STATUS_BADGE[issue.status]}`}>{STATUS_LABEL[issue.status]}</span>
-            </div>
-          </div>
-
-          {issue.responseText && (
-            <>
-              <hr className="issue-card__divider" />
-              <div className="issue-card__response-block">
-                <span className="issue-card__response-label">Admin Response</span>
-                <div className="issue-card__response-box">
-                  <span className="issue-card__response-avatar" aria-hidden="true">
-                    <User size={14} strokeWidth={2} />
-                  </span>
-                  <span className="sa-issues-page__response">{issue.responseText}</span>
-                </div>
-              </div>
-            </>
-          )}
-
-          {showActionsCol && (
-            <div className="issue-card__actions-row">
-              {issue.status === 'RESOLVED' ? (
-                <span className="sa-issues-page__resolved-label">—</span>
-              ) : (
-                <div className="sa-issues-page__actions">
-                  {issue.status === 'OPEN' && statusFilter !== 'ACKNOWLEDGED' && (
-                    <button
-                      type="button"
-                      className="btn btn--secondary btn--sm"
-                      disabled={busyId === issue.id}
-                      onClick={() => handleAcknowledge(issue)}
-                    >
-                      Acknowledge
-                    </button>
-                  )}
-                  {issue.status === 'ACKNOWLEDGED' && statusFilter !== 'OPEN' && (
-                    <button
-                      type="button"
-                      className="btn btn--primary btn--sm"
-                      disabled={busyId === issue.id}
-                      onClick={() => setResolveModalId(issue.id)}
-                    >
-                      Resolve
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className={`btn btn--ghost btn--sm sa-issues-page__nudge-btn${nudgingId === issue.id ? ' btn--loading' : ''}`}
-                    onClick={() => handleNudge(issue)}
-                    disabled={nudgingId === issue.id}
-                    title="Notify store owner to take action"
-                  >
-                    <Bell size={12} />
-                    {nudgingId === issue.id ? <ButtonDots label="Sending" /> : 'Nudge'}
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
+      <IssueCard
+        key={issue.id}
+        issue={issue}
+        idPrefix={CARD_ID_PREFIX}
+        showStore
+        showEmployee
+        highlighted={highlightedId === issue.id}
+        actions={renderActions(issue)}
+      />
     );
+  }
+
+  const groupStatuses = statusFilter === null ? ISSUE_STATUSES
+    : statusFilter === 'ACTIVE' ? ISSUE_STATUSES.filter((s) => s !== 'RESOLVED')
+    : null;
+
+  const pendingIssue = pending ? issues.find((i) => i.id === pending.issueId) ?? null : null;
+
+  function toggleStatus(status: NonNullable<IssueStatusFilter>) {
+    setStatusFilter((current) => (current === status ? 'ACTIVE' : status));
   }
 
   return (
     <div className="sa-issues-page">
       <div className="stat-card-row">
-        <StatCard icon={AlertTriangle} label="Open" value={openCount} tone="primary"
-          onClick={() => setStatusFilter(statusFilter === 'OPEN' ? null : 'OPEN')}
-          active={statusFilter === 'OPEN'} />
-        <StatCard icon={Clock} label="Acknowledged" value={acknowledgedCount} tone="warning"
-          onClick={() => setStatusFilter(statusFilter === 'ACKNOWLEDGED' ? null : 'ACKNOWLEDGED')}
-          active={statusFilter === 'ACKNOWLEDGED'} />
-        <StatCard icon={CheckCircle2} label="Resolved" value={resolvedCount} tone="success"
-          onClick={() => setStatusFilter(statusFilter === 'RESOLVED' ? null : 'RESOLVED')}
-          active={statusFilter === 'RESOLVED'} />
+        {ISSUE_STATUSES.map((status) => {
+          const meta = ISSUE_STATUS_META[status];
+          return (
+            <StatCard
+              key={status}
+              icon={meta.icon}
+              label={meta.label}
+              value={counts[status]}
+              tone={meta.tone}
+              onClick={() => toggleStatus(status)}
+              active={statusFilter === status}
+            />
+          );
+        })}
       </div>
 
-      {loadError && (
+      {error && (
         <div className="owners-page__error">
           <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-          <span className="owners-page__error-message">{loadError}</span>
-          <button type="button" className="btn btn--secondary" onClick={loadIssues}>Retry</button>
+          <span className="owners-page__error-message">{error}</span>
+          <button type="button" className="btn btn--secondary" onClick={refresh}>Retry</button>
         </div>
       )}
 
@@ -292,10 +200,7 @@ function SuperAdminIssues() {
         </div>
         <div className="filter">
           <Select
-            options={[
-              { value: '', label: 'All Stores' },
-              ...storeNames.map((name) => ({ value: name, label: name })),
-            ]}
+            options={[{ value: '', label: 'All Stores' }, ...storeOptions]}
             value={storeFilter}
             onChange={setStoreFilter}
             ariaLabel="Filter by store"
@@ -303,14 +208,9 @@ function SuperAdminIssues() {
         </div>
         <div className="filter">
           <Select
-            options={[
-              { value: '', label: 'All Status' },
-              { value: 'OPEN', label: 'Open' },
-              { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
-              { value: 'RESOLVED', label: 'Resolved' },
-            ]}
+            options={ISSUE_STATUS_FILTER_OPTIONS}
             value={statusFilter ?? ''}
-            onChange={(val) => setStatusFilter(val === '' ? null : val as NonNullable<StatusFilter>)}
+            onChange={(val) => setStatusFilter(parseIssueStatusFilter(val))}
             ariaLabel="Filter by status"
           />
         </div>
@@ -318,16 +218,17 @@ function SuperAdminIssues() {
 
       <div className="table-card">
         <div className="issue-card-list">
-          {statusFilter !== null ? (
+          {groupStatuses === null ? (
             filtered.map(renderCard)
           ) : (
-            STATUS_GROUPS.map(({ status, label }) => {
+            groupStatuses.map((status) => {
               const group = filtered.filter((i) => i.status === status);
               if (group.length === 0) return null;
+              const meta = ISSUE_STATUS_META[status];
               return (
                 <Fragment key={status}>
                   <div className="issues-group-header-cell">
-                    <span className={`badge ${STATUS_BADGE[status]}`}>{label}</span>
+                    <span className={`badge ${meta.badgeClass}`}>{meta.label}</span>
                     <span className="issues-group-count">{group.length}</span>
                   </div>
                   {group.map(renderCard)}
@@ -336,22 +237,23 @@ function SuperAdminIssues() {
             })
           )}
         </div>
-        {!isLoading && filtered.length === 0 && (
+        {isLoading && <div className="table-card__empty">Loading issues…</div>}
+        {!isLoading && !error && filtered.length === 0 && (
           <div className="table-card__empty">
-            {issues.length === 0 ? 'No issues have been raised yet.' : 'No issues match your filters.'}
+            {issues.length === 0 ? 'No issues have been raised yet.'
+              : statusFilter === 'ACTIVE' && !search && !storeFilter ? 'All caught up — no open issues across stores.'
+              : 'No issues match your filters.'}
           </div>
         )}
-        {isLoading && <div className="table-card__empty">Loading issues…</div>}
       </div>
 
-      {resolveIssue && (
-        <ResolveModal
-          issue={resolveIssue}
-          busy={busyId === resolveIssue.id}
-          onCancel={() => setResolveModalId(null)}
-          onConfirm={(text) => handleResolveConfirm(resolveIssue, text)}
-        />
-      )}
+      <IssueResponseModal
+        issue={pendingIssue}
+        action={pending?.action ?? 'RESOLVED'}
+        busy={pendingIssue !== null && busyId === pendingIssue.id}
+        onCancel={() => setPending(null)}
+        onConfirm={(text) => { if (pendingIssue && pending) handleConfirm(pendingIssue, pending.action, text); }}
+      />
     </div>
   );
 }

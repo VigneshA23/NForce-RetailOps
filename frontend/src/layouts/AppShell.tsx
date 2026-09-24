@@ -8,6 +8,7 @@ import BottomNav from '../components/BottomNav';
 import { useTheme } from '../hooks/useTheme';
 import { useSidebarCollapsed } from '../hooks/useSidebarCollapsed';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
 import './AppShell.css';
 
 interface AppShellProps<Key extends string = NavTabKey> {
@@ -36,7 +37,7 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
   onNotificationsClick?: () => void;
-  onNotificationNavigate?: (path: string, createdAt?: string) => void;
+  onNotificationNavigate?: NotificationNavigateHandler;
   notificationUnreadCount?: number;
   onNotificationsCountChange?: (count: number) => void;
   avatarUrl?: string | null;

@@ -6,8 +6,13 @@ import com.nforce.retailops.dto.UpdateIssueStatusRequest;
 import com.nforce.retailops.entity.RaisedIssue;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.InvalidIssueTransitionException;
+import com.nforce.retailops.exception.IssueAlreadyResolvedException;
 import com.nforce.retailops.exception.IssueNotFoundException;
+import com.nforce.retailops.exception.NudgeCooldownException;
+import com.nforce.retailops.exception.StoreHasNoActiveOwnerException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -98,7 +103,7 @@ class RaisedIssueServiceTest {
     @Test
     void resolvingAnIssueResolvesItAndNotifiesViaCreateForIssueUpdate() {
         when(raisedIssueRepository.findByIdWithEmployee(ISSUE_ID)).thenReturn(Optional.of(issue));
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(STORE_ID, OWNER_ID))
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(STORE_ID, OWNER_ID))
             .thenReturn(Optional.of(new StoreOwner()));
         when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner));
         when(raisedIssueRepository.save(any(RaisedIssue.class))).thenAnswer(i -> i.getArgument(0));
@@ -121,7 +126,7 @@ class RaisedIssueServiceTest {
     @Test
     void updatingStatusAsAnOwnerWhoDoesNotOwnTheStoreIsRejected() {
         when(raisedIssueRepository.findByIdWithEmployee(ISSUE_ID)).thenReturn(Optional.of(issue));
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(STORE_ID, OWNER_ID)).thenReturn(Optional.empty());
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(STORE_ID, OWNER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() ->
             raisedIssueService.updateStatus(ISSUE_ID, OWNER_ID, new UpdateIssueStatusRequest("RESOLVED", "Nope."))
@@ -140,5 +145,151 @@ class RaisedIssueServiceTest {
         ).isInstanceOf(IssueNotFoundException.class);
 
         verify(notificationService, never()).createForIssueUpdate(any(), any());
+    }
+
+    // ── Status transitions ────────────────────────────────────────────────────
+
+    private void ownerOwnsStore() {
+        when(raisedIssueRepository.findByIdWithEmployee(ISSUE_ID)).thenReturn(Optional.of(issue));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(STORE_ID, OWNER_ID))
+            .thenReturn(Optional.of(new StoreOwner()));
+    }
+
+    @Test
+    void acknowledgingAnIssueRecordsTheOwnerAsResponderSoTheEmployeeBadgeFires() {
+        ownerOwnsStore();
+        when(userRepository.findById(OWNER_ID)).thenReturn(Optional.of(owner));
+        when(raisedIssueRepository.save(any(RaisedIssue.class))).thenAnswer(i -> i.getArgument(0));
+
+        IssueResponse response = raisedIssueService.updateStatus(
+            ISSUE_ID, OWNER_ID, new UpdateIssueStatusRequest("ACKNOWLEDGED", "Part ordered, arriving Friday.")
+        );
+
+        assertThat(response.status()).isEqualTo("ACKNOWLEDGED");
+        assertThat(response.responseText()).isEqualTo("Part ordered, arriving Friday.");
+        assertThat(response.respondedByFullName()).isEqualTo("Store Owner");
+        assertThat(response.respondedBySuperAdmin()).isFalse();
+        assertThat(issue.getRespondedAt()).isNotNull();
+        verify(notificationService).createForIssueUpdate(issue, "ACKNOWLEDGED");
+    }
+
+    @Test
+    void repeatingTheCurrentStatusIsANoOpWithNoDuplicateNotification() {
+        issue.setStatus("ACKNOWLEDGED");
+        ownerOwnsStore();
+
+        IssueResponse response = raisedIssueService.updateStatus(
+            ISSUE_ID, OWNER_ID, new UpdateIssueStatusRequest("ACKNOWLEDGED", null)
+        );
+
+        assertThat(response.status()).isEqualTo("ACKNOWLEDGED");
+        verify(raisedIssueRepository, never()).save(any());
+        verify(notificationService, never()).createForIssueUpdate(any(), any());
+        verifyNoInteractions(activityLogService);
+    }
+
+    @Test
+    void aResolvedIssueCannotBeReopened() {
+        issue.setStatus("RESOLVED");
+        ownerOwnsStore();
+
+        assertThatThrownBy(() ->
+            raisedIssueService.updateStatus(ISSUE_ID, OWNER_ID, new UpdateIssueStatusRequest("OPEN", null))
+        ).isInstanceOf(InvalidIssueTransitionException.class);
+
+        verify(raisedIssueRepository, never()).save(any());
+    }
+
+    @Test
+    void anAcknowledgedIssueCannotGoBackToOpen() {
+        issue.setStatus("ACKNOWLEDGED");
+        ownerOwnsStore();
+
+        assertThatThrownBy(() ->
+            raisedIssueService.updateStatus(ISSUE_ID, OWNER_ID, new UpdateIssueStatusRequest("OPEN", null))
+        ).isInstanceOf(InvalidIssueTransitionException.class);
+    }
+
+    @Test
+    void aFormerOwnerWithARevokedLinkCannotListIssues() {
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(STORE_ID, OWNER_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> raisedIssueService.listForOwner(OWNER_ID, STORE_ID, null))
+            .isInstanceOf(StoreNotFoundException.class);
+
+        verify(raisedIssueRepository, never()).findByStoreIdOrderByCreatedAtDesc(any());
+    }
+
+    // ── Super Admin ───────────────────────────────────────────────────────────
+
+    @Test
+    void superAdminResolveRecordsTheSuperAdminAndNotifiesBothEmployeeAndOwner() {
+        SuperAdmin sa = new SuperAdmin();
+        ReflectionTestUtils.setField(sa, "name", "Platform Admin");
+        StoreOwner link = new StoreOwner();
+        link.setOwner(owner);
+        when(raisedIssueRepository.findByIdWithEmployee(ISSUE_ID)).thenReturn(Optional.of(issue));
+        when(raisedIssueRepository.save(any(RaisedIssue.class))).thenAnswer(i -> i.getArgument(0));
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(link));
+
+        IssueResponse response = raisedIssueService.updateStatusForSuperAdmin(
+            ISSUE_ID, sa, new UpdateIssueStatusRequest("RESOLVED", "Handled with the vendor.")
+        );
+
+        assertThat(response.respondedByFullName()).isEqualTo("Platform Admin");
+        assertThat(response.respondedBySuperAdmin()).isTrue();
+        assertThat(issue.getRespondedAt()).isNotNull();
+        verify(notificationService).createForIssueUpdate(issue, "RESOLVED");
+        verify(notificationService).notifyOwnerOfSuperAdminIssueUpdate(issue, owner, "RESOLVED");
+        verify(activityLogService).log(eq("ISSUE_RESOLVED"), eq("Platform Admin"), eq("SUPER_ADMIN"),
+            eq(STORE_ID), any(), eq("ISSUE"), any(), any());
+    }
+
+    // ── Nudge ─────────────────────────────────────────────────────────────────
+
+    @Test
+    void nudgingAResolvedIssueIsAConflict() {
+        issue.setStatus("RESOLVED");
+        when(raisedIssueRepository.findByIdWithEmployee(ISSUE_ID)).thenReturn(Optional.of(issue));
+
+        assertThatThrownBy(() -> raisedIssueService.nudgeOwner(ISSUE_ID))
+            .isInstanceOf(IssueAlreadyResolvedException.class);
+        verify(notificationService, never()).nudgeOwnerForIssue(any(), any());
+    }
+
+    @Test
+    void nudgingAStoreWithNoActiveOwnerIsAConflictNotASilentSuccess() {
+        when(raisedIssueRepository.findByIdWithEmployee(ISSUE_ID)).thenReturn(Optional.of(issue));
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(new StoreOwner()));
+
+        assertThatThrownBy(() -> raisedIssueService.nudgeOwner(ISSUE_ID))
+            .isInstanceOf(StoreHasNoActiveOwnerException.class);
+        verify(notificationService, never()).nudgeOwnerForIssue(any(), any());
+    }
+
+    @Test
+    void nudgingTwiceWithinTheCooldownIsRejected() {
+        StoreOwner link = new StoreOwner();
+        link.setOwner(owner);
+        when(raisedIssueRepository.findByIdWithEmployee(ISSUE_ID)).thenReturn(Optional.of(issue));
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(link));
+        when(notificationService.issueNudgedSince(eq(ISSUE_ID), any())).thenReturn(true);
+
+        assertThatThrownBy(() -> raisedIssueService.nudgeOwner(ISSUE_ID))
+            .isInstanceOf(NudgeCooldownException.class);
+        verify(notificationService, never()).nudgeOwnerForIssue(any(), any());
+    }
+
+    @Test
+    void nudgingNotifiesTheActiveOwner() {
+        StoreOwner link = new StoreOwner();
+        link.setOwner(owner);
+        when(raisedIssueRepository.findByIdWithEmployee(ISSUE_ID)).thenReturn(Optional.of(issue));
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(link));
+        when(notificationService.issueNudgedSince(eq(ISSUE_ID), any())).thenReturn(false);
+
+        raisedIssueService.nudgeOwner(ISSUE_ID);
+
+        verify(notificationService).nudgeOwnerForIssue(issue, owner);
     }
 }
