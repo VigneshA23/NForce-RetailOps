@@ -237,6 +237,11 @@
   margin: 0;
 }
 
+.checklist-category-alert {
+  color: var(--color-badge-icon-warning-fg);
+  flex-shrink: 0;
+}
+
 .checklist-category-icon {
   width: 34px;
   height: 34px;
@@ -356,9 +361,11 @@
   background: var(--color-badge-icon-success-bg);
 }
 
-/* Flagged state */
+/* Flagged state -- theme-aware warning token (matches --done's success
+   token below) instead of a hardcoded light-mode cream that stayed bright
+   and jarring against a dark card in dark mode. */
 .checklist-task--flagged {
-  background: #fffbeb;
+  background: var(--color-badge-icon-warning-bg);
 }
 
 /* Locked by another employee */
@@ -504,15 +511,20 @@
   border-top: 1px solid var(--color-border);
 }
 
-/* Flag reason box */
+/* Flag reason box -- theme-aware warning tokens (not hardcoded amber hex)
+   so the text stays readable against the box's own background in dark mode,
+   the same pair StoreDetailTable's "In Progress" pill/card already use. */
 .checklist-task__flag-box {
   display: flex;
   align-items: flex-start;
   gap: 6px;
   font-size: 12px;
-  color: #92400e;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
+  color: var(--color-badge-icon-warning-fg);
+  background: var(--color-badge-icon-warning-bg);
+  /* A soft tint of the warning color, not the full-strength text color --
+     the flagged card behind this box shares the same background token, so
+     this border is what keeps the notice visually distinct from the card. */
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-warning-fg) 35%, transparent);
   border-radius: var(--radius-sm);
   padding: 8px 10px;
   line-height: 1.4;
@@ -521,7 +533,19 @@
 .checklist-task__flag-box svg {
   flex-shrink: 0;
   margin-top: 1px;
-  color: #d97706;
+  color: var(--color-badge-icon-warning-fg);
+}
+
+/* Edit notice -- an admin corrected the value directly (no resubmission
+   needed), so it reads as informational rather than the flag box's warning. */
+.checklist-task__flag-box--edited {
+  color: var(--color-badge-icon-info-fg);
+  background: var(--color-badge-icon-info-bg);
+  border-color: transparent;
+}
+
+.checklist-task__flag-box--edited svg {
+  color: var(--color-badge-icon-info-fg);
 }
 
 /* Error */

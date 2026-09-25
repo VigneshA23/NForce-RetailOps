@@ -6,6 +6,7 @@ import com.nforce.retailops.entity.Notification;
 import com.nforce.retailops.entity.RaisedIssue;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.SuperAdmin;
+import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.NotificationNotFoundException;
 import com.nforce.retailops.repository.NotificationRepository;
@@ -13,6 +14,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
 import java.util.List;
@@ -190,30 +192,43 @@ public class NotificationService {
         return notificationRepository.existsByRelatedIssueIdAndCategoryAndCreatedAtAfter(issueId, "ISSUE_NUDGE", since);
     }
 
+    // Deep-links the employee straight to the flagged/corrected task: '/checklist'
+    // (Today's Tasks) when the response's own date is today, '/audit' (History)
+    // for a past date -- with the task id and date encoded as a query string, no
+    // schema change needed since linkPath is already a free-text column. See
+    // EMPLOYEE_NOTIFICATION_ROUTES/handleNotificationNavigate on the frontend.
+    private static String employeeTaskLinkPath(TaskResponseEntry entry) {
+        boolean isToday = entry.getResponseDate().equals(LocalDate.now());
+        String base = isToday ? "/checklist" : "/audit";
+        return base + "?taskId=" + entry.getTask().getId() + "&date=" + entry.getResponseDate();
+    }
+
     @Transactional
     public void createForFlag(AdminCorrection correction) {
-        User employee = correction.getTaskResponse().getEmployee();
-        String taskName = correction.getTaskResponse().getTask().getName();
+        TaskResponseEntry entry = correction.getTaskResponse();
+        User employee = entry.getEmployee();
+        String taskName = entry.getTask().getName();
         String reason = correction.getReason();
         send(employee, "RESPONSE_NEEDS_ATTENTION",
             "Your \"" + taskName + "\" response needs correction",
             reason != null && !reason.isBlank()
                 ? "Admin feedback: " + reason
                 : "The store admin has flagged your response for correction.",
-            "/checklist");
+            employeeTaskLinkPath(entry));
     }
 
     @Transactional
     public void createForCorrection(AdminCorrection correction) {
-        User employee = correction.getTaskResponse().getEmployee();
-        String taskName = correction.getTaskResponse().getTask().getName();
+        TaskResponseEntry entry = correction.getTaskResponse();
+        User employee = entry.getEmployee();
+        String taskName = entry.getTask().getName();
         String reason = correction.getReason();
         send(employee, "CORRECTION_MADE",
             "Your \"" + taskName + "\" response was corrected",
             reason != null && !reason.isBlank()
                 ? "Reason: " + reason
                 : "Your response was reviewed and corrected by the store admin.",
-            "/audit");
+            employeeTaskLinkPath(entry));
     }
 
     @Transactional

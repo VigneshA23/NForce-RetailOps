@@ -6,11 +6,14 @@ import ChecklistDayHistoryView from '../components/ChecklistDayHistoryView'
 
 interface EmployeeHistoryProps {
   store: StoreSummary
-  // Seeds the initially-selected date from a notification's own createdAt
-  // (converted to the LOCAL calendar date it falls on, same as todayDate()/
-  // yesterdayDate() below) instead of the yesterday default -- id lets a new
-  // click re-apply the same date if it's clicked again.
-  dateSeed?: { createdAt: string; id: number }
+  // Seeds the initially-selected date instead of the yesterday default -- id
+  // lets a new click re-apply the same date if it's clicked again. `date`
+  // (an exact YYYY-MM-DD from a flag/correction notification's linkPath) wins
+  // when present; `createdAt` (the notification's own creation time) is the
+  // older, less precise fallback other notification categories still use.
+  dateSeed?: { date?: string; createdAt?: string; id: number }
+  // Deep-link from a notification click -- see ChecklistDayHistoryView's prop.
+  focusTaskId?: { taskId: number; ts: number }
 }
 
 // YYYY-MM-DD from the Date object's own LOCAL calendar fields -- deliberately
@@ -34,7 +37,7 @@ function yesterdayDate(): string {
   return toDateKey(date)
 }
 
-function EmployeeHistory({ store, dateSeed }: EmployeeHistoryProps) {
+function EmployeeHistory({ store, dateSeed, focusTaskId }: EmployeeHistoryProps) {
   // Defaults to yesterday: a shift's checklist is realistically only fully
   // wrapped up (and worth reviewing) once the day is over, so that's the more
   // useful starting point than an in-progress "today". Overridden below when
@@ -48,7 +51,8 @@ function EmployeeHistory({ store, dateSeed }: EmployeeHistoryProps) {
   useEffect(() => {
     if (dateSeed && dateSeed.id !== appliedSeedId.current) {
       appliedSeedId.current = dateSeed.id
-      setSelectedDate(toDateKey(new Date(dateSeed.createdAt)))
+      if (dateSeed.date) setSelectedDate(dateSeed.date)
+      else if (dateSeed.createdAt) setSelectedDate(toDateKey(new Date(dateSeed.createdAt)))
     }
   }, [dateSeed])
 
@@ -91,6 +95,7 @@ function EmployeeHistory({ store, dateSeed }: EmployeeHistoryProps) {
       onSelectDate={setSelectedDate}
       maxDate={todayDate()}
       getCorrectionHistory={getCorrectionHistory}
+      focusTaskId={focusTaskId}
     />
   )
 }

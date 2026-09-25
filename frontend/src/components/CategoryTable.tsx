@@ -5,6 +5,7 @@ import {
   ClipboardList,
   MapPin,
   Tag,
+  PlusCircle,
 } from 'lucide-react';
 import {
   DndContext,
@@ -36,6 +37,9 @@ interface CategoryTableProps {
   onDelete?: (category: Category) => void;
   onToggleStatus?: (category: Category, active: boolean) => void;
   onReorder?: (orderedIds: number[]) => void;
+  // A category with no tasks shows a "+ Tasks" affordance in the Tasks
+  // column instead of "0 Tasks" when this is provided.
+  onAssignTasks?: (category: Category) => void;
   // Rendered inside the card below the table (e.g. pagination).
   footer?: ReactNode;
 }
@@ -46,6 +50,7 @@ interface RowSharedProps {
   onEdit?: (category: Category) => void;
   onDelete?: (category: Category) => void;
   onToggleStatus?: (category: Category, active: boolean) => void;
+  onAssignTasks?: (category: Category) => void;
 }
 
 function storesLabel(category: Category): string {
@@ -65,7 +70,7 @@ function startsLabel(category: Category): string | null {
     : `Starts ${formatDateLabel(category.startDate)}`;
 }
 
-function CategoryRowCells({ category, canManage, onEdit, onDelete, onToggleStatus }: RowSharedProps) {
+function CategoryRowCells({ category, canManage, onEdit, onDelete, onToggleStatus, onAssignTasks }: RowSharedProps) {
   const starts = startsLabel(category);
   return (
     <>
@@ -101,9 +106,22 @@ function CategoryRowCells({ category, canManage, onEdit, onDelete, onToggleStatu
         </td>
       )}
       <td className="category-table__task-count" data-label="Tasks">
-        {canManage && <ClipboardList size={12} className="category-table__task-icon" aria-hidden="true" />}
-        <span className="category-table__task-number">{category.taskCount}</span>
-        {canManage && <span className="category-table__task-suffix">Tasks</span>}
+        {canManage && category.taskCount === 0 && onAssignTasks ? (
+          <button
+            type="button"
+            className="category-table__assign-tasks"
+            onClick={() => onAssignTasks(category)}
+          >
+            <PlusCircle size={12} aria-hidden="true" />
+            Tasks
+          </button>
+        ) : (
+          <>
+            {canManage && <ClipboardList size={12} className="category-table__task-icon" aria-hidden="true" />}
+            <span className="category-table__task-number">{category.taskCount}</span>
+            {canManage && <span className="category-table__task-suffix">Tasks</span>}
+          </>
+        )}
       </td>
       <td className="category-table__status" data-label="Status">
         {canManage && onToggleStatus ? (
@@ -149,7 +167,7 @@ function CategoryRowCells({ category, canManage, onEdit, onDelete, onToggleStatu
   );
 }
 
-function SortableCategoryRow({ category, canManage, onEdit, onDelete, onToggleStatus }: RowSharedProps) {
+function SortableCategoryRow({ category, canManage, onEdit, onDelete, onToggleStatus, onAssignTasks }: RowSharedProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: category.id,
   });
@@ -182,12 +200,13 @@ function SortableCategoryRow({ category, canManage, onEdit, onDelete, onToggleSt
         onEdit={onEdit}
         onDelete={onDelete}
         onToggleStatus={onToggleStatus}
+        onAssignTasks={onAssignTasks}
       />
     </tr>
   );
 }
 
-function StaticCategoryRow({ category, canManage, onEdit, onDelete, onToggleStatus }: RowSharedProps) {
+function StaticCategoryRow({ category, canManage, onEdit, onDelete, onToggleStatus, onAssignTasks }: RowSharedProps) {
   return (
     <tr className="category-table__row">
       <CategoryRowCells
@@ -196,6 +215,7 @@ function StaticCategoryRow({ category, canManage, onEdit, onDelete, onToggleStat
         onEdit={onEdit}
         onDelete={onDelete}
         onToggleStatus={onToggleStatus}
+        onAssignTasks={onAssignTasks}
       />
     </tr>
   );
@@ -210,6 +230,7 @@ function CategoryTable({
   onDelete,
   onToggleStatus,
   onReorder,
+  onAssignTasks,
   footer,
 }: CategoryTableProps) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -235,6 +256,7 @@ function CategoryTable({
         onEdit={onEdit}
         onDelete={onDelete}
         onToggleStatus={onToggleStatus}
+        onAssignTasks={onAssignTasks}
       />
     ) : (
       <StaticCategoryRow
@@ -244,6 +266,7 @@ function CategoryTable({
         onEdit={onEdit}
         onDelete={onDelete}
         onToggleStatus={onToggleStatus}
+        onAssignTasks={onAssignTasks}
       />
     ),
   );
