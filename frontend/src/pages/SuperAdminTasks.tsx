@@ -44,16 +44,38 @@ type FormModalState = { mode: 'create' } | { mode: 'edit'; task: AdminTask } | n
 
 const PAGE_SIZE = 10;
 
+// Mirrors CategoryService's own effectiveStoreIds(): a category with an
+// explicit store list is only visible on those stores; an "All Stores"
+// category is visible on every store of the owner who created it, or every
+// store platform-wide if Super Admin created it (owner null). A task can
+// only actually show up under its category on a store where the category
+// itself is visible there too -- see TaskRepository.findVisibleToOwnerById --
+// so this is what narrows the edit form's store picker to stores that can
+// really display this task's current category, not just any store.
+function effectiveCategoryStoreIds(category: Category, allStores: SuperAdminStore[]): Set<number> {
+  if (category.appliesToAllStores) {
+    const owned = category.createdByOwnerId == null
+      ? allStores
+      : allStores.filter((store) => store.ownerId === category.createdByOwnerId);
+    return new Set(owned.map((store) => store.storeId));
+  }
+  return new Set(category.stores.map((store) => store.id));
+}
+
 // Mirrors the Owner Admin Tasks page (pages/Tasks.tsx) in shape, but read/write
-// platform-wide. Both create and edit pick their store scope inline from the
-// full platform-wide store list (see TaskFormModal's storeScopeSelectable
-// prop); whenever the scope changes, the category list is refetched narrowed
-// to what's applicable to it. A Task row always belongs to a single owner, so
-// widening an edit's store scope to a store under a different owner doesn't
-// move the task there -- the backend fans that out into a new task row for
-// that owner instead (see TaskService.updateTaskAsSuperAdmin), which is why
-// updateTask()/handleFormSubmit's edit branch reloads the full task list
-// afterwards instead of merging a single updated row in place.
+// platform-wide. Both create and edit pick their store scope inline (see
+// TaskFormModal's storeScopeSelectable prop). Create picks from every
+// platform store and only narrows the category list afterwards to match
+// (getApplicableCategories); edit instead opens with a category already
+// assigned, so its store picker is narrowed up front to stores that category
+// actually covers (see effectiveCategoryStoreIds/editableTaskStores) -- a
+// store the category doesn't reach could never display the task under it. A
+// Task row always belongs to a single owner, so widening an edit's store
+// scope to a store under a different owner doesn't move the task there -- the
+// backend fans that out into a new task row for that owner instead (see
+// TaskService.updateTaskAsSuperAdmin), which is why updateTask()/
+// handleFormSubmit's edit branch reloads the full task list afterwards
+// instead of merging a single updated row in place.
 function SuperAdminTasks() {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -107,6 +129,18 @@ function SuperAdminTasks() {
     () => activeStores.map((store) => ({ id: store.storeId, name: store.storeName })),
     [activeStores],
   );
+
+  // Create picks its store scope before its category (see getApplicableCategories),
+  // so there's nothing to narrow there -- only edit needs this, since it opens
+  // with a category already assigned and widening its store scope to a store
+  // that category doesn't cover would create a task that can never display.
+  const editableTaskStores = useMemo(() => {
+    if (formModalState?.mode !== 'edit') return storeOptionsForPicker;
+    const category = allCategories.find((c) => c.id === formModalState.task.categoryId);
+    if (!category) return storeOptionsForPicker;
+    const allowedStoreIds = effectiveCategoryStoreIds(category, activeStores);
+    return storeOptionsForPicker.filter((store) => allowedStoreIds.has(store.id));
+  }, [formModalState, allCategories, activeStores, storeOptionsForPicker]);
 
   const storeFilterOptions = useMemo(
     () => [
@@ -412,7 +446,7 @@ function SuperAdminTasks() {
         categoriesError={categoriesError}
         onRetryCategories={() => {}}
         onManageCategories={() => {}}
-        stores={storeOptionsForPicker}
+        stores={editableTaskStores}
         storeScopeSelectable
         onStoreScopeChange={loadCategoriesForScope}
         errorMessage={formError}
