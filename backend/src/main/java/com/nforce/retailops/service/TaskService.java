@@ -340,6 +340,23 @@ public class TaskService {
         );
     }
 
+    // Used when a Super Admin edit picks up a new owner for a task (see
+    // updateTaskAsSuperAdmin): that owner's copy is a brand-new task row, so
+    // its dates are overridden rather than inherited from the edited task's
+    // own (possibly long-past) dates.
+    private TaskRequest withStartDate(TaskRequest base, LocalDate startDate, LocalDate endDate) {
+        return new TaskRequest(
+            base.name(), base.description(), base.categoryId(), base.displayOrder(),
+            base.appliesToAllStores(), base.storeIds(),
+            base.responseType(), base.responseNote(), base.numericUnit(), base.numericMin(), base.numericMax(), base.textMaxLength(),
+            base.completionType(), base.maxCompletions(),
+            base.scheduleType(), base.selectedDays(),
+            startDate, endDate,
+            base.timeMode(), base.startTime(), base.endTime(),
+            base.active()
+        );
+    }
+
     @Transactional
     public TaskResponse updateTask(Long ownerId, Long taskId, TaskRequest request) {
         Task task = requireOwnedTask(ownerId, taskId);
@@ -356,26 +373,101 @@ public class TaskService {
     }
 
     // Super Admin editing any task regardless of which owner it belongs to.
-    // Reuses applyRequest scoped to the task's own owner -- since a Task
-    // always belongs to exactly one owner, its category/store selections must
-    // still resolve against that owner, the same as if that owner had edited
-    // it themselves; this endpoint doesn't let Super Admin move a task to a
-    // different owner or store scope, only edit its other fields.
+    // The store scope submitted here can span stores under other owners too
+    // (mirrors createTasksAsSuperAdmin's picker) -- a Task always belongs to
+    // exactly one owner, so this can't just move the existing row to them.
+    // Instead: the subset of the new selection that still belongs to the
+    // task's own owner is applied to this row as normal; any owner newly
+    // picked up by the edit gets a brand-new task row (via createTaskInternal,
+    // same as create), starting no earlier than today since it didn't exist
+    // on the checklist before this edit. If the edit drops every one of the
+    // original owner's stores, this row is deactivated rather than left with
+    // an empty/invalid scope -- its history stays intact either way, since
+    // task_responses rows reference (task, store) directly and don't cascade
+    // off task_stores membership.
     @Transactional
-    public TaskResponse updateTaskAsSuperAdmin(Long taskId, TaskRequest request) {
+    public List<TaskResponse> updateTaskAsSuperAdmin(Long taskId, TaskRequest request) {
         Task task = taskRepository.findById(taskId)
             .orElseThrow(() -> new TaskNotFoundException("Task not found"));
-        Long ownerId = task.getOwner().getId();
-        applyRequest(task, ownerId, request);
-        task = taskRepository.save(task);
+        Long currentOwnerId = task.getOwner().getId();
 
-        activityLogService.logForStores(
-            "TASK_UPDATED", "Super Admin", "SUPER_ADMIN",
-            resolveTaskStoresForLog(task, ownerId), "TASK", task.getName(),
-            "Updated task \"" + task.getName() + "\""
-        );
+        Set<Store> resolvedStores = resolveAnyStores(request.appliesToAllStores(), request.storeIds());
+        Set<Long> targetStoreIds = request.appliesToAllStores()
+            ? allStoreIds()
+            : resolvedStores.stream().map(Store::getId).collect(Collectors.toSet());
 
-        return TaskResponse.from(task);
+        if (targetStoreIds.isEmpty()) {
+            throw new InvalidStoreSelectionException("Select at least one store, or choose All Stores");
+        }
+
+        Map<Long, StoreOwner> storeOwnerByStoreId = storeOwnerRepository.findByStoreIdIn(targetStoreIds).stream()
+            .collect(Collectors.toMap(so -> so.getStore().getId(), so -> so));
+
+        Map<Long, Set<Long>> storeIdsByOwnerId = new LinkedHashMap<>();
+        List<String> ownerlessStoreNames = new ArrayList<>();
+        for (Long storeId : targetStoreIds) {
+            StoreOwner so = storeOwnerByStoreId.get(storeId);
+            if (so == null || so.getOwner() == null || !so.isActive()) {
+                ownerlessStoreNames.add(so != null ? so.getStore().getName() : ("Store " + storeId));
+                continue;
+            }
+            storeIdsByOwnerId.computeIfAbsent(so.getOwner().getId(), key -> new HashSet<>()).add(storeId);
+        }
+
+        if (!ownerlessStoreNames.isEmpty() && !request.appliesToAllStores()) {
+            throw new InvalidStoreSelectionException(
+                "The following stores have no active Owner/Admin and cannot receive tasks: "
+                    + String.join(", ", ownerlessStoreNames));
+        }
+        if (storeIdsByOwnerId.isEmpty()) {
+            throw new InvalidStoreSelectionException("None of the selected stores currently have an active Owner/Admin");
+        }
+
+        Set<Long> ownStoreIds = storeIdsByOwnerId.remove(currentOwnerId);
+
+        List<TaskResponse> results = new ArrayList<>();
+        if (ownStoreIds != null && !ownStoreIds.isEmpty()) {
+            TaskRequest ownRequest = withStores(request, request.appliesToAllStores(), List.copyOf(ownStoreIds));
+            applyRequest(task, currentOwnerId, ownRequest);
+            task = taskRepository.save(task);
+
+            activityLogService.logForStores(
+                "TASK_UPDATED", "Super Admin", "SUPER_ADMIN",
+                resolveTaskStoresForLog(task, currentOwnerId), "TASK", task.getName(),
+                "Updated task \"" + task.getName() + "\""
+            );
+        } else {
+            task.setActive(false);
+            task = taskRepository.save(task);
+
+            activityLogService.logForStores(
+                "TASK_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
+                resolveTaskStoresForLog(task, currentOwnerId), "TASK", task.getName(),
+                "Deactivated task \"" + task.getName() + "\" (no longer assigned to any of its owner's stores)"
+            );
+        }
+        results.add(TaskResponse.from(task));
+
+        LocalDate today = LocalDate.now();
+        LocalDate newAssignmentStartDate = request.startDate() == null || request.startDate().isBefore(today)
+            ? today
+            : request.startDate();
+        // A one-time task's endDate mirrors its startDate (see the frontend's
+        // ONE_TIME -> EVERY_DAY translation); if that original date already
+        // passed, pushing startDate to today without also pushing endDate
+        // would leave endDate before startDate and the task would never show.
+        LocalDate newAssignmentEndDate = request.endDate() != null && request.endDate().isBefore(newAssignmentStartDate)
+            ? newAssignmentStartDate
+            : request.endDate();
+        TaskRequest newAssignmentBase = withStartDate(request, newAssignmentStartDate, newAssignmentEndDate);
+        for (Map.Entry<Long, Set<Long>> entry : storeIdsByOwnerId.entrySet()) {
+            TaskRequest perOwnerRequest = withStores(
+                newAssignmentBase, request.appliesToAllStores(), List.copyOf(entry.getValue())
+            );
+            results.add(createTaskInternal(entry.getKey(), perOwnerRequest, "Super Admin", "SUPER_ADMIN"));
+        }
+
+        return results;
     }
 
     @Transactional

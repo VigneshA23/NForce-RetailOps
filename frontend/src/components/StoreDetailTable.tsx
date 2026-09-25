@@ -15,6 +15,10 @@ export interface StoreDetailRow {
   key: string;
   categoryName: string;
   task: ChecklistHistoryTaskItem;
+  // Set only when this table is showing a multi-day range (e.g. "Last Week")
+  // so rows for the same recurring task across different days stay
+  // distinguishable instead of looking like one merged/duplicated row.
+  dateLabel?: string;
 }
 
 interface StoreDetailTableProps {
@@ -400,7 +404,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
               </tr>
             </thead>
             <tbody>
-              {rows.map(({ key, categoryName, task }) => {
+              {rows.map(({ key, categoryName, task, dateLabel }) => {
                 const status = taskStatus(task);
                 const responders = task.responses;
                 // Matches taskStatus/responseDisplayValue's own "latest response"
@@ -412,7 +416,11 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                   <tr key={key} id={`${idPrefix}task-row-${key}`}>
                     <td data-label="Category" className="store-detail-table__category">
                       {categoryName}
-                      <span className="store-detail-table__category-meta"> · {taskFrequencyLabel(task)}</span>
+                      <span className="store-detail-table__category-meta">
+                        {' '}
+                        · {taskFrequencyLabel(task)}
+                        {dateLabel ? ` · ${dateLabel}` : ''}
+                      </span>
                     </td>
                     <td data-label="Task">
                       <span className="store-detail-table__task-name">

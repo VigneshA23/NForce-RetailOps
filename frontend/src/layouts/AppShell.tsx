@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
@@ -111,6 +111,19 @@ function AppShell<Key extends string = NavTabKey>({
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const useBottomTabs = isMobile && mobileNav === 'bottom-tabs';
   const [keyboardActive, setKeyboardActive] = useState(false);
+  const pageRef = useRef<HTMLDivElement>(null);
+
+  // Owner/Admin and Employee shells keep every tab mounted (just toggling
+  // display: none) so switching tabs doesn't re-trigger each page's fetch
+  // burst -- so unlike a normal remount, .app-shell__page (the actual
+  // overflow-y: auto scroll container) stays the same DOM node across an
+  // ordinary tab switch, and its scrollTop carries over from whichever tab
+  // was open before. Reset on every real navigation (tab or overlay change),
+  // not on re-renders within the same page, so a manual scroll afterward is
+  // left alone.
+  useLayoutEffect(() => {
+    if (pageRef.current) pageRef.current.scrollTop = 0;
+  }, [activeTab, contentKey]);
 
   // Any text/search field opening the on-screen keyboard should tuck the
   // floating BottomNav away too -- not just the header's full-screen search
@@ -192,6 +205,7 @@ function AppShell<Key extends string = NavTabKey>({
         <main className={`app-shell__main${useBottomTabs ? ' app-shell__main--bottom-nav' : ''}`}>
           <AnimatePresence mode="sync">
             <motion.div
+              ref={pageRef}
               key={contentKey ?? 'static'}
               className="app-shell__page"
               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.992 }}

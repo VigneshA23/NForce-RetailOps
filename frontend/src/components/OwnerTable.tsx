@@ -277,7 +277,7 @@ function OwnerTable({
                       </button>
                       <button
                         type="button"
-                        className="owner-mobile-card__icon-btn"
+                        className="owner-mobile-card__icon-btn owner-mobile-card__icon-btn--danger"
                         aria-label={`Delete ${owner.ownerName}`}
                         title="Delete owner permanently"
                         onClick={() => onDelete(owner)}

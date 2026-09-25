@@ -50,7 +50,10 @@ function TrendChart({ data, loading = false, height = 180, compact = false }: Tr
   return (
     <div className="trend-chart" style={{ height }}>
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+        {/* Keyed on data.length so Recharts fully remounts the axis instead of
+            patching it in place -- otherwise switching between shorter/longer
+            trend windows can leave stale tick positions overlapping. */}
+        <LineChart key={data.length} data={data} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
           <XAxis
             dataKey="date"

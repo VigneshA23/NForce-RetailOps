@@ -22,11 +22,12 @@ interface TaskFormModalProps {
   // store list is SuperAdminStore[], a different shape) can pass a simple
   // {id, name} projection without fabricating unused fields.
   stores: { id: number; name: string }[];
-  // Super Admin's create flow: store scope is picked inline in this form
-  // (a searchable multi-select with an "All Stores" option up top) instead of
-  // defaulting to stores[0] like the Owner Admin flow does. Category options
-  // stay disabled until a scope is chosen, then `onStoreScopeChange` is used
-  // by the page to fetch the categories applicable to that scope.
+  // Super Admin's create and edit flows: store scope is picked inline in this
+  // form (a searchable multi-select with an "All Stores" option up top)
+  // instead of defaulting to stores[0] like the Owner Admin flow does.
+  // Category options stay disabled until a scope is chosen, then
+  // `onStoreScopeChange` is used by the page to fetch the categories
+  // applicable to that scope.
   storeScopeSelectable?: boolean;
   onStoreScopeChange?: (scope: { appliesToAllStores: boolean; storeIds: number[] }) => void;
   errorMessage?: string | null;

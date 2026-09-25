@@ -45,12 +45,15 @@ type FormModalState = { mode: 'create' } | { mode: 'edit'; task: AdminTask } | n
 const PAGE_SIZE = 10;
 
 // Mirrors the Owner Admin Tasks page (pages/Tasks.tsx) in shape, but read/write
-// platform-wide. The create form picks its store scope inline (see
-// TaskFormModal's storeScopeSelectable prop); once a scope is chosen, the
-// category list is fetched narrowed to what's applicable to it. Editing an
-// existing task reuses the same form with its store scope fixed (not
-// selectable) -- its category list is narrowed to that fixed scope instead,
-// since a task's store/category scope can't be moved to a different owner.
+// platform-wide. Both create and edit pick their store scope inline from the
+// full platform-wide store list (see TaskFormModal's storeScopeSelectable
+// prop); whenever the scope changes, the category list is refetched narrowed
+// to what's applicable to it. A Task row always belongs to a single owner, so
+// widening an edit's store scope to a store under a different owner doesn't
+// move the task there -- the backend fans that out into a new task row for
+// that owner instead (see TaskService.updateTaskAsSuperAdmin), which is why
+// updateTask()/handleFormSubmit's edit branch reloads the full task list
+// afterwards instead of merging a single updated row in place.
 function SuperAdminTasks() {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -190,10 +193,9 @@ function SuperAdminTasks() {
     setFormModalState({ mode: 'create' });
   }
 
-  // The edit form's store scope isn't user-editable (see TaskFormModal's
-  // storeScopeSelectable prop below), so the category list is narrowed once
-  // up front to the task's own existing scope rather than in response to an
-  // onStoreScopeChange callback the way the create flow drives it.
+  // Pre-populates the category list with the task's own existing scope so it
+  // isn't empty when the modal first opens; onStoreScopeChange (wired below)
+  // takes over and refetches it if the user then changes the store selection.
   function openEditForm(task: AdminTask) {
     setFormError(null);
     setFormModalState({ mode: 'edit', task });
@@ -207,8 +209,12 @@ function SuperAdminTasks() {
       setIsSubmitting(true);
       try {
         const updated = await updateTask(taskId, values);
-        setTasks((current) => current.map((task) => (task.id === updated.id ? updated : task)));
-        nfToast.success(`"${updated.name}" task updated.`);
+        // A store-scope change that picks up another owner fans out into a new
+        // task row for them (see TaskService.updateTaskAsSuperAdmin), so more
+        // than one task can come back here -- reload the full list rather than
+        // trying to merge an unknown number of new/changed rows in by hand.
+        loadTasks();
+        nfToast.success(`"${updated[0].name}" task updated.`);
         setFormModalState(null);
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'Something went wrong';
@@ -406,8 +412,8 @@ function SuperAdminTasks() {
         categoriesError={categoriesError}
         onRetryCategories={() => {}}
         onManageCategories={() => {}}
-        stores={formModalState?.mode === 'edit' ? formModalState.task.stores : storeOptionsForPicker}
-        storeScopeSelectable={formModalState?.mode !== 'edit'}
+        stores={storeOptionsForPicker}
+        storeScopeSelectable
         onStoreScopeChange={loadCategoriesForScope}
         errorMessage={formError}
         isSubmitting={isSubmitting}

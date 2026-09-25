@@ -79,7 +79,11 @@ function CompletionRateCard({
 
       <div className="completion-rate-card__chart" style={{ height: chartHeight }}>
         <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          {/* Keyed on periodDays so Recharts fully remounts the axis instead of
+              patching it in place -- otherwise switching periods (e.g. 14/30
+              days back down to 7) can leave stale tick positions from the
+              previous, longer data set overlapping the new, shorter one. */}
+          <AreaChart key={periodDays} data={trend} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor="var(--color-accent)" stopOpacity={0.28} />
@@ -87,13 +91,16 @@ function CompletionRateCard({
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+            {/* interval is driven by the actual data length, not periodDays --
+                if trend hasn't caught up with a just-changed period yet, the
+                axis still renders consistently with whatever it's showing. */}
             <XAxis
               dataKey="day"
               stroke="var(--color-text-muted)"
               fontSize={12}
               tickLine={false}
               axisLine={false}
-              interval={periodDays <= 7 ? 0 : 'preserveStartEnd'}
+              interval={trend.length <= 7 ? 0 : 'preserveStartEnd'}
               padding={{ left: 12, right: 12 }}
             />
             <YAxis stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} width={44} unit="%" />

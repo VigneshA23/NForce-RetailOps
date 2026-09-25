@@ -54,6 +54,13 @@ public class Notification {
     @JoinColumn(name = "related_issue_id")
     private RaisedIssue relatedIssue;
 
+    // Set on Super Admin store-scoped alerts (e.g. STORE_ZERO_ACTIVITY) so the
+    // frontend can deep-link straight into that store's checklist instead of
+    // landing on an empty "select a store" picker.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -90,6 +97,9 @@ public class Notification {
 
     public RaisedIssue getRelatedIssue() { return relatedIssue; }
     public void setRelatedIssue(RaisedIssue relatedIssue) { this.relatedIssue = relatedIssue; }
+
+    public Store getStore() { return store; }
+    public void setStore(Store store) { this.store = store; }
 
     public String getDedupKey() { return dedupKey; }
     public void setDedupKey(String dedupKey) { this.dedupKey = dedupKey; }

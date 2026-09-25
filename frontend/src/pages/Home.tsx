@@ -176,6 +176,12 @@ function Home({
       return;
     }
 
+    // Drop the previous period's data immediately -- otherwise, if this
+    // fetch is slow or fails, the chart keeps showing the last period's
+    // trend (wrong length/label format) under the newly-selected period,
+    // which is what produced the overlapping x-axis labels.
+    setTrend([]);
+
     const today = isoDateDaysAgo(0);
     // Rolling window: oldest day on the left, today on the right.
     const trendStartDate = isoDateDaysAgo(trendDays - 1);
