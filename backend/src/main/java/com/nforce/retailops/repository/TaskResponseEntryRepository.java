@@ -153,14 +153,6 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     // or undone) is enough to block deletion, same rationale as existsByTaskId.
     boolean existsByStoreId(Long storeId);
 
-    // Latest submission timestamp for a store on a given date — used by
-    // SuperAdminOperationsService to populate lastActivityAt per store.
-    @Query("SELECT MAX(tre.createdAt) FROM TaskResponseEntry tre "
-        + "WHERE tre.store.id = :storeId AND tre.responseDate = :responseDate AND tre.active = true")
-    java.time.OffsetDateTime findMaxCreatedAtByStoreIdAndResponseDate(
-        @Param("storeId") Long storeId, @Param("responseDate") java.time.LocalDate responseDate
-    );
-
     // Returns (responseDate, storeId, taskId) tuples for trend computation — one
     // round trip for the entire date range instead of one query per store per day.
     @Query("SELECT tre.responseDate, tre.store.id, tre.task.id FROM TaskResponseEntry tre "

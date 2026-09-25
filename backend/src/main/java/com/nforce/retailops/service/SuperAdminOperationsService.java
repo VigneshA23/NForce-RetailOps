@@ -3,12 +3,15 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.PlatformStatsResponse;
 import com.nforce.retailops.dto.StoreOperationsSummaryResponse;
 import com.nforce.retailops.dto.TrendDataPoint;
+import com.nforce.retailops.entity.MakeupLinkStatus;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
+import com.nforce.retailops.entity.TaskMakeupLink;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.TaskMakeupLinkRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import org.springframework.stereotype.Service;
@@ -28,9 +31,17 @@ import java.util.stream.Collectors;
 @Service
 public class SuperAdminOperationsService {
 
+    // A moved instance's pastDate can lag its linkedDate by at most
+    // TaskMakeupLinkService.MAX_LOOKBACK_DAYS (7) + MAX_MOVE_DAYS_AHEAD (7) -- widening
+    // the response lookup window by this much guarantees computeTrend's per-day pastDate
+    // lookups never fall outside the fetched range, even for a linkedDate right at the
+    // start of the requested window.
+    private static final int MAX_MOVE_LOOKBACK_PADDING_DAYS = 14;
+
     private final StoreOwnerRepository storeOwnerRepository;
     private final TaskRepository taskRepository;
     private final TaskResponseEntryRepository taskResponseEntryRepository;
+    private final TaskMakeupLinkRepository taskMakeupLinkRepository;
     private final RaisedIssueRepository raisedIssueRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
 
@@ -38,12 +49,14 @@ public class SuperAdminOperationsService {
         StoreOwnerRepository storeOwnerRepository,
         TaskRepository taskRepository,
         TaskResponseEntryRepository taskResponseEntryRepository,
+        TaskMakeupLinkRepository taskMakeupLinkRepository,
         RaisedIssueRepository raisedIssueRepository,
         StoreEmployeeRepository storeEmployeeRepository
     ) {
         this.storeOwnerRepository = storeOwnerRepository;
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
+        this.taskMakeupLinkRepository = taskMakeupLinkRepository;
         this.raisedIssueRepository = raisedIssueRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
     }
@@ -85,26 +98,14 @@ public class SuperAdminOperationsService {
                 ownersLoggedInToday.add(ownerId);
             }
 
-            List<Task> eligible = taskRepository.findActiveForStoreAndDate(ownerId, storeId, date).stream()
-                .filter(t -> TaskScheduleMatcher.matches(t, date))
-                .toList();
+            DailyTaskCounts counts = computeStoreDailyCounts(ownerId, storeId, date);
 
-            List<TaskResponseEntry> responses = taskResponseEntryRepository
-                .findByStoreIdAndResponseDateAndActiveTrue(storeId, date);
+            totalTasks += counts.total();
+            completedTasks += counts.completed();
 
-            Set<Long> respondedIds = responses.stream()
-                .map(r -> r.getTask().getId())
-                .collect(Collectors.toSet());
+            if (!counts.countedResponses().isEmpty()) storesWithActivity++;
 
-            Set<Long> unionIds = eligible.stream().map(Task::getId).collect(Collectors.toSet());
-            unionIds.addAll(respondedIds);
-
-            totalTasks += unionIds.size();
-            completedTasks += respondedIds.size();
-
-            if (!responses.isEmpty()) storesWithActivity++;
-
-            responses.forEach(r -> employeesActiveToday.add(r.getEmployee().getId()));
+            counts.countedResponses().forEach(r -> employeesActiveToday.add(r.getEmployee().getId()));
 
             long openIssuesForStore = raisedIssueRepository.countByStoreIdAndStatus(storeId, "OPEN");
             totalOpenIssues += openIssuesForStore;
@@ -166,9 +167,13 @@ public class SuperAdminOperationsService {
             }
         }
 
-        // One round-trip for all response tuples (date, storeId, taskId)
+        // One round-trip for all response tuples (date, storeId, taskId). Widened past
+        // startDate by MAX_MOVE_LOOKBACK_PADDING_DAYS so a moved unit's original due date
+        // (looked up below) is always covered, even for a move landing right at the start
+        // of the requested window.
         List<Long> allStoreIds = links.stream().map(so -> so.getStore().getId()).distinct().toList();
-        List<Object[]> tuples = taskResponseEntryRepository.findDateStoreTaskIdTuples(allStoreIds, startDate, today);
+        List<Object[]> tuples = taskResponseEntryRepository.findDateStoreTaskIdTuples(
+            allStoreIds, startDate.minusDays(MAX_MOVE_LOOKBACK_PADDING_DAYS), today);
 
         // Group: Map<date, Map<storeId, Set<taskId>>>
         Map<LocalDate, Map<Long, Set<Long>>> respondedByDateAndStore = new HashMap<>();
@@ -180,6 +185,20 @@ public class SuperAdminOperationsService {
                 .computeIfAbsent(date, k -> new HashMap<>())
                 .computeIfAbsent(sid, k -> new HashSet<>())
                 .add(tid);
+        }
+
+        // Missed tasks moved onto a day in this range (see TaskMakeupLinkService) --
+        // folded in below the same way computeStoreDailyCounts does for a single day, so
+        // a moved-and-completed task's TaskResponseEntry (stamped with its ORIGINAL due
+        // date, not the day it was actually completed) attributes to the right day here too.
+        List<TaskMakeupLink> movedLinks = taskMakeupLinkRepository.findByStoreIdInAndLinkedDateBetweenAndStatusIn(
+            allStoreIds, startDate, today, List.of(MakeupLinkStatus.PENDING, MakeupLinkStatus.FULFILLED));
+        Map<LocalDate, Map<Long, List<TaskMakeupLink>>> movedByDateAndStore = new HashMap<>();
+        for (TaskMakeupLink moved : movedLinks) {
+            movedByDateAndStore
+                .computeIfAbsent(moved.getLinkedDate(), k -> new HashMap<>())
+                .computeIfAbsent(moved.getStore().getId(), k -> new ArrayList<>())
+                .add(moved);
         }
 
         List<TrendDataPoint> points = new ArrayList<>();
@@ -208,6 +227,24 @@ public class SuperAdminOperationsService {
 
                 totalUnion += union.size();
                 totalCompleted += respondedIds.size();
+
+                List<TaskMakeupLink> movedForStore = movedByDateAndStore
+                    .getOrDefault(date, Map.of())
+                    .getOrDefault(sid, List.of());
+                for (TaskMakeupLink moved : movedForStore) {
+                    boolean completed = respondedByDateAndStore
+                        .getOrDefault(moved.getPastDate(), Map.of())
+                        .getOrDefault(sid, Set.of())
+                        .contains(moved.getTask().getId());
+                    // A FULFILLED move whose response has since been undone is no longer
+                    // a live instance on this date -- exclude it entirely (see
+                    // computeStoreDailyCounts).
+                    if (moved.getStatus() == MakeupLinkStatus.FULFILLED && !completed) {
+                        continue;
+                    }
+                    totalUnion++;
+                    if (completed) totalCompleted++;
+                }
             }
 
             int percent = totalUnion == 0 ? 0 : Math.round((totalCompleted * 100f) / totalUnion);
@@ -229,29 +266,21 @@ public class SuperAdminOperationsService {
         long storeId = link.getStore().getId();
         long ownerId = link.getOwner().getId();
 
-        List<Task> eligible = taskRepository.findActiveForStoreAndDate(ownerId, storeId, date).stream()
-            .filter(t -> TaskScheduleMatcher.matches(t, date))
-            .toList();
+        DailyTaskCounts counts = computeStoreDailyCounts(ownerId, storeId, date);
 
-        List<TaskResponseEntry> responses = taskResponseEntryRepository
-            .findByStoreIdAndResponseDateAndActiveTrue(storeId, date);
-
-        Set<Long> respondedIds = responses.stream()
-            .map(r -> r.getTask().getId())
-            .collect(Collectors.toSet());
-
-        Set<Long> unionIds = eligible.stream().map(Task::getId).collect(Collectors.toSet());
-        unionIds.addAll(respondedIds);
-
-        int total = unionIds.size();
-        int completed = respondedIds.size();
+        int total = counts.total();
+        int completed = counts.completed();
         int percent = total == 0 ? 0 : Math.round((completed * 100f) / total);
 
         long openIssues = raisedIssueRepository.countByStoreIdAndStatus(storeId, "OPEN");
 
-        OffsetDateTime lastActivity = responses.isEmpty()
-            ? null
-            : taskResponseEntryRepository.findMaxCreatedAtByStoreIdAndResponseDate(storeId, date);
+        // Includes moved-and-completed responses (see computeStoreDailyCounts) -- their
+        // createdAt is the real completion timestamp even though their stored
+        // responseDate is the original missed day, not `date`.
+        OffsetDateTime lastActivity = counts.countedResponses().stream()
+            .map(TaskResponseEntry::getCreatedAt)
+            .max(Comparator.naturalOrder())
+            .orElse(null);
 
         return new StoreOperationsSummaryResponse(
             storeId,
@@ -266,5 +295,70 @@ public class SuperAdminOperationsService {
             openIssues,
             lastActivity
         );
+    }
+
+    // Shared by getPlatformStats and buildStoreSummary: "total tasks" / "completed
+    // tasks" for one store on one date, including missed tasks the employee moved onto
+    // this date (see TaskMakeupLinkService). A moved-and-completed task's
+    // TaskResponseEntry.responseDate is stamped with its ORIGINAL due date, not `date`
+    // (TaskService.submitResponse) -- that's the correct value for the response's own
+    // identity/history, but it means a plain "responseDate == date" query alone silently
+    // drops it from today's count and (if that original date is ever queried) double-
+    // attributes it there instead. Folding in TaskMakeupLinkService's moved-units lookup
+    // here mirrors how TaskService.getTodayChecklistForEmployee already renders a moved
+    // unit as its own item on the target day's checklist.
+    private DailyTaskCounts computeStoreDailyCounts(long ownerId, long storeId, LocalDate date) {
+        List<Task> eligible = taskRepository.findActiveForStoreAndDate(ownerId, storeId, date).stream()
+            .filter(t -> TaskScheduleMatcher.matches(t, date))
+            .toList();
+
+        List<TaskResponseEntry> responses = taskResponseEntryRepository
+            .findByStoreIdAndResponseDateAndActiveTrue(storeId, date);
+
+        Set<Long> respondedIds = responses.stream()
+            .map(r -> r.getTask().getId())
+            .collect(Collectors.toSet());
+
+        Set<Long> unionIds = eligible.stream().map(Task::getId).collect(Collectors.toSet());
+        unionIds.addAll(respondedIds);
+
+        List<TaskMakeupLink> movedUnits = taskMakeupLinkRepository.findByStoreIdAndLinkedDateAndStatusIn(
+            storeId, date, List.of(MakeupLinkStatus.PENDING, MakeupLinkStatus.FULFILLED));
+
+        List<TaskResponseEntry> countedResponses = new ArrayList<>(responses);
+        int movedTotal = 0;
+        int movedCompleted = 0;
+        if (!movedUnits.isEmpty()) {
+            List<Long> movedTaskIds = movedUnits.stream().map(l -> l.getTask().getId()).distinct().toList();
+            List<LocalDate> movedPastDates = movedUnits.stream().map(TaskMakeupLink::getPastDate).distinct().toList();
+            Map<TaskMakeupKey, List<TaskResponseEntry>> movedResponsesByKey = taskResponseEntryRepository
+                .findByStoreIdAndTaskIdInAndResponseDateInAndActiveTrue(storeId, movedTaskIds, movedPastDates).stream()
+                .collect(Collectors.groupingBy(e -> new TaskMakeupKey(e.getTask().getId(), e.getResponseDate())));
+
+            for (TaskMakeupLink moved : movedUnits) {
+                List<TaskResponseEntry> movedResponses = movedResponsesByKey.getOrDefault(
+                    new TaskMakeupKey(moved.getTask().getId(), moved.getPastDate()), List.of());
+                // A FULFILLED move whose response has since been undone has no active
+                // response left -- no longer a live instance on this date (it's back in
+                // the missed list instead), so exclude it entirely rather than counting a
+                // phantom task (mirrors TaskService.getTodayChecklistForEmployee).
+                if (moved.getStatus() == MakeupLinkStatus.FULFILLED && movedResponses.isEmpty()) {
+                    continue;
+                }
+                movedTotal++;
+                if (!movedResponses.isEmpty()) {
+                    movedCompleted++;
+                    countedResponses.addAll(movedResponses);
+                }
+            }
+        }
+
+        return new DailyTaskCounts(unionIds.size() + movedTotal, respondedIds.size() + movedCompleted, countedResponses);
+    }
+
+    private record DailyTaskCounts(int total, int completed, List<TaskResponseEntry> countedResponses) {
+    }
+
+    private record TaskMakeupKey(Long taskId, LocalDate date) {
     }
 }
