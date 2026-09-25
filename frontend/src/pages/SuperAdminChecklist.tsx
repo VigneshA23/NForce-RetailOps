@@ -18,7 +18,8 @@ import ExportMenu from '../components/ExportMenu';
 import {
   hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, stepDate, formatDateNavLabel,
   formatDateLabel, formatDateRangeLabel, previousCalendarWeekRange, datesInRange, responseDisplayValue,
-  TASK_STATUS_LABELS, type DateRange,
+  TASK_STATUS_LABELS, type DateRange, visibleCategoriesForLiveView, inactiveTasksWithHistory,
+  type InactiveTaskWithHistory, formatTimeLabel, formatResponseEntryValue,
 } from '../utils/checklistHistoryOptions';
 import { matchesSearch } from '../utils/search';
 import { getAllStores } from '../api/superAdminStores';
@@ -171,11 +172,26 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const categoryDays = useMemo(() => {
     if (weekRange) {
       return weeklyDays.flatMap(({ date: d, detail: dayDetail }) =>
-        dayDetail.categories.map((category) => ({ date: d, category })),
+        visibleCategoriesForLiveView(dayDetail.categories).map((category) => ({ date: d, category })),
       );
     }
-    return detail ? detail.categories.map((category) => ({ date, category })) : [];
+    return detail ? visibleCategoriesForLiveView(detail.categories).map((category) => ({ date, category })) : [];
   }, [weekRange, weeklyDays, detail, date]);
+
+  // Deactivated tasks/categories with real response history -- see
+  // StoreDetail.tsx's identical inactiveItems for the full rationale.
+  const inactiveItems = useMemo<InactiveTaskWithHistory[]>(() => {
+    if (weekRange) {
+      const byTaskId = new Map<number, InactiveTaskWithHistory>();
+      for (const { detail: dayDetail } of weeklyDays) {
+        for (const item of inactiveTasksWithHistory(dayDetail.categories)) {
+          byTaskId.set(item.task.id, item);
+        }
+      }
+      return Array.from(byTaskId.values());
+    }
+    return detail ? inactiveTasksWithHistory(detail.categories) : [];
+  }, [weekRange, weeklyDays, detail]);
 
   const hasChecklist = weekRange
     ? weeklyDays.some(({ detail: dayDetail }) => dayDetail.hasChecklist)
@@ -216,7 +232,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     }
     getChecklistHistoryDetail(selectedStoreId, yesterday())
       .then((yd) => {
-        const allTasks = yd.categories.flatMap((c) => c.tasks);
+        const allTasks = visibleCategoriesForLiveView(yd.categories).flatMap((c) => c.tasks);
         if (allTasks.length === 0) { setYesterdayPercent(null); return; }
         const completedCount = allTasks.filter((t) => taskStatus(t) === 'COMPLETE').length;
         setYesterdayPercent(Math.round((completedCount / allTasks.length) * 100));
@@ -247,7 +263,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
       const tally = new Map<number, number>();
       for (const result of results) {
         if (result.status !== 'fulfilled') continue;
-        for (const category of result.value.categories) {
+        for (const category of visibleCategoriesForLiveView(result.value.categories)) {
           for (const task of category.tasks) {
             const s = taskStatus(task);
             if (s === 'OPEN' || s === 'ISSUE') {
@@ -400,6 +416,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
 
   const [outstandingOpen, setOutstandingOpen] = useState(true);
   const [completedOpen, setCompletedOpen] = useState(true);
+  const [inactiveOpen, setInactiveOpen] = useState(false);
   useEffect(() => {
     setOutstandingSearch('');
     setOutstandingCategoryFilter('all');
@@ -781,6 +798,53 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                     />
                   )}
                 </>
+              )}
+            </div>
+          )}
+
+          {selectedStoreId !== null && inactiveItems.length > 0 && (
+            <div className="store-detail-outstanding store-detail-outstanding--inactive">
+              <button
+                type="button"
+                className="store-detail-outstanding__toggle"
+                onClick={() => setInactiveOpen((v) => !v)}
+                aria-expanded={inactiveOpen}
+              >
+                <span className="store-detail-outstanding__title">
+                  Inactive Tasks
+                  <span className="store-detail-outstanding__count">{inactiveItems.length}</span>
+                </span>
+                <ChevronDown
+                  size={14}
+                  className={`store-detail-outstanding__chevron${inactiveOpen ? ' store-detail-outstanding__chevron--open' : ''}`}
+                />
+              </button>
+              {inactiveOpen && (
+                <div className="inactive-tasks-list">
+                  {inactiveItems.map((item) => (
+                    <div key={item.task.id} className="inactive-tasks-list__item">
+                      <div className="inactive-tasks-list__header">
+                        <span className="inactive-tasks-list__name">{item.task.name}</span>
+                        <span className="inactive-tasks-list__category">{item.categoryName}</span>
+                      </div>
+                      <p className="inactive-tasks-list__audit">
+                        {item.deactivatedScope === 'CATEGORY' ? 'Category deactivated' : 'Deactivated'}
+                        {item.deactivatedByName ? ` by ${item.deactivatedByName}` : ''}
+                        {item.deactivatedAt ? ` on ${formatTimeLabel(item.deactivatedAt)} · ${item.deactivatedAt.slice(0, 10)}` : ''}
+                      </p>
+                      <div className="inactive-tasks-list__responses">
+                        {item.task.responses.map((response) => (
+                          <div key={response.id} className="inactive-tasks-list__response">
+                            <UserAvatar initials={getInitials(response.employeeFullName)} src={response.employeeAvatarUrl} size={22} />
+                            <span className="inactive-tasks-list__response-name">{response.employeeFullName}</span>
+                            <span className="inactive-tasks-list__response-value">{formatResponseEntryValue(item.task, response)}</span>
+                            <span className="inactive-tasks-list__response-time">{formatTimeLabel(response.respondedAt)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           )}

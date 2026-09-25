@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { taskStatus, previousCalendarWeekRange, datesInRange, todayDate, yesterday } from './checklistHistoryOptions';
-import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
+import {
+  taskStatus, previousCalendarWeekRange, datesInRange, todayDate, yesterday,
+  visibleCategoriesForLiveView, inactiveTasksWithHistory,
+} from './checklistHistoryOptions';
+import type { ChecklistHistoryCategory, ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 
 function response(overrides: Partial<ChecklistHistoryResponseEntry> = {}): ChecklistHistoryResponseEntry {
   return {
@@ -32,6 +35,9 @@ function task(overrides: Partial<ChecklistHistoryTaskItem> = {}): ChecklistHisto
     numericUnit: null,
     completed: false,
     currentlyActive: true,
+    totalActiveEmployees: 1,
+    deactivatedByName: null,
+    deactivatedAt: null,
     responses: [],
     ...overrides,
   };
@@ -90,6 +96,75 @@ describe('taskStatus', () => {
       task({ responseType: 'YES_NO', responses: [response({ booleanValue: false })] })
     );
     expect(result).toBe('ISSUE');
+  });
+});
+
+function category(overrides: Partial<ChecklistHistoryCategory> = {}): ChecklistHistoryCategory {
+  return {
+    id: 1,
+    name: 'Category',
+    active: true,
+    deactivatedByName: null,
+    deactivatedAt: null,
+    tasks: [],
+    ...overrides,
+  };
+}
+
+describe('visibleCategoriesForLiveView', () => {
+  it('drops an inactive category entirely', () => {
+    const categories = [
+      category({ active: false, tasks: [task({ id: 1 })] }),
+      category({ id: 2, active: true, tasks: [task({ id: 2 })] }),
+    ];
+    const result = visibleCategoriesForLiveView(categories);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe(2);
+  });
+
+  it('drops an inactive task from an otherwise-active category', () => {
+    const categories = [
+      category({ tasks: [task({ id: 1, currentlyActive: false }), task({ id: 2, currentlyActive: true })] }),
+    ];
+    const result = visibleCategoriesForLiveView(categories);
+    expect(result).toHaveLength(1);
+    expect(result[0].tasks.map((t) => t.id)).toEqual([2]);
+  });
+
+  it('drops a category entirely once every task under it is inactive', () => {
+    const categories = [category({ tasks: [task({ id: 1, currentlyActive: false })] })];
+    expect(visibleCategoriesForLiveView(categories)).toHaveLength(0);
+  });
+});
+
+describe('inactiveTasksWithHistory', () => {
+  it('excludes a deactivated task with zero response history (fully hidden)', () => {
+    const categories = [category({ tasks: [task({ id: 1, currentlyActive: false, responses: [] })] })];
+    expect(inactiveTasksWithHistory(categories)).toHaveLength(0);
+  });
+
+  it('includes a deactivated task that has at least one recorded response', () => {
+    const categories = [
+      category({ tasks: [task({ id: 1, currentlyActive: false, responses: [response()] })] }),
+    ];
+    const result = inactiveTasksWithHistory(categories);
+    expect(result).toHaveLength(1);
+    expect(result[0].deactivatedScope).toBe('TASK');
+  });
+
+  it('attributes the deactivation to the category when the category itself is inactive', () => {
+    const categories = [
+      category({
+        active: false,
+        deactivatedByName: 'Super Admin',
+        deactivatedAt: '2026-09-20T10:00:00Z',
+        tasks: [task({ id: 1, currentlyActive: true, responses: [response()] })],
+      }),
+    ];
+    const result = inactiveTasksWithHistory(categories);
+    expect(result).toHaveLength(1);
+    expect(result[0].deactivatedScope).toBe('CATEGORY');
+    expect(result[0].deactivatedByName).toBe('Super Admin');
   });
 });
 

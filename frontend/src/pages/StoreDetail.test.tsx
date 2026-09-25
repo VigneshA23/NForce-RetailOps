@@ -23,7 +23,22 @@ function taskItem(overrides: Partial<ChecklistHistoryTaskItem>): ChecklistHistor
     numericUnit: null,
     completed: false,
     currentlyActive: true,
+    totalActiveEmployees: 1,
+    deactivatedByName: null,
+    deactivatedAt: null,
     responses: [],
+    ...overrides,
+  };
+}
+
+function categoryItem(overrides: Partial<ChecklistHistoryDetail['categories'][number]>): ChecklistHistoryDetail['categories'][number] {
+  return {
+    id: 1,
+    name: 'Category',
+    active: true,
+    deactivatedByName: null,
+    deactivatedAt: null,
+    tasks: [],
     ...overrides,
   };
 }
@@ -74,14 +89,14 @@ function respondedWith(id: number, employeeFullName: string, booleanValue: boole
 
 function searchSampleDetail(): ChecklistHistoryDetail {
   return detail(1, 'Downtown', [
-    {
+    categoryItem({
       id: 1,
       name: 'Opening Checks',
       tasks: [
         taskItem({ id: 1, name: 'Check float cash in till', responses: respondedWith(1, 'Jane Doe', true) }),
         taskItem({ id: 2, name: 'Clean restrooms', responses: respondedWith(2, 'John Smith', false) }),
       ],
-    },
+    }),
   ]);
 }
 
@@ -93,14 +108,14 @@ describe('StoreDetail progress indicator', () => {
   it('shows the overall completion percentage for the selected store/date', async () => {
     mockGetDetail.mockResolvedValue(
       detail(1, 'Downtown', [
-        {
+        categoryItem({
           id: 1,
           name: 'Preparation',
           tasks: [
             taskItem({ id: 1, completed: true, responses: respondedYes(1) }),
             taskItem({ id: 2, completed: false }),
           ],
-        },
+        }),
       ]),
     );
 
@@ -113,16 +128,16 @@ describe('StoreDetail progress indicator', () => {
   it('shows each category\'s completed/total sub-fraction', async () => {
     mockGetDetail.mockResolvedValue(
       detail(1, 'Downtown', [
-        {
+        categoryItem({
           id: 1,
           name: 'Preparation',
           tasks: [taskItem({ id: 1, completed: true, responses: respondedYes(1) }), taskItem({ id: 2 })],
-        },
-        {
+        }),
+        categoryItem({
           id: 2,
           name: 'Cleaning',
           tasks: [taskItem({ id: 3, completed: true, responses: respondedYes(2) })],
-        },
+        }),
       ]),
     );
 
@@ -151,14 +166,14 @@ describe('StoreDetail progress indicator', () => {
   it('shows 100% when every scheduled task is completed', async () => {
     mockGetDetail.mockResolvedValue(
       detail(1, 'Downtown', [
-        {
+        categoryItem({
           id: 1,
           name: 'Preparation',
           tasks: [
             taskItem({ id: 1, completed: true, responses: respondedYes(1) }),
             taskItem({ id: 2, completed: true, responses: respondedYes(2) }),
           ],
-        },
+        }),
       ]),
     );
 
@@ -220,11 +235,11 @@ describe('StoreDetail search', () => {
 describe('StoreDetail "Last Week" filter', () => {
   function singleTaskDetail(): ChecklistHistoryDetail {
     return detail(1, 'Downtown', [
-      {
+      categoryItem({
         id: 1,
         name: 'Preparation',
         tasks: [taskItem({ id: 1, completed: true, responses: respondedYes(1) }), taskItem({ id: 2 })],
-      },
+      }),
     ]);
   }
 
