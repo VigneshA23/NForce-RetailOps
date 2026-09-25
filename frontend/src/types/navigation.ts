@@ -23,12 +23,11 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
-  { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
 ];
 
 // Mobile bottom tab bar: home, daily checklist, tasks, employees, categories.
-// Issues is in the desktop sidebar; on mobile it is reached via the Home page
-// tile and the profile menu.
+// Issues is intentionally not a nav tab (sidebar or bottom bar); it is reached
+// via the profile menu and the Home page tile.
 // 'store-detail' uses a shorter label on mobile — "Checklist" vs "Daily Checklist" on desktop —
 // because 5 tabs at 375px gives ~60px text width; "Daily Checklist" truncates, "Checklist" fits.
 const OWNER_BOTTOM_NAV_ORDER: NavTabKey[] = ['home', 'store-detail', 'tasks', 'employees', 'categories'];
