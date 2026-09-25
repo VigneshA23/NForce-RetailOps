@@ -79,6 +79,7 @@ public class TaskService {
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
     private final TaskMakeupLinkService taskMakeupLinkService;
+    private final com.nforce.retailops.repository.AdminCorrectionRepository adminCorrectionRepository;
 
     public TaskService(
         TaskRepository taskRepository,
@@ -91,7 +92,8 @@ public class TaskService {
         StoreEmployeeRepository storeEmployeeRepository,
         NotificationService notificationService,
         ActivityLogService activityLogService,
-        TaskMakeupLinkService taskMakeupLinkService
+        TaskMakeupLinkService taskMakeupLinkService,
+        com.nforce.retailops.repository.AdminCorrectionRepository adminCorrectionRepository
     ) {
         this.taskRepository = taskRepository;
         this.categoryRepository = categoryRepository;
@@ -104,6 +106,7 @@ public class TaskService {
         this.notificationService = notificationService;
         this.activityLogService = activityLogService;
         this.taskMakeupLinkService = taskMakeupLinkService;
+        this.adminCorrectionRepository = adminCorrectionRepository;
     }
 
     // A task's stores for "all stores" tasks means all of ITS OWNER'S stores
@@ -352,6 +355,29 @@ public class TaskService {
         return TaskResponse.from(task);
     }
 
+    // Super Admin editing any task regardless of which owner it belongs to.
+    // Reuses applyRequest scoped to the task's own owner -- since a Task
+    // always belongs to exactly one owner, its category/store selections must
+    // still resolve against that owner, the same as if that owner had edited
+    // it themselves; this endpoint doesn't let Super Admin move a task to a
+    // different owner or store scope, only edit its other fields.
+    @Transactional
+    public TaskResponse updateTaskAsSuperAdmin(Long taskId, TaskRequest request) {
+        Task task = taskRepository.findById(taskId)
+            .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+        Long ownerId = task.getOwner().getId();
+        applyRequest(task, ownerId, request);
+        task = taskRepository.save(task);
+
+        activityLogService.logForStores(
+            "TASK_UPDATED", "Super Admin", "SUPER_ADMIN",
+            resolveTaskStoresForLog(task, ownerId), "TASK", task.getName(),
+            "Updated task \"" + task.getName() + "\""
+        );
+
+        return TaskResponse.from(task);
+    }
+
     @Transactional
     public TaskResponse setActive(Long ownerId, Long taskId, boolean active) {
         Task task = requireOwnedTask(ownerId, taskId);
@@ -488,6 +514,16 @@ public class TaskService {
                 .findByStoreIdAndTaskIdInAndResponseDateInAndActiveTrue(storeId, movedTaskIds, movedOriginalDates).stream()
                 .collect(Collectors.groupingBy(entry -> new TaskDateKey(entry.getTask().getId(), entry.getResponseDate())));
 
+        // Batched the same way as responsesByTask above -- one query for every active
+        // response's latest flag/edit trail, so the "Requested to resubmit by <Admin>" /
+        // "Response edited by <Admin>" notice doesn't cost a query per task.
+        List<Long> allResponseIds = new ArrayList<>();
+        responsesByTask.values().forEach(list -> list.forEach(entry -> allResponseIds.add(entry.getId())));
+        movedResponsesByTaskDate.values().forEach(list -> list.forEach(entry -> allResponseIds.add(entry.getId())));
+        Map<Long, com.nforce.retailops.entity.AdminCorrection> latestCorrections = allResponseIds.isEmpty()
+            ? Map.of()
+            : adminCorrectionRepository.findLatestByResponseIds(allResponseIds);
+
         LinkedHashMap<Long, String> categoryNames = new LinkedHashMap<>();
         LinkedHashMap<Long, List<TaskChecklistItemResponse>> itemsByCategory = new LinkedHashMap<>();
 
@@ -495,7 +531,8 @@ public class TaskService {
             categoryNames.putIfAbsent(task.getCategory().getId(), task.getCategory().getName());
             itemsByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(
                 TaskChecklistItemResponse.from(
-                    task, responsesByTask.getOrDefault(task.getId(), List.of()), employeeUserId, totalActiveEmployees, null));
+                    task, responsesByTask.getOrDefault(task.getId(), List.of()), employeeUserId, totalActiveEmployees, null,
+                    latestCorrections));
         }
 
         for (TaskMakeupLink link : movedUnits) {
@@ -511,7 +548,8 @@ public class TaskService {
             Task task = link.getTask();
             categoryNames.putIfAbsent(task.getCategory().getId(), task.getCategory().getName());
             itemsByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(
-                TaskChecklistItemResponse.from(task, responses, employeeUserId, totalActiveEmployees, link.getPastDate()));
+                TaskChecklistItemResponse.from(
+                    task, responses, employeeUserId, totalActiveEmployees, link.getPastDate(), latestCorrections));
         }
 
         List<CategoryChecklistResponse> categories = itemsByCategory.entrySet().stream()

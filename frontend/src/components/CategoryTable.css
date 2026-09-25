@@ -13,6 +13,24 @@
   color: var(--color-text-secondary);
 }
 
+.category-table__assign-tasks {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-badge-icon-warning-fg);
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.category-table__assign-tasks:hover {
+  text-decoration: underline;
+}
+
 .category-table__empty {
   padding: var(--space-xl);
   text-align: center;
@@ -47,8 +65,8 @@
 }
 
 .category-table__status-badge.is-inactive {
-  background: var(--color-badge-neutral-bg, #f4f4f5);
-  color: var(--color-badge-neutral-text, #71717a);
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
 }
 
 /* Mobile-card-only pieces (Super Admin view): hidden on wider screens, where
@@ -161,7 +179,7 @@
 @media (--mobile) {
   .table-card .data-table tbody tr.category-table__row--reorderable {
     position: relative;
-    padding-left: calc(var(--space-md) + 28px);
+    padding-left: calc(var(--space-md) + 32px);
   }
 
   .table-card .data-table tbody td.category-table__drag-cell {
@@ -169,7 +187,7 @@
     position: absolute;
     top: 0;
     bottom: 0;
-    left: var(--space-xs);
+    left: 2px;
     width: 28px;
     align-items: center;
     justify-content: center;
@@ -412,5 +430,40 @@
 
   .category-table__store-chip--empty::before {
     content: none;
+  }
+}
+
+/* -- Owner/Admin mobile cards (read-only status-badge view) --
+   Keeps table.css's existing label/value row layout (CATEGORY NAME / TASKS /
+   STATUS caption + right-aligned value) exactly as-is -- this only wraps each
+   row in its own rounded card instead of one continuous divided list.
+   Selectors are compounded with .table-card so they beat table.css's shared
+   mobile rules regardless of stylesheet load order. */
+@media (--mobile) {
+  .table-card.category-table__card:not(.category-table__card--managed) {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .table-card.category-table__card:not(.category-table__card--managed) .data-table {
+    background: transparent;
+  }
+
+  /* No horizontal padding here -- table.css's own tbody tr rule already sets
+     it, and the drag-handle rule above needs to win the cascade for
+     padding-left on reorderable rows without this rule's higher specificity
+     (extra classes from .category-table__card) clobbering it back down. */
+  .table-card.category-table__card:not(.category-table__card--managed) .data-table tbody tr {
+    margin-bottom: 12px;
+    padding-block: var(--space-sm);
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .table-card.category-table__card:not(.category-table__card--managed) .data-table tbody tr:last-child {
+    margin-bottom: 0;
   }
 }

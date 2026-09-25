@@ -58,6 +58,46 @@ export async function createTasks(values: AdminTaskFormValues): Promise<AdminTas
   return apiRequest<AdminTask[]>('/tasks/super-admin', { method: 'POST', body: toPayload(values) });
 }
 
+// Editing an existing task's content -- its store/category scope stays
+// whatever it already was (validated against that task's own owner
+// server-side), only the other fields are actually meant to change here.
+export async function updateTask(id: number, values: AdminTaskFormValues): Promise<AdminTask> {
+  return apiRequest<AdminTask>(`/tasks/${id}/super-admin`, { method: 'PUT', body: toPayload(values) });
+}
+
+// The inverse of toPayload -- rebuilds the form-values shape updateTask()
+// needs from an already-fetched AdminTask, so callers that only want to
+// change one field (e.g. moving a task into a different category from the
+// Categories page) don't have to reconstruct the whole form by hand.
+export function taskToFormValues(task: AdminTask): AdminTaskFormValues {
+  return {
+    name: task.name,
+    description: task.description ?? '',
+    categoryId: task.categoryId,
+    displayOrder: task.displayOrder != null ? String(task.displayOrder) : '',
+    appliesToAllStores: task.appliesToAllStores,
+    storeIds: task.stores.map((store) => store.id),
+    responseType: task.responseType,
+    responseNote: task.responseNote ?? '',
+    numericUnit: task.numericUnit ?? '',
+    numericMin: task.numericMin != null ? String(task.numericMin) : '',
+    numericMax: task.numericMax != null ? String(task.numericMax) : '',
+    completionType: task.completionType,
+    scheduleType: task.scheduleType,
+    selectedDays: task.selectedDays,
+    oneTimeDate: task.scheduleType === 'ONE_TIME' ? task.startDate : '',
+    startDate: task.startDate,
+    endDate: task.endDate ?? '',
+    active: task.active,
+  };
+}
+
+// Categories page "+ Tasks" flow: moves an already-existing task into
+// `categoryId` without creating a new task record.
+export async function assignTaskToCategory(task: AdminTask, categoryId: number): Promise<AdminTask> {
+  return updateTask(task.id, { ...taskToFormValues(task), categoryId });
+}
+
 export async function setTaskActive(id: number, active: boolean): Promise<AdminTask> {
   return apiRequest<AdminTask>(`/tasks/${id}/status/super-admin`, { method: 'PATCH', body: { active } });
 }

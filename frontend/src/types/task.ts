@@ -24,6 +24,11 @@ export interface TaskResponseSummary {
   flagReason: string | null;
   // Optional: older/test fixtures predate this field. Defaults to 'NORMAL'.
   completedVia?: CompletedVia;
+  // Who last flagged/edited this response, and how ('FLAG_TO_EMPLOYEE' or
+  // 'DIRECT') -- null once this response is superseded by a fresh one (e.g.
+  // after the employee resubmits a flagged task). See TaskResponseSummary.java.
+  correctionAdminName?: string | null;
+  correctionType?: 'FLAG_TO_EMPLOYEE' | 'DIRECT' | null;
 }
 
 export interface ChecklistTask {

@@ -16,6 +16,7 @@ import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import './SuperAdminStores.css';
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
@@ -272,6 +273,9 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
           onChange={(value) => setStatusFilter(value as StatusFilter)}
           ariaLabel="Filter by status"
         />
+        {statusFilter !== 'ALL' && (
+          <FilterClearButton onClick={() => setStatusFilter('ALL')} />
+        )}
       </div>
 
       {statusError && (

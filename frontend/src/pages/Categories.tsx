@@ -6,6 +6,7 @@ import { nfToast } from '../utils/toast';
 import CategoryTable from '../components/CategoryTable';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import StatCard from '../components/StatCard';
 import './Categories.css';
 
@@ -112,6 +113,9 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry, 
               onChange={(value) => setStatusFilter(value as StatusFilter)}
               ariaLabel="Filter by status"
             />
+            {statusFilter !== 'ALL' && (
+              <FilterClearButton onClick={() => setStatusFilter('ALL')} />
+            )}
           </div>
 
           {!canReorder && !isLoading && categories.length > 0 && (

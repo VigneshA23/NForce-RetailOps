@@ -8,6 +8,7 @@ import {
   getApplicableCategories,
   setTaskActive,
   TaskHasHistoryError,
+  updateTask,
 } from '../api/superAdminTasks';
 import { getAllStores } from '../api/superAdminStores';
 import { getCategories } from '../api/categories';
@@ -22,6 +23,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './Tasks.css';
@@ -38,6 +40,7 @@ const SCHEDULE_FILTER_OPTIONS = [
 ];
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
+type FormModalState = { mode: 'create' } | { mode: 'edit'; task: AdminTask } | null;
 
 const PAGE_SIZE = 10;
 
@@ -45,8 +48,9 @@ const PAGE_SIZE = 10;
 // platform-wide. The create form picks its store scope inline (see
 // TaskFormModal's storeScopeSelectable prop); once a scope is chosen, the
 // category list is fetched narrowed to what's applicable to it. Editing an
-// existing task's content is intentionally out of scope for now -- its store/
-// category scope is fixed at creation.
+// existing task reuses the same form with its store scope fixed (not
+// selectable) -- its category list is narrowed to that fixed scope instead,
+// since a task's store/category scope can't be moved to a different owner.
 function SuperAdminTasks() {
   const [tasks, setTasks] = useState<AdminTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,8 +66,8 @@ function SuperAdminTasks() {
   const [scheduleFilter, setScheduleFilter] = useState<ScheduleType | 'ALL'>('ALL');
   const [page, setPage] = useState(1);
 
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [createCategories, setCreateCategories] = useState<Category[]>([]);
+  const [formModalState, setFormModalState] = useState<FormModalState>(null);
+  const [formCategories, setFormCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
@@ -162,16 +166,16 @@ function SuperAdminTasks() {
     ? 'Loading tasks...'
     : `${activeTaskCount} active task${activeTaskCount === 1 ? '' : 's'} across ${storeCoverageCount} store${storeCoverageCount === 1 ? '' : 's'}`;
 
-  async function handleStoreScopeChange(scope: { appliesToAllStores: boolean; storeIds: number[] }) {
+  async function loadCategoriesForScope(scope: { appliesToAllStores: boolean; storeIds: number[] }) {
     if (!scope.appliesToAllStores && scope.storeIds.length === 0) {
-      setCreateCategories([]);
+      setFormCategories([]);
       setCategoriesError(null);
       return;
     }
     setCategoriesLoading(true);
     setCategoriesError(null);
     try {
-      setCreateCategories(await getApplicableCategories(scope));
+      setFormCategories(await getApplicableCategories(scope));
     } catch (error) {
       setCategoriesError(error instanceof Error ? error.message : 'Failed to load categories for the selected stores');
     } finally {
@@ -179,14 +183,50 @@ function SuperAdminTasks() {
     }
   }
 
-  async function handleCreateSubmit(values: AdminTaskFormValues) {
+  function openCreateForm() {
+    setFormError(null);
+    setFormCategories([]);
+    setCategoriesError(null);
+    setFormModalState({ mode: 'create' });
+  }
+
+  // The edit form's store scope isn't user-editable (see TaskFormModal's
+  // storeScopeSelectable prop below), so the category list is narrowed once
+  // up front to the task's own existing scope rather than in response to an
+  // onStoreScopeChange callback the way the create flow drives it.
+  function openEditForm(task: AdminTask) {
+    setFormError(null);
+    setFormModalState({ mode: 'edit', task });
+    loadCategoriesForScope({ appliesToAllStores: task.appliesToAllStores, storeIds: task.stores.map((store) => store.id) });
+  }
+
+  async function handleFormSubmit(values: AdminTaskFormValues) {
+    if (formModalState?.mode === 'edit') {
+      const taskId = formModalState.task.id;
+      setFormError(null);
+      setIsSubmitting(true);
+      try {
+        const updated = await updateTask(taskId, values);
+        setTasks((current) => current.map((task) => (task.id === updated.id ? updated : task)));
+        nfToast.success(`"${updated.name}" task updated.`);
+        setFormModalState(null);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : 'Something went wrong';
+        setFormError(msg);
+        nfToast.error(msg);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     setFormError(null);
     setIsSubmitting(true);
     try {
       await createTasks(values);
       nfToast.success(`"${values.name}" task added.`);
       loadTasks();
-      setIsCreateOpen(false);
+      setFormModalState(null);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setFormError(msg);
@@ -272,7 +312,7 @@ function SuperAdminTasks() {
           baseColor="#e4e4e7"
           followMouse
           proximity={180}
-          onClick={() => setIsCreateOpen(true)}
+          onClick={openCreateForm}
         >
           <span className="tasks-page__add-label">
             <Plus size={16} />
@@ -317,6 +357,11 @@ function SuperAdminTasks() {
           onChange={(value) => setScheduleFilter(value as ScheduleType | 'ALL')}
           ariaLabel="Filter by schedule"
         />
+        {(storeFilter !== 'ALL' || categoryFilter !== 'ALL' || statusFilter !== 'ALL' || scheduleFilter !== 'ALL') && (
+          <FilterClearButton
+            onClick={() => { setStoreFilter('ALL'); setCategoryFilter('ALL'); setStatusFilter('ALL'); setScheduleFilter('ALL'); }}
+          />
+        )}
       </div>
 
       {actionError && <div className="tasks-page__error">{actionError}</div>}
@@ -335,6 +380,7 @@ function SuperAdminTasks() {
             isLoading={isLoading}
             showStoreColumn
             onRowClick={(task) => setDetailsTask(task)}
+            onEdit={openEditForm}
             onDelete={(task) => {
               setActionError(null);
               setDeleteTarget(task);
@@ -352,24 +398,25 @@ function SuperAdminTasks() {
       )}
 
       <TaskFormModal
-        isOpen={isCreateOpen}
-        mode="create"
-        categories={createCategories}
+        isOpen={formModalState !== null}
+        mode={formModalState?.mode ?? 'create'}
+        initialTask={formModalState?.mode === 'edit' ? formModalState.task : undefined}
+        categories={formCategories}
         categoriesLoading={categoriesLoading}
         categoriesError={categoriesError}
         onRetryCategories={() => {}}
         onManageCategories={() => {}}
-        stores={storeOptionsForPicker}
-        storeScopeSelectable
-        onStoreScopeChange={handleStoreScopeChange}
+        stores={formModalState?.mode === 'edit' ? formModalState.task.stores : storeOptionsForPicker}
+        storeScopeSelectable={formModalState?.mode !== 'edit'}
+        onStoreScopeChange={loadCategoriesForScope}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => {
-          setIsCreateOpen(false);
-          setCreateCategories([]);
+          setFormModalState(null);
+          setFormCategories([]);
           setCategoriesError(null);
         }}
-        onSubmit={handleCreateSubmit}
+        onSubmit={handleFormSubmit}
       />
 
       <TaskDetailsModal

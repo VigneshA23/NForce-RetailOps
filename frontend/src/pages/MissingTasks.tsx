@@ -8,6 +8,7 @@ import { responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions'
 import ButtonDots from '../components/ButtonDots'
 import CalendarPopover from '../components/CalendarPopover'
 import Select from '../components/Select'
+import FilterClearButton from '../components/FilterClearButton'
 import SearchInput from '../components/SearchInput'
 import './MissingTasks.css'
 
@@ -280,6 +281,9 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
                 onChange={setCategoryFilter}
                 ariaLabel="Filter missed tasks by category"
               />
+              {(dateFilter !== ALL || categoryFilter !== ALL) && (
+                <FilterClearButton onClick={() => { setDateFilter(ALL); setCategoryFilter(ALL); }} />
+              )}
             </div>
 
             {filteredInstances.length === 0 ? (

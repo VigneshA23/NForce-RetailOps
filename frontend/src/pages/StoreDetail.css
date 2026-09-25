@@ -491,26 +491,6 @@
   margin-bottom: var(--space-md);
 }
 
-.store-detail-page__filter-clear {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: 6px;
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: border-color 120ms ease, color 120ms ease;
-}
-.store-detail-page__filter-clear:hover {
-  border-color: var(--color-accent);
-  color: var(--color-accent);
-}
-
 .store-detail-page__error {
   display: flex;
   align-items: center;
@@ -678,6 +658,14 @@
   .store-detail-outstanding__filter-bar .select {
     min-height: 30px;
     font-size: 11px;
+  }
+
+  /* Outside the (row+wrap) --completed variant below, this filter bar stacks
+     its children in a column with align-items: stretch -- without this the
+     Clear button would stretch to the same full width as the search/select
+     fields above it instead of sizing to its own content. */
+  .store-detail-outstanding__filter-bar .filter-bar__clear {
+    align-self: flex-start;
   }
 
   .store-detail-outstanding--completed .store-detail-outstanding__filter-bar {

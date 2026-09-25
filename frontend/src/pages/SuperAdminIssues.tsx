@@ -1,10 +1,11 @@
 import { Fragment, useCallback, useMemo, useState } from 'react';
-import { AlertCircle, Bell } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { getSAIssues, nudgeOwner, updateSAIssueStatus, type SAIssue } from '../api/superAdminIssues';
 import StatCard from '../components/StatCard';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import ButtonDots from '../components/ButtonDots';
 import IssueCard from '../components/IssueCard';
 import IssueResponseModal, { type IssueResponseAction } from '../components/IssueResponseModal';
@@ -131,12 +132,11 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
         </button>
         <button
           type="button"
-          className={`btn btn--ghost btn--sm sa-issues-page__nudge-btn${nudgingId === issue.id ? ' btn--loading' : ''}`}
+          className={`btn btn--secondary btn--sm${nudgingId === issue.id ? ' btn--loading' : ''}`}
           onClick={() => handleNudge(issue)}
           disabled={nudgingId === issue.id || nudged}
           title={nudged ? 'Owner already nudged — you can nudge again after 24 hours' : 'Notify the store owner to take action'}
         >
-          <Bell size={12} />
           {nudgingId === issue.id ? <ButtonDots label="Sending" /> : nudged ? 'Nudged' : 'Nudge owner'}
         </button>
       </>
@@ -214,9 +214,12 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
             ariaLabel="Filter by status"
           />
         </div>
+        {(statusFilter !== 'ACTIVE' || storeFilter !== '') && (
+          <FilterClearButton onClick={() => { setStatusFilter('ACTIVE'); setStoreFilter(''); }} />
+        )}
       </div>
 
-      <div className="table-card">
+      <div>
         <div className="issue-card-list">
           {groupStatuses === null ? (
             filtered.map(renderCard)
@@ -237,9 +240,9 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
             })
           )}
         </div>
-        {isLoading && <div className="table-card__empty">Loading issues…</div>}
+        {isLoading && <div className="issue-card-list__empty">Loading issues…</div>}
         {!isLoading && !error && filtered.length === 0 && (
-          <div className="table-card__empty">
+          <div className="issue-card-list__empty">
             {issues.length === 0 ? 'No issues have been raised yet.'
               : statusFilter === 'ACTIVE' && !search && !storeFilter ? 'All caught up — no open issues across stores.'
               : 'No issues match your filters.'}
