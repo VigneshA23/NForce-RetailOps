@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import TaskTable from './TaskTable';
@@ -49,13 +49,22 @@ function renderTable(tasks: AdminTask[], overrides: Partial<Parameters<typeof Ta
   );
 }
 
+// The component renders each task twice -- once in the desktop table, once in
+// the mobile card list, toggled purely by CSS media query -- so a bare screen
+// query matching either copy's text/labels is ambiguous under jsdom (which
+// doesn't evaluate media queries). Scope to the desktop table, matching what
+// a desktop-viewport user interacts with.
+function desktopScope() {
+  return within(document.querySelector('.task-table__desktop') as HTMLElement);
+}
+
 describe('TaskTable row click', () => {
   it('opens Task Details when a normal cell (task name) is clicked', async () => {
     const onRowClick = vi.fn();
     const task = baseTask({});
     renderTable([task], { onRowClick });
 
-    await userEvent.click(screen.getByText('Wipe counters'));
+    await userEvent.click(desktopScope().getByText('Wipe counters'));
     expect(onRowClick).toHaveBeenCalledWith(task);
   });
 
@@ -64,7 +73,7 @@ describe('TaskTable row click', () => {
     const task = baseTask({});
     renderTable([task], { onRowClick });
 
-    await userEvent.click(screen.getByText('Cleaning'));
+    await userEvent.click(desktopScope().getByText('Cleaning'));
     expect(onRowClick).toHaveBeenCalledWith(task);
   });
 
@@ -74,7 +83,7 @@ describe('TaskTable row click', () => {
     const task = baseTask({ active: true });
     renderTable([task], { onRowClick, onToggleStatus });
 
-    await userEvent.click(screen.getByLabelText('Deactivate task'));
+    await userEvent.click(desktopScope().getByLabelText('Deactivate task'));
     expect(onToggleStatus).toHaveBeenCalledWith(task);
     expect(onRowClick).not.toHaveBeenCalled();
   });
@@ -85,7 +94,7 @@ describe('TaskTable row click', () => {
     const task = baseTask({});
     renderTable([task], { onRowClick, onEdit });
 
-    await userEvent.click(screen.getByRole('button', { name: /edit wipe counters/i }));
+    await userEvent.click(desktopScope().getByRole('button', { name: /edit wipe counters/i }));
     expect(onEdit).toHaveBeenCalledWith(task);
     expect(onRowClick).not.toHaveBeenCalled();
   });
@@ -96,7 +105,7 @@ describe('TaskTable row click', () => {
     const task = baseTask({});
     renderTable([task], { onRowClick, onDelete });
 
-    await userEvent.click(screen.getByRole('button', { name: /delete wipe counters/i }));
+    await userEvent.click(desktopScope().getByRole('button', { name: /delete wipe counters/i }));
     expect(onDelete).toHaveBeenCalledWith(task);
     expect(onRowClick).not.toHaveBeenCalled();
   });
@@ -117,7 +126,7 @@ describe('TaskTable status toggle', () => {
     const task = baseTask({ active: true });
     renderTable([task], { onToggleStatus });
 
-    const toggle = screen.getByLabelText('Deactivate task');
+    const toggle = desktopScope().getByLabelText('Deactivate task');
     expect(toggle).toBeChecked();
 
     await userEvent.click(toggle);
@@ -129,7 +138,7 @@ describe('TaskTable status toggle', () => {
     const task = baseTask({ active: false });
     renderTable([task], { onToggleStatus });
 
-    const toggle = screen.getByLabelText('Activate task');
+    const toggle = desktopScope().getByLabelText('Activate task');
     expect(toggle).not.toBeChecked();
 
     await userEvent.click(toggle);
@@ -146,10 +155,10 @@ describe('TaskTable actions', () => {
 
     expect(screen.queryByRole('button', { name: /task actions/i })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: /edit wipe counters/i }));
+    await userEvent.click(desktopScope().getByRole('button', { name: /edit wipe counters/i }));
     expect(onEdit).toHaveBeenCalledWith(task);
 
-    await userEvent.click(screen.getByRole('button', { name: /delete wipe counters/i }));
+    await userEvent.click(desktopScope().getByRole('button', { name: /delete wipe counters/i }));
     expect(onDelete).toHaveBeenCalledWith(task);
   });
 });
@@ -163,9 +172,9 @@ describe('TaskTable response type badges', () => {
       baseTask({ id: 4, name: 'Text task', responseType: 'TEXT' }),
     ]);
 
-    expect(screen.getByText('Done / Checkbox')).toHaveClass('badge--success');
-    expect(screen.getByText('Number')).toHaveClass('badge--info');
-    expect(screen.getByText('Yes / No')).toHaveClass('badge--warning');
-    expect(screen.getByText('Short Text')).toHaveClass('badge--purple');
+    expect(desktopScope().getByText('Done / Checkbox')).toHaveClass('badge--success');
+    expect(desktopScope().getByText('Number')).toHaveClass('badge--info');
+    expect(desktopScope().getByText('Yes / No')).toHaveClass('badge--warning');
+    expect(desktopScope().getByText('Short Text')).toHaveClass('badge--purple');
   });
 });
