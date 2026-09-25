@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, Flag, MoreVertical, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
-import { activeResponderCount, hasActiveResponse, MULTIPLE_COMPLETION_THRESHOLD, responseDisplayValue, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
+import { hasActiveResponse, responseDisplayValue, respondedOfTotalLabel, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import CorrectionModal from './CorrectionModal';
@@ -449,7 +449,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
                       </span>
                       {task.completionType === 'MULTIPLE' && (
                         <span className="store-detail-table__response-responder-count">
-                          {activeResponderCount(task)}/{MULTIPLE_COMPLETION_THRESHOLD} responded
+                          {respondedOfTotalLabel(task)}
                         </span>
                       )}
                     </td>

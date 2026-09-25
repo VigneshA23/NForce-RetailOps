@@ -35,6 +35,9 @@ function taskItem(overrides: Partial<ChecklistHistoryTaskItem>): ChecklistHistor
     numericUnit: null,
     completed: false,
     currentlyActive: true,
+    totalActiveEmployees: 1,
+    deactivatedByName: null,
+    deactivatedAt: null,
     responses: [],
     ...overrides,
   };
@@ -47,7 +50,7 @@ function checklistDetail(tasks: ChecklistHistoryTaskItem[]): ChecklistHistoryDet
     date: '2026-09-23',
     hasChecklist: true,
     issues: [],
-    categories: [{ id: 1, name: 'Opening Checks', tasks }],
+    categories: [{ id: 1, name: 'Opening Checks', active: true, deactivatedByName: null, deactivatedAt: null, tasks }],
   };
 }
 

@@ -14,7 +14,8 @@ import ExportMenu from '../components/ExportMenu';
 import {
   hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, stepDate, formatDateNavLabel,
   formatDateLabel, formatDateRangeLabel, previousCalendarWeekRange, datesInRange, responseDisplayValue,
-  TASK_STATUS_LABELS, type DateRange,
+  TASK_STATUS_LABELS, type DateRange, visibleCategoriesForLiveView, inactiveTasksWithHistory,
+  type InactiveTaskWithHistory, formatTimeLabel, formatResponseEntryValue,
 } from '../utils/checklistHistoryOptions';
 import { matchesSearch } from '../utils/search';
 import './StoreDetail.css';
@@ -169,11 +170,29 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   const categoryDays = useMemo(() => {
     if (weekRange) {
       return weeklyDays.flatMap(({ date: d, detail: dayDetail }) =>
-        dayDetail.categories.map((category) => ({ date: d, category })),
+        visibleCategoriesForLiveView(dayDetail.categories).map((category) => ({ date: d, category })),
       );
     }
-    return detail ? detail.categories.map((category) => ({ date, category })) : [];
+    return detail ? visibleCategoriesForLiveView(detail.categories).map((category) => ({ date, category })) : [];
   }, [weekRange, weeklyDays, detail, date]);
+
+  // Deactivated tasks/categories with real response history -- excluded from
+  // categoryDays above (and everything derived from it), surfaced instead in
+  // the "Inactive Tasks" section below. De-duped by task id across a week
+  // range so a task deactivated mid-week doesn't show once per day it still
+  // has history for.
+  const inactiveItems = useMemo<InactiveTaskWithHistory[]>(() => {
+    if (weekRange) {
+      const byTaskId = new Map<number, InactiveTaskWithHistory>();
+      for (const { detail: dayDetail } of weeklyDays) {
+        for (const item of inactiveTasksWithHistory(dayDetail.categories)) {
+          byTaskId.set(item.task.id, item);
+        }
+      }
+      return Array.from(byTaskId.values());
+    }
+    return detail ? inactiveTasksWithHistory(detail.categories) : [];
+  }, [weekRange, weeklyDays, detail]);
 
   const hasChecklist = weekRange
     ? weeklyDays.some(({ detail: dayDetail }) => dayDetail.hasChecklist)
@@ -224,7 +243,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
       for (const d of dates) {
         try {
           const dayDetail = await getChecklistHistoryDetail(storeId, d);
-          for (const category of dayDetail.categories) {
+          for (const category of visibleCategoriesForLiveView(dayDetail.categories)) {
             for (const task of category.tasks) {
               const s = taskStatus(task);
               if (s === 'OPEN' || s === 'ISSUE') {
@@ -387,6 +406,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   // their filters reset whenever fresh data arrives. Matches SuperAdminChecklist.
   const [outstandingOpen, setOutstandingOpen] = useState(true);
   const [completedOpen, setCompletedOpen] = useState(true);
+  const [inactiveOpen, setInactiveOpen] = useState(false);
   useEffect(() => {
     setOutstandingSearch('');
     setOutstandingCategoryFilter('all');
@@ -758,6 +778,53 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
           </>
         )}
       </div>
+
+      {inactiveItems.length > 0 && (
+        <div className="store-detail-outstanding store-detail-outstanding--inactive">
+          <button
+            type="button"
+            className="store-detail-outstanding__toggle"
+            onClick={() => setInactiveOpen((v) => !v)}
+            aria-expanded={inactiveOpen}
+          >
+            <span className="store-detail-outstanding__title">
+              Inactive Tasks
+              <span className="store-detail-outstanding__count">{inactiveItems.length}</span>
+            </span>
+            <ChevronDown
+              size={14}
+              className={`store-detail-outstanding__chevron${inactiveOpen ? ' store-detail-outstanding__chevron--open' : ''}`}
+            />
+          </button>
+          {inactiveOpen && (
+            <div className="inactive-tasks-list">
+              {inactiveItems.map((item) => (
+                <div key={item.task.id} className="inactive-tasks-list__item">
+                  <div className="inactive-tasks-list__header">
+                    <span className="inactive-tasks-list__name">{item.task.name}</span>
+                    <span className="inactive-tasks-list__category">{item.categoryName}</span>
+                  </div>
+                  <p className="inactive-tasks-list__audit">
+                    {item.deactivatedScope === 'CATEGORY' ? 'Category deactivated' : 'Deactivated'}
+                    {item.deactivatedByName ? ` by ${item.deactivatedByName}` : ''}
+                    {item.deactivatedAt ? ` on ${formatTimeLabel(item.deactivatedAt)} · ${item.deactivatedAt.slice(0, 10)}` : ''}
+                  </p>
+                  <div className="inactive-tasks-list__responses">
+                    {item.task.responses.map((response) => (
+                      <div key={response.id} className="inactive-tasks-list__response">
+                        <UserAvatar initials={getInitials(response.employeeFullName)} src={response.employeeAvatarUrl} size={22} />
+                        <span className="inactive-tasks-list__response-name">{response.employeeFullName}</span>
+                        <span className="inactive-tasks-list__response-value">{formatResponseEntryValue(item.task, response)}</span>
+                        <span className="inactive-tasks-list__response-time">{formatTimeLabel(response.respondedAt)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {detailError ? (
         <div className="store-detail-page__error">

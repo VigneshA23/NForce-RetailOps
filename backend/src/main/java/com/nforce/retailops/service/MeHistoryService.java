@@ -183,15 +183,23 @@ public class MeHistoryService {
             tasksByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(task);
         }
 
+        int totalActiveEmployees = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId);
+
         List<HistoryCategoryResponse> categories = tasksByCategory.values().stream()
             .map(tasks -> new HistoryCategoryResponse(
                 tasks.get(0).getCategory().getId(),
                 tasks.get(0).getCategory().getName(),
                 tasks.get(0).getCategory().getBadgeColor(),
+                tasks.get(0).getCategory().isActive(),
+                // Employee's own History view has no "Inactive Tasks" audit
+                // section (Owner/Admin- and Super Admin-only feature) -- no
+                // deactivation-actor lookup needed here.
+                null, null,
                 tasks.stream()
                     .map(task -> toHistoryTaskItem(
                         task, responsesByTask.getOrDefault(task.getId(), List.of()),
-                        empIdByUserId, latestCorrectionByResponseId, resubmissionHistoriesByResponseId))
+                        empIdByUserId, latestCorrectionByResponseId, resubmissionHistoriesByResponseId,
+                        totalActiveEmployees))
                     .toList()
             ))
             .toList();
@@ -223,7 +231,8 @@ public class MeHistoryService {
     private HistoryTaskItemResponse toHistoryTaskItem(
         Task task, List<TaskResponseEntry> responses, Map<Long, String> empIdByUserId,
         Map<Long, AdminCorrection> latestCorrectionByResponseId,
-        Map<Long, List<ResponseHistoryEntry>> resubmissionHistoriesByResponseId
+        Map<Long, List<ResponseHistoryEntry>> resubmissionHistoriesByResponseId,
+        int totalActiveEmployees
     ) {
         List<HistoryResponseEntryResponse> responseDtos = responses.stream()
             .map(entry -> {
@@ -272,6 +281,8 @@ public class MeHistoryService {
             task.getNumericUnit(),
             task.getCompletionType().isSatisfiedBy(activeResponderCount),
             task.isActive(),
+            totalActiveEmployees,
+            null, null,
             responseDtos
         );
     }

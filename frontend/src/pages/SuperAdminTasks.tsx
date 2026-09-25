@@ -300,7 +300,7 @@ function SuperAdminTasks() {
     <div className="tasks-page">
       <div className="stat-card-row">
         <StatCard icon={ClipboardList} label="Total Tasks" value={tasks.length} tone="primary" />
-        <StatCard icon={CheckCircle2} label="Active Tasks" value={activeTaskCount} tone="success" />
+        <StatCard icon={CheckCircle2} label="Active Tasks (All Stores)" value={activeTaskCount} tone="success" />
         <StatCard icon={CircleDot} label="Single Completion" value={singleCompletionCount} tone="info" />
         <StatCard icon={Repeat2} label="Multiple Completions" value={multipleCompletionCount} tone="warning" />
       </div>
