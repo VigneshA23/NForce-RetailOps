@@ -58,11 +58,13 @@ export async function createTasks(values: AdminTaskFormValues): Promise<AdminTas
   return apiRequest<AdminTask[]>('/tasks/super-admin', { method: 'POST', body: toPayload(values) });
 }
 
-// Editing an existing task's content -- its store/category scope stays
-// whatever it already was (validated against that task's own owner
-// server-side), only the other fields are actually meant to change here.
-export async function updateTask(id: number, values: AdminTaskFormValues): Promise<AdminTask> {
-  return apiRequest<AdminTask>(`/tasks/${id}/super-admin`, { method: 'PUT', body: toPayload(values) });
+// Editing an existing task's content. The store scope can be widened to
+// stores under other owners here -- the backend fans that out into new task
+// rows for them alongside the edited task (see TaskService.
+// updateTaskAsSuperAdmin), so, like createTasks, this can return more than
+// one AdminTask.
+export async function updateTask(id: number, values: AdminTaskFormValues): Promise<AdminTask[]> {
+  return apiRequest<AdminTask[]>(`/tasks/${id}/super-admin`, { method: 'PUT', body: toPayload(values) });
 }
 
 // The inverse of toPayload -- rebuilds the form-values shape updateTask()
@@ -93,9 +95,12 @@ export function taskToFormValues(task: AdminTask): AdminTaskFormValues {
 }
 
 // Categories page "+ Tasks" flow: moves an already-existing task into
-// `categoryId` without creating a new task record.
+// `categoryId` without creating a new task record. Store scope is left as
+// the task's own existing scope, so this never widens to another owner and
+// updateTask's result always has exactly the one (updated) task in it.
 export async function assignTaskToCategory(task: AdminTask, categoryId: number): Promise<AdminTask> {
-  return updateTask(task.id, { ...taskToFormValues(task), categoryId });
+  const [updated] = await updateTask(task.id, { ...taskToFormValues(task), categoryId });
+  return updated;
 }
 
 export async function setTaskActive(id: number, active: boolean): Promise<AdminTask> {
