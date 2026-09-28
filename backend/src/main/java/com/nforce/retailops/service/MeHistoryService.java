@@ -133,21 +133,17 @@ public class MeHistoryService {
             .filter(id -> !eligibleTaskIds.contains(id))
             .collect(Collectors.toSet());
 
-        // Deliberately NOT applied for today: Today's History must mirror the live
-        // Daily Checklist (/api/me/tasks/today, driven by the exact same
-        // findActiveForStoreAndDate + TaskScheduleMatcher call above) exactly -- a
-        // task deactivated/rescoped later the same day it was answered must
-        // disappear from both together, not linger in History alone. The response
-        // row itself is never deleted, so once "today" becomes a past date this
-        // union picks it back up there, same as any other historical response.
-        boolean isPastDate = date.isBefore(LocalDate.now());
-
+        // Unlike the live Daily Checklist (/api/me/tasks/today, which only ever
+        // shows currently-active tasks), History -- including for today -- must
+        // preserve the audit trail: a task deactivated mid-day after an employee
+        // already answered it must still show up here, tagged Inactive, with
+        // their recorded response, instead of silently vanishing the moment it's
+        // deactivated. This applies for both today and any past date.
         List<Task> allTasks = new ArrayList<>(eligibleTasks);
-        if (isPastDate && !missingTaskIds.isEmpty()) {
+        if (!missingTaskIds.isEmpty()) {
             // Tasks with real responses that no longer show up under the current
             // config (deactivated, rescoped away, schedule changed) -- fetched by id
-            // so their historical responses are never silently dropped from a past
-            // date's view.
+            // so their historical responses are never silently dropped.
             allTasks.addAll(taskRepository.findAllById(missingTaskIds));
         }
         allTasks.sort(Comparator

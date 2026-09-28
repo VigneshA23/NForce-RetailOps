@@ -5,8 +5,10 @@ import type { CategoryBadgeColor } from '../utils/categoryBadge';
 // no such field on the wire. NOT_ANSWERED: no completed response yet. NO
 // ("Flagged"): completed, and the most recent response's booleanValue is
 // explicitly false. YES ("Complete"): completed, anything else (including
-// NUMERIC/TEXT tasks, which have no booleanValue at all).
-export type TaskStatus = 'YES' | 'NO' | 'NOT_ANSWERED';
+// NUMERIC/TEXT tasks, which have no booleanValue at all). INACTIVE: the task
+// (or its category) has since been deactivated -- takes priority over the
+// other three, but the recorded responseValue below is still shown.
+export type TaskStatus = 'YES' | 'NO' | 'NOT_ANSWERED' | 'INACTIVE';
 
 export interface HistoryResponder {
   employeeUserId: number;
