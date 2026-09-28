@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Retail operations platform with three roles: an employee checklist + stock-count UI, an owner/admin dashboard, and a super-admin layer managing owners, stores, the task catalogue and the inventory catalogue across the platform.
 
-Scope is larger than "checklists and a dashboard". Built out and in use: task scheduling and responses, missed-task moves, admin corrections and flags, raised issues with escalation, notifications and scheduled alerts, suppliers, an inventory catalogue, daily stock checks, order lists, an activity log, server-side sessions, and login rate limiting. Roughly 20 controllers, 33 services, 32 entities, ~98 DTOs, 69 migration files, ~71 frontend pages and ~159 components.
+Scope is larger than "checklists and a dashboard". Built out and in use: task scheduling and responses, missed-task moves, admin corrections and flags, raised issues with escalation, notifications and scheduled alerts, suppliers, an inventory catalogue, daily stock checks (plus Owner/Admin's date-bounded stock-check history), order lists, an activity log, server-side sessions, and login rate limiting. Roughly 20 controllers, 33 services, 33 entities, 100 DTOs, 67 migration files, ~74 frontend pages and ~163 components.
 
 ## Commands
 
@@ -16,7 +16,7 @@ Scope is larger than "checklists and a dashboard". Built out and in use: task sc
 
 `npm run lint` (`eslint .`) will fail — ESLint is neither installed nor configured. Fix that before relying on the script.
 
-Tests use Vitest + Testing Library + jsdom (`frontend/src/test/setup.ts`, `vite.config.ts`'s `test` block). Test files sit next to the code they cover (e.g. `Header.test.tsx`), not in a separate `__tests__` tree. 32 test files currently.
+Tests use Vitest + Testing Library + jsdom (`frontend/src/test/setup.ts`, `vite.config.ts`'s `test` block). Test files sit next to the code they cover (e.g. `Header.test.tsx`), not in a separate `__tests__` tree. 37 test files currently.
 
 ### Backend (`backend/`)
 
@@ -71,6 +71,7 @@ Consequences to respect when changing this area:
 - History is *reconstructed* using the same `TaskScheduleMatcher`, deliberately without the `active` filters, so deactivated tasks still appear on past days. Keep the matcher shared so live and historical views can't drift.
 - `SINGLE` completion = first responder wins, backed by a partial unique index (V19). `MULTIPLE` requires ≥2 distinct responders.
 - Responses are never hard-deleted — `active=false` plus `undoneAt` / `supersededResponseId`. Corrections write in place *and* append an immutable `admin_corrections` row.
+- `admin_corrections` is hard-wired to task responses only — a `NOT NULL` FK to `task_response_id`, no polymorphic entity reference — so it cannot audit anything else. Stock-check corrections (`StockCheckService.correctCheck`) use their own append-only `stock_check_corrections` table (`StockCheckCorrection`) instead; follow that precedent for any future per-domain correction trail rather than widening `admin_corrections`.
 - Every date boundary uses the server's default JVM timezone. There is no per-store timezone column.
 
 ### Database
@@ -95,8 +96,8 @@ Each has a twin endpoint under `/internal/jobs/` in `InternalJobController`, so 
 
 ## Testing
 
-- Backend: JUnit 5 + Mockito + H2 in-memory DB, 43 test classes. `AuthControllerTest` is the reference for controller tests (`spring-security-test` is on the classpath); `TaskServiceTest` and `ChecklistHistoryServiceTest` are the reference for service tests. `TodayChecklistContractTest` locks the checklist response shape — expect it to fail if you change that DTO.
-- Frontend: Vitest + Testing Library, 32 test files. `App.test.tsx` covers the root state machine; page tests like `EmployeeDashboard.test.tsx` and `StoreDetail.test.tsx` are the pattern for new ones.
+- Backend: JUnit 5 + Mockito + H2 in-memory DB, 49 test classes. `AuthControllerTest` is the reference for controller tests (`spring-security-test` is on the classpath); `TaskServiceTest` and `ChecklistHistoryServiceTest` are the reference for service tests. `TodayChecklistContractTest` locks the checklist response shape — expect it to fail if you change that DTO.
+- Frontend: Vitest + Testing Library, 37 test files. `App.test.tsx` covers the root state machine; page tests like `EmployeeDashboard.test.tsx` and `StoreDetail.test.tsx` are the pattern for new ones.
 
 ## Deployment
 

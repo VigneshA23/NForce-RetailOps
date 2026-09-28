@@ -86,8 +86,8 @@ Without `RESEND_API_KEY`, account-setup and password-reset emails will fail. Acc
 ## Tests
 
 ```
-cd backend  && mvn test                               # 43 classes
-cd frontend && npm test                               # 32 files
+cd backend  && mvn test                               # 49 classes
+cd frontend && npm test                               # 37 files
 
 mvn test -Dtest=ClassName#methodName                  # single backend test
 ```
