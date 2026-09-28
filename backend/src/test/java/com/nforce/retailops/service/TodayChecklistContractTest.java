@@ -68,6 +68,8 @@ class TodayChecklistContractTest {
     private TaskMakeupLinkService taskMakeupLinkService;
     @Mock
     private AdminCorrectionRepository adminCorrectionRepository;
+    @Mock
+    private com.nforce.retailops.repository.TaskMakeupLinkRepository taskMakeupLinkRepository;
 
     private TaskService taskService;
 
@@ -76,7 +78,8 @@ class TodayChecklistContractTest {
         taskService = new TaskService(
             taskRepository, categoryRepository, storeOwnerRepository, storeRepository,
             userRepository, userProfileService, taskResponseEntryRepository, storeEmployeeRepository,
-            notificationService, activityLogService, taskMakeupLinkService, adminCorrectionRepository
+            notificationService, activityLogService, taskMakeupLinkService, adminCorrectionRepository,
+            taskMakeupLinkRepository
         );
     }
 

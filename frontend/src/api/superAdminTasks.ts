@@ -1,9 +1,9 @@
-import type { Category } from '../types/category';
 import type { AdminTask, AdminTaskFormValues } from '../types/adminTask';
 import { TaskHasHistoryError } from './ownerTasks';
+import { getApplicableCategories } from './categories';
 import { apiRequest, ApiError } from './client';
 
-export { TaskHasHistoryError };
+export { TaskHasHistoryError, getApplicableCategories };
 
 function toPayload(values: AdminTaskFormValues) {
   const isOneTime = values.scheduleType === 'ONE_TIME';
@@ -37,18 +37,6 @@ function toPayload(values: AdminTaskFormValues) {
 // which branches server-side on the caller's role.
 export async function getAllTasks(): Promise<AdminTask[]> {
   return apiRequest<AdminTask[]>('/tasks');
-}
-
-// Step 1 of the create-task wizard: narrows the category picker to only
-// categories applicable to the chosen store scope (single store, the
-// intersection of several, or every store for "All Stores").
-export async function getApplicableCategories(scope: { appliesToAllStores: boolean; storeIds: number[] }): Promise<Category[]> {
-  const params = new URLSearchParams();
-  params.set('appliesToAllStores', String(scope.appliesToAllStores));
-  if (!scope.appliesToAllStores) {
-    scope.storeIds.forEach((id) => params.append('storeIds', String(id)));
-  }
-  return apiRequest<Category[]>(`/categories/applicable?${params.toString()}`);
 }
 
 // May create more than one Task row under the hood -- one per owner among the
@@ -101,6 +89,16 @@ export function taskToFormValues(task: AdminTask): AdminTaskFormValues {
 export async function assignTaskToCategory(task: AdminTask, categoryId: number): Promise<AdminTask> {
   const [updated] = await updateTask(task.id, { ...taskToFormValues(task), categoryId });
   return updated;
+}
+
+// Consolidates accidental duplicate task rows (same owner, same name) into
+// `survivorId`: response/makeup-link history is reassigned onto it, store
+// assignments are unioned, and `loserTaskIds` are deleted -- see backend
+// TaskService.mergeTasksAsSuperAdmin. Used by the Tasks page's merged-row
+// view (see groupTasksByName) so a group's Delete action can consolidate a
+// group with real response history instead of failing outright.
+export async function mergeTasks(survivorId: number, loserTaskIds: number[]): Promise<AdminTask> {
+  return apiRequest<AdminTask>(`/tasks/${survivorId}/super-admin/merge`, { method: 'POST', body: loserTaskIds });
 }
 
 export async function setTaskActive(id: number, active: boolean): Promise<AdminTask> {

@@ -60,6 +60,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(TaskNameExistsException.class)
+    public ResponseEntity<Map<String, String>> handleTaskNameExists(TaskNameExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(StoreAlreadyExistsException.class)
     public ResponseEntity<Map<String, String>> handleStoreAlreadyExists(StoreAlreadyExistsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));

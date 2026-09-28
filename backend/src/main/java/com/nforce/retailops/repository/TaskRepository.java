@@ -11,6 +11,15 @@ import java.util.Optional;
 
 public interface TaskRepository extends JpaRepository<Task, Long> {
 
+    // Task title uniqueness, scoped per owner (two different owners may
+    // legitimately have a task with the same name -- unrelated businesses).
+    // Case-insensitive, matching CategoryRepository's identical name-overlap
+    // check. The AndIdNot variant excludes the task's own row on update, so
+    // saving a task without changing its name doesn't trip over itself.
+    boolean existsByOwnerIdAndNameIgnoreCase(Long ownerId, String name);
+
+    boolean existsByOwnerIdAndNameIgnoreCaseAndIdNot(Long ownerId, String name, Long id);
+
     // Task Management list order: by category (in the category's own configured order),
     // then by each task's display order within that category. Ties (including a task
     // just edited into the same order as another) are broken deterministically by most

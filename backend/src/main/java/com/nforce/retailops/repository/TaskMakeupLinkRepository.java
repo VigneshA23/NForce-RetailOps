@@ -1,6 +1,7 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.MakeupLinkStatus;
+import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskMakeupLink;
 import com.nforce.retailops.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -92,4 +93,11 @@ public interface TaskMakeupLinkRepository extends JpaRepository<TaskMakeupLink, 
     @Query("update TaskMakeupLink l set l.status = com.nforce.retailops.entity.MakeupLinkStatus.EXPIRED, l.resolvedAt = :now "
         + "where l.status = com.nforce.retailops.entity.MakeupLinkStatus.PENDING and l.linkedDate < :today")
     int expireStalePending(@Param("today") LocalDate today, @Param("now") OffsetDateTime now);
+
+    // Backs TaskService.mergeTasksAsSuperAdmin -- same rationale as
+    // TaskResponseEntryRepository.reassignTaskForMerge, for the other (rarer)
+    // table that can reference a task directly.
+    @Modifying
+    @Query("update TaskMakeupLink l set l.task = :survivor where l.task.id in :loserTaskIds")
+    int reassignTaskForMerge(@Param("survivor") Task survivor, @Param("loserTaskIds") Collection<Long> loserTaskIds);
 }
