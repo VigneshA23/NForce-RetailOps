@@ -10,6 +10,7 @@ import com.nforce.retailops.dto.HistoryIssueResponse;
 import com.nforce.retailops.dto.HistoryResponseEntryResponse;
 import com.nforce.retailops.dto.HistoryTaskItemResponse;
 import com.nforce.retailops.dto.ResponseHistoryEntry;
+import com.nforce.retailops.entity.ActivityLog;
 import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Store;
@@ -19,6 +20,7 @@ import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.repository.ActivityLogRepository;
 import com.nforce.retailops.repository.AdminCorrectionRepository;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
@@ -63,6 +65,7 @@ public class ChecklistHistoryService {
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final AdminCorrectionRepository adminCorrectionRepository;
     private final RaisedIssueRepository raisedIssueRepository;
+    private final ActivityLogRepository activityLogRepository;
 
     public ChecklistHistoryService(
         TaskRepository taskRepository,
@@ -70,7 +73,8 @@ public class ChecklistHistoryService {
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
         AdminCorrectionRepository adminCorrectionRepository,
-        RaisedIssueRepository raisedIssueRepository
+        RaisedIssueRepository raisedIssueRepository,
+        ActivityLogRepository activityLogRepository
     ) {
         this.taskRepository = taskRepository;
         this.taskResponseEntryRepository = taskResponseEntryRepository;
@@ -78,6 +82,7 @@ public class ChecklistHistoryService {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.adminCorrectionRepository = adminCorrectionRepository;
         this.raisedIssueRepository = raisedIssueRepository;
+        this.activityLogRepository = activityLogRepository;
     }
 
     @Transactional(readOnly = true)
@@ -530,17 +535,29 @@ public class ChecklistHistoryService {
             tasksByCategory.computeIfAbsent(task.getCategory().getId(), key -> new ArrayList<>()).add(task);
         }
 
+        int totalActiveEmployees = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(storeId);
+
         List<HistoryCategoryResponse> categories = tasksByCategory.values().stream()
-            .map(tasks -> new HistoryCategoryResponse(
-                tasks.get(0).getCategory().getId(),
-                tasks.get(0).getCategory().getName(),
-                tasks.get(0).getCategory().getBadgeColor(),
-                tasks.stream()
-                    .map(task -> toHistoryTaskItem(
-                        task, responsesByTask.getOrDefault(task.getId(), List.of()),
-                        empIdByUserId, latestCorrectionByResponseId, resubmissionHistoriesByResponseId))
-                    .toList()
-            ))
+            .map(tasks -> {
+                var category = tasks.get(0).getCategory();
+                DeactivationAudit categoryAudit = category.isActive()
+                    ? null
+                    : lookupDeactivationAudit("CATEGORY_DEACTIVATED", category.getName(), storeId);
+                return new HistoryCategoryResponse(
+                    category.getId(),
+                    category.getName(),
+                    category.getBadgeColor(),
+                    category.isActive(),
+                    categoryAudit != null ? categoryAudit.actorName() : null,
+                    categoryAudit != null ? categoryAudit.occurredAt() : null,
+                    tasks.stream()
+                        .map(task -> toHistoryTaskItem(
+                            task, responsesByTask.getOrDefault(task.getId(), List.of()),
+                            empIdByUserId, latestCorrectionByResponseId, resubmissionHistoriesByResponseId,
+                            storeId, totalActiveEmployees))
+                        .toList()
+                );
+            })
             .toList();
 
         List<HistoryIssueResponse> issues = raisedIssueRepository
@@ -836,10 +853,26 @@ public class ChecklistHistoryService {
         );
     }
 
+    // "Who deactivated it and when" for the Inactive Tasks audit section --
+    // resolved best-effort from ActivityLog's denormalized entity_name/store_id
+    // columns (no FK back to the task/category row exists, see ActivityLog's own
+    // class comment). Only looked up for tasks/categories that are already known
+    // to be inactive, so an active item never pays this extra query.
+    private record DeactivationAudit(String actorName, java.time.OffsetDateTime occurredAt) {
+    }
+
+    private DeactivationAudit lookupDeactivationAudit(String actionType, String entityName, Long storeId) {
+        return activityLogRepository
+            .findTopByActionTypeAndEntityNameAndStoreIdOrderByOccurredAtDesc(actionType, entityName, storeId)
+            .map((ActivityLog log) -> new DeactivationAudit(log.getActorName(), log.getOccurredAt()))
+            .orElse(null);
+    }
+
     private HistoryTaskItemResponse toHistoryTaskItem(
         Task task, List<TaskResponseEntry> responses, Map<Long, String> empIdByUserId,
         Map<Long, AdminCorrection> latestCorrectionByResponseId,
-        Map<Long, List<ResponseHistoryEntry>> resubmissionHistoriesByResponseId
+        Map<Long, List<ResponseHistoryEntry>> resubmissionHistoriesByResponseId,
+        Long storeId, int totalActiveEmployees
     ) {
         List<HistoryResponseEntryResponse> responseDtos = responses.stream()
             .map(entry -> {
@@ -873,6 +906,14 @@ public class ChecklistHistoryService {
             .distinct()
             .count();
 
+        // Deactivation audit is only meaningful (and only looked up) once the task
+        // itself is inactive -- a task hidden solely because its category was
+        // deactivated instead shows the category's own audit info (see the
+        // categories.stream() mapping above), not a task-level one.
+        DeactivationAudit taskAudit = task.isActive()
+            ? null
+            : lookupDeactivationAudit("TASK_DEACTIVATED", task.getName(), storeId);
+
         return new HistoryTaskItemResponse(
             task.getId(),
             task.getName(),
@@ -883,6 +924,9 @@ public class ChecklistHistoryService {
             task.getNumericUnit(),
             task.getCompletionType().isSatisfiedBy(activeResponderCount),
             task.isActive(),
+            totalActiveEmployees,
+            taskAudit != null ? taskAudit.actorName() : null,
+            taskAudit != null ? taskAudit.occurredAt() : null,
             responseDtos
         );
     }

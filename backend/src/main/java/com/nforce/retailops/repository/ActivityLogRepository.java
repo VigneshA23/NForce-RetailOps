@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> {
 
@@ -43,4 +44,13 @@ public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> 
     // Date-range variant of the owner task-activity feed above.
     List<ActivityLog> findByStoreIdInAndActionTypeAndOccurredAtGreaterThanEqualAndOccurredAtLessThanOrderByOccurredAtDesc(
         Collection<Long> storeIds, String actionType, OffsetDateTime start, OffsetDateTime end, Pageable pageable);
+
+    // Best-effort "who deactivated this task/category and when" lookup for the
+    // checklist history detail view's Inactive Tasks section -- matched by
+    // entityName + storeId text, since ActivityLog deliberately has no FK back to
+    // the task/category row (see ActivityLog's own class comment). Most-recent
+    // match wins, so a task deactivated, reactivated, then deactivated again
+    // always resolves to the latest deactivation event.
+    Optional<ActivityLog> findTopByActionTypeAndEntityNameAndStoreIdOrderByOccurredAtDesc(
+        String actionType, String entityName, Long storeId);
 }

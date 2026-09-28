@@ -27,6 +27,7 @@ function makeNotification(overrides: Partial<Notification>): Notification {
     relatedIssueNote: null,
     relatedStoreName: null,
     relatedIssueStatus: null,
+    storeId: null,
     createdAt: '2026-09-17T09:00:00Z',
     ...overrides,
   }
@@ -52,7 +53,7 @@ describe('NotificationBell — passing the notification date through navigation'
     const item = await screen.findByText("Today's item")
     await user.click(item)
 
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null }))
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null, storeId: null }))
   })
 
   it('passes each distinct notification\'s own createdAt, not a shared/default value', async () => {
@@ -67,11 +68,11 @@ describe('NotificationBell — passing the notification date through navigation'
     await user.click(screen.getByLabelText(/notifications/i))
 
     await user.click(await screen.findByText("Yesterday's item"))
-    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-16T09:00:00Z', relatedIssueId: null }))
+    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-16T09:00:00Z', relatedIssueId: null, storeId: null }))
 
     await user.click(screen.getByLabelText(/notifications/i))
     await user.click(await screen.findByText("Today's item"))
-    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null }))
+    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null, storeId: null }))
   })
 })
 
@@ -94,6 +95,27 @@ describe('NotificationBell — issue deep links', () => {
     await user.click(screen.getByLabelText(/notifications/i))
     await user.click(await screen.findByText('Jane raised an issue at Downtown'))
 
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/issues', { createdAt: '2026-09-18T09:00:00Z', relatedIssueId: 42 }))
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/issues', { createdAt: '2026-09-18T09:00:00Z', relatedIssueId: 42, storeId: null }))
+  })
+
+  it('passes the related store id so a Super Admin checklist alert can skip the store picker', async () => {
+    const user = userEvent.setup()
+    mockGetNotifications.mockResolvedValue([
+      makeNotification({
+        id: 4,
+        title: 'Downtown — no activity today',
+        category: 'STORE_ZERO_ACTIVITY',
+        linkPath: '/checklist',
+        storeId: 7,
+        createdAt: '2026-09-19T09:00:00Z',
+      }),
+    ])
+    const onNavigate = vi.fn()
+
+    render(<NotificationBell unreadCount={1} onCountChange={vi.fn()} onViewAll={vi.fn()} onNavigate={onNavigate} />)
+    await user.click(screen.getByLabelText(/notifications/i))
+    await user.click(await screen.findByText('Downtown — no activity today'))
+
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/checklist', { createdAt: '2026-09-19T09:00:00Z', relatedIssueId: null, storeId: 7 }))
   })
 })

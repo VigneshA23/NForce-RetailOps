@@ -2,7 +2,7 @@ import { authHeaders } from '../utils/authStorage';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
-const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 export class ApiError extends Error {
   status: number;

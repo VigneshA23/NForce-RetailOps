@@ -49,6 +49,18 @@ public interface TaskMakeupLinkRepository extends JpaRepository<TaskMakeupLink, 
         @Param("storeId") Long storeId, @Param("linkedDate") LocalDate linkedDate, @Param("statuses") Collection<MakeupLinkStatus> statuses
     );
 
+    // Batched, date-range form of findByStoreIdAndLinkedDateAndStatusIn -- lets platform-
+    // wide daily-completion reporting (SuperAdminOperationsService.computeTrend) fold in
+    // moved units across an entire date range in one query instead of one per store per day.
+    @Query("select l from TaskMakeupLink l where l.store.id in :storeIds "
+        + "and l.linkedDate between :startDate and :endDate and l.status in :statuses")
+    List<TaskMakeupLink> findByStoreIdInAndLinkedDateBetweenAndStatusIn(
+        @Param("storeIds") Collection<Long> storeIds,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate,
+        @Param("statuses") Collection<MakeupLinkStatus> statuses
+    );
+
     // Atomically terminates (PENDING -> FULFILLED) the pending move for an instance, if
     // any -- called unconditionally whenever an active response is created for
     // (taskId, storeId, pastDate) (TaskService.writeResponse). An UPDATE rather than

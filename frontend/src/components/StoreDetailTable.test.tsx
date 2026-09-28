@@ -33,6 +33,9 @@ function task(overrides: Partial<ChecklistHistoryTaskItem>): ChecklistHistoryTas
     numericUnit: null,
     completed: true,
     currentlyActive: true,
+    totalActiveEmployees: 2,
+    deactivatedByName: null,
+    deactivatedAt: null,
     responses: [],
     ...overrides,
   };

@@ -16,6 +16,7 @@ public record NotificationResponse(
     String relatedIssueNote,
     String relatedStoreName,
     String relatedIssueStatus,
+    Long storeId,
     OffsetDateTime createdAt
 ) {
     public static NotificationResponse from(Notification n) {
@@ -43,6 +44,7 @@ public record NotificationResponse(
             issueNote,
             storeName,
             issueStatus,
+            n.getStore() != null ? n.getStore().getId() : null,
             n.getCreatedAt()
         );
     }

@@ -1,0 +1,2 @@
+ALTER TABLE notifications
+    ADD COLUMN store_id BIGINT REFERENCES stores(id) ON DELETE SET NULL;

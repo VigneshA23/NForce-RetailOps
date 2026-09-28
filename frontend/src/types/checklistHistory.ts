@@ -118,12 +118,26 @@ export interface ChecklistHistoryTaskItem {
   // False when this task has since been deactivated/reconfigured but still
   // shows up here because it has real historical responses.
   currentlyActive: boolean;
+  // Active-employee headcount for this task's store -- the "Y" in "X of Y
+  // responded", matching the Employee checklist's own denominator.
+  totalActiveEmployees: number;
+  // Who deactivated this task and when (best-effort, resolved from the
+  // activity log by name -- see backend HistoryTaskItemResponse). Null when
+  // currentlyActive is true, or no matching log entry could be found.
+  deactivatedByName: string | null;
+  deactivatedAt: string | null;
   responses: ChecklistHistoryResponseEntry[];
 }
 
 export interface ChecklistHistoryCategory {
   id: number;
   name: string;
+  // False means this category itself has been deactivated -- every task under
+  // it is treated as inactive for live-view purposes even if a task's own
+  // currentlyActive still reads true.
+  active: boolean;
+  deactivatedByName: string | null;
+  deactivatedAt: string | null;
   tasks: ChecklistHistoryTaskItem[];
 }
 

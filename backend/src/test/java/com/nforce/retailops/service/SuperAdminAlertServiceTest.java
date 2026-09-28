@@ -149,6 +149,10 @@ class SuperAdminAlertServiceTest {
         var n = (com.nforce.retailops.entity.Notification) notifications.get(0);
         assertThat(n.getCategory()).isEqualTo("STORE_ZERO_ACTIVITY");
         assertThat(n.getTitle()).contains("Zero Store 1");
+        // storeId lets the frontend deep-link straight into this store's
+        // checklist instead of leaving the Super Admin to pick one from a dropdown.
+        assertThat(n.getStore()).isNotNull();
+        assertThat(n.getStore().getId()).isEqualTo(store.getId());
     }
 
     @Test

@@ -1,4 +1,4 @@
-import type { ChecklistHistoryTaskItem, ChecklistScheduleType, ChecklistResponseType } from '../types/checklistHistory';
+import type { ChecklistHistoryCategory, ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem, ChecklistScheduleType, ChecklistResponseType } from '../types/checklistHistory';
 
 // Matches the backend's InvalidDateRangeException span cap (ChecklistHistoryService,
 // MAX_DATE_RANGE_DAYS) -- a client-side guardrail, not a substitute for that check.
@@ -90,8 +90,85 @@ export function responseDisplayValue(task: ChecklistHistoryTaskItem): string {
   return '—';
 }
 
+// A single response entry's own value, independent of which one is "latest"
+// -- used by the Inactive Tasks section, which lists every historical
+// response for a task rather than just the most recent one.
+export function formatResponseEntryValue(
+  task: Pick<ChecklistHistoryTaskItem, 'responseType' | 'numericUnit'>,
+  response: Pick<ChecklistHistoryResponseEntry, 'booleanValue' | 'numericValue' | 'textValue'>,
+): string {
+  if (response.booleanValue !== null) {
+    if (task.responseType === 'YES_NO') return response.booleanValue ? 'Yes' : 'No';
+    return response.booleanValue ? 'Done' : 'Not done';
+  }
+  if (response.numericValue !== null) {
+    return task.numericUnit ? `${response.numericValue} ${task.numericUnit}` : String(response.numericValue);
+  }
+  if (response.textValue !== null && response.textValue !== '') return response.textValue;
+  return '—';
+}
+
 export function checklistItemStatusBadgeClass(completed: boolean): string {
   return completed ? 'badge--success' : 'badge--outline';
+}
+
+// "X of Y responded" for a task, matching the Employee checklist's own
+// wording/format exactly (EmployeeDashboard.tsx's `${completedByCount}/${totalActiveEmployees} responded`).
+export function respondedOfTotalLabel(task: ChecklistHistoryTaskItem): string {
+  return `${activeResponderCount(task)}/${task.totalActiveEmployees} responded`;
+}
+
+// Single source of truth for what the live Owner/Admin and Super Admin
+// checklist tables (Outstanding/Incomplete/Completed & Flagged, stat cards,
+// progress bars, trend/repeat-offender aggregates) should ever see: only
+// active categories, and within them only active tasks. A category being
+// inactive vetoes every task under it, even if a task's own currentlyActive
+// still reads true (defensive -- category deactivation already cascades to
+// its tasks server-side, but this keeps the live view correct regardless).
+// Deactivated items with real response history are NOT lost -- they surface
+// separately via inactiveTasksWithHistory below, just excluded from here.
+export function visibleCategoriesForLiveView(categories: ChecklistHistoryCategory[]): ChecklistHistoryCategory[] {
+  return categories
+    .filter((category) => category.active)
+    .map((category) => ({ ...category, tasks: category.tasks.filter((task) => task.currentlyActive) }))
+    .filter((category) => category.tasks.length > 0);
+}
+
+export interface InactiveTaskWithHistory {
+  categoryId: number;
+  categoryName: string;
+  task: ChecklistHistoryTaskItem;
+  // 'CATEGORY' when the category itself was deactivated (vetoing every task
+  // under it); 'TASK' when only this specific task was deactivated.
+  deactivatedScope: 'CATEGORY' | 'TASK';
+  deactivatedByName: string | null;
+  deactivatedAt: string | null;
+}
+
+// The bottom "Inactive Tasks" section's data source: every task that is no
+// longer visible in visibleCategoriesForLiveView (its own flag, or its
+// category's, is false) but has at least one recorded employee response --
+// preserving the audit trail instead of silently dropping it. A task/category
+// deactivated with zero response history has nothing to audit and is
+// deliberately excluded here too (fully hidden, matching the live table).
+export function inactiveTasksWithHistory(categories: ChecklistHistoryCategory[]): InactiveTaskWithHistory[] {
+  const result: InactiveTaskWithHistory[] = [];
+  for (const category of categories) {
+    for (const task of category.tasks) {
+      const isInactive = !category.active || !task.currentlyActive;
+      if (!isInactive || task.responses.length === 0) continue;
+      const scope: 'CATEGORY' | 'TASK' = !category.active ? 'CATEGORY' : 'TASK';
+      result.push({
+        categoryId: category.id,
+        categoryName: category.name,
+        task,
+        deactivatedScope: scope,
+        deactivatedByName: scope === 'CATEGORY' ? category.deactivatedByName : task.deactivatedByName,
+        deactivatedAt: scope === 'CATEGORY' ? category.deactivatedAt : task.deactivatedAt,
+      });
+    }
+  }
+  return result;
 }
 
 function localDateString(d: Date): string {
@@ -121,6 +198,50 @@ export function lastWeekSameDay(date: string): string {
   const d = new Date(`${date}T00:00:00`);
   d.setDate(d.getDate() - 7);
   return localDateString(d);
+}
+
+export interface DateRange {
+  start: string;
+  end: string;
+}
+
+// The complete Monday-Sunday calendar week immediately before the week
+// containing `date` -- e.g. from a Thursday, "last week" is the full prior
+// Mon-Sun span, not "7 days ago" (a single day). Independent of which
+// weekday `date` falls on, and correct across month/year boundaries since
+// it's built entirely from Date's own day-stepping (same local-date
+// convention as the rest of this file -- no UTC conversion).
+export function previousCalendarWeekRange(date: string): DateRange {
+  const d = new Date(`${date}T00:00:00`);
+  // getDay(): 0=Sun..6=Sat -- convert to days-since-Monday (0=Mon..6=Sun).
+  const daysSinceMonday = (d.getDay() + 6) % 7;
+  const thisWeekMonday = new Date(d);
+  thisWeekMonday.setDate(d.getDate() - daysSinceMonday);
+  const lastWeekMonday = new Date(thisWeekMonday);
+  lastWeekMonday.setDate(thisWeekMonday.getDate() - 7);
+  const lastWeekSunday = new Date(lastWeekMonday);
+  lastWeekSunday.setDate(lastWeekMonday.getDate() + 6);
+  return { start: localDateString(lastWeekMonday), end: localDateString(lastWeekSunday) };
+}
+
+// Every ISO date from `range.start` to `range.end`, inclusive.
+export function datesInRange(range: DateRange): string[] {
+  const dates: string[] = [];
+  let cursor = range.start;
+  while (cursor <= range.end) {
+    dates.push(cursor);
+    cursor = stepDate(cursor, 1);
+  }
+  return dates;
+}
+
+export function formatDateRangeLabel(range: DateRange): string {
+  const start = new Date(`${range.start}T00:00:00`);
+  const end = new Date(`${range.end}T00:00:00`);
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const startLabel = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: sameYear ? undefined : 'numeric' });
+  const endLabel = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+  return `${startLabel} – ${endLabel}`;
 }
 
 // toISOString() renders in UTC, which silently shifts the result back a day

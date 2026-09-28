@@ -14,7 +14,7 @@ import java.util.Optional;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     // User (owner / employee) notifications
-    @Query("SELECT n FROM Notification n LEFT JOIN FETCH n.relatedIssue ri LEFT JOIN FETCH ri.store WHERE n.recipientUser.id = :userId ORDER BY n.createdAt DESC")
+    @Query("SELECT n FROM Notification n LEFT JOIN FETCH n.relatedIssue ri LEFT JOIN FETCH ri.store LEFT JOIN FETCH n.store WHERE n.recipientUser.id = :userId ORDER BY n.createdAt DESC")
     List<Notification> findByRecipientUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 
     long countByRecipientUserIdAndReadFalse(Long recipientUserId);
@@ -26,7 +26,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     int markAllReadByRecipientUserId(@Param("userId") Long userId);
 
     // Super Admin notifications
-    @Query("SELECT n FROM Notification n LEFT JOIN FETCH n.relatedIssue ri LEFT JOIN FETCH ri.store WHERE n.recipientSuperAdmin.id = :superAdminId ORDER BY n.createdAt DESC")
+    @Query("SELECT n FROM Notification n LEFT JOIN FETCH n.relatedIssue ri LEFT JOIN FETCH ri.store LEFT JOIN FETCH n.store WHERE n.recipientSuperAdmin.id = :superAdminId ORDER BY n.createdAt DESC")
     List<Notification> findByRecipientSuperAdminIdOrderByCreatedAtDesc(@Param("superAdminId") Long superAdminId, Pageable pageable);
 
     long countByRecipientSuperAdminIdAndReadFalse(Long recipientSuperAdminId);

@@ -75,13 +75,14 @@ public class TaskController {
         return ResponseEntity.ok(taskService.updateTask(principal.getUser().getId(), id, request));
     }
 
-    // Super Admin editing any task regardless of which owner it belongs to --
-    // its store/category scope stays whatever it already was (validated
-    // against that same owner in TaskService.applyRequest), only the content
-    // fields are actually meant to change here.
+    // Super Admin editing any task regardless of which owner it belongs to.
+    // The store scope can be widened to other owners' stores here, which
+    // fans out into new task rows for them alongside the edited row -- see
+    // TaskService.updateTaskAsSuperAdmin -- so, like the create endpoint
+    // above, this can return more than one TaskResponse.
     @PutMapping("/{id}/super-admin")
     @PreAuthorize("hasRole('SUPER_ADMIN')")
-    public ResponseEntity<TaskResponse> updateAsSuperAdmin(
+    public ResponseEntity<List<TaskResponse>> updateAsSuperAdmin(
         @PathVariable Long id,
         @Valid @RequestBody TaskRequest request
     ) {

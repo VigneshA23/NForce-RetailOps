@@ -41,7 +41,7 @@ function NotifItem({ notification, onRead, onViewAll, onNavigate }: NotifItemPro
   function handleClick() {
     onRead(notification.id);
     if (notification.linkPath && onNavigate) {
-      onNavigate(notification.linkPath, { createdAt: notification.createdAt, relatedIssueId: notification.relatedIssueId });
+      onNavigate(notification.linkPath, { createdAt: notification.createdAt, relatedIssueId: notification.relatedIssueId, storeId: notification.storeId });
     } else {
       onViewAll();
     }

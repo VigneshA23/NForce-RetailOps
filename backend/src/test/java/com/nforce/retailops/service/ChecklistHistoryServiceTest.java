@@ -62,6 +62,8 @@ class ChecklistHistoryServiceTest {
     private com.nforce.retailops.repository.AdminCorrectionRepository adminCorrectionRepository;
     @Mock
     private com.nforce.retailops.repository.RaisedIssueRepository raisedIssueRepository;
+    @Mock
+    private com.nforce.retailops.repository.ActivityLogRepository activityLogRepository;
 
     private ChecklistHistoryService checklistHistoryService;
 
@@ -69,7 +71,8 @@ class ChecklistHistoryServiceTest {
     void setUp() {
         checklistHistoryService = new ChecklistHistoryService(
             taskRepository, taskResponseEntryRepository, storeOwnerRepository,
-            storeEmployeeRepository, adminCorrectionRepository, raisedIssueRepository
+            storeEmployeeRepository, adminCorrectionRepository, raisedIssueRepository,
+            activityLogRepository
         );
     }
 
@@ -877,6 +880,121 @@ class ChecklistHistoryServiceTest {
         assertThat(detail.issues()).hasSize(1);
         assertThat(detail.issues().get(0).note()).isEqualTo("Freezer is warm");
         assertThat(detail.issues().get(0).status()).isEqualTo("OPEN");
+    }
+
+    // Regression test for the new employee-count denominator (Fix 2): every task
+    // in the detail response should carry the store's active-employee headcount,
+    // matching the Employee checklist's own totalActiveEmployees field.
+    @Test
+    void detailPopulatesTotalActiveEmployeesOnEveryTask() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of(task));
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today)).thenReturn(List.of());
+        when(storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(10L)).thenReturn(5);
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.totalActiveEmployees()).isEqualTo(5);
+    }
+
+    // Regression test for the new "Inactive Tasks" audit fields (Fix 1 refinement):
+    // a deactivated task's DTO should carry who deactivated it and when, resolved
+    // from the most recent matching TASK_DEACTIVATED activity log row.
+    @Test
+    void detailResolvesTaskDeactivationAuditFromActivityLog() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task deactivatedTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of(deactivatedTask));
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today)).thenReturn(List.of());
+
+        com.nforce.retailops.entity.ActivityLog log = new com.nforce.retailops.entity.ActivityLog();
+        log.setActionType("TASK_DEACTIVATED");
+        log.setActorName("Store Owner");
+        log.setActorRole("OWNER_ADMIN");
+        log.setStoreId(10L);
+        log.setEntityType("TASK");
+        log.setEntityName(deactivatedTask.getName());
+        log.setDescription("Deactivated task \"" + deactivatedTask.getName() + "\"");
+        OffsetDateTime deactivatedAt = OffsetDateTime.now().minusHours(2);
+        log.setOccurredAt(deactivatedAt);
+        when(activityLogRepository.findTopByActionTypeAndEntityNameAndStoreIdOrderByOccurredAtDesc(
+            "TASK_DEACTIVATED", deactivatedTask.getName(), 10L))
+            .thenReturn(Optional.of(log));
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.deactivatedByName()).isEqualTo("Store Owner");
+        assertThat(item.deactivatedAt()).isEqualTo(deactivatedAt);
+    }
+
+    // An active task must never trigger the deactivation-audit lookup at all --
+    // no ActivityLog query for the common (active) case.
+    @Test
+    void detailLeavesDeactivationAuditNullForAnActiveTask() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task activeTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of(activeTask));
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today)).thenReturn(List.of());
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        var item = detail.categories().get(0).tasks().get(0);
+        assertThat(item.deactivatedByName()).isNull();
+        assertThat(item.deactivatedAt()).isNull();
+        verify(activityLogRepository, org.mockito.Mockito.never())
+            .findTopByActionTypeAndEntityNameAndStoreIdOrderByOccurredAtDesc(any(), any(), any());
+    }
+
+    // Regression test for the new category-level active/audit fields (Fix 1
+    // refinement): a deactivated category's DTO should carry active=false and
+    // who deactivated it and when, resolved from CATEGORY_DEACTIVATED.
+    @Test
+    void detailResolvesCategoryDeactivationAuditFromActivityLog() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category deactivatedCategory = category(20L, "Opening", 0);
+        deactivatedCategory.setActive(false);
+        Task task = task(31L, deactivatedCategory, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of(task));
+        when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today)).thenReturn(List.of());
+
+        com.nforce.retailops.entity.ActivityLog log = new com.nforce.retailops.entity.ActivityLog();
+        log.setActionType("CATEGORY_DEACTIVATED");
+        log.setActorName("Super Admin");
+        log.setActorRole("SUPER_ADMIN");
+        log.setStoreId(10L);
+        log.setEntityType("CATEGORY");
+        log.setEntityName("Opening");
+        log.setDescription("Deactivated category \"Opening\"");
+        OffsetDateTime deactivatedAt = OffsetDateTime.now().minusDays(1);
+        log.setOccurredAt(deactivatedAt);
+        when(activityLogRepository.findTopByActionTypeAndEntityNameAndStoreIdOrderByOccurredAtDesc(
+            "CATEGORY_DEACTIVATED", "Opening", 10L))
+            .thenReturn(Optional.of(log));
+
+        ChecklistHistoryDetailResponse detail = checklistHistoryService.getDetail(OWNER_ID, 10L, today);
+
+        var categoryResponse = detail.categories().get(0);
+        assertThat(categoryResponse.active()).isFalse();
+        assertThat(categoryResponse.deactivatedByName()).isEqualTo("Super Admin");
+        assertThat(categoryResponse.deactivatedAt()).isEqualTo(deactivatedAt);
     }
 
     @Test

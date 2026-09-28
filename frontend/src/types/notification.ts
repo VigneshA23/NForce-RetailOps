@@ -10,5 +10,6 @@ export interface Notification {
   relatedIssueNote: string | null;
   relatedStoreName: string | null;
   relatedIssueStatus: string | null;
+  storeId: number | null;
   createdAt: string;
 }

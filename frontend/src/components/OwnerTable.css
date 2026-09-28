@@ -285,4 +285,13 @@
     color: var(--color-text-secondary);
     opacity: 0.8;
   }
+
+  .owner-mobile-card__icon-btn--danger {
+    color: var(--color-accent);
+  }
+
+  .owner-mobile-card__icon-btn--danger:hover {
+    color: var(--color-accent);
+    opacity: 0.8;
+  }
 }
