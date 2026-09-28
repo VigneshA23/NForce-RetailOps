@@ -711,6 +711,11 @@
 
 .inactive-tasks-list__item {
   border: 1px solid var(--color-border);
+  /* Same grey left-border "card" treatment the Incomplete/Completed tables
+     use for their own default (non-success/danger/warning) rows -- see
+     StoreDetailTable.css's mobile card rules -- applied consistently here
+     rather than only at mobile widths. */
+  border-left: 4px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-bg-page);
   padding: 8px 12px;

@@ -56,6 +56,9 @@ const TASK_STATUS_META = {
   YES: { label: 'Complete', badgeClass: 'badge--success', icon: CheckCircle2 },
   NO: { label: 'Flagged', badgeClass: 'badge--warning', icon: Flag },
   NOT_ANSWERED: { label: 'Not answered', badgeClass: 'badge--outline', icon: Clock },
+  // Grey, like Not answered -- this task (or its category) has since been
+  // deactivated. Its recorded response still shows above the badge.
+  INACTIVE: { label: 'Inactive', badgeClass: 'badge--outline', icon: HelpCircle },
 }
 
 function hasActivity(history: ShiftHistory | null): history is ShiftHistory {
@@ -167,7 +170,9 @@ function ChecklistDayHistoryView({
       for (const task of cat.tasks) {
         if (task.status === 'YES') complete++
         else if (task.status === 'NO') flagged++
-        else notAnswered++
+        // Inactive tasks are audit records, not part of today's/this day's
+        // outstanding work -- excluded from all three stat-card tallies.
+        else if (task.status !== 'INACTIVE') notAnswered++
       }
     }
   }

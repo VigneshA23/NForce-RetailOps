@@ -84,6 +84,10 @@ interface RawCategory {
   id: number;
   name: string;
   badgeColor?: string | null;
+  // False means the category itself has been deactivated -- every task under
+  // it is treated as Inactive for display purposes even if a task's own
+  // currentlyActive still reads true (category deactivation vetoes it).
+  active: boolean;
   tasks: RawTaskItem[];
 }
 
@@ -116,12 +120,18 @@ function latestResponse(responses: RawResponseEntry[]): RawResponseEntry | null 
   );
 }
 
-// No completed response -> Not answered. Completed and the most recent
-// response explicitly answered "No" -> Flagged. Anything else completed
-// (including NUMERIC/TEXT tasks, which have no booleanValue at all) -> Complete.
-// A dangling undone response (no resubmission since) counts as Not answered too --
-// it's only surfaced here so its history/name still shows, not as a real answer.
-function deriveTaskStatus(task: RawTaskItem, latest: RawResponseEntry | null): TaskStatus {
+// Inactive (task itself deactivated, or its category) takes priority over
+// every other status -- it's shown regardless of what the recorded answer
+// was, since the point is to flag that this task no longer applies, not to
+// re-litigate whether that historical answer counts as Complete/Flagged.
+// Otherwise: no completed response -> Not answered. Completed and the most
+// recent response explicitly answered "No" -> Flagged. Anything else
+// completed (including NUMERIC/TEXT tasks, which have no booleanValue at
+// all) -> Complete. A dangling undone response (no resubmission since)
+// counts as Not answered too -- it's only surfaced here so its history/name
+// still shows, not as a real answer.
+function deriveTaskStatus(task: RawTaskItem, latest: RawResponseEntry | null, categoryActive: boolean): TaskStatus {
+  if (!categoryActive || !task.currentlyActive) return 'INACTIVE';
   if (!task.completed || !latest || latest.undone) return 'NOT_ANSWERED';
   return latest.booleanValue === false ? 'NO' : 'YES';
 }
@@ -264,7 +274,7 @@ function buildCompletedByAll(responses: RawResponseEntry[]): HistoryResponderEnt
     }));
 }
 
-function toHistoryTask(task: RawTaskItem): HistoryTaskDetail {
+function toHistoryTask(task: RawTaskItem, categoryActive: boolean): HistoryTaskDetail {
   const latest = latestResponse(task.responses);
   const directCorrection = latest ? buildDirectCorrectionTransition(latest, task.responseType) : null;
   const undoTransition = latest ? buildUndoTransition(latest, task.responseType) : null;
@@ -274,7 +284,7 @@ function toHistoryTask(task: RawTaskItem): HistoryTaskDetail {
     responseId: latest?.id ?? null,
     responseType: task.responseType,
     name: task.name,
-    status: deriveTaskStatus(task, latest),
+    status: deriveTaskStatus(task, latest, categoryActive),
     responseValue: latest ? (latest.undone ? undoneLabel(task.responseType) : formatRawValue(latest, task.responseType)) : null,
     completedBy: latest ? { employeeUserId: latest.employeeUserId, name: latest.employeeFullName } : null,
     completedAt: latest ? formatTimeLabel(latest.respondedAt) : null,
@@ -295,13 +305,17 @@ function toBadgeColor(value: string | null | undefined): CategoryBadgeColor {
 }
 
 function toHistoryCategory(category: RawCategory): HistoryCategoryEntry {
-  const tasks = category.tasks.map(toHistoryTask);
+  const tasks = category.tasks.map((task) => toHistoryTask(task, category.active));
+  // Inactive tasks are excluded from both the numerator and denominator here --
+  // they're audit records of a task that no longer applies, not part of "how
+  // much of today's/this day's checklist is done."
+  const activeTasks = tasks.filter((task) => task.status !== 'INACTIVE');
   return {
     id: category.id,
     name: category.name,
     badgeColor: toBadgeColor(category.badgeColor),
-    tasksCompleted: tasks.filter((task) => task.status !== 'NOT_ANSWERED').length,
-    tasksTotal: tasks.length,
+    tasksCompleted: activeTasks.filter((task) => task.status !== 'NOT_ANSWERED').length,
+    tasksTotal: activeTasks.length,
     tasks,
   };
 }

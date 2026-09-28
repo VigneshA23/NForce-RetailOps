@@ -96,9 +96,22 @@ function TaskFormModal({
   }, [isOpen, initialTask, stores, storeScopeSelectable]);
 
   function handleStoreScopeChange(scope: { appliesToAllStores: boolean; storeIds: number[] }) {
-    setValues((current) => ({ ...current, ...scope, categoryId: null }));
+    setValues((current) => ({ ...current, ...scope }));
     onStoreScopeChange?.(scope);
   }
+
+  // The category list is refetched asynchronously for the new store scope
+  // (onStoreScopeChange above); only clear the current selection once that
+  // fetch settles and the category turns out to no longer be applicable --
+  // not eagerly on every store edit, which previously wiped a still-valid
+  // category (e.g. simply adding one more store to an existing task).
+  useEffect(() => {
+    if (!isOpen || categoriesLoading) return;
+    if (values.categoryId != null && !categories.some((category) => category.id === values.categoryId)) {
+      setValues((current) => ({ ...current, categoryId: null }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, categoriesLoading, isOpen]);
 
   const storeScopeChosen = !storeScopeSelectable || values.appliesToAllStores || values.storeIds.length > 0;
 
