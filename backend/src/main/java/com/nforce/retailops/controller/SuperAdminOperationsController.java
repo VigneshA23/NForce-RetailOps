@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
 import com.nforce.retailops.dto.StoreOperationsSummaryResponse;
 import com.nforce.retailops.dto.TrendDataPoint;
@@ -38,6 +39,14 @@ public class SuperAdminOperationsController {
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         return service.getPlatformStats(date != null ? date : LocalDate.now());
+    }
+
+    // Read-only. Status changes stay on the owner's Order Dashboard. No principal
+    // is resolved here -- a Super Admin has no users row and therefore no store
+    // scope; the class-level @PreAuthorize is the whole guard.
+    @GetMapping("/outstanding-orders")
+    public OutstandingOrdersOverviewResponse getOutstandingOrders() {
+        return service.getOutstandingOrdersOverview();
     }
 
     @GetMapping("/platform-trend")

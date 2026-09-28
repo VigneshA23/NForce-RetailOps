@@ -46,6 +46,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
   const [overlay, setOverlay] = useState<Overlay>(() => getOwnerOverlay());
   useEffect(() => setOwnerOverlay(overlay), [overlay]);
   const [searchSeed, setSearchSeed] = useState<{ term: string; id: number; recordId?: number } | undefined>(undefined);
+  const [orderSeed, setOrderSeed] = useState<{ status: string; id: number } | undefined>(undefined);
   // Notification-click navigation into a specific issue (see useIssueFocus).
   const [focusIssueId, setFocusIssueId] = useState<IssueFocusRequest | undefined>(undefined);
   // Lazy-mount: tabs mount on first visit and stay alive — no refetch on tab switch.
@@ -97,6 +98,15 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
     else if (group === 'employees') setActiveTab('employees');
   }
 
+  // Hands the Orders tab a status filter alongside the tab switch. Same shape as
+  // searchSeed: the `id` nonce is what makes a second click re-fire even though
+  // `status` hasn't changed, since the tab stays mounted and won't remount.
+  function handleViewPendingOrders() {
+    setOverlay(null);
+    setOrderSeed({ status: 'NEEDS_ORDERING', id: Date.now() });
+    setActiveTab('orders');
+  }
+
   const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders'];
 
   function renderTab(tab: NavTabKey) {
@@ -113,6 +123,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
             onViewIssues={() => setActiveTab('issues')}
             onViewEmployees={() => setActiveTab('employees')}
             onViewCategories={() => setActiveTab('categories')}
+            onViewPendingOrders={handleViewPendingOrders}
           />
         );
       case 'store-detail':
@@ -163,7 +174,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       case 'inventory':
         return <StoreInventory />;
       case 'orders':
-        return <OrderDashboard storeName={storesState.stores[0]?.name} />;
+        return <OrderDashboard storeName={storesState.stores[0]?.name} seed={orderSeed} />;
     }
   }
 
@@ -193,6 +204,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
       onIssuesClick={() => { setOverlay(null); setActiveTab('issues'); }}
+      // Inventory and Orders are sidebar tabs on desktop, but the mobile bottom
+      // bar has no room for a sixth and seventh entry -- the profile menu is the
+      // same escape hatch Issues already uses.
+      onInventoryClick={() => { setOverlay(null); setActiveTab('inventory'); }}
+      onOrdersClick={() => { setOverlay(null); setActiveTab('orders'); }}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}
