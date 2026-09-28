@@ -6,11 +6,20 @@ import { getOwnerSuppliers } from '../api/suppliers';
 import type { StoreInventoryItem, StoreInventoryItemConfigFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import StoreInventoryItemConfigModal from '../components/StoreInventoryItemConfigModal';
+import StockCheckHistory from '../components/StockCheckHistory';
 import SearchInput from '../components/SearchInput';
 import StatCard from '../components/StatCard';
 import './StoreInventory.css';
 
+type SubTab = 'items' | 'history';
+
+const SUB_TABS: { key: SubTab; label: string }[] = [
+  { key: 'items', label: 'Items' },
+  { key: 'history', label: 'Stock Check History' },
+];
+
 function StoreInventory() {
+  const [subTab, setSubTab] = useState<SubTab>('items');
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -63,93 +72,108 @@ function StoreInventory() {
     return item.itemName.toLowerCase().includes(term) || item.categoryName.toLowerCase().includes(term);
   });
 
-  if (loadError) {
-    return (
-      <div className="store-inventory-page">
-        <div className="store-inventory-page__error">
-          {loadError}
-          <button type="button" className="btn btn--secondary" onClick={load}>
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="store-inventory-page">
-      <div className="stat-card-row">
-        <StatCard icon={Boxes} label="Assigned Items" value={items.length} tone="primary" />
-        <StatCard icon={CircleCheck} label="Configured" value={configuredCount} tone="success" />
-        <StatCard icon={CircleSlash} label="Not Yet Configured" value={items.length - configuredCount} tone="warning" />
+      <div className="store-inventory-page__subtabs">
+        {SUB_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            className={`store-inventory-page__subtab${subTab === tab.key ? ' store-inventory-page__subtab--active' : ''}`}
+            onClick={() => setSubTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      <div className="filter-bar">
-        <div className="filter filter--search">
-          <SearchInput value={search} onChange={setSearch} placeholder="Search items" variant="filter" />
-        </div>
-      </div>
-
-      <div className="table-card">
-        <div className="table-scroll">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th scope="col">Item</th>
-                <th scope="col">Category</th>
-                <th scope="col">Unit</th>
-                <th scope="col">Min (Weekday / Weekend)</th>
-                <th scope="col">Preferred Supplier</th>
-                <th scope="col" className="store-inventory-page__actions-header">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredItems.map((item) => (
-                <tr key={item.id}>
-                  <td data-label="Item">{item.itemName}</td>
-                  <td data-label="Category">{item.categoryName}</td>
-                  <td data-label="Unit">{item.unitOfMeasurement}</td>
-                  <td data-label="Min">
-                    {item.minWeekday ?? '—'} / {item.minWeekend ?? item.minWeekday ?? '—'}
-                  </td>
-                  <td data-label="Preferred Supplier">{item.preferredSupplierName ?? '—'}</td>
-                  <td className="table-actions-cell" data-label="Actions">
-                    <div className="table-row-actions">
-                      <button
-                        type="button"
-                        className="table-icon-btn"
-                        aria-label={`Configure ${item.itemName}`}
-                        title="Configure"
-                        onClick={() => { setConfigError(null); setConfigTarget(item); }}
-                      >
-                        Configure
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {!isLoading && filteredItems.length === 0 && (
-          <div className="store-inventory-page__empty">
-            {items.length === 0
-              ? 'No inventory items assigned to your store yet. Ask your Super Admin to assign items from the master catalog.'
-              : 'No items match your search.'}
+      {subTab === 'items' && (
+        loadError ? (
+          <div className="store-inventory-page__error">
+            {loadError}
+            <button type="button" className="btn btn--secondary" onClick={load}>
+              Retry
+            </button>
           </div>
-        )}
-        {isLoading && <div className="store-inventory-page__empty">Loading...</div>}
-      </div>
+        ) : (
+          <>
+            <div className="stat-card-row">
+              <StatCard icon={Boxes} label="Assigned Items" value={items.length} tone="primary" />
+              <StatCard icon={CircleCheck} label="Configured" value={configuredCount} tone="success" />
+              <StatCard icon={CircleSlash} label="Not Yet Configured" value={items.length - configuredCount} tone="warning" />
+            </div>
 
-      <StoreInventoryItemConfigModal
-        isOpen={configTarget !== null}
-        item={configTarget}
-        suppliers={suppliers}
-        errorMessage={configError}
-        isSubmitting={isConfigSubmitting}
-        onClose={() => setConfigTarget(null)}
-        onSubmit={handleConfigSubmit}
-      />
+            <div className="filter-bar">
+              <div className="filter filter--search">
+                <SearchInput value={search} onChange={setSearch} placeholder="Search items" variant="filter" />
+              </div>
+            </div>
+
+            <div className="table-card">
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Item</th>
+                      <th scope="col">Category</th>
+                      <th scope="col">Unit</th>
+                      <th scope="col">Min (Weekday / Weekend)</th>
+                      <th scope="col">Preferred Supplier</th>
+                      <th scope="col" className="store-inventory-page__actions-header">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredItems.map((item) => (
+                      <tr key={item.id}>
+                        <td data-label="Item">{item.itemName}</td>
+                        <td data-label="Category">{item.categoryName}</td>
+                        <td data-label="Unit">{item.unitOfMeasurement}</td>
+                        <td data-label="Min">
+                          {item.minWeekday ?? '—'} / {item.minWeekend ?? item.minWeekday ?? '—'}
+                        </td>
+                        <td data-label="Preferred Supplier">{item.preferredSupplierName ?? '—'}</td>
+                        <td className="table-actions-cell" data-label="Actions">
+                          <div className="table-row-actions">
+                            <button
+                              type="button"
+                              className="table-icon-btn"
+                              aria-label={`Configure ${item.itemName}`}
+                              title="Configure"
+                              onClick={() => { setConfigError(null); setConfigTarget(item); }}
+                            >
+                              Configure
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {!isLoading && filteredItems.length === 0 && (
+                <div className="store-inventory-page__empty">
+                  {items.length === 0
+                    ? 'No inventory items assigned to your store yet. Ask your Super Admin to assign items from the master catalog.'
+                    : 'No items match your search.'}
+                </div>
+              )}
+              {isLoading && <div className="store-inventory-page__empty">Loading...</div>}
+            </div>
+
+            <StoreInventoryItemConfigModal
+              isOpen={configTarget !== null}
+              item={configTarget}
+              suppliers={suppliers}
+              errorMessage={configError}
+              isSubmitting={isConfigSubmitting}
+              onClose={() => setConfigTarget(null)}
+              onSubmit={handleConfigSubmit}
+            />
+          </>
+        )
+      )}
+
+      {subTab === 'history' && <StockCheckHistory />}
     </div>
   );
 }

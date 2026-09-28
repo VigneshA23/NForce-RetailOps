@@ -17,7 +17,6 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
-import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.ActivityLogRepository;
@@ -27,11 +26,11 @@ import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
+import com.nforce.retailops.util.DateRangeValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -936,13 +935,7 @@ public class ChecklistHistoryService {
     }
 
     private void validateRange(LocalDate startDate, LocalDate endDate) {
-        if (startDate.isAfter(endDate)) {
-            throw new InvalidDateRangeException("Start date must be on or before end date");
-        }
-        long spanDays = ChronoUnit.DAYS.between(startDate, endDate) + 1;
-        if (spanDays > MAX_DATE_RANGE_DAYS) {
-            throw new InvalidDateRangeException("Date range cannot exceed " + MAX_DATE_RANGE_DAYS + " days");
-        }
+        DateRangeValidator.validate(startDate, endDate, MAX_DATE_RANGE_DAYS);
     }
 
     private List<LocalDate> datesBetween(LocalDate startDate, LocalDate endDate) {
