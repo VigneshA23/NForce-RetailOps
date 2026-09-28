@@ -13,6 +13,14 @@ import type { StoreSummary } from './types/store'
 const TOKEN_KEY = 'nforce-retailops-auth-token'
 const ACTIVE_STORE_KEY = 'nforce-retailops-active-store'
 
+// These tests type real credentials through the login form, and user-event's
+// default 0ms delay still yields to the event loop between every keystroke --
+// ~30 macrotask round-trips per login, each re-rendering App. `delay: null`
+// drops that and cuts the heaviest test here by about a third. Safe because
+// nothing on these paths debounces keystrokes; don't restore the delay without
+// re-checking the suite's timing under parallel load.
+const USER_EVENT_OPTIONS = { delay: null } as const
+
 vi.mock('./api/auth', () => ({
   login: vi.fn(),
   logout: vi.fn(),
@@ -125,7 +133,7 @@ describe('sign-out', () => {
   })
 
   it('lets an authenticated employee sign out via the profile menu, clearing the token and returning to login', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     render(<App />)
 
     await loginAsEmployee(user)
@@ -146,7 +154,7 @@ describe('sign-out', () => {
   })
 
   it('shows the confirmation popup on the Select Your Store page, and keeps the user signed in on Cancel', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     render(<App />)
 
     await loginAsEmployee(user)
@@ -170,7 +178,7 @@ describe('sign-out', () => {
 
   it('still logs out locally when the backend logout call fails', async () => {
     mockLogout.mockRejectedValueOnce(new Error('network error'))
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     render(<App />)
 
     await loginAsEmployee(user)
@@ -193,7 +201,7 @@ describe('sign-out', () => {
           resolveLogout = resolve
         }),
     )
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     render(<App />)
 
     await loginAsEmployee(user)
@@ -226,7 +234,7 @@ describe('sign-out', () => {
 
 describe('Remember Me persistence', () => {
   it('stores the token in localStorage (survives browser close) when Remember Me is checked', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     render(<App />)
 
     await loginAsEmployee(user) // helper already checks Remember Me
@@ -236,7 +244,7 @@ describe('Remember Me persistence', () => {
   })
 
   it('stores the token in sessionStorage only (does not survive browser close) when Remember Me is left unchecked', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false, sessionTimeoutMinutes: 30 })
     render(<App />)
 
@@ -253,7 +261,7 @@ describe('Remember Me persistence', () => {
 
 describe('cross-tab session sync', () => {
   it('ends this tab\'s session when another tab clears the shared auth token', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     render(<App />)
 
     await loginAsEmployee(user)
@@ -410,7 +418,7 @@ describe('session restore', () => {
 
 describe('store selection', () => {
   it('auto-selects the only assigned store and hides the switch-store control', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     mockGetAuthorizedStores.mockResolvedValue([STORE_1])
     mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false, sessionTimeoutMinutes: 30 })
 
@@ -425,7 +433,7 @@ describe('store selection', () => {
   })
 
   it('shows an empty state when the employee has no assigned store', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     mockGetAuthorizedStores.mockResolvedValue([])
     mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false, sessionTimeoutMinutes: 30 })
 
@@ -438,7 +446,7 @@ describe('store selection', () => {
   })
 
   it('remembers the picked store so a multi-store employee is not asked again', async () => {
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     render(<App />)
     await loginAsEmployee(user)
     await selectFirstOpenStore(user)
@@ -461,7 +469,7 @@ describe('employee tab persistence', () => {
     mockGetMissedTasks.mockResolvedValue({
       groups: [{ date: '2026-09-20', instances: [] }], nextCursor: null, totalInstances: 3,
     })
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     render(<App />)
 
     await loginAsEmployee(user)
@@ -488,7 +496,7 @@ describe('employee tab persistence', () => {
     mockGetMissedTasks.mockResolvedValue({
       groups: [{ date: '2026-09-20', instances: [] }], nextCursor: null, totalInstances: 3,
     })
-    const user = userEvent.setup()
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
     render(<App />)
 
     await loginAsEmployee(user)
