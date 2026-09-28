@@ -7,6 +7,7 @@ import * as issuesApi from '../api/issues';
 import * as checklistHistoryApi from '../api/checklistHistory';
 import * as activityApi from '../api/activity';
 import type { OwnerStore } from '../types/ownerStore';
+import type { Issue } from '../types/issue';
 
 vi.mock('../api/orderList', () => ({ getNeedsOrderingCount: vi.fn() }));
 vi.mock('../api/issues', () => ({ getIssues: vi.fn() }));
@@ -102,5 +103,62 @@ describe('Home low-stock tile', () => {
     // gains a second interval, this and getIssues would diverge.
     await waitFor(() => expect(mockGetNeedsOrderingCount).toHaveBeenCalledTimes(1));
     expect(mockGetIssues).toHaveBeenCalledTimes(1);
+  });
+});
+
+const OPEN_ISSUE: Issue = {
+  id: 1, storeId: 10, storeName: 'Downtown', employeeUserId: 2,
+  employeeFullName: 'Alex', note: 'Freezer is noisy', status: 'OPEN',
+  raisedDate: '2026-09-28', responseText: null, respondedByFullName: null,
+  respondedBySuperAdmin: false, respondedAt: null, createdAt: '2026-09-28T09:00:00Z',
+};
+
+// Returns the `stat-card--<tone>` class of every tile in the stat row.
+function toneClasses(): string[] {
+  const row = document.querySelector('.stat-card-row');
+  return Array.from(row?.querySelectorAll('.stat-card') ?? []).map((el) => {
+    const tone = Array.from(el.classList).find(
+      (c) => c.startsWith('stat-card--') && c !== 'stat-card--active',
+    );
+    return tone ?? '(none)';
+  });
+}
+
+// The Home row renders five tiles against what used to be four tones, so two of
+// them shared: Needs Ordering and Active Issues both came out `primary` and read
+// as a single block of red. These pin the fix.
+describe('Home stat tile tones', () => {
+  it('does not give Needs Ordering and Active Issues the same tone', async () => {
+    mockGetNeedsOrderingCount.mockResolvedValue(3);
+    mockGetIssues.mockResolvedValue([OPEN_ISSUE]);
+
+    renderHome();
+
+    // Both alert tiles on screen at once -- the exact reported state.
+    const lowStock = (await screen.findByText('Needs Ordering')).closest('.stat-card');
+    const issues = screen.getByText('Active Issues').closest('.stat-card');
+    await waitFor(() => expect(screen.getByText('3')).toBeInTheDocument());
+
+    const toneOf = (el: Element | null) =>
+      Array.from(el?.classList ?? []).find((c) => c.startsWith('stat-card--'));
+
+    expect(toneOf(lowStock)).toBeDefined();
+    expect(toneOf(lowStock)).not.toBe(toneOf(issues));
+  });
+
+  // The general invariant, and the one that actually broke: a tile reusing a
+  // tone already spent elsewhere in the row is invisible as a distinct thing.
+  // This fails for any future tile that collides, not just these two.
+  it('gives every tile in the row a distinct tone', async () => {
+    mockGetNeedsOrderingCount.mockResolvedValue(3);
+    mockGetIssues.mockResolvedValue([OPEN_ISSUE]);
+
+    renderHome();
+
+    await screen.findByText('Needs Ordering');
+    await waitFor(() => expect(toneClasses().length).toBe(5));
+
+    const tones = toneClasses();
+    expect(new Set(tones).size).toBe(tones.length);
   });
 });

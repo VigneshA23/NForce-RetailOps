@@ -2,7 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import './StatCard.css';
 
-export type StatCardTone = 'primary' | 'success' | 'warning' | 'info';
+export type StatCardTone = 'primary' | 'success' | 'warning' | 'info' | 'purple';
 
 interface StatCardTrend {
   value: string;

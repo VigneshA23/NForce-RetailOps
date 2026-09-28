@@ -341,11 +341,14 @@ function Home({
           tone="success"
           onClick={onViewCategories}
         />
+        {/* Purple, not amber: this is a progress metric, not something to act
+            on. Handing amber to Needs Ordering below is what keeps the two
+            alert tiles readable as different things. */}
         <StatCard
           icon={ListChecks}
           label="Today's Completion"
           value={`${todayTotals.completedTasks}/${todayTotals.totalTasks}`}
-          tone="warning"
+          tone="purple"
           onClick={onViewStoreDetail}
         />
         {showLowStockAlert && (
@@ -353,7 +356,11 @@ function Home({
             icon={PackageSearch}
             label="Needs Ordering"
             value={needsOrderingCount!}
-            tone="primary"
+            // Amber, not primary: Active Issues below already owns red, and two
+            // red tiles side by side read as one block of colour rather than as
+            // two separate alerts. A restock prompt is a warning; red stays for
+            // actual problems.
+            tone="warning"
             onClick={onViewPendingOrders}
           />
         )}
