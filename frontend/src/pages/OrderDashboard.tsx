@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Clipboard, PackageCheck, PackageSearch, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { getOrderList, updateOrderListEntry } from '../api/orderList';
@@ -32,9 +32,12 @@ const STATUS_FILTER_OPTIONS = [
 
 interface OrderDashboardProps {
   storeName?: string | null;
+  // Set by the shell when arriving from the Home low-stock tile, to open this
+  // tab already filtered. `id` is a nonce, not data -- see the effect below.
+  seed?: { status: string; id: number };
 }
 
-function OrderDashboard({ storeName }: OrderDashboardProps) {
+function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
   const [entries, setEntries] = useState<OrderListEntry[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,6 +63,20 @@ function OrderDashboard({ storeName }: OrderDashboardProps) {
   useEffect(() => {
     load();
   }, []);
+
+  // The owner shell keeps this tab mounted and merely hidden, so arriving here
+  // from the Home tile does NOT remount -- the filter has to be applied by an
+  // effect rather than an initial useState. Retiring each request by its nonce
+  // (the house pattern, same as searchSeed and focusIssueId) is what stops a
+  // later re-render re-applying the filter after the user has changed it by
+  // hand. It deliberately does not reset the filter afterwards: that value is
+  // the user's now, and persists exactly like any filter they set themselves.
+  const appliedSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (!seed || seed.id === appliedSeedId.current) return;
+    appliedSeedId.current = seed.id;
+    setStatusFilter(seed.status);
+  }, [seed]);
 
   async function handleEditSubmit(values: UpdateOrderListEntryValues) {
     if (!editTarget) return;

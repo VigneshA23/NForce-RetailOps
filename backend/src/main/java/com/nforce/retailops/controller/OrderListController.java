@@ -11,6 +11,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 // Owner/Admin's Order Dashboard, scoped to the caller's own (single) store.
 // No dedicated "copy order list" endpoint -- that text formatting happens
@@ -29,6 +30,12 @@ public class OrderListController {
     @GetMapping
     public ResponseEntity<List<OrderListEntryResponse>> list(@AuthenticationPrincipal AppUserDetails principal) {
         return ResponseEntity.ok(orderListService.listForOwner(principal.getUser().getId()));
+    }
+
+    // Literal path, so it cannot collide with the {id} mapping below.
+    @GetMapping("/needs-ordering-count")
+    public ResponseEntity<Map<String, Long>> needsOrderingCount(@AuthenticationPrincipal AppUserDetails principal) {
+        return ResponseEntity.ok(orderListService.needsOrderingCount(principal.getUser().getId()));
     }
 
     @PatchMapping("/{id}")
