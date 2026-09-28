@@ -13,6 +13,28 @@ async function parseErrorMessage(response: Response, fallback: string): Promise<
   }
 }
 
+// Narrows the category picker to only categories applicable to a given store
+// scope (single store, the intersection of several, or every store for "All
+// Stores") -- shared by the Owner Admin and Super Admin task forms, since
+// GET /categories/applicable is authorized for both roles and branches
+// server-side on the caller (an owner only ever sees their own categories).
+export async function getApplicableCategories(scope: { appliesToAllStores: boolean; storeIds: number[] }): Promise<Category[]> {
+  const params = new URLSearchParams();
+  params.set('appliesToAllStores', String(scope.appliesToAllStores));
+  if (!scope.appliesToAllStores) {
+    scope.storeIds.forEach((id) => params.append('storeIds', String(id)));
+  }
+  const response = await fetchWithTimeout(`${API_BASE_URL}/categories/applicable?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to load categories for the selected stores'));
+  }
+
+  return response.json();
+}
+
 export async function getCategories(): Promise<Category[]> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/categories`, {
     headers: authHeaders(),

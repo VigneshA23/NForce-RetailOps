@@ -6,6 +6,7 @@ import {
   deleteTask,
   getAllTasks,
   getApplicableCategories,
+  mergeTasks,
   setTaskActive,
   TaskHasHistoryError,
   updateTask,
@@ -16,6 +17,7 @@ import type { Category } from '../types/category';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import type { AdminTask, AdminTaskFormValues, ScheduleType } from '../types/adminTask';
 import { isOneTimeTask, SCHEDULE_TYPE_OPTIONS } from '../utils/adminTaskOptions';
+import { groupTasksByName } from '../utils/taskGrouping';
 import TaskTable from '../components/TaskTable';
 import TaskFormModal from '../components/TaskFormModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
@@ -158,9 +160,18 @@ function SuperAdminTasks() {
     [allCategories],
   );
 
+  // Rows sharing an exact task title are presented as ONE combined row (see
+  // groupTasksByName) -- e.g. a Super Admin cross-owner store-scope edit
+  // legitimately creates a separate Task row per owner (see backend
+  // TaskService.updateTaskAsSuperAdmin), which otherwise reads as accidental
+  // duplicates in this list. Purely a display grouping -- the underlying rows
+  // are untouched; edit/delete/toggle on a merged row act on every underlying
+  // row it represents (see memberIdsByDisplayId).
+  const { displayTasks, memberIdsByDisplayId } = useMemo(() => groupTasksByName(tasks), [tasks]);
+
   const filteredTasks = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    return tasks.filter((task) => {
+    return displayTasks.filter((task) => {
       if (normalizedSearch && !task.name.toLowerCase().includes(normalizedSearch)) return false;
       if (storeFilter !== 'ALL' && !task.appliesToAllStores && !task.stores.some((store) => store.id === storeFilter)) return false;
       if (categoryFilter !== 'ALL' && task.categoryId !== categoryFilter) return false;
@@ -172,7 +183,7 @@ function SuperAdminTasks() {
       }
       return true;
     });
-  }, [tasks, search, storeFilter, categoryFilter, statusFilter, scheduleFilter]);
+  }, [displayTasks, search, storeFilter, categoryFilter, statusFilter, scheduleFilter]);
 
   useEffect(() => {
     setPage(1);
@@ -182,22 +193,22 @@ function SuperAdminTasks() {
   const currentPage = Math.min(page, pageCount);
   const pagedTasks = filteredTasks.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const activeTaskCount = useMemo(() => tasks.filter((task) => task.active).length, [tasks]);
+  const activeTaskCount = useMemo(() => displayTasks.filter((task) => task.active).length, [displayTasks]);
   const singleCompletionCount = useMemo(
-    () => tasks.filter((task) => task.active && task.completionType === 'SINGLE').length,
-    [tasks],
+    () => displayTasks.filter((task) => task.active && task.completionType === 'SINGLE').length,
+    [displayTasks],
   );
   const multipleCompletionCount = useMemo(
-    () => tasks.filter((task) => task.active && task.completionType === 'MULTIPLE').length,
-    [tasks],
+    () => displayTasks.filter((task) => task.active && task.completionType === 'MULTIPLE').length,
+    [displayTasks],
   );
 
   const storeCoverageCount = useMemo(() => {
-    if (tasks.some((task) => task.appliesToAllStores)) return activeStores.length;
+    if (displayTasks.some((task) => task.appliesToAllStores)) return activeStores.length;
     const storeIds = new Set<number>();
-    tasks.forEach((task) => task.stores.forEach((store) => storeIds.add(store.id)));
+    displayTasks.forEach((task) => task.stores.forEach((store) => storeIds.add(store.id)));
     return storeIds.size;
-  }, [tasks, activeStores]);
+  }, [displayTasks, activeStores]);
 
   const summaryText = isLoading
     ? 'Loading tasks...'
@@ -276,64 +287,86 @@ function SuperAdminTasks() {
     }
   }
 
+  // A merged row's id maps to every real underlying task id it represents
+  // (memberIdsByDisplayId), and is itself the "survivor" id groupTasksByName
+  // picked for the group. Deleting a merged row consolidates every duplicate
+  // into that survivor instead of deleting them all -- reassigning any real
+  // response history onto it -- rather than failing outright the moment one
+  // of the duplicates turns out to have history (see TaskHasHistoryError
+  // below, which only ever applies to the true single-row case now).
   async function handleConfirmDelete() {
     if (!deleteTarget) return;
     setActionError(null);
-    try {
-      await deleteTask(deleteTarget.id);
-      const deletedName = deleteTarget.name;
-      setTasks((current) => current.filter((task) => task.id !== deleteTarget.id));
-      setDeleteTarget(null);
-      nfToast.success(`"${deletedName}" task deleted.`);
-    } catch (error) {
-      if (error instanceof TaskHasHistoryError) {
-        const conflicted = deleteTarget;
-        setDeleteTarget(null);
-        setHistoryConflictTask(conflicted);
-        return;
+    const memberIds = memberIdsByDisplayId.get(deleteTarget.id) ?? [deleteTarget.id];
+    const deletedName = deleteTarget.name;
+    setDeleteTarget(null);
+
+    if (memberIds.length > 1) {
+      const loserIds = memberIds.filter((id) => id !== deleteTarget.id);
+      try {
+        await mergeTasks(deleteTarget.id, loserIds);
+        nfToast.success(`Merged ${memberIds.length} duplicate "${deletedName}" records into one.`);
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : 'Failed to merge duplicate tasks');
       }
-      setDeleteTarget(null);
-      setActionError(error instanceof Error ? error.message : 'Failed to delete task');
+      loadTasks();
+      return;
     }
+
+    const results = await Promise.allSettled(memberIds.map((id) => deleteTask(id)));
+
+    const historyConflict = results.some(
+      (result) => result.status === 'rejected' && result.reason instanceof TaskHasHistoryError,
+    );
+    if (historyConflict) {
+      setHistoryConflictTask(deleteTarget);
+    } else {
+      const failure = results.find((result) => result.status === 'rejected');
+      if (failure && failure.status === 'rejected') {
+        setActionError(failure.reason instanceof Error ? failure.reason.message : 'Failed to delete task');
+      } else {
+        nfToast.success(`"${deletedName}" task deleted.`);
+      }
+    }
+    loadTasks();
   }
 
   async function handleToggleStatus(task: AdminTask) {
     setActionError(null);
     const nextActive = !task.active;
-    setTasks((current) => current.map((t) => (t.id === task.id ? { ...t, active: nextActive } : t)));
-    try {
-      const updated = await setTaskActive(task.id, nextActive);
-      setTasks((current) => current.map((t) => (t.id === updated.id ? updated : t)));
-      nfToast.success(`"${updated.name}" task ${updated.active ? 'activated' : 'deactivated'}.`);
-    } catch (error) {
-      setTasks((current) => current.map((t) => (t.id === task.id ? { ...t, active: task.active } : t)));
-      const msg = error instanceof Error ? error.message : 'Failed to update task status';
+    const memberIds = memberIdsByDisplayId.get(task.id) ?? [task.id];
+    setTasks((current) => current.map((t) => (memberIds.includes(t.id) ? { ...t, active: nextActive } : t)));
+    const results = await Promise.allSettled(memberIds.map((id) => setTaskActive(id, nextActive)));
+    const failure = results.find((result) => result.status === 'rejected');
+    if (failure) {
+      setTasks((current) => current.map((t) => (memberIds.includes(t.id) ? { ...t, active: task.active } : t)));
+      const msg = failure.status === 'rejected' && failure.reason instanceof Error ? failure.reason.message : 'Failed to update task status';
       setActionError(msg);
       nfToast.error(msg);
+      return;
     }
+    nfToast.success(`"${task.name}" task ${nextActive ? 'activated' : 'deactivated'}.`);
+    loadTasks();
   }
 
   async function handleDeactivateInsteadOfDelete() {
     if (!historyConflictTask) return;
     setActionError(null);
-    try {
-      const updated = await setTaskActive(historyConflictTask.id, false);
-      setTasks((current) => current.map((task) => (task.id === updated.id ? updated : task)));
-      const deactivatedName = updated.name;
-      setHistoryConflictTask(null);
-      nfToast.success(`"${deactivatedName}" task deactivated.`);
-    } catch (error) {
-      setHistoryConflictTask(null);
-      const msg = error instanceof Error ? error.message : 'Failed to deactivate task';
-      setActionError(msg);
-      nfToast.error(msg);
-    }
+    const memberIds = memberIdsByDisplayId.get(historyConflictTask.id) ?? [historyConflictTask.id];
+    const deactivatedName = historyConflictTask.name;
+    // Best-effort across every underlying row -- one may have already been
+    // deleted successfully above (only the history-conflicted ones remain),
+    // so a failure here per-id is expected/harmless, not surfaced as an error.
+    await Promise.allSettled(memberIds.map((id) => setTaskActive(id, false)));
+    setHistoryConflictTask(null);
+    nfToast.success(`"${deactivatedName}" task deactivated.`);
+    loadTasks();
   }
 
   return (
     <div className="tasks-page">
       <div className="stat-card-row">
-        <StatCard icon={ClipboardList} label="Total Tasks" value={tasks.length} tone="primary" />
+        <StatCard icon={ClipboardList} label="Total Tasks" value={displayTasks.length} tone="primary" />
         <StatCard icon={CheckCircle2} label="Active Tasks (All Stores)" value={activeTaskCount} tone="success" />
         <StatCard icon={CircleDot} label="Single Completion" value={singleCompletionCount} tone="info" />
         <StatCard icon={Repeat2} label="Multiple Completions" value={multipleCompletionCount} tone="warning" />
@@ -467,9 +500,20 @@ function SuperAdminTasks() {
 
       <ConfirmDialog
         isOpen={deleteTarget !== null}
-        title="Delete Task?"
-        message="Are you sure you want to delete this task?"
-        confirmLabel="Delete"
+        title={
+          deleteTarget && (memberIdsByDisplayId.get(deleteTarget.id)?.length ?? 1) > 1
+            ? 'Merge Duplicate Tasks?'
+            : 'Delete Task?'
+        }
+        message={
+          deleteTarget && (memberIdsByDisplayId.get(deleteTarget.id)?.length ?? 1) > 1
+            ? `This title has ${memberIdsByDisplayId.get(deleteTarget.id)?.length} duplicate records across stores. They'll be combined into one task, keeping all response history and store assignments.`
+            : 'Are you sure you want to delete this task?'
+        }
+        confirmLabel={
+          deleteTarget && (memberIdsByDisplayId.get(deleteTarget.id)?.length ?? 1) > 1 ? 'Merge' : 'Delete'
+        }
+        danger={!(deleteTarget && (memberIdsByDisplayId.get(deleteTarget.id)?.length ?? 1) > 1)}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />
