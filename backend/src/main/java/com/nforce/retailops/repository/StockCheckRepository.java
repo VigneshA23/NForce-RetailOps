@@ -1,6 +1,8 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.StockCheck;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,15 +18,28 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
     List<StockCheck> findByStoreInventoryItemIdInAndCheckDate(List<Long> storeInventoryItemIds, LocalDate checkDate);
 
     // Owner/Admin's historical review: every check for their store within a
-    // date range, most recent first.
-    @Query("select sc from StockCheck sc "
-        + "where sc.storeInventoryItem.store.id = :storeId "
-        + "and sc.checkDate between :startDate and :endDate "
-        + "order by sc.checkDate desc, sc.id desc")
-    List<StockCheck> findForStoreInRange(
+    // date range, most recent first, bounded by page/size. join fetch avoids
+    // the per-row N+1 the unpaged version used to incur (storeInventoryItem ->
+    // inventoryItem, and checkedBy, are both read for every row). No inner
+    // join against "active" anywhere -- a deactivated/unassigned item's past
+    // checks must still show.
+    @Query(
+        value = "select sc from StockCheck sc "
+            + "join fetch sc.storeInventoryItem sii "
+            + "join fetch sii.inventoryItem "
+            + "join fetch sc.checkedBy "
+            + "where sii.store.id = :storeId "
+            + "and sc.checkDate between :startDate and :endDate "
+            + "order by sc.checkDate desc, sc.id desc",
+        countQuery = "select count(sc) from StockCheck sc "
+            + "where sc.storeInventoryItem.store.id = :storeId "
+            + "and sc.checkDate between :startDate and :endDate"
+    )
+    Page<StockCheck> findForStoreInRange(
         @Param("storeId") Long storeId,
         @Param("startDate") LocalDate startDate,
-        @Param("endDate") LocalDate endDate
+        @Param("endDate") LocalDate endDate,
+        Pageable pageable
     );
 
     Optional<StockCheck> findByIdAndStoreInventoryItemStoreId(Long id, Long storeId);

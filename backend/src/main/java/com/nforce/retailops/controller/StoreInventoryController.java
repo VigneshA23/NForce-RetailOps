@@ -1,6 +1,7 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
+import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StoreInventoryItemConfigRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
@@ -46,12 +47,16 @@ public class StoreInventoryController {
     }
 
     @GetMapping("/stock-checks")
-    public ResponseEntity<List<StockCheckResponse>> historicalChecks(
+    public ResponseEntity<StockCheckHistoryPageResponse> historicalChecks(
         @AuthenticationPrincipal AppUserDetails principal,
-        @RequestParam LocalDate startDate,
-        @RequestParam LocalDate endDate
+        @RequestParam(required = false) LocalDate startDate,
+        @RequestParam(required = false) LocalDate endDate,
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size
     ) {
-        return ResponseEntity.ok(stockCheckService.listHistoricalChecks(principal.getUser().getId(), startDate, endDate));
+        return ResponseEntity.ok(
+            stockCheckService.listHistoricalChecks(principal.getUser().getId(), startDate, endDate, page, size)
+        );
     }
 
     @PatchMapping("/stock-checks/{id}")

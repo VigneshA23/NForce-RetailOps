@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, BellOff, Building2, Calendar, Clock, ListChecks, Percent, ShieldCheck, Store as StoreIcon, Tags, Users } from 'lucide-react';
-import { getPlatformStats, getOperationsOverview, getPlatformTrend } from '../api/superAdminOperations';
-import type { PlatformStats, StoreOperationsSummary, TrendDataPoint } from '../api/superAdminOperations';
+import { getPlatformStats, getOperationsOverview, getPlatformTrend, getOutstandingOrders } from '../api/superAdminOperations';
+import type { PlatformStats, StoreOperationsSummary, TrendDataPoint, OutstandingOrdersOverview } from '../api/superAdminOperations';
 import type { OwnerSummary } from '../types/owner';
 import StatCard from '../components/StatCard';
 import StoreComparisonTable from '../components/StoreComparisonTable';
@@ -14,6 +14,13 @@ import { formatTrendDayLabel } from '../utils/checklistHistoryOptions';
 import './SuperAdminHome.css';
 
 const ACTIVITY_COLLAPSED_LIMIT = 8;
+
+// Short date for the oldest outstanding shortage. Locale-formatted rather than
+// a relative "3 days ago" string, since these can be weeks old and an absolute
+// date is easier to act on.
+function formatOldest(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
 
 interface SuperAdminHomeProps {
   userName: string;
@@ -56,6 +63,8 @@ function SuperAdminHome({
   const [trendDays, setTrendDays] = useState(7);
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
   const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
+  // Read-only: there is no per-store order drill-down to navigate to yet.
+  const [outstandingOrders, setOutstandingOrders] = useState<OutstandingOrdersOverview | null>(null);
   const recentActivity = useRecentActivity(ACTIVITY_COLLAPSED_LIMIT);
 
   useEffect(() => {
@@ -63,6 +72,12 @@ function SuperAdminHome({
 
     getPlatformStats().then((stats) => {
       if (active) setPlatformStats(stats);
+    }).catch(() => {});
+
+    // Mount-only, like everything else on this page. The Super Admin shell
+    // unmounts inactive tabs, so returning to Home refetches; no poll needed.
+    getOutstandingOrders().then((data) => {
+      if (active) setOutstandingOrders(data);
     }).catch(() => {});
 
     setOverviewLoading(true);
@@ -280,6 +295,44 @@ function SuperAdminHome({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {outstandingOrders !== null && outstandingOrders.platformOutstandingCount > 0 && (
+        <div className="sa-home__orders">
+          <div className="sa-home__orders-head">
+            <h3 className="sa-home__attention-title">Outstanding Orders</h3>
+            <span className="sa-home__orders-total">
+              {outstandingOrders.platformOutstandingCount} item
+              {outstandingOrders.platformOutstandingCount === 1 ? '' : 's'} across{' '}
+              {outstandingOrders.storesWithOutstanding} store
+              {outstandingOrders.storesWithOutstanding === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="sa-home__orders-list">
+            {outstandingOrders.stores.map((store) => (
+              <div key={store.storeId} className="sa-home__orders-item">
+                <div className="sa-home__orders-store">
+                  <span className="sa-home__attention-store">{store.storeName}</span>
+                  <span className="sa-home__orders-meta">
+                    #{store.storeCode} · {store.ownerName}
+                  </span>
+                </div>
+                <div className="sa-home__orders-figures">
+                  <span className="sa-home__orders-count">{store.outstandingCount}</span>
+                  <span className="sa-home__orders-meta">
+                    oldest {formatOldest(store.oldestOutstandingAt)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          {outstandingOrders.truncated && (
+            <p className="sa-home__orders-truncated">
+              Showing the {outstandingOrders.stores.length} stores with the most outstanding items,
+              of {outstandingOrders.storesWithOutstanding}.
+            </p>
+          )}
         </div>
       )}
 

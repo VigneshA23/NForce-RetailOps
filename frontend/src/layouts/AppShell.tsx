@@ -36,6 +36,8 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
+  onInventoryClick?: () => void;
+  onOrdersClick?: () => void;
   onNotificationsClick?: () => void;
   onNotificationNavigate?: NotificationNavigateHandler;
   notificationUnreadCount?: number;
@@ -89,6 +91,8 @@ function AppShell<Key extends string = NavTabKey>({
   onHelpClick,
   onSettingsClick,
   onIssuesClick,
+  onInventoryClick,
+  onOrdersClick,
   onNotificationsClick,
   onNotificationNavigate,
   notificationUnreadCount,
@@ -192,6 +196,8 @@ function AppShell<Key extends string = NavTabKey>({
             onHelpClick={onHelpClick}
             onSettingsClick={onSettingsClick}
             onIssuesClick={onIssuesClick}
+            onInventoryClick={onInventoryClick}
+            onOrdersClick={onOrdersClick}
             onNotificationsClick={onNotificationsClick}
             onNotificationNavigate={onNotificationNavigate}
             notificationUnreadCount={notificationUnreadCount}

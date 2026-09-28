@@ -87,5 +87,13 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: './src/test/setup.ts',
+    // Vitest's 5s default is too tight for the full-app tests in App.test.tsx,
+    // which drive a whole login -> store-select -> navigate -> log-out flow
+    // through jsdom. The heaviest of those runs ~1.2s on its own but inflates
+    // roughly 3x when the suite runs its files in parallel, which put it over
+    // 5s intermittently -- a timeout, not a hang. This ceiling is sized to that
+    // worst case with headroom, and is still low enough that a genuinely stuck
+    // test fails quickly rather than hanging the run.
+    testTimeout: 15_000,
   },
 })

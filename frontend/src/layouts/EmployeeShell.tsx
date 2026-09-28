@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
+import { Boxes, CalendarCheck, ClipboardList, MessageSquareWarning, Store as StoreIcon } from 'lucide-react'
 import type { AuthUser } from '../types/auth'
 import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
@@ -37,14 +37,19 @@ interface EmployeeShellProps {
 
 // "Missing Tasks" (now "Missed Tasks") is deliberately NOT listed here -- the
 // missed-tasks page has no side-nav entry; it's only reachable via the daily
-// checklist's banner or the Home stat tile (see EmployeeDashboard). The
-// 'missing' tab itself still exists (ALL_EMPLOYEE_TABS below) and stays
-// mounted/reachable via onNavigate, the same unlisted-tab pattern
-// 'stock-check' already uses.
+// checklist's banner or the Home stat tile (see EmployeeDashboard). It is now
+// the only tab in ALL_EMPLOYEE_TABS below reachable purely via onNavigate,
+// with no nav entry of its own.
 const NAV_ITEMS: EmployeeNavItem[] = [
   { key: 'today', label: 'Checklist', icon: CalendarCheck },
   { key: 'audits', label: 'History', icon: ClipboardList },
   { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
+  // Daily Stock Check is a core daily employee workflow, not an admin screen,
+  // so it gets a real nav entry rather than the profile-menu escape hatch the
+  // owner shell uses for Inventory/Orders. A fourth tab still fits the bottom
+  // bar at 375px: ~93px per tab at font-size 10px, well clear of the ~60px
+  // that made "Daily Checklist" truncate across five owner tabs.
+  { key: 'stock-check', label: 'Stock Check', icon: Boxes },
 ]
 
 const BOTTOM_NAV_ITEMS: EmployeeNavItem[] = NAV_ITEMS

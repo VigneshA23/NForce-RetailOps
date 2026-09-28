@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 // Owner/Admin's Order Dashboard, plus the shared "raise or bump a shortage"
 // logic used by both the stock-check auto-detection path and the employee
@@ -52,6 +53,16 @@ public class OrderListService {
         return orderListEntryRepository.findByStoreIdOrderByCreatedAtDesc(storeOwner.getStore().getId()).stream()
             .map(OrderListEntryResponse::from)
             .toList();
+    }
+
+    // Feeds the owner's Home low-stock tile. Response shape deliberately matches
+    // NotificationService.unreadCount ({"count": n}) -- both back a numeric badge
+    // and the frontend unwraps them through the same one-liner.
+    @Transactional(readOnly = true)
+    public Map<String, Long> needsOrderingCount(Long ownerId) {
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
+        return Map.of("count", orderListEntryRepository.countByStoreIdAndStatus(
+            storeOwner.getStore().getId(), OrderStatus.NEEDS_ORDERING));
     }
 
     @Transactional

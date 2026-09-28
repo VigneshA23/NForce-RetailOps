@@ -77,6 +77,77 @@
   color: var(--color-text-secondary);
 }
 
+/* Outstanding orders: same card treatment as Needs Attention, in the accent
+   tone rather than amber, since a shortage is a harder signal than idleness. */
+.sa-home__orders {
+  background: rgba(225, 29, 51, 0.06);
+  border: 1px solid rgba(225, 29, 51, 0.22);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.sa-home__orders .sa-home__attention-title {
+  color: var(--color-accent);
+}
+
+.sa-home__orders-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.sa-home__orders-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.sa-home__orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sa-home__orders-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: 13px;
+}
+
+.sa-home__orders-store {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sa-home__orders-figures {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.sa-home__orders-count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent);
+}
+
+.sa-home__orders-meta {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.sa-home__orders-truncated {
+  margin: var(--space-sm) 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
 .sa-home__insights-row {
   display: grid;
   grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 1fr);

@@ -431,6 +431,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onEmployeesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('employees'); } : undefined}
       onCategoriesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('categories'); } : undefined}
       onIssuesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('issues'); } : undefined}
+      onInventoryClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('inventory'); } : undefined}
       onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowActivity(false); setShowHelp(true); }}
       onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowActivity(false); setShowNotifications(true); }}
       onNotificationNavigate={handleNotificationNavigate}

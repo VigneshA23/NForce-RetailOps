@@ -1,3 +1,29 @@
+.store-inventory-page__subtabs {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+}
+
+.store-inventory-page__subtab {
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.store-inventory-page__subtab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
 .store-inventory-page__error {
   display: flex;
   align-items: center;

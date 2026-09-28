@@ -1,0 +1,18 @@
+.stock-check-history__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
+.stock-check-history__error {
+  font-size: 13px;
+  color: var(--color-accent);
+  margin: 0 0 var(--space-md);
+}
+
+.stock-check-history__correction-note {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 2px;
+}
