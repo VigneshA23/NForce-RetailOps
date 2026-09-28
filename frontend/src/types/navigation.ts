@@ -69,11 +69,13 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
   { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
+  { key: 'inventory', label: 'Inventory', icon: Boxes },
 ];
 
 // Mobile bottom tab bar: home, tasks, daily checklist. Owners, Stores,
-// Employees, Categories and Issues are all accessible via the profile menu
-// instead (mobile only) -- 8 tabs doesn't fit comfortably at phone width.
+// Employees, Categories, Issues and Inventory are all accessible via the
+// profile menu instead (mobile only) -- 9 tabs doesn't fit comfortably at
+// phone width.
 const SUPER_ADMIN_BOTTOM_NAV_ORDER: SuperAdminNavTabKey[] = ['home', 'tasks', 'checklist'];
 export const SUPER_ADMIN_BOTTOM_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = SUPER_ADMIN_BOTTOM_NAV_ORDER.map(
   (key) => SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!,

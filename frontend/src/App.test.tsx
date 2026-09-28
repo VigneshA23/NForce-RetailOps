@@ -61,6 +61,12 @@ vi.mock('./api/notifications', () => ({
   deleteNotification: vi.fn(),
 }))
 
+vi.mock('./api/stockChecks', () => ({
+  getTodayStockCheck: vi.fn().mockResolvedValue([]),
+  submitStockCheck: vi.fn(),
+  reportAdHocShortage: vi.fn(),
+}))
+
 const mockLogin = vi.mocked(authApi.login)
 const mockLogout = vi.mocked(authApi.logout)
 const mockGetSessionConfig = vi.mocked(authApi.getSessionConfig)
@@ -505,5 +511,22 @@ describe('employee tab persistence', () => {
 
     expect(screen.queryByRole('button', { name: /^missing tasks$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^missed tasks$/i })).not.toBeInTheDocument()
+  })
+
+  // The Daily Stock Check page was renderable but had no nav entry pointing at
+  // it, so an employee could only open it by hand-editing localStorage. Unlike
+  // missed tasks above, nothing else links to it either -- no banner, no tile,
+  // no notification route -- so the nav entry is its only route in.
+  it('reaches the daily stock check from its nav entry', async () => {
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
+    render(<App />)
+
+    await loginAsEmployee(user)
+    await selectFirstOpenStore(user)
+
+    await user.click(screen.getByRole('button', { name: /^stock check$/i }))
+
+    // "Report Shortage" is unique to the stock check page.
+    expect(await screen.findByRole('button', { name: /report shortage/i })).toBeInTheDocument()
   })
 })
