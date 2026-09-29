@@ -4,13 +4,11 @@ import { nfToast } from '../utils/toast';
 import {
   createStoreInventoryItem,
   deleteStoreInventoryItem,
-  getInventoryCategories,
   getStoreInventoryItems,
   setStoreInventoryItemActive,
   updateStoreInventoryItem,
 } from '../api/storeInventory';
-import { getOwnerSuppliers } from '../api/suppliers';
-import type { InventoryCategory } from '../types/inventory';
+import { findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
@@ -34,7 +32,6 @@ type ItemModalState = { mode: 'create' } | { mode: 'edit'; item: StoreInventoryI
 function StoreInventory() {
   const [subTab, setSubTab] = useState<SubTab>('items');
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
-  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -49,10 +46,9 @@ function StoreInventory() {
   function load() {
     setIsLoading(true);
     setLoadError(null);
-    Promise.all([getStoreInventoryItems(), getInventoryCategories(), getOwnerSuppliers()])
-      .then(([its, cats, sups]) => {
+    Promise.all([getStoreInventoryItems(), getOwnerSuppliers()])
+      .then(([its, sups]) => {
         setItems(its);
-        setCategories(cats);
         setSuppliers(sups);
       })
       .catch((error: Error) => setLoadError(error.message))
@@ -62,6 +58,29 @@ function StoreInventory() {
   useEffect(() => {
     load();
   }, []);
+
+  // 60-second silent refresh so "Current Available" picks up counts as
+  // employees submit today's stock check. A failed poll keeps the last list.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      getStoreInventoryItems().then(setItems).catch(() => {});
+    }, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Inline "Add New Supplier" from the item form: persist it, then merge it
+  // into the local directory so it's selectable for every later item too.
+  async function handleCreateSupplier(name: string): Promise<Supplier> {
+    const supplier = await findOrCreateSupplier(name);
+    setSuppliers((current) =>
+      (current.some((s) => s.id === supplier.id)
+        ? current.map((s) => (s.id === supplier.id ? supplier : s))
+        : [...current, supplier]
+      ).sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    nfToast.success(`"${supplier.name}" supplier added.`);
+    return supplier;
+  }
 
   async function handleItemSubmit(values: StoreInventoryItemFormValues) {
     setItemFormError(null);
@@ -120,7 +139,7 @@ function StoreInventory() {
   const filteredItems = items.filter((item) => {
     const term = search.trim().toLowerCase();
     if (!term) return true;
-    return item.name.toLowerCase().includes(term) || item.categoryName.toLowerCase().includes(term);
+    return item.name.toLowerCase().includes(term);
   });
 
   return (
@@ -196,14 +215,13 @@ function StoreInventory() {
             <StoreInventoryItemFormModal
               isOpen={itemModal !== null}
               mode={itemModal?.mode ?? 'create'}
-              categories={categories}
               suppliers={suppliers}
+              onCreateSupplier={handleCreateSupplier}
               initialValues={
                 itemModal?.mode === 'edit'
                   ? {
                       storeId: null,
                       name: itemModal.item.name,
-                      categoryId: itemModal.item.categoryId,
                       unitOfMeasurement: itemModal.item.unitOfMeasurement,
                       minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
                       minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',

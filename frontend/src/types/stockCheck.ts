@@ -28,7 +28,6 @@ export interface StockCheckHistoryPage {
 export interface DailyStockCheckItem {
   storeInventoryItemId: number;
   itemName: string;
-  categoryName: string;
   unitOfMeasurement: string;
   minTarget: number | null;
   currentCount: number | null;

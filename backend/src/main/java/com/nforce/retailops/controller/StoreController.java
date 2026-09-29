@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.CreateStoreRequest;
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.dto.SuperAdminStoreResponse;
+import com.nforce.retailops.dto.SupplierRequest;
 import com.nforce.retailops.dto.SupplierResponse;
 import com.nforce.retailops.dto.UpdateStoreStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
@@ -42,6 +43,16 @@ public class StoreController {
     @GetMapping("/suppliers")
     public ResponseEntity<List<SupplierResponse>> listSuppliers() {
         return ResponseEntity.ok(supplierService.listSuppliers());
+    }
+
+    // Inline "Add New Supplier" from the inventory item form, for both roles
+    // (Super Admin's own supplier-management page keeps using
+    // /api/super-admin/suppliers). Returns the existing supplier when one
+    // with the same name already exists.
+    @PostMapping("/suppliers")
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<SupplierResponse> findOrCreateSupplier(@Valid @RequestBody SupplierRequest request) {
+        return ResponseEntity.ok(supplierService.findOrCreateSupplier(request));
     }
 
     // Read-only, cross-owner directory for the Super Admin's Stores page.

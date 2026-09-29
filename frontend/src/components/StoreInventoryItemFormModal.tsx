@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { InventoryCategory } from '../types/inventory';
 import type { StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
+import SupplierCombobox from './SupplierCombobox';
+import { inventoryUnitOptionsFor } from '../utils/inventoryUnits';
 import ButtonDots from './ButtonDots';
 
 export interface StoreOption {
@@ -15,8 +16,9 @@ export interface StoreOption {
 interface StoreInventoryItemFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
-  categories: InventoryCategory[];
   suppliers: Supplier[];
+  // Backs the supplier field's inline "Add New Supplier" option.
+  onCreateSupplier: (name: string) => Promise<Supplier>;
   // Only Super Admin's page passes stores + true here -- Owner/Admin's own
   // store is derived server-side, so their form never shows this field.
   stores?: StoreOption[];
@@ -31,7 +33,6 @@ interface StoreInventoryItemFormModalProps {
 const EMPTY_VALUES: StoreInventoryItemFormValues = {
   storeId: null,
   name: '',
-  categoryId: null,
   unitOfMeasurement: '',
   minWeekday: '',
   minWeekend: '',
@@ -42,8 +43,8 @@ const EMPTY_VALUES: StoreInventoryItemFormValues = {
 function StoreInventoryItemFormModal({
   isOpen,
   mode,
-  categories,
   suppliers,
+  onCreateSupplier,
   stores = [],
   showStoreField = false,
   initialValues,
@@ -67,7 +68,6 @@ function StoreInventoryItemFormModal({
     const nextErrors: typeof errors = {};
     if (showStoreField && !values.storeId) nextErrors.storeId = 'Store is required';
     if (!values.name.trim()) nextErrors.name = 'Name is required';
-    if (!values.categoryId) nextErrors.categoryId = 'Category is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
     if (values.minWeekday.trim() === '' || Number(values.minWeekday) < 0) {
       nextErrors.minWeekday = 'Minimum weekday quantity is required and cannot be negative';
@@ -88,11 +88,7 @@ function StoreInventoryItemFormModal({
   }
 
   const storeOptions = stores.map((s) => ({ value: String(s.id), label: s.name }));
-  const categoryOptions = categories.filter((c) => c.active).map((c) => ({ value: String(c.id), label: c.name }));
-  const supplierOptions = [
-    { value: '', label: 'No preferred supplier' },
-    ...suppliers.filter((s) => s.active).map((s) => ({ value: String(s.id), label: s.name })),
-  ];
+  const unitOptions = inventoryUnitOptionsFor(initialValues?.unitOfMeasurement ?? '');
 
   return (
     <Modal
@@ -132,22 +128,15 @@ function StoreInventoryItemFormModal({
             placeholder="e.g. Coffee Beans, Milk"
           />
         </FormField>
-        <FormField label="Category" htmlFor="inventory-item-category" error={errors.categoryId}>
-          <Select
-            id="inventory-item-category"
-            options={categoryOptions}
-            value={values.categoryId ? String(values.categoryId) : ''}
-            onChange={(value) => setValues((current) => ({ ...current, categoryId: Number(value) }))}
-            ariaLabel="Category"
-          />
-        </FormField>
         <FormField label="Unit" htmlFor="inventory-item-unit" error={errors.unitOfMeasurement}>
-          <input
+          <Select
             id="inventory-item-unit"
-            className="input"
+            options={unitOptions}
             value={values.unitOfMeasurement}
-            onChange={(event) => setValues((current) => ({ ...current, unitOfMeasurement: event.target.value }))}
-            placeholder="e.g. kg, litre, box, bottle"
+            onChange={(value) => setValues((current) => ({ ...current, unitOfMeasurement: value }))}
+            ariaLabel="Unit"
+            placeholder="Select a unit"
+            indicator="radio"
           />
         </FormField>
         <FormField label="Minimum Weekday Quantity" htmlFor="inventory-item-min-weekday" error={errors.minWeekday}>
@@ -173,13 +162,12 @@ function StoreInventoryItemFormModal({
           />
         </FormField>
         <FormField label="Preferred Supplier" htmlFor="inventory-item-supplier">
-          <Select
+          <SupplierCombobox
             id="inventory-item-supplier"
-            options={supplierOptions}
-            value={values.preferredSupplierId != null ? String(values.preferredSupplierId) : ''}
-            onChange={(value) =>
-              setValues((current) => ({ ...current, preferredSupplierId: value === '' ? null : Number(value) }))
-            }
+            suppliers={suppliers}
+            value={values.preferredSupplierId}
+            onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
+            onCreate={onCreateSupplier}
             ariaLabel="Preferred supplier"
           />
         </FormField>

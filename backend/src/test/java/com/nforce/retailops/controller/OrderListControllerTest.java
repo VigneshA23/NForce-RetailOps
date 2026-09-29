@@ -1,7 +1,6 @@
 package com.nforce.retailops.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nforce.retailops.entity.InventoryCategory;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
@@ -9,7 +8,6 @@ import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.repository.InventoryCategoryRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.RoleRepository;
@@ -46,7 +44,6 @@ class OrderListControllerTest {
     @Autowired private UserRepository userRepository;
     @Autowired private StoreRepository storeRepository;
     @Autowired private StoreOwnerRepository storeOwnerRepository;
-    @Autowired private InventoryCategoryRepository inventoryCategoryRepository;
     @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
     @Autowired private OrderListEntryRepository orderListEntryRepository;
     @Autowired private PasswordEncoder passwordEncoder;
@@ -90,16 +87,10 @@ class OrderListControllerTest {
     // A distinct item per entry: V49's partial unique index forbids two
     // non-RECEIVED entries for the same store+item in production.
     private StoreInventoryItem inventoryItem(Store store) {
-        InventoryCategory cat = new InventoryCategory();
-        cat.setName("Category " + ++itemSeq);
-        cat.setDisplayOrder(0);
-        cat.setActive(true);
-        cat = inventoryCategoryRepository.save(cat);
 
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
-        item.setCategory(cat);
-        item.setName("Item " + itemSeq);
+        item.setName("Item " + ++itemSeq);
         item.setUnitOfMeasurement("L");
         item.setActive(true);
         return storeInventoryItemRepository.save(item);

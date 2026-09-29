@@ -2,10 +2,14 @@ package com.nforce.retailops.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Role;
+import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.repository.RoleRepository;
+import com.nforce.retailops.repository.StockCheckRepository;
+import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -19,6 +23,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -41,6 +46,8 @@ class StoreInventoryControllerTest {
     @Autowired private UserRepository userRepository;
     @Autowired private StoreRepository storeRepository;
     @Autowired private StoreOwnerRepository storeOwnerRepository;
+    @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
+    @Autowired private StockCheckRepository stockCheckRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -158,6 +165,60 @@ class StoreInventoryControllerTest {
                 .param("startDate", LocalDate.of(2026, 6, 1).toString())
                 .param("endDate", LocalDate.of(2026, 6, 7).toString()))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void inventoryListShowsTodaysRequiredMinimumAndTodaysCountedStock() throws Exception {
+        User owner = owner("inventory-required-owner@nforce.test");
+        Store store = store("Inventory Required Store", 9301L);
+        linkOwnerToStore(owner, store);
+
+        StoreInventoryItem counted = item(store, "Counted Milk", 8, 12);
+        item(store, "Uncounted Bread", 5, null);
+
+        LocalDate today = LocalDate.now();
+        StockCheck check = new StockCheck();
+        check.setStoreInventoryItem(counted);
+        check.setCheckedBy(owner);
+        check.setCheckDate(today);
+        check.setCurrentCount(3);
+        check.setQuantityNeeded(5);
+        stockCheckRepository.save(check);
+
+        // Yesterday's count must not be reported as today's.
+        StockCheck stale = new StockCheck();
+        stale.setStoreInventoryItem(storeInventoryItemRepository.findByStoreIdOrderById(store.getId()).get(1));
+        stale.setCheckedBy(owner);
+        stale.setCheckDate(today.minusDays(1));
+        stale.setCurrentCount(40);
+        stale.setQuantityNeeded(0);
+        stockCheckRepository.save(stale);
+
+        boolean weekend = today.getDayOfWeek() == DayOfWeek.SATURDAY || today.getDayOfWeek() == DayOfWeek.SUNDAY;
+        String token = login("inventory-required-owner@nforce.test");
+
+        mockMvc.perform(get("/api/stores/inventory")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].name").value("Counted Milk"))
+            .andExpect(jsonPath("$[0].requiredToday").value(weekend ? 12 : 8))
+            .andExpect(jsonPath("$[0].currentAvailable").value(3))
+            .andExpect(jsonPath("$[1].name").value("Uncounted Bread"))
+            // No weekend minimum set, so the weekday one applies every day.
+            .andExpect(jsonPath("$[1].requiredToday").value(5))
+            .andExpect(jsonPath("$[1].currentAvailable").doesNotExist());
+    }
+
+    private StoreInventoryItem item(Store store, String name, Integer minWeekday, Integer minWeekend) {
+        StoreInventoryItem item = new StoreInventoryItem();
+        item.setStore(store);
+        item.setName(name);
+        item.setUnitOfMeasurement("L");
+        item.setMinWeekday(minWeekday);
+        item.setMinWeekend(minWeekend);
+        item.setActive(true);
+        return storeInventoryItemRepository.save(item);
     }
 
     private record LoginPayload(String email, String password) {

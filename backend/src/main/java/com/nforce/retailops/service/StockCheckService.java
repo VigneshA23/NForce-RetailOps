@@ -25,7 +25,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -72,18 +71,6 @@ public class StockCheckService {
         this.userProfileService = userProfileService;
     }
 
-    private static boolean isWeekend(LocalDate date) {
-        DayOfWeek day = date.getDayOfWeek();
-        return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
-    }
-
-    private static Integer resolveMinTarget(StoreInventoryItem item, LocalDate date) {
-        if (isWeekend(date) && item.getMinWeekend() != null) {
-            return item.getMinWeekend();
-        }
-        return item.getMinWeekday();
-    }
-
     // ---- Employee: today's checklist --------------------------------------
 
     @Transactional(readOnly = true)
@@ -103,9 +90,8 @@ public class StockCheckService {
                 return new DailyStockCheckItemResponse(
                     item.getId(),
                     item.getName(),
-                    item.getCategory().getName(),
                     item.getUnitOfMeasurement(),
-                    resolveMinTarget(item, today),
+                    item.requiredMinimumOn(today),
                     todaysCheck != null ? todaysCheck.getCurrentCount() : null,
                     todaysCheck != null ? todaysCheck.getQuantityNeeded() : null,
                     todaysCheck != null
@@ -133,7 +119,7 @@ public class StockCheckService {
 
         User employee = userRepository.getReferenceById(employeeUserId);
         LocalDate today = LocalDate.now();
-        Integer minTarget = resolveMinTarget(item, today);
+        Integer minTarget = item.requiredMinimumOn(today);
         int quantityNeeded = minTarget == null ? 0 : Math.max(0, minTarget - request.currentCount());
 
         StockCheck check = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
@@ -228,7 +214,7 @@ public class StockCheckService {
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Stock check not found"));
 
         StoreInventoryItem item = check.getStoreInventoryItem();
-        Integer minTarget = resolveMinTarget(item, check.getCheckDate());
+        Integer minTarget = item.requiredMinimumOn(check.getCheckDate());
         int quantityNeeded = minTarget == null ? 0 : Math.max(0, minTarget - request.currentCount());
 
         int originalCount = check.getCurrentCount();

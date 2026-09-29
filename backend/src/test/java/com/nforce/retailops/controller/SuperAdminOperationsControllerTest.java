@@ -3,7 +3,6 @@ package com.nforce.retailops.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
-import com.nforce.retailops.entity.InventoryCategory;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
@@ -20,7 +19,6 @@ import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.repository.CategoryRepository;
-import com.nforce.retailops.repository.InventoryCategoryRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.RaisedIssueRepository;
@@ -68,7 +66,6 @@ class SuperAdminOperationsControllerTest {
     @Autowired private StoreEmployeeRepository storeEmployeeRepository;
     @Autowired private RaisedIssueRepository raisedIssueRepository;
     @Autowired private SuperAdminRepository superAdminRepository;
-    @Autowired private InventoryCategoryRepository inventoryCategoryRepository;
     @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
     @Autowired private OrderListEntryRepository orderListEntryRepository;
     @Autowired private PasswordEncoder passwordEncoder;
@@ -178,15 +175,9 @@ class SuperAdminOperationsControllerTest {
     }
 
     private StoreInventoryItem inventoryItem(Store store, String name) {
-        InventoryCategory cat = new InventoryCategory();
-        cat.setName(name + " Category");
-        cat.setDisplayOrder(0);
-        cat.setActive(true);
-        cat = inventoryCategoryRepository.save(cat);
 
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
-        item.setCategory(cat);
         item.setName(name);
         item.setUnitOfMeasurement("L");
         item.setActive(true);
