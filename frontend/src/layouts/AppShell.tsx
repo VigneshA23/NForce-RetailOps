@@ -33,6 +33,7 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onStoresClick?: () => void;
   onEmployeesClick?: () => void;
   onCategoriesClick?: () => void;
+  onInventoryClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
@@ -86,6 +87,7 @@ function AppShell<Key extends string = NavTabKey>({
   onStoresClick,
   onEmployeesClick,
   onCategoriesClick,
+  onInventoryClick,
   onHelpClick,
   onSettingsClick,
   onIssuesClick,
@@ -189,6 +191,7 @@ function AppShell<Key extends string = NavTabKey>({
             onStoresClick={onStoresClick}
             onEmployeesClick={onEmployeesClick}
             onCategoriesClick={onCategoriesClick}
+            onInventoryClick={onInventoryClick}
             onHelpClick={onHelpClick}
             onSettingsClick={onSettingsClick}
             onIssuesClick={onIssuesClick}

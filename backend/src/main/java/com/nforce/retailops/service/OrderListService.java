@@ -2,10 +2,10 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
-import com.nforce.retailops.entity.InventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
@@ -41,8 +41,14 @@ public class OrderListService {
         this.supplierRepository = supplierRepository;
     }
 
+    // Picks the caller's active store the same multi-store-safe way
+    // CategoryService.ownerStoreIds does, rather than findByOwnerIdAndActiveTrue
+    // (a single Optional that throws for an owner with more than one active
+    // store link).
     private StoreOwner requireActiveStoreOwner(Long ownerId) {
-        return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+            .filter(StoreOwner::isActive)
+            .findFirst()
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
     }
 
@@ -86,7 +92,7 @@ public class OrderListService {
     // violation is caught here and retried as an update against the winner's
     // row instead of surfacing as a raw 500.
     @Transactional
-    public void upsertShortage(Store store, InventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+    public void upsertShortage(Store store, StoreInventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
         try {
             doUpsertShortage(store, item, quantityNeeded, note, adHoc, raisedBy, defaultSupplier);
         } catch (DataIntegrityViolationException raceLostInsert) {
@@ -94,13 +100,13 @@ public class OrderListService {
         }
     }
 
-    private void doUpsertShortage(Store store, InventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+    private void doUpsertShortage(Store store, StoreInventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
         OrderListEntry entry = orderListEntryRepository
-            .findByStoreIdAndInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
+            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
             .orElseGet(() -> {
                 OrderListEntry created = new OrderListEntry();
                 created.setStore(store);
-                created.setInventoryItem(item);
+                created.setStoreInventoryItem(item);
                 created.setSupplier(defaultSupplier);
                 created.setStatus(OrderStatus.NEEDS_ORDERING);
                 return created;

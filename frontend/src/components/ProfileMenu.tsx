@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Building2, HelpCircle, LogOut, Settings, Store, Tags, User as UserIcon, Users } from 'lucide-react';
+import { AlertTriangle, Boxes, Building2, HelpCircle, LogOut, Settings, Store, Tags, User as UserIcon, Users } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import ConfirmDialog from './ConfirmDialog';
 import './ProfileMenu.css';
@@ -15,6 +15,7 @@ interface ProfileMenuProps {
   onStoresClick?: () => void;
   onEmployeesClick?: () => void;
   onCategoriesClick?: () => void;
+  onInventoryClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
@@ -28,7 +29,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onEmployeesClick, onCategoriesClick, onHelpClick, onSettingsClick, onIssuesClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onEmployeesClick, onCategoriesClick, onInventoryClick, onHelpClick, onSettingsClick, onIssuesClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -143,6 +144,20 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
             >
               <Tags size={14} />
               Categories
+            </button>
+          )}
+          {onInventoryClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onInventoryClick();
+              }}
+            >
+              <Boxes size={14} />
+              Inventory
             </button>
           )}
           {onHelpClick && (

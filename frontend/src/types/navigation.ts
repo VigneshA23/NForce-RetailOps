@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Building2, CheckSquare, ClipboardList, LayoutGrid, MessageSquareWarning, Store, Tags, Users, Home } from 'lucide-react';
+import { Boxes, Building2, CheckSquare, ClipboardList, LayoutGrid, MessageSquareWarning, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -23,6 +23,7 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'employees', label: 'Employees', icon: Users },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
+  { key: 'inventory', label: 'Inventory', icon: Boxes },
 ];
 
 // Mobile bottom tab bar: home, daily checklist, tasks, employees, categories.
@@ -66,6 +67,7 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
   { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
+  { key: 'inventory', label: 'Inventory', icon: Boxes },
 ];
 
 // Mobile bottom tab bar: home, tasks, daily checklist. Owners, Stores,

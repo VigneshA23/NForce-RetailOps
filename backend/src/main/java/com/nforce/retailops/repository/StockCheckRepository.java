@@ -28,4 +28,8 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
     );
 
     Optional<StockCheck> findByIdAndStoreInventoryItemStoreId(Long id, Long storeId);
+
+    // Delete guard for StoreInventoryItemService: an item with any stock-check
+    // history can't be hard-deleted.
+    boolean existsByStoreInventoryItemId(Long storeInventoryItemId);
 }

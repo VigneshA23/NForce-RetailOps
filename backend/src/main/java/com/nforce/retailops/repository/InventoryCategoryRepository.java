@@ -8,4 +8,6 @@ import java.util.List;
 public interface InventoryCategoryRepository extends JpaRepository<InventoryCategory, Long> {
 
     List<InventoryCategory> findAllByOrderByDisplayOrderAsc();
+
+    List<InventoryCategory> findByActiveTrueOrderByDisplayOrderAsc();
 }

@@ -38,6 +38,7 @@ interface HeaderProps {
   onStoresClick?: () => void;
   onEmployeesClick?: () => void;
   onCategoriesClick?: () => void;
+  onInventoryClick?: () => void;
   onHelpClick?: () => void;
   onSettingsClick?: () => void;
   onIssuesClick?: () => void;
@@ -75,6 +76,7 @@ function Header({
   onStoresClick,
   onEmployeesClick,
   onCategoriesClick,
+  onInventoryClick,
   onHelpClick,
   onSettingsClick,
   onIssuesClick,
@@ -126,6 +128,7 @@ function Header({
           onStoresClick={onStoresClick}
           onEmployeesClick={onEmployeesClick}
           onCategoriesClick={onCategoriesClick}
+          onInventoryClick={onInventoryClick}
           onHelpClick={onHelpClick}
           onSettingsClick={onSettingsClick}
           onIssuesClick={onIssuesClick}
