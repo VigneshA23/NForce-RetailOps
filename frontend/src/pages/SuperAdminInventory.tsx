@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Package, Plus, Tags, Truck } from 'lucide-react';
+import { Boxes, CircleCheck, CircleSlash, Plus, Tags, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createInventoryCategory,
@@ -8,61 +8,74 @@ import {
   updateInventoryCategory,
 } from '../api/inventoryCategories';
 import {
-  assignItemToStore,
   createInventoryItem,
-  getInventoryItems,
-  getStoreAssignments,
+  deleteInventoryItem,
+  getAllInventoryItems,
   setInventoryItemActive,
   updateInventoryItem,
 } from '../api/inventoryItems';
 import { createSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
 import { getAllStores } from '../api/superAdminStores';
-import type { InventoryCategory, InventoryCategoryFormValues, InventoryItem, InventoryItemFormValues } from '../types/inventory';
+import { useIsMobile } from '../hooks/useMediaQuery';
+import type { InventoryCategory, InventoryCategoryFormValues } from '../types/inventory';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
-import type { StoreInventoryItem } from '../types/storeInventory';
-import type { SuperAdminStore } from '../types/superAdminStore';
+import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
+import type { StoreOption } from '../components/StoreInventoryItemFormModal';
 import InventoryCategoryFormModal from '../components/InventoryCategoryFormModal';
-import InventoryItemFormModal from '../components/InventoryItemFormModal';
+import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
+import StoreInventoryTable from '../components/StoreInventoryTable';
 import SupplierFormModal from '../components/SupplierFormModal';
 import Toggle from '../components/Toggle';
 import Select from '../components/Select';
+import SearchInput from '../components/SearchInput';
+import FilterClearButton from '../components/FilterClearButton';
+import ConfirmDialog from '../components/ConfirmDialog';
+import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
-import ButtonDots from '../components/ButtonDots';
 import './SuperAdminInventory.css';
 
-type SubTab = 'categories' | 'items' | 'suppliers' | 'assign';
+type SubTab = 'inventory' | 'categories' | 'suppliers';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
+  { key: 'inventory', label: 'Inventory' },
   { key: 'categories', label: 'Categories' },
-  { key: 'items', label: 'Items' },
   { key: 'suppliers', label: 'Suppliers' },
-  { key: 'assign', label: 'Assign to Store' },
 ];
 
+const STATUS_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Status' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
+
+type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type CategoryModalState = { mode: 'create' } | { mode: 'edit'; category: InventoryCategory } | null;
-type ItemModalState = { mode: 'create' } | { mode: 'edit'; item: InventoryItem } | null;
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
+type ItemModalState = { mode: 'create' } | { mode: 'edit'; item: StoreInventoryItem } | null;
+
+const PAGE_SIZE = 10;
 
 function SuperAdminInventory() {
-  const [subTab, setSubTab] = useState<SubTab>('categories');
+  const [subTab, setSubTab] = useState<SubTab>('inventory');
+  const isMobile = useIsMobile();
 
   const [categories, setCategories] = useState<InventoryCategory[]>([]);
-  const [items, setItems] = useState<InventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [stores, setStores] = useState<SuperAdminStore[]>([]);
+  const [stores, setStores] = useState<StoreOption[]>([]);
+  const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   function loadAll() {
     setIsLoading(true);
     setLoadError(null);
-    Promise.all([getInventoryCategories(), getInventoryItems(), getSuppliers(), getAllStores()])
-      .then(([cats, its, sups, sts]) => {
+    Promise.all([getInventoryCategories(), getSuppliers(), getAllStores(), getAllInventoryItems()])
+      .then(([cats, sups, sts, its]) => {
         setCategories(cats);
-        setItems(its);
         setSuppliers(sups);
-        setStores(sts);
+        setStores(sts.filter((s) => s.storeActive).map((s) => ({ id: s.storeId, name: s.storeName })));
+        setItems(its);
       })
       .catch((error: Error) => setLoadError(error.message))
       .finally(() => setIsLoading(false));
@@ -71,6 +84,94 @@ function SuperAdminInventory() {
   useEffect(() => {
     loadAll();
   }, []);
+
+  // ---- Inventory items -----------------------------------------------------
+  const [itemModal, setItemModal] = useState<ItemModalState>(null);
+  const [itemFormError, setItemFormError] = useState<string | null>(null);
+  const [isItemSubmitting, setIsItemSubmitting] = useState(false);
+  const [itemDeleteTarget, setItemDeleteTarget] = useState<StoreInventoryItem | null>(null);
+  const [itemDeleteError, setItemDeleteError] = useState<string | null>(null);
+  const [itemSearch, setItemSearch] = useState('');
+  const [itemStoreFilter, setItemStoreFilter] = useState<number | null>(null);
+  const [itemStatusFilter, setItemStatusFilter] = useState<StatusFilter>('ALL');
+  const [itemPage, setItemPage] = useState(1);
+
+  useEffect(() => {
+    setItemPage(1);
+  }, [itemSearch, itemStoreFilter, itemStatusFilter]);
+
+  async function handleItemSubmit(values: StoreInventoryItemFormValues) {
+    setItemFormError(null);
+    setIsItemSubmitting(true);
+    try {
+      if (itemModal?.mode === 'edit') {
+        const updated = await updateInventoryItem(itemModal.item.id, values);
+        setItems((current) => current.map((i) => (i.id === updated.id ? updated : i)));
+        nfToast.success(`"${updated.name}" inventory item updated.`);
+      } else {
+        const created = await createInventoryItem(values);
+        setItems((current) => [...current, created]);
+        nfToast.success(`"${created.name}" inventory item added.`);
+      }
+      setItemModal(null);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setItemFormError(msg);
+      nfToast.error(msg);
+    } finally {
+      setIsItemSubmitting(false);
+    }
+  }
+
+  async function handleToggleItem(item: StoreInventoryItem, active: boolean) {
+    setItems((current) => current.map((i) => (i.id === item.id ? { ...i, active } : i)));
+    try {
+      const updated = await setInventoryItemActive(item.id, active);
+      setItems((current) => current.map((i) => (i.id === updated.id ? updated : i)));
+      nfToast.success(`"${item.name}" ${active ? 'activated' : 'deactivated'}.`);
+    } catch (error) {
+      setItems((current) => current.map((i) => (i.id === item.id ? item : i)));
+      nfToast.error(error instanceof Error ? error.message : 'Failed to update status');
+    }
+  }
+
+  async function handleConfirmItemDelete() {
+    if (!itemDeleteTarget) return;
+    setItemDeleteError(null);
+    try {
+      await deleteInventoryItem(itemDeleteTarget.id);
+      setItems((current) => current.filter((i) => i.id !== itemDeleteTarget.id));
+      const deletedName = itemDeleteTarget.name;
+      setItemDeleteTarget(null);
+      nfToast.success(`"${deletedName}" deleted.`);
+    } catch (error) {
+      setItemDeleteTarget(null);
+      const msg = error instanceof Error ? error.message : 'Failed to delete inventory item';
+      setItemDeleteError(msg);
+      nfToast.error(msg);
+    }
+  }
+
+  const activeItemCount = useMemo(() => items.filter((i) => i.active).length, [items]);
+
+  const filteredItems = useMemo(() => {
+    const term = itemSearch.trim().toLowerCase();
+    return items.filter((item) => {
+      if (term && !item.name.toLowerCase().includes(term) && !item.categoryName.toLowerCase().includes(term)) return false;
+      if (itemStoreFilter != null && item.storeId !== itemStoreFilter) return false;
+      if (itemStatusFilter === 'ACTIVE' && !item.active) return false;
+      if (itemStatusFilter === 'INACTIVE' && item.active) return false;
+      return true;
+    });
+  }, [items, itemSearch, itemStoreFilter, itemStatusFilter]);
+
+  const itemPageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const itemCurrentPage = Math.min(itemPage, itemPageCount);
+  const visibleItems = isMobile
+    ? filteredItems
+    : filteredItems.slice((itemCurrentPage - 1) * PAGE_SIZE, itemCurrentPage * PAGE_SIZE);
+
+  const storeFilterOptions = [{ value: '', label: 'All Stores' }, ...stores.map((s) => ({ value: String(s.id), label: s.name }))];
 
   // ---- Categories --------------------------------------------------------
   const [categoryModal, setCategoryModal] = useState<CategoryModalState>(null);
@@ -109,46 +210,6 @@ function SuperAdminInventory() {
     } catch (error) {
       setCategories((current) => current.map((c) => (c.id === category.id ? category : c)));
       nfToast.error(error instanceof Error ? error.message : 'Failed to update category status');
-    }
-  }
-
-  // ---- Items --------------------------------------------------------------
-  const [itemModal, setItemModal] = useState<ItemModalState>(null);
-  const [itemFormError, setItemFormError] = useState<string | null>(null);
-  const [isItemSubmitting, setIsItemSubmitting] = useState(false);
-
-  async function handleItemSubmit(values: InventoryItemFormValues) {
-    setItemFormError(null);
-    setIsItemSubmitting(true);
-    try {
-      if (itemModal?.mode === 'edit') {
-        const updated = await updateInventoryItem(itemModal.item.id, values);
-        setItems((current) => current.map((i) => (i.id === updated.id ? updated : i)));
-        nfToast.success(`"${updated.name}" item updated.`);
-      } else {
-        const created = await createInventoryItem(values);
-        setItems((current) => [...current, created]);
-        nfToast.success(`"${created.name}" item added.`);
-      }
-      setItemModal(null);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Something went wrong';
-      setItemFormError(msg);
-      nfToast.error(msg);
-    } finally {
-      setIsItemSubmitting(false);
-    }
-  }
-
-  async function handleToggleItem(item: InventoryItem, active: boolean) {
-    setItems((current) => current.map((i) => (i.id === item.id ? { ...i, active } : i)));
-    try {
-      const updated = await setInventoryItemActive(item.id, active);
-      setItems((current) => current.map((i) => (i.id === updated.id ? updated : i)));
-      nfToast.success(`"${item.name}" item ${active ? 'activated' : 'deactivated'}.`);
-    } catch (error) {
-      setItems((current) => current.map((i) => (i.id === item.id ? item : i)));
-      nfToast.error(error instanceof Error ? error.message : 'Failed to update item status');
     }
   }
 
@@ -192,50 +253,7 @@ function SuperAdminInventory() {
     }
   }
 
-  // ---- Assign to store --------------------------------------------------
-  const [assignStoreId, setAssignStoreId] = useState<number | null>(null);
-  const [assignments, setAssignments] = useState<StoreInventoryItem[]>([]);
-  const [assignLoading, setAssignLoading] = useState(false);
-  const [assignPickItemId, setAssignPickItemId] = useState<number | null>(null);
-  const [isAssigning, setIsAssigning] = useState(false);
-
-  useEffect(() => {
-    if (assignStoreId == null) {
-      setAssignments([]);
-      return;
-    }
-    setAssignLoading(true);
-    getStoreAssignments(assignStoreId)
-      .then(setAssignments)
-      .catch((error: Error) => nfToast.error(error.message))
-      .finally(() => setAssignLoading(false));
-  }, [assignStoreId]);
-
-  const unassignedItems = useMemo(() => {
-    const assignedIds = new Set(assignments.map((a) => a.inventoryItemId));
-    return items.filter((item) => item.active && !assignedIds.has(item.id));
-  }, [items, assignments]);
-
-  async function handleAssign() {
-    if (assignStoreId == null || assignPickItemId == null) return;
-    setIsAssigning(true);
-    try {
-      const created = await assignItemToStore(assignStoreId, assignPickItemId);
-      setAssignments((current) => [...current, created]);
-      setAssignPickItemId(null);
-      nfToast.success(`"${created.itemName}" assigned to store.`);
-    } catch (error) {
-      nfToast.error(error instanceof Error ? error.message : 'Failed to assign item');
-    } finally {
-      setIsAssigning(false);
-    }
-  }
-
-  const storeOptions = stores.map((s) => ({ value: String(s.storeId), label: s.storeName }));
-  const itemPickOptions = unassignedItems.map((i) => ({ value: String(i.id), label: `${i.name} (${i.categoryName})` }));
-
   const activeCategoryCount = useMemo(() => categories.filter((c) => c.active).length, [categories]);
-  const activeItemCount = useMemo(() => items.filter((i) => i.active).length, [items]);
   const activeSupplierCount = useMemo(() => suppliers.filter((s) => s.active).length, [suppliers]);
 
   if (loadError) {
@@ -253,12 +271,6 @@ function SuperAdminInventory() {
 
   return (
     <div className="super-admin-inventory-page">
-      <div className="stat-card-row">
-        <StatCard icon={Tags} label="Inventory Categories" value={activeCategoryCount} tone="primary" />
-        <StatCard icon={Package} label="Inventory Items" value={activeItemCount} tone="info" />
-        <StatCard icon={Truck} label="Suppliers" value={activeSupplierCount} tone="success" />
-      </div>
-
       <div className="super-admin-inventory-page__subtabs">
         {SUB_TABS.map((tab) => (
           <button
@@ -272,8 +284,95 @@ function SuperAdminInventory() {
         ))}
       </div>
 
+      {subTab === 'inventory' && (
+        <>
+          <div className="stat-card-row">
+            <StatCard icon={Boxes} label="Inventory Items" value={items.length} tone="primary" />
+            <StatCard icon={CircleCheck} label="Active" value={activeItemCount} tone="success" />
+            <StatCard icon={CircleSlash} label="Inactive" value={items.length - activeItemCount} tone="warning" />
+          </div>
+
+          <div className="super-admin-inventory-page__header">
+            <p className="super-admin-inventory-page__summary">
+              {isLoading ? 'Loading...' : `${filteredItems.length} of ${items.length} items`}
+            </p>
+            <SpecularButton
+              size="sm"
+              radius={999}
+              tint="var(--color-badge-solid-bg)"
+              tintOpacity={1}
+              textColor="var(--color-badge-solid-text)"
+              lineColor="#e11d33"
+              baseColor="#e4e4e7"
+              followMouse
+              proximity={180}
+              onClick={() => { setItemFormError(null); setItemModal({ mode: 'create' }); }}
+            >
+              <span className="super-admin-inventory-page__add-label">
+                <Plus size={16} />
+                Add Inventory Item
+              </span>
+            </SpecularButton>
+          </div>
+
+          <div className="filter-bar">
+            <div className="filter filter--search">
+              <SearchInput value={itemSearch} onChange={setItemSearch} placeholder="Search inventory" variant="filter" />
+            </div>
+            <Select
+              className="filter"
+              options={storeFilterOptions}
+              value={itemStoreFilter != null ? String(itemStoreFilter) : ''}
+              onChange={(value) => setItemStoreFilter(value === '' ? null : Number(value))}
+              ariaLabel="Filter by store"
+            />
+            <Select
+              className="filter filter--narrow"
+              options={STATUS_FILTER_OPTIONS}
+              value={itemStatusFilter}
+              onChange={(value) => setItemStatusFilter(value as StatusFilter)}
+              ariaLabel="Filter by status"
+            />
+            {(itemStoreFilter != null || itemStatusFilter !== 'ALL') && (
+              <FilterClearButton onClick={() => { setItemStoreFilter(null); setItemStatusFilter('ALL'); }} />
+            )}
+          </div>
+
+          <StoreInventoryTable
+            items={visibleItems}
+            showStore
+            isLoading={isLoading}
+            onEdit={(item) => {
+              setItemFormError(null);
+              setItemModal({ mode: 'edit', item });
+            }}
+            onDelete={(item) => {
+              setItemDeleteError(null);
+              setItemDeleteTarget(item);
+            }}
+            onToggleStatus={handleToggleItem}
+            footer={
+              !isMobile && !isLoading && filteredItems.length > 0 ? (
+                <Pagination
+                  page={itemCurrentPage}
+                  pageCount={itemPageCount}
+                  totalItems={filteredItems.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setItemPage}
+                  itemLabel="items"
+                />
+              ) : null
+            }
+          />
+        </>
+      )}
+
       {subTab === 'categories' && (
         <>
+          <div className="stat-card-row">
+            <StatCard icon={Tags} label="Inventory Categories" value={categories.length} tone="primary" />
+            <StatCard icon={CircleCheck} label="Active" value={activeCategoryCount} tone="success" />
+          </div>
           <div className="super-admin-inventory-page__header">
             <p className="super-admin-inventory-page__summary">
               {isLoading ? 'Loading...' : `${activeCategoryCount} active of ${categories.length} total`}
@@ -344,85 +443,12 @@ function SuperAdminInventory() {
         </>
       )}
 
-      {subTab === 'items' && (
-        <>
-          <div className="super-admin-inventory-page__header">
-            <p className="super-admin-inventory-page__summary">
-              {isLoading ? 'Loading...' : `${activeItemCount} active of ${items.length} total`}
-            </p>
-            <SpecularButton
-              size="sm"
-              radius={999}
-              tint="var(--color-badge-solid-bg)"
-              tintOpacity={1}
-              textColor="var(--color-badge-solid-text)"
-              lineColor="#e11d33"
-              baseColor="#e4e4e7"
-              followMouse
-              proximity={180}
-              onClick={() => { setItemFormError(null); setItemModal({ mode: 'create' }); }}
-            >
-              <span className="super-admin-inventory-page__add-label">
-                <Plus size={16} />
-                Add Item
-              </span>
-            </SpecularButton>
-          </div>
-          <div className="table-card">
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Item Name</th>
-                    <th scope="col">Category</th>
-                    <th scope="col">Unit</th>
-                    <th scope="col">Status</th>
-                    <th scope="col" className="super-admin-inventory-page__actions-header">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id}>
-                      <td data-label="Item Name">{item.name}</td>
-                      <td data-label="Category">{item.categoryName}</td>
-                      <td data-label="Unit">{item.unitOfMeasurement}</td>
-                      <td data-label="Status">
-                        <Toggle
-                          checked={item.active}
-                          onChange={(checked) => handleToggleItem(item, checked)}
-                          label={`${item.active ? 'Deactivate' : 'Activate'} ${item.name}`}
-                        />
-                      </td>
-                      <td className="table-actions-cell" data-label="Actions">
-                        <div className="table-row-actions">
-                          <button
-                            type="button"
-                            className="table-icon-btn"
-                            aria-label={`Edit ${item.name}`}
-                            title="Edit"
-                            onClick={() => {
-                              setItemFormError(null);
-                              setItemModal({ mode: 'edit', item });
-                            }}
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {!isLoading && items.length === 0 && (
-              <div className="super-admin-inventory-page__empty">No inventory items yet.</div>
-            )}
-          </div>
-        </>
-      )}
-
       {subTab === 'suppliers' && (
         <>
+          <div className="stat-card-row">
+            <StatCard icon={Truck} label="Suppliers" value={suppliers.length} tone="primary" />
+            <StatCard icon={CircleCheck} label="Active" value={activeSupplierCount} tone="success" />
+          </div>
           <div className="super-admin-inventory-page__header">
             <p className="super-admin-inventory-page__summary">
               {isLoading ? 'Loading...' : `${activeSupplierCount} active of ${suppliers.length} total`}
@@ -491,76 +517,45 @@ function SuperAdminInventory() {
         </>
       )}
 
-      {subTab === 'assign' && (
-        <div className="super-admin-inventory-page__assign">
-          <div className="filter-bar">
-            <Select
-              className="filter"
-              options={storeOptions}
-              value={assignStoreId ? String(assignStoreId) : ''}
-              onChange={(value) => setAssignStoreId(Number(value))}
-              ariaLabel="Select store"
-            />
-          </div>
+      <StoreInventoryItemFormModal
+        isOpen={itemModal !== null}
+        mode={itemModal?.mode ?? 'create'}
+        categories={categories}
+        suppliers={suppliers}
+        stores={stores}
+        showStoreField
+        initialValues={
+          itemModal?.mode === 'edit'
+            ? {
+                storeId: itemModal.item.storeId,
+                name: itemModal.item.name,
+                categoryId: itemModal.item.categoryId,
+                unitOfMeasurement: itemModal.item.unitOfMeasurement,
+                minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
+                minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
+                preferredSupplierId: itemModal.item.preferredSupplierId,
+                note: itemModal.item.note ?? '',
+              }
+            : undefined
+        }
+        errorMessage={itemFormError}
+        isSubmitting={isItemSubmitting}
+        onClose={() => setItemModal(null)}
+        onSubmit={handleItemSubmit}
+      />
 
-          {assignStoreId == null ? (
-            <p className="super-admin-inventory-page__summary">Select a store to view and assign inventory items.</p>
-          ) : (
-            <>
-              <div className="super-admin-inventory-page__assign-row">
-                <Select
-                  className="filter"
-                  options={itemPickOptions}
-                  value={assignPickItemId ? String(assignPickItemId) : ''}
-                  onChange={(value) => setAssignPickItemId(Number(value))}
-                  ariaLabel="Select item to assign"
-                />
-                <button
-                  type="button"
-                  className={`btn btn--primary${isAssigning ? ' btn--loading' : ''}`}
-                  disabled={assignPickItemId == null || isAssigning}
-                  onClick={handleAssign}
-                >
-                  {isAssigning ? <ButtonDots label="Assigning" /> : 'Assign'}
-                </button>
-              </div>
-
-              <div className="table-card">
-                <div className="table-scroll">
-                  <table className="data-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Item</th>
-                        <th scope="col">Category</th>
-                        <th scope="col">Min (Weekday / Weekend)</th>
-                        <th scope="col">Preferred Supplier</th>
-                        <th scope="col">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assignments.map((assignment) => (
-                        <tr key={assignment.id}>
-                          <td data-label="Item">{assignment.itemName}</td>
-                          <td data-label="Category">{assignment.categoryName}</td>
-                          <td data-label="Min">
-                            {assignment.minWeekday ?? '—'} / {assignment.minWeekend ?? assignment.minWeekday ?? '—'}
-                          </td>
-                          <td data-label="Preferred Supplier">{assignment.preferredSupplierName ?? '—'}</td>
-                          <td data-label="Status">{assignment.active ? 'Active' : 'Inactive'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {!assignLoading && assignments.length === 0 && (
-                  <div className="super-admin-inventory-page__empty">No items assigned to this store yet.</div>
-                )}
-                {assignLoading && <div className="super-admin-inventory-page__empty">Loading assignments...</div>}
-              </div>
-            </>
-          )}
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={itemDeleteTarget !== null}
+        title="Delete Inventory Item"
+        message={
+          itemDeleteTarget
+            ? `Are you sure you want to delete "${itemDeleteTarget.name}"? This cannot be undone.`
+            : ''
+        }
+        onConfirm={handleConfirmItemDelete}
+        onCancel={() => setItemDeleteTarget(null)}
+      />
+      {itemDeleteError && <div className="owners-page__error">{itemDeleteError}</div>}
 
       <InventoryCategoryFormModal
         isOpen={categoryModal !== null}
@@ -570,21 +565,6 @@ function SuperAdminInventory() {
         isSubmitting={isCategorySubmitting}
         onClose={() => setCategoryModal(null)}
         onSubmit={handleCategorySubmit}
-      />
-
-      <InventoryItemFormModal
-        isOpen={itemModal !== null}
-        mode={itemModal?.mode ?? 'create'}
-        categories={categories}
-        initialValues={
-          itemModal?.mode === 'edit'
-            ? { categoryId: itemModal.item.categoryId, name: itemModal.item.name, unitOfMeasurement: itemModal.item.unitOfMeasurement }
-            : undefined
-        }
-        errorMessage={itemFormError}
-        isSubmitting={isItemSubmitting}
-        onClose={() => setItemModal(null)}
-        onSubmit={handleItemSubmit}
       />
 
       <SupplierFormModal

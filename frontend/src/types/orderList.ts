@@ -2,7 +2,7 @@ export type OrderStatus = 'NEEDS_ORDERING' | 'ORDERED' | 'RECEIVED';
 
 export interface OrderListEntry {
   id: number;
-  inventoryItemId: number;
+  storeInventoryItemId: number;
   itemName: string;
   unitOfMeasurement: string;
   quantityNeeded: number;

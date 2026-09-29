@@ -22,7 +22,7 @@ const mockGetOwnerSuppliers = vi.mocked(suppliersApi.getOwnerSuppliers);
 function entry(overrides: Partial<OrderListEntry>): OrderListEntry {
   return {
     id: 1,
-    inventoryItemId: 100,
+    storeInventoryItemId: 100,
     itemName: 'Milk',
     unitOfMeasurement: 'L',
     quantityNeeded: 2,

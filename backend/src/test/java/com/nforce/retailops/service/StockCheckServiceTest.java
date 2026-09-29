@@ -1,7 +1,6 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
-import com.nforce.retailops.entity.InventoryItem;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.Store;
@@ -23,6 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,7 +51,7 @@ class StockCheckServiceTest {
 
     @Test
     void listHistoricalChecksThrowsStoreNotFoundForAnOwnerWithoutAnOwnedStore() {
-        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.empty());
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
 
         assertThatThrownBy(() ->
             stockCheckService.listHistoricalChecks(
@@ -66,12 +66,10 @@ class StockCheckServiceTest {
         ReflectionTestUtils.setField(store, "id", STORE_ID);
         StoreOwner storeOwner = new StoreOwner();
         storeOwner.setStore(store);
-        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner));
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner));
 
-        InventoryItem inventoryItem = new InventoryItem();
-        inventoryItem.setName("Widget");
         StoreInventoryItem storeInventoryItem = new StoreInventoryItem();
-        storeInventoryItem.setInventoryItem(inventoryItem);
+        storeInventoryItem.setName("Widget");
         // No minWeekday/minWeekend configured -- quantityNeeded resolves to 0,
         // keeping the order-list side effect out of scope for this test.
 

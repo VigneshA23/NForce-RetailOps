@@ -1,7 +1,6 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.InventoryCategory;
-import com.nforce.retailops.entity.InventoryItem;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
@@ -37,7 +36,6 @@ class StockCheckRepositoryTest {
     @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
     @Autowired private StoreRepository storeRepository;
     @Autowired private InventoryCategoryRepository inventoryCategoryRepository;
-    @Autowired private InventoryItemRepository inventoryItemRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private RoleRepository roleRepository;
 
@@ -73,16 +71,11 @@ class StockCheckRepositoryTest {
         category.setActive(true);
         category = inventoryCategoryRepository.save(category);
 
-        InventoryItem item = new InventoryItem();
-        item.setCategory(category);
-        item.setName("Item " + seq);
-        item.setUnitOfMeasurement("EA");
-        item.setActive(true);
-        item = inventoryItemRepository.save(item);
-
         StoreInventoryItem sii = new StoreInventoryItem();
         sii.setStore(store);
-        sii.setInventoryItem(item);
+        sii.setCategory(category);
+        sii.setName("Item " + seq);
+        sii.setUnitOfMeasurement("EA");
         sii.setActive(active);
         return storeInventoryItemRepository.save(sii);
     }

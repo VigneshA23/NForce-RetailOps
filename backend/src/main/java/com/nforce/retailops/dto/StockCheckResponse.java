@@ -35,7 +35,7 @@ public record StockCheckResponse(
         return new StockCheckResponse(
             check.getId(),
             check.getStoreInventoryItem().getId(),
-            check.getStoreInventoryItem().getInventoryItem().getName(),
+            check.getStoreInventoryItem().getName(),
             check.getCheckDate(),
             check.getCurrentCount(),
             check.getQuantityNeeded(),

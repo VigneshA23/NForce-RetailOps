@@ -19,14 +19,14 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
 
     // Owner/Admin's historical review: every check for their store within a
     // date range, most recent first, bounded by page/size. join fetch avoids
-    // the per-row N+1 the unpaged version used to incur (storeInventoryItem ->
-    // inventoryItem, and checkedBy, are both read for every row). No inner
+    // the per-row N+1 the unpaged version used to incur (storeInventoryItem,
+    // which now carries the item name itself, and checkedBy are both read for
+    // every row). No inner
     // join against "active" anywhere -- a deactivated/unassigned item's past
     // checks must still show.
     @Query(
         value = "select sc from StockCheck sc "
             + "join fetch sc.storeInventoryItem sii "
-            + "join fetch sii.inventoryItem "
             + "join fetch sc.checkedBy "
             + "where sii.store.id = :storeId "
             + "and sc.checkDate between :startDate and :endDate "
@@ -43,4 +43,8 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
     );
 
     Optional<StockCheck> findByIdAndStoreInventoryItemStoreId(Long id, Long storeId);
+
+    // Delete guard for StoreInventoryItemService: an item with any stock-check
+    // history can't be hard-deleted.
+    boolean existsByStoreInventoryItemId(Long storeInventoryItemId);
 }

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.InventoryCategory;
-import com.nforce.retailops.entity.InventoryItem;
+import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.RaisedIssue;
@@ -21,7 +21,7 @@ import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.InventoryCategoryRepository;
-import com.nforce.retailops.repository.InventoryItemRepository;
+import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.RoleRepository;
@@ -69,7 +69,7 @@ class SuperAdminOperationsControllerTest {
     @Autowired private RaisedIssueRepository raisedIssueRepository;
     @Autowired private SuperAdminRepository superAdminRepository;
     @Autowired private InventoryCategoryRepository inventoryCategoryRepository;
-    @Autowired private InventoryItemRepository inventoryItemRepository;
+    @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
     @Autowired private OrderListEntryRepository orderListEntryRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
@@ -177,25 +177,26 @@ class SuperAdminOperationsControllerTest {
         return raisedIssueRepository.save(issue);
     }
 
-    private InventoryItem inventoryItem(String name) {
+    private StoreInventoryItem inventoryItem(Store store, String name) {
         InventoryCategory cat = new InventoryCategory();
         cat.setName(name + " Category");
         cat.setDisplayOrder(0);
         cat.setActive(true);
         cat = inventoryCategoryRepository.save(cat);
 
-        InventoryItem item = new InventoryItem();
+        StoreInventoryItem item = new StoreInventoryItem();
+        item.setStore(store);
         item.setCategory(cat);
         item.setName(name);
         item.setUnitOfMeasurement("L");
         item.setActive(true);
-        return inventoryItemRepository.save(item);
+        return storeInventoryItemRepository.save(item);
     }
 
-    private OrderListEntry orderEntry(Store store, InventoryItem item, OrderStatus status) {
+    private OrderListEntry orderEntry(Store store, StoreInventoryItem item, OrderStatus status) {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
-        entry.setInventoryItem(item);
+        entry.setStoreInventoryItem(item);
         entry.setQuantityNeeded(2);
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);
@@ -399,8 +400,8 @@ class SuperAdminOperationsControllerTest {
 
         // Distinct items: V49's partial unique index forbids two non-RECEIVED
         // entries for the same store+item in production.
-        orderEntry(storeB, inventoryItem("Milk B"), OrderStatus.NEEDS_ORDERING);
-        orderEntry(storeB, inventoryItem("Bread B"), OrderStatus.NEEDS_ORDERING);
+        orderEntry(storeB, inventoryItem(storeB, "Milk B"), OrderStatus.NEEDS_ORDERING);
+        orderEntry(storeB, inventoryItem(storeB, "Bread B"), OrderStatus.NEEDS_ORDERING);
 
         String token = login("sa-ord-admin-b@nforce.test");
 
@@ -427,7 +428,7 @@ class SuperAdminOperationsControllerTest {
         superAdmin("sa-ord-admin-c@nforce.test");
         Store orphan = store("Store Unowned", 9241L);
 
-        orderEntry(orphan, inventoryItem("Milk C"), OrderStatus.NEEDS_ORDERING);
+        orderEntry(orphan, inventoryItem(orphan, "Milk C"), OrderStatus.NEEDS_ORDERING);
 
         String token = login("sa-ord-admin-c@nforce.test");
 
@@ -445,7 +446,7 @@ class SuperAdminOperationsControllerTest {
         Store settled = store("Store Settled", 9242L);
         linkOwnerToStore(owner, settled);
 
-        orderEntry(settled, inventoryItem("Milk D"), OrderStatus.ORDERED);
+        orderEntry(settled, inventoryItem(settled, "Milk D"), OrderStatus.ORDERED);
 
         String token = login("sa-ord-admin-d@nforce.test");
 

@@ -1,24 +1,43 @@
 import { apiRequest } from './client';
-import type { StoreInventoryItem, StoreInventoryItemConfigFormValues } from '../types/storeInventory';
+import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
+import type { InventoryCategory } from '../types/inventory';
 import type { StockCheckHistoryPage, StockCheckResponse } from '../types/stockCheck';
 
-// Owner/Admin's store-inventory configuration, scoped to their own store.
+// Owner/Admin's own-store inventory management, scoped to their own store.
+function toBody(values: StoreInventoryItemFormValues) {
+  return {
+    name: values.name,
+    categoryId: values.categoryId,
+    unitOfMeasurement: values.unitOfMeasurement,
+    minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
+    minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
+    preferredSupplierId: values.preferredSupplierId,
+    note: values.note.trim() === '' ? null : values.note.trim(),
+  };
+}
+
 export async function getStoreInventoryItems(): Promise<StoreInventoryItem[]> {
   return apiRequest<StoreInventoryItem[]>('/stores/inventory');
 }
 
-export async function updateStoreInventoryItemConfig(
-  id: number,
-  values: StoreInventoryItemConfigFormValues,
-): Promise<StoreInventoryItem> {
-  return apiRequest<StoreInventoryItem>(`/stores/inventory/${id}`, {
-    method: 'PATCH',
-    body: {
-      minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
-      minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
-      preferredSupplierId: values.preferredSupplierId,
-    },
-  });
+export async function getInventoryCategories(): Promise<InventoryCategory[]> {
+  return apiRequest<InventoryCategory[]>('/stores/inventory/categories');
+}
+
+export async function createStoreInventoryItem(values: StoreInventoryItemFormValues): Promise<StoreInventoryItem> {
+  return apiRequest<StoreInventoryItem>('/stores/inventory', { method: 'POST', body: toBody(values) });
+}
+
+export async function updateStoreInventoryItem(id: number, values: StoreInventoryItemFormValues): Promise<StoreInventoryItem> {
+  return apiRequest<StoreInventoryItem>(`/stores/inventory/${id}`, { method: 'PUT', body: toBody(values) });
+}
+
+export async function setStoreInventoryItemActive(id: number, active: boolean): Promise<StoreInventoryItem> {
+  return apiRequest<StoreInventoryItem>(`/stores/inventory/${id}/status`, { method: 'PATCH', body: { active } });
+}
+
+export async function deleteStoreInventoryItem(id: number): Promise<void> {
+  return apiRequest<void>(`/stores/inventory/${id}`, { method: 'DELETE' });
 }
 
 // Owner/Admin's stock-check history, bounded to a date range and paginated
