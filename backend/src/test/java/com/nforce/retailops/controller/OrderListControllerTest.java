@@ -1,16 +1,14 @@
 package com.nforce.retailops.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.nforce.retailops.entity.InventoryCategory;
-import com.nforce.retailops.entity.InventoryItem;
+import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.repository.InventoryCategoryRepository;
-import com.nforce.retailops.repository.InventoryItemRepository;
+import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -46,8 +44,7 @@ class OrderListControllerTest {
     @Autowired private UserRepository userRepository;
     @Autowired private StoreRepository storeRepository;
     @Autowired private StoreOwnerRepository storeOwnerRepository;
-    @Autowired private InventoryCategoryRepository inventoryCategoryRepository;
-    @Autowired private InventoryItemRepository inventoryItemRepository;
+    @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
     @Autowired private OrderListEntryRepository orderListEntryRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
@@ -89,25 +86,20 @@ class OrderListControllerTest {
 
     // A distinct item per entry: V49's partial unique index forbids two
     // non-RECEIVED entries for the same store+item in production.
-    private InventoryItem inventoryItem() {
-        InventoryCategory cat = new InventoryCategory();
-        cat.setName("Category " + ++itemSeq);
-        cat.setDisplayOrder(0);
-        cat.setActive(true);
-        cat = inventoryCategoryRepository.save(cat);
+    private StoreInventoryItem inventoryItem(Store store) {
 
-        InventoryItem item = new InventoryItem();
-        item.setCategory(cat);
-        item.setName("Item " + itemSeq);
+        StoreInventoryItem item = new StoreInventoryItem();
+        item.setStore(store);
+        item.setName("Item " + ++itemSeq);
         item.setUnitOfMeasurement("L");
         item.setActive(true);
-        return inventoryItemRepository.save(item);
+        return storeInventoryItemRepository.save(item);
     }
 
     private OrderListEntry orderEntry(Store store, OrderStatus status) {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
-        entry.setInventoryItem(inventoryItem());
+        entry.setStoreInventoryItem(inventoryItem(store));
         entry.setQuantityNeeded(2);
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);

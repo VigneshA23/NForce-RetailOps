@@ -133,9 +133,14 @@ class TaskResponsePersistenceTest {
         storeEmployeeRepository.save(storeEmployee);
     }
 
+    // Task titles are now unique per owner (see TaskService.applyRequest) --
+    // a counter keeps every task this helper creates distinctly named, since
+    // several tests create more than one task for the same owner in a row.
+    private static final java.util.concurrent.atomic.AtomicInteger TASK_NAME_COUNTER = new java.util.concurrent.atomic.AtomicInteger();
+
     private TaskRequest taskRequest(ResponseType responseType, CompletionType completionType, boolean appliesToAllStores, List<Long> storeIds) {
         return new TaskRequest(
-            "Wipe counters",
+            "Wipe counters " + TASK_NAME_COUNTER.incrementAndGet(),
             null,
             categoryId,
             null,

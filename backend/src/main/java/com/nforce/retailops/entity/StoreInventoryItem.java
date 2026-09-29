@@ -2,12 +2,16 @@ package com.nforce.retailops.entity;
 
 import jakarta.persistence.*;
 
+import java.time.DayOfWeek;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
-// Assignment of a global InventoryItem to a specific Store. Super Admin
-// creates this row (the assignment); Owner/Admin only ever updates
-// minWeekday/minWeekend/preferredSupplier on it -- they never create or
-// delete the assignment itself.
+// A store's own inventory item (Phase 2). Fully store-scoped: name, unit
+// and note all live here directly rather than on a shared global
+// catalog, so the same product name can exist independently in multiple
+// stores with different configuration. Created/edited/deleted directly by
+// either Super Admin (any store) or that store's Owner/Admin (their own
+// store only) -- see StoreInventoryItemService.
 @Entity
 @Table(name = "store_inventory_items")
 public class StoreInventoryItem {
@@ -20,9 +24,11 @@ public class StoreInventoryItem {
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "inventory_item_id", nullable = false)
-    private InventoryItem inventoryItem;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String name;
+
+    @Column(name = "unit_of_measurement", nullable = false, columnDefinition = "TEXT")
+    private String unitOfMeasurement;
 
     @Column(name = "min_weekday")
     private Integer minWeekday;
@@ -34,6 +40,9 @@ public class StoreInventoryItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "preferred_supplier_id")
     private Supplier preferredSupplier;
+
+    @Column(columnDefinition = "TEXT")
+    private String note;
 
     @Column(nullable = false)
     private boolean active = true;
@@ -71,12 +80,20 @@ public class StoreInventoryItem {
         this.store = store;
     }
 
-    public InventoryItem getInventoryItem() {
-        return inventoryItem;
+    public String getName() {
+        return name;
     }
 
-    public void setInventoryItem(InventoryItem inventoryItem) {
-        this.inventoryItem = inventoryItem;
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getUnitOfMeasurement() {
+        return unitOfMeasurement;
+    }
+
+    public void setUnitOfMeasurement(String unitOfMeasurement) {
+        this.unitOfMeasurement = unitOfMeasurement;
     }
 
     public Integer getMinWeekday() {
@@ -95,12 +112,33 @@ public class StoreInventoryItem {
         this.minWeekend = minWeekend;
     }
 
+    // The minimum that applies on a given day: the weekend minimum on
+    // Saturday/Sunday when one is set, otherwise the weekday minimum. Shared
+    // by the employee stock check and the Owner/Admin inventory table so the
+    // two can't disagree about what's required today.
+    public Integer requiredMinimumOn(LocalDate date) {
+        DayOfWeek day = date.getDayOfWeek();
+        boolean weekend = day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
+        if (weekend && minWeekend != null) {
+            return minWeekend;
+        }
+        return minWeekday;
+    }
+
     public Supplier getPreferredSupplier() {
         return preferredSupplier;
     }
 
     public void setPreferredSupplier(Supplier preferredSupplier) {
         this.preferredSupplier = preferredSupplier;
+    }
+
+    public String getNote() {
+        return note;
+    }
+
+    public void setNote(String note) {
+        this.note = note;
     }
 
     public boolean isActive() {

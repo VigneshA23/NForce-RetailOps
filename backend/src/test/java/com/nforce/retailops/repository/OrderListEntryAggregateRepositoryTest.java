@@ -1,11 +1,10 @@
 package com.nforce.retailops.repository;
 
-import com.nforce.retailops.entity.InventoryCategory;
-import com.nforce.retailops.entity.InventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import org.junit.jupiter.api.Test;
@@ -34,8 +33,7 @@ class OrderListEntryAggregateRepositoryTest {
     @Autowired private StoreOwnerRepository storeOwnerRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private RoleRepository roleRepository;
-    @Autowired private InventoryCategoryRepository inventoryCategoryRepository;
-    @Autowired private InventoryItemRepository inventoryItemRepository;
+    @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
 
     private Store store(String name, long storeCode) {
         Store store = new Store();
@@ -74,25 +72,20 @@ class OrderListEntryAggregateRepositoryTest {
     // entries for the same store+item, so reusing one item would build a state
     // production cannot reach -- it only passes here because the test profile runs
     // on H2 with Flyway disabled and therefore without that index.
-    private InventoryItem item() {
-        InventoryCategory category = new InventoryCategory();
-        category.setName("Category " + ++itemSeq);
-        category.setDisplayOrder(0);
-        category.setActive(true);
-        category = inventoryCategoryRepository.save(category);
+    private StoreInventoryItem item(Store store) {
 
-        InventoryItem item = new InventoryItem();
-        item.setCategory(category);
-        item.setName("Item " + itemSeq);
+        StoreInventoryItem item = new StoreInventoryItem();
+        item.setStore(store);
+        item.setName("Item " + ++itemSeq);
         item.setUnitOfMeasurement("L");
         item.setActive(true);
-        return inventoryItemRepository.save(item);
+        return storeInventoryItemRepository.save(item);
     }
 
     private OrderListEntry entry(Store store, OrderStatus status) {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
-        entry.setInventoryItem(item());
+        entry.setStoreInventoryItem(item(store));
         entry.setQuantityNeeded(3);
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);

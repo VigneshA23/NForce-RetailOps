@@ -25,11 +25,15 @@ interface SelectProps {
   // its own container (e.g. a card header's period dropdown), where growing
   // rightward has nowhere to go and pushes the panel past the container.
   align?: 'left' | 'right';
+  // 'check' (default): a checkmark beside the selected option. 'radio': a
+  // radio-button circle beside every option, for single-choice pickers where
+  // the one-of-many nature should be obvious (e.g. inventory units).
+  indicator?: 'check' | 'radio';
 }
 
 const VIEWPORT_MARGIN = 8;
 
-function Select({ id, options, value, onChange, ariaLabel, className, placeholder, disabled, align = 'left' }: SelectProps) {
+function Select({ id, options, value, onChange, ariaLabel, className, placeholder, disabled, align = 'left', indicator = 'check' }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -134,9 +138,16 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
                   setIsOpen(false);
                 }}
               >
-                <span className="custom-select__option-check">
-                  {option.value === value && <Check size={14} />}
-                </span>
+                {indicator === 'radio' ? (
+                  <span
+                    className={`custom-select__option-radio${option.value === value ? ' custom-select__option-radio--checked' : ''}`}
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <span className="custom-select__option-check">
+                    {option.value === value && <Check size={14} />}
+                  </span>
+                )}
                 {option.label}
               </button>
             ))}

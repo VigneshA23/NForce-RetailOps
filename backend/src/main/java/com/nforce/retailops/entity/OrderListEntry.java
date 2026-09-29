@@ -4,11 +4,11 @@ import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
 
-// References InventoryItem directly (not StoreInventoryItem) so an order
-// survives even if Super Admin later deactivates the item's store
-// assignment while it's still ORDERED. At most one active (status !=
-// RECEIVED) row per store+item is enforced by a partial unique index
-// (V49) -- outstanding entries never disappear on their own.
+// References the store's own inventory item directly. At most one active
+// (status != RECEIVED) row per store+item is enforced by a partial unique
+// index (V49/V70) -- outstanding entries never disappear on their own. An
+// item with outstanding order history can't be hard-deleted (see
+// StoreInventoryItemService), so this reference always stays resolvable.
 @Entity
 @Table(name = "order_list_entries")
 public class OrderListEntry {
@@ -22,8 +22,8 @@ public class OrderListEntry {
     private Store store;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "inventory_item_id", nullable = false)
-    private InventoryItem inventoryItem;
+    @JoinColumn(name = "store_inventory_item_id", nullable = false)
+    private StoreInventoryItem storeInventoryItem;
 
     @Column(name = "quantity_needed", nullable = false)
     private int quantityNeeded;
@@ -79,12 +79,12 @@ public class OrderListEntry {
         this.store = store;
     }
 
-    public InventoryItem getInventoryItem() {
-        return inventoryItem;
+    public StoreInventoryItem getStoreInventoryItem() {
+        return storeInventoryItem;
     }
 
-    public void setInventoryItem(InventoryItem inventoryItem) {
-        this.inventoryItem = inventoryItem;
+    public void setStoreInventoryItem(StoreInventoryItem storeInventoryItem) {
+        this.storeInventoryItem = storeInventoryItem;
     }
 
     public int getQuantityNeeded() {

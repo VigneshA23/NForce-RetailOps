@@ -25,7 +25,6 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
@@ -72,18 +71,6 @@ public class StockCheckService {
         this.userProfileService = userProfileService;
     }
 
-    private static boolean isWeekend(LocalDate date) {
-        DayOfWeek day = date.getDayOfWeek();
-        return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
-    }
-
-    private static Integer resolveMinTarget(StoreInventoryItem item, LocalDate date) {
-        if (isWeekend(date) && item.getMinWeekend() != null) {
-            return item.getMinWeekend();
-        }
-        return item.getMinWeekday();
-    }
-
     // ---- Employee: today's checklist --------------------------------------
 
     @Transactional(readOnly = true)
@@ -102,10 +89,9 @@ public class StockCheckService {
                 StockCheck todaysCheck = todaysChecksByItemId.get(item.getId());
                 return new DailyStockCheckItemResponse(
                     item.getId(),
-                    item.getInventoryItem().getName(),
-                    item.getInventoryItem().getCategory().getName(),
-                    item.getInventoryItem().getUnitOfMeasurement(),
-                    resolveMinTarget(item, today),
+                    item.getName(),
+                    item.getUnitOfMeasurement(),
+                    item.requiredMinimumOn(today),
                     todaysCheck != null ? todaysCheck.getCurrentCount() : null,
                     todaysCheck != null ? todaysCheck.getQuantityNeeded() : null,
                     todaysCheck != null
@@ -133,7 +119,7 @@ public class StockCheckService {
 
         User employee = userRepository.getReferenceById(employeeUserId);
         LocalDate today = LocalDate.now();
-        Integer minTarget = resolveMinTarget(item, today);
+        Integer minTarget = item.requiredMinimumOn(today);
         int quantityNeeded = minTarget == null ? 0 : Math.max(0, minTarget - request.currentCount());
 
         StockCheck check = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
@@ -150,7 +136,7 @@ public class StockCheckService {
 
         if (quantityNeeded > 0) {
             orderListService.upsertShortage(
-                item.getStore(), item.getInventoryItem(), quantityNeeded,
+                item.getStore(), item, quantityNeeded,
                 null, false, employee, item.getPreferredSupplier()
             );
         }
@@ -173,12 +159,23 @@ public class StockCheckService {
 
         User employee = userRepository.getReferenceById(employeeUserId);
         orderListService.upsertShortage(
-            storeItem.getStore(), storeItem.getInventoryItem(), request.quantity(),
+            storeItem.getStore(), storeItem, request.quantity(),
             request.note(), true, employee, storeItem.getPreferredSupplier()
         );
     }
 
     // ---- Owner/Admin: historical review + correction -----------------------
+
+    // Picks the caller's active store the same multi-store-safe way
+    // CategoryService.ownerStoreIds does, rather than findByOwnerIdAndActiveTrue
+    // (a single Optional that throws for an owner with more than one active
+    // store link).
+    private StoreOwner requireActiveStoreOwner(Long ownerId) {
+        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+            .filter(StoreOwner::isActive)
+            .findFirst()
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+    }
 
     @Transactional(readOnly = true)
     public StockCheckHistoryPageResponse listHistoricalChecks(
@@ -186,8 +183,7 @@ public class StockCheckService {
     ) {
         DateRangeValidator.validate(startDate, endDate, MAX_DATE_RANGE_DAYS);
 
-        StoreOwner storeOwner = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
 
         int requestedPage = page == null ? 1 : page;
         int clampedPage = Math.max(requestedPage, 1);
@@ -212,14 +208,13 @@ public class StockCheckService {
 
     @Transactional
     public StockCheckResponse correctCheck(Long ownerId, Long checkId, StockCheckCorrectionRequest request) {
-        StoreOwner storeOwner = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
 
         StockCheck check = stockCheckRepository.findByIdAndStoreInventoryItemStoreId(checkId, storeOwner.getStore().getId())
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Stock check not found"));
 
         StoreInventoryItem item = check.getStoreInventoryItem();
-        Integer minTarget = resolveMinTarget(item, check.getCheckDate());
+        Integer minTarget = item.requiredMinimumOn(check.getCheckDate());
         int quantityNeeded = minTarget == null ? 0 : Math.max(0, minTarget - request.currentCount());
 
         int originalCount = check.getCurrentCount();
@@ -243,7 +238,7 @@ public class StockCheckService {
         // entry shouldn't resurrect or distort today's live order queue.
         if (quantityNeeded > 0 && check.getCheckDate().isEqual(LocalDate.now())) {
             orderListService.upsertShortage(
-                item.getStore(), item.getInventoryItem(), quantityNeeded,
+                item.getStore(), item, quantityNeeded,
                 null, false, check.getCheckedBy(), item.getPreferredSupplier()
             );
         }

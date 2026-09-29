@@ -6,7 +6,6 @@ package com.nforce.retailops.dto;
 public record DailyStockCheckItemResponse(
     Long storeInventoryItemId,
     String itemName,
-    String categoryName,
     String unitOfMeasurement,
     Integer minTarget,
     Integer currentCount,

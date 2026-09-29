@@ -19,6 +19,7 @@ import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.InvalidTaskConfigurationException;
 import com.nforce.retailops.exception.TaskAlreadyCompletedException;
 import com.nforce.retailops.exception.TaskHasHistoryException;
+import com.nforce.retailops.exception.TaskNameExistsException;
 import com.nforce.retailops.exception.TaskNotFoundException;
 import com.nforce.retailops.repository.AdminCorrectionRepository;
 import com.nforce.retailops.repository.CategoryRepository;
@@ -83,6 +84,8 @@ class TaskServiceTest {
     private TaskMakeupLinkService taskMakeupLinkService;
     @Mock
     private AdminCorrectionRepository adminCorrectionRepository;
+    @Mock
+    private com.nforce.retailops.repository.TaskMakeupLinkRepository taskMakeupLinkRepository;
 
     @InjectMocks
     private TaskService taskService;
@@ -198,6 +201,35 @@ class TaskServiceTest {
 
         assertThatThrownBy(() -> taskService.createTask(OWNER_ID, request))
             .isInstanceOf(InvalidTaskConfigurationException.class);
+    }
+
+    // Regression test: task titles are unique per owner (two different owners
+    // may legitimately share a task name -- see TaskService.applyRequest).
+    @Test
+    void createTask_duplicateNameForSameOwner_isRejected() {
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
+        when(taskRepository.existsByOwnerIdAndNameIgnoreCase(OWNER_ID, "Clean counter")).thenReturn(true);
+        TaskRequest request = requestWithResponseType(ResponseType.YES_NO, null);
+
+        assertThatThrownBy(() -> taskService.createTask(OWNER_ID, request))
+            .isInstanceOf(TaskNameExistsException.class);
+    }
+
+    // The uniqueness check excludes the task's own row on update, so saving a
+    // task without changing its name doesn't trip over itself -- but renaming
+    // it to collide with a DIFFERENT existing task for the same owner is
+    // still rejected.
+    @Test
+    void updateTask_renamingToAnExistingSiblingTasksName_isRejected() {
+        when(categoryRepository.findVisibleToOwnerById(eq(CATEGORY_ID), eq(OWNER_ID), anyList())).thenReturn(Optional.of(category));
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", 9L);
+        when(taskRepository.findByIdAndOwnerId(9L, OWNER_ID)).thenReturn(Optional.of(task));
+        when(taskRepository.existsByOwnerIdAndNameIgnoreCaseAndIdNot(OWNER_ID, "Clean counter", 9L)).thenReturn(true);
+        TaskRequest request = requestWithResponseType(ResponseType.YES_NO, null);
+
+        assertThatThrownBy(() -> taskService.updateTask(OWNER_ID, 9L, request))
+            .isInstanceOf(TaskNameExistsException.class);
     }
 
     @Test
@@ -746,6 +778,87 @@ class TaskServiceTest {
         ReflectionTestUtils.setField(store, "id", id);
         store.setActive(true);
         return store;
+    }
+
+    private Task taskOf(Long id, Long ownerId, String name, boolean active, Store... stores) {
+        Task task = new Task();
+        ReflectionTestUtils.setField(task, "id", id);
+        task.setName(name);
+        task.setActive(active);
+        task.setCategory(category);
+        User owner = new User();
+        ReflectionTestUtils.setField(owner, "id", ownerId);
+        task.setOwner(owner);
+        task.setStores(new java.util.HashSet<>(java.util.Arrays.asList(stores)));
+        return task;
+    }
+
+    // --- mergeTasksAsSuperAdmin: consolidates accidental duplicate task rows ---
+
+    private Store namedStoreOf(Long id, String name) {
+        Store store = storeOf(id);
+        store.setName(name);
+        return store;
+    }
+
+    @Test
+    void mergeTasksAsSuperAdmin_reassignsHistoryAndUnionsStoresThenDeletesLosers() {
+        Store storeA = namedStoreOf(10L, "Store A");
+        Store storeB = namedStoreOf(20L, "Store B");
+        Task survivor = taskOf(105L, OWNER_ID, "Unlock entrance and disable alarms", true, storeA);
+        Task loserA = taskOf(112L, OWNER_ID, "Unlock entrance and disable alarms", true, storeA);
+        Task loserB = taskOf(114L, OWNER_ID, "Unlock entrance and disable alarms", true, storeB);
+        when(taskRepository.findById(105L)).thenReturn(Optional.of(survivor));
+        when(taskRepository.findAllById(List.of(112L, 114L))).thenReturn(List.of(loserA, loserB));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        TaskResponse result = taskService.mergeTasksAsSuperAdmin(105L, List.of(112L, 114L));
+
+        assertThat(result.id()).isEqualTo(105L);
+        assertThat(result.stores()).extracting(store -> store.id()).containsExactlyInAnyOrder(10L, 20L);
+        verify(taskResponseEntryRepository).reassignTaskForMerge(survivor, List.of(112L, 114L));
+        verify(taskMakeupLinkRepository).reassignTaskForMerge(survivor, List.of(112L, 114L));
+        verify(taskRepository).deleteAll(List.of(loserA, loserB));
+        verify(activityLogService).logForStores(
+            eq("TASK_UPDATED"), eq("Super Admin"), eq("SUPER_ADMIN"), any(), eq("TASK"), any(), any());
+    }
+
+    @Test
+    void mergeTasksAsSuperAdmin_rejectsTasksBelongingToDifferentOwners() {
+        Task survivor = taskOf(105L, 1L, "Unlock entrance and disable alarms", true, storeOf(10L));
+        Task loser = taskOf(112L, 2L, "Unlock entrance and disable alarms", true, storeOf(10L));
+        when(taskRepository.findById(105L)).thenReturn(Optional.of(survivor));
+        when(taskRepository.findAllById(List.of(112L))).thenReturn(List.of(loser));
+
+        assertThatThrownBy(() -> taskService.mergeTasksAsSuperAdmin(105L, List.of(112L)))
+            .isInstanceOf(InvalidTaskConfigurationException.class);
+
+        verify(taskRepository, never()).deleteAll(anyList());
+    }
+
+    @Test
+    void mergeTasksAsSuperAdmin_rejectsTasksWithDifferentNames() {
+        Task survivor = taskOf(105L, OWNER_ID, "Unlock entrance and disable alarms", true, storeOf(10L));
+        Task loser = taskOf(112L, OWNER_ID, "A completely different task", true, storeOf(10L));
+        when(taskRepository.findById(105L)).thenReturn(Optional.of(survivor));
+        when(taskRepository.findAllById(List.of(112L))).thenReturn(List.of(loser));
+
+        assertThatThrownBy(() -> taskService.mergeTasksAsSuperAdmin(105L, List.of(112L)))
+            .isInstanceOf(InvalidTaskConfigurationException.class);
+
+        verify(taskRepository, never()).deleteAll(anyList());
+    }
+
+    @Test
+    void mergeTasksAsSuperAdmin_rejectsAnEmptyLoserList() {
+        assertThatThrownBy(() -> taskService.mergeTasksAsSuperAdmin(105L, List.of()))
+            .isInstanceOf(InvalidTaskConfigurationException.class);
+    }
+
+    @Test
+    void mergeTasksAsSuperAdmin_rejectsMergingATaskIntoItself() {
+        assertThatThrownBy(() -> taskService.mergeTasksAsSuperAdmin(105L, List.of(105L)))
+            .isInstanceOf(InvalidTaskConfigurationException.class);
     }
 
     @Test

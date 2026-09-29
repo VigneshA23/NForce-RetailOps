@@ -18,8 +18,12 @@ public interface OrderListEntryRepository extends JpaRepository<OrderListEntry, 
     Optional<OrderListEntry> findByIdAndStoreId(Long id, Long storeId);
 
     // The "find" half of the find-or-create upsert for the active-entry-per-
-    // item rule enforced at the DB level by the V49 partial unique index.
-    Optional<OrderListEntry> findByStoreIdAndInventoryItemIdAndStatusNot(Long storeId, Long inventoryItemId, OrderStatus status);
+    // item rule enforced at the DB level by the V49/V70 partial unique index.
+    Optional<OrderListEntry> findByStoreIdAndStoreInventoryItemIdAndStatusNot(Long storeId, Long storeInventoryItemId, OrderStatus status);
+
+    // Delete guard for StoreInventoryItemService: an item with outstanding or
+    // historical order-list entries can't be hard-deleted.
+    boolean existsByStoreInventoryItemId(Long storeInventoryItemId);
 
     // Scalar badge count for the Owner/Admin Home tile -- only entries still
     // awaiting an order, so an entry stops contributing the moment the owner

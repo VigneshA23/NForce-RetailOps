@@ -11,6 +11,13 @@ export async function getOwnerSuppliers(): Promise<Supplier[]> {
   return apiRequest<Supplier[]>('/stores/suppliers');
 }
 
+// Inline "Add New Supplier" from the inventory item form (Owner/Admin and
+// Super Admin). Returns the existing supplier if one with the same name
+// (case-insensitive) already exists, instead of creating a duplicate.
+export async function findOrCreateSupplier(name: string): Promise<Supplier> {
+  return apiRequest<Supplier>('/stores/suppliers', { method: 'POST', body: { name } });
+}
+
 export async function createSupplier(values: SupplierFormValues): Promise<Supplier> {
   return apiRequest<Supplier>('/super-admin/suppliers', { method: 'POST', body: values });
 }

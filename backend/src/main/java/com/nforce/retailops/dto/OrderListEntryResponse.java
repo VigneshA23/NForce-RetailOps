@@ -6,7 +6,7 @@ import java.time.OffsetDateTime;
 
 public record OrderListEntryResponse(
     Long id,
-    Long inventoryItemId,
+    Long storeInventoryItemId,
     String itemName,
     String unitOfMeasurement,
     int quantityNeeded,
@@ -22,9 +22,9 @@ public record OrderListEntryResponse(
     public static OrderListEntryResponse from(OrderListEntry entry) {
         return new OrderListEntryResponse(
             entry.getId(),
-            entry.getInventoryItem().getId(),
-            entry.getInventoryItem().getName(),
-            entry.getInventoryItem().getUnitOfMeasurement(),
+            entry.getStoreInventoryItem().getId(),
+            entry.getStoreInventoryItem().getName(),
+            entry.getStoreInventoryItem().getUnitOfMeasurement(),
             entry.getQuantityNeeded(),
             entry.getSupplier() != null ? entry.getSupplier().getId() : null,
             entry.getSupplier() != null ? entry.getSupplier().getName() : null,
