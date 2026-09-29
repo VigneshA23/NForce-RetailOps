@@ -102,9 +102,9 @@ public class StockCheckService {
                 StockCheck todaysCheck = todaysChecksByItemId.get(item.getId());
                 return new DailyStockCheckItemResponse(
                     item.getId(),
-                    item.getInventoryItem().getName(),
-                    item.getInventoryItem().getCategory().getName(),
-                    item.getInventoryItem().getUnitOfMeasurement(),
+                    item.getName(),
+                    item.getCategory().getName(),
+                    item.getUnitOfMeasurement(),
                     resolveMinTarget(item, today),
                     todaysCheck != null ? todaysCheck.getCurrentCount() : null,
                     todaysCheck != null ? todaysCheck.getQuantityNeeded() : null,
@@ -150,7 +150,7 @@ public class StockCheckService {
 
         if (quantityNeeded > 0) {
             orderListService.upsertShortage(
-                item.getStore(), item.getInventoryItem(), quantityNeeded,
+                item.getStore(), item, quantityNeeded,
                 null, false, employee, item.getPreferredSupplier()
             );
         }
@@ -173,12 +173,23 @@ public class StockCheckService {
 
         User employee = userRepository.getReferenceById(employeeUserId);
         orderListService.upsertShortage(
-            storeItem.getStore(), storeItem.getInventoryItem(), request.quantity(),
+            storeItem.getStore(), storeItem, request.quantity(),
             request.note(), true, employee, storeItem.getPreferredSupplier()
         );
     }
 
     // ---- Owner/Admin: historical review + correction -----------------------
+
+    // Picks the caller's active store the same multi-store-safe way
+    // CategoryService.ownerStoreIds does, rather than findByOwnerIdAndActiveTrue
+    // (a single Optional that throws for an owner with more than one active
+    // store link).
+    private StoreOwner requireActiveStoreOwner(Long ownerId) {
+        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+            .filter(StoreOwner::isActive)
+            .findFirst()
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+    }
 
     @Transactional(readOnly = true)
     public StockCheckHistoryPageResponse listHistoricalChecks(
@@ -186,8 +197,7 @@ public class StockCheckService {
     ) {
         DateRangeValidator.validate(startDate, endDate, MAX_DATE_RANGE_DAYS);
 
-        StoreOwner storeOwner = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
 
         int requestedPage = page == null ? 1 : page;
         int clampedPage = Math.max(requestedPage, 1);
@@ -212,8 +222,7 @@ public class StockCheckService {
 
     @Transactional
     public StockCheckResponse correctCheck(Long ownerId, Long checkId, StockCheckCorrectionRequest request) {
-        StoreOwner storeOwner = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
 
         StockCheck check = stockCheckRepository.findByIdAndStoreInventoryItemStoreId(checkId, storeOwner.getStore().getId())
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Stock check not found"));
@@ -243,7 +252,7 @@ public class StockCheckService {
         // entry shouldn't resurrect or distort today's live order queue.
         if (quantityNeeded > 0 && check.getCheckDate().isEqual(LocalDate.now())) {
             orderListService.upsertShortage(
-                item.getStore(), item.getInventoryItem(), quantityNeeded,
+                item.getStore(), item, quantityNeeded,
                 null, false, check.getCheckedBy(), item.getPreferredSupplier()
             );
         }

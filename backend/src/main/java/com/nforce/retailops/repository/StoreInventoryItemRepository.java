@@ -14,5 +14,5 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
 
     Optional<StoreInventoryItem> findByIdAndStoreId(Long id, Long storeId);
 
-    boolean existsByStoreIdAndInventoryItemId(Long storeId, Long inventoryItemId);
+    long countByCategoryId(Long categoryId);
 }

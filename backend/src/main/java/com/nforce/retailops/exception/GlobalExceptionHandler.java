@@ -205,11 +205,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
-    @ExceptionHandler(InventoryItemNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleInventoryItemNotFound(InventoryItemNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
-    }
-
     @ExceptionHandler(SupplierNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleSupplierNotFound(SupplierNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
@@ -228,8 +223,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
-    @ExceptionHandler(InventoryItemAlreadyAssignedException.class)
-    public ResponseEntity<Map<String, String>> handleInventoryItemAlreadyAssigned(InventoryItemAlreadyAssignedException ex) {
+    @ExceptionHandler(StoreInventoryItemHasHistoryException.class)
+    public ResponseEntity<Map<String, String>> handleStoreInventoryItemHasHistory(StoreInventoryItemHasHistoryException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
