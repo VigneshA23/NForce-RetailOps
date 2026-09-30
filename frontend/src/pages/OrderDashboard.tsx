@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Clipboard, PackageCheck, PackageSearch, Truck } from 'lucide-react';
+import { Clipboard, ClipboardList, PackageCheck, PackageSearch, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { getOrderList, updateOrderListEntry } from '../api/orderList';
 import { getOwnerSuppliers } from '../api/suppliers';
 import type { OrderListEntry, OrderStatus, UpdateOrderListEntryValues } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
-import { buildOrderListText } from '../utils/orderListExport';
+import { buildOrderListText, buildReorderListText } from '../utils/orderListExport';
 import OrderListEntryEditModal from '../components/OrderListEntryEditModal';
 import Select from '../components/Select';
 import StatCard from '../components/StatCard';
@@ -121,6 +121,23 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
     }
   }
 
+  // Built from `entries` at click time (not a value computed on every
+  // render and stashed in state), so it's always the current live data --
+  // never a stale list from before the last refresh.
+  async function handleCopyReorderList() {
+    const text = buildReorderListText(entries);
+    if (text == null) {
+      nfToast.info('No items currently need ordering.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      nfToast.success('Reorder list copied.');
+    } catch {
+      nfToast.error('Could not copy to clipboard. Please copy manually.');
+    }
+  }
+
   const needsOrderingCount = useMemo(() => entries.filter((e) => e.status === 'NEEDS_ORDERING').length, [entries]);
   const orderedCount = useMemo(() => entries.filter((e) => e.status === 'ORDERED').length, [entries]);
   const receivedCount = useMemo(() => entries.filter((e) => e.status === 'RECEIVED').length, [entries]);
@@ -158,10 +175,21 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
             ariaLabel="Filter by status"
           />
         </div>
-        <button type="button" className="btn btn--secondary" onClick={handleCopyList}>
-          <Clipboard size={16} />
-          Copy Order List
-        </button>
+        <div className="order-dashboard-page__header-actions">
+          <button type="button" className="btn btn--secondary" onClick={handleCopyList}>
+            <Clipboard size={16} />
+            Copy Order List
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={handleCopyReorderList}
+            disabled={isLoading || needsOrderingCount === 0}
+          >
+            <ClipboardList size={16} />
+            Copy Reorder List
+          </button>
+        </div>
       </div>
 
       <div className="table-card">
