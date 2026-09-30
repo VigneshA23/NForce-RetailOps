@@ -20,6 +20,7 @@ import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.util.DateRangeValidator;
+import com.nforce.retailops.util.InventoryShortageCalculator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -120,7 +121,7 @@ public class StockCheckService {
         User employee = userRepository.getReferenceById(employeeUserId);
         LocalDate today = LocalDate.now();
         Integer minTarget = item.requiredMinimumOn(today);
-        int quantityNeeded = minTarget == null ? 0 : Math.max(0, minTarget - request.currentCount());
+        int quantityNeeded = InventoryShortageCalculator.calculateQuantityNeeded(minTarget, request.currentCount());
 
         StockCheck check = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
             .orElseGet(() -> {
@@ -139,6 +140,8 @@ public class StockCheckService {
                 item.getStore(), item, quantityNeeded,
                 null, false, employee, item.getPreferredSupplier()
             );
+        } else {
+            orderListService.resolveShortageIfPresent(item.getStore(), item);
         }
 
         return StockCheckResponse.from(check);
@@ -215,7 +218,7 @@ public class StockCheckService {
 
         StoreInventoryItem item = check.getStoreInventoryItem();
         Integer minTarget = item.requiredMinimumOn(check.getCheckDate());
-        int quantityNeeded = minTarget == null ? 0 : Math.max(0, minTarget - request.currentCount());
+        int quantityNeeded = InventoryShortageCalculator.calculateQuantityNeeded(minTarget, request.currentCount());
 
         int originalCount = check.getCurrentCount();
         check.setCurrentCount(request.currentCount());
@@ -234,13 +237,17 @@ public class StockCheckService {
         stockCheckCorrectionRepository.save(correction);
 
         // Only propagate to the order list if this correction is for TODAY's
-        // check and still shows a shortage -- correcting a stale historical
-        // entry shouldn't resurrect or distort today's live order queue.
-        if (quantityNeeded > 0 && check.getCheckDate().isEqual(LocalDate.now())) {
-            orderListService.upsertShortage(
-                item.getStore(), item, quantityNeeded,
-                null, false, check.getCheckedBy(), item.getPreferredSupplier()
-            );
+        // check -- correcting a stale historical entry shouldn't resurrect,
+        // distort, or resolve today's live order queue.
+        if (check.getCheckDate().isEqual(LocalDate.now())) {
+            if (quantityNeeded > 0) {
+                orderListService.upsertShortage(
+                    item.getStore(), item, quantityNeeded,
+                    null, false, check.getCheckedBy(), item.getPreferredSupplier()
+                );
+            } else {
+                orderListService.resolveShortageIfPresent(item.getStore(), item);
+            }
         }
 
         return StockCheckResponse.from(check);
