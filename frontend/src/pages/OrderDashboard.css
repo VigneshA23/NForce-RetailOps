@@ -1,5 +1,9 @@
 @import '../styles/breakpoints.css';
 
+.order-dashboard-page {
+  padding: var(--space-lg);
+}
+
 .order-dashboard-page__error {
   display: flex;
   align-items: center;
@@ -21,26 +25,9 @@
 .order-dashboard-page__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
-}
-
-.order-dashboard-page__filter-bar {
-  margin-bottom: 0;
-}
-
-/* .filter--narrow's 12% flex-basis (shared with Tasks/Employees, where
-   .filter-bar is a full-width block so 12% resolves sensibly) collapses
-   here: nested as a flex item inside .order-dashboard-page__header,
-   .filter-bar shrinks to fit its own content instead of being stretched,
-   so 12% of that content-sized width rounds down to a few px -- just the
-   chevron, no room for the "All Statuses" label. Give the status select a
-   fixed floor instead of a percentage so it can't collapse in this
-   specific nesting, without touching the shared rule other pages rely on. */
-.order-dashboard-page__filter-bar .filter--narrow {
-  flex: 0 0 auto;
-  min-width: 160px;
 }
 
 .order-dashboard-page__header-actions {

@@ -114,8 +114,10 @@ describe('OrderDashboard status seed', () => {
 });
 
 describe('OrderDashboard Copy Reorder List', () => {
-  it('copies only the live NEEDS_ORDERING entries, grouped by supplier, and shows success feedback', async () => {
-    const user = userEvent.setup();
+  it('copies only the live NEEDS_ORDERING entries, grouped by supplier, with the store name and generation date, and shows success feedback', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 30));
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     mockGetOrderList.mockReset().mockResolvedValue([
       entry({ id: 1, itemName: 'Milk', unitOfMeasurement: 'gallons', quantityNeeded: 12, status: 'NEEDS_ORDERING', supplierId: 1, supplierName: 'Acme Supplies' }),
       entry({ id: 2, itemName: 'Bread', status: 'ORDERED', supplierId: 1, supplierName: 'Acme Supplies' }),
@@ -132,13 +134,14 @@ describe('OrderDashboard Copy Reorder List', () => {
 
     expect(writeText).toHaveBeenCalledTimes(1);
     const copied = writeText.mock.calls[0][0] as string;
-    expect(copied).toContain('REORDER LIST');
+    expect(copied.startsWith('*REORDER LIST :*\n\n*Store  - Downtown*\n*Date   - September 30, 2026*')).toBe(true);
     expect(copied).toContain('Acme Supplies');
     expect(copied).toContain('* Milk — 12 gallons');
     expect(copied).toContain('Unassigned Supplier');
     expect(copied).toContain('* Cleaning Spray — 8 bottles');
     expect(copied).not.toContain('Bread');
     expect(nfToast.success).toHaveBeenCalledWith('Reorder list copied.');
+    vi.useRealTimers();
   });
 
   it('disables the Copy Reorder List button when nothing currently needs ordering', async () => {
@@ -151,5 +154,73 @@ describe('OrderDashboard Copy Reorder List', () => {
     await screen.findByText('Bread');
 
     expect(screen.getByRole('button', { name: /copy reorder list/i })).toBeDisabled();
+  });
+});
+
+describe('OrderDashboard filters', () => {
+  beforeEach(() => {
+    mockGetOrderList.mockReset().mockResolvedValue([
+      entry({ id: 1, storeInventoryItemId: 101, itemName: 'Milk', supplierId: 1, supplierName: 'Acme Supplies', status: 'NEEDS_ORDERING' }),
+      entry({ id: 2, storeInventoryItemId: 102, itemName: 'Bread', supplierId: 2, supplierName: 'Fresh Foods', status: 'ORDERED' }),
+      entry({ id: 3, storeInventoryItemId: 103, itemName: 'Cleaning Spray', supplierId: null, supplierName: null, status: 'NEEDS_ORDERING' }),
+    ]);
+    mockGetOwnerSuppliers.mockReset().mockResolvedValue([
+      { id: 1, name: 'Acme Supplies', active: true },
+      { id: 2, name: 'Fresh Foods', active: true },
+    ]);
+  });
+
+  it('filters the table by item name as the user types', async () => {
+    const user = userEvent.setup();
+    render(<OrderDashboard storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.type(screen.getByPlaceholderText('Search items'), 'milk');
+
+    expect(screen.getByText('Milk')).toBeInTheDocument();
+    expect(screen.queryByText('Bread')).not.toBeInTheDocument();
+    expect(screen.queryByText('Cleaning Spray')).not.toBeInTheDocument();
+  });
+
+  it('filters the table to a single item via the items dropdown', async () => {
+    const user = userEvent.setup();
+    render(<OrderDashboard storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByLabelText('Filter by item'));
+    await user.click(screen.getByRole('option', { name: 'Bread' }));
+
+    expect(screen.getByRole('cell', { name: 'Bread' })).toBeInTheDocument();
+    expect(screen.queryByRole('cell', { name: 'Milk' })).not.toBeInTheDocument();
+  });
+
+  it('filters the table by supplier, including an Unassigned Supplier option', async () => {
+    const user = userEvent.setup();
+    render(<OrderDashboard storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByLabelText('Filter by supplier'));
+    await user.click(screen.getByRole('option', { name: 'Unassigned Supplier' }));
+
+    expect(screen.getByText('Cleaning Spray')).toBeInTheDocument();
+    expect(screen.queryByText('Milk')).not.toBeInTheDocument();
+    expect(screen.queryByText('Bread')).not.toBeInTheDocument();
+  });
+
+  it('shows a Clear button once any filter is active, and it resets every filter', async () => {
+    const user = userEvent.setup();
+    render(<OrderDashboard storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText('Search items'), 'milk');
+    expect(screen.queryByText('Bread')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+    expect(screen.getByText('Milk')).toBeInTheDocument();
+    expect(screen.getByText('Bread')).toBeInTheDocument();
+    expect(screen.getByText('Cleaning Spray')).toBeInTheDocument();
   });
 });
