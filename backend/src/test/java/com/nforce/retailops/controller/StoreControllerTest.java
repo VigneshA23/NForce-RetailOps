@@ -8,6 +8,7 @@ import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
@@ -15,6 +16,7 @@ import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -50,6 +53,7 @@ class StoreControllerTest {
     @Autowired private StoreOwnerRepository storeOwnerRepository;
     @Autowired private TaskRepository taskRepository;
     @Autowired private CategoryRepository categoryRepository;
+    @Autowired private SupplierRepository supplierRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -419,6 +423,86 @@ class StoreControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.storeActive").value(true))
             .andExpect(jsonPath("$.ownerAccessActive").value(false));
+    }
+
+    @Test
+    @Transactional
+    void ownerAdminCanAddASupplierInlineAndItIsListedForFutureItems() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        User owner = user("supplier-inline-owner@nforce.test", ownerRole);
+        linkOwnerToStore(owner, store("Supplier Inline Store", 8101L));
+
+        String token = login("supplier-inline-owner@nforce.test");
+
+        mockMvc.perform(post("/api/stores/suppliers")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"  Fresh Farms Inline  \"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Fresh Farms Inline"))
+            .andExpect(jsonPath("$.active").value(true));
+
+        mockMvc.perform(get("/api/stores/suppliers")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.name == 'Fresh Farms Inline')]").exists());
+    }
+
+    @Test
+    @Transactional
+    void addingASupplierWithAnExistingNameReusesAndReactivatesIt() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        User owner = user("supplier-dedupe-owner@nforce.test", ownerRole);
+        linkOwnerToStore(owner, store("Supplier Dedupe Store", 8102L));
+
+        Supplier existing = new Supplier();
+        existing.setName("Dedupe Wholesale");
+        existing.setActive(false);
+        existing = supplierRepository.save(existing);
+        long countBefore = supplierRepository.count();
+
+        String token = login("supplier-dedupe-owner@nforce.test");
+
+        mockMvc.perform(post("/api/stores/suppliers")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"dedupe wholesale\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(existing.getId()))
+            .andExpect(jsonPath("$.active").value(true));
+
+        assertThat(supplierRepository.count()).isEqualTo(countBefore);
+    }
+
+    @Test
+    @Transactional
+    void superAdminCanAlsoAddASupplierInline() throws Exception {
+        user("supplier-inline-super@nforce.test", role("SUPER_ADMIN"));
+
+        String token = login("supplier-inline-super@nforce.test");
+
+        mockMvc.perform(post("/api/stores/suppliers")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Super Inline Supplier\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Super Inline Supplier"));
+    }
+
+    @Test
+    @Transactional
+    void addingASupplierInlineRequiresAName() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        User owner = user("supplier-blank-owner@nforce.test", ownerRole);
+        linkOwnerToStore(owner, store("Supplier Blank Store", 8103L));
+
+        String token = login("supplier-blank-owner@nforce.test");
+
+        mockMvc.perform(post("/api/stores/suppliers")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"   \"}"))
+            .andExpect(status().isBadRequest());
     }
 
     private void taskForStore(User owner, Store store) {

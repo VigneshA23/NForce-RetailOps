@@ -13,6 +13,4 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
     List<StoreInventoryItem> findByStoreIdAndActiveTrueOrderById(Long storeId);
 
     Optional<StoreInventoryItem> findByIdAndStoreId(Long id, Long storeId);
-
-    long countByCategoryId(Long categoryId);
 }

@@ -16,11 +16,6 @@ interface StoreInventoryTableProps {
   footer?: ReactNode;
 }
 
-function minQuantityLabel(item: StoreInventoryItem): string {
-  const weekday = item.minWeekday ?? '—';
-  const weekend = item.minWeekend ?? item.minWeekday ?? '—';
-  return `${weekday} / ${weekend}`;
-}
 
 function StoreInventoryTable({ items, showStore, isLoading = false, onEdit, onDelete, onToggleStatus, footer }: StoreInventoryTableProps) {
   return (
@@ -30,9 +25,9 @@ function StoreInventoryTable({ items, showStore, isLoading = false, onEdit, onDe
           <thead>
             <tr>
               <th scope="col">Inventory</th>
-              <th scope="col">Category</th>
               <th scope="col">Unit</th>
-              <th scope="col">Min (Weekday / Weekend)</th>
+              <th scope="col" title="Weekday minimum Mon-Fri, weekend minimum Sat-Sun">Required Today</th>
+              <th scope="col">Current Available</th>
               <th scope="col">Preferred Supplier</th>
               <th scope="col">Note</th>
               {showStore && <th scope="col">Store</th>}
@@ -44,9 +39,9 @@ function StoreInventoryTable({ items, showStore, isLoading = false, onEdit, onDe
             {items.map((item) => (
               <tr key={item.id}>
                 <td data-label="Inventory">{item.name}</td>
-                <td data-label="Category">{item.categoryName}</td>
                 <td data-label="Unit">{item.unitOfMeasurement}</td>
-                <td data-label="Min">{minQuantityLabel(item)}</td>
+                <td data-label="Required Today">{item.requiredToday ?? '—'}</td>
+                <td data-label="Current Available">{item.currentAvailable ?? 'Not counted yet'}</td>
                 <td data-label="Preferred Supplier">{item.preferredSupplierName ?? '—'}</td>
                 <td data-label="Note">{item.note ?? '—'}</td>
                 {showStore && <td data-label="Store">{item.storeName}</td>}

@@ -3,8 +3,6 @@ export interface StoreInventoryItem {
   storeId: number;
   storeName: string;
   name: string;
-  categoryId: number;
-  categoryName: string;
   unitOfMeasurement: string;
   minWeekday: number | null;
   minWeekend: number | null;
@@ -12,6 +10,11 @@ export interface StoreInventoryItem {
   preferredSupplierName: string | null;
   note: string | null;
   active: boolean;
+  // Today's minimum: the weekend minimum on Sat/Sun when set, otherwise the
+  // weekday minimum (decided server-side).
+  requiredToday: number | null;
+  // Today's employee stock-check count; null until someone counts it today.
+  currentAvailable: number | null;
 }
 
 // Numbers stay strings until submit, same convention as AdminTaskFormValues'
@@ -19,7 +22,6 @@ export interface StoreInventoryItem {
 export interface StoreInventoryItemFormValues {
   storeId: number | null;
   name: string;
-  categoryId: number | null;
   unitOfMeasurement: string;
   minWeekday: string;
   minWeekend: string;

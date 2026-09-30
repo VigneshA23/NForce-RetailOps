@@ -1,12 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Boxes, CircleCheck, CircleSlash, Plus, Tags, Truck } from 'lucide-react';
+import { Boxes, CircleCheck, CircleSlash, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import {
-  createInventoryCategory,
-  getInventoryCategories,
-  setInventoryCategoryActive,
-  updateInventoryCategory,
-} from '../api/inventoryCategories';
 import {
   createInventoryItem,
   deleteInventoryItem,
@@ -14,14 +8,12 @@ import {
   setInventoryItemActive,
   updateInventoryItem,
 } from '../api/inventoryItems';
-import { createSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
+import { createSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
 import { getAllStores } from '../api/superAdminStores';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import type { InventoryCategory, InventoryCategoryFormValues } from '../types/inventory';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
-import InventoryCategoryFormModal from '../components/InventoryCategoryFormModal';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryTable from '../components/StoreInventoryTable';
 import SupplierFormModal from '../components/SupplierFormModal';
@@ -35,11 +27,10 @@ import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './SuperAdminInventory.css';
 
-type SubTab = 'inventory' | 'categories' | 'suppliers';
+type SubTab = 'inventory' | 'suppliers';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'inventory', label: 'Inventory' },
-  { key: 'categories', label: 'Categories' },
   { key: 'suppliers', label: 'Suppliers' },
 ];
 
@@ -50,7 +41,6 @@ const STATUS_FILTER_OPTIONS = [
 ];
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
-type CategoryModalState = { mode: 'create' } | { mode: 'edit'; category: InventoryCategory } | null;
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
 type ItemModalState = { mode: 'create' } | { mode: 'edit'; item: StoreInventoryItem } | null;
 
@@ -60,7 +50,6 @@ function SuperAdminInventory() {
   const [subTab, setSubTab] = useState<SubTab>('inventory');
   const isMobile = useIsMobile();
 
-  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
@@ -70,9 +59,8 @@ function SuperAdminInventory() {
   function loadAll() {
     setIsLoading(true);
     setLoadError(null);
-    Promise.all([getInventoryCategories(), getSuppliers(), getAllStores(), getAllInventoryItems()])
-      .then(([cats, sups, sts, its]) => {
-        setCategories(cats);
+    Promise.all([getSuppliers(), getAllStores(), getAllInventoryItems()])
+      .then(([sups, sts, its]) => {
         setSuppliers(sups);
         setStores(sts.filter((s) => s.storeActive).map((s) => ({ id: s.storeId, name: s.storeName })));
         setItems(its);
@@ -83,6 +71,15 @@ function SuperAdminInventory() {
 
   useEffect(() => {
     loadAll();
+  }, []);
+
+  // 60-second silent refresh so "Current Available" picks up counts as
+  // employees submit today's stock check. A failed poll keeps the last list.
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      getAllInventoryItems().then(setItems).catch(() => {});
+    }, 60_000);
+    return () => window.clearInterval(id);
   }, []);
 
   // ---- Inventory items -----------------------------------------------------
@@ -99,6 +96,20 @@ function SuperAdminInventory() {
   useEffect(() => {
     setItemPage(1);
   }, [itemSearch, itemStoreFilter, itemStatusFilter]);
+
+  // Inline "Add New Supplier" from the item form: persist it, then merge it
+  // into the local directory so it's selectable for every later item too.
+  async function handleCreateSupplier(name: string): Promise<Supplier> {
+    const supplier = await findOrCreateSupplier(name);
+    setSuppliers((current) =>
+      (current.some((s) => s.id === supplier.id)
+        ? current.map((s) => (s.id === supplier.id ? supplier : s))
+        : [...current, supplier]
+      ).sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    nfToast.success(`"${supplier.name}" supplier added.`);
+    return supplier;
+  }
 
   async function handleItemSubmit(values: StoreInventoryItemFormValues) {
     setItemFormError(null);
@@ -157,7 +168,7 @@ function SuperAdminInventory() {
   const filteredItems = useMemo(() => {
     const term = itemSearch.trim().toLowerCase();
     return items.filter((item) => {
-      if (term && !item.name.toLowerCase().includes(term) && !item.categoryName.toLowerCase().includes(term)) return false;
+      if (term && !item.name.toLowerCase().includes(term)) return false;
       if (itemStoreFilter != null && item.storeId !== itemStoreFilter) return false;
       if (itemStatusFilter === 'ACTIVE' && !item.active) return false;
       if (itemStatusFilter === 'INACTIVE' && item.active) return false;
@@ -172,46 +183,6 @@ function SuperAdminInventory() {
     : filteredItems.slice((itemCurrentPage - 1) * PAGE_SIZE, itemCurrentPage * PAGE_SIZE);
 
   const storeFilterOptions = [{ value: '', label: 'All Stores' }, ...stores.map((s) => ({ value: String(s.id), label: s.name }))];
-
-  // ---- Categories --------------------------------------------------------
-  const [categoryModal, setCategoryModal] = useState<CategoryModalState>(null);
-  const [categoryFormError, setCategoryFormError] = useState<string | null>(null);
-  const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
-
-  async function handleCategorySubmit(values: InventoryCategoryFormValues) {
-    setCategoryFormError(null);
-    setIsCategorySubmitting(true);
-    try {
-      if (categoryModal?.mode === 'edit') {
-        const updated = await updateInventoryCategory(categoryModal.category.id, values);
-        setCategories((current) => current.map((c) => (c.id === updated.id ? updated : c)));
-        nfToast.success(`"${updated.name}" category updated.`);
-      } else {
-        const created = await createInventoryCategory(values);
-        setCategories((current) => [...current, created]);
-        nfToast.success(`"${created.name}" category added.`);
-      }
-      setCategoryModal(null);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Something went wrong';
-      setCategoryFormError(msg);
-      nfToast.error(msg);
-    } finally {
-      setIsCategorySubmitting(false);
-    }
-  }
-
-  async function handleToggleCategory(category: InventoryCategory, active: boolean) {
-    setCategories((current) => current.map((c) => (c.id === category.id ? { ...c, active } : c)));
-    try {
-      const updated = await setInventoryCategoryActive(category.id, active);
-      setCategories((current) => current.map((c) => (c.id === updated.id ? updated : c)));
-      nfToast.success(`"${category.name}" category ${active ? 'activated' : 'deactivated'}.`);
-    } catch (error) {
-      setCategories((current) => current.map((c) => (c.id === category.id ? category : c)));
-      nfToast.error(error instanceof Error ? error.message : 'Failed to update category status');
-    }
-  }
 
   // ---- Suppliers ------------------------------------------------------------
   const [supplierModal, setSupplierModal] = useState<SupplierModalState>(null);
@@ -253,7 +224,6 @@ function SuperAdminInventory() {
     }
   }
 
-  const activeCategoryCount = useMemo(() => categories.filter((c) => c.active).length, [categories]);
   const activeSupplierCount = useMemo(() => suppliers.filter((s) => s.active).length, [suppliers]);
 
   if (loadError) {
@@ -367,82 +337,6 @@ function SuperAdminInventory() {
         </>
       )}
 
-      {subTab === 'categories' && (
-        <>
-          <div className="stat-card-row">
-            <StatCard icon={Tags} label="Inventory Categories" value={categories.length} tone="primary" />
-            <StatCard icon={CircleCheck} label="Active" value={activeCategoryCount} tone="success" />
-          </div>
-          <div className="super-admin-inventory-page__header">
-            <p className="super-admin-inventory-page__summary">
-              {isLoading ? 'Loading...' : `${activeCategoryCount} active of ${categories.length} total`}
-            </p>
-            <SpecularButton
-              size="sm"
-              radius={999}
-              tint="var(--color-badge-solid-bg)"
-              tintOpacity={1}
-              textColor="var(--color-badge-solid-text)"
-              lineColor="#e11d33"
-              baseColor="#e4e4e7"
-              followMouse
-              proximity={180}
-              onClick={() => { setCategoryFormError(null); setCategoryModal({ mode: 'create' }); }}
-            >
-              <span className="super-admin-inventory-page__add-label">
-                <Plus size={16} />
-                Add Category
-              </span>
-            </SpecularButton>
-          </div>
-          <div className="table-card">
-            <div className="table-scroll">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Category Name</th>
-                    <th scope="col">Items</th>
-                    <th scope="col">Status</th>
-                    <th scope="col" className="super-admin-inventory-page__actions-header">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {categories.map((category) => (
-                    <tr key={category.id}>
-                      <td data-label="Category Name">{category.name}</td>
-                      <td data-label="Items">{category.itemCount}</td>
-                      <td data-label="Status">
-                        <Toggle
-                          checked={category.active}
-                          onChange={(checked) => handleToggleCategory(category, checked)}
-                          label={`${category.active ? 'Deactivate' : 'Activate'} ${category.name}`}
-                        />
-                      </td>
-                      <td className="table-actions-cell" data-label="Actions">
-                        <div className="table-row-actions">
-                          <button
-                            type="button"
-                            className="table-icon-btn"
-                            aria-label={`Edit ${category.name}`}
-                            title="Edit"
-                            onClick={() => { setCategoryFormError(null); setCategoryModal({ mode: 'edit', category }); }}
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            {!isLoading && categories.length === 0 && (
-              <div className="super-admin-inventory-page__empty">No inventory categories yet.</div>
-            )}
-          </div>
-        </>
-      )}
-
       {subTab === 'suppliers' && (
         <>
           <div className="stat-card-row">
@@ -520,8 +414,8 @@ function SuperAdminInventory() {
       <StoreInventoryItemFormModal
         isOpen={itemModal !== null}
         mode={itemModal?.mode ?? 'create'}
-        categories={categories}
         suppliers={suppliers}
+        onCreateSupplier={handleCreateSupplier}
         stores={stores}
         showStoreField
         initialValues={
@@ -529,7 +423,6 @@ function SuperAdminInventory() {
             ? {
                 storeId: itemModal.item.storeId,
                 name: itemModal.item.name,
-                categoryId: itemModal.item.categoryId,
                 unitOfMeasurement: itemModal.item.unitOfMeasurement,
                 minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
                 minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
@@ -556,16 +449,6 @@ function SuperAdminInventory() {
         onCancel={() => setItemDeleteTarget(null)}
       />
       {itemDeleteError && <div className="owners-page__error">{itemDeleteError}</div>}
-
-      <InventoryCategoryFormModal
-        isOpen={categoryModal !== null}
-        mode={categoryModal?.mode ?? 'create'}
-        initialValues={categoryModal?.mode === 'edit' ? { name: categoryModal.category.name } : undefined}
-        errorMessage={categoryFormError}
-        isSubmitting={isCategorySubmitting}
-        onClose={() => setCategoryModal(null)}
-        onSubmit={handleCategorySubmit}
-      />
 
       <SupplierFormModal
         isOpen={supplierModal !== null}

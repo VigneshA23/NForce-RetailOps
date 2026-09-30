@@ -131,7 +131,7 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
               <div className="employee-stock-check-page__row-info">
                 <p className="employee-stock-check-page__row-name">{item.itemName}</p>
                 <p className="employee-stock-check-page__row-meta">
-                  {item.categoryName} · Target: {item.minTarget ?? '—'} {item.unitOfMeasurement}
+                  Target: {item.minTarget ?? '—'} {item.unitOfMeasurement}
                 </p>
               </div>
               <div className="employee-stock-check-page__row-input">

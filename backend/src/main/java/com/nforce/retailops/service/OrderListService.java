@@ -133,4 +133,22 @@ public class OrderListService {
         }
         orderListEntryRepository.save(entry);
     }
+
+    // The other half of the shortage lifecycle: called whenever a fresh count
+    // shows the item back at or above its minimum (quantityNeeded == 0). Never
+    // creates a row -- only closes out an already-active one, the same way
+    // Owner/Admin's own "Mark Received" action does, so the order-list side
+    // stays consistent whichever path resolved it. History is untouched: the
+    // row survives, it just leaves the active (non-RECEIVED) set, which is
+    // exactly what frees the V49/V70 partial unique index for the next
+    // shortage on this item.
+    @Transactional
+    public void resolveShortageIfPresent(Store store, StoreInventoryItem item) {
+        orderListEntryRepository
+            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
+            .ifPresent(entry -> {
+                entry.setStatus(OrderStatus.RECEIVED);
+                orderListEntryRepository.save(entry);
+            });
+    }
 }

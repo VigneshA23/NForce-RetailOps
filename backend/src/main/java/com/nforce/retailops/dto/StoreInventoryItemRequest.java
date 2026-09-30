@@ -15,9 +15,6 @@ public record StoreInventoryItemRequest(
     @Size(max = 200, message = "Name must be at most 200 characters")
     String name,
 
-    @NotNull(message = "Category is required")
-    Long categoryId,
-
     @NotBlank(message = "Unit is required")
     @Size(max = 50, message = "Unit must be at most 50 characters")
     String unitOfMeasurement,

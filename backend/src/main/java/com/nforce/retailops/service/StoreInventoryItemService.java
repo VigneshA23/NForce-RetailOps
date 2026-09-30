@@ -2,17 +2,15 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
-import com.nforce.retailops.entity.InventoryCategory;
+import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
-import com.nforce.retailops.exception.InventoryCategoryNotFoundException;
 import com.nforce.retailops.exception.StoreInventoryItemHasHistoryException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
-import com.nforce.retailops.repository.InventoryCategoryRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
@@ -22,7 +20,10 @@ import com.nforce.retailops.repository.SupplierRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 // Full CRUD for a store's own inventory items (Phase 2 redesign). Split into
 // an Owner/Admin section (scoped to the caller's own store) and a Super
@@ -32,7 +33,6 @@ import java.util.List;
 public class StoreInventoryItemService {
 
     private final StoreInventoryItemRepository storeInventoryItemRepository;
-    private final InventoryCategoryRepository categoryRepository;
     private final SupplierRepository supplierRepository;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
@@ -41,7 +41,6 @@ public class StoreInventoryItemService {
 
     public StoreInventoryItemService(
         StoreInventoryItemRepository storeInventoryItemRepository,
-        InventoryCategoryRepository categoryRepository,
         SupplierRepository supplierRepository,
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
@@ -49,7 +48,6 @@ public class StoreInventoryItemService {
         OrderListEntryRepository orderListEntryRepository
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
-        this.categoryRepository = categoryRepository;
         this.supplierRepository = supplierRepository;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -78,15 +76,13 @@ public class StoreInventoryItemService {
     @Transactional(readOnly = true)
     public List<StoreInventoryItemResponse> listForOwner(Long ownerId) {
         Store store = requireOwnerStore(ownerId);
-        return storeInventoryItemRepository.findByStoreIdOrderById(store.getId()).stream()
-            .map(StoreInventoryItemResponse::from)
-            .toList();
+        return toResponses(storeInventoryItemRepository.findByStoreIdOrderById(store.getId()));
     }
 
     @Transactional
     public StoreInventoryItemResponse createForOwner(Long ownerId, StoreInventoryItemRequest request) {
         Store store = requireOwnerStore(ownerId);
-        return StoreInventoryItemResponse.from(createItem(store, request));
+        return toResponse(createItem(store, request));
     }
 
     @Transactional
@@ -94,7 +90,7 @@ public class StoreInventoryItemService {
         Store store = requireOwnerStore(ownerId);
         StoreInventoryItem item = storeInventoryItemRepository.findByIdAndStoreId(itemId, store.getId())
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
-        return StoreInventoryItemResponse.from(applyUpdate(item, request));
+        return toResponse(applyUpdate(item, request));
     }
 
     @Transactional
@@ -103,7 +99,7 @@ public class StoreInventoryItemService {
         StoreInventoryItem item = storeInventoryItemRepository.findByIdAndStoreId(itemId, store.getId())
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
         item.setActive(active);
-        return StoreInventoryItemResponse.from(storeInventoryItemRepository.save(item));
+        return toResponse(storeInventoryItemRepository.save(item));
     }
 
     @Transactional
@@ -120,9 +116,7 @@ public class StoreInventoryItemService {
 
     @Transactional(readOnly = true)
     public List<StoreInventoryItemResponse> listAllForSuperAdmin() {
-        return storeInventoryItemRepository.findAll().stream()
-            .map(StoreInventoryItemResponse::from)
-            .toList();
+        return toResponses(storeInventoryItemRepository.findAll());
     }
 
     @Transactional
@@ -132,14 +126,14 @@ public class StoreInventoryItemService {
         }
         Store store = storeRepository.findById(request.storeId())
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return StoreInventoryItemResponse.from(createItem(store, request));
+        return toResponse(createItem(store, request));
     }
 
     @Transactional
     public StoreInventoryItemResponse updateForSuperAdmin(Long itemId, StoreInventoryItemRequest request) {
         StoreInventoryItem item = storeInventoryItemRepository.findById(itemId)
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
-        return StoreInventoryItemResponse.from(applyUpdate(item, request));
+        return toResponse(applyUpdate(item, request));
     }
 
     @Transactional
@@ -147,7 +141,7 @@ public class StoreInventoryItemService {
         StoreInventoryItem item = storeInventoryItemRepository.findById(itemId)
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
         item.setActive(active);
-        return StoreInventoryItemResponse.from(storeInventoryItemRepository.save(item));
+        return toResponse(storeInventoryItemRepository.save(item));
     }
 
     @Transactional
@@ -160,6 +154,29 @@ public class StoreInventoryItemService {
     // ---------------------------------------------------------------------
     // Shared helpers
     // ---------------------------------------------------------------------
+
+    // "Current available" is today's employee stock-check count, looked up in
+    // one query for the whole list rather than per row.
+    private List<StoreInventoryItemResponse> toResponses(List<StoreInventoryItem> items) {
+        LocalDate today = LocalDate.now();
+        Map<Long, Integer> todaysCounts = stockCheckRepository
+            .findByStoreInventoryItemIdInAndCheckDate(items.stream().map(StoreInventoryItem::getId).toList(), today)
+            .stream()
+            .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), StockCheck::getCurrentCount));
+        return items.stream()
+            .map(item -> StoreInventoryItemResponse.from(item, today, todaysCounts.get(item.getId())))
+            .toList();
+    }
+
+    private StoreInventoryItemResponse toResponse(StoreInventoryItem item) {
+        LocalDate today = LocalDate.now();
+        Integer currentAvailable = item.getId() == null
+            ? null
+            : stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
+                .map(StockCheck::getCurrentCount)
+                .orElse(null);
+        return StoreInventoryItemResponse.from(item, today, currentAvailable);
+    }
 
     private StoreInventoryItem createItem(Store store, StoreInventoryItemRequest request) {
         StoreInventoryItem item = new StoreInventoryItem();
@@ -174,11 +191,7 @@ public class StoreInventoryItemService {
     }
 
     private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request) {
-        InventoryCategory category = categoryRepository.findById(request.categoryId())
-            .orElseThrow(() -> new InventoryCategoryNotFoundException("Inventory category not found"));
-
         item.setName(request.name().trim());
-        item.setCategory(category);
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
         item.setMinWeekday(request.minWeekday());
         item.setMinWeekend(request.minWeekend());

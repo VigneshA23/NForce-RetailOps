@@ -1,6 +1,5 @@
 package com.nforce.retailops.controller;
 
-import com.nforce.retailops.dto.InventoryCategoryResponse;
 import com.nforce.retailops.dto.StatusRequest;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
@@ -8,7 +7,6 @@ import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
 import com.nforce.retailops.security.AppUserDetails;
-import com.nforce.retailops.service.InventoryCatalogService;
 import com.nforce.retailops.service.StockCheckService;
 import com.nforce.retailops.service.StoreInventoryItemService;
 import jakarta.validation.Valid;
@@ -30,29 +28,19 @@ import java.util.List;
 public class StoreInventoryController {
 
     private final StoreInventoryItemService storeInventoryItemService;
-    private final InventoryCatalogService inventoryCatalogService;
     private final StockCheckService stockCheckService;
 
     public StoreInventoryController(
         StoreInventoryItemService storeInventoryItemService,
-        InventoryCatalogService inventoryCatalogService,
         StockCheckService stockCheckService
     ) {
         this.storeInventoryItemService = storeInventoryItemService;
-        this.inventoryCatalogService = inventoryCatalogService;
         this.stockCheckService = stockCheckService;
     }
 
     @GetMapping
     public ResponseEntity<List<StoreInventoryItemResponse>> list(@AuthenticationPrincipal AppUserDetails principal) {
         return ResponseEntity.ok(storeInventoryItemService.listForOwner(principal.getUser().getId()));
-    }
-
-    // Read-only, so an owner can pick a category without needing Super
-    // Admin's category-management access.
-    @GetMapping("/categories")
-    public ResponseEntity<List<InventoryCategoryResponse>> listCategories() {
-        return ResponseEntity.ok(inventoryCatalogService.listActiveCategories());
     }
 
     @PostMapping

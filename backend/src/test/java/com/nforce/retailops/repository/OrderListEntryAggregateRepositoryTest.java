@@ -1,6 +1,5 @@
 package com.nforce.retailops.repository;
 
-import com.nforce.retailops.entity.InventoryCategory;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Role;
@@ -34,7 +33,6 @@ class OrderListEntryAggregateRepositoryTest {
     @Autowired private StoreOwnerRepository storeOwnerRepository;
     @Autowired private UserRepository userRepository;
     @Autowired private RoleRepository roleRepository;
-    @Autowired private InventoryCategoryRepository inventoryCategoryRepository;
     @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
 
     private Store store(String name, long storeCode) {
@@ -75,16 +73,10 @@ class OrderListEntryAggregateRepositoryTest {
     // production cannot reach -- it only passes here because the test profile runs
     // on H2 with Flyway disabled and therefore without that index.
     private StoreInventoryItem item(Store store) {
-        InventoryCategory category = new InventoryCategory();
-        category.setName("Category " + ++itemSeq);
-        category.setDisplayOrder(0);
-        category.setActive(true);
-        category = inventoryCategoryRepository.save(category);
 
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
-        item.setCategory(category);
-        item.setName("Item " + itemSeq);
+        item.setName("Item " + ++itemSeq);
         item.setUnitOfMeasurement("L");
         item.setActive(true);
         return storeInventoryItemRepository.save(item);

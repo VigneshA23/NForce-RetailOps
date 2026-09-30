@@ -1,13 +1,11 @@
 import { apiRequest } from './client';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
-import type { InventoryCategory } from '../types/inventory';
 import type { StockCheckHistoryPage, StockCheckResponse } from '../types/stockCheck';
 
 // Owner/Admin's own-store inventory management, scoped to their own store.
 function toBody(values: StoreInventoryItemFormValues) {
   return {
     name: values.name,
-    categoryId: values.categoryId,
     unitOfMeasurement: values.unitOfMeasurement,
     minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
     minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
@@ -18,10 +16,6 @@ function toBody(values: StoreInventoryItemFormValues) {
 
 export async function getStoreInventoryItems(): Promise<StoreInventoryItem[]> {
   return apiRequest<StoreInventoryItem[]>('/stores/inventory');
-}
-
-export async function getInventoryCategories(): Promise<InventoryCategory[]> {
-  return apiRequest<InventoryCategory[]>('/stores/inventory/categories');
 }
 
 export async function createStoreInventoryItem(values: StoreInventoryItemFormValues): Promise<StoreInventoryItem> {

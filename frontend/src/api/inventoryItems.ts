@@ -7,7 +7,6 @@ function toBody(values: StoreInventoryItemFormValues) {
   return {
     storeId: values.storeId,
     name: values.name,
-    categoryId: values.categoryId,
     unitOfMeasurement: values.unitOfMeasurement,
     minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
     minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
