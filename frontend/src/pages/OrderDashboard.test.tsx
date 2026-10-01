@@ -18,6 +18,7 @@ vi.mock('../utils/toast', () => ({
 
 const mockGetOrderList = vi.mocked(orderListApi.getOrderList);
 const mockGetOwnerSuppliers = vi.mocked(suppliersApi.getOwnerSuppliers);
+const mockUpdateOrderListEntry = vi.mocked(orderListApi.updateOrderListEntry);
 
 function entry(overrides: Partial<OrderListEntry>): OrderListEntry {
   return {
@@ -222,5 +223,53 @@ describe('OrderDashboard filters', () => {
     expect(screen.getByText('Milk')).toBeInTheDocument();
     expect(screen.getByText('Bread')).toBeInTheDocument();
     expect(screen.getByText('Cleaning Spray')).toBeInTheDocument();
+  });
+});
+
+describe('OrderDashboard quick-advance confirmation', () => {
+  beforeEach(() => {
+    mockGetOrderList.mockReset().mockResolvedValue([
+      entry({ id: 1, itemName: 'Milk', status: 'NEEDS_ORDERING' }),
+      entry({ id: 2, itemName: 'Bread', status: 'ORDERED' }),
+    ]);
+    mockGetOwnerSuppliers.mockReset().mockResolvedValue([]);
+    mockUpdateOrderListEntry.mockReset();
+  });
+
+  it('does not change status immediately on click -- it opens a confirmation first', async () => {
+    const user = userEvent.setup();
+    render(<OrderDashboard storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByRole('button', { name: 'Mark Milk ordered' }));
+
+    expect(mockUpdateOrderListEntry).not.toHaveBeenCalled();
+    expect(screen.getByText('Mark as Ordered?')).toBeInTheDocument();
+    expect(screen.getByText('Mark "Milk" as ordered?')).toBeInTheDocument();
+  });
+
+  it('only calls the API once the user confirms', async () => {
+    const user = userEvent.setup();
+    mockUpdateOrderListEntry.mockResolvedValue(entry({ id: 1, itemName: 'Milk', status: 'ORDERED' }));
+    render(<OrderDashboard storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByRole('button', { name: 'Mark Milk ordered' }));
+    await user.click(screen.getByRole('button', { name: 'Mark Ordered' }));
+
+    expect(mockUpdateOrderListEntry).toHaveBeenCalledTimes(1);
+    expect(mockUpdateOrderListEntry).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'ORDERED' }));
+  });
+
+  it('does not call the API when the user cancels', async () => {
+    const user = userEvent.setup();
+    render(<OrderDashboard storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByRole('button', { name: 'Mark Bread received' }));
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(mockUpdateOrderListEntry).not.toHaveBeenCalled();
+    expect(screen.queryByText('Mark as Received?')).not.toBeInTheDocument();
   });
 });

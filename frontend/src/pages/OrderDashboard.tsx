@@ -7,6 +7,7 @@ import type { OrderListEntry, OrderStatus, UpdateOrderListEntryValues } from '..
 import type { Supplier } from '../types/supplier';
 import { buildOrderListText, buildReorderListText } from '../utils/orderListExport';
 import OrderListEntryEditModal from '../components/OrderListEntryEditModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
 import FilterClearButton from '../components/FilterClearButton';
@@ -52,6 +53,8 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
   const [editTarget, setEditTarget] = useState<OrderListEntry | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
+  const [advanceTarget, setAdvanceTarget] = useState<{ entry: OrderListEntry; nextStatus: OrderStatus } | null>(null);
 
   function load() {
     setIsLoading(true);
@@ -114,6 +117,14 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
     } catch (error) {
       nfToast.error(error instanceof Error ? error.message : 'Failed to update order status');
     }
+  }
+
+  // The table-icon-btn only opens a confirmation -- it's handleConfirmAdvance
+  // below, wired to ConfirmDialog, that actually calls handleQuickAdvance.
+  async function handleConfirmAdvance() {
+    if (!advanceTarget) return;
+    await handleQuickAdvance(advanceTarget.entry, advanceTarget.nextStatus);
+    setAdvanceTarget(null);
   }
 
   async function handleCopyList() {
@@ -299,7 +310,7 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
                           className="table-icon-btn"
                           aria-label={`Mark ${entry.itemName} ordered`}
                           title="Mark Ordered"
-                          onClick={() => handleQuickAdvance(entry, 'ORDERED')}
+                          onClick={() => setAdvanceTarget({ entry, nextStatus: 'ORDERED' })}
                         >
                           <Truck size={16} />
                         </button>
@@ -310,7 +321,7 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
                           className="table-icon-btn"
                           aria-label={`Mark ${entry.itemName} received`}
                           title="Mark Received"
-                          onClick={() => handleQuickAdvance(entry, 'RECEIVED')}
+                          onClick={() => setAdvanceTarget({ entry, nextStatus: 'RECEIVED' })}
                         >
                           <PackageCheck size={16} />
                         </button>
@@ -347,6 +358,20 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
         isSubmitting={isEditSubmitting}
         onClose={() => setEditTarget(null)}
         onSubmit={handleEditSubmit}
+      />
+
+      <ConfirmDialog
+        isOpen={advanceTarget !== null}
+        title={advanceTarget?.nextStatus === 'ORDERED' ? 'Mark as Ordered?' : 'Mark as Received?'}
+        message={
+          advanceTarget
+            ? `Mark "${advanceTarget.entry.itemName}" as ${STATUS_LABEL[advanceTarget.nextStatus].toLowerCase()}?`
+            : ''
+        }
+        confirmLabel={advanceTarget?.nextStatus === 'ORDERED' ? 'Mark Ordered' : 'Mark Received'}
+        danger={false}
+        onConfirm={handleConfirmAdvance}
+        onCancel={() => setAdvanceTarget(null)}
       />
     </div>
   );
