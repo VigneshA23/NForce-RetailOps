@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.EodSupplierReportResponse;
 import com.nforce.retailops.dto.StatusRequest;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
@@ -87,6 +88,15 @@ public class StoreInventoryController {
         return ResponseEntity.ok(
             stockCheckService.listHistoricalChecks(principal.getUser().getId(), startDate, endDate, page, size)
         );
+    }
+
+    // End of Day supplier report for one business day (default today).
+    @GetMapping("/eod-report")
+    public ResponseEntity<EodSupplierReportResponse> eodReport(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @RequestParam(required = false) LocalDate date
+    ) {
+        return ResponseEntity.ok(stockCheckService.getEodSupplierReport(principal.getUser().getId(), date));
     }
 
     @PatchMapping("/stock-checks/{id}")

@@ -13,26 +13,36 @@ import java.util.Optional;
 
 public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
 
+    // The entered-by / last-updated-by users of both snapshots, fetched with
+    // the check -- every response names all four. Left joins because a
+    // snapshot that hasn't been taken yet has no users.
+    String FETCH_SNAPSHOT_USERS = "join fetch sc.storeInventoryItem sii "
+        + "left join fetch sc.startOfDayEnteredBy "
+        + "left join fetch sc.startOfDayCheckedBy "
+        + "left join fetch sc.endOfDayEnteredBy "
+        + "left join fetch sc.endOfDayCheckedBy ";
+
     Optional<StockCheck> findByStoreInventoryItemIdAndCheckDate(Long storeInventoryItemId, LocalDate checkDate);
 
     List<StockCheck> findByStoreInventoryItemIdInAndCheckDate(List<Long> storeInventoryItemIds, LocalDate checkDate);
 
-    // Owner/Admin's historical review: every check for their store within a
-    // date range, most recent first, bounded by page/size. join fetch avoids
-    // the per-row N+1 the unpaged version used to incur (storeInventoryItem,
-    // which now carries the item name itself, and checkedBy are both read for
-    // every row). No inner
-    // join against "active" anywhere -- a deactivated/unassigned item's past
-    // checks must still show.
+    // One store's records for one business day -- the employee's daily screen
+    // and the EOD supplier report.
+    @Query("select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS
+        + "where sc.store.id = :storeId and sc.checkDate = :checkDate")
+    List<StockCheck> findForStoreOnDate(@Param("storeId") Long storeId, @Param("checkDate") LocalDate checkDate);
+
+    // Owner/Admin's historical review: every record for their store within a
+    // date range, most recent first, bounded by page/size. No join against
+    // "active" anywhere -- a deactivated/unassigned item's past checks must
+    // still show.
     @Query(
-        value = "select sc from StockCheck sc "
-            + "join fetch sc.storeInventoryItem sii "
-            + "join fetch sc.checkedBy "
-            + "where sii.store.id = :storeId "
+        value = "select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS
+            + "where sc.store.id = :storeId "
             + "and sc.checkDate between :startDate and :endDate "
-            + "order by sc.checkDate desc, sc.id desc",
+            + "order by sc.checkDate desc, sii.name asc, sc.id desc",
         countQuery = "select count(sc) from StockCheck sc "
-            + "where sc.storeInventoryItem.store.id = :storeId "
+            + "where sc.store.id = :storeId "
             + "and sc.checkDate between :startDate and :endDate"
     )
     Page<StockCheck> findForStoreInRange(
@@ -42,7 +52,7 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
         Pageable pageable
     );
 
-    Optional<StockCheck> findByIdAndStoreInventoryItemStoreId(Long id, Long storeId);
+    Optional<StockCheck> findByIdAndStoreId(Long id, Long storeId);
 
     // Delete guard for StoreInventoryItemService: an item with any stock-check
     // history can't be hard-deleted.

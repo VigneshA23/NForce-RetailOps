@@ -330,7 +330,8 @@ public class MeController {
         return ResponseEntity.ok(stockCheckService.getTodayChecklist(userDetails.getUser().getId(), storeId));
     }
 
-    // Employee-facing: submit today's physical count for one store item.
+    // Employee-facing: save (or update) today's Start of Day or End of Day
+    // count for one store item.
     @PostMapping("/inventory/stock-checks")
     public ResponseEntity<StockCheckResponse> submitStockCheck(
         @AuthenticationPrincipal UserDetails principal,

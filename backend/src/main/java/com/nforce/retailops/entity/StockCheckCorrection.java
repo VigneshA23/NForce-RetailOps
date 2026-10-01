@@ -4,12 +4,13 @@ import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
 
-// Immutable, append-only audit trail for Owner/Admin corrections to a past
-// StockCheck. admin_corrections can't be reused here -- its FK to
-// task_response_id is hard and NOT NULL, with no polymorphic entity
-// reference. One row is written per correction; a StockCheck's history view
-// resolves "the original value" from the earliest row and "who corrected it
-// (most recently)" from the latest.
+// Immutable, append-only audit trail of every edit to an existing Start of
+// Day or End of Day snapshot -- an employee re-saving today's count, or
+// Owner/Admin correcting a past one. The first save of a snapshot writes no
+// row (who entered it lives on StockCheck itself). admin_corrections can't
+// be reused here -- its FK to task_response_id is hard and NOT NULL, with no
+// polymorphic entity reference. originalCount / correctedCount hold the
+// available figure (column names predate dead stock, V71).
 @Entity
 @Table(name = "stock_check_corrections")
 public class StockCheckCorrection {
@@ -22,15 +23,26 @@ public class StockCheckCorrection {
     @JoinColumn(name = "stock_check_id", nullable = false)
     private StockCheck stockCheck;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "snapshot", nullable = false, length = 16)
+    private StockCheckSnapshot snapshot = StockCheckSnapshot.END_OF_DAY;
+
     @Column(name = "original_count", nullable = false)
     private int originalCount;
 
     @Column(name = "corrected_count", nullable = false)
     private int correctedCount;
 
-    // Only OWNER_ADMIN can reach correctCheck, so this is always a real
-    // users row -- unlike admin_corrections there's no Super-Admin-with-no-
-    // user-row case to accommodate here.
+    // Null on rows written before dead stock existed (pre-V76).
+    @Column(name = "original_dead_stock")
+    private Integer originalDeadStock;
+
+    @Column(name = "corrected_dead_stock")
+    private Integer correctedDeadStock;
+
+    // Employees and OWNER_ADMIN are both real users rows -- Super Admin
+    // can't reach either edit path, so unlike admin_corrections there's no
+    // no-user-row case to accommodate here.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "corrected_by_user_id", nullable = false)
     private User correctedBy;
@@ -55,6 +67,15 @@ public class StockCheckCorrection {
 
     public StockCheck getStockCheck() { return stockCheck; }
     public void setStockCheck(StockCheck stockCheck) { this.stockCheck = stockCheck; }
+
+    public StockCheckSnapshot getSnapshot() { return snapshot; }
+    public void setSnapshot(StockCheckSnapshot snapshot) { this.snapshot = snapshot; }
+
+    public Integer getOriginalDeadStock() { return originalDeadStock; }
+    public void setOriginalDeadStock(Integer originalDeadStock) { this.originalDeadStock = originalDeadStock; }
+
+    public Integer getCorrectedDeadStock() { return correctedDeadStock; }
+    public void setCorrectedDeadStock(Integer correctedDeadStock) { this.correctedDeadStock = correctedDeadStock; }
 
     public int getOriginalCount() { return originalCount; }
     public void setOriginalCount(int originalCount) { this.originalCount = originalCount; }

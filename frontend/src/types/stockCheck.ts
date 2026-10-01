@@ -1,16 +1,45 @@
+export type StockCheckSnapshotKey = 'START_OF_DAY' | 'END_OF_DAY';
+
+// One Start of Day or End of Day count. usable = available - deadStock;
+// edited is true once it's been re-saved after the first entry.
+export interface StockSnapshot {
+  available: number;
+  deadStock: number;
+  usable: number;
+  enteredByName: string | null;
+  enteredAt: string | null;
+  lastUpdatedByName: string | null;
+  lastUpdatedAt: string | null;
+  edited: boolean;
+}
+
+// One edit of an existing snapshot. previousDeadStock/newDeadStock are null
+// on edits recorded before dead stock was tracked.
+export interface StockCheckEdit {
+  snapshot: StockCheckSnapshotKey;
+  previousAvailable: number;
+  previousDeadStock: number | null;
+  newAvailable: number;
+  newDeadStock: number | null;
+  editedByName: string;
+  editedAt: string;
+  reason: string | null;
+}
+
+// One item's stock record for one business day.
 export interface StockCheckResponse {
   id: number;
   storeInventoryItemId: number;
   itemName: string;
+  unitOfMeasurement: string;
   checkDate: string;
-  currentCount: number;
-  quantityNeeded: number;
-  checkedByName: string;
-  createdAt: string;
-  corrected: boolean;
-  originalCurrentCount: number | null;
-  correctedByName: string | null;
-  correctedAt: string | null;
+  startOfDay: StockSnapshot | null;
+  endOfDay: StockSnapshot | null;
+  stockUsed: number | null;
+  requiredTomorrow: number | null;
+  // Null until End of Day has been counted.
+  quantityToOrder: number | null;
+  edits: StockCheckEdit[];
 }
 
 // GET /api/stores/inventory/stock-checks?startDate=&endDate=&page=&size= --
@@ -24,13 +53,40 @@ export interface StockCheckHistoryPage {
   totalItems: number;
 }
 
-// One row of the employee's Daily Stock Check screen.
+// One item on the employee's daily Stock Check screen.
 export interface DailyStockCheckItem {
   storeInventoryItemId: number;
   itemName: string;
   unitOfMeasurement: string;
   minTarget: number | null;
-  currentCount: number | null;
-  quantityNeeded: number | null;
-  checkedToday: boolean;
+  requiredTomorrow: number | null;
+  startOfDay: StockSnapshot | null;
+  endOfDay: StockSnapshot | null;
+  stockUsed: number | null;
+  quantityToOrder: number | null;
+}
+
+export type EodReportStatus = 'NEEDS_TO_ORDER' | 'SUFFICIENT' | 'END_OF_DAY_PENDING' | 'NO_MINIMUM_SET';
+
+export interface EodReportRow {
+  storeInventoryItemId: number;
+  itemName: string;
+  unitOfMeasurement: string;
+  startOfDayAvailable: number | null;
+  startOfDayDeadStock: number | null;
+  endOfDayAvailable: number | null;
+  endOfDayDeadStock: number | null;
+  stockUsed: number | null;
+  requiredTomorrow: number | null;
+  quantityToOrder: number | null;
+  status: EodReportStatus;
+}
+
+// GET /api/stores/inventory/eod-report?date= -- grouped by preferred
+// supplier, "No Supplier" last.
+export interface EodSupplierReport {
+  date: string;
+  groups: { supplierId: number | null; supplierName: string; items: EodReportRow[] }[];
+  itemsNeedingOrder: number;
+  itemsPendingEndOfDay: number;
 }

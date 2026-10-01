@@ -155,8 +155,9 @@ public class StoreInventoryItemService {
     // Shared helpers
     // ---------------------------------------------------------------------
 
-    // "Current available" is today's employee stock-check count, looked up in
-    // one query for the whole list rather than per row.
+    // "Current available" is today's usable stock (available - dead) from the
+    // latest snapshot -- End of Day once counted, else Start of Day -- which
+    // StockCheck keeps in currentCount. One query for the whole list.
     private List<StoreInventoryItemResponse> toResponses(List<StoreInventoryItem> items) {
         LocalDate today = LocalDate.now();
         Map<Long, Integer> todaysCounts = stockCheckRepository

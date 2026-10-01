@@ -131,6 +131,11 @@ public class GlobalExceptionHandler {
             .body(Map.of("message", "You do not have permission to perform this action"));
     }
 
+    @ExceptionHandler(InvalidStockCheckException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidStockCheck(InvalidStockCheckException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidTaskResponseException.class)
     public ResponseEntity<Map<String, String>> handleInvalidTaskResponse(InvalidTaskResponseException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));

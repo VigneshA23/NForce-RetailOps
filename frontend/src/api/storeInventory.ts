@@ -1,6 +1,11 @@
 import { apiRequest } from './client';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
-import type { StockCheckHistoryPage, StockCheckResponse } from '../types/stockCheck';
+import type {
+  EodSupplierReport,
+  StockCheckHistoryPage,
+  StockCheckResponse,
+  StockCheckSnapshotKey,
+} from '../types/stockCheck';
 
 // Owner/Admin's own-store inventory management, scoped to their own store.
 function toBody(values: StoreInventoryItemFormValues) {
@@ -51,9 +56,20 @@ export async function getStockCheckHistory(
   return apiRequest<StockCheckHistoryPage>(`/stores/inventory/stock-checks?${params.toString()}`);
 }
 
-export async function correctStockCheck(id: number, currentCount: number): Promise<StockCheckResponse> {
+export async function correctStockCheck(
+  id: number,
+  snapshot: StockCheckSnapshotKey,
+  available: number,
+  deadStock: number,
+  reason?: string,
+): Promise<StockCheckResponse> {
   return apiRequest<StockCheckResponse>(`/stores/inventory/stock-checks/${id}`, {
     method: 'PATCH',
-    body: { currentCount },
+    body: { snapshot, available, deadStock, reason: reason?.trim() || null },
   });
+}
+
+// End of Day supplier report for one business day (YYYY-MM-DD).
+export async function getEodSupplierReport(date: string): Promise<EodSupplierReport> {
+  return apiRequest<EodSupplierReport>(`/stores/inventory/eod-report?date=${encodeURIComponent(date)}`);
 }
