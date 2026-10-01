@@ -34,6 +34,29 @@ public class SupplierService {
         return SupplierResponse.from(supplier);
     }
 
+    // Backs the inline "Add New Supplier" option in the inventory item form.
+    // suppliers.name has no unique constraint, so reuse an existing supplier
+    // with the same name (case-insensitive) rather than creating a duplicate,
+    // reactivating it if it had been deactivated.
+    @Transactional
+    public SupplierResponse findOrCreateSupplier(SupplierRequest request) {
+        String name = request.name().trim();
+        Supplier supplier = supplierRepository.findFirstByNameIgnoreCaseOrderByIdAsc(name)
+            .map(existing -> {
+                if (!existing.isActive()) {
+                    existing.setActive(true);
+                    return supplierRepository.save(existing);
+                }
+                return existing;
+            })
+            .orElseGet(() -> {
+                Supplier created = new Supplier();
+                created.setName(name);
+                return supplierRepository.save(created);
+            });
+        return SupplierResponse.from(supplier);
+    }
+
     @Transactional
     public SupplierResponse updateSupplier(Long supplierId, SupplierRequest request) {
         Supplier supplier = supplierRepository.findById(supplierId)

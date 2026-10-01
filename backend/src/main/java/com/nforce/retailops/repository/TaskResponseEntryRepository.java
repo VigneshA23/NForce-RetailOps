@@ -1,7 +1,9 @@
 package com.nforce.retailops.repository;
 
+import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -152,6 +154,13 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     // Backs the deleteStore history guard -- any response against a store (active
     // or undone) is enough to block deletion, same rationale as existsByTaskId.
     boolean existsByStoreId(Long storeId);
+
+    // Backs TaskService.mergeTasksAsSuperAdmin: reassigns every response from a set
+    // of duplicate ("loser") task rows onto the surviving task, so consolidating
+    // accidental duplicates never drops real employee history.
+    @Modifying
+    @Query("update TaskResponseEntry r set r.task = :survivor where r.task.id in :loserTaskIds")
+    int reassignTaskForMerge(@Param("survivor") Task survivor, @Param("loserTaskIds") Collection<Long> loserTaskIds);
 
     // Returns (responseDate, storeId, taskId) tuples for trend computation — one
     // round trip for the entire date range instead of one query per store per day.

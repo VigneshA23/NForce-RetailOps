@@ -1,33 +1,75 @@
 import { apiRequest } from './client';
-import type { StoreInventoryItem, StoreInventoryItemConfigFormValues } from '../types/storeInventory';
-import type { StockCheckResponse } from '../types/stockCheck';
+import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
+import type {
+  EodSupplierReport,
+  StockCheckHistoryPage,
+  StockCheckResponse,
+  StockCheckSnapshotKey,
+} from '../types/stockCheck';
 
-// Owner/Admin's store-inventory configuration, scoped to their own store.
+// Owner/Admin's own-store inventory management, scoped to their own store.
+function toBody(values: StoreInventoryItemFormValues) {
+  return {
+    name: values.name,
+    unitOfMeasurement: values.unitOfMeasurement,
+    minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
+    minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
+    preferredSupplierId: values.preferredSupplierId,
+    note: values.note.trim() === '' ? null : values.note.trim(),
+  };
+}
+
 export async function getStoreInventoryItems(): Promise<StoreInventoryItem[]> {
   return apiRequest<StoreInventoryItem[]>('/stores/inventory');
 }
 
-export async function updateStoreInventoryItemConfig(
-  id: number,
-  values: StoreInventoryItemConfigFormValues,
-): Promise<StoreInventoryItem> {
-  return apiRequest<StoreInventoryItem>(`/stores/inventory/${id}`, {
-    method: 'PATCH',
-    body: {
-      minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
-      minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
-      preferredSupplierId: values.preferredSupplierId,
-    },
+export async function createStoreInventoryItem(values: StoreInventoryItemFormValues): Promise<StoreInventoryItem> {
+  return apiRequest<StoreInventoryItem>('/stores/inventory', { method: 'POST', body: toBody(values) });
+}
+
+export async function updateStoreInventoryItem(id: number, values: StoreInventoryItemFormValues): Promise<StoreInventoryItem> {
+  return apiRequest<StoreInventoryItem>(`/stores/inventory/${id}`, { method: 'PUT', body: toBody(values) });
+}
+
+export async function setStoreInventoryItemActive(id: number, active: boolean): Promise<StoreInventoryItem> {
+  return apiRequest<StoreInventoryItem>(`/stores/inventory/${id}/status`, { method: 'PATCH', body: { active } });
+}
+
+export async function deleteStoreInventoryItem(id: number): Promise<void> {
+  return apiRequest<void>(`/stores/inventory/${id}`, { method: 'DELETE' });
+}
+
+// Owner/Admin's stock-check history, bounded to a date range and paginated
+// (page is 1-indexed, matching components/Pagination.tsx).
+export async function getStockCheckHistory(
+  startDate: string,
+  endDate: string,
+  page: number,
+  size: number,
+): Promise<StockCheckHistoryPage> {
+  const params = new URLSearchParams({
+    startDate,
+    endDate,
+    page: String(page),
+    size: String(size),
   });
+  return apiRequest<StockCheckHistoryPage>(`/stores/inventory/stock-checks?${params.toString()}`);
 }
 
-export async function getHistoricalStockChecks(startDate: string, endDate: string): Promise<StockCheckResponse[]> {
-  return apiRequest<StockCheckResponse[]>(`/stores/inventory/stock-checks?startDate=${startDate}&endDate=${endDate}`);
-}
-
-export async function correctStockCheck(id: number, currentCount: number): Promise<StockCheckResponse> {
+export async function correctStockCheck(
+  id: number,
+  snapshot: StockCheckSnapshotKey,
+  available: number,
+  deadStock: number,
+  reason?: string,
+): Promise<StockCheckResponse> {
   return apiRequest<StockCheckResponse>(`/stores/inventory/stock-checks/${id}`, {
     method: 'PATCH',
-    body: { currentCount },
+    body: { snapshot, available, deadStock, reason: reason?.trim() || null },
   });
+}
+
+// End of Day supplier report for one business day (YYYY-MM-DD).
+export async function getEodSupplierReport(date: string): Promise<EodSupplierReport> {
+  return apiRequest<EodSupplierReport>(`/stores/inventory/eod-report?date=${encodeURIComponent(date)}`);
 }

@@ -5,7 +5,7 @@
 .issue-card-list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-xs);
+  gap: var(--space-md);
 }
 
 /* Empty / loading state shown in place of (or below) the card list. */

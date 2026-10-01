@@ -127,4 +127,17 @@ public class TaskController {
         taskService.deleteTaskAsSuperAdmin(id);
         return ResponseEntity.noContent().build();
     }
+
+    // Consolidates accidental duplicate task rows (same owner, same name) into
+    // the task at {id}: response/makeup-link history is reassigned onto it,
+    // store assignments are unioned, and the duplicate rows are deleted --
+    // see TaskService.mergeTasksAsSuperAdmin.
+    @PostMapping("/{id}/super-admin/merge")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<TaskResponse> mergeAsSuperAdmin(
+        @PathVariable Long id,
+        @RequestBody List<Long> loserTaskIds
+    ) {
+        return ResponseEntity.ok(taskService.mergeTasksAsSuperAdmin(id, loserTaskIds));
+    }
 }

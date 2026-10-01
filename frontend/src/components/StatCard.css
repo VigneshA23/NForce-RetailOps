@@ -90,6 +90,31 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
+/* ── Tone: purple ── */
+/* A fifth tone exists because the owner Home row renders five tiles: with only
+   four tones, two of them had to share, and the pair that collided was Needs
+   Ordering and Active Issues -- two unrelated alerts rendering as one block of
+   red. Purple carries the neutral metric (Today's Completion) so amber is free
+   to mean "act on your stock" and red is left for actual problems.
+   The --color-badge-icon-purple-* tokens already existed for both themes and are
+   used by ActivityFeedList, CategoryTable and others; nothing new was added. */
+.stat-card--purple {
+  background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(241, 232, 253, 0.6) 100%);
+  border-color: rgba(124, 58, 237, 0.16);
+  box-shadow:
+    inset 4px 0 0 var(--color-badge-icon-purple-fg),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 14px rgba(124, 58, 237, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+.stat-card--purple:hover {
+  box-shadow:
+    inset 4px 0 0 var(--color-badge-icon-purple-fg),
+    0 3px 6px rgba(0, 0, 0, 0.07),
+    0 10px 28px rgba(124, 58, 237, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
 /* ── Dark mode ── */
 [data-theme='dark'] .stat-card--primary {
   background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(58, 31, 36, 0.7) 100%);
@@ -156,6 +181,23 @@
     inset 4px 0 0 var(--color-badge-icon-info-fg),
     0 3px 8px rgba(0, 0, 0, 0.4),
     0 10px 28px rgba(90, 164, 242, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme='dark'] .stat-card--purple {
+  background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(44, 33, 64, 0.7) 100%);
+  border-color: rgba(124, 58, 237, 0.22);
+  box-shadow:
+    inset 4px 0 0 var(--color-badge-icon-purple-fg),
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 4px 14px rgba(183, 148, 246, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+[data-theme='dark'] .stat-card--purple:hover {
+  box-shadow:
+    inset 4px 0 0 var(--color-badge-icon-purple-fg),
+    0 3px 8px rgba(0, 0, 0, 0.4),
+    0 10px 28px rgba(183, 148, 246, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -234,6 +276,11 @@
   color: var(--color-badge-icon-info-fg);
 }
 
+.stat-card__icon--purple {
+  background: var(--color-badge-icon-purple-bg);
+  color: var(--color-badge-icon-purple-fg);
+}
+
 /* ── Active / selected (clickable tiles used as filter buttons) ── */
 .stat-card--primary.stat-card--active {
   border-color: var(--color-badge-icon-primary-fg);
@@ -281,6 +328,18 @@
 }
 .stat-card--info.stat-card--active .stat-card__value {
   color: var(--color-badge-icon-info-fg);
+}
+
+.stat-card--purple.stat-card--active {
+  border-color: var(--color-badge-icon-purple-fg);
+  box-shadow:
+    inset 4px 0 0 var(--color-badge-icon-purple-fg),
+    0 2px 6px rgba(124, 58, 237, 0.12),
+    0 8px 24px rgba(124, 58, 237, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+.stat-card--purple.stat-card--active .stat-card__value {
+  color: var(--color-badge-icon-purple-fg);
 }
 
 /* Clickable stat cards need a pointer cursor */

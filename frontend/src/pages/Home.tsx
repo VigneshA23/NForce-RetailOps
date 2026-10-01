@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, AlertTriangle, ArrowRight, Calendar, CheckCircle2, ListChecks, Users, Tags } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowRight, Calendar, CheckCircle2, ListChecks, PackageSearch, Users, Tags } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import { getChecklistHistoryDetail, getChecklistHistorySummary } from '../api/checklistHistory';
 import { getIssues } from '../api/issues';
+import { getNeedsOrderingCount } from '../api/orderList';
 import type { Issue } from '../types/issue';
 import type { OwnerStore } from '../types/ownerStore';
 import type { Employee } from '../types/employee';
@@ -30,6 +31,8 @@ interface HomeProps {
   onViewIssues?: () => void;
   onViewEmployees?: () => void;
   onViewCategories?: () => void;
+  // Opens the Orders tab already filtered to items needing ordering.
+  onViewPendingOrders?: () => void;
 }
 
 const DEFAULT_TREND_DAYS = 7;
@@ -74,6 +77,7 @@ function Home({
   onViewIssues,
   onViewEmployees,
   onViewCategories,
+  onViewPendingOrders,
 }: HomeProps) {
   const [todayRows, setTodayRows] = useState<ChecklistHistorySummaryRow[]>([]);
   const [trend, setTrend] = useState<{ day: string; completion: number }[]>([]);
@@ -88,6 +92,9 @@ function Home({
 
   // Issues state — null = not yet loaded (avoids false "All clear" before API resolves)
   const [issues, setIssues] = useState<Issue[] | null>(null);
+  // Same null-means-not-loaded convention. Here it also keeps the low-stock tile
+  // from rendering at all before the first response, so it never flashes in.
+  const [needsOrderingCount, setNeedsOrderingCount] = useState<number | null>(null);
 
   // Today's summary + per-category breakdown: depends only on the store list,
   // not on the trend window, so toggling 7d/30d below doesn't re-fetch this.
@@ -213,9 +220,11 @@ function Home({
     };
   }, [storesLoading, stores, trendDays, retryTick]);
 
-  // Fetch the active issue count for the stat tile indicator. Home stays
-  // mounted across tab switches, so keep it fresh on the same 60s cadence as
-  // the Issues page itself rather than showing the count from first load.
+  // Fetch the active issue count and the outstanding-order count for the stat
+  // tile indicators. Home stays mounted across tab switches, so keep them fresh
+  // on the same 60s cadence as the Issues page itself rather than showing the
+  // counts from first load. Both ride this one interval -- the order count is
+  // deliberately not given a poll of its own.
   useEffect(() => {
     const storeId = stores[0]?.id;
     if (!storeId) return;
@@ -223,6 +232,9 @@ function Home({
     const load = () => {
       getIssues(storeId)
         .then((data) => { if (active) setIssues(data); })
+        .catch(() => {});
+      getNeedsOrderingCount()
+        .then((count) => { if (active) setNeedsOrderingCount(count); })
         .catch(() => {});
     };
     load();
@@ -283,6 +295,12 @@ function Home({
   const openIssueCount = issues ? issues.filter((i) => i.status !== 'RESOLVED').length : 0;
   const hasOpenIssues = openIssueCount > 0;
 
+  // Unlike the Active Issues tile beside it, this one renders nothing at all
+  // when there is nothing to order -- an alert that is always present stops
+  // reading as an alert. It is also absent (not a placeholder) until the first
+  // response lands, so it never flashes in on load.
+  const showLowStockAlert = needsOrderingCount !== null && needsOrderingCount > 0;
+
   const todayLabel = useMemo(
     () => new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
     [],
@@ -323,13 +341,29 @@ function Home({
           tone="success"
           onClick={onViewCategories}
         />
+        {/* Purple, not amber: this is a progress metric, not something to act
+            on. Handing amber to Needs Ordering below is what keeps the two
+            alert tiles readable as different things. */}
         <StatCard
           icon={ListChecks}
           label="Today's Completion"
           value={`${todayTotals.completedTasks}/${todayTotals.totalTasks}`}
-          tone="warning"
+          tone="purple"
           onClick={onViewStoreDetail}
         />
+        {showLowStockAlert && (
+          <StatCard
+            icon={PackageSearch}
+            label="Needs Ordering"
+            value={needsOrderingCount!}
+            // Amber, not primary: Active Issues below already owns red, and two
+            // red tiles side by side read as one block of colour rather than as
+            // two separate alerts. A restock prompt is a warning; red stays for
+            // actual problems.
+            tone="warning"
+            onClick={onViewPendingOrders}
+          />
+        )}
         {issuesLoading ? (
           <StatCard icon={AlertTriangle} label="Active Issues" value="—" tone="info" />
         ) : (

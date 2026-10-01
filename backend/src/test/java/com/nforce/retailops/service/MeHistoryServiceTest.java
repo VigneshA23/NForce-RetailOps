@@ -535,14 +535,14 @@ class MeHistoryServiceTest {
             .containsExactlyInAnyOrder(employeeId, employee2.getId());
     }
 
-    // 10. Today's History must mirror the live Daily Checklist exactly, even when
-    // a task answered earlier today is deactivated later the SAME day -- the
-    // historical "keep it visible" union (test 5) is a past-date-only allowance;
-    // for today it would otherwise show a task /api/me/tasks/today no longer
-    // does, violating "History shows only what's on today's checklist."
+    // 10. History (including today) must preserve the audit trail even when a
+    // task answered earlier today is deactivated later the SAME day -- unlike
+    // the live Daily Checklist (which only ever shows currently-active tasks),
+    // History keeps showing it, tagged not-currently-active, with the
+    // employee's actual response, instead of the record silently disappearing.
     @Test
     @Transactional
-    void taskAnsweredEarlierTodayDisappearsFromTodaysHistoryOnceDeactivatedTheSameDay() {
+    void taskAnsweredEarlierTodayStaysInTodaysHistoryOnceDeactivatedTheSameDay() {
         Store store = storeRepository.getReferenceById(storeId);
         User employee = userRepository.getReferenceById(employeeId);
         LocalDate today = LocalDate.now();
@@ -558,11 +558,16 @@ class MeHistoryServiceTest {
         assertThat(liveChecklist.categories()).isEmpty();
 
         ChecklistHistoryDetailResponse todaysHistory = meHistoryService.getDetail(employeeId, storeId, today);
-        assertThat(todaysHistory.hasChecklist()).isFalse();
-        assertThat(todaysHistory.categories()).isEmpty();
+        assertThat(todaysHistory.hasChecklist()).isTrue();
+        HistoryTaskItemResponse item = todaysHistory.categories().get(0).tasks().get(0);
+        assertThat(item.id()).isEqualTo(task.getId());
+        assertThat(item.currentlyActive()).isFalse();
+        assertThat(item.completed()).isTrue();
+        assertThat(item.responses()).hasSize(1);
+        assertThat(item.responses().get(0).booleanValue()).isTrue();
 
         // The response row itself is preserved -- once "today" is a past date
-        // (simulated here by querying a date already in the past), it reappears.
+        // (simulated here by querying a date already in the past), it still shows.
         Task pastTask = saveTask(store, today.minusDays(3));
         saveResponse(pastTask, store, employee, today.minusDays(1), true);
         pastTask.setActive(false);

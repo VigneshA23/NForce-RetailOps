@@ -2,10 +2,10 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
-import com.nforce.retailops.entity.InventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 
 // Owner/Admin's Order Dashboard, plus the shared "raise or bump a shortage"
 // logic used by both the stock-check auto-detection path and the employee
@@ -41,8 +42,14 @@ public class OrderListService {
         this.supplierRepository = supplierRepository;
     }
 
+    // Picks the caller's active store the same multi-store-safe way
+    // CategoryService.ownerStoreIds does, rather than findByOwnerIdAndActiveTrue
+    // (a single Optional that throws for an owner with more than one active
+    // store link).
     private StoreOwner requireActiveStoreOwner(Long ownerId) {
-        return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+            .filter(StoreOwner::isActive)
+            .findFirst()
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
     }
 
@@ -52,6 +59,16 @@ public class OrderListService {
         return orderListEntryRepository.findByStoreIdOrderByCreatedAtDesc(storeOwner.getStore().getId()).stream()
             .map(OrderListEntryResponse::from)
             .toList();
+    }
+
+    // Feeds the owner's Home low-stock tile. Response shape deliberately matches
+    // NotificationService.unreadCount ({"count": n}) -- both back a numeric badge
+    // and the frontend unwraps them through the same one-liner.
+    @Transactional(readOnly = true)
+    public Map<String, Long> needsOrderingCount(Long ownerId) {
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
+        return Map.of("count", orderListEntryRepository.countByStoreIdAndStatus(
+            storeOwner.getStore().getId(), OrderStatus.NEEDS_ORDERING));
     }
 
     @Transactional
@@ -86,7 +103,7 @@ public class OrderListService {
     // violation is caught here and retried as an update against the winner's
     // row instead of surfacing as a raw 500.
     @Transactional
-    public void upsertShortage(Store store, InventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+    public void upsertShortage(Store store, StoreInventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
         try {
             doUpsertShortage(store, item, quantityNeeded, note, adHoc, raisedBy, defaultSupplier);
         } catch (DataIntegrityViolationException raceLostInsert) {
@@ -94,13 +111,13 @@ public class OrderListService {
         }
     }
 
-    private void doUpsertShortage(Store store, InventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+    private void doUpsertShortage(Store store, StoreInventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
         OrderListEntry entry = orderListEntryRepository
-            .findByStoreIdAndInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
+            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
             .orElseGet(() -> {
                 OrderListEntry created = new OrderListEntry();
                 created.setStore(store);
-                created.setInventoryItem(item);
+                created.setStoreInventoryItem(item);
                 created.setSupplier(defaultSupplier);
                 created.setStatus(OrderStatus.NEEDS_ORDERING);
                 return created;
@@ -115,5 +132,23 @@ public class OrderListService {
             entry.setRaisedBy(raisedBy);
         }
         orderListEntryRepository.save(entry);
+    }
+
+    // The other half of the shortage lifecycle: called whenever a fresh count
+    // shows the item back at or above its minimum (quantityNeeded == 0). Never
+    // creates a row -- only closes out an already-active one, the same way
+    // Owner/Admin's own "Mark Received" action does, so the order-list side
+    // stays consistent whichever path resolved it. History is untouched: the
+    // row survives, it just leaves the active (non-RECEIVED) set, which is
+    // exactly what frees the V49/V70 partial unique index for the next
+    // shortage on this item.
+    @Transactional
+    public void resolveShortageIfPresent(Store store, StoreInventoryItem item) {
+        orderListEntryRepository
+            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
+            .ifPresent(entry -> {
+                entry.setStatus(OrderStatus.RECEIVED);
+                orderListEntryRepository.save(entry);
+            });
     }
 }

@@ -3,6 +3,9 @@ package com.nforce.retailops.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
+import com.nforce.retailops.entity.StoreInventoryItem;
+import com.nforce.retailops.entity.OrderListEntry;
+import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.RaisedIssue;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.Role;
@@ -16,6 +19,8 @@ import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.repository.CategoryRepository;
+import com.nforce.retailops.repository.StoreInventoryItemRepository;
+import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
@@ -61,6 +66,8 @@ class SuperAdminOperationsControllerTest {
     @Autowired private StoreEmployeeRepository storeEmployeeRepository;
     @Autowired private RaisedIssueRepository raisedIssueRepository;
     @Autowired private SuperAdminRepository superAdminRepository;
+    @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
+    @Autowired private OrderListEntryRepository orderListEntryRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -165,6 +172,25 @@ class SuperAdminOperationsControllerTest {
         issue.setNote("Something needs attention");
         issue.setStatus("OPEN");
         return raisedIssueRepository.save(issue);
+    }
+
+    private StoreInventoryItem inventoryItem(Store store, String name) {
+
+        StoreInventoryItem item = new StoreInventoryItem();
+        item.setStore(store);
+        item.setName(name);
+        item.setUnitOfMeasurement("L");
+        item.setActive(true);
+        return storeInventoryItemRepository.save(item);
+    }
+
+    private OrderListEntry orderEntry(Store store, StoreInventoryItem item, OrderStatus status) {
+        OrderListEntry entry = new OrderListEntry();
+        entry.setStore(store);
+        entry.setStoreInventoryItem(item);
+        entry.setQuantityNeeded(2);
+        entry.setStatus(status);
+        return orderListEntryRepository.save(entry);
     }
 
     private SuperAdmin superAdmin(String email) {
@@ -338,6 +364,87 @@ class SuperAdminOperationsControllerTest {
             .andExpect(jsonPath("$.platformCompletionPercent").value(0))
             .andExpect(jsonPath("$.totalOwners").value(0))
             .andExpect(jsonPath("$.ownersLoggedInToday").value(0));
+    }
+
+    // The authority guard for the outstanding-orders endpoint. There is no
+    // service-level check to test -- SuperAdminOperationsService takes no principal
+    // and cannot deny anyone -- so the class-level @PreAuthorize is the guard, and
+    // this is the only place it can be asserted.
+    @Test
+    @Transactional
+    void outstandingOrdersRequiresSuperAdminRole() throws Exception {
+        ownerUser("sa-ord-owner-a@nforce.test");
+        String ownerToken = login("sa-ord-owner-a@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/outstanding-orders")
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void outstandingOrdersReturnsTotalAndPerStoreRows() throws Exception {
+        superAdmin("sa-ord-admin-b@nforce.test");
+        User owner = ownerUser("sa-ord-owner-b@nforce.test");
+        Store storeB = store("Store Ordering", 9240L);
+        linkOwnerToStore(owner, storeB);
+
+        // Distinct items: V49's partial unique index forbids two non-RECEIVED
+        // entries for the same store+item in production.
+        orderEntry(storeB, inventoryItem(storeB, "Milk B"), OrderStatus.NEEDS_ORDERING);
+        orderEntry(storeB, inventoryItem(storeB, "Bread B"), OrderStatus.NEEDS_ORDERING);
+
+        String token = login("sa-ord-admin-b@nforce.test");
+
+        // Filtered by store code rather than array index so the assertions stay
+        // valid regardless of what else exists in the result.
+        mockMvc.perform(get("/api/super-admin/outstanding-orders")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.platformOutstandingCount").isNumber())
+            .andExpect(jsonPath("$.storesWithOutstanding").isNumber())
+            .andExpect(jsonPath("$.truncated").value(false))
+            .andExpect(jsonPath("$.stores").isArray())
+            .andExpect(jsonPath("$.stores[?(@.storeCode == 9240)].outstandingCount").value(2))
+            .andExpect(jsonPath("$.stores[?(@.storeCode == 9240)].ownerName").value("Test Owner"))
+            .andExpect(jsonPath("$.stores[?(@.storeCode == 9240)].storeName").value("Store Ordering"))
+            .andExpect(jsonPath("$.stores[?(@.storeCode == 9240)].oldestOutstandingAt").isNotEmpty());
+    }
+
+    // End-to-end proof that the query's left joins survive real SQL: a store with
+    // no StoreOwner row at all must still appear.
+    @Test
+    @Transactional
+    void outstandingOrdersRendersUnassignedOwnerName() throws Exception {
+        superAdmin("sa-ord-admin-c@nforce.test");
+        Store orphan = store("Store Unowned", 9241L);
+
+        orderEntry(orphan, inventoryItem(orphan, "Milk C"), OrderStatus.NEEDS_ORDERING);
+
+        String token = login("sa-ord-admin-c@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/outstanding-orders")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.stores[?(@.storeCode == 9241)].ownerName").value("Unassigned"));
+    }
+
+    @Test
+    @Transactional
+    void outstandingOrdersOmitsStoresWithNothingOutstanding() throws Exception {
+        superAdmin("sa-ord-admin-d@nforce.test");
+        User owner = ownerUser("sa-ord-owner-d@nforce.test");
+        Store settled = store("Store Settled", 9242L);
+        linkOwnerToStore(owner, settled);
+
+        orderEntry(settled, inventoryItem(settled, "Milk D"), OrderStatus.ORDERED);
+
+        String token = login("sa-ord-admin-d@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/outstanding-orders")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.stores[?(@.storeCode == 9242)]").isEmpty());
     }
 
     @Test

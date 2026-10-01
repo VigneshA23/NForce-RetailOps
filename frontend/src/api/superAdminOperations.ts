@@ -38,6 +38,29 @@ export async function getPlatformStats(date?: string): Promise<PlatformStats> {
   return apiRequest<PlatformStats>(`/super-admin/platform-stats${params}`);
 }
 
+export interface StoreOutstandingOrdersRow {
+  storeId: number;
+  storeCode: number;
+  storeName: string;
+  // "Unassigned" when the store has no active owner link.
+  ownerName: string;
+  outstandingCount: number;
+  oldestOutstandingAt: string;
+}
+
+export interface OutstandingOrdersOverview {
+  // Platform-wide total, unaffected by the row cap below.
+  platformOutstandingCount: number;
+  storesWithOutstanding: number;
+  truncated: boolean;
+  stores: StoreOutstandingOrdersRow[];
+}
+
+// Read-only: status changes stay on the owner's Order Dashboard.
+export async function getOutstandingOrders(): Promise<OutstandingOrdersOverview> {
+  return apiRequest<OutstandingOrdersOverview>('/super-admin/outstanding-orders');
+}
+
 export interface TrendDataPoint {
   date: string;
   completionPercent: number;

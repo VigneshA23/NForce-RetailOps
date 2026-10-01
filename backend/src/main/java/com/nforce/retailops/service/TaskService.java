@@ -33,6 +33,7 @@ import com.nforce.retailops.exception.StoreInactiveException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.TaskAlreadyCompletedException;
 import com.nforce.retailops.exception.TaskHasHistoryException;
+import com.nforce.retailops.exception.TaskNameExistsException;
 import com.nforce.retailops.exception.TaskNotFoundException;
 import com.nforce.retailops.exception.TaskResponseNotFoundException;
 import com.nforce.retailops.exception.UnauthorizedTaskResponseActionException;
@@ -80,6 +81,7 @@ public class TaskService {
     private final ActivityLogService activityLogService;
     private final TaskMakeupLinkService taskMakeupLinkService;
     private final com.nforce.retailops.repository.AdminCorrectionRepository adminCorrectionRepository;
+    private final com.nforce.retailops.repository.TaskMakeupLinkRepository taskMakeupLinkRepository;
 
     public TaskService(
         TaskRepository taskRepository,
@@ -93,7 +95,8 @@ public class TaskService {
         NotificationService notificationService,
         ActivityLogService activityLogService,
         TaskMakeupLinkService taskMakeupLinkService,
-        com.nforce.retailops.repository.AdminCorrectionRepository adminCorrectionRepository
+        com.nforce.retailops.repository.AdminCorrectionRepository adminCorrectionRepository,
+        com.nforce.retailops.repository.TaskMakeupLinkRepository taskMakeupLinkRepository
     ) {
         this.taskRepository = taskRepository;
         this.categoryRepository = categoryRepository;
@@ -107,6 +110,7 @@ public class TaskService {
         this.activityLogService = activityLogService;
         this.taskMakeupLinkService = taskMakeupLinkService;
         this.adminCorrectionRepository = adminCorrectionRepository;
+        this.taskMakeupLinkRepository = taskMakeupLinkRepository;
     }
 
     // A task's stores for "all stores" tasks means all of ITS OWNER'S stores
@@ -297,6 +301,70 @@ public class TaskService {
             affectedStores, "TASK", taskName,
             "Deleted task \"" + taskName + "\""
         );
+    }
+
+    // Consolidates accidental duplicate Task rows (same owner, same name -- see the
+    // per-owner uniqueness check in applyRequest, which prevents new ones but doesn't
+    // retroactively fix existing data) into one surviving row: response/makeup-link
+    // history is reassigned rather than dropped, store assignments are unioned, and
+    // the redundant rows are deleted. Deliberately narrow (same owner + same name
+    // only) -- this is a duplicate-cleanup tool, not a general "combine any two
+    // tasks" operation.
+    @Transactional
+    public TaskResponse mergeTasksAsSuperAdmin(Long survivorTaskId, List<Long> loserTaskIds) {
+        if (loserTaskIds == null || loserTaskIds.isEmpty()) {
+            throw new InvalidTaskConfigurationException("Select at least one duplicate task to merge");
+        }
+        if (loserTaskIds.contains(survivorTaskId)) {
+            throw new InvalidTaskConfigurationException("A task cannot be merged into itself");
+        }
+
+        Task survivor = taskRepository.findById(survivorTaskId)
+            .orElseThrow(() -> new TaskNotFoundException("Task not found"));
+        List<Task> losers = taskRepository.findAllById(loserTaskIds);
+        if (losers.size() != Set.copyOf(loserTaskIds).size()) {
+            throw new TaskNotFoundException("One or more tasks to merge could not be found");
+        }
+        for (Task loser : losers) {
+            if (!loser.getOwner().getId().equals(survivor.getOwner().getId())) {
+                throw new InvalidTaskConfigurationException("Cannot merge tasks belonging to different owners");
+            }
+            if (!loser.getName().equalsIgnoreCase(survivor.getName())) {
+                throw new InvalidTaskConfigurationException("Cannot merge tasks with different names");
+            }
+        }
+
+        // Union store assignments onto the survivor before reassigning history, so a
+        // response moved over from a loser still resolves against a store the
+        // survivor is actually configured for.
+        if (!survivor.isAppliesToAllStores()) {
+            if (losers.stream().anyMatch(Task::isAppliesToAllStores)) {
+                survivor.setAppliesToAllStores(true);
+                survivor.setStores(new HashSet<>());
+            } else {
+                Set<Store> unionStores = new HashSet<>(survivor.getStores());
+                losers.forEach(loser -> unionStores.addAll(loser.getStores()));
+                survivor.setStores(unionStores);
+            }
+        }
+        survivor = taskRepository.save(survivor);
+
+        taskResponseEntryRepository.reassignTaskForMerge(survivor, loserTaskIds);
+        taskMakeupLinkRepository.reassignTaskForMerge(survivor, loserTaskIds);
+
+        List<Store> affectedStores = resolveTaskStoresForLog(survivor, survivor.getOwner().getId());
+        String survivorName = survivor.getName();
+        int mergedCount = losers.size();
+        taskRepository.deleteAll(losers);
+
+        activityLogService.logForStores(
+            "TASK_UPDATED", "Super Admin", "SUPER_ADMIN",
+            affectedStores, "TASK", survivorName,
+            "Merged " + mergedCount + " duplicate record" + (mergedCount == 1 ? "" : "s")
+                + " into task \"" + survivorName + "\""
+        );
+
+        return TaskResponse.from(survivor);
     }
 
     // Mirrors CategoryService.resolveAnyStores: validates a store selection
@@ -960,7 +1028,20 @@ public class TaskService {
             throw new CategoryInactiveException("This category is inactive and cannot be selected");
         }
 
-        task.setName(request.name().trim());
+        // Task titles are unique per owner (not platform-wide -- two different
+        // owners may legitimately have a task with the same name). Scoped to
+        // this owner specifically so a Super Admin edit that lands a task under
+        // a different owner (see updateTaskAsSuperAdmin) checks against THAT
+        // owner's existing tasks, not the task's original one.
+        String trimmedName = request.name().trim();
+        boolean nameTaken = task.getId() == null
+            ? taskRepository.existsByOwnerIdAndNameIgnoreCase(ownerId, trimmedName)
+            : taskRepository.existsByOwnerIdAndNameIgnoreCaseAndIdNot(ownerId, trimmedName, task.getId());
+        if (nameTaken) {
+            throw new TaskNameExistsException("A task with this name already exists");
+        }
+
+        task.setName(trimmedName);
         task.setDescription(blankToNull(request.description()));
         task.setCategory(category);
 

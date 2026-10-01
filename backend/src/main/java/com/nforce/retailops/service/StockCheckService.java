@@ -2,39 +2,71 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.AdHocShortageRequest;
 import com.nforce.retailops.dto.DailyStockCheckItemResponse;
+import com.nforce.retailops.dto.EodSupplierReportResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
+import com.nforce.retailops.dto.StockCheckEditResponse;
+import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
+import com.nforce.retailops.dto.StockSnapshotResponse;
 import com.nforce.retailops.entity.StockCheck;
+import com.nforce.retailops.entity.StockCheckCorrection;
+import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.InvalidStockCheckException;
 import com.nforce.retailops.exception.InventoryItemNotAssignedException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.repository.StockCheckCorrectionRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.UserRepository;
+import com.nforce.retailops.util.DateRangeValidator;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-// Employee-facing daily stock check + ad-hoc shortage reporting, and
-// Owner/Admin's after-the-fact correction of a past check. Store membership
-// is enforced by the caller via UserProfileService.requireAssignedStore
-// before any method here runs, the same convention TaskService/RaisedIssueService
-// already use for /me endpoints.
+// Employee-facing daily Start of Day / End of Day stock checks + ad-hoc
+// shortage reporting, and Owner/Admin's history, correction and End of Day
+// supplier report. Store membership is enforced by the caller via
+// UserProfileService.requireAssignedStore before any employee method here
+// runs, the same convention TaskService/RaisedIssueService use for /me.
+//
+// Each item gets one StockCheck row per business day holding both
+// snapshots. There is no time window on either: an employee can save or
+// re-save today's SOD or EOD whenever the store's workflow calls for it, and
+// a re-save updates the row in place (the previous values go to
+// stock_check_corrections).
 @Service
 public class StockCheckService {
 
+    // Owner/Admin history listing: default and max page size for
+    // GET /api/stores/inventory/stock-checks. 92 days x a full item list is
+    // thousands of rows -- this endpoint is bounded either way.
+    private static final int DEFAULT_PAGE_SIZE = 50;
+    private static final int MAX_PAGE_SIZE = 200;
+    private static final int MAX_DATE_RANGE_DAYS = 92;
+
+    static final String NO_SUPPLIER = "No Supplier";
+
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final StockCheckRepository stockCheckRepository;
+    private final StockCheckCorrectionRepository stockCheckCorrectionRepository;
     private final UserRepository userRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final OrderListService orderListService;
@@ -43,6 +75,7 @@ public class StockCheckService {
     public StockCheckService(
         StoreInventoryItemRepository storeInventoryItemRepository,
         StockCheckRepository stockCheckRepository,
+        StockCheckCorrectionRepository stockCheckCorrectionRepository,
         UserRepository userRepository,
         StoreOwnerRepository storeOwnerRepository,
         OrderListService orderListService,
@@ -50,22 +83,11 @@ public class StockCheckService {
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.stockCheckRepository = stockCheckRepository;
+        this.stockCheckCorrectionRepository = stockCheckCorrectionRepository;
         this.userRepository = userRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.orderListService = orderListService;
         this.userProfileService = userProfileService;
-    }
-
-    private static boolean isWeekend(LocalDate date) {
-        DayOfWeek day = date.getDayOfWeek();
-        return day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
-    }
-
-    private static Integer resolveMinTarget(StoreInventoryItem item, LocalDate date) {
-        if (isWeekend(date) && item.getMinWeekend() != null) {
-            return item.getMinWeekend();
-        }
-        return item.getMinWeekday();
     }
 
     // ---- Employee: today's checklist --------------------------------------
@@ -75,30 +97,27 @@ public class StockCheckService {
         userProfileService.requireAssignedStore(employeeUserId, storeId);
         LocalDate today = LocalDate.now();
         List<StoreInventoryItem> items = storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(storeId);
-
-        Map<Long, StockCheck> todaysChecksByItemId = stockCheckRepository
-            .findByStoreInventoryItemIdInAndCheckDate(items.stream().map(StoreInventoryItem::getId).toList(), today)
-            .stream()
-            .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), sc -> sc));
+        Map<Long, StockCheck> todaysChecksByItemId = checksByItemId(storeId, today);
 
         return items.stream()
             .map(item -> {
-                StockCheck todaysCheck = todaysChecksByItemId.get(item.getId());
+                StockCheck check = todaysChecksByItemId.get(item.getId());
                 return new DailyStockCheckItemResponse(
                     item.getId(),
-                    item.getInventoryItem().getName(),
-                    item.getInventoryItem().getCategory().getName(),
-                    item.getInventoryItem().getUnitOfMeasurement(),
-                    resolveMinTarget(item, today),
-                    todaysCheck != null ? todaysCheck.getCurrentCount() : null,
-                    todaysCheck != null ? todaysCheck.getQuantityNeeded() : null,
-                    todaysCheck != null
+                    item.getName(),
+                    item.getUnitOfMeasurement(),
+                    item.requiredMinimumOn(today),
+                    requiredTomorrow(item, check, today),
+                    StockSnapshotResponse.from(check, StockCheckSnapshot.START_OF_DAY),
+                    StockSnapshotResponse.from(check, StockCheckSnapshot.END_OF_DAY),
+                    check != null ? check.stockUsed() : null,
+                    quantityToOrder(check)
                 );
             })
             .toList();
     }
 
-    // ---- Employee: submit a count -----------------------------------------
+    // ---- Employee: save / update a snapshot --------------------------------
 
     @Transactional
     public StockCheckResponse submitCheck(Long employeeUserId, StockCheckSubmitRequest request) {
@@ -115,30 +134,22 @@ public class StockCheckService {
             throw new InventoryItemNotAssignedException("This item is not currently active for your store");
         }
 
+        requireDeadStockWithinAvailable(request.available(), request.deadStock());
+
         User employee = userRepository.getReferenceById(employeeUserId);
         LocalDate today = LocalDate.now();
-        Integer minTarget = resolveMinTarget(item, today);
-        int quantityNeeded = minTarget == null ? 0 : Math.max(0, minTarget - request.currentCount());
 
         StockCheck check = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
             .orElseGet(() -> {
                 StockCheck created = new StockCheck();
+                created.setStore(item.getStore());
                 created.setStoreInventoryItem(item);
                 created.setCheckDate(today);
                 return created;
             });
-        check.setCheckedBy(employee);
-        check.setCurrentCount(request.currentCount());
-        check.setQuantityNeeded(quantityNeeded);
-        check = stockCheckRepository.save(check);
 
-        if (quantityNeeded > 0) {
-            orderListService.upsertShortage(
-                item.getStore(), item.getInventoryItem(), quantityNeeded,
-                null, false, employee, item.getPreferredSupplier()
-            );
-        }
-
+        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null);
+        syncOrderList(check, request.snapshot(), employee);
         return StockCheckResponse.from(check);
     }
 
@@ -157,48 +168,243 @@ public class StockCheckService {
 
         User employee = userRepository.getReferenceById(employeeUserId);
         orderListService.upsertShortage(
-            storeItem.getStore(), storeItem.getInventoryItem(), request.quantity(),
+            storeItem.getStore(), storeItem, request.quantity(),
             request.note(), true, employee, storeItem.getPreferredSupplier()
         );
     }
 
-    // ---- Owner/Admin: historical review + correction -----------------------
+    // ---- Owner/Admin: history, correction, EOD report -----------------------
+
+    // Picks the caller's active store the same multi-store-safe way
+    // CategoryService.ownerStoreIds does, rather than findByOwnerIdAndActiveTrue
+    // (a single Optional that throws for an owner with more than one active
+    // store link).
+    private StoreOwner requireActiveStoreOwner(Long ownerId) {
+        return storeOwnerRepository.findByOwnerId(ownerId).stream()
+            .filter(StoreOwner::isActive)
+            .findFirst()
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+    }
 
     @Transactional(readOnly = true)
-    public List<StockCheckResponse> listHistoricalChecks(Long ownerId, LocalDate startDate, LocalDate endDate) {
-        StoreOwner storeOwner = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return stockCheckRepository.findForStoreInRange(storeOwner.getStore().getId(), startDate, endDate).stream()
-            .map(StockCheckResponse::from)
+    public StockCheckHistoryPageResponse listHistoricalChecks(
+        Long ownerId, LocalDate startDate, LocalDate endDate, Integer page, Integer size
+    ) {
+        DateRangeValidator.validate(startDate, endDate, MAX_DATE_RANGE_DAYS);
+
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
+
+        int requestedPage = page == null ? 1 : page;
+        int clampedPage = Math.max(requestedPage, 1);
+        int clampedSize = size == null ? DEFAULT_PAGE_SIZE : Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+
+        Page<StockCheck> resultPage = stockCheckRepository.findForStoreInRange(
+            storeOwner.getStore().getId(), startDate, endDate, PageRequest.of(clampedPage - 1, clampedSize)
+        );
+
+        List<Long> checkIds = resultPage.getContent().stream().map(StockCheck::getId).toList();
+        Map<Long, List<StockCheckEditResponse>> editsByCheckId = checkIds.isEmpty()
+            ? Map.of()
+            : stockCheckCorrectionRepository.findWithEditorByStockCheckIds(checkIds).stream()
+                .collect(Collectors.groupingBy(
+                    c -> c.getStockCheck().getId(),
+                    Collectors.mapping(StockCheckEditResponse::from, Collectors.toList())
+                ));
+
+        List<StockCheckResponse> items = resultPage.getContent().stream()
+            .map(check -> StockCheckResponse.from(check, editsByCheckId.getOrDefault(check.getId(), List.of())))
             .toList();
+
+        return new StockCheckHistoryPageResponse(
+            items, clampedPage, clampedSize, resultPage.getTotalPages(), resultPage.getTotalElements()
+        );
     }
 
     @Transactional
     public StockCheckResponse correctCheck(Long ownerId, Long checkId, StockCheckCorrectionRequest request) {
-        StoreOwner storeOwner = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
 
-        StockCheck check = stockCheckRepository.findByIdAndStoreInventoryItemStoreId(checkId, storeOwner.getStore().getId())
+        StockCheck check = stockCheckRepository.findByIdAndStoreId(checkId, storeOwner.getStore().getId())
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Stock check not found"));
 
-        StoreInventoryItem item = check.getStoreInventoryItem();
-        Integer minTarget = resolveMinTarget(item, check.getCheckDate());
-        int quantityNeeded = minTarget == null ? 0 : Math.max(0, minTarget - request.currentCount());
+        requireDeadStockWithinAvailable(request.available(), request.deadStock());
 
-        check.setCurrentCount(request.currentCount());
-        check.setQuantityNeeded(quantityNeeded);
-        check = stockCheckRepository.save(check);
+        User owner = userRepository.getReferenceById(ownerId);
+        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), owner, request.reason());
 
-        // Only propagate to the order list if this correction is for TODAY's
-        // check and still shows a shortage -- correcting a stale historical
-        // entry shouldn't resurrect or distort today's live order queue.
-        if (quantityNeeded > 0 && check.getCheckDate().isEqual(LocalDate.now())) {
-            orderListService.upsertShortage(
-                item.getStore(), item.getInventoryItem(), quantityNeeded,
-                null, false, check.getCheckedBy(), item.getPreferredSupplier()
-            );
+        // Only propagate to the order list for TODAY's record -- correcting a
+        // stale historical entry shouldn't resurrect or distort today's live
+        // order queue.
+        if (check.getCheckDate().isEqual(LocalDate.now())) {
+            syncOrderList(check, request.snapshot(), check.getCheckedBy());
         }
 
         return StockCheckResponse.from(check);
+    }
+
+    // Every active item plus any inactive one that was counted that day,
+    // grouped by preferred supplier. A day without End of Day shows its
+    // tomorrow's requirement from the item's current thresholds.
+    @Transactional(readOnly = true)
+    public EodSupplierReportResponse getEodSupplierReport(Long ownerId, LocalDate date) {
+        LocalDate reportDate = date != null ? date : LocalDate.now();
+        if (reportDate.isAfter(LocalDate.now())) {
+            throw new InvalidStockCheckException("The report date cannot be in the future");
+        }
+
+        Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
+        Map<Long, StockCheck> checksByItemId = checksByItemId(storeId, reportDate);
+        List<StoreInventoryItem> items = storeInventoryItemRepository.findByStoreIdOrderById(storeId).stream()
+            .filter(item -> item.isActive() || checksByItemId.containsKey(item.getId()))
+            .sorted(Comparator.comparing(StoreInventoryItem::getName, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+
+        Map<Long, List<EodSupplierReportResponse.Row>> rowsBySupplierId = new LinkedHashMap<>();
+        Map<Long, Supplier> suppliersById = new LinkedHashMap<>();
+        List<EodSupplierReportResponse.Row> noSupplierRows = new ArrayList<>();
+        int needingOrder = 0;
+        int pendingEod = 0;
+
+        for (StoreInventoryItem item : items) {
+            StockCheck check = checksByItemId.get(item.getId());
+            EodSupplierReportResponse.Row row = toReportRow(item, check, reportDate);
+            if (row.status() == EodSupplierReportResponse.Status.NEEDS_TO_ORDER) needingOrder++;
+            if (row.status() == EodSupplierReportResponse.Status.END_OF_DAY_PENDING) pendingEod++;
+
+            Supplier supplier = item.getPreferredSupplier();
+            if (supplier == null) {
+                noSupplierRows.add(row);
+            } else {
+                suppliersById.putIfAbsent(supplier.getId(), supplier);
+                rowsBySupplierId.computeIfAbsent(supplier.getId(), id -> new ArrayList<>()).add(row);
+            }
+        }
+
+        List<EodSupplierReportResponse.Group> groups = new ArrayList<>(suppliersById.values().stream()
+            .sorted(Comparator.comparing(Supplier::getName, String.CASE_INSENSITIVE_ORDER))
+            .map(s -> new EodSupplierReportResponse.Group(s.getId(), s.getName(), rowsBySupplierId.get(s.getId())))
+            .toList());
+        if (!noSupplierRows.isEmpty()) {
+            groups.add(new EodSupplierReportResponse.Group(null, NO_SUPPLIER, noSupplierRows));
+        }
+
+        return new EodSupplierReportResponse(reportDate, groups, needingOrder, pendingEod);
+    }
+
+    // ---- Shared helpers ------------------------------------------------------
+
+    private Map<Long, StockCheck> checksByItemId(Long storeId, LocalDate date) {
+        return stockCheckRepository.findForStoreOnDate(storeId, date).stream()
+            .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), Function.identity()));
+    }
+
+    private static void requireDeadStockWithinAvailable(int available, int deadStock) {
+        if (deadStock > available) {
+            throw new InvalidStockCheckException("Dead stock cannot be more than available stock");
+        }
+    }
+
+    // Writes one snapshot in place. Re-saving an existing snapshot appends an
+    // audit row with the previous values first; the first save writes none
+    // (the enterer is recorded on the check itself). Saving End of Day also
+    // persists tomorrow's requirement and the resulting quantity to order.
+    private StockCheck applySnapshot(
+        StockCheck check, StockCheckSnapshot snapshot, int available, int deadStock, User by, String reason
+    ) {
+        boolean isEdit = check.hasSnapshot(snapshot);
+        int previousAvailable = isEdit ? check.availableFor(snapshot) : 0;
+        Integer previousDeadStock = isEdit ? check.deadStockFor(snapshot) : null;
+
+        check.recordSnapshot(snapshot, available, deadStock, by, OffsetDateTime.now());
+
+        if (snapshot == StockCheckSnapshot.END_OF_DAY) {
+            Integer required = check.getStoreInventoryItem().requiredMinimumOn(check.getCheckDate().plusDays(1));
+            check.setRequiredTomorrow(required);
+            check.setQuantityNeeded(orderQuantity(required, check.usableFor(StockCheckSnapshot.END_OF_DAY)));
+        }
+
+        StockCheck saved = stockCheckRepository.save(check);
+
+        if (isEdit) {
+            StockCheckCorrection correction = new StockCheckCorrection();
+            correction.setStockCheck(saved);
+            correction.setSnapshot(snapshot);
+            correction.setOriginalCount(previousAvailable);
+            correction.setOriginalDeadStock(previousDeadStock);
+            correction.setCorrectedCount(available);
+            correction.setCorrectedDeadStock(deadStock);
+            correction.setCorrectedBy(by);
+            correction.setReason(reason);
+            stockCheckCorrectionRepository.save(correction);
+        }
+
+        return saved;
+    }
+
+    // Only End of Day drives ordering: a shortage against tomorrow's minimum
+    // is pushed to the order list (upserted, so re-saving EOD updates it), and
+    // an EOD that clears the shortage resolves any outstanding order.
+    private void syncOrderList(StockCheck check, StockCheckSnapshot snapshot, User raisedBy) {
+        if (snapshot != StockCheckSnapshot.END_OF_DAY) {
+            return;
+        }
+        StoreInventoryItem item = check.getStoreInventoryItem();
+        if (check.getQuantityNeeded() <= 0) {
+            orderListService.resolveShortageIfPresent(item.getStore(), item);
+            return;
+        }
+        orderListService.upsertShortage(
+            item.getStore(), item, check.getQuantityNeeded(),
+            null, false, raisedBy, item.getPreferredSupplier()
+        );
+    }
+
+    static int orderQuantity(Integer requiredTomorrow, Integer endUsable) {
+        if (requiredTomorrow == null || endUsable == null) {
+            return 0;
+        }
+        return Math.max(0, requiredTomorrow - endUsable);
+    }
+
+    // Persisted at EOD save; before that, what the item's thresholds say now.
+    private static Integer requiredTomorrow(StoreInventoryItem item, StockCheck check, LocalDate date) {
+        if (check != null && check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
+            return check.getRequiredTomorrow();
+        }
+        return item.requiredMinimumOn(date.plusDays(1));
+    }
+
+    private static Integer quantityToOrder(StockCheck check) {
+        return check != null && check.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? check.getQuantityNeeded() : null;
+    }
+
+    private static EodSupplierReportResponse.Row toReportRow(StoreInventoryItem item, StockCheck check, LocalDate date) {
+        Integer required = requiredTomorrow(item, check, date);
+        Integer toOrder = quantityToOrder(check);
+
+        EodSupplierReportResponse.Status status;
+        if (toOrder == null) {
+            status = EodSupplierReportResponse.Status.END_OF_DAY_PENDING;
+        } else if (toOrder > 0) {
+            status = EodSupplierReportResponse.Status.NEEDS_TO_ORDER;
+        } else if (required == null) {
+            status = EodSupplierReportResponse.Status.NO_MINIMUM_SET;
+        } else {
+            status = EodSupplierReportResponse.Status.SUFFICIENT;
+        }
+
+        return new EodSupplierReportResponse.Row(
+            item.getId(),
+            item.getName(),
+            item.getUnitOfMeasurement(),
+            check != null ? check.getStartOfDayAvailable() : null,
+            check != null ? check.getStartOfDayDeadStock() : null,
+            check != null ? check.getEndOfDayAvailable() : null,
+            check != null ? check.getEndOfDayDeadStock() : null,
+            check != null ? check.stockUsed() : null,
+            required,
+            toOrder,
+            status
+        );
     }
 }

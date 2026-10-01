@@ -42,12 +42,12 @@
 .employee-stock-check-page__list {
   display: flex;
   flex-direction: column;
-  gap: var(--space-sm);
+  gap: var(--space-md);
 }
 
-.employee-stock-check-page__row {
+.employee-stock-check-page__item {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: var(--space-md);
   padding: var(--space-md);
   background: var(--color-surface-card);
@@ -55,63 +55,38 @@
   border-radius: var(--radius-md);
 }
 
-.employee-stock-check-page__row-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.employee-stock-check-page__row-name {
+.employee-stock-check-page__item-name {
   margin: 0;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--color-text-primary);
 }
 
-.employee-stock-check-page__row-meta {
+.employee-stock-check-page__item-meta {
   margin: 2px 0 0;
   font-size: 12px;
   color: var(--color-text-secondary);
 }
 
-.employee-stock-check-page__row-input {
+.employee-stock-check-page__snapshots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-md);
+}
+
+.employee-stock-check-page__totals {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: var(--space-xs) var(--space-lg);
+  font-size: 13px;
+  color: var(--color-text-secondary);
 }
 
-.employee-stock-check-page__count-input {
-  width: 76px;
-  text-align: center;
-}
-
-.employee-stock-check-page__unit {
-  font-size: 12px;
-  color: var(--color-text-muted);
-}
-
-.employee-stock-check-page__row-needed {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 56px;
-  flex-shrink: 0;
-}
-
-.employee-stock-check-page__needed-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--color-text-muted);
-}
-
-.employee-stock-check-page__needed-value {
-  font-size: 16px;
-  font-weight: 700;
+.employee-stock-check-page__totals strong {
   color: var(--color-text-primary);
 }
 
-.employee-stock-check-page__needed-value--shortage {
+.employee-stock-check-page__totals .employee-stock-check-page__shortage {
   color: var(--color-accent);
 }
 
@@ -120,11 +95,11 @@
     padding: var(--space-md);
   }
 
-  .employee-stock-check-page__row {
+  .employee-stock-check-page__header {
     flex-wrap: wrap;
   }
 
-  .employee-stock-check-page__row-info {
-    width: 100%;
+  .employee-stock-check-page__snapshots {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

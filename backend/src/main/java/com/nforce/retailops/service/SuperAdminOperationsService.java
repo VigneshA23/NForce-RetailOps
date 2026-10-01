@@ -1,13 +1,17 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
 import com.nforce.retailops.dto.StoreOperationsSummaryResponse;
+import com.nforce.retailops.dto.StoreOutstandingOrdersRow;
 import com.nforce.retailops.dto.TrendDataPoint;
 import com.nforce.retailops.entity.MakeupLinkStatus;
+import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskMakeupLink;
 import com.nforce.retailops.entity.TaskResponseEntry;
+import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -38,12 +42,20 @@ public class SuperAdminOperationsService {
     // start of the requested window.
     private static final int MAX_MOVE_LOOKBACK_PADDING_DAYS = 14;
 
+    // Row cap for the outstanding-orders table. Deliberately its own constant and
+    // NOT shared with ChecklistHistoryService.MAX_STORE_SELECTION: that one is
+    // private there and means something different -- a limit on request input that
+    // throws when exceeded, rather than a silent cap on response rows. Coupling
+    // them would let a change to one quietly break the other's contract.
+    private static final int MAX_OUTSTANDING_ROWS = 50;
+
     private final StoreOwnerRepository storeOwnerRepository;
     private final TaskRepository taskRepository;
     private final TaskResponseEntryRepository taskResponseEntryRepository;
     private final TaskMakeupLinkRepository taskMakeupLinkRepository;
     private final RaisedIssueRepository raisedIssueRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
+    private final OrderListEntryRepository orderListEntryRepository;
 
     public SuperAdminOperationsService(
         StoreOwnerRepository storeOwnerRepository,
@@ -51,7 +63,8 @@ public class SuperAdminOperationsService {
         TaskResponseEntryRepository taskResponseEntryRepository,
         TaskMakeupLinkRepository taskMakeupLinkRepository,
         RaisedIssueRepository raisedIssueRepository,
-        StoreEmployeeRepository storeEmployeeRepository
+        StoreEmployeeRepository storeEmployeeRepository,
+        OrderListEntryRepository orderListEntryRepository
     ) {
         this.storeOwnerRepository = storeOwnerRepository;
         this.taskRepository = taskRepository;
@@ -59,6 +72,48 @@ public class SuperAdminOperationsService {
         this.taskMakeupLinkRepository = taskMakeupLinkRepository;
         this.raisedIssueRepository = raisedIssueRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
+        this.orderListEntryRepository = orderListEntryRepository;
+    }
+
+    // Platform-wide "what still needs ordering", in a single grouped query -- never
+    // a per-store loop, which would be an N+1 that grows with the platform.
+    //
+    // Stores with nothing outstanding are absent by construction (see the repository
+    // query's where clause). Stores with no active owner are deliberately present:
+    // an ownerless store accumulating shortages is exactly what a Super Admin needs
+    // to see. There is also no store.active filter -- an entry at a deactivated
+    // store is still an outstanding order, and dropping those stores would break the
+    // invariant that platformOutstandingCount equals the sum of every group.
+    @Transactional(readOnly = true)
+    public OutstandingOrdersOverviewResponse getOutstandingOrdersOverview() {
+        List<Object[]> rows = orderListEntryRepository
+            .findOutstandingRowsGroupedByStore(OrderStatus.NEEDS_ORDERING);
+
+        long platformOutstandingCount = 0;
+        List<StoreOutstandingOrdersRow> stores = new ArrayList<>(Math.min(rows.size(), MAX_OUTSTANDING_ROWS));
+
+        for (Object[] row : rows) {
+            long outstandingCount = (Long) row[4];
+            // Accumulated for EVERY group, including those past the cap. This is the
+            // whole reason the total is derived here rather than from `stores` --
+            // truncating the list must not move the number.
+            platformOutstandingCount += outstandingCount;
+
+            if (stores.size() < MAX_OUTSTANDING_ROWS) {
+                String ownerName = (String) row[3];
+                stores.add(new StoreOutstandingOrdersRow(
+                    (Long) row[0],
+                    (Long) row[1],
+                    (String) row[2],
+                    ownerName != null ? ownerName : "Unassigned",
+                    outstandingCount,
+                    (OffsetDateTime) row[5]
+                ));
+            }
+        }
+
+        return new OutstandingOrdersOverviewResponse(
+            platformOutstandingCount, rows.size(), rows.size() > MAX_OUTSTANDING_ROWS, stores);
     }
 
     @Transactional(readOnly = true)

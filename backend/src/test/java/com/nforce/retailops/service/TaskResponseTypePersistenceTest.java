@@ -63,9 +63,14 @@ class TaskResponseTypePersistenceTest {
         categoryId = category.getId();
     }
 
+    // Task titles are now unique per owner (see TaskService.applyRequest) --
+    // a counter keeps every task these helpers create distinctly named, since
+    // several tests create more than one task for the same owner in a row.
+    private static final java.util.concurrent.atomic.AtomicInteger TASK_NAME_COUNTER = new java.util.concurrent.atomic.AtomicInteger();
+
     private TaskRequest baseRequest(ResponseType responseType, String responseNote) {
         return new TaskRequest(
-            "Wipe counters",
+            "Wipe counters " + TASK_NAME_COUNTER.incrementAndGet(),
             null,
             categoryId,
             null,
@@ -262,7 +267,7 @@ class TaskResponseTypePersistenceTest {
 
     private TaskRequest requestWithOrder(int displayOrder) {
         return new TaskRequest(
-            "Task", null, categoryId, displayOrder, true, null,
+            "Task " + TASK_NAME_COUNTER.incrementAndGet(), null, categoryId, displayOrder, true, null,
             ResponseType.YES_NO, null, null, null, null, null,
             CompletionType.SINGLE, null, ScheduleType.EVERY_DAY, null,
             LocalDate.now(), null, TimeMode.ANYTIME, null, null, true
