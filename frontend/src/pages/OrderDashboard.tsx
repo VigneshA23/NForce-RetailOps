@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Clipboard, PackageCheck, PackageSearch, Truck } from 'lucide-react';
+import { Clipboard, ClipboardList, Pencil, PackageCheck, PackageSearch, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { getOrderList, updateOrderListEntry } from '../api/orderList';
 import { getOwnerSuppliers } from '../api/suppliers';
 import type { OrderListEntry, OrderStatus, UpdateOrderListEntryValues } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
-import { buildOrderListText } from '../utils/orderListExport';
+import { buildOrderListText, buildReorderListText } from '../utils/orderListExport';
 import OrderListEntryEditModal from '../components/OrderListEntryEditModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import Select from '../components/Select';
+import SearchInput from '../components/SearchInput';
+import FilterClearButton from '../components/FilterClearButton';
 import StatCard from '../components/StatCard';
 import './OrderDashboard.css';
 
@@ -42,11 +45,16 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [itemFilter, setItemFilter] = useState('ALL');
+  const [supplierFilter, setSupplierFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
   const [editTarget, setEditTarget] = useState<OrderListEntry | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+
+  const [advanceTarget, setAdvanceTarget] = useState<{ entry: OrderListEntry; nextStatus: OrderStatus } | null>(null);
 
   function load() {
     setIsLoading(true);
@@ -111,11 +119,36 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
     }
   }
 
+  // The table-icon-btn only opens a confirmation -- it's handleConfirmAdvance
+  // below, wired to ConfirmDialog, that actually calls handleQuickAdvance.
+  async function handleConfirmAdvance() {
+    if (!advanceTarget) return;
+    await handleQuickAdvance(advanceTarget.entry, advanceTarget.nextStatus);
+    setAdvanceTarget(null);
+  }
+
   async function handleCopyList() {
-    const text = buildOrderListText(entries, storeName);
+    const text = buildOrderListText(entries, storeName, new Date());
     try {
       await navigator.clipboard.writeText(text);
       nfToast.success('Order list copied to clipboard.');
+    } catch {
+      nfToast.error('Could not copy to clipboard. Please copy manually.');
+    }
+  }
+
+  // Built from `entries` at click time (not a value computed on every
+  // render and stashed in state), so it's always the current live data --
+  // never a stale list from before the last refresh.
+  async function handleCopyReorderList() {
+    const text = buildReorderListText(entries, storeName, new Date());
+    if (text == null) {
+      nfToast.info('No items currently need ordering.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      nfToast.success('Reorder list copied.');
     } catch {
       nfToast.error('Could not copy to clipboard. Please copy manually.');
     }
@@ -125,7 +158,56 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
   const orderedCount = useMemo(() => entries.filter((e) => e.status === 'ORDERED').length, [entries]);
   const receivedCount = useMemo(() => entries.filter((e) => e.status === 'RECEIVED').length, [entries]);
 
-  const filteredEntries = statusFilter === 'ALL' ? entries : entries.filter((e) => e.status === statusFilter);
+  // Drawn from the live entries themselves, not a separate item catalog --
+  // only items that actually appear on this store's order list are worth
+  // filtering by. De-duplicated by storeInventoryItemId since the same item
+  // can only ever have one active entry, but its status can still change it
+  // in and out of view as the filter is applied.
+  const itemFilterOptions = useMemo(() => {
+    const byId = new Map<number, string>();
+    for (const entry of entries) {
+      if (!byId.has(entry.storeInventoryItemId)) byId.set(entry.storeInventoryItemId, entry.itemName);
+    }
+    const items = [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1], undefined, { sensitivity: 'base' }));
+    return [
+      { value: 'ALL', label: 'All Items' },
+      ...items.map(([id, name]) => ({ value: String(id), label: name })),
+    ];
+  }, [entries]);
+
+  // Drawn from the store's full supplier list (fetched alongside the order
+  // list for the edit modal), the same way Tasks' category filter draws from
+  // the full category list rather than only categories in view.
+  const supplierFilterOptions = useMemo(
+    () => [
+      { value: 'ALL', label: 'All Suppliers' },
+      ...[...suppliers]
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        .map((supplier) => ({ value: String(supplier.id), label: supplier.name })),
+      { value: 'UNASSIGNED', label: 'Unassigned Supplier' },
+    ],
+    [suppliers],
+  );
+
+  const filteredEntries = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return entries.filter((entry) => {
+      if (normalizedSearch && !entry.itemName.toLowerCase().includes(normalizedSearch)) return false;
+      if (itemFilter !== 'ALL' && String(entry.storeInventoryItemId) !== itemFilter) return false;
+      if (supplierFilter === 'UNASSIGNED' && entry.supplierId != null) return false;
+      if (supplierFilter !== 'ALL' && supplierFilter !== 'UNASSIGNED' && String(entry.supplierId) !== supplierFilter) return false;
+      if (statusFilter !== 'ALL' && entry.status !== statusFilter) return false;
+      return true;
+    });
+  }, [entries, search, itemFilter, supplierFilter, statusFilter]);
+
+  const hasActiveFilters = search !== '' || itemFilter !== 'ALL' || supplierFilter !== 'ALL' || statusFilter !== 'ALL';
+  function clearFilters() {
+    setSearch('');
+    setItemFilter('ALL');
+    setSupplierFilter('ALL');
+    setStatusFilter('ALL');
+  }
 
   if (loadError) {
     return (
@@ -149,19 +231,52 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
       </div>
 
       <div className="order-dashboard-page__header">
-        <div className="filter-bar order-dashboard-page__filter-bar">
-          <Select
-            className="filter filter--narrow"
-            options={STATUS_FILTER_OPTIONS}
-            value={statusFilter}
-            onChange={setStatusFilter}
-            ariaLabel="Filter by status"
-          />
+        <div className="order-dashboard-page__header-actions">
+          <button type="button" className="btn btn--secondary" onClick={handleCopyList}>
+            <Clipboard size={16} />
+            Copy Order List
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary"
+            onClick={handleCopyReorderList}
+            disabled={isLoading || needsOrderingCount === 0}
+          >
+            <ClipboardList size={16} />
+            Copy Reorder List
+          </button>
         </div>
-        <button type="button" className="btn btn--secondary" onClick={handleCopyList}>
-          <Clipboard size={16} />
-          Copy Order List
-        </button>
+      </div>
+
+      <div className="filter-bar">
+        <div className="filter filter--search">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search items" variant="filter" />
+        </div>
+
+        <Select
+          className="filter"
+          options={itemFilterOptions}
+          value={itemFilter}
+          onChange={setItemFilter}
+          ariaLabel="Filter by item"
+        />
+
+        <Select
+          className="filter"
+          options={supplierFilterOptions}
+          value={supplierFilter}
+          onChange={setSupplierFilter}
+          ariaLabel="Filter by supplier"
+        />
+
+        <Select
+          className="filter filter--narrow"
+          options={STATUS_FILTER_OPTIONS}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          ariaLabel="Filter by status"
+        />
+        {hasActiveFilters && <FilterClearButton onClick={clearFilters} />}
       </div>
 
       <div className="table-card">
@@ -190,13 +305,25 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
                   <td className="table-actions-cell" data-label="Actions">
                     <div className="table-row-actions">
                       {entry.status === 'NEEDS_ORDERING' && (
-                        <button type="button" className="table-icon-btn" title="Mark Ordered" onClick={() => handleQuickAdvance(entry, 'ORDERED')}>
-                          Mark Ordered
+                        <button
+                          type="button"
+                          className="table-icon-btn"
+                          aria-label={`Mark ${entry.itemName} ordered`}
+                          title="Mark Ordered"
+                          onClick={() => setAdvanceTarget({ entry, nextStatus: 'ORDERED' })}
+                        >
+                          <Truck size={16} />
                         </button>
                       )}
                       {entry.status === 'ORDERED' && (
-                        <button type="button" className="table-icon-btn" title="Mark Received" onClick={() => handleQuickAdvance(entry, 'RECEIVED')}>
-                          Mark Received
+                        <button
+                          type="button"
+                          className="table-icon-btn"
+                          aria-label={`Mark ${entry.itemName} received`}
+                          title="Mark Received"
+                          onClick={() => setAdvanceTarget({ entry, nextStatus: 'RECEIVED' })}
+                        >
+                          <PackageCheck size={16} />
                         </button>
                       )}
                       <button
@@ -206,7 +333,7 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
                         title="Edit"
                         onClick={() => { setEditError(null); setEditTarget(entry); }}
                       >
-                        Edit
+                        <Pencil size={16} />
                       </button>
                     </div>
                   </td>
@@ -231,6 +358,20 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
         isSubmitting={isEditSubmitting}
         onClose={() => setEditTarget(null)}
         onSubmit={handleEditSubmit}
+      />
+
+      <ConfirmDialog
+        isOpen={advanceTarget !== null}
+        title={advanceTarget?.nextStatus === 'ORDERED' ? 'Mark as Ordered?' : 'Mark as Received?'}
+        message={
+          advanceTarget
+            ? `Mark "${advanceTarget.entry.itemName}" as ${STATUS_LABEL[advanceTarget.nextStatus].toLowerCase()}?`
+            : ''
+        }
+        confirmLabel={advanceTarget?.nextStatus === 'ORDERED' ? 'Mark Ordered' : 'Mark Received'}
+        danger={false}
+        onConfirm={handleConfirmAdvance}
+        onCancel={() => setAdvanceTarget(null)}
       />
     </div>
   );

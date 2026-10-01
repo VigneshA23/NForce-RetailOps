@@ -74,6 +74,10 @@ Consequences to respect when changing this area:
 - `admin_corrections` is hard-wired to task responses only — a `NOT NULL` FK to `task_response_id`, no polymorphic entity reference — so it cannot audit anything else. Stock-check corrections (`StockCheckService.correctCheck`) use their own append-only `stock_check_corrections` table (`StockCheckCorrection`) instead; follow that precedent for any future per-domain correction trail rather than widening `admin_corrections`.
 - Every date boundary uses the server's default JVM timezone. There is no per-store timezone column.
 
+### Stock checks are two snapshots on one row
+
+`stock_checks` holds exactly one row per store + item + business day (unique index, V76), carrying two independent snapshots: Start of Day and End of Day, each with available, dead stock, entered-by/at and last-updated-by/at. There is no time window on either. Re-saving a snapshot updates the row in place and appends the previous values to `stock_check_corrections` (employee edits and Owner/Admin corrections alike); the first save writes no audit row. Usable = available − dead; stock used = SOD usable − EOD usable. Only an EOD save drives the order list, against *tomorrow's* minimum, which is persisted as `required_tomorrow`. The V48 columns `current_count`, `quantity_needed` and `checked_by_user_id` are kept NOT NULL and in sync (latest usable, quantity to order, last saver) rather than dropped, because other branches share the dev DB.
+
 ### Database
 
 PostgreSQL (hosted on Neon). Schema is managed exclusively through Flyway migrations in `backend/src/main/resources/db/migration` — `spring.jpa.hibernate.ddl-auto` is `validate`, so schema changes must go through a new, sequentially-numbered migration (`V{n}__description.sql`), never Hibernate auto-DDL.

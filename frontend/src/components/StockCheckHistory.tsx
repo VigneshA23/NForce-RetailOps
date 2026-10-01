@@ -3,8 +3,8 @@ import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRan
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
 import { getStockCheckHistory } from '../api/storeInventory';
-import type { StockCheckResponse } from '../types/stockCheck';
-import { daysAgo, formatDateLabel, todayDate } from '../utils/checklistHistoryOptions';
+import type { StockCheckEdit, StockCheckResponse, StockSnapshot } from '../types/stockCheck';
+import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
 import './StockCheckHistory.css';
 
 const PAGE_SIZE = 50;
@@ -17,9 +17,35 @@ function widestAllowedRange(): { startDate: string; endDate: string } {
   return { startDate: daysAgo(91), endDate: todayDate() };
 }
 
-// Owner/Admin's read-only stock-check history: every count recorded for
-// their store in a date range, corrected rows showing both the corrected
-// and original value. Lives as a sub-view of the Inventory tab.
+function SnapshotCell({ snapshot }: { snapshot: StockSnapshot | null }) {
+  if (!snapshot) return <span className="stock-check-history__muted">Not counted</span>;
+  return (
+    <>
+      {snapshot.available}
+      {snapshot.deadStock > 0 && <span className="stock-check-history__dead"> ({snapshot.deadStock} dead)</span>}
+      <span className="stock-check-history__note">
+        by {snapshot.lastUpdatedByName ?? 'Unknown'}
+        {snapshot.edited && snapshot.enteredByName ? `, first entered by ${snapshot.enteredByName}` : ''}
+      </span>
+    </>
+  );
+}
+
+function countLabel(available: number, deadStock: number | null): string {
+  return deadStock == null ? String(available) : `${available} (${deadStock} dead)`;
+}
+
+function editLabel(edit: StockCheckEdit): string {
+  const which = edit.snapshot === 'START_OF_DAY' ? 'Start of Day' : 'End of Day';
+  const from = countLabel(edit.previousAvailable, edit.previousDeadStock);
+  const to = countLabel(edit.newAvailable, edit.newDeadStock);
+  return `${which} changed from ${from} to ${to} by ${edit.editedByName} at ${formatTimeLabel(edit.editedAt)}`
+    + (edit.reason ? ` — ${edit.reason}` : '');
+}
+
+// Owner/Admin's read-only stock-check history: each item's Start of Day and
+// End of Day counts per day, the usage between them, and every edit made to
+// either (previous value included). Lives as a sub-view of the Inventory tab.
 function StockCheckHistory() {
   const [dateRange, setDateRange] = useState<DateRangeSelection>(DEFAULT_DATE_RANGE);
   const [page, setPage] = useState(1);
@@ -76,26 +102,28 @@ function StockCheckHistory() {
               <tr>
                 <th scope="col">Item</th>
                 <th scope="col">Date</th>
-                <th scope="col">Count Entered</th>
-                <th scope="col">Qty Needed</th>
-                <th scope="col">Recorded By</th>
+                <th scope="col">Start of Day</th>
+                <th scope="col">End of Day</th>
+                <th scope="col">Stock Used</th>
+                <th scope="col">To Order</th>
               </tr>
             </thead>
             <tbody>
               {items.map((row) => (
                 <tr key={row.id}>
-                  <td data-label="Item">{row.itemName}</td>
-                  <td data-label="Date">{formatDateLabel(row.checkDate)}</td>
-                  <td data-label="Count Entered">
-                    {row.currentCount}
-                    {row.corrected && (
-                      <span className="stock-check-history__correction-note">
-                        corrected from {row.originalCurrentCount} by {row.correctedByName}
+                  <td data-label="Item">
+                    {row.itemName}
+                    {row.edits.map((edit, index) => (
+                      <span key={index} className="stock-check-history__note stock-check-history__edit">
+                        {editLabel(edit)}
                       </span>
-                    )}
+                    ))}
                   </td>
-                  <td data-label="Qty Needed">{row.quantityNeeded}</td>
-                  <td data-label="Recorded By">{row.checkedByName}</td>
+                  <td data-label="Date">{formatDateLabel(row.checkDate)}</td>
+                  <td data-label="Start of Day"><SnapshotCell snapshot={row.startOfDay} /></td>
+                  <td data-label="End of Day"><SnapshotCell snapshot={row.endOfDay} /></td>
+                  <td data-label="Stock Used">{row.stockUsed ?? '—'}</td>
+                  <td data-label="To Order">{row.quantityToOrder ?? '—'}</td>
                 </tr>
               ))}
             </tbody>

@@ -89,13 +89,15 @@ function SuperAdminInventory() {
   const [itemDeleteTarget, setItemDeleteTarget] = useState<StoreInventoryItem | null>(null);
   const [itemDeleteError, setItemDeleteError] = useState<string | null>(null);
   const [itemSearch, setItemSearch] = useState('');
-  const [itemStoreFilter, setItemStoreFilter] = useState<number | null>(null);
+  // Like the Checklist tab, nothing on the Inventory sub-tab shows until a
+  // store is picked -- every stat, filter and row is scoped to that store.
+  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   const [itemStatusFilter, setItemStatusFilter] = useState<StatusFilter>('ALL');
   const [itemPage, setItemPage] = useState(1);
 
   useEffect(() => {
     setItemPage(1);
-  }, [itemSearch, itemStoreFilter, itemStatusFilter]);
+  }, [itemSearch, selectedStoreId, itemStatusFilter]);
 
   // Inline "Add New Supplier" from the item form: persist it, then merge it
   // into the local directory so it's selectable for every later item too.
@@ -163,18 +165,21 @@ function SuperAdminInventory() {
     }
   }
 
-  const activeItemCount = useMemo(() => items.filter((i) => i.active).length, [items]);
+  const storeItems = useMemo(
+    () => (selectedStoreId == null ? [] : items.filter((i) => i.storeId === selectedStoreId)),
+    [items, selectedStoreId],
+  );
+  const activeItemCount = useMemo(() => storeItems.filter((i) => i.active).length, [storeItems]);
 
   const filteredItems = useMemo(() => {
     const term = itemSearch.trim().toLowerCase();
-    return items.filter((item) => {
+    return storeItems.filter((item) => {
       if (term && !item.name.toLowerCase().includes(term)) return false;
-      if (itemStoreFilter != null && item.storeId !== itemStoreFilter) return false;
       if (itemStatusFilter === 'ACTIVE' && !item.active) return false;
       if (itemStatusFilter === 'INACTIVE' && item.active) return false;
       return true;
     });
-  }, [items, itemSearch, itemStoreFilter, itemStatusFilter]);
+  }, [storeItems, itemSearch, itemStatusFilter]);
 
   const itemPageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
   const itemCurrentPage = Math.min(itemPage, itemPageCount);
@@ -182,7 +187,36 @@ function SuperAdminInventory() {
     ? filteredItems
     : filteredItems.slice((itemCurrentPage - 1) * PAGE_SIZE, itemCurrentPage * PAGE_SIZE);
 
-  const storeFilterOptions = [{ value: '', label: 'All Stores' }, ...stores.map((s) => ({ value: String(s.id), label: s.name }))];
+  const storeOptions = useMemo(() => stores.map((s) => ({ value: String(s.id), label: s.name })), [stores]);
+
+  // Memoised because the form modal resets its fields whenever this reference
+  // changes -- an inline object would wipe in-progress input on every re-render
+  // (e.g. the 60s poll). Create mode pre-fills the currently selected store.
+  const itemInitialValues = useMemo<StoreInventoryItemFormValues | undefined>(() => {
+    if (itemModal?.mode === 'edit') {
+      return {
+        storeId: itemModal.item.storeId,
+        name: itemModal.item.name,
+        unitOfMeasurement: itemModal.item.unitOfMeasurement,
+        minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
+        minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
+        preferredSupplierId: itemModal.item.preferredSupplierId,
+        note: itemModal.item.note ?? '',
+      };
+    }
+    if (itemModal?.mode === 'create') {
+      return {
+        storeId: selectedStoreId,
+        name: '',
+        unitOfMeasurement: '',
+        minWeekday: '',
+        minWeekend: '',
+        preferredSupplierId: null,
+        note: '',
+      };
+    }
+    return undefined;
+  }, [itemModal, selectedStoreId]);
 
   // ---- Suppliers ------------------------------------------------------------
   const [supplierModal, setSupplierModal] = useState<SupplierModalState>(null);
@@ -256,84 +290,100 @@ function SuperAdminInventory() {
 
       {subTab === 'inventory' && (
         <>
-          <div className="stat-card-row">
-            <StatCard icon={Boxes} label="Inventory Items" value={items.length} tone="primary" />
-            <StatCard icon={CircleCheck} label="Active" value={activeItemCount} tone="success" />
-            <StatCard icon={CircleSlash} label="Inactive" value={items.length - activeItemCount} tone="warning" />
+          <div className="super-admin-inventory-page__store-row">
+            <Select
+              id="sa-inventory-store-select"
+              className={`super-admin-inventory-page__store-select${selectedStoreId === null ? ' super-admin-inventory-page__store-select--unselected' : ''}`}
+              options={storeOptions}
+              value={selectedStoreId !== null ? String(selectedStoreId) : ''}
+              onChange={(value) => setSelectedStoreId(value ? Number(value) : null)}
+              placeholder={isLoading ? 'Loading stores…' : 'Select a store…'}
+              ariaLabel="Select a store"
+              disabled={isLoading}
+            />
           </div>
 
-          <div className="super-admin-inventory-page__header">
-            <p className="super-admin-inventory-page__summary">
-              {isLoading ? 'Loading...' : `${filteredItems.length} of ${items.length} items`}
-            </p>
-            <SpecularButton
-              size="sm"
-              radius={999}
-              tint="var(--color-badge-solid-bg)"
-              tintOpacity={1}
-              textColor="var(--color-badge-solid-text)"
-              lineColor="#e11d33"
-              baseColor="#e4e4e7"
-              followMouse
-              proximity={180}
-              onClick={() => { setItemFormError(null); setItemModal({ mode: 'create' }); }}
-            >
-              <span className="super-admin-inventory-page__add-label">
-                <Plus size={16} />
-                Add Inventory Item
-              </span>
-            </SpecularButton>
-          </div>
-
-          <div className="filter-bar">
-            <div className="filter filter--search">
-              <SearchInput value={itemSearch} onChange={setItemSearch} placeholder="Search inventory" variant="filter" />
+          {selectedStoreId === null ? (
+            <div className="table-card">
+              <div className="table-card__empty super-admin-inventory-page__no-store-msg">
+                Select a store above to view its inventory.
+              </div>
             </div>
-            <Select
-              className="filter"
-              options={storeFilterOptions}
-              value={itemStoreFilter != null ? String(itemStoreFilter) : ''}
-              onChange={(value) => setItemStoreFilter(value === '' ? null : Number(value))}
-              ariaLabel="Filter by store"
-            />
-            <Select
-              className="filter filter--narrow"
-              options={STATUS_FILTER_OPTIONS}
-              value={itemStatusFilter}
-              onChange={(value) => setItemStatusFilter(value as StatusFilter)}
-              ariaLabel="Filter by status"
-            />
-            {(itemStoreFilter != null || itemStatusFilter !== 'ALL') && (
-              <FilterClearButton onClick={() => { setItemStoreFilter(null); setItemStatusFilter('ALL'); }} />
-            )}
-          </div>
+          ) : (
+            <>
+              <div className="stat-card-row">
+                <StatCard icon={Boxes} label="Inventory Items" value={storeItems.length} tone="primary" />
+                <StatCard icon={CircleCheck} label="Active" value={activeItemCount} tone="success" />
+                <StatCard icon={CircleSlash} label="Inactive" value={storeItems.length - activeItemCount} tone="warning" />
+              </div>
 
-          <StoreInventoryTable
-            items={visibleItems}
-            showStore
-            isLoading={isLoading}
-            onEdit={(item) => {
-              setItemFormError(null);
-              setItemModal({ mode: 'edit', item });
-            }}
-            onDelete={(item) => {
-              setItemDeleteError(null);
-              setItemDeleteTarget(item);
-            }}
-            onToggleStatus={handleToggleItem}
-            footer={
-              !isMobile && !isLoading && filteredItems.length > 0 ? (
-                <Pagination
-                  page={itemCurrentPage}
-                  pageCount={itemPageCount}
-                  totalItems={filteredItems.length}
-                  pageSize={PAGE_SIZE}
-                  onPageChange={setItemPage}
-                  itemLabel="items"
+              <div className="super-admin-inventory-page__header">
+                <p className="super-admin-inventory-page__summary">
+                  {`${filteredItems.length} of ${storeItems.length} items`}
+                </p>
+                <SpecularButton
+                  size="sm"
+                  radius={999}
+                  tint="var(--color-badge-solid-bg)"
+                  tintOpacity={1}
+                  textColor="var(--color-badge-solid-text)"
+                  lineColor="#e11d33"
+                  baseColor="#e4e4e7"
+                  followMouse
+                  proximity={180}
+                  onClick={() => { setItemFormError(null); setItemModal({ mode: 'create' }); }}
+                >
+                  <span className="super-admin-inventory-page__add-label">
+                    <Plus size={16} />
+                    Add Inventory Item
+                  </span>
+                </SpecularButton>
+              </div>
+
+              <div className="filter-bar">
+                <div className="filter filter--search">
+                  <SearchInput value={itemSearch} onChange={setItemSearch} placeholder="Search inventory" variant="filter" />
+                </div>
+                <Select
+                  className="filter filter--narrow"
+                  options={STATUS_FILTER_OPTIONS}
+                  value={itemStatusFilter}
+                  onChange={(value) => setItemStatusFilter(value as StatusFilter)}
+                  ariaLabel="Filter by status"
                 />
-              ) : null
-            }
-          />
+                {itemStatusFilter !== 'ALL' && (
+                  <FilterClearButton onClick={() => setItemStatusFilter('ALL')} />
+                )}
+              </div>
+
+              <StoreInventoryTable
+                items={visibleItems}
+                showStore={false}
+                isLoading={isLoading}
+                onEdit={(item) => {
+                  setItemFormError(null);
+                  setItemModal({ mode: 'edit', item });
+                }}
+                onDelete={(item) => {
+                  setItemDeleteError(null);
+                  setItemDeleteTarget(item);
+                }}
+                onToggleStatus={handleToggleItem}
+                footer={
+                  !isMobile && filteredItems.length > 0 ? (
+                    <Pagination
+                      page={itemCurrentPage}
+                      pageCount={itemPageCount}
+                      totalItems={filteredItems.length}
+                      pageSize={PAGE_SIZE}
+                      onPageChange={setItemPage}
+                      itemLabel="items"
+                    />
+                  ) : null
+                }
+              />
+            </>
+          )}
         </>
       )}
 
@@ -418,19 +468,7 @@ function SuperAdminInventory() {
         onCreateSupplier={handleCreateSupplier}
         stores={stores}
         showStoreField
-        initialValues={
-          itemModal?.mode === 'edit'
-            ? {
-                storeId: itemModal.item.storeId,
-                name: itemModal.item.name,
-                unitOfMeasurement: itemModal.item.unitOfMeasurement,
-                minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
-                minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
-                preferredSupplierId: itemModal.item.preferredSupplierId,
-                note: itemModal.item.note ?? '',
-              }
-            : undefined
-        }
+        initialValues={itemInitialValues}
         errorMessage={itemFormError}
         isSubmitting={isItemSubmitting}
         onClose={() => setItemModal(null)}

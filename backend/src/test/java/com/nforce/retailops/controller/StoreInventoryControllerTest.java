@@ -3,6 +3,7 @@ package com.nforce.retailops.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.StockCheck;
+import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -178,22 +180,12 @@ class StoreInventoryControllerTest {
         item(store, "Uncounted Bread", 5, null);
 
         LocalDate today = LocalDate.now();
-        StockCheck check = new StockCheck();
-        check.setStoreInventoryItem(counted);
-        check.setCheckedBy(owner);
-        check.setCheckDate(today);
-        check.setCurrentCount(3);
-        check.setQuantityNeeded(5);
-        stockCheckRepository.save(check);
+        // Start of Day 10 (2 dead), End of Day 4 (1 dead): current available
+        // is the latest snapshot's usable stock, 3.
+        check(counted, owner, today, 10, 2, 4, 1);
 
         // Yesterday's count must not be reported as today's.
-        StockCheck stale = new StockCheck();
-        stale.setStoreInventoryItem(storeInventoryItemRepository.findByStoreIdOrderById(store.getId()).get(1));
-        stale.setCheckedBy(owner);
-        stale.setCheckDate(today.minusDays(1));
-        stale.setCurrentCount(40);
-        stale.setQuantityNeeded(0);
-        stockCheckRepository.save(stale);
+        check(storeInventoryItemRepository.findByStoreIdOrderById(store.getId()).get(1), owner, today.minusDays(1), 40, 0, null, null);
 
         boolean weekend = today.getDayOfWeek() == DayOfWeek.SATURDAY || today.getDayOfWeek() == DayOfWeek.SUNDAY;
         String token = login("inventory-required-owner@nforce.test");
@@ -208,6 +200,60 @@ class StoreInventoryControllerTest {
             // No weekend minimum set, so the weekday one applies every day.
             .andExpect(jsonPath("$[1].requiredToday").value(5))
             .andExpect(jsonPath("$[1].currentAvailable").doesNotExist());
+    }
+
+    @Test
+    @Transactional
+    void eodReportGroupsBySupplierAndComputesUsageFromBothSnapshots() throws Exception {
+        User owner = owner("inventory-eod-owner@nforce.test");
+        Store store = store("Inventory EOD Store", 9302L);
+        linkOwnerToStore(owner, store);
+
+        StoreInventoryItem milk = item(store, "Milk", 40, 40);
+        item(store, "Bread", 10, 10);
+        LocalDate today = LocalDate.now();
+        check(milk, owner, today, 50, 2, null, null);
+
+        String token = login("inventory-eod-owner@nforce.test");
+
+        // EOD not yet counted: usage and order quantity are unknown.
+        mockMvc.perform(get("/api/stores/inventory/eod-report")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.groups[0].supplierName").value("No Supplier"))
+            .andExpect(jsonPath("$.groups[0].items[1].itemName").value("Milk"))
+            .andExpect(jsonPath("$.groups[0].items[1].status").value("END_OF_DAY_PENDING"))
+            .andExpect(jsonPath("$.itemsPendingEndOfDay").value(2));
+
+        StockCheck saved = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(milk.getId(), today).orElseThrow();
+        saved.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 35, 1, owner, OffsetDateTime.now());
+        saved.setRequiredTomorrow(40);
+        saved.setQuantityNeeded(6);
+        stockCheckRepository.save(saved);
+
+        mockMvc.perform(get("/api/stores/inventory/eod-report")
+                .header("Authorization", "Bearer " + token)
+                .param("date", today.toString()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.groups[0].items[1].startOfDayAvailable").value(50))
+            .andExpect(jsonPath("$.groups[0].items[1].endOfDayAvailable").value(35))
+            .andExpect(jsonPath("$.groups[0].items[1].stockUsed").value(14))
+            .andExpect(jsonPath("$.groups[0].items[1].quantityToOrder").value(6))
+            .andExpect(jsonPath("$.groups[0].items[1].status").value("NEEDS_TO_ORDER"))
+            .andExpect(jsonPath("$.itemsNeedingOrder").value(1));
+    }
+
+    private void check(StoreInventoryItem item, User by, LocalDate date,
+                       int sodAvailable, int sodDead, Integer eodAvailable, Integer eodDead) {
+        StockCheck check = new StockCheck();
+        check.setStore(item.getStore());
+        check.setStoreInventoryItem(item);
+        check.setCheckDate(date);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, sodAvailable, sodDead, by, OffsetDateTime.now());
+        if (eodAvailable != null) {
+            check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, eodAvailable, eodDead, by, OffsetDateTime.now());
+        }
+        stockCheckRepository.save(check);
     }
 
     private StoreInventoryItem item(Store store, String name, Integer minWeekday, Integer minWeekend) {

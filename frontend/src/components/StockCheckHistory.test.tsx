@@ -16,15 +16,23 @@ function row(overrides: Partial<StockCheckResponse>): StockCheckResponse {
     id: 1,
     storeInventoryItemId: 1,
     itemName: 'Paper Towels',
+    unitOfMeasurement: 'EA',
     checkDate: '2026-09-20',
-    currentCount: 12,
-    quantityNeeded: 0,
-    checkedByName: 'Jane Doe',
-    createdAt: '2026-09-20T09:00:00Z',
-    corrected: false,
-    originalCurrentCount: null,
-    correctedByName: null,
-    correctedAt: null,
+    startOfDay: {
+      available: 12,
+      deadStock: 0,
+      usable: 12,
+      enteredByName: 'Jane Doe',
+      enteredAt: '2026-09-20T09:00:00Z',
+      lastUpdatedByName: 'Jane Doe',
+      lastUpdatedAt: '2026-09-20T09:00:00Z',
+      edited: false,
+    },
+    endOfDay: null,
+    stockUsed: null,
+    requiredTomorrow: null,
+    quantityToOrder: null,
+    edits: [],
     ...overrides,
   };
 }
@@ -53,17 +61,63 @@ describe('StockCheckHistory', () => {
     expect(await screen.findByText('No stock checks recorded for the selected range.')).toBeInTheDocument();
   });
 
-  it('shows both the corrected value and the original value/corrector for a corrected row', async () => {
+  it('shows both snapshots, the usage between them, and each edit with its previous value', async () => {
     mockGetStockCheckHistory.mockResolvedValue(page({
-      items: [row({ currentCount: 6, corrected: true, originalCurrentCount: 10, correctedByName: 'Owner Olivia' })],
+      items: [row({
+        startOfDay: {
+          available: 48,
+          deadStock: 2,
+          usable: 46,
+          enteredByName: 'John',
+          enteredAt: '2026-09-20T09:00:00Z',
+          lastUpdatedByName: 'Owner Olivia',
+          lastUpdatedAt: '2026-09-20T10:00:00Z',
+          edited: true,
+        },
+        endOfDay: {
+          available: 35,
+          deadStock: 1,
+          usable: 34,
+          enteredByName: 'Sarah',
+          enteredAt: '2026-09-20T19:10:00Z',
+          lastUpdatedByName: 'Sarah',
+          lastUpdatedAt: '2026-09-20T19:10:00Z',
+          edited: false,
+        },
+        stockUsed: 12,
+        quantityToOrder: 6,
+        edits: [{
+          snapshot: 'START_OF_DAY',
+          previousAvailable: 50,
+          previousDeadStock: 2,
+          newAvailable: 48,
+          newDeadStock: 2,
+          editedByName: 'Owner Olivia',
+          editedAt: '2026-09-20T10:00:00Z',
+          reason: null,
+        }],
+      })],
       totalItems: 1,
     }));
 
     render(<StockCheckHistory />);
 
     const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    expect(within(tableRow).getByText(/by Owner Olivia, first entered by John/)).toBeInTheDocument();
+    expect(within(tableRow).getByText('12')).toBeInTheDocument();
     expect(within(tableRow).getByText('6')).toBeInTheDocument();
-    expect(within(tableRow).getByText(/corrected from 10 by Owner Olivia/)).toBeInTheDocument();
+    expect(
+      within(tableRow).getByText(/Start of Day changed from 50 \(2 dead\) to 48 \(2 dead\) by Owner Olivia/),
+    ).toBeInTheDocument();
+  });
+
+  it('marks a snapshot that was never taken as not counted', async () => {
+    mockGetStockCheckHistory.mockResolvedValue(page({ items: [row({})], totalItems: 1 }));
+
+    render(<StockCheckHistory />);
+
+    const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    expect(within(tableRow).getByText('Not counted')).toBeInTheDocument();
   });
 
   it('rejects an inverted custom range with an inline error and never calls the API for it', async () => {

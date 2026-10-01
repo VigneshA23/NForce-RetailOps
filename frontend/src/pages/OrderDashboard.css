@@ -1,5 +1,9 @@
 @import '../styles/breakpoints.css';
 
+.order-dashboard-page {
+  padding: var(--space-lg);
+}
+
 .order-dashboard-page__error {
   display: flex;
   align-items: center;
@@ -21,13 +25,16 @@
 .order-dashboard-page__header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-md);
   margin-bottom: var(--space-md);
 }
 
-.order-dashboard-page__filter-bar {
-  margin-bottom: 0;
+.order-dashboard-page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
 }
 
 .order-dashboard-page__header .btn {

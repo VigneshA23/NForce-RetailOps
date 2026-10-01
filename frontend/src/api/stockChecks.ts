@@ -1,19 +1,23 @@
 import { apiRequest } from './client';
-import type { DailyStockCheckItem, StockCheckResponse } from '../types/stockCheck';
+import type { DailyStockCheckItem, StockCheckResponse, StockCheckSnapshotKey } from '../types/stockCheck';
 
 // Employee-facing: Daily Stock Check screen + ad-hoc shortage reporting.
 export async function getTodayStockCheck(storeId: number): Promise<DailyStockCheckItem[]> {
   return apiRequest<DailyStockCheckItem[]>(`/me/inventory?storeId=${storeId}`);
 }
 
+// Saves today's Start of Day or End of Day count; saving the same snapshot
+// again updates it in place.
 export async function submitStockCheck(
   storeId: number,
   storeInventoryItemId: number,
-  currentCount: number,
+  snapshot: StockCheckSnapshotKey,
+  available: number,
+  deadStock: number,
 ): Promise<StockCheckResponse> {
   return apiRequest<StockCheckResponse>('/me/inventory/stock-checks', {
     method: 'POST',
-    body: { storeId, storeInventoryItemId, currentCount },
+    body: { storeId, storeInventoryItemId, snapshot, available, deadStock },
   });
 }
 
