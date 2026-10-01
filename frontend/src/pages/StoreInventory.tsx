@@ -15,16 +15,18 @@ import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormMod
 import StoreInventoryTable from '../components/StoreInventoryTable';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StockCheckHistory from '../components/StockCheckHistory';
+import EodSupplierReport from '../components/EodSupplierReport';
 import SearchInput from '../components/SearchInput';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './StoreInventory.css';
 
-type SubTab = 'items' | 'history';
+type SubTab = 'items' | 'eod-report' | 'history';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'items', label: 'Items' },
-  { key: 'history', label: 'Stock Check History' },
+  { key: 'eod-report', label: 'EOD Supplier Report' },
+  { key: 'history', label: 'Inventory History' },
 ];
 
 type ItemModalState = { mode: 'create' } | { mode: 'edit'; item: StoreInventoryItem } | null;
@@ -247,6 +249,7 @@ function StoreInventory() {
         )
       )}
 
+      {subTab === 'eod-report' && <EodSupplierReport />}
       {subTab === 'history' && <StockCheckHistory />}
     </div>
   );

@@ -10,7 +10,16 @@
   margin: 0 0 var(--space-md);
 }
 
-.stock-check-history__correction-note {
+.stock-check-history__muted,
+.stock-check-history__dead {
+  color: var(--color-text-secondary);
+}
+
+.stock-check-history__edit {
+  color: var(--color-text-muted);
+}
+
+.stock-check-history__note {
   display: block;
   font-size: 12px;
   color: var(--color-text-secondary);

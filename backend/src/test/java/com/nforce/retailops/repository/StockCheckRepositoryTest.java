@@ -3,12 +3,14 @@ package com.nforce.retailops.repository;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
+import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
@@ -18,14 +20,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // Proves findForStoreInRange's join shape (no inner join against "active" --
-// a deactivated item's history must still show) and the correction
-// repository's earliest/latest grouping against a real database. Both would
-// still compile and pass a mocked StockCheckServiceTest with the wrong shape.
+// a deactivated item's history must still show; left joins so a record with
+// only one snapshot still loads), the one-record-per-store-item-day
+// constraint, and the edit log's ordering against a real database. All of
+// these would still pass a mocked StockCheckServiceTest with the wrong shape.
 @SpringBootTest
 @ActiveProfiles("test")
 class StockCheckRepositoryTest {
@@ -63,7 +66,6 @@ class StockCheckRepositoryTest {
     }
 
     private StoreInventoryItem storeItem(Store store, boolean active) {
-
         StoreInventoryItem sii = new StoreInventoryItem();
         sii.setStore(store);
         sii.setName("Item " + ++seq);
@@ -72,72 +74,36 @@ class StockCheckRepositoryTest {
         return storeInventoryItemRepository.save(sii);
     }
 
-    private StockCheck check(StoreInventoryItem item, User checkedBy, LocalDate date, int count) {
+    private StockCheck newCheck(StoreInventoryItem item, LocalDate date) {
         StockCheck check = new StockCheck();
+        check.setStore(item.getStore());
         check.setStoreInventoryItem(item);
-        check.setCheckedBy(checkedBy);
         check.setCheckDate(date);
-        check.setCurrentCount(count);
-        check.setQuantityNeeded(0);
+        return check;
+    }
+
+    private StockCheck startOfDay(StoreInventoryItem item, User by, LocalDate date, int available) {
+        StockCheck check = newCheck(item, date);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, by, OffsetDateTime.now());
         return stockCheckRepository.save(check);
     }
 
     @Test
     @Transactional
-    void deactivatedItemsCheckStillAppearsInRange() {
+    void deactivatedItemsStartOnlyRecordStillAppearsInRange() {
         Store storeEntity = store();
         User recorder = employee("repo-deactivated@nforce.test");
         StoreInventoryItem deactivated = storeItem(storeEntity, false);
-        check(deactivated, recorder, LocalDate.of(2026, 6, 15), 4);
+        startOfDay(deactivated, recorder, LocalDate.of(2026, 6, 15), 4);
 
         Page<StockCheck> page = stockCheckRepository.findForStoreInRange(
             storeEntity.getId(), LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30), PageRequest.of(0, 20));
 
         assertThat(page.getContent()).hasSize(1);
-        assertThat(page.getContent().get(0).getCurrentCount()).isEqualTo(4);
-    }
-
-    @Test
-    @Transactional
-    void correctedCheckExposesEarliestOriginalAndLatestCorrector() {
-        Store storeEntity = store();
-        User recorder = employee("repo-corrected-recorder@nforce.test");
-        User firstCorrector = employee("repo-corrected-first@nforce.test");
-        User secondCorrector = employee("repo-corrected-second@nforce.test");
-        StoreInventoryItem item = storeItem(storeEntity, true);
-        StockCheck stockCheck = check(item, recorder, LocalDate.of(2026, 6, 15), 10);
-
-        // correctedAt is set explicitly (not left to @PrePersist's
-        // OffsetDateTime.now()) so ordering is deterministic -- two real
-        // saves this close together can otherwise land in the same clock
-        // tick and make earliest/latest resolution flaky. Same precedent as
-        // OrderListEntryAggregateRepositoryTest.entryCreatedAt.
-        StockCheckCorrection first = new StockCheckCorrection();
-        first.setStockCheck(stockCheck);
-        first.setOriginalCount(10);
-        first.setCorrectedCount(7);
-        first.setCorrectedBy(firstCorrector);
-        stockCheckCorrectionRepository.saveAndFlush(first);
-        ReflectionTestUtils.setField(first, "correctedAt", OffsetDateTime.now().minusMinutes(10));
-        stockCheckCorrectionRepository.saveAndFlush(first);
-
-        StockCheckCorrection second = new StockCheckCorrection();
-        second.setStockCheck(stockCheck);
-        second.setOriginalCount(7);
-        second.setCorrectedCount(5);
-        second.setCorrectedBy(secondCorrector);
-        stockCheckCorrectionRepository.saveAndFlush(second);
-        ReflectionTestUtils.setField(second, "correctedAt", OffsetDateTime.now());
-        stockCheckCorrectionRepository.saveAndFlush(second);
-
-        Map<Long, StockCheckCorrection> earliest =
-            stockCheckCorrectionRepository.findEarliestByStockCheckIds(List.of(stockCheck.getId()));
-        Map<Long, StockCheckCorrection> latest =
-            stockCheckCorrectionRepository.findLatestByStockCheckIds(List.of(stockCheck.getId()));
-
-        assertThat(earliest.get(stockCheck.getId()).getOriginalCount()).isEqualTo(10);
-        assertThat(latest.get(stockCheck.getId()).getCorrectedBy().getEmail())
-            .isEqualTo("repo-corrected-second@nforce.test");
+        StockCheck loaded = page.getContent().get(0);
+        assertThat(loaded.getStartOfDayAvailable()).isEqualTo(4);
+        assertThat(loaded.getEndOfDayAvailable()).isNull();
+        assertThat(loaded.getStartOfDayEnteredBy().getEmail()).isEqualTo("repo-deactivated@nforce.test");
     }
 
     @Test
@@ -146,14 +112,69 @@ class StockCheckRepositoryTest {
         Store storeEntity = store();
         User recorder = employee("repo-boundary@nforce.test");
         StoreInventoryItem item = storeItem(storeEntity, true);
-        check(item, recorder, LocalDate.of(2026, 6, 1), 1);
-        check(item, recorder, LocalDate.of(2026, 6, 30), 2);
-        check(item, recorder, LocalDate.of(2026, 5, 31), 99);
-        check(item, recorder, LocalDate.of(2026, 7, 1), 99);
+        startOfDay(item, recorder, LocalDate.of(2026, 6, 1), 1);
+        startOfDay(item, recorder, LocalDate.of(2026, 6, 30), 2);
+        startOfDay(item, recorder, LocalDate.of(2026, 5, 31), 99);
+        startOfDay(item, recorder, LocalDate.of(2026, 7, 1), 99);
 
         Page<StockCheck> page = stockCheckRepository.findForStoreInRange(
             storeEntity.getId(), LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30), PageRequest.of(0, 20));
 
-        assertThat(page.getContent()).extracting(StockCheck::getCurrentCount).containsExactlyInAnyOrder(1, 2);
+        assertThat(page.getContent()).extracting(StockCheck::getStartOfDayAvailable).containsExactlyInAnyOrder(1, 2);
+    }
+
+    @Test
+    @Transactional
+    void aSecondRecordForTheSameStoreItemAndDayIsRejected() {
+        Store storeEntity = store();
+        User recorder = employee("repo-duplicate@nforce.test");
+        StoreInventoryItem item = storeItem(storeEntity, true);
+        LocalDate day = LocalDate.of(2026, 6, 15);
+        startOfDay(item, recorder, day, 10);
+        stockCheckRepository.flush();
+
+        StockCheck duplicate = newCheck(item, day);
+        duplicate.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 5, 0, recorder, OffsetDateTime.now());
+
+        assertThatThrownBy(() -> stockCheckRepository.saveAndFlush(duplicate))
+            .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    @Transactional
+    void editLogComesBackOldestFirstWithEditors() {
+        Store storeEntity = store();
+        User recorder = employee("repo-edits-recorder@nforce.test");
+        User firstEditor = employee("repo-edits-first@nforce.test");
+        User secondEditor = employee("repo-edits-second@nforce.test");
+        StoreInventoryItem item = storeItem(storeEntity, true);
+        StockCheck stockCheck = startOfDay(item, recorder, LocalDate.of(2026, 6, 15), 10);
+
+        // correctedAt is set explicitly (not left to @PrePersist's
+        // OffsetDateTime.now()) so ordering is deterministic. Same precedent
+        // as OrderListEntryAggregateRepositoryTest.entryCreatedAt.
+        StockCheckCorrection second = edit(stockCheck, 7, 5, secondEditor, OffsetDateTime.now());
+        StockCheckCorrection first = edit(stockCheck, 10, 7, firstEditor, OffsetDateTime.now().minusMinutes(10));
+
+        List<StockCheckCorrection> edits =
+            stockCheckCorrectionRepository.findWithEditorByStockCheckIds(List.of(stockCheck.getId()));
+
+        assertThat(edits).extracting(StockCheckCorrection::getId).containsExactly(first.getId(), second.getId());
+        assertThat(edits.get(0).getOriginalCount()).isEqualTo(10);
+        assertThat(edits.get(1).getCorrectedBy().getEmail()).isEqualTo("repo-edits-second@nforce.test");
+    }
+
+    private StockCheckCorrection edit(StockCheck check, int from, int to, User by, OffsetDateTime at) {
+        StockCheckCorrection correction = new StockCheckCorrection();
+        correction.setStockCheck(check);
+        correction.setSnapshot(StockCheckSnapshot.START_OF_DAY);
+        correction.setOriginalCount(from);
+        correction.setOriginalDeadStock(0);
+        correction.setCorrectedCount(to);
+        correction.setCorrectedDeadStock(0);
+        correction.setCorrectedBy(by);
+        stockCheckCorrectionRepository.saveAndFlush(correction);
+        ReflectionTestUtils.setField(correction, "correctedAt", at);
+        return stockCheckCorrectionRepository.saveAndFlush(correction);
     }
 }

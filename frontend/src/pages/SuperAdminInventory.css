@@ -26,6 +26,31 @@
   border-bottom-color: var(--color-accent);
 }
 
+.super-admin-inventory-page__store-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-lg);
+}
+
+.super-admin-inventory-page__store-select {
+  width: auto;
+  min-width: 180px;
+  max-width: 260px;
+}
+
+/* Amber accent while no store is picked -- matches the Checklist tab's selector. */
+.super-admin-inventory-page__store-select--unselected .select {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
+  color: #b45309;
+}
+
+.super-admin-inventory-page__no-store-msg {
+  padding: var(--space-xl) var(--space-md);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
 .super-admin-inventory-page__header {
   display: flex;
   align-items: center;
@@ -69,6 +94,11 @@
 }
 
 @media (--mobile) {
+  .super-admin-inventory-page__store-select {
+    flex: 1 1 auto;
+    max-width: none;
+  }
+
   .super-admin-inventory-page__header {
     flex-wrap: wrap;
   }
