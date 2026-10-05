@@ -138,6 +138,21 @@ class StoreInventoryItemServiceTest {
     }
 
     @Test
+    void compareAcrossStoresPicksLowestIdWhenAStoreHasTwoActiveItemsWithTheSameName() {
+        StoreInventoryItem napkinsA1 = item(10L, storeA, 10);
+        StoreInventoryItem napkinsA2 = item(20L, storeA, 99);
+
+        when(storeRepository.findByActiveTrueOrderByName()).thenReturn(List.of(storeA));
+        when(storeInventoryItemRepository.findByNameIgnoreCase("Napkins"))
+            .thenReturn(List.of(napkinsA2, napkinsA1));
+        when(stockCheckRepository.findLatestPerItemForItemIds(List.of(10L))).thenReturn(List.of());
+
+        StockLevelComparisonRowResponse row = service.compareAcrossStores("Napkins").get(0);
+
+        assertThat(row.requiredToday()).isEqualTo(10);
+    }
+
+    @Test
     void compareAcrossStoresLogsAPlatformLevelActivityEntry() {
         when(storeRepository.findByActiveTrueOrderByName()).thenReturn(List.of(storeA));
         when(storeInventoryItemRepository.findByNameIgnoreCase(any())).thenReturn(List.of());

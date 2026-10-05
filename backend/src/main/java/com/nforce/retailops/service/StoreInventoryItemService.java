@@ -167,10 +167,18 @@ public class StoreInventoryItemService {
     public List<StockLevelComparisonRowResponse> compareAcrossStores(String itemName) {
         List<Store> activeStores = storeRepository.findByActiveTrueOrderByName();
 
+        // Nothing enforces one active item per name per store, so a store can
+        // legitimately have two active "Milk"s (e.g. entered under different
+        // categories). Pick the lowest id deterministically rather than
+        // letting Collectors.toMap blow up on the duplicate key.
         Map<Long, StoreInventoryItem> itemByStoreId = storeInventoryItemRepository
             .findByNameIgnoreCase(itemName).stream()
             .filter(StoreInventoryItem::isActive)
-            .collect(Collectors.toMap(item -> item.getStore().getId(), item -> item));
+            .collect(Collectors.toMap(
+                item -> item.getStore().getId(),
+                item -> item,
+                (a, b) -> a.getId() <= b.getId() ? a : b
+            ));
 
         List<Long> itemIds = itemByStoreId.values().stream().map(StoreInventoryItem::getId).toList();
         Map<Long, StockCheck> latestByItemId = itemIds.isEmpty()
