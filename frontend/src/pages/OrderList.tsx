@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, CircleCheck, Clipboard, ClipboardList, List, Pencil, Plus, ShoppingCart, Truck } from 'lucide-react';
+import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Pencil, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { createOrderListEntry, getOrderList, updateOrderListEntry } from '../api/orderList';
 import { getOwnerSuppliers } from '../api/suppliers';
@@ -7,10 +7,10 @@ import { getInventoryCounts, getStoreInventoryItems } from '../api/storeInventor
 import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus, UpdateOrderListEntryValues } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
 import type { InventoryItemCategory } from '../types/storeInventory';
-import { buildOrderListText, buildReorderListText } from '../utils/orderListExport';
+import { buildOrderListText } from '../utils/orderListExport';
 import OrderListEntryEditModal from '../components/OrderListEntryEditModal';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
-import GradientKpiTile from '../components/GradientKpiTile';
+import StatCard from '../components/StatCard';
 import CategoryIcon from '../components/CategoryIcon';
 import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
@@ -199,14 +199,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
     } catch {
       nfToast.error('Could not copy to clipboard. Please copy manually.');
     }
-  }
-
-  async function handleCopyList() {
-    await copyText(buildOrderListText(entries, storeName, new Date()), 'No order-list entries yet.', 'Order list copied to clipboard.');
-  }
-
-  async function handleCopyReorderList() {
-    await copyText(buildReorderListText(entries, storeName, new Date()), 'No items currently need ordering.', 'Reorder list copied.');
   }
 
   async function handleCopySelected() {
@@ -420,22 +412,11 @@ function OrderList({ storeName, seed }: OrderListProps) {
 
   return (
     <div className="order-list">
-      <div className="order-list__legacy-actions">
-        <button type="button" className="btn btn--secondary" onClick={handleCopyList}>
-          <Clipboard size={16} />
-          Copy Order List
-        </button>
-        <button type="button" className="btn btn--secondary" onClick={handleCopyReorderList} disabled={isLoading || needsCount === 0}>
-          <ClipboardList size={16} />
-          Copy Reorder List
-        </button>
-      </div>
-
-      <div className="order-list__kpis">
-        <GradientKpiTile icon={List} label="All open" value={openCount} color="#e11d33" tint="#fdecef" iconBg="#fde1e5" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
-        <GradientKpiTile icon={ShoppingCart} label="Needs ordering" value={needsCount} color="#c77a0a" tint="#fdf3e3" iconBg="#fbe9cc" active={statusFilter === 'NEEDS_ORDERING'} onClick={() => pickStatusTile('NEEDS_ORDERING')} />
-        <GradientKpiTile icon={Truck} label="Ordered" value={orderedCount} color="#1f6fe0" tint="#eaf1fd" iconBg="#dce8fb" active={statusFilter === 'ORDERED'} onClick={() => pickStatusTile('ORDERED')} />
-        <GradientKpiTile icon={CircleCheck} label="Received" value={receivedCount} color="#16a34a" tint="#e8f7ee" iconBg="#d9f2e3" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
+      <div className="stat-card-row">
+        <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
+        <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" active={statusFilter === 'NEEDS_ORDERING'} onClick={() => pickStatusTile('NEEDS_ORDERING')} />
+        <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" active={statusFilter === 'ORDERED'} onClick={() => pickStatusTile('ORDERED')} />
+        <StatCard icon={PackageCheck} label="Received" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
       </div>
 
       <div className="order-list__filter-row">

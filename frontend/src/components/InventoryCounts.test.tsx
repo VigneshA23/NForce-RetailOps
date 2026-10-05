@@ -73,10 +73,10 @@ describe('InventoryCounts', () => {
     render(<InventoryCounts />);
 
     expect(await screen.findByText('Milk')).toBeInTheDocument();
-    expect(within(screen.getByText('Items tracked').closest('.gradient-kpi-tile')!).getByText('5')).toBeInTheDocument();
-    expect(within(screen.getByText('Out of stock').closest('.gradient-kpi-tile')!).getByText('1')).toBeInTheDocument();
-    expect(within(screen.getByText('Below minimum').closest('.gradient-kpi-tile')!).getByText('2')).toBeInTheDocument();
-    expect(within(screen.getByText('Not updated today').closest('.gradient-kpi-tile')!).getByText('1')).toBeInTheDocument();
+    expect(within(screen.getByText('All Items').closest('.stat-card')!).getByText('5')).toBeInTheDocument();
+    expect(within(screen.getByText('Out of Stock').closest('.stat-card')!).getByText('1')).toBeInTheDocument();
+    expect(within(screen.getByText('Below Minimum').closest('.stat-card')!).getByText('2')).toBeInTheDocument();
+    expect(within(screen.getByText('Not Updated Today').closest('.stat-card')!).getByText('1')).toBeInTheDocument();
   });
 
   it('shows an em dash and "Never counted" for an item with no check yet', async () => {
