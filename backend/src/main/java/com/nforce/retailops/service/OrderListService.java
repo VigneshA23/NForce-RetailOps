@@ -2,6 +2,7 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.OrderListEntryResponse;
+import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
@@ -20,10 +21,15 @@ import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.UserRepository;
+import com.nforce.retailops.util.DateRangeValidator;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -32,6 +38,12 @@ import java.util.Map;
 // ad-hoc report path.
 @Service
 public class OrderListService {
+
+    static final String NO_SUPPLIER = "No Supplier";
+
+    // Matches ChecklistHistoryService/StockCheckService's own cap for a
+    // bounded from/to report range.
+    private static final int MAX_DATE_RANGE_DAYS = 92;
 
     private final OrderListEntryRepository orderListEntryRepository;
     private final StoreOwnerRepository storeOwnerRepository;
@@ -226,5 +238,41 @@ public class OrderListService {
                 entry.setStatus(OrderStatus.RECEIVED);
                 orderListEntryRepository.save(entry);
             });
+    }
+
+    // Owner/Admin's Supplier Purchasing Summary: the store always comes from
+    // the caller's own StoreOwner link (requireActiveStoreOwner), never from a
+    // client-supplied store ID, so another store's data can never be reached
+    // this way. Aggregation (COUNT/SUM/GROUP BY) happens entirely in
+    // findSupplierMetricsForStore -- this method only validates the range and
+    // maps the resulting tuples.
+    @Transactional(readOnly = true)
+    public List<SupplierPurchaseMetricResponse> getSupplierMetricsForOwner(Long ownerId, LocalDate fromDate, LocalDate toDate) {
+        DateRangeValidator.validate(fromDate, toDate, MAX_DATE_RANGE_DAYS);
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
+
+        List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
+            storeOwner.getStore().getId(), OrderStatus.PURCHASED_STATUSES, rangeStart(fromDate), rangeEndExclusive(toDate));
+
+        return rows.stream()
+            .map(row -> new SupplierPurchaseMetricResponse(
+                row[1] != null ? (String) row[1] : NO_SUPPLIER,
+                ((Number) row[2]).longValue(),
+                ((Number) row[3]).longValue()
+            ))
+            .sorted(Comparator.comparing(SupplierPurchaseMetricResponse::supplierName, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+    }
+
+    // Same half-open-interval convention as ActivityLogService.rangeStart/
+    // rangeEndExclusive: [start of fromDate, start of the day after toDate),
+    // in the server's local zone -- so the range is inclusive of both the
+    // selected From and To calendar days.
+    static OffsetDateTime rangeStart(LocalDate date) {
+        return date.atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
+    }
+
+    static OffsetDateTime rangeEndExclusive(LocalDate date) {
+        return date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
     }
 }

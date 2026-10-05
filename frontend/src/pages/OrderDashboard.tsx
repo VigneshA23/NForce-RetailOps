@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import OrderList from './OrderList';
 import InventoryCounts from '../components/InventoryCounts';
 import EodSupplierReport from '../components/EodSupplierReport';
+import SupplierPurchaseReport from '../components/SupplierPurchaseReport';
 import './OrderDashboard.css';
 
-type SubTab = 'orders' | 'counts' | 'eod-report';
+type SubTab = 'orders' | 'counts' | 'eod-report' | 'supplier-report';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'orders', label: 'Order List' },
   { key: 'counts', label: 'Inventory Counts' },
   { key: 'eod-report', label: 'End of Day Report' },
+  { key: 'supplier-report', label: 'Supplier Purchasing Summary' },
 ];
 
 interface OrderDashboardProps {
@@ -50,6 +52,7 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
       {subTab === 'orders' && <OrderList storeName={storeName} seed={seed} />}
       {subTab === 'counts' && <InventoryCounts />}
       {subTab === 'eod-report' && <EodSupplierReport storeName={storeName} />}
+      {subTab === 'supplier-report' && <SupplierPurchaseReport />}
     </div>
   );
 }
