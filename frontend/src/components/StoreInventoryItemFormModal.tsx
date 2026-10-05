@@ -7,6 +7,7 @@ import Select from './Select';
 import SupplierCombobox from './SupplierCombobox';
 import { inventoryUnitOptionsFor } from '../utils/inventoryUnits';
 import ButtonDots from './ButtonDots';
+import InventoryImagePicker from './InventoryImagePicker';
 
 export interface StoreOption {
   id: number;
@@ -39,6 +40,10 @@ const EMPTY_VALUES: StoreInventoryItemFormValues = {
   minWeekend: '',
   preferredSupplierId: null,
   note: '',
+  imageId: null,
+  imagePhotoId: null,
+  imagePreviewUrl: null,
+  removeImage: false,
 };
 
 function StoreInventoryItemFormModal({
@@ -127,6 +132,14 @@ function StoreInventoryItemFormModal({
             value={values.name}
             onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
             placeholder="e.g. Coffee Beans, Milk"
+          />
+        </FormField>
+        <FormField label="Display Image (optional)" htmlFor="inventory-item-image">
+          <InventoryImagePicker
+            id="inventory-item-image"
+            itemName={values.name}
+            value={values}
+            onChange={(image) => setValues((current) => ({ ...current, ...image }))}
           />
         </FormField>
         <FormField label="Category" htmlFor="inventory-item-category">

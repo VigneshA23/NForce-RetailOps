@@ -20,6 +20,7 @@ const ROW: InventoryCountRow = {
   latestSnapshot: 'END_OF_DAY',
   latestAvailable: 30,
   latestDeadStock: 2,
+  imageId: null,
 };
 
 describe('EditInventoryCountModal', () => {

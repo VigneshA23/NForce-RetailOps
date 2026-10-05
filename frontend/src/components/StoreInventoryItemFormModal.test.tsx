@@ -106,6 +106,10 @@ describe('StoreInventoryItemFormModal', () => {
           minWeekend: '',
           preferredSupplierId: null,
           note: '',
+          imageId: null,
+          imagePhotoId: null,
+          imagePreviewUrl: null,
+          removeImage: false,
         }}
       />,
     );

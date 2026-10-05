@@ -49,6 +49,12 @@ public class StoreInventoryItem {
     @Column(columnDefinition = "TEXT")
     private String note;
 
+    // Display image picked from Unsplash; null until one is chosen. Lazy so
+    // reading getImageId() never loads the bytes.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "image_id")
+    private InventoryItemImage image;
+
     @Column(nullable = false)
     private boolean active = true;
 
@@ -152,6 +158,19 @@ public class StoreInventoryItem {
 
     public void setNote(String note) {
         this.note = note;
+    }
+
+    public InventoryItemImage getImage() {
+        return image;
+    }
+
+    public void setImage(InventoryItemImage image) {
+        this.image = image;
+    }
+
+    // Reads the id off the lazy proxy without initialising it.
+    public Long getImageId() {
+        return image != null ? image.getId() : null;
     }
 
     public boolean isActive() {

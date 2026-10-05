@@ -280,7 +280,7 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
             >
               <div className="employee-stock-check-page__item-header">
                 <div className="employee-stock-check-page__item-identity">
-                  <ItemIcon id={item.storeInventoryItemId} name={item.itemName} />
+                  <ItemIcon id={item.storeInventoryItemId} name={item.itemName} imageId={item.imageId} />
                   <div>
                     <h2 className="employee-stock-check-page__item-name">{item.itemName}</h2>
                     <p className="employee-stock-check-page__item-meta">
@@ -349,7 +349,7 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
                         savedLabel={snapshot === 'END_OF_DAY' ? 'Completed' : 'Editable Count'}
                         footer={
                           snapshot === 'START_OF_DAY' ? (
-                            <>Opening Stock: <strong>{item.startOfDay?.available ?? '—'} {item.unitOfMeasurement}</strong></>
+                            <>Opening Stock: <strong>{item.startOfDay?.usable ?? '—'} {item.unitOfMeasurement}</strong></>
                           ) : item.quantityToOrder != null && item.quantityToOrder > 0 ? (
                             <>
                               Usage: <strong>{item.stockUsed ?? '—'} {item.unitOfMeasurement}</strong> · To Order:{' '}

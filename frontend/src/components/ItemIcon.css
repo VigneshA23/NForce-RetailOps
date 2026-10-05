@@ -49,3 +49,8 @@
   background: var(--color-badge-icon-slate-bg);
   color: var(--color-badge-icon-slate-fg);
 }
+
+.item-icon--image {
+  object-fit: cover;
+  border: 1px solid var(--color-border);
+}

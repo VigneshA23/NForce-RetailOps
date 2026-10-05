@@ -31,6 +31,7 @@ public record InventoryCountRowResponse(
     Long latestCheckId,
     StockCheckSnapshot latestSnapshot,
     Integer latestAvailable,
-    Integer latestDeadStock
+    Integer latestDeadStock,
+    Long imageId
 ) {
 }

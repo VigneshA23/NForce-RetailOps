@@ -21,8 +21,8 @@ function SnapshotCell({ snapshot }: { snapshot: StockSnapshot | null }) {
   if (!snapshot) return <span className="stock-check-history__muted">Not counted</span>;
   return (
     <>
-      {snapshot.available}
-      {snapshot.deadStock > 0 && <span className="stock-check-history__dead"> ({snapshot.deadStock} dead)</span>}
+      {snapshot.usable}
+      {snapshot.deadStock > 0 && <span className="stock-check-history__dead"> (+{snapshot.deadStock} dead excluded)</span>}
       <span className="stock-check-history__note">
         by {snapshot.lastUpdatedByName ?? 'Unknown'}
         {snapshot.edited && snapshot.enteredByName ? `, first entered by ${snapshot.enteredByName}` : ''}

@@ -19,6 +19,7 @@ function item(overrides: Partial<StoreInventoryItem>): StoreInventoryItem {
     active: true,
     requiredToday: 8,
     currentAvailable: 3,
+    imageId: null,
     ...overrides,
   };
 }

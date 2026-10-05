@@ -228,6 +228,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(InventoryItemImageNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryItemImageNotFound(InventoryItemImageNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ImageSearchNotConfiguredException.class)
+    public ResponseEntity<Map<String, String>> handleImageSearchNotConfigured(ImageSearchNotConfiguredException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ImageProviderException.class)
+    public ResponseEntity<Map<String, String>> handleImageProvider(ImageProviderException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(OrderListEntryNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleOrderListEntryNotFound(OrderListEntryNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));

@@ -134,6 +134,28 @@ function StoreInventory() {
     }
   }
 
+  // Memoised because the form modal resets its fields whenever this reference
+  // changes -- an inline object would wipe in-progress edits (including a
+  // picked image) on every re-render, e.g. the 60s poll.
+  const itemInitialValues = useMemo<StoreInventoryItemFormValues | undefined>(() => {
+    if (itemModal?.mode !== 'edit') return undefined;
+    const { item } = itemModal;
+    return {
+      storeId: null,
+      name: item.name,
+      category: item.category ?? 'INGREDIENTS',
+      unitOfMeasurement: item.unitOfMeasurement,
+      minWeekday: item.minWeekday != null ? String(item.minWeekday) : '',
+      minWeekend: item.minWeekend != null ? String(item.minWeekend) : '',
+      preferredSupplierId: item.preferredSupplierId,
+      note: item.note ?? '',
+      imageId: item.imageId,
+      imagePhotoId: null,
+      imagePreviewUrl: null,
+      removeImage: false,
+    };
+  }, [itemModal]);
+
   const activeCount = useMemo(() => items.filter((i) => i.active).length, [items]);
 
   const filteredItems = items.filter((item) => {
@@ -217,20 +239,7 @@ function StoreInventory() {
               mode={itemModal?.mode ?? 'create'}
               suppliers={suppliers}
               onCreateSupplier={handleCreateSupplier}
-              initialValues={
-                itemModal?.mode === 'edit'
-                  ? {
-                      storeId: null,
-                      name: itemModal.item.name,
-                      category: itemModal.item.category ?? 'INGREDIENTS',
-                      unitOfMeasurement: itemModal.item.unitOfMeasurement,
-                      minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
-                      minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
-                      preferredSupplierId: itemModal.item.preferredSupplierId,
-                      note: itemModal.item.note ?? '',
-                    }
-                  : undefined
-              }
+              initialValues={itemInitialValues}
               errorMessage={itemFormError}
               isSubmitting={isItemSubmitting}
               onClose={() => setItemModal(null)}

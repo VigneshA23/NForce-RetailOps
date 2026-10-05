@@ -45,6 +45,7 @@ function entry(overrides: Partial<OrderListEntry>): OrderListEntry {
     raisedByName: null,
     createdAt: '2026-09-24T15:30:00Z',
     updatedAt: '2026-09-24T15:30:00Z',
+    imageId: null,
     ...overrides,
   };
 }
@@ -65,6 +66,7 @@ function inventoryItem(overrides: Partial<StoreInventoryItem>): StoreInventoryIt
     active: true,
     requiredToday: 5,
     currentAvailable: 10,
+    imageId: null,
     ...overrides,
   };
 }

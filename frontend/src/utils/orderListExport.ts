@@ -131,6 +131,16 @@ function value(n: number | null): string {
   return n == null ? '—' : String(n);
 }
 
+// Usable = available minus dead stock -- the figure every stock total and
+// "used" is computed from. Null when that snapshot wasn't taken.
+export function usableStock(available: number | null, deadStock: number | null): number | null {
+  return available == null ? null : available - (deadStock ?? 0);
+}
+
+function withDead(usable: number | null, deadStock: number | null): string {
+  return deadStock ? `${value(usable)} (${deadStock} dead)` : value(usable);
+}
+
 // Plain-text End of Day report grouped by supplier, for the same
 // WhatsApp/SMS paste target as the order lists above. Dated by the report's
 // own business day, not "now" -- a report can be copied for any past day.
@@ -144,7 +154,9 @@ export function buildEodReportText(report: EodSupplierReport, storeName: string 
     lines.push(group.supplierName);
     for (const row of group.items) {
       const need = row.quantityToOrder ? ` — order ${row.quantityToOrder} ${row.unitOfMeasurement}` : '';
-      lines.push(`* ${row.itemName}: start ${value(row.startOfDayAvailable)}, end ${value(row.endOfDayAvailable)}, used ${value(row.stockUsed)}${need}`);
+      const start = withDead(usableStock(row.startOfDayAvailable, row.startOfDayDeadStock), row.startOfDayDeadStock);
+      const end = withDead(usableStock(row.endOfDayAvailable, row.endOfDayDeadStock), row.endOfDayDeadStock);
+      lines.push(`* ${row.itemName}: start ${start}, end ${end}, used ${value(row.stockUsed)}${need}`);
     }
     lines.push('');
   }

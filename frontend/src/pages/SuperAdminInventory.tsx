@@ -203,6 +203,10 @@ function SuperAdminInventory() {
         minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
         preferredSupplierId: itemModal.item.preferredSupplierId,
         note: itemModal.item.note ?? '',
+        imageId: itemModal.item.imageId,
+        imagePhotoId: null,
+        imagePreviewUrl: null,
+        removeImage: false,
       };
     }
     if (itemModal?.mode === 'create') {
@@ -215,6 +219,10 @@ function SuperAdminInventory() {
         minWeekend: '',
         preferredSupplierId: null,
         note: '',
+        imageId: null,
+        imagePhotoId: null,
+        imagePreviewUrl: null,
+        removeImage: false,
       };
     }
     return undefined;

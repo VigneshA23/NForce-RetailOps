@@ -28,6 +28,8 @@ export interface StoreInventoryItem {
   requiredToday: number | null;
   // Today's employee stock-check count; null until someone counts it today.
   currentAvailable: number | null;
+  // Stored display image (GET /inventory-images/{imageId}); null when none.
+  imageId: number | null;
 }
 
 // Numbers stay strings until submit, same convention as AdminTaskFormValues'
@@ -41,6 +43,12 @@ export interface StoreInventoryItemFormValues {
   minWeekend: string;
   preferredSupplierId: number | null;
   note: string;
+  // Display image: the stored one (edit mode), or a newly picked Unsplash
+  // photo the server downloads on save, or a request to remove it.
+  imageId: number | null;
+  imagePhotoId: string | null;
+  imagePreviewUrl: string | null;
+  removeImage: boolean;
 }
 
 export type InventoryCountStatus = 'OUT_OF_STOCK' | 'LOW' | 'STALE' | 'HEALTHY';
@@ -66,6 +74,7 @@ export interface InventoryCountRow {
   latestSnapshot: 'START_OF_DAY' | 'END_OF_DAY' | null;
   latestAvailable: number | null;
   latestDeadStock: number | null;
+  imageId: number | null;
 }
 
 // allCount/outCount/lowCount/staleCount are over every active item,

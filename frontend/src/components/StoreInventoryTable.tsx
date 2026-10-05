@@ -2,6 +2,8 @@ import type { ReactNode } from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import type { StoreInventoryItem } from '../types/storeInventory';
 import Toggle from './Toggle';
+import CategoryIcon from './CategoryIcon';
+import './StoreInventoryTable.css';
 
 interface StoreInventoryTableProps {
   items: StoreInventoryItem[];
@@ -38,7 +40,12 @@ function StoreInventoryTable({ items, showStore, isLoading = false, onEdit, onDe
           <tbody>
             {items.map((item) => (
               <tr key={item.id}>
-                <td data-label="Inventory">{item.name}</td>
+                <td data-label="Inventory">
+                  <span className="store-inventory-table__item">
+                    <CategoryIcon category={item.category} name={item.name} size={32} imageId={item.imageId} />
+                    {item.name}
+                  </span>
+                </td>
                 <td data-label="Unit">{item.unitOfMeasurement}</td>
                 <td data-label="Required Today">{item.requiredToday ?? '—'}</td>
                 <td data-label="Current Available">{item.currentAvailable ?? 'Not counted yet'}</td>

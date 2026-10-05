@@ -1,5 +1,6 @@
 import { Apple, Milk, Package, ShoppingBag, SprayCan, Wheat } from 'lucide-react';
 import type { InventoryItemCategory } from '../types/storeInventory';
+import { useInventoryImageUrl } from '../hooks/useInventoryImageUrl';
 import './CategoryIcon.css';
 
 const CATEGORY_VISUAL: Record<InventoryItemCategory, { bg: string; fg: string; border: string; Icon: typeof Milk }> = {
@@ -17,11 +18,24 @@ interface CategoryIconProps {
   category: InventoryItemCategory | null;
   name: string;
   size?: number;
+  // The item's stored display image; the category icon shows until it loads.
+  imageId?: number | null;
 }
 
-function CategoryIcon({ category, name, size = 40 }: CategoryIconProps) {
+function CategoryIcon({ category, name, size = 40, imageId }: CategoryIconProps) {
+  const imageUrl = useInventoryImageUrl(imageId);
   const visual = category ? CATEGORY_VISUAL[category] : FALLBACK;
   const Icon = visual.Icon;
+  if (imageUrl) {
+    return (
+      <img
+        className="category-icon category-icon--image"
+        src={imageUrl}
+        alt={`${name} photo`}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
   return (
     <span
       role="img"
