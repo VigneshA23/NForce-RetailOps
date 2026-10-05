@@ -12,6 +12,7 @@ import com.nforce.retailops.dto.MissedTaskMoveResponse;
 import com.nforce.retailops.dto.MissedTasksPageResponse;
 import com.nforce.retailops.dto.MoveMissedTaskRequest;
 import com.nforce.retailops.dto.RaiseIssueRequest;
+import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
 import com.nforce.retailops.dto.TaskResponseStateResponse;
@@ -342,6 +343,28 @@ public class MeController {
         }
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(stockCheckService.submitCheck(userDetails.getUser().getId(), request));
+    }
+
+    // Employee-facing: this employee's own store's stock-check history --
+    // mirrors GET /api/stores/inventory/stock-checks (Owner/Admin) but scoped
+    // to one of the caller's assigned stores via requireAssignedStore (called
+    // inside StockCheckService), read-only (no correction endpoint here).
+    @GetMapping("/inventory/stock-checks")
+    public ResponseEntity<StockCheckHistoryPageResponse> historicalStockChecks(
+        @AuthenticationPrincipal UserDetails principal,
+        @RequestParam Long storeId,
+        @RequestParam(required = false) LocalDate startDate,
+        @RequestParam(required = false) LocalDate endDate,
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(
+            stockCheckService.listHistoricalChecksForEmployee(userDetails.getUser().getId(), storeId, startDate, endDate, page, size)
+        );
     }
 
     // Employee-facing: raise a shortage directly to the order list, outside

@@ -1,18 +1,25 @@
-import { useState, type FormEvent } from 'react';
-import { Pencil } from 'lucide-react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { StockSnapshot } from '../types/stockCheck';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
 import ButtonDots from './ButtonDots';
+import CounterStepper from './CounterStepper';
 import './StockSnapshotCard.css';
 
 interface StockSnapshotCardProps {
   title: string;
   // Used to keep input ids unique across every card on the page.
   idPrefix: string;
-  unit: string;
   snapshot: StockSnapshot | null;
   isSubmitting?: boolean;
   onSave: (available: number, deadStock: number) => Promise<boolean>;
+  // Contextual line shown left of the save button, e.g. "Opening Stock: 5 Gal"
+  // or "Usage: 3 Gal · To Order: 6 Gal" -- supplied by the page since it
+  // depends on data outside this one snapshot.
+  footer?: ReactNode;
+  // Badge text once saved -- defaults to "Editable Count"; End of Day uses
+  // "Completed" since nothing reconciles against it the way SOD's opening
+  // count does.
+  savedLabel?: string;
 }
 
 function parseCount(text: string): number | null {
@@ -21,24 +28,27 @@ function parseCount(text: string): number | null {
   return Number.isInteger(value) && value >= 0 ? value : null;
 }
 
-// One Start of Day or End of Day count for one item. Shows the saved values
-// with who/when once taken; the form appears while it's pending or being
-// edited. Saving again updates the same snapshot -- never a second one.
-function StockSnapshotCard({ title, idPrefix, unit, snapshot, isSubmitting = false, onSave }: StockSnapshotCardProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [available, setAvailable] = useState('');
-  const [deadStock, setDeadStock] = useState('0');
+// One Start of Day or End of Day count for one item. The count stays
+// editable once saved (re-saving updates the same snapshot, never a second
+// one), so the fields are always shown rather than toggling to a read-only
+// view -- the "Editable Count" / "In Progress" badge is the only thing that
+// changes once it's been saved.
+function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, onSave, footer, savedLabel = 'Editable Count' }: StockSnapshotCardProps) {
+  const [available, setAvailable] = useState(() => (snapshot ? String(snapshot.available) : ''));
+  const [deadStock, setDeadStock] = useState(() => (snapshot ? String(snapshot.deadStock) : '0'));
   const [error, setError] = useState<string | null>(null);
 
-  const showForm = snapshot === null || isEditing;
+  const isSaved = snapshot != null;
 
-  function startEditing() {
-    if (!snapshot) return;
-    setAvailable(String(snapshot.available));
-    setDeadStock(String(snapshot.deadStock));
-    setError(null);
-    setIsEditing(true);
-  }
+  // Re-sync the fields when the saved snapshot changes under us (our own
+  // save completing, or a reload), without clobbering a brand-new item that
+  // has no snapshot yet.
+  useEffect(() => {
+    if (snapshot) {
+      setAvailable(String(snapshot.available));
+      setDeadStock(String(snapshot.deadStock));
+    }
+  }, [snapshot]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -57,103 +67,62 @@ function StockSnapshotCard({ title, idPrefix, unit, snapshot, isSubmitting = fal
       return;
     }
     setError(null);
-    const saved = await onSave(availableValue, deadValue);
-    if (saved) {
-      setIsEditing(false);
-      setAvailable('');
-      setDeadStock('0');
-    }
+    await onSave(availableValue, deadValue);
   }
 
   return (
-    <section className="stock-snapshot-card" aria-label={title}>
+    <section
+      className={`stock-snapshot-card${isSaved ? '' : ' stock-snapshot-card--pending'}`}
+      aria-label={title}
+    >
       <div className="stock-snapshot-card__header">
-        <h3 className="stock-snapshot-card__title">{title}</h3>
-        {snapshot ? (
-          <span className="badge badge--success">Completed</span>
+        <h3 className="stock-snapshot-card__title">
+          <span className={`stock-snapshot-card__dot stock-snapshot-card__dot--${isSaved ? 'saved' : 'pending'}`} aria-hidden="true" />
+          {title}
+        </h3>
+        {isSaved ? (
+          <span className="badge badge--success">{savedLabel}</span>
         ) : (
-          <span className="badge badge--warning">Pending</span>
+          <span className="badge badge--danger">In Progress</span>
         )}
       </div>
 
-      {showForm ? (
-        <form className="stock-snapshot-card__form" onSubmit={handleSubmit} noValidate>
-          <div className="stock-snapshot-card__fields">
-            <label className="stock-snapshot-card__field" htmlFor={`${idPrefix}-available`}>
-              <span className="stock-snapshot-card__label">Available Stock</span>
-              <input
-                id={`${idPrefix}-available`}
-                type="number"
-                min={0}
-                step={1}
-                inputMode="numeric"
-                className="input"
-                value={available}
-                disabled={isSubmitting}
-                onChange={(event) => setAvailable(event.target.value)}
-              />
-            </label>
-            <label className="stock-snapshot-card__field" htmlFor={`${idPrefix}-dead`}>
-              <span className="stock-snapshot-card__label">Dead Stock</span>
-              <input
-                id={`${idPrefix}-dead`}
-                type="number"
-                min={0}
-                step={1}
-                inputMode="numeric"
-                className="input"
-                value={deadStock}
-                disabled={isSubmitting}
-                onChange={(event) => setDeadStock(event.target.value)}
-              />
-            </label>
-          </div>
-          {error && <p className="stock-snapshot-card__error" role="alert">{error}</p>}
-          <div className="stock-snapshot-card__actions">
-            {isEditing && (
-              <button type="button" className="btn btn--secondary" disabled={isSubmitting} onClick={() => setIsEditing(false)}>
-                Cancel
-              </button>
-            )}
-            <button type="submit" className="btn btn--primary" disabled={isSubmitting}>
-              {isSubmitting ? <ButtonDots /> : isEditing ? 'Update' : 'Save'}
-            </button>
-          </div>
-        </form>
-      ) : (
-        <>
-          <dl className="stock-snapshot-card__values">
-            <div>
-              <dt>Available</dt>
-              <dd>{snapshot.available} <span className="stock-snapshot-card__unit">{unit}</span></dd>
-            </div>
-            <div>
-              <dt>Dead Stock</dt>
-              <dd>{snapshot.deadStock}</dd>
-            </div>
-            <div>
-              <dt>Usable</dt>
-              <dd>{snapshot.usable}</dd>
-            </div>
-          </dl>
-          <p className="stock-snapshot-card__meta">
-            Checked by {snapshot.lastUpdatedByName ?? 'Unknown'}
-            {snapshot.lastUpdatedAt && <> · Last updated {formatTimeLabel(snapshot.lastUpdatedAt)}</>}
-          </p>
-          {snapshot.edited && snapshot.enteredByName && (
-            <p className="stock-snapshot-card__meta">
-              First entered by {snapshot.enteredByName}
-              {snapshot.enteredAt && <> at {formatTimeLabel(snapshot.enteredAt)}</>}
-            </p>
-          )}
-          <div className="stock-snapshot-card__actions">
-            <button type="button" className="btn btn--secondary" onClick={startEditing}>
-              <Pencil size={14} aria-hidden="true" />
-              Edit
-            </button>
-          </div>
-        </>
+      {snapshot && (
+        <p className="stock-snapshot-card__meta">
+          {snapshot.lastUpdatedAt && <>{formatTimeLabel(snapshot.lastUpdatedAt)} · </>}
+          Verified by {snapshot.lastUpdatedByName ?? 'Unknown'}
+        </p>
       )}
+
+      <form className="stock-snapshot-card__form" onSubmit={handleSubmit} noValidate>
+        <div className="stock-snapshot-card__fields">
+          <div className="stock-snapshot-card__field">
+            <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-available`}>Available Stock</label>
+            <CounterStepper
+              id={`${idPrefix}-available`}
+              value={available}
+              disabled={isSubmitting}
+              onChange={setAvailable}
+            />
+          </div>
+          <div className="stock-snapshot-card__field">
+            <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-dead`}>Dead / Spoilage</label>
+            <CounterStepper
+              id={`${idPrefix}-dead`}
+              value={deadStock}
+              disabled={isSubmitting}
+              onChange={setDeadStock}
+            />
+          </div>
+        </div>
+        {error && <p className="stock-snapshot-card__error" role="alert">{error}</p>}
+        <div className="stock-snapshot-card__actions">
+          <span className="stock-snapshot-card__footer-text">{footer}</span>
+          <button type="submit" className={`btn ${isSaved ? 'btn--secondary' : 'btn--danger'}`} disabled={isSubmitting}>
+            {isSubmitting ? <ButtonDots /> : isSaved ? 'Update Count' : 'Save Check'}
+          </button>
+        </div>
+      </form>
     </section>
   );
 }

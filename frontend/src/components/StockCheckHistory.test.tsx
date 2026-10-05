@@ -18,6 +18,7 @@ function row(overrides: Partial<StockCheckResponse>): StockCheckResponse {
     itemName: 'Paper Towels',
     unitOfMeasurement: 'EA',
     checkDate: '2026-09-20',
+    requiredPar: null,
     startOfDay: {
       available: 12,
       deadStock: 0,

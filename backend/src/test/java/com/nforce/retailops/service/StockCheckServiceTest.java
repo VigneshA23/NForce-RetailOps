@@ -215,6 +215,32 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void listHistoricalChecksForEmployeeChecksStoreAssignmentBeforeQuerying() {
+        org.springframework.data.domain.Page<StockCheck> emptyPage =
+            new org.springframework.data.domain.PageImpl<>(List.of());
+        when(stockCheckRepository.findForStoreInRange(eq(STORE_ID), any(), any(), any())).thenReturn(emptyPage);
+
+        stockCheckService.listHistoricalChecksForEmployee(
+            EMPLOYEE_ID, STORE_ID, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 7), null, null
+        );
+
+        verify(userProfileService).requireAssignedStore(EMPLOYEE_ID, STORE_ID);
+    }
+
+    @Test
+    void listHistoricalChecksForEmployeeRejectsAStoreTheEmployeeIsntAssignedTo() {
+        org.mockito.Mockito.doThrow(new StoreNotFoundException("Store not found"))
+            .when(userProfileService).requireAssignedStore(EMPLOYEE_ID, STORE_ID);
+
+        assertThatThrownBy(() ->
+            stockCheckService.listHistoricalChecksForEmployee(
+                EMPLOYEE_ID, STORE_ID, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 7), null, null
+            )
+        ).isInstanceOf(StoreNotFoundException.class);
+        verify(stockCheckRepository, never()).findForStoreInRange(any(), any(), any(), any());
+    }
+
+    @Test
     void correctingAPastEndOfDayAuditsItAndLeavesTheOrderListAlone() {
         milk.setMinWeekday(40);
         milk.setMinWeekend(40);
