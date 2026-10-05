@@ -76,10 +76,6 @@
   outline-offset: 2px;
 }
 
-.store-inventory-card--low {
-  background: color-mix(in srgb, var(--color-badge-icon-primary-fg) 5%, var(--color-surface-card));
-}
-
 .store-inventory-card--inactive {
   opacity: 0.55;
 }
