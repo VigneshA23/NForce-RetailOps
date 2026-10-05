@@ -14,6 +14,8 @@ function toBody(values: StoreInventoryItemFormValues) {
     preferredSupplierId: values.preferredSupplierId,
     note: values.note.trim() === '' ? null : values.note.trim(),
     autoPoEnabled: values.autoPoEnabled,
+    imagePhotoId: values.imagePhotoId,
+    removeImage: values.removeImage,
   };
 }
 

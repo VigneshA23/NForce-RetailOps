@@ -208,6 +208,10 @@ function SuperAdminInventory() {
         preferredSupplierId: itemModal.item.preferredSupplierId,
         note: itemModal.item.note ?? '',
         autoPoEnabled: itemModal.item.autoPoEnabled,
+        imageId: itemModal.item.imageId,
+        imagePhotoId: null,
+        imagePreviewUrl: null,
+        removeImage: false,
       };
     }
     if (itemModal?.mode === 'create') {
@@ -221,6 +225,10 @@ function SuperAdminInventory() {
         preferredSupplierId: null,
         note: '',
         autoPoEnabled: true,
+        imageId: null,
+        imagePhotoId: null,
+        imagePreviewUrl: null,
+        removeImage: false,
       };
     }
     return undefined;

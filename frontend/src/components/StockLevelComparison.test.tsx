@@ -51,6 +51,7 @@ function item(overrides: Partial<StoreInventoryItem>): StoreInventoryItem {
     autoPoEnabled: true,
     requiredToday: 10,
     currentAvailable: null,
+    imageId: null,
     ...overrides,
   };
 }

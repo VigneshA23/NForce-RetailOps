@@ -80,6 +80,11 @@
   color: var(--color-accent);
 }
 
+.eod-report__dead {
+  font-weight: 600;
+  color: var(--color-badge-icon-warning-fg);
+}
+
 @media (--mobile) {
   .eod-report__toolbar {
     flex-direction: column;

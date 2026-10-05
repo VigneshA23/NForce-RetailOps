@@ -6,6 +6,7 @@ import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
+import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
@@ -41,6 +42,8 @@ class StoreInventoryItemServiceTest {
     @Mock private StockCheckRepository stockCheckRepository;
     @Mock private OrderListEntryRepository orderListEntryRepository;
     @Mock private ActivityLogService activityLogService;
+    @Mock private InventoryItemImageRepository inventoryItemImageRepository;
+    @Mock private UnsplashService unsplashService;
 
     private StoreInventoryItemService service;
 
@@ -51,7 +54,8 @@ class StoreInventoryItemServiceTest {
     void setUp() {
         service = new StoreInventoryItemService(
             storeInventoryItemRepository, supplierRepository, storeRepository,
-            storeOwnerRepository, stockCheckRepository, orderListEntryRepository, activityLogService
+            storeOwnerRepository, stockCheckRepository, orderListEntryRepository, activityLogService,
+            inventoryItemImageRepository, unsplashService
         );
 
         storeA = new Store();

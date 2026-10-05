@@ -83,6 +83,7 @@ export interface DailyStockCheckItem {
   endOfDay: StockSnapshot | null;
   stockUsed: number | null;
   quantityToOrder: number | null;
+  imageId: number | null;
 }
 
 export type EodReportStatus = 'NEEDS_TO_ORDER' | 'SUFFICIENT' | 'END_OF_DAY_PENDING' | 'NO_MINIMUM_SET';

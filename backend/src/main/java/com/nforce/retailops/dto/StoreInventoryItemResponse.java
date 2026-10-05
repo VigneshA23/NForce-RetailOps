@@ -24,7 +24,10 @@ public record StoreInventoryItemResponse(
     // Today's minimum (weekday or weekend, per requiredMinimumOn).
     Integer requiredToday,
     // The count from today's employee stock check; null until one is submitted.
-    Integer currentAvailable
+    Integer currentAvailable,
+    // Stored display image, served by GET /api/inventory-images/{imageId};
+    // null when none has been picked.
+    Long imageId
 ) {
     public static StoreInventoryItemResponse from(StoreInventoryItem sii, LocalDate today, Integer currentAvailable) {
         return new StoreInventoryItemResponse(
@@ -42,7 +45,8 @@ public record StoreInventoryItemResponse(
             sii.isActive(),
             sii.isAutoPoEnabled(),
             sii.requiredMinimumOn(today),
-            currentAvailable
+            currentAvailable,
+            sii.getImageId()
         );
     }
 }

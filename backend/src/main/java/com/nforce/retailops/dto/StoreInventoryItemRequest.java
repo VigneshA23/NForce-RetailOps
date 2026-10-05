@@ -3,6 +3,7 @@ package com.nforce.retailops.dto;
 import com.nforce.retailops.entity.InventoryItemCategory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
@@ -35,6 +36,15 @@ public record StoreInventoryItemRequest(
     @Size(max = 500, message = "Note must be at most 500 characters")
     String note,
 
-    boolean autoPoEnabled
+    boolean autoPoEnabled,
+
+    // Unsplash id of a newly chosen display image, which the server then
+    // downloads and stores. Null leaves the current image as it is.
+    @Size(max = 64, message = "Image id is invalid")
+    @Pattern(regexp = "[A-Za-z0-9_-]*", message = "Image id is invalid")
+    String imagePhotoId,
+
+    // True removes the current image (ignored when imagePhotoId is set).
+    Boolean removeImage
 ) {
 }

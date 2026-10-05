@@ -349,7 +349,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
         </td>
         <td>
           <div className="order-list__item-cell">
-            <CategoryIcon category={row.category} name={entry.itemName} size={isFlat ? 36 : 40} />
+            <CategoryIcon category={row.category} name={entry.itemName} size={isFlat ? 36 : 40} imageId={entry.imageId} />
             <div className="order-list__item-text">
               <div className="order-list__item-name">
                 {entry.itemName}

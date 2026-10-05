@@ -9,6 +9,7 @@ import SupplierCombobox from './SupplierCombobox';
 import { inventoryUnitOptionsFor } from '../utils/inventoryUnits';
 import ButtonDots from './ButtonDots';
 import './StoreInventoryItemFormModal.css';
+import InventoryImagePicker from './InventoryImagePicker';
 
 export interface StoreOption {
   id: number;
@@ -42,6 +43,10 @@ const EMPTY_VALUES: StoreInventoryItemFormValues = {
   preferredSupplierId: null,
   note: '',
   autoPoEnabled: true,
+  imageId: null,
+  imagePhotoId: null,
+  imagePreviewUrl: null,
+  removeImage: false,
 };
 
 function StoreInventoryItemFormModal({
@@ -143,6 +148,14 @@ function StoreInventoryItemFormModal({
             value={values.name}
             onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
             placeholder="e.g. Whole Milk 1 Gallon, Chocolate Chip Cookie Dough, Strawberry Syrup"
+          />
+        </FormField>
+        <FormField label="Display Image (optional)" htmlFor="inventory-item-image">
+          <InventoryImagePicker
+            id="inventory-item-image"
+            itemName={values.name}
+            value={values}
+            onChange={(image) => setValues((current) => ({ ...current, ...image }))}
           />
         </FormField>
         <FormField label="Unit of Measurement" htmlFor="inventory-item-unit" error={errors.unitOfMeasurement}>

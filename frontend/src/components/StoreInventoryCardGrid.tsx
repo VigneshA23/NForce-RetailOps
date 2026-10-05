@@ -71,7 +71,7 @@ function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, o
             </div>
 
             <div className="store-inventory-card__image">
-              <ItemIcon id={item.id} name={item.name} size="xl" />
+              <ItemIcon id={item.id} name={item.name} size="xl" imageId={item.imageId} />
             </div>
 
             {item.category && <span className="store-inventory-card__category">{CATEGORY_LABELS[item.category]}</span>}

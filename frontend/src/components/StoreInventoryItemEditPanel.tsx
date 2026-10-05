@@ -9,6 +9,7 @@ import SupplierCombobox from './SupplierCombobox';
 import CounterStepper from './CounterStepper';
 import Toggle from './Toggle';
 import ItemIcon from './ItemIcon';
+import InventoryImagePicker from './InventoryImagePicker';
 import ButtonDots from './ButtonDots';
 import { inventoryUnitOptionsFor } from '../utils/inventoryUnits';
 import './StoreInventoryItemEditPanel.css';
@@ -35,6 +36,10 @@ function toFormValues(item: StoreInventoryItem): StoreInventoryItemFormValues {
     preferredSupplierId: item.preferredSupplierId,
     note: item.note ?? '',
     autoPoEnabled: item.autoPoEnabled,
+    imageId: item.imageId,
+    imagePhotoId: null,
+    imagePreviewUrl: null,
+    removeImage: false,
   };
 }
 
@@ -92,7 +97,7 @@ function StoreInventoryItemEditPanel({
       isOpen={isOpen}
       onClose={onClose}
       className="item-edit-panel"
-      titleIcon={<ItemIcon id={item.id} name={item.name} size="sm" />}
+      titleIcon={<ItemIcon id={item.id} name={item.name} size="sm" imageId={item.imageId} />}
       title="Item Configuration"
       titleExtra={<span className={`badge ${item.active ? 'badge--success' : 'badge--outline'} item-edit-panel__status`}>{item.active ? 'Active' : 'Inactive'}</span>}
       footer={
@@ -113,6 +118,15 @@ function StoreInventoryItemEditPanel({
             className="input"
             value={values.name}
             onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
+          />
+        </FormField>
+
+        <FormField label="Display Image (optional)" htmlFor="edit-item-image">
+          <InventoryImagePicker
+            id="edit-item-image"
+            itemName={values.name}
+            value={values}
+            onChange={(image) => setValues((current) => ({ ...current, ...image }))}
           />
         </FormField>
 

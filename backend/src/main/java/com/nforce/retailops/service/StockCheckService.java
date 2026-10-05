@@ -122,7 +122,8 @@ public class StockCheckService {
                     StockSnapshotResponse.from(check, StockCheckSnapshot.START_OF_DAY),
                     StockSnapshotResponse.from(check, StockCheckSnapshot.END_OF_DAY),
                     check != null ? check.stockUsed() : null,
-                    quantityToOrder(check)
+                    quantityToOrder(check),
+                    item.getImageId()
                 );
             })
             .toList();
@@ -394,7 +395,8 @@ public class StockCheckService {
         if (latest == null) {
             return new InventoryCountRowResponse(
                 item.getId(), item.getName(), item.getCategory(), item.getUnitOfMeasurement(),
-                null, minimum, InventoryCountStatus.STALE, null, null, null, null, null, null, null, null
+                null, minimum, InventoryCountStatus.STALE, null, null, null, null, null, null, null, null,
+                item.getImageId()
             );
         }
 
@@ -418,7 +420,8 @@ public class StockCheckService {
             item.getId(), item.getName(), item.getCategory(), item.getUnitOfMeasurement(),
             currentStock, minimum, status, latest.getUpdatedAt(), latest.getCheckedBy().getFullName(),
             change, changeFromDate,
-            latest.getId(), latestSnapshot, latest.availableFor(latestSnapshot), latest.deadStockFor(latestSnapshot)
+            latest.getId(), latestSnapshot, latest.availableFor(latestSnapshot), latest.deadStockFor(latestSnapshot),
+            item.getImageId()
         );
     }
 

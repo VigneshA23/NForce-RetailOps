@@ -21,6 +21,7 @@ function item(overrides: Partial<StoreInventoryItem>): StoreInventoryItem {
     autoPoEnabled: true,
     requiredToday: 8,
     currentAvailable: 3,
+    imageId: null,
     ...overrides,
   };
 }

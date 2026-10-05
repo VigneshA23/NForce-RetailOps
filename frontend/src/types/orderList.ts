@@ -16,6 +16,7 @@ export interface OrderListEntry {
   raisedByName: string | null;
   createdAt: string;
   updatedAt: string;
+  imageId: number | null;
 }
 
 export interface UpdateOrderListEntryValues {
