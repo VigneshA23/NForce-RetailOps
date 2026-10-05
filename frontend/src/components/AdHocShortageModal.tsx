@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { DailyStockCheckItem } from '../types/stockCheck';
+import type { StoreInventoryItemOption } from '../types/stockCheck';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
@@ -13,7 +13,7 @@ export interface AdHocShortageValues {
 
 interface AdHocShortageModalProps {
   isOpen: boolean;
-  items: DailyStockCheckItem[];
+  items: StoreInventoryItemOption[];
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;

@@ -31,6 +31,8 @@ export interface StockCheckResponse {
   id: number;
   storeInventoryItemId: number;
   itemName: string;
+  categoryId: number | null;
+  categoryName: string | null;
   unitOfMeasurement: string;
   checkDate: string;
   // This day's own par level (set whether or not End of Day was recorded) --
@@ -57,6 +59,16 @@ export interface StockCheckHistoryPage {
   totalItems: number;
 }
 
+// One item on the employee's "Report Shortage" picker -- the full store
+// catalog (active and inactive alike, matching Owner/Admin's Inventory Items
+// list), not just today's active checklist (see DailyStockCheckItem below).
+export interface StoreInventoryItemOption {
+  storeInventoryItemId: number;
+  itemName: string;
+  unitOfMeasurement: string;
+  active: boolean;
+}
+
 // One item on the employee's daily Stock Check screen.
 export interface DailyStockCheckItem {
   storeInventoryItemId: number;
@@ -68,29 +80,4 @@ export interface DailyStockCheckItem {
   endOfDay: StockSnapshot | null;
   stockUsed: number | null;
   quantityToOrder: number | null;
-}
-
-export type EodReportStatus = 'NEEDS_TO_ORDER' | 'SUFFICIENT' | 'END_OF_DAY_PENDING' | 'NO_MINIMUM_SET';
-
-export interface EodReportRow {
-  storeInventoryItemId: number;
-  itemName: string;
-  unitOfMeasurement: string;
-  startOfDayAvailable: number | null;
-  startOfDayDeadStock: number | null;
-  endOfDayAvailable: number | null;
-  endOfDayDeadStock: number | null;
-  stockUsed: number | null;
-  requiredTomorrow: number | null;
-  quantityToOrder: number | null;
-  status: EodReportStatus;
-}
-
-// GET /api/stores/inventory/eod-report?date= -- grouped by preferred
-// supplier, "No Supplier" last.
-export interface EodSupplierReport {
-  date: string;
-  groups: { supplierId: number | null; supplierName: string; items: EodReportRow[] }[];
-  itemsNeedingOrder: number;
-  itemsPendingEndOfDay: number;
 }

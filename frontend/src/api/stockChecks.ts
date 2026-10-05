@@ -4,11 +4,19 @@ import type {
   StockCheckHistoryPage,
   StockCheckResponse,
   StockCheckSnapshotKey,
+  StoreInventoryItemOption,
 } from '../types/stockCheck';
 
 // Employee-facing: Daily Stock Check screen + ad-hoc shortage reporting.
 export async function getTodayStockCheck(storeId: number): Promise<DailyStockCheckItem[]> {
   return apiRequest<DailyStockCheckItem[]>(`/me/inventory?storeId=${storeId}`);
+}
+
+// Full item roster for the "Report Shortage" picker -- active and inactive
+// alike, matching Owner/Admin's Inventory Items list, unlike
+// getTodayStockCheck above (today's active checklist only).
+export async function getAllStoreItemsForEmployee(storeId: number): Promise<StoreInventoryItemOption[]> {
+  return apiRequest<StoreInventoryItemOption[]>(`/me/inventory/items?storeId=${storeId}`);
 }
 
 // Saves today's Start of Day or End of Day count; saving the same snapshot

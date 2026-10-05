@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import StoreInventoryItemFormModal from './StoreInventoryItemFormModal';
 import type { Supplier } from '../types/supplier';
+import type { InventoryCategory } from '../types/inventoryCategory';
 import type { StoreInventoryItemFormValues } from '../types/storeInventory';
 
 const initialSuppliers: Supplier[] = [
@@ -12,8 +13,12 @@ const initialSuppliers: Supplier[] = [
   { id: 3, name: 'Old Supplier', active: false },
 ];
 
-// Mirrors the pages: the parent owns the supplier list and merges in any
-// supplier the form creates inline.
+const initialCategories: InventoryCategory[] = [
+  { id: 1, name: 'Dairy', active: true },
+];
+
+// Mirrors the pages: the parent owns the supplier/category lists and merges
+// in anything the form creates inline.
 function Harness({
   onSubmit,
   onCreate,
@@ -24,9 +29,15 @@ function Harness({
   initialValues?: StoreInventoryItemFormValues;
 }) {
   const [suppliers, setSuppliers] = useState(initialSuppliers);
+  const [categories, setCategories] = useState(initialCategories);
   async function handleCreate(name: string) {
     const created = onCreate ? await onCreate(name) : { id: 99, name, active: true };
     setSuppliers((current) => [...current, created]);
+    return created;
+  }
+  async function handleCreateCategory(name: string) {
+    const created = { id: 99, name, active: true };
+    setCategories((current) => [...current, created]);
     return created;
   }
   return (
@@ -34,6 +45,8 @@ function Harness({
       <StoreInventoryItemFormModal
         isOpen
         mode={initialValues ? 'edit' : 'create'}
+        categories={categories}
+        onCreateCategory={handleCreateCategory}
         suppliers={suppliers}
         onCreateSupplier={handleCreate}
         initialValues={initialValues}
@@ -50,8 +63,10 @@ function Harness({
 }
 
 async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('Inventory Name'), 'Milk');
-  await user.type(screen.getByLabelText('Minimum Weekday Quantity'), '5');
+  await user.click(screen.getByRole('button', { name: 'Category' }));
+  await user.click(screen.getByRole('option', { name: 'Dairy' }));
+  await user.type(screen.getByLabelText('Item Name'), 'Milk');
+  await user.type(screen.getByLabelText('Min Par Level (Weekday)'), '5');
 }
 
 describe('StoreInventoryItemFormModal', () => {
@@ -85,7 +100,7 @@ describe('StoreInventoryItemFormModal', () => {
     render(<Harness onSubmit={onSubmit} />);
 
     await fillRequired(user);
-    await user.click(screen.getByRole('button', { name: 'Add Item' }));
+    await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
 
     expect(screen.getByText('Unit is required')).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -99,12 +114,14 @@ describe('StoreInventoryItemFormModal', () => {
         onSubmit={onSubmit}
         initialValues={{
           storeId: null,
+          categoryId: 1,
           name: 'Cups',
           unitOfMeasurement: 'box',
           minWeekday: '2',
           minWeekend: '',
           preferredSupplierId: null,
           note: '',
+          autoPoEnabled: true,
         }}
       />,
     );
@@ -136,7 +153,7 @@ describe('StoreInventoryItemFormModal', () => {
     await fillRequired(user);
     await user.click(screen.getByRole('button', { name: 'Unit' }));
     await user.click(screen.getByRole('option', { name: 'ml — Milliliters' }));
-    await user.click(screen.getByRole('button', { name: 'Add Item' }));
+    await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ preferredSupplierId: 2, unitOfMeasurement: 'ml' }));
   });
 
@@ -167,7 +184,7 @@ describe('StoreInventoryItemFormModal', () => {
     await fillRequired(user);
     await user.click(screen.getByRole('button', { name: 'Unit' }));
     await user.click(screen.getByRole('option', { name: 'Nos. — Number of items' }));
-    await user.click(screen.getByRole('button', { name: 'Add Item' }));
+    await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ preferredSupplierId: 42 }));
   });
 

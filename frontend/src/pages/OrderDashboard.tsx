@@ -201,7 +201,6 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
     });
   }, [entries, search, itemFilter, supplierFilter, statusFilter]);
 
-  const hasActiveFilters = search !== '' || itemFilter !== 'ALL' || supplierFilter !== 'ALL' || statusFilter !== 'ALL';
   function clearFilters() {
     setSearch('');
     setItemFilter('ALL');
@@ -276,7 +275,7 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
           onChange={setStatusFilter}
           ariaLabel="Filter by status"
         />
-        {hasActiveFilters && <FilterClearButton onClick={clearFilters} />}
+        <FilterClearButton onClick={clearFilters} />
       </div>
 
       <div className="table-card">

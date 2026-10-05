@@ -158,9 +158,7 @@ function SuperAdminActivity({ onBack }: SuperAdminActivityProps) {
           />
         )}
         <DateRangePicker value={dateRange} onChange={setDateRange} />
-        {(storeFilter !== 'all' || dateRange.preset !== 'ALL_TIME') && (
-          <FilterClearButton onClick={() => { setStoreFilter('all'); setDateRange(DEFAULT_DATE_RANGE); }} />
-        )}
+        <FilterClearButton onClick={() => { setStoreFilter('all'); setDateRange(DEFAULT_DATE_RANGE); }} />
       </div>
 
       <div className="card sa-activity__list-card">

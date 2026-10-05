@@ -20,6 +20,13 @@
   font-size: 10px;
 }
 
+.item-icon--xl {
+  width: 137.2px;
+  height: 137.2px;
+  font-size: 28px;
+  border-radius: var(--radius-lg);
+}
+
 .item-icon[data-variant='primary'] {
   background: var(--color-badge-icon-primary-bg);
   color: var(--color-badge-icon-primary-fg);

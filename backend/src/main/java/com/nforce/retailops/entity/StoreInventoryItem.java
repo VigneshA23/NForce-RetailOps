@@ -41,11 +41,18 @@ public class StoreInventoryItem {
     @JoinColumn(name = "preferred_supplier_id")
     private Supplier preferredSupplier;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "category_id")
+    private InventoryCategory category;
+
     @Column(columnDefinition = "TEXT")
     private String note;
 
     @Column(nullable = false)
     private boolean active = true;
+
+    @Column(name = "auto_po_enabled", nullable = false)
+    private boolean autoPoEnabled = true;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -133,6 +140,14 @@ public class StoreInventoryItem {
         this.preferredSupplier = preferredSupplier;
     }
 
+    public InventoryCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(InventoryCategory category) {
+        this.category = category;
+    }
+
     public String getNote() {
         return note;
     }
@@ -147,6 +162,14 @@ public class StoreInventoryItem {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isAutoPoEnabled() {
+        return autoPoEnabled;
+    }
+
+    public void setAutoPoEnabled(boolean autoPoEnabled) {
+        this.autoPoEnabled = autoPoEnabled;
     }
 
     public OffsetDateTime getCreatedAt() {

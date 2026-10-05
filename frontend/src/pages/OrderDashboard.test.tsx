@@ -208,12 +208,14 @@ describe('OrderDashboard filters', () => {
     expect(screen.queryByText('Bread')).not.toBeInTheDocument();
   });
 
-  it('shows a Clear button once any filter is active, and it resets every filter', async () => {
+  it('always shows the Clear button, and it resets every filter', async () => {
     const user = userEvent.setup();
     render(<OrderDashboard storeName="Downtown" />);
     await screen.findByText('Milk');
 
-    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+    // Always rendered, even with no filter active yet -- a stable, always
+    // findable reset control rather than something that pops in and out.
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText('Search items'), 'milk');
     expect(screen.queryByText('Bread')).not.toBeInTheDocument();

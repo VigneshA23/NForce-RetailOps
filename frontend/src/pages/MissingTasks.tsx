@@ -281,9 +281,7 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
                 onChange={setCategoryFilter}
                 ariaLabel="Filter missed tasks by category"
               />
-              {(dateFilter !== ALL || categoryFilter !== ALL) && (
-                <FilterClearButton onClick={() => { setDateFilter(ALL); setCategoryFilter(ALL); }} />
-              )}
+              <FilterClearButton onClick={() => { setDateFilter(ALL); setCategoryFilter(ALL); }} />
             </div>
 
             {filteredInstances.length === 0 ? (

@@ -9,9 +9,11 @@ import {
   updateInventoryItem,
 } from '../api/inventoryItems';
 import { createSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
+import { findOrCreateCategory, getCategories } from '../api/inventoryCategories';
 import { getAllStores } from '../api/superAdminStores';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
+import type { InventoryCategory } from '../types/inventoryCategory';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
@@ -51,6 +53,7 @@ function SuperAdminInventory() {
   const isMobile = useIsMobile();
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,9 +62,10 @@ function SuperAdminInventory() {
   function loadAll() {
     setIsLoading(true);
     setLoadError(null);
-    Promise.all([getSuppliers(), getAllStores(), getAllInventoryItems()])
-      .then(([sups, sts, its]) => {
+    Promise.all([getSuppliers(), getCategories(), getAllStores(), getAllInventoryItems()])
+      .then(([sups, cats, sts, its]) => {
         setSuppliers(sups);
+        setCategories(cats);
         setStores(sts.filter((s) => s.storeActive).map((s) => ({ id: s.storeId, name: s.storeName })));
         setItems(its);
       })
@@ -111,6 +115,20 @@ function SuperAdminInventory() {
     );
     nfToast.success(`"${supplier.name}" supplier added.`);
     return supplier;
+  }
+
+  // Inline "Add New Category" from the item form: persist it, then merge it
+  // into the local directory so it's selectable for every later item too.
+  async function handleCreateCategory(name: string): Promise<InventoryCategory> {
+    const category = await findOrCreateCategory(name);
+    setCategories((current) =>
+      (current.some((c) => c.id === category.id)
+        ? current.map((c) => (c.id === category.id ? category : c))
+        : [...current, category]
+      ).sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    nfToast.success(`"${category.name}" category added.`);
+    return category;
   }
 
   async function handleItemSubmit(values: StoreInventoryItemFormValues) {
@@ -196,23 +214,27 @@ function SuperAdminInventory() {
     if (itemModal?.mode === 'edit') {
       return {
         storeId: itemModal.item.storeId,
+        categoryId: itemModal.item.categoryId,
         name: itemModal.item.name,
         unitOfMeasurement: itemModal.item.unitOfMeasurement,
         minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
         minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
         preferredSupplierId: itemModal.item.preferredSupplierId,
         note: itemModal.item.note ?? '',
+        autoPoEnabled: itemModal.item.autoPoEnabled,
       };
     }
     if (itemModal?.mode === 'create') {
       return {
         storeId: selectedStoreId,
+        categoryId: null,
         name: '',
         unitOfMeasurement: '',
         minWeekday: '',
         minWeekend: '',
         preferredSupplierId: null,
         note: '',
+        autoPoEnabled: true,
       };
     }
     return undefined;
@@ -351,9 +373,7 @@ function SuperAdminInventory() {
                   onChange={(value) => setItemStatusFilter(value as StatusFilter)}
                   ariaLabel="Filter by status"
                 />
-                {itemStatusFilter !== 'ALL' && (
-                  <FilterClearButton onClick={() => setItemStatusFilter('ALL')} />
-                )}
+                <FilterClearButton onClick={() => setItemStatusFilter('ALL')} />
               </div>
 
               <StoreInventoryTable
@@ -464,6 +484,8 @@ function SuperAdminInventory() {
       <StoreInventoryItemFormModal
         isOpen={itemModal !== null}
         mode={itemModal?.mode ?? 'create'}
+        categories={categories}
+        onCreateCategory={handleCreateCategory}
         suppliers={suppliers}
         onCreateSupplier={handleCreateSupplier}
         stores={stores}

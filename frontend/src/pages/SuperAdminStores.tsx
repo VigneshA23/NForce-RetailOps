@@ -273,9 +273,7 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
           onChange={(value) => setStatusFilter(value as StatusFilter)}
           ariaLabel="Filter by status"
         />
-        {statusFilter !== 'ALL' && (
-          <FilterClearButton onClick={() => setStatusFilter('ALL')} />
-        )}
+        <FilterClearButton onClick={() => setStatusFilter('ALL')} />
       </div>
 
       {statusError && (

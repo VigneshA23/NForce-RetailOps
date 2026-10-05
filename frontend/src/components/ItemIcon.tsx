@@ -6,7 +6,9 @@ type ItemIconVariant = (typeof VARIANTS)[number];
 interface ItemIconProps {
   id: number;
   name: string;
-  size?: 'sm' | 'md';
+  // 'xl' is the Owner/Admin inventory card's dedicated item-image area --
+  // sized to match the real product photo tile once image upload exists.
+  size?: 'sm' | 'md' | 'xl';
 }
 
 // Placeholder for the future admin/super-admin item image: until that asset

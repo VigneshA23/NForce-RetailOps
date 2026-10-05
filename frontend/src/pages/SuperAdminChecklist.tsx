@@ -689,12 +689,10 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                         ariaLabel="Filter outstanding tasks by category"
                       />
                     )}
-                    {(outstandingSearch || outstandingCategoryFilter !== 'all') && (
-                      <FilterClearButton
-                        ariaLabel="Clear outstanding task filters"
-                        onClick={() => { setOutstandingSearch(''); setOutstandingCategoryFilter('all'); }}
-                      />
-                    )}
+                    <FilterClearButton
+                      ariaLabel="Clear outstanding task filters"
+                      onClick={() => { setOutstandingSearch(''); setOutstandingCategoryFilter('all'); }}
+                    />
                   </div>
                   {filteredOutstandingRows.length === 0 ? (
                     <p className="store-detail-outstanding__empty">
@@ -779,12 +777,10 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                       onChange={(v) => setFilter(v as FilterKey)}
                       ariaLabel="Filter completed and flagged tasks by status"
                     />
-                    {(searchQuery || categoryFilter !== 'all' || filter !== 'ALL') && (
-                      <FilterClearButton
-                        ariaLabel="Clear completed and flagged task filters"
-                        onClick={() => { setSearchQuery(''); setCategoryFilter('all'); setFilter('ALL'); }}
-                      />
-                    )}
+                    <FilterClearButton
+                      ariaLabel="Clear completed and flagged task filters"
+                      onClick={() => { setSearchQuery(''); setCategoryFilter('all'); setFilter('ALL'); }}
+                    />
                   </div>
                   {selectedStoreId === null || detailError ? null : (
                     <StoreDetailTable

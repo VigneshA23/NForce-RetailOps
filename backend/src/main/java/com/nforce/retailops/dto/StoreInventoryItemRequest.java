@@ -11,6 +11,9 @@ import jakarta.validation.constraints.Size;
 public record StoreInventoryItemRequest(
     Long storeId,
 
+    @NotNull(message = "Category is required")
+    Long categoryId,
+
     @NotBlank(message = "Name is required")
     @Size(max = 200, message = "Name must be at most 200 characters")
     String name,
@@ -29,6 +32,8 @@ public record StoreInventoryItemRequest(
     Long preferredSupplierId,
 
     @Size(max = 500, message = "Note must be at most 500 characters")
-    String note
+    String note,
+
+    boolean autoPoEnabled
 ) {
 }

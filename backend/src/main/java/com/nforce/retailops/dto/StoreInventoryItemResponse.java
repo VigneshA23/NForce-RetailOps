@@ -8,6 +8,8 @@ public record StoreInventoryItemResponse(
     Long id,
     Long storeId,
     String storeName,
+    Long categoryId,
+    String categoryName,
     String name,
     String unitOfMeasurement,
     Integer minWeekday,
@@ -16,6 +18,7 @@ public record StoreInventoryItemResponse(
     String preferredSupplierName,
     String note,
     boolean active,
+    boolean autoPoEnabled,
     // Today's minimum (weekday or weekend, per requiredMinimumOn).
     Integer requiredToday,
     // The count from today's employee stock check; null until one is submitted.
@@ -26,6 +29,8 @@ public record StoreInventoryItemResponse(
             sii.getId(),
             sii.getStore().getId(),
             sii.getStore().getName(),
+            sii.getCategory() != null ? sii.getCategory().getId() : null,
+            sii.getCategory() != null ? sii.getCategory().getName() : null,
             sii.getName(),
             sii.getUnitOfMeasurement(),
             sii.getMinWeekday(),
@@ -34,6 +39,7 @@ public record StoreInventoryItemResponse(
             sii.getPreferredSupplier() != null ? sii.getPreferredSupplier().getName() : null,
             sii.getNote(),
             sii.isActive(),
+            sii.isAutoPoEnabled(),
             sii.requiredMinimumOn(today),
             currentAvailable
         );

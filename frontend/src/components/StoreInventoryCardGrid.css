@@ -1,0 +1,295 @@
+@import '../styles/breakpoints.css';
+
+/* Above mobile, column count is purely a function of viewport width --
+   auto-fill packs as many fixed 270px cards as fit per row (roughly 4-5 on a
+   typical laptop), with no breakpoint-specific column count override.
+   Columns are a fixed 270px (not minmax(...,1fr)) so cards keep their own
+   fixed 270x350 size instead of stretching to fill the row. */
+.store-inventory-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 270px);
+  gap: var(--space-md);
+}
+
+@media (--mobile) {
+  /* A fixed 270px card doesn't fit two to a row on most phones, so mobile
+     switches to a fluid 2-column grid instead -- the card's own width
+     becomes 100% of its (now narrower) grid cell rather than a fixed 270px.
+     Internal elements shrink to match (below) so nothing wraps/overlaps even
+     at the narrowest realistic phone width. */
+  .store-inventory-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-sm);
+  }
+}
+
+.store-inventory-card-grid__empty {
+  padding: var(--space-xl);
+  text-align: center;
+  color: var(--color-text-muted);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.store-inventory-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 270px;
+  height: 350px;
+  padding: 12px;
+  border-radius: var(--radius-lg);
+  /* Border is transparent (not absent) by default so gaining a red border on
+     selection never shifts the card's size/position. */
+  border: 2px solid transparent;
+  background: var(--color-surface-card);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+@media (--mobile) {
+  .store-inventory-card {
+    width: 100%;
+    height: auto;
+    min-height: 260px;
+    padding: 8px;
+    gap: 6px;
+  }
+}
+
+/* Hover "pops" the card for as long as the cursor stays on it; selecting a
+   card (opening its edit panel) keeps that same popped look afterward, plus
+   a red border, until something else is selected or the panel is closed. */
+.store-inventory-card:hover,
+.store-inventory-card--selected {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+}
+
+.store-inventory-card--selected {
+  border-color: var(--color-accent);
+}
+
+.store-inventory-card:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.store-inventory-card--low {
+  background: color-mix(in srgb, var(--color-badge-icon-primary-fg) 5%, var(--color-surface-card));
+}
+
+.store-inventory-card--inactive {
+  opacity: 0.55;
+}
+
+.store-inventory-card__top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+@media (--mobile) {
+  .store-inventory-card__top-row {
+    /* Safety net: at the narrowest phone widths the status pill, trash icon
+       and toggle together would overlap in one line -- letting the row wrap
+       keeps them legible and non-overlapping instead. */
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+}
+
+.store-inventory-card__top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.store-inventory-card__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.store-inventory-card__icon-btn:hover {
+  background: var(--color-badge-icon-primary-bg);
+}
+
+.store-inventory-card__icon-btn--danger {
+  color: var(--color-badge-icon-primary-fg);
+}
+
+@media (--mobile) {
+  .store-inventory-card__icon-btn {
+    width: 22px;
+    height: 22px;
+  }
+
+  .store-inventory-card__status {
+    padding: 2px 7px;
+    font-size: 9px;
+  }
+}
+
+/* Scaled down from Toggle's default 44x24 to roughly match the status
+   pill's own height (~18px) on this card's top row, without changing the
+   shared Toggle component used elsewhere (tables, Suppliers list, etc). */
+.store-inventory-card__top-actions .toggle {
+  width: 32px;
+  height: 18px;
+}
+
+.store-inventory-card__top-actions .toggle__thumb {
+  width: 14px;
+  height: 14px;
+}
+
+.store-inventory-card__top-actions .toggle--on .toggle__thumb {
+  transform: translateX(14px);
+}
+
+.store-inventory-card__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.store-inventory-card__status--in {
+  background: var(--color-badge-icon-success-fg);
+}
+
+.store-inventory-card__status--low {
+  background: var(--color-badge-icon-primary-fg);
+}
+
+.store-inventory-card__status--out {
+  background: #1f2937;
+}
+
+.store-inventory-card__status--inactive {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.store-inventory-card__image {
+  display: flex;
+  justify-content: center;
+}
+
+.store-inventory-card__image .item-icon--xl {
+  width: 100%;
+  max-width: 137.2px;
+  aspect-ratio: 1 / 1;
+  height: auto;
+}
+
+@media (--mobile) {
+  .store-inventory-card__image .item-icon--xl {
+    max-width: 90px;
+  }
+}
+
+.store-inventory-card__category {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.store-inventory-card__name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.store-inventory-card__quantities {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.store-inventory-card__on-hand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.store-inventory-card__on-hand-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.store-inventory-card--inactive .store-inventory-card__on-hand-value {
+  color: var(--color-text-muted);
+}
+
+.store-inventory-card__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.store-inventory-card__dot--in {
+  background: var(--color-badge-icon-success-fg);
+}
+
+.store-inventory-card__dot--low {
+  background: var(--color-badge-icon-primary-fg);
+}
+
+.store-inventory-card__dot--out {
+  background: #1f2937;
+}
+
+.store-inventory-card__dot--inactive {
+  background: var(--color-text-muted);
+}
+
+.store-inventory-card__supplier {
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

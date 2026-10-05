@@ -12,6 +12,8 @@ public record StockCheckResponse(
     Long id,
     Long storeInventoryItemId,
     String itemName,
+    Long categoryId,
+    String categoryName,
     String unitOfMeasurement,
     LocalDate checkDate,
     // This day's own par level (item.requiredMinimumOn(checkDate)) -- unlike
@@ -35,6 +37,8 @@ public record StockCheckResponse(
             check.getId(),
             check.getStoreInventoryItem().getId(),
             check.getStoreInventoryItem().getName(),
+            check.getStoreInventoryItem().getCategory() != null ? check.getStoreInventoryItem().getCategory().getId() : null,
+            check.getStoreInventoryItem().getCategory() != null ? check.getStoreInventoryItem().getCategory().getName() : null,
             check.getStoreInventoryItem().getUnitOfMeasurement(),
             check.getCheckDate(),
             check.getStoreInventoryItem().requiredMinimumOn(check.getCheckDate()),

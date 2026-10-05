@@ -1,12 +1,16 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Plus } from 'lucide-react';
 import type { StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
+import type { InventoryCategory } from '../types/inventoryCategory';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
 import SupplierCombobox from './SupplierCombobox';
+import InventoryCategoryFormModal from './InventoryCategoryFormModal';
 import { inventoryUnitOptionsFor } from '../utils/inventoryUnits';
 import ButtonDots from './ButtonDots';
+import './StoreInventoryItemFormModal.css';
 
 export interface StoreOption {
   id: number;
@@ -16,6 +20,9 @@ export interface StoreOption {
 interface StoreInventoryItemFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
+  categories: InventoryCategory[];
+  // Backs the category field's inline "Add New Category" option.
+  onCreateCategory: (name: string) => Promise<InventoryCategory>;
   suppliers: Supplier[];
   // Backs the supplier field's inline "Add New Supplier" option.
   onCreateSupplier: (name: string) => Promise<Supplier>;
@@ -32,17 +39,21 @@ interface StoreInventoryItemFormModalProps {
 
 const EMPTY_VALUES: StoreInventoryItemFormValues = {
   storeId: null,
+  categoryId: null,
   name: '',
   unitOfMeasurement: '',
   minWeekday: '',
   minWeekend: '',
   preferredSupplierId: null,
   note: '',
+  autoPoEnabled: true,
 };
 
 function StoreInventoryItemFormModal({
   isOpen,
   mode,
+  categories,
+  onCreateCategory,
   suppliers,
   onCreateSupplier,
   stores = [],
@@ -55,18 +66,38 @@ function StoreInventoryItemFormModal({
 }: StoreInventoryItemFormModalProps) {
   const [values, setValues] = useState<StoreInventoryItemFormValues>(initialValues ?? EMPTY_VALUES);
   const [errors, setErrors] = useState<Partial<Record<keyof StoreInventoryItemFormValues, string>>>({});
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setValues(initialValues ?? EMPTY_VALUES);
       setErrors({});
+      setIsCategoryModalOpen(false);
+      setCategoryError(null);
     }
   }, [isOpen, initialValues]);
+
+  async function handleCreateCategory(name: string) {
+    setIsCategorySubmitting(true);
+    setCategoryError(null);
+    try {
+      const created = await onCreateCategory(name);
+      setValues((current) => ({ ...current, categoryId: created.id }));
+      setIsCategoryModalOpen(false);
+    } catch (error) {
+      setCategoryError(error instanceof Error ? error.message : 'Failed to add category');
+    } finally {
+      setIsCategorySubmitting(false);
+    }
+  }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const nextErrors: typeof errors = {};
     if (showStoreField && !values.storeId) nextErrors.storeId = 'Store is required';
+    if (!values.categoryId) nextErrors.categoryId = 'Category is required';
     if (!values.name.trim()) nextErrors.name = 'Name is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
     if (values.minWeekday.trim() === '' || Number(values.minWeekday) < 0) {
@@ -94,14 +125,17 @@ function StoreInventoryItemFormModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={mode === 'create' ? 'Add Inventory Item' : 'Edit Inventory Item'}
+      className="store-inventory-item-form"
+      titleIcon={<span className="store-inventory-item-form__icon-tile"><Plus size={18} /></span>}
+      title={mode === 'create' ? 'Add New Inventory Item' : 'Edit Inventory Item'}
+      subtitle="Configure catalog item details, categorization, and units."
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
           <button type="submit" form="store-inventory-item-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
-            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'create' ? 'Add Item' : 'Save Changes'}
+            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'create' ? (<><Plus size={16} /> Add to Catalog</>) : 'Save Changes'}
           </button>
         </>
       }
@@ -119,48 +153,74 @@ function StoreInventoryItemFormModal({
             />
           </FormField>
         )}
-        <FormField label="Inventory Name" htmlFor="inventory-item-name" error={errors.name}>
+        <div className={`form-field${errors.categoryId ? ' form-field--error' : ''}`}>
+          <div className="store-inventory-item-form__category-label-row">
+            <label className="form-field__label" htmlFor="inventory-item-category">
+              Category<span className="form-field__required"> *</span>
+            </label>
+            <button
+              type="button"
+              className="store-inventory-item-form__add-category"
+              onClick={() => setIsCategoryModalOpen(true)}
+            >
+              <Plus size={14} aria-hidden="true" />
+              Add New Category
+            </button>
+          </div>
+          <Select
+            id="inventory-item-category"
+            options={categories.filter((c) => c.active).map((c) => ({ value: String(c.id), label: c.name }))}
+            value={values.categoryId ? String(values.categoryId) : ''}
+            onChange={(value) => setValues((current) => ({ ...current, categoryId: Number(value) }))}
+            ariaLabel="Category"
+            placeholder="Select category..."
+          />
+          {errors.categoryId && <span className="form-field__error">{errors.categoryId}</span>}
+        </div>
+        <FormField label="Item Name" htmlFor="inventory-item-name" error={errors.name}>
           <input
             id="inventory-item-name"
             className="input"
             value={values.name}
             onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
-            placeholder="e.g. Coffee Beans, Milk"
+            placeholder="e.g. Whole Milk 1 Gallon, Chocolate Chip Cookie Dough, Strawberry Syrup"
           />
         </FormField>
-        <FormField label="Unit" htmlFor="inventory-item-unit" error={errors.unitOfMeasurement}>
+        <FormField label="Unit of Measurement" htmlFor="inventory-item-unit" error={errors.unitOfMeasurement}>
           <Select
             id="inventory-item-unit"
             options={unitOptions}
             value={values.unitOfMeasurement}
             onChange={(value) => setValues((current) => ({ ...current, unitOfMeasurement: value }))}
             ariaLabel="Unit"
-            placeholder="Select a unit"
+            placeholder="Select unit..."
             indicator="radio"
           />
         </FormField>
-        <FormField label="Minimum Weekday Quantity" htmlFor="inventory-item-min-weekday" error={errors.minWeekday}>
-          <input
-            id="inventory-item-min-weekday"
-            type="number"
-            min={0}
-            className="input"
-            value={values.minWeekday}
-            onChange={(event) => setValues((current) => ({ ...current, minWeekday: event.target.value }))}
-            placeholder="e.g. 8"
-          />
-        </FormField>
-        <FormField label="Minimum Weekend Quantity" htmlFor="inventory-item-min-weekend" error={errors.minWeekend}>
-          <input
-            id="inventory-item-min-weekend"
-            type="number"
-            min={0}
-            className="input"
-            value={values.minWeekend}
-            onChange={(event) => setValues((current) => ({ ...current, minWeekend: event.target.value }))}
-            placeholder="Leave blank to use weekday value"
-          />
-        </FormField>
+        <div className="store-inventory-item-form__row">
+          <FormField label="Min Par Level (Weekday)" htmlFor="inventory-item-min-weekday" error={errors.minWeekday}>
+            <input
+              id="inventory-item-min-weekday"
+              type="number"
+              min={0}
+              className="input"
+              value={values.minWeekday}
+              onChange={(event) => setValues((current) => ({ ...current, minWeekday: event.target.value }))}
+              placeholder="e.g. 5"
+            />
+          </FormField>
+          <FormField label="Weekend Par Cushion" htmlFor="inventory-item-min-weekend" error={errors.minWeekend}>
+            <input
+              id="inventory-item-min-weekend"
+              type="number"
+              min={0}
+              className="input"
+              value={values.minWeekend}
+              onChange={(event) => setValues((current) => ({ ...current, minWeekend: event.target.value }))}
+              placeholder="e.g. 8"
+            />
+          </FormField>
+        </div>
         <FormField label="Preferred Supplier" htmlFor="inventory-item-supplier">
           <SupplierCombobox
             id="inventory-item-supplier"
@@ -171,18 +231,25 @@ function StoreInventoryItemFormModal({
             ariaLabel="Preferred supplier"
           />
         </FormField>
-        <FormField label="Note (optional)" htmlFor="inventory-item-note">
+        <FormField label="Additional Notes" htmlFor="inventory-item-note">
           <textarea
             id="inventory-item-note"
             className="input"
             rows={2}
             value={values.note}
             onChange={(event) => setValues((current) => ({ ...current, note: event.target.value }))}
-            placeholder="Any additional information about this item"
+            placeholder="e.g. Special storage requirements, vendor batch minimums, seasonal variations..."
           />
         </FormField>
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>
+      <InventoryCategoryFormModal
+        isOpen={isCategoryModalOpen}
+        errorMessage={categoryError}
+        isSubmitting={isCategorySubmitting}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onSubmit={(categoryValues) => handleCreateCategory(categoryValues.name)}
+      />
     </Modal>
   );
 }

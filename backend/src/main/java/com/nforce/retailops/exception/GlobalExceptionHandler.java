@@ -190,6 +190,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidOrderEntryTransitionException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidOrderEntryTransition(InvalidOrderEntryTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(NudgeCooldownException.class)
     public ResponseEntity<Map<String, String>> handleNudgeCooldown(NudgeCooldownException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
@@ -207,6 +212,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SupplierNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleSupplierNotFound(SupplierNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InventoryCategoryNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryCategoryNotFound(InventoryCategoryNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 

@@ -9,6 +9,7 @@ import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
@@ -21,12 +22,25 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 // Owner/Admin's Order Dashboard, plus the shared "raise or bump a shortage"
 // logic used by both the stock-check auto-detection path and the employee
 // ad-hoc report path.
 @Service
 public class OrderListService {
+
+    // Owner/Admin's manual status edit (updateEntry below) must move forward
+    // one step at a time -- Needs Ordering -> Ordered -> Received, never
+    // skipped or reversed. This does NOT apply to resolveShortageIfPresent,
+    // which auto-closes an entry straight to RECEIVED when a fresh count
+    // shows the shortage is gone on its own (a different, system-driven
+    // resolution path, not a manual edit).
+    private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
+        OrderStatus.NEEDS_ORDERING, Set.of(OrderStatus.ORDERED),
+        OrderStatus.ORDERED, Set.of(OrderStatus.RECEIVED),
+        OrderStatus.RECEIVED, Set.of()
+    );
 
     private final OrderListEntryRepository orderListEntryRepository;
     private final StoreOwnerRepository storeOwnerRepository;
@@ -78,9 +92,17 @@ public class OrderListService {
         OrderListEntry entry = orderListEntryRepository.findByIdAndStoreId(entryId, storeOwner.getStore().getId())
             .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
 
+        OrderStatus currentStatus = entry.getStatus();
+        OrderStatus targetStatus = request.status();
+        if (currentStatus != targetStatus && !ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of()).contains(targetStatus)) {
+            throw new InvalidOrderEntryTransitionException(
+                "Cannot move this order from " + currentStatus + " to " + targetStatus
+                    + ". Orders must go Needs Ordering → Ordered → Received, one step at a time.");
+        }
+
         entry.setQuantityNeeded(request.quantityNeeded());
         entry.setNote(request.note());
-        entry.setStatus(request.status());
+        entry.setStatus(targetStatus);
 
         if (request.supplierId() == null) {
             entry.setSupplier(null);

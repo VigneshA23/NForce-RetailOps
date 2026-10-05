@@ -2,15 +2,18 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
+import com.nforce.retailops.entity.InventoryCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
+import com.nforce.retailops.exception.InventoryCategoryNotFoundException;
 import com.nforce.retailops.exception.StoreInventoryItemHasHistoryException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
+import com.nforce.retailops.repository.InventoryCategoryRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
@@ -34,6 +37,7 @@ public class StoreInventoryItemService {
 
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final SupplierRepository supplierRepository;
+    private final InventoryCategoryRepository inventoryCategoryRepository;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final StockCheckRepository stockCheckRepository;
@@ -42,6 +46,7 @@ public class StoreInventoryItemService {
     public StoreInventoryItemService(
         StoreInventoryItemRepository storeInventoryItemRepository,
         SupplierRepository supplierRepository,
+        InventoryCategoryRepository inventoryCategoryRepository,
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         StockCheckRepository stockCheckRepository,
@@ -49,6 +54,7 @@ public class StoreInventoryItemService {
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.supplierRepository = supplierRepository;
+        this.inventoryCategoryRepository = inventoryCategoryRepository;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.stockCheckRepository = stockCheckRepository;
@@ -197,6 +203,11 @@ public class StoreInventoryItemService {
         item.setMinWeekday(request.minWeekday());
         item.setMinWeekend(request.minWeekend());
         item.setNote(request.note() != null ? request.note().trim() : null);
+        item.setAutoPoEnabled(request.autoPoEnabled());
+
+        InventoryCategory category = inventoryCategoryRepository.findById(request.categoryId())
+            .orElseThrow(() -> new InventoryCategoryNotFoundException("Category not found"));
+        item.setCategory(category);
 
         if (request.preferredSupplierId() == null) {
             item.setPreferredSupplier(null);

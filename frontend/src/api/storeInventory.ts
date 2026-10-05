@@ -1,7 +1,6 @@
 import { apiRequest } from './client';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
 import type {
-  EodSupplierReport,
   StockCheckHistoryPage,
   StockCheckResponse,
   StockCheckSnapshotKey,
@@ -10,12 +9,14 @@ import type {
 // Owner/Admin's own-store inventory management, scoped to their own store.
 function toBody(values: StoreInventoryItemFormValues) {
   return {
+    categoryId: values.categoryId,
     name: values.name,
     unitOfMeasurement: values.unitOfMeasurement,
     minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
     minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
     preferredSupplierId: values.preferredSupplierId,
     note: values.note.trim() === '' ? null : values.note.trim(),
+    autoPoEnabled: values.autoPoEnabled,
   };
 }
 
@@ -67,9 +68,4 @@ export async function correctStockCheck(
     method: 'PATCH',
     body: { snapshot, available, deadStock, reason: reason?.trim() || null },
   });
-}
-
-// End of Day supplier report for one business day (YYYY-MM-DD).
-export async function getEodSupplierReport(date: string): Promise<EodSupplierReport> {
-  return apiRequest<EodSupplierReport>(`/stores/inventory/eod-report?date=${encodeURIComponent(date)}`);
 }
