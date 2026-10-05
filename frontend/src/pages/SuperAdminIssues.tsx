@@ -214,9 +214,7 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
             ariaLabel="Filter by status"
           />
         </div>
-        {(statusFilter !== 'ACTIVE' || storeFilter !== '') && (
-          <FilterClearButton onClick={() => { setStatusFilter('ACTIVE'); setStoreFilter(''); }} />
-        )}
+        <FilterClearButton onClick={() => { setStatusFilter('ACTIVE'); setStoreFilter(''); }} />
       </div>
 
       <div>

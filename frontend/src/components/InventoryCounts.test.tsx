@@ -35,6 +35,7 @@ function row(overrides: Partial<InventoryCountRow>): InventoryCountRow {
     latestSnapshot: 'END_OF_DAY',
     latestAvailable: 30,
     latestDeadStock: 0,
+    imageId: null,
     ...overrides,
   };
 }

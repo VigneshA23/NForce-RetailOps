@@ -8,6 +8,7 @@ const ROW: StockCheckResponse = {
   id: 7,
   storeInventoryItemId: 1,
   itemName: 'Milk',
+  category: 'DAIRY',
   unitOfMeasurement: 'L',
   checkDate: '2026-09-20',
   requiredPar: 20,

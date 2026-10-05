@@ -657,9 +657,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                   onChange={setStatusFilter}
                 />
               </div>
-              {(categoryFilter.size > 0 || statusFilter !== null) && (
-                <FilterClearButton onClick={() => { setCategoryFilter(new Set()); setStatusFilter(null); }} />
-              )}
+              <FilterClearButton onClick={() => { setCategoryFilter(new Set()); setStatusFilter(null); }} />
             </div>
 
             {filteredCategories.length === 0 ? (

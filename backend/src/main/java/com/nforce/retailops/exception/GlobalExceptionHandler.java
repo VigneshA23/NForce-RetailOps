@@ -190,6 +190,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidOrderEntryTransitionException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidOrderEntryTransition(InvalidOrderEntryTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(NudgeCooldownException.class)
     public ResponseEntity<Map<String, String>> handleNudgeCooldown(NudgeCooldownException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(Map.of("message", ex.getMessage()));
@@ -226,6 +231,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(StoreInventoryItemHasHistoryException.class)
     public ResponseEntity<Map<String, String>> handleStoreInventoryItemHasHistory(StoreInventoryItemHasHistoryException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InventoryItemImageNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryItemImageNotFound(InventoryItemImageNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ImageSearchNotConfiguredException.class)
+    public ResponseEntity<Map<String, String>> handleImageSearchNotConfigured(ImageSearchNotConfiguredException ex) {
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(ImageProviderException.class)
+    public ResponseEntity<Map<String, String>> handleImageProvider(ImageProviderException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("message", ex.getMessage()));
     }
 
     @ExceptionHandler(OrderListEntryNotFoundException.class)

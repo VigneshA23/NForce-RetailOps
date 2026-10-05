@@ -323,7 +323,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
     setGroupSelected(decorated.map((row) => row.entry.id), !allChecked);
   }
 
-  const hasActiveFilters = search !== '' || categoryFilter !== 'all' || supplierFilter !== 'all' || statusFilter !== 'OPEN';
   function clearFilters() {
     setSearch('');
     setCategoryFilter('all');
@@ -350,7 +349,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
         </td>
         <td>
           <div className="order-list__item-cell">
-            <CategoryIcon category={row.category} name={entry.itemName} size={isFlat ? 36 : 40} />
+            <CategoryIcon category={row.category} name={entry.itemName} size={isFlat ? 36 : 40} imageId={entry.imageId} />
             <div className="order-list__item-text">
               <div className="order-list__item-name">
                 {entry.itemName}
@@ -426,7 +425,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
         <Select options={[{ value: 'all', label: 'All categories' }, ...INVENTORY_ITEM_CATEGORY_OPTIONS]} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Category" />
         <Select options={STATUS_FILTER_OPTIONS} value={statusFilter} onChange={(v) => setStatusFilter(v as StatusFilter)} ariaLabel="Status" />
         <Select options={supplierFilterOptions} value={supplierFilter} onChange={setSupplierFilter} ariaLabel="Supplier" />
-        {hasActiveFilters && <FilterClearButton onClick={clearFilters} />}
+        <FilterClearButton onClick={clearFilters} />
         <div className="order-list__filter-spacer" />
         <div role="group" aria-label="View" className="order-list__view-toggle">
           <button type="button" aria-pressed={grouped} className={`order-list__view-btn${grouped ? ' order-list__view-btn--active' : ''}`} onClick={() => setGrouped(true)}>

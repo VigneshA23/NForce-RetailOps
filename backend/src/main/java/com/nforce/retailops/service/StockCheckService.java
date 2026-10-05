@@ -13,6 +13,7 @@ import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
 import com.nforce.retailops.dto.StockSnapshotResponse;
+import com.nforce.retailops.dto.StoreInventoryItemOptionResponse;
 import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
@@ -121,9 +122,23 @@ public class StockCheckService {
                     StockSnapshotResponse.from(check, StockCheckSnapshot.START_OF_DAY),
                     StockSnapshotResponse.from(check, StockCheckSnapshot.END_OF_DAY),
                     check != null ? check.stockUsed() : null,
-                    quantityToOrder(check)
+                    quantityToOrder(check),
+                    item.getImageId()
                 );
             })
+            .toList();
+    }
+
+    // Full item roster for the employee's "Report Shortage" picker --
+    // deliberately the same unfiltered list (active and inactive alike)
+    // Owner/Admin sees on the Inventory Items tab, unlike getTodayChecklist
+    // above (which is active-only, since that one drives the daily count
+    // list and nobody needs to count a deactivated item).
+    @Transactional(readOnly = true)
+    public List<StoreInventoryItemOptionResponse> listAllItemsForEmployeeStore(Long employeeUserId, Long storeId) {
+        userProfileService.requireAssignedStore(employeeUserId, storeId);
+        return storeInventoryItemRepository.findByStoreIdOrderById(storeId).stream()
+            .map(StoreInventoryItemOptionResponse::from)
             .toList();
     }
 
@@ -380,7 +395,8 @@ public class StockCheckService {
         if (latest == null) {
             return new InventoryCountRowResponse(
                 item.getId(), item.getName(), item.getCategory(), item.getUnitOfMeasurement(),
-                null, minimum, InventoryCountStatus.STALE, null, null, null, null, null, null, null, null
+                null, minimum, InventoryCountStatus.STALE, null, null, null, null, null, null, null, null,
+                item.getImageId()
             );
         }
 
@@ -404,7 +420,8 @@ public class StockCheckService {
             item.getId(), item.getName(), item.getCategory(), item.getUnitOfMeasurement(),
             currentStock, minimum, status, latest.getUpdatedAt(), latest.getCheckedBy().getFullName(),
             change, changeFromDate,
-            latest.getId(), latestSnapshot, latest.availableFor(latestSnapshot), latest.deadStockFor(latestSnapshot)
+            latest.getId(), latestSnapshot, latest.availableFor(latestSnapshot), latest.deadStockFor(latestSnapshot),
+            item.getImageId()
         );
     }
 
@@ -485,6 +502,12 @@ public class StockCheckService {
             return;
         }
         StoreInventoryItem item = check.getStoreInventoryItem();
+        // The item's own "Auto PO Generator" toggle -- off means the owner
+        // reorders this item manually, so an End of Day shortfall never
+        // raises or updates an order list entry for it.
+        if (!item.isAutoPoEnabled()) {
+            return;
+        }
         if (check.getQuantityNeeded() <= 0) {
             orderListService.resolveShortageIfPresent(item.getStore(), item);
             return;

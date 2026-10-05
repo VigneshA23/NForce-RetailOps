@@ -430,11 +430,9 @@ function SuperAdminTasks() {
           onChange={(value) => setScheduleFilter(value as ScheduleType | 'ALL')}
           ariaLabel="Filter by schedule"
         />
-        {(storeFilter !== 'ALL' || categoryFilter !== 'ALL' || statusFilter !== 'ALL' || scheduleFilter !== 'ALL') && (
-          <FilterClearButton
-            onClick={() => { setStoreFilter('ALL'); setCategoryFilter('ALL'); setStatusFilter('ALL'); setScheduleFilter('ALL'); }}
-          />
-        )}
+        <FilterClearButton
+          onClick={() => { setStoreFilter('ALL'); setCategoryFilter('ALL'); setStatusFilter('ALL'); setScheduleFilter('ALL'); }}
+        />
       </div>
 
       {actionError && <div className="tasks-page__error">{actionError}</div>}

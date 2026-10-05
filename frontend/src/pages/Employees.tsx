@@ -220,9 +220,7 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
           onChange={(value) => setStatusFilter(value as StatusFilter)}
           ariaLabel="Filter by status"
         />
-        {(typeFilter !== 'ALL' || statusFilter !== 'ALL') && (
-          <FilterClearButton onClick={() => { setTypeFilter('ALL'); setStatusFilter('ALL'); }} />
-        )}
+        <FilterClearButton onClick={() => { setTypeFilter('ALL'); setStatusFilter('ALL'); }} />
       </div>
 
       {statusError && <div className="employees-page__error">{statusError}</div>}

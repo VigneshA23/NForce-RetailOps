@@ -16,11 +16,28 @@ interface OrderListEntryEditModalProps {
   onSubmit: (values: UpdateOrderListEntryValues) => void;
 }
 
-const STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
-  { value: 'NEEDS_ORDERING', label: 'Needs Ordering' },
-  { value: 'ORDERED', label: 'Ordered' },
-  { value: 'RECEIVED', label: 'Received' },
-];
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  NEEDS_ORDERING: 'Needs Ordering',
+  ORDERED: 'Ordered',
+  RECEIVED: 'Received',
+};
+
+// Orders move forward one step at a time -- Needs Ordering -> Ordered ->
+// Received -- never skipped or reversed (enforced again, authoritatively, by
+// OrderListService.updateEntry server-side). The dropdown only ever offers
+// the entry's current status (so saving unrelated fields like quantity/note
+// without touching status still works) plus its one legal next step, rather
+// than all 3 statuses regardless of where the order actually is.
+const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
+  NEEDS_ORDERING: 'ORDERED',
+  ORDERED: 'RECEIVED',
+};
+
+function statusOptionsFor(currentStatus: OrderStatus): { value: OrderStatus; label: string }[] {
+  const next = NEXT_STATUS[currentStatus];
+  const statuses = next ? [currentStatus, next] : [currentStatus];
+  return statuses.map((value) => ({ value, label: STATUS_LABELS[value] }));
+}
 
 function OrderListEntryEditModal({
   isOpen,
@@ -105,7 +122,7 @@ function OrderListEntryEditModal({
         <FormField label="Status" htmlFor="order-status">
           <Select
             id="order-status"
-            options={STATUS_OPTIONS}
+            options={entry ? statusOptionsFor(entry.status) : []}
             value={values.status}
             onChange={(value) => setValues((current) => ({ ...current, status: value as OrderStatus }))}
             ariaLabel="Status"

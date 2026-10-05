@@ -15,6 +15,7 @@ import com.nforce.retailops.dto.RaiseIssueRequest;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
+import com.nforce.retailops.dto.StoreInventoryItemOptionResponse;
 import com.nforce.retailops.dto.TaskResponseStateResponse;
 import com.nforce.retailops.dto.TaskResponseSubmitRequest;
 import com.nforce.retailops.dto.TodayChecklistResponse;
@@ -329,6 +330,22 @@ public class MeController {
         }
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(stockCheckService.getTodayChecklist(userDetails.getUser().getId(), storeId));
+    }
+
+    // Employee-facing: the full item roster for one of the caller's assigned
+    // stores (active and inactive alike, matching Owner/Admin's own Inventory
+    // Items list) -- backs the "Report Shortage" item picker, which isn't
+    // limited to today's active checklist the way /inventory above is.
+    @GetMapping("/inventory/items")
+    public ResponseEntity<List<StoreInventoryItemOptionResponse>> allInventoryItems(
+        @AuthenticationPrincipal UserDetails principal,
+        @RequestParam Long storeId
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(stockCheckService.listAllItemsForEmployeeStore(userDetails.getUser().getId(), storeId));
     }
 
     // Employee-facing: save (or update) today's Start of Day or End of Day

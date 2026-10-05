@@ -12,8 +12,8 @@ const initialSuppliers: Supplier[] = [
   { id: 3, name: 'Old Supplier', active: false },
 ];
 
-// Mirrors the pages: the parent owns the supplier list and merges in any
-// supplier the form creates inline.
+// Mirrors the pages: the parent owns the supplier list and merges in
+// anything the form creates inline.
 function Harness({
   onSubmit,
   onCreate,
@@ -50,8 +50,8 @@ function Harness({
 }
 
 async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('Inventory Name'), 'Milk');
-  await user.type(screen.getByLabelText('Minimum Weekday Quantity'), '5');
+  await user.type(screen.getByLabelText('Item Name'), 'Milk');
+  await user.type(screen.getByLabelText('Min Par Level (Weekday)'), '5');
 }
 
 describe('StoreInventoryItemFormModal', () => {
@@ -85,7 +85,7 @@ describe('StoreInventoryItemFormModal', () => {
     render(<Harness onSubmit={onSubmit} />);
 
     await fillRequired(user);
-    await user.click(screen.getByRole('button', { name: 'Add Item' }));
+    await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
 
     expect(screen.getByText('Unit is required')).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
@@ -106,6 +106,11 @@ describe('StoreInventoryItemFormModal', () => {
           minWeekend: '',
           preferredSupplierId: null,
           note: '',
+          autoPoEnabled: true,
+          imageId: null,
+          imagePhotoId: null,
+          imagePreviewUrl: null,
+          removeImage: false,
         }}
       />,
     );
@@ -137,7 +142,7 @@ describe('StoreInventoryItemFormModal', () => {
     await fillRequired(user);
     await user.click(screen.getByRole('button', { name: 'Unit' }));
     await user.click(screen.getByRole('option', { name: 'ml — Milliliters' }));
-    await user.click(screen.getByRole('button', { name: 'Add Item' }));
+    await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ preferredSupplierId: 2, unitOfMeasurement: 'ml' }));
   });
 
@@ -168,7 +173,7 @@ describe('StoreInventoryItemFormModal', () => {
     await fillRequired(user);
     await user.click(screen.getByRole('button', { name: 'Unit' }));
     await user.click(screen.getByRole('option', { name: 'Nos. — Number of items' }));
-    await user.click(screen.getByRole('button', { name: 'Add Item' }));
+    await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ preferredSupplierId: 42 }));
   });
 

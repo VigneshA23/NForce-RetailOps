@@ -169,9 +169,7 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
                 ariaLabel="Filter by status"
               />
             </div>
-            {statusFilter !== null && (
-              <FilterClearButton onClick={() => setStatusFilter(null)} />
-            )}
+            <FilterClearButton onClick={() => setStatusFilter(null)} />
           </div>
 
           <div>

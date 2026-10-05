@@ -3,6 +3,7 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
+import com.nforce.retailops.entity.InventoryItemImage;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
@@ -12,6 +13,7 @@ import com.nforce.retailops.exception.StoreInventoryItemHasHistoryException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
+import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
@@ -41,6 +43,8 @@ public class StoreInventoryItemService {
     private final StockCheckRepository stockCheckRepository;
     private final OrderListEntryRepository orderListEntryRepository;
     private final ActivityLogService activityLogService;
+    private final InventoryItemImageRepository inventoryItemImageRepository;
+    private final UnsplashService unsplashService;
 
     public StoreInventoryItemService(
         StoreInventoryItemRepository storeInventoryItemRepository,
@@ -49,7 +53,9 @@ public class StoreInventoryItemService {
         StoreOwnerRepository storeOwnerRepository,
         StockCheckRepository stockCheckRepository,
         OrderListEntryRepository orderListEntryRepository,
-        ActivityLogService activityLogService
+        ActivityLogService activityLogService,
+        InventoryItemImageRepository inventoryItemImageRepository,
+        UnsplashService unsplashService
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.supplierRepository = supplierRepository;
@@ -58,6 +64,8 @@ public class StoreInventoryItemService {
         this.stockCheckRepository = stockCheckRepository;
         this.orderListEntryRepository = orderListEntryRepository;
         this.activityLogService = activityLogService;
+        this.inventoryItemImageRepository = inventoryItemImageRepository;
+        this.unsplashService = unsplashService;
     }
 
     // ---------------------------------------------------------------------
@@ -262,6 +270,7 @@ public class StoreInventoryItemService {
         item.setMinWeekday(request.minWeekday());
         item.setMinWeekend(request.minWeekend());
         item.setNote(request.note() != null ? request.note().trim() : null);
+        item.setAutoPoEnabled(request.autoPoEnabled());
 
         if (request.preferredSupplierId() == null) {
             item.setPreferredSupplier(null);
@@ -269,6 +278,37 @@ public class StoreInventoryItemService {
             Supplier supplier = supplierRepository.findById(request.preferredSupplierId())
                 .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
             item.setPreferredSupplier(supplier);
+        }
+
+        applyImage(item, request);
+    }
+
+    // Swaps in a newly picked Unsplash photo (downloaded now and stored as a
+    // new image row) or removes the current one. The replaced row is deleted
+    // rather than orphaned; Hibernate flushes that delete after the item's
+    // update, so the FK never points at a missing row.
+    private void applyImage(StoreInventoryItem item, StoreInventoryItemRequest request) {
+        String photoId = request.imagePhotoId() != null ? request.imagePhotoId().trim() : "";
+        boolean remove = Boolean.TRUE.equals(request.removeImage());
+        if (photoId.isEmpty() && !remove) {
+            return;
+        }
+
+        InventoryItemImage previous = item.getImage();
+        if (photoId.isEmpty()) {
+            item.setImage(null);
+        } else {
+            UnsplashService.DownloadedPhoto photo = unsplashService.download(photoId);
+            InventoryItemImage image = new InventoryItemImage();
+            image.setContentType(photo.contentType());
+            image.setData(photo.data());
+            image.setUnsplashPhotoId(photo.photoId());
+            image.setPhotographerName(photo.photographerName());
+            image.setPhotographerUrl(photo.photographerUrl());
+            item.setImage(inventoryItemImageRepository.save(image));
+        }
+        if (previous != null) {
+            inventoryItemImageRepository.delete(previous);
         }
     }
 
@@ -281,6 +321,10 @@ public class StoreInventoryItemService {
             throw new StoreInventoryItemHasHistoryException(
                 "This inventory item has stock-check or order history and cannot be deleted. Deactivate it instead.");
         }
+        InventoryItemImage image = item.getImage();
         storeInventoryItemRepository.delete(item);
+        if (image != null) {
+            inventoryItemImageRepository.delete(image);
+        }
     }
 }

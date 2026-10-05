@@ -2,6 +2,7 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
+import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
 import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
@@ -10,6 +11,7 @@ import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidDateRangeException;
+import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
@@ -149,6 +151,78 @@ class OrderListServiceTest {
         orderListService.resolveShortageIfPresent(store(), item());
 
         verify(orderListEntryRepository, never()).save(any());
+    }
+
+    private static final Long ENTRY_ID = 55L;
+
+    private StoreOwner storeOwner() {
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setStore(store());
+        storeOwner.setActive(true);
+        return storeOwner;
+    }
+
+    private OrderListEntry entryWithStatus(OrderStatus status) {
+        OrderListEntry entry = new OrderListEntry();
+        ReflectionTestUtils.setField(entry, "id", ENTRY_ID);
+        entry.setStore(store());
+        entry.setStoreInventoryItem(item());
+        entry.setStatus(status);
+        entry.setQuantityNeeded(5);
+        return entry;
+    }
+
+    @Test
+    void updateEntryAllowsTheSingleLegalForwardStep() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(5, null, null, OrderStatus.ORDERED));
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+    }
+
+    @Test
+    void updateEntryRejectsSkippingOrderedOnTheWayToReceived() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() ->
+            orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(5, null, null, OrderStatus.RECEIVED))
+        ).isInstanceOf(InvalidOrderEntryTransitionException.class);
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void updateEntryRejectsMovingBackward() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() ->
+            orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(5, null, null, OrderStatus.NEEDS_ORDERING))
+        ).isInstanceOf(InvalidOrderEntryTransitionException.class);
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void updateEntryAllowsEditingWithoutChangingStatus() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(9, null, "note", OrderStatus.ORDERED));
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+        assertThat(entry.getQuantityNeeded()).isEqualTo(9);
     }
 
     // ---- createEntry ("Add to order") ---------------------------------------

@@ -70,6 +70,13 @@ resend:
   api-key: ${RESEND_API_KEY:}
   from-email: ${RESEND_FROM_EMAIL:RetailOps <onboarding@resend.dev>}
 
+# Inventory item display images. Only the Access Key is used (Client-ID
+# auth for search + photo fetch); the Secret Key is for OAuth flows the app
+# doesn't use. Blank access key = image search returns 503.
+unsplash:
+  access-key: ${UNSPLASH_ACCESS_KEY:}
+  secret-key: ${UNSPLASH_SECRET_KEY:}
+
 ses:
   from-email: ${SES_FROM_EMAIL:noreply@nforceone.com}
 

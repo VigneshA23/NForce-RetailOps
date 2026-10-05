@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import StockCheckHistory from './StockCheckHistory';
 import * as storeInventoryApi from '../api/storeInventory';
-import type { StockCheckHistoryPage, StockCheckResponse } from '../types/stockCheck';
+import type { StockCheckHistoryPage, StockCheckResponse, StockSnapshot } from '../types/stockCheck';
 
 vi.mock('../api/storeInventory', () => ({
   getStockCheckHistory: vi.fn(),
@@ -17,24 +17,30 @@ vi.mock('../utils/toast', () => ({
 const mockGetStockCheckHistory = vi.mocked(storeInventoryApi.getStockCheckHistory);
 const mockCorrectStockCheck = vi.mocked(storeInventoryApi.correctStockCheck);
 
+function snapshot(overrides: Partial<StockSnapshot>): StockSnapshot {
+  return {
+    available: 12,
+    deadStock: 0,
+    usable: 12,
+    enteredByName: 'Jane Doe',
+    enteredAt: '2026-09-20T09:00:00Z',
+    lastUpdatedByName: 'Jane Doe',
+    lastUpdatedAt: '2026-09-20T09:00:00Z',
+    edited: false,
+    ...overrides,
+  };
+}
+
 function row(overrides: Partial<StockCheckResponse>): StockCheckResponse {
   return {
     id: 1,
     storeInventoryItemId: 1,
     itemName: 'Paper Towels',
+    category: 'SUPPLIES',
     unitOfMeasurement: 'EA',
     checkDate: '2026-09-20',
     requiredPar: null,
-    startOfDay: {
-      available: 12,
-      deadStock: 0,
-      usable: 12,
-      enteredByName: 'Jane Doe',
-      enteredAt: '2026-09-20T09:00:00Z',
-      lastUpdatedByName: 'Jane Doe',
-      lastUpdatedAt: '2026-09-20T09:00:00Z',
-      edited: false,
-    },
+    startOfDay: snapshot({}),
     endOfDay: null,
     stockUsed: null,
     requiredTomorrow: null,
@@ -48,7 +54,7 @@ function page(overrides: Partial<StockCheckHistoryPage>): StockCheckHistoryPage 
   return {
     items: [],
     page: 1,
-    pageSize: 50,
+    pageSize: 10,
     pageCount: 1,
     totalItems: 0,
     ...overrides,
@@ -69,41 +75,11 @@ describe('StockCheckHistory', () => {
     expect(await screen.findByText('No stock checks recorded for the selected range.')).toBeInTheDocument();
   });
 
-  it('shows both snapshots, the usage between them, and each edit with its previous value', async () => {
+  it('shows the counted amount, a Shortage badge, and who recorded it', async () => {
     mockGetStockCheckHistory.mockResolvedValue(page({
       items: [row({
-        startOfDay: {
-          available: 48,
-          deadStock: 2,
-          usable: 46,
-          enteredByName: 'John',
-          enteredAt: '2026-09-20T09:00:00Z',
-          lastUpdatedByName: 'Owner Olivia',
-          lastUpdatedAt: '2026-09-20T10:00:00Z',
-          edited: true,
-        },
-        endOfDay: {
-          available: 35,
-          deadStock: 1,
-          usable: 34,
-          enteredByName: 'Sarah',
-          enteredAt: '2026-09-20T19:10:00Z',
-          lastUpdatedByName: 'Sarah',
-          lastUpdatedAt: '2026-09-20T19:10:00Z',
-          edited: false,
-        },
-        stockUsed: 12,
-        quantityToOrder: 6,
-        edits: [{
-          snapshot: 'START_OF_DAY',
-          previousAvailable: 50,
-          previousDeadStock: 2,
-          newAvailable: 48,
-          newDeadStock: 2,
-          editedByName: 'Owner Olivia',
-          editedAt: '2026-09-20T10:00:00Z',
-          reason: null,
-        }],
+        requiredPar: 20,
+        endOfDay: snapshot({ available: 16, usable: 16, lastUpdatedByName: 'Owner Olivia' }),
       })],
       totalItems: 1,
     }));
@@ -111,21 +87,99 @@ describe('StockCheckHistory', () => {
     render(<StockCheckHistory />);
 
     const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
-    expect(within(tableRow).getByText(/by Owner Olivia, first entered by John/)).toBeInTheDocument();
-    expect(within(tableRow).getByText('12')).toBeInTheDocument();
-    expect(within(tableRow).getByText('6')).toBeInTheDocument();
-    expect(
-      within(tableRow).getByText(/Start of Day changed from 50 \(2 dead\) to 48 \(2 dead\) by Owner Olivia/),
-    ).toBeInTheDocument();
+    expect(within(tableRow).getByText('16 EA')).toBeInTheDocument();
+    expect(within(tableRow).getByText('+4 EA needed')).toBeInTheDocument();
+    expect(within(tableRow).getByText('Owner Olivia')).toBeInTheDocument();
+    expect(within(tableRow).getByText('Supplies')).toBeInTheDocument();
   });
 
-  it('marks a snapshot that was never taken as not counted', async () => {
+  it('badges an exact-par count as Sufficient', async () => {
+    mockGetStockCheckHistory.mockResolvedValue(page({
+      items: [row({ requiredPar: 10, endOfDay: snapshot({ available: 10, usable: 10 }) })],
+      totalItems: 1,
+    }));
+
+    render(<StockCheckHistory />);
+
+    expect(await screen.findByText('0 (Sufficient)')).toBeInTheDocument();
+  });
+
+  it('falls back to the Start of Day count when End of Day was never taken, but still badges it Not Counted', async () => {
     mockGetStockCheckHistory.mockResolvedValue(page({ items: [row({})], totalItems: 1 }));
 
     render(<StockCheckHistory />);
 
     const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
-    expect(within(tableRow).getByText('Not counted')).toBeInTheDocument();
+    // Count Entered reflects whatever the employee actually entered that day
+    // (Start of Day's 12, from the default row() fixture) -- it must not read
+    // as uncounted just because End of Day hasn't happened yet.
+    expect(within(tableRow).getByText('12 EA')).toBeInTheDocument();
+    // The Qty Needed badge is still "Not Counted", since reconciliation
+    // specifically needs the End of Day figure.
+    expect(within(tableRow).getByText('— (Not Counted)')).toBeInTheDocument();
+  });
+
+  it('shows no count at all when neither snapshot has been taken', async () => {
+    mockGetStockCheckHistory.mockResolvedValue(page({ items: [row({ startOfDay: null })], totalItems: 1 }));
+
+    render(<StockCheckHistory />);
+
+    const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    const countCell = tableRow.querySelector('[data-label="Count Entered"]')!;
+    expect(countCell).toHaveTextContent('—');
+  });
+
+  it('filters rows by search term against item name and recorded-by name', async () => {
+    const user = userEvent.setup();
+    mockGetStockCheckHistory.mockResolvedValue(page({
+      items: [
+        row({ id: 1, itemName: 'Paper Towels', endOfDay: snapshot({ lastUpdatedByName: 'Ananya Reddy' }) }),
+        row({ id: 2, itemName: 'Whole Milk', endOfDay: snapshot({ lastUpdatedByName: 'Arjun Pillai' }) }),
+      ],
+      totalItems: 2,
+    }));
+
+    render(<StockCheckHistory />);
+    await screen.findByText('Paper Towels');
+
+    await user.type(screen.getByPlaceholderText('Search by item name or staff name...'), 'milk');
+
+    expect(screen.queryByText('Paper Towels')).not.toBeInTheDocument();
+    expect(screen.getByText('Whole Milk')).toBeInTheDocument();
+  });
+
+  it('filters rows by status chip', async () => {
+    const user = userEvent.setup();
+    mockGetStockCheckHistory.mockResolvedValue(page({
+      items: [
+        row({ id: 1, itemName: 'Short Item', requiredPar: 10, endOfDay: snapshot({ available: 2, usable: 2 }) }),
+        row({ id: 2, itemName: 'Sufficient Item', requiredPar: 10, endOfDay: snapshot({ available: 10, usable: 10 }) }),
+      ],
+      totalItems: 2,
+    }));
+
+    render(<StockCheckHistory />);
+    await screen.findByText('Short Item');
+
+    await user.click(screen.getByRole('button', { name: 'Shortage' }));
+
+    expect(screen.getByText('Short Item')).toBeInTheDocument();
+    expect(screen.queryByText('Sufficient Item')).not.toBeInTheDocument();
+  });
+
+  it('clears search and status filters via the reset-filter button', async () => {
+    const user = userEvent.setup();
+    mockGetStockCheckHistory.mockResolvedValue(page({ items: [row({})], totalItems: 1 }));
+
+    render(<StockCheckHistory />);
+    await screen.findByText('Paper Towels');
+
+    await user.type(screen.getByPlaceholderText('Search by item name or staff name...'), 'nonexistent');
+    expect(screen.queryByText('Paper Towels')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+    expect(await screen.findByText('Paper Towels')).toBeInTheDocument();
   });
 
   it('rejects an inverted custom range with an inline error and never calls the API for it', async () => {
@@ -196,7 +250,7 @@ describe('StockCheckHistory', () => {
 
     render(<StockCheckHistory />);
     const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
-    await user.click(within(tableRow).getByRole('button', { name: 'Correct this count' }));
+    await user.click(within(tableRow).getByRole('button', { name: 'Correct count for Paper Towels' }));
 
     expect(await screen.findByText('Correct Start of Day count: Paper Towels')).toBeInTheDocument();
     const availableInput = screen.getAllByRole('spinbutton')[0];
@@ -220,7 +274,7 @@ describe('StockCheckHistory', () => {
     mockGetStockCheckHistory.mockResolvedValue(page({ items: [original], totalItems: 1 }));
     mockCorrectStockCheck.mockResolvedValue({
       ...original,
-      startOfDay: { ...original.startOfDay!, available: 50, edited: true },
+      startOfDay: { ...original.startOfDay!, available: 50, usable: 48, edited: true },
       edits: [{
         snapshot: 'START_OF_DAY',
         previousAvailable: 48,
@@ -235,7 +289,7 @@ describe('StockCheckHistory', () => {
 
     render(<StockCheckHistory />);
     const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
-    await user.click(within(tableRow).getByRole('button', { name: 'Correct this count' }));
+    await user.click(within(tableRow).getByRole('button', { name: 'Correct count for Paper Towels' }));
     await screen.findByText('Correct Start of Day count: Paper Towels');
 
     await user.click(screen.getByRole('button', { name: 'Save correction' }));
@@ -248,7 +302,7 @@ describe('StockCheckHistory', () => {
     // refetches -- it should not, since the row is replaced in place.
     expect(mockGetStockCheckHistory).toHaveBeenCalledTimes(1);
     const updatedRow = (await screen.findByText('Paper Towels')).closest('tr')!;
-    expect(within(updatedRow).getByText('50')).toBeInTheDocument();
+    expect(within(updatedRow).getByText('48 EA')).toBeInTheDocument();
   });
 
   it('shows an inline error and keeps the form open when the correction fails', async () => {
@@ -272,7 +326,7 @@ describe('StockCheckHistory', () => {
 
     render(<StockCheckHistory />);
     const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
-    await user.click(within(tableRow).getByRole('button', { name: 'Correct this count' }));
+    await user.click(within(tableRow).getByRole('button', { name: 'Correct count for Paper Towels' }));
     await screen.findByText('Correct Start of Day count: Paper Towels');
 
     await user.click(screen.getByRole('button', { name: 'Save correction' }));

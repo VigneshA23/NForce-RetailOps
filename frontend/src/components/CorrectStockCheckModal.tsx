@@ -19,12 +19,22 @@ export interface CorrectStockCheckValues {
 interface CorrectStockCheckModalProps {
   isOpen: boolean;
   row: StockCheckResponse | null;
+  // Which snapshot to open on -- the caller's single per-row "Correct"
+  // action defaults this to whichever snapshot is actually shown as "Count
+  // Entered" (End of Day if present, else Start of Day). The snapshot
+  // toggle below lets the owner switch to the other one when the row has
+  // both.
   snapshot: StockCheckSnapshotKey | null;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
   onSubmit: (values: CorrectStockCheckValues) => void;
 }
+
+const SNAPSHOT_OPTIONS = [
+  { value: 'START_OF_DAY', label: 'Start of Day' },
+  { value: 'END_OF_DAY', label: 'End of Day' },
+];
 
 // Corrects one snapshot (Start of Day or End of Day) of a past stock-check
 // entry picked from StockCheckHistory -- unlike EditInventoryCountModal
@@ -34,26 +44,41 @@ interface CorrectStockCheckModalProps {
 // comes straight from `row.edits` (already fetched with the history list),
 // so there's no separate "load history" request like CorrectionModal's.
 function CorrectStockCheckModal({ isOpen, row, snapshot, errorMessage, isSubmitting = false, onClose, onSubmit }: CorrectStockCheckModalProps) {
+  const [activeSnapshot, setActiveSnapshot] = useState<StockCheckSnapshotKey>('START_OF_DAY');
   const [available, setAvailable] = useState(0);
   const [deadStock, setDeadStock] = useState(0);
   const [reason, setReason] = useState(REASON_OPTIONS[0].value);
   const [note, setNote] = useState('');
 
-  const current = row && snapshot ? (snapshot === 'START_OF_DAY' ? row.startOfDay : row.endOfDay) : null;
-
+  // Resets everything to the snapshot the row was opened on -- re-keyed off
+  // `row`/`snapshot` (not `activeSnapshot`) so switching the toggle below
+  // doesn't re-trigger this.
   useEffect(() => {
-    if (isOpen && current) {
-      setAvailable(current.available);
-      setDeadStock(current.deadStock);
-      setReason(REASON_OPTIONS[0].value);
-      setNote('');
-    }
-  }, [isOpen, current]);
+    if (!isOpen || !row || !snapshot) return;
+    const initial = snapshot === 'START_OF_DAY' ? row.startOfDay : row.endOfDay;
+    setActiveSnapshot(snapshot);
+    setAvailable(initial?.available ?? 0);
+    setDeadStock(initial?.deadStock ?? 0);
+    setReason(REASON_OPTIONS[0].value);
+    setNote('');
+  }, [isOpen, row, snapshot]);
 
-  if (!row || !snapshot || !current) return null;
+  if (!row || !snapshot) return null;
 
-  const edits = row.edits.filter((edit) => edit.snapshot === snapshot);
-  const snapshotLabel = snapshot === 'START_OF_DAY' ? 'Start of Day' : 'End of Day';
+  const current = activeSnapshot === 'START_OF_DAY' ? row.startOfDay : row.endOfDay;
+  if (!current) return null;
+
+  const edits = row.edits.filter((edit) => edit.snapshot === activeSnapshot);
+  const snapshotLabel = activeSnapshot === 'START_OF_DAY' ? 'Start of Day' : 'End of Day';
+
+  function handleSnapshotChange(value: string) {
+    const next = value as StockCheckSnapshotKey;
+    const target = next === 'START_OF_DAY' ? row!.startOfDay : row!.endOfDay;
+    if (!target) return;
+    setActiveSnapshot(next);
+    setAvailable(target.available);
+    setDeadStock(target.deadStock);
+  }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -83,6 +108,11 @@ function CorrectStockCheckModal({ isOpen, row, snapshot, errorMessage, isSubmitt
       }
     >
       <form id="correct-stock-check-form" onSubmit={handleSubmit} noValidate>
+        {row.startOfDay && row.endOfDay && (
+          <FormField label="Snapshot" htmlFor="csc-snapshot">
+            <Select id="csc-snapshot" options={SNAPSHOT_OPTIONS} value={activeSnapshot} onChange={handleSnapshotChange} ariaLabel="Snapshot" />
+          </FormField>
+        )}
         <FormField label="Available" htmlFor="csc-available">
           <QuantityStepper id="csc-available" value={available} unit={row.unitOfMeasurement} min={0} ariaLabel="Available" onChange={setAvailable} />
         </FormField>

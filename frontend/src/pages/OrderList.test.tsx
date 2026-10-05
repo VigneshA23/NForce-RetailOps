@@ -45,6 +45,7 @@ function entry(overrides: Partial<OrderListEntry>): OrderListEntry {
     raisedByName: null,
     createdAt: '2026-09-24T15:30:00Z',
     updatedAt: '2026-09-24T15:30:00Z',
+    imageId: null,
     ...overrides,
   };
 }
@@ -63,8 +64,10 @@ function inventoryItem(overrides: Partial<StoreInventoryItem>): StoreInventoryIt
     preferredSupplierName: null,
     note: null,
     active: true,
+    autoPoEnabled: true,
     requiredToday: 5,
     currentAvailable: 10,
+    imageId: null,
     ...overrides,
   };
 }
@@ -214,12 +217,14 @@ describe('OrderList filters', () => {
     expect(screen.queryByText('Bread')).not.toBeInTheDocument();
   });
 
-  it('shows a Clear button once any filter is active, and it resets every filter', async () => {
+  it('always shows the Clear button, and it resets every filter', async () => {
     const user = userEvent.setup();
     render(<OrderList storeName="Downtown" />);
     await screen.findByText('Milk');
 
-    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
+    // Always rendered, even with no filter active yet -- a stable, always
+    // findable reset control rather than something that pops in and out.
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText('Search items'), 'milk');
     expect(screen.queryByText('Bread')).not.toBeInTheDocument();

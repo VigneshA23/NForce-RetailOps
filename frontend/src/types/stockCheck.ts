@@ -1,3 +1,5 @@
+import type { InventoryItemCategory } from './storeInventory';
+
 export type StockCheckSnapshotKey = 'START_OF_DAY' | 'END_OF_DAY';
 
 // One Start of Day or End of Day count. usable = available - deadStock;
@@ -31,6 +33,9 @@ export interface StockCheckResponse {
   id: number;
   storeInventoryItemId: number;
   itemName: string;
+  // Null for items created before category support (V77) that haven't been
+  // edited since.
+  category: InventoryItemCategory | null;
   unitOfMeasurement: string;
   checkDate: string;
   // This day's own par level (set whether or not End of Day was recorded) --
@@ -57,6 +62,16 @@ export interface StockCheckHistoryPage {
   totalItems: number;
 }
 
+// One item on the employee's "Report Shortage" picker -- the full store
+// catalog (active and inactive alike, matching Owner/Admin's Inventory Items
+// list), not just today's active checklist (see DailyStockCheckItem below).
+export interface StoreInventoryItemOption {
+  storeInventoryItemId: number;
+  itemName: string;
+  unitOfMeasurement: string;
+  active: boolean;
+}
+
 // One item on the employee's daily Stock Check screen.
 export interface DailyStockCheckItem {
   storeInventoryItemId: number;
@@ -68,6 +83,7 @@ export interface DailyStockCheckItem {
   endOfDay: StockSnapshot | null;
   stockUsed: number | null;
   quantityToOrder: number | null;
+  imageId: number | null;
 }
 
 export type EodReportStatus = 'NEEDS_TO_ORDER' | 'SUFFICIENT' | 'END_OF_DAY_PENDING' | 'NO_MINIMUM_SET';

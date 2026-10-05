@@ -4,7 +4,7 @@ import CalendarPopover from './CalendarPopover';
 import { getEodSupplierReport } from '../api/storeInventory';
 import type { EodReportRow, EodReportStatus, EodSupplierReport as EodSupplierReportData } from '../types/stockCheck';
 import { formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
-import { buildEodReportText } from '../utils/orderListExport';
+import { buildEodReportText, usableStock } from '../utils/orderListExport';
 import { nfToast } from '../utils/toast';
 import './EodSupplierReport.css';
 
@@ -19,6 +19,14 @@ function value(n: number | null): string {
   return n == null ? '—' : String(n);
 }
 
+function DeadCell({ label, deadStock }: { label: string; deadStock: number | null }) {
+  return (
+    <td data-label={label}>
+      <span className={deadStock ? 'eod-report__dead' : undefined}>{value(deadStock)}</span>
+    </td>
+  );
+}
+
 function ReportRow({ row, supplierName }: { row: EodReportRow; supplierName: string }) {
   const status = STATUS_META[row.status];
   return (
@@ -28,10 +36,11 @@ function ReportRow({ row, supplierName }: { row: EodReportRow; supplierName: str
         <span className="eod-report__unit">{row.unitOfMeasurement}</span>
       </td>
       <td data-label="Supplier">{supplierName}</td>
-      <td data-label="Start">{value(row.startOfDayAvailable)}</td>
-      <td data-label="End">{value(row.endOfDayAvailable)}</td>
+      <td data-label="Start Usable">{value(usableStock(row.startOfDayAvailable, row.startOfDayDeadStock))}</td>
+      <DeadCell label="Start Dead" deadStock={row.startOfDayDeadStock} />
+      <td data-label="End Usable">{value(usableStock(row.endOfDayAvailable, row.endOfDayDeadStock))}</td>
+      <DeadCell label="End Dead" deadStock={row.endOfDayDeadStock} />
       <td data-label="Used">{value(row.stockUsed)}</td>
-      <td data-label="Dead Stock">{value(row.endOfDayDeadStock)}</td>
       <td data-label="Required Tomorrow">{value(row.requiredTomorrow)}</td>
       <td data-label="Order Qty">
         <strong className={row.quantityToOrder ? 'eod-report__order-qty' : undefined}>{value(row.quantityToOrder)}</strong>
@@ -44,7 +53,8 @@ function ReportRow({ row, supplierName }: { row: EodReportRow; supplierName: str
 }
 
 // Owner/Admin's End of Day supplier report: each item's Start/End of Day
-// stock, usage, tomorrow's requirement and quantity to order for one
+// usable stock (available minus dead) with each snapshot's dead stock in its
+// own column, so Start Usable - End Usable = Used reads straight across; usage, tomorrow's requirement and quantity to order for one
 // business day, grouped by supplier ("No Supplier" last).
 function EodSupplierReport({ storeName }: { storeName?: string | null }) {
   const [date, setDate] = useState(todayDate());
@@ -143,10 +153,11 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
               <tr>
                 <th scope="col">Item</th>
                 <th scope="col">Supplier</th>
-                <th scope="col">Start</th>
-                <th scope="col">End</th>
+                <th scope="col">Start Usable</th>
+                <th scope="col">Start Dead</th>
+                <th scope="col">End Usable</th>
+                <th scope="col">End Dead</th>
                 <th scope="col">Used</th>
-                <th scope="col">Dead Stock</th>
                 <th scope="col">Required Tomorrow</th>
                 <th scope="col">Order Qty</th>
                 <th scope="col">Status</th>
@@ -155,7 +166,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
             {!isLoading && report?.groups.map((group) => (
               <tbody key={group.supplierId ?? 'none'}>
                 <tr className="eod-report__group-row">
-                  <th scope="rowgroup" colSpan={9}>
+                  <th scope="rowgroup" colSpan={10}>
                     {group.supplierName}
                     <span className="eod-report__group-count">
                       {group.items.length} item{group.items.length === 1 ? '' : 's'}

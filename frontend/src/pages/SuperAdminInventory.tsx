@@ -207,6 +207,11 @@ function SuperAdminInventory() {
         minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
         preferredSupplierId: itemModal.item.preferredSupplierId,
         note: itemModal.item.note ?? '',
+        autoPoEnabled: itemModal.item.autoPoEnabled,
+        imageId: itemModal.item.imageId,
+        imagePhotoId: null,
+        imagePreviewUrl: null,
+        removeImage: false,
       };
     }
     if (itemModal?.mode === 'create') {
@@ -219,6 +224,11 @@ function SuperAdminInventory() {
         minWeekend: '',
         preferredSupplierId: null,
         note: '',
+        autoPoEnabled: true,
+        imageId: null,
+        imagePhotoId: null,
+        imagePreviewUrl: null,
+        removeImage: false,
       };
     }
     return undefined;
@@ -357,9 +367,7 @@ function SuperAdminInventory() {
                   onChange={(value) => setItemStatusFilter(value as StatusFilter)}
                   ariaLabel="Filter by status"
                 />
-                {itemStatusFilter !== 'ALL' && (
-                  <FilterClearButton onClick={() => setItemStatusFilter('ALL')} />
-                )}
+                <FilterClearButton onClick={() => setItemStatusFilter('ALL')} />
               </div>
 
               <StoreInventoryTable

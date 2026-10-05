@@ -208,7 +208,7 @@ function InventoryCounts() {
                     <tr>
                       <td data-label="Item">
                         <div className="inventory-counts__item-cell">
-                          <CategoryIcon category={row.category} name={row.name} size={40} />
+                          <CategoryIcon category={row.category} name={row.name} size={40} imageId={row.imageId} />
                           <div>
                             <div className="inventory-counts__item-name">{row.name}</div>
                             <div className="inventory-counts__item-category">

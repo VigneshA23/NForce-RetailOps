@@ -23,6 +23,9 @@ function toBody(values: StoreInventoryItemFormValues) {
     minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
     preferredSupplierId: values.preferredSupplierId,
     note: values.note.trim() === '' ? null : values.note.trim(),
+    autoPoEnabled: values.autoPoEnabled,
+    imagePhotoId: values.imagePhotoId,
+    removeImage: values.removeImage,
   };
 }
 

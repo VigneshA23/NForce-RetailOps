@@ -182,9 +182,7 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
             ariaLabel="Filter by status"
           />
         </div>
-        {statusFilter !== 'ACTIVE' && (
-          <FilterClearButton onClick={() => setStatusFilter('ACTIVE')} />
-        )}
+        <FilterClearButton onClick={() => setStatusFilter('ACTIVE')} />
       </div>
 
       <div>
