@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
-import { ChevronDown, Clock, Package, Pencil, TrendingDown, XCircle } from 'lucide-react';
+import { Boxes, ChevronDown, CircleX, Clock, Pencil, TrendingDown } from 'lucide-react';
 import { getInventoryCountHistory, getInventoryCounts, correctStockCheck } from '../api/storeInventory';
 import type {
   InventoryCountHistoryEntry,
@@ -10,7 +10,7 @@ import type {
 import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
 import { nfToast } from '../utils/toast';
 import { formatDateLabel, formatTimeLabel } from '../utils/checklistHistoryOptions';
-import GradientKpiTile from './GradientKpiTile';
+import StatCard from './StatCard';
 import CategoryIcon from './CategoryIcon';
 import SearchInput from './SearchInput';
 import Select from './Select';
@@ -156,11 +156,11 @@ function InventoryCounts() {
 
   return (
     <div className="inventory-counts">
-      <div className="inventory-counts__kpis">
-        <GradientKpiTile icon={Package} label="Items tracked" value={kpis.all} color="#1f6fe0" tint="#eaf1fd" iconBg="#dce8fb" onClick={() => pickLevel('all')} active={level === 'all'} />
-        <GradientKpiTile icon={XCircle} label="Out of stock" value={kpis.out} color="#e11d33" tint="#fdecef" iconBg="#fde1e5" onClick={() => pickLevel('out')} active={level === 'out'} />
-        <GradientKpiTile icon={TrendingDown} label="Below minimum" value={kpis.low} color="#c77a0a" tint="#fdf3e3" iconBg="#fbe9cc" onClick={() => pickLevel('low')} active={level === 'low'} />
-        <GradientKpiTile icon={Clock} label="Not updated today" value={kpis.stale} color="#52525b" tint="#f1f1f4" iconBg="#e7e7ea" onClick={() => pickLevel('stale')} active={level === 'stale'} />
+      <div className="stat-card-row">
+        <StatCard icon={Boxes} label="All Items" value={kpis.all} tone="primary" onClick={() => pickLevel('all')} active={level === 'all'} />
+        <StatCard icon={CircleX} label="Out of Stock" value={kpis.out} tone="warning" onClick={() => pickLevel('out')} active={level === 'out'} />
+        <StatCard icon={TrendingDown} label="Below Minimum" value={kpis.low} tone="info" onClick={() => pickLevel('low')} active={level === 'low'} />
+        <StatCard icon={Clock} label="Not Updated Today" value={kpis.stale} tone="purple" onClick={() => pickLevel('stale')} active={level === 'stale'} />
       </div>
 
       <div className="filter-bar">

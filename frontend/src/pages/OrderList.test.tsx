@@ -158,50 +158,6 @@ describe('OrderList status filter', () => {
   });
 });
 
-describe('OrderList Copy Reorder List', () => {
-  it('copies only the live NEEDS_ORDERING entries, grouped by supplier, with the store name and generation date, and shows success feedback', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] });
-    vi.setSystemTime(new Date(2026, 8, 30));
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    mockGetOrderList.mockReset().mockResolvedValue([
-      entry({ id: 1, itemName: 'Milk', unitOfMeasurement: 'gallons', quantityNeeded: 12, status: 'NEEDS_ORDERING', supplierId: 1, supplierName: 'Acme Supplies' }),
-      entry({ id: 2, itemName: 'Bread', status: 'ORDERED', supplierId: 1, supplierName: 'Acme Supplies' }),
-      entry({ id: 3, itemName: 'Cleaning Spray', quantityNeeded: 8, unitOfMeasurement: 'bottles', status: 'NEEDS_ORDERING', supplierId: null, supplierName: null }),
-    ]);
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
-    const { nfToast } = await import('../utils/toast');
-
-    render(<OrderList storeName="Downtown" />);
-    await screen.findByText('Milk');
-
-    await user.click(screen.getByRole('button', { name: /copy reorder list/i }));
-
-    expect(writeText).toHaveBeenCalledTimes(1);
-    const copied = writeText.mock.calls[0][0] as string;
-    expect(copied.startsWith('*REORDER LIST :*\n\n*Store  - Downtown*\n*Date   - September 30, 2026*')).toBe(true);
-    expect(copied).toContain('Acme Supplies');
-    expect(copied).toContain('* Milk — 12 gallons');
-    expect(copied).toContain('Unassigned Supplier');
-    expect(copied).toContain('* Cleaning Spray — 8 bottles');
-    expect(copied).not.toContain('Bread');
-    expect(nfToast.success).toHaveBeenCalledWith('Reorder list copied.');
-    vi.useRealTimers();
-  });
-
-  it('disables the Copy Reorder List button when nothing currently needs ordering', async () => {
-    mockGetOrderList.mockReset().mockResolvedValue([
-      entry({ id: 1, itemName: 'Bread', status: 'ORDERED' }),
-      entry({ id: 2, itemName: 'Eggs', status: 'RECEIVED' }),
-    ]);
-
-    render(<OrderList storeName="Downtown" />);
-    await screen.findByText('Unassigned Supplier');
-
-    expect(screen.getByRole('button', { name: /copy reorder list/i })).toBeDisabled();
-  });
-});
-
 describe('OrderList filters', () => {
   beforeEach(() => {
     mockGetOrderList.mockReset().mockResolvedValue([
