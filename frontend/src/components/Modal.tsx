@@ -10,7 +10,11 @@ interface ModalProps {
   subtitle?: string;
   children: ReactNode;
   footer?: ReactNode;
-  size?: 'md' | 'lg';
+  // 'panel' docks to the right edge, full height, instead of a centered
+  // card -- for a form long enough to want to stay open alongside the list
+  // behind it (e.g. "Add to order"). Everything else about Modal (focus
+  // trap, Escape, scroll lock, keyboard-aware sizing) is unchanged.
+  size?: 'md' | 'lg' | 'panel';
   // Keeps the dialog centered on mobile instead of the default bottom-sheet
   // layout. Off by default; the logout confirmation dialog opts in across
   // all three shells (Employee, Owner/Admin, Super Admin).
@@ -182,13 +186,13 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
   return createPortal(
     <div
       ref={overlayRef}
-      className={`modal-overlay${centered ? ' modal-overlay--centered' : ''}`}
+      className={`modal-overlay${centered ? ' modal-overlay--centered' : ''}${size === 'panel' ? ' modal-overlay--panel' : ''}`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
     >
       <div
-        className={`modal${size === 'lg' ? ' modal--lg' : ''}${className ? ` ${className}` : ''}`}
+        className={`modal${size === 'lg' ? ' modal--lg' : ''}${size === 'panel' ? ' modal--panel' : ''}${className ? ` ${className}` : ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

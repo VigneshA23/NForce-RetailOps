@@ -1,3 +1,5 @@
+import type { InventoryItemCategory } from './storeInventory';
+
 export type StockCheckSnapshotKey = 'START_OF_DAY' | 'END_OF_DAY';
 
 // One Start of Day or End of Day count. usable = available - deadStock;
@@ -31,8 +33,9 @@ export interface StockCheckResponse {
   id: number;
   storeInventoryItemId: number;
   itemName: string;
-  categoryId: number | null;
-  categoryName: string | null;
+  // Null for items created before category support (V77) that haven't been
+  // edited since.
+  category: InventoryItemCategory | null;
   unitOfMeasurement: string;
   checkDate: string;
   // This day's own par level (set whether or not End of Day was recorded) --
@@ -80,4 +83,29 @@ export interface DailyStockCheckItem {
   endOfDay: StockSnapshot | null;
   stockUsed: number | null;
   quantityToOrder: number | null;
+}
+
+export type EodReportStatus = 'NEEDS_TO_ORDER' | 'SUFFICIENT' | 'END_OF_DAY_PENDING' | 'NO_MINIMUM_SET';
+
+export interface EodReportRow {
+  storeInventoryItemId: number;
+  itemName: string;
+  unitOfMeasurement: string;
+  startOfDayAvailable: number | null;
+  startOfDayDeadStock: number | null;
+  endOfDayAvailable: number | null;
+  endOfDayDeadStock: number | null;
+  stockUsed: number | null;
+  requiredTomorrow: number | null;
+  quantityToOrder: number | null;
+  status: EodReportStatus;
+}
+
+// GET /api/stores/inventory/eod-report?date= -- grouped by preferred
+// supplier, "No Supplier" last.
+export interface EodSupplierReport {
+  date: string;
+  groups: { supplierId: number | null; supplierName: string; items: EodReportRow[] }[];
+  itemsNeedingOrder: number;
+  itemsPendingEndOfDay: number;
 }

@@ -215,11 +215,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
-    @ExceptionHandler(InventoryCategoryNotFoundException.class)
-    public ResponseEntity<Map<String, String>> handleInventoryCategoryNotFound(InventoryCategoryNotFoundException ex) {
-        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
-    }
-
     // The row exists but belongs to another owner's store -- 403, not 404,
     // matching UnauthorizedTaskResponseActionException's precedent for
     // cross-store access on an otherwise-real resource.
@@ -241,6 +236,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OrderListEntryNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleOrderListEntryNotFound(OrderListEntryNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InvalidOrderListEntryException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidOrderListEntry(InvalidOrderListEntryException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
     @ExceptionHandler(TaskMakeupLinkNotEligibleException.class)

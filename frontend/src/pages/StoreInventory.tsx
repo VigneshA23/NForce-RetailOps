@@ -9,10 +9,8 @@ import {
   updateStoreInventoryItem,
 } from '../api/storeInventory';
 import { findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
-import { findOrCreateCategory, getOwnerCategories } from '../api/inventoryCategories';
-import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
+import { INVENTORY_ITEM_CATEGORY_OPTIONS, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
-import type { InventoryCategory } from '../types/inventoryCategory';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
 import StoreInventoryCardGrid from '../components/StoreInventoryCardGrid';
@@ -44,6 +42,8 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'category', label: 'Sort: Category' },
 ];
 
+const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
+
 const STATUS_SORT_ORDER = { low: 0, out: 1, in: 2, inactive: 3 } as const;
 
 function StoreInventory() {
@@ -51,7 +51,6 @@ function StoreInventory() {
   const [historyTotal, setHistoryTotal] = useState(0);
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -74,11 +73,10 @@ function StoreInventory() {
   function load() {
     setIsLoading(true);
     setLoadError(null);
-    Promise.all([getStoreInventoryItems(), getOwnerSuppliers(), getOwnerCategories()])
-      .then(([its, sups, cats]) => {
+    Promise.all([getStoreInventoryItems(), getOwnerSuppliers()])
+      .then(([its, sups]) => {
         setItems(its);
         setSuppliers(sups);
-        setCategories(cats);
       })
       .catch((error: Error) => setLoadError(error.message))
       .finally(() => setIsLoading(false));
@@ -121,20 +119,6 @@ function StoreInventory() {
     );
     nfToast.success(`"${supplier.name}" supplier added.`);
     return supplier;
-  }
-
-  // Inline "Add New Category" from the item form: persist it, then merge it
-  // into the local directory so it's selectable for every later item too.
-  async function handleCreateCategory(name: string): Promise<InventoryCategory> {
-    const category = await findOrCreateCategory(name);
-    setCategories((current) =>
-      (current.some((c) => c.id === category.id)
-        ? current.map((c) => (c.id === category.id ? category : c))
-        : [...current, category]
-      ).sort((a, b) => a.name.localeCompare(b.name)),
-    );
-    nfToast.success(`"${category.name}" category added.`);
-    return category;
   }
 
   async function handleCreateSubmit(values: StoreInventoryItemFormValues) {
@@ -206,7 +190,9 @@ function StoreInventory() {
   const outOfStockCount = useMemo(() => items.filter((i) => getStockStatus(i) === 'out').length, [items]);
 
   const distinctCategories = useMemo(
-    () => [...new Set(items.map((i) => i.categoryName).filter((name): name is string => !!name))].sort((a, b) => a.localeCompare(b)),
+    () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
+      CATEGORY_LABELS[a].localeCompare(CATEGORY_LABELS[b]),
+    ),
     [items],
   );
 
@@ -215,9 +201,9 @@ function StoreInventory() {
     const matchesSearch =
       !term ||
       item.name.toLowerCase().includes(term) ||
-      (item.categoryName?.toLowerCase().includes(term) ?? false) ||
+      (item.category ? CATEGORY_LABELS[item.category].toLowerCase().includes(term) : false) ||
       (item.preferredSupplierName?.toLowerCase().includes(term) ?? false);
-    const matchesCategory = !categoryFilter || item.categoryName === categoryFilter;
+    const matchesCategory = !categoryFilter || item.category === categoryFilter;
     return matchesSearch && matchesCategory;
   });
 
@@ -230,7 +216,7 @@ function StoreInventory() {
       case 'category':
       case 'name':
       default:
-        return (a.categoryName ?? '').localeCompare(b.categoryName ?? '') || a.name.localeCompare(b.name);
+        return (a.category ? CATEGORY_LABELS[a.category] : '').localeCompare(b.category ? CATEGORY_LABELS[b.category] : '') || a.name.localeCompare(b.name);
     }
   });
 
@@ -338,7 +324,7 @@ function StoreInventory() {
                 className="filter"
                 options={[
                   { value: '', label: `All Categories (${distinctCategories.length})` },
-                  ...distinctCategories.map((name) => ({ value: name, label: name })),
+                  ...distinctCategories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
                 ]}
                 value={categoryFilter}
                 onChange={setCategoryFilter}
@@ -376,8 +362,6 @@ function StoreInventory() {
             <StoreInventoryItemFormModal
               isOpen={isCreateModalOpen}
               mode="create"
-              categories={categories}
-              onCreateCategory={handleCreateCategory}
               suppliers={suppliers}
               onCreateSupplier={handleCreateSupplier}
               errorMessage={itemFormError}
@@ -390,8 +374,6 @@ function StoreInventory() {
               <StoreInventoryItemEditPanel
                 isOpen
                 item={editTarget}
-                categories={categories}
-                onCreateCategory={handleCreateCategory}
                 suppliers={suppliers}
                 onCreateSupplier={handleCreateSupplier}
                 errorMessage={itemFormError}

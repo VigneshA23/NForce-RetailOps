@@ -243,6 +243,63 @@ class StoreInventoryControllerTest {
             .andExpect(jsonPath("$.itemsNeedingOrder").value(1));
     }
 
+    @Test
+    @Transactional
+    void inventoryCountsReportsStatusAndKpisAcrossActiveItems() throws Exception {
+        User owner = owner("inventory-counts-owner@nforce.test");
+        Store store = store("Inventory Counts Store", 9303L);
+        linkOwnerToStore(owner, store);
+
+        StoreInventoryItem milk = item(store, "Milk", 20, 20);
+        item(store, "Bread", 5, 5);
+        LocalDate today = LocalDate.now();
+        check(milk, owner, today, 30, 0, null, null);
+        check(storeInventoryItemRepository.findByStoreIdOrderById(store.getId()).get(1), owner, today.minusDays(1), 10, 0, null, null);
+
+        String token = login("inventory-counts-owner@nforce.test");
+
+        mockMvc.perform(get("/api/stores/inventory/counts")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.allCount").value(2))
+            .andExpect(jsonPath("$.staleCount").value(1))
+            .andExpect(jsonPath("$.rows[0].name").value("Milk"))
+            .andExpect(jsonPath("$.rows[0].status").value("HEALTHY"))
+            .andExpect(jsonPath("$.rows[0].currentStock").value(30))
+            .andExpect(jsonPath("$.rows[1].name").value("Bread"))
+            .andExpect(jsonPath("$.rows[1].status").value("STALE"));
+
+        mockMvc.perform(get("/api/stores/inventory/counts")
+                .header("Authorization", "Bearer " + token)
+                .param("level", "stale"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.rows.length()").value(1))
+            .andExpect(jsonPath("$.rows[0].name").value("Bread"));
+    }
+
+    @Test
+    @Transactional
+    void countHistoryEndpointReturnsNewestFirstWithDelta() throws Exception {
+        User owner = owner("inventory-counts-history-owner@nforce.test");
+        Store store = store("Inventory Counts History Store", 9304L);
+        linkOwnerToStore(owner, store);
+
+        StoreInventoryItem milk = item(store, "Milk", 20, 20);
+        LocalDate today = LocalDate.now();
+        check(milk, owner, today.minusDays(1), 24, 0, null, null);
+        check(milk, owner, today, 30, 0, null, null);
+
+        String token = login("inventory-counts-history-owner@nforce.test");
+
+        mockMvc.perform(get("/api/stores/inventory/counts/" + milk.getId() + "/history")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].count").value(30))
+            .andExpect(jsonPath("$[0].delta").value(6))
+            .andExpect(jsonPath("$[1].count").value(24))
+            .andExpect(jsonPath("$[1].delta").doesNotExist());
+    }
+
     private void check(StoreInventoryItem item, User by, LocalDate date,
                        int sodAvailable, int sodDead, Integer eodAvailable, Integer eodDead) {
         StockCheck check = new StockCheck();

@@ -1,0 +1,11 @@
+.supplier-purchase-report__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
+.supplier-purchase-report__error {
+  font-size: 13px;
+  color: var(--color-accent);
+  margin: 0 0 var(--space-md);
+}

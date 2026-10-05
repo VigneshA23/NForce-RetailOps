@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import com.nforce.retailops.entity.InventoryItemCategory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -11,12 +12,12 @@ import jakarta.validation.constraints.Size;
 public record StoreInventoryItemRequest(
     Long storeId,
 
-    @NotNull(message = "Category is required")
-    Long categoryId,
-
     @NotBlank(message = "Name is required")
     @Size(max = 200, message = "Name must be at most 200 characters")
     String name,
+
+    @NotNull(message = "Category is required")
+    InventoryItemCategory category,
 
     @NotBlank(message = "Unit is required")
     @Size(max = 50, message = "Unit must be at most 50 characters")

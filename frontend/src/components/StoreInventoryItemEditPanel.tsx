@@ -1,13 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, Zap } from 'lucide-react';
-import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
+import { Zap } from 'lucide-react';
+import { INVENTORY_ITEM_CATEGORY_OPTIONS, type InventoryItemCategory, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
-import type { InventoryCategory } from '../types/inventoryCategory';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
 import SupplierCombobox from './SupplierCombobox';
-import InventoryCategoryFormModal from './InventoryCategoryFormModal';
 import CounterStepper from './CounterStepper';
 import Toggle from './Toggle';
 import ItemIcon from './ItemIcon';
@@ -18,8 +16,6 @@ import './StoreInventoryItemEditPanel.css';
 interface StoreInventoryItemEditPanelProps {
   isOpen: boolean;
   item: StoreInventoryItem;
-  categories: InventoryCategory[];
-  onCreateCategory: (name: string) => Promise<InventoryCategory>;
   suppliers: Supplier[];
   onCreateSupplier: (name: string) => Promise<Supplier>;
   errorMessage?: string | null;
@@ -31,8 +27,8 @@ interface StoreInventoryItemEditPanelProps {
 function toFormValues(item: StoreInventoryItem): StoreInventoryItemFormValues {
   return {
     storeId: null,
-    categoryId: item.categoryId,
     name: item.name,
+    category: item.category ?? 'INGREDIENTS',
     unitOfMeasurement: item.unitOfMeasurement,
     minWeekday: item.minWeekday != null ? String(item.minWeekday) : '',
     minWeekend: item.minWeekend != null ? String(item.minWeekend) : '',
@@ -45,8 +41,6 @@ function toFormValues(item: StoreInventoryItem): StoreInventoryItemFormValues {
 function StoreInventoryItemEditPanel({
   isOpen,
   item,
-  categories,
-  onCreateCategory,
   suppliers,
   onCreateSupplier,
   errorMessage,
@@ -56,16 +50,11 @@ function StoreInventoryItemEditPanel({
 }: StoreInventoryItemEditPanelProps) {
   const [values, setValues] = useState<StoreInventoryItemFormValues>(toFormValues(item));
   const [errors, setErrors] = useState<Partial<Record<keyof StoreInventoryItemFormValues, string>>>({});
-  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-  const [isCategorySubmitting, setIsCategorySubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setValues(toFormValues(item));
       setErrors({});
-      setIsCategoryModalOpen(false);
-      setCategoryError(null);
     }
     // Deliberately keyed on item.id, not the whole item object -- the 60s
     // background poll in StoreInventory.tsx replaces every item reference on
@@ -73,24 +62,9 @@ function StoreInventoryItemEditPanel({
     // (rather than only when switching to a different item) would be jarring.
   }, [isOpen, item.id]);
 
-  async function handleCreateCategory(name: string) {
-    setIsCategorySubmitting(true);
-    setCategoryError(null);
-    try {
-      const created = await onCreateCategory(name);
-      setValues((current) => ({ ...current, categoryId: created.id }));
-      setIsCategoryModalOpen(false);
-    } catch (error) {
-      setCategoryError(error instanceof Error ? error.message : 'Failed to add category');
-    } finally {
-      setIsCategorySubmitting(false);
-    }
-  }
-
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const nextErrors: typeof errors = {};
-    if (!values.categoryId) nextErrors.categoryId = 'Category is required';
     if (!values.name.trim()) nextErrors.name = 'Name is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
     if (values.minWeekday.trim() === '' || Number(values.minWeekday) < 0) {
@@ -143,23 +117,16 @@ function StoreInventoryItemEditPanel({
         </FormField>
 
         <div className="item-edit-panel__row">
-          <div className={`form-field${errors.categoryId ? ' form-field--error' : ''}`}>
-            <div className="item-edit-panel__category-label-row">
-              <label className="form-field__label" htmlFor="edit-item-category">Category</label>
-              <button type="button" className="item-edit-panel__add-category" onClick={() => setIsCategoryModalOpen(true)}>
-                <Plus size={12} aria-hidden="true" /> Add New
-              </button>
-            </div>
+          <FormField label="Category" htmlFor="edit-item-category">
             <Select
               id="edit-item-category"
-              options={categories.filter((c) => c.active).map((c) => ({ value: String(c.id), label: c.name }))}
-              value={values.categoryId ? String(values.categoryId) : ''}
-              onChange={(value) => setValues((current) => ({ ...current, categoryId: Number(value) }))}
+              options={INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+              value={values.category}
+              onChange={(value) => setValues((current) => ({ ...current, category: value as InventoryItemCategory }))}
               ariaLabel="Category"
-              placeholder="Select category..."
+              indicator="radio"
             />
-            {errors.categoryId && <span className="form-field__error">{errors.categoryId}</span>}
-          </div>
+          </FormField>
           <FormField label="Unit of Measurement" htmlFor="edit-item-unit" error={errors.unitOfMeasurement}>
             <Select
               id="edit-item-unit"
@@ -245,13 +212,6 @@ function StoreInventoryItemEditPanel({
         </FormField>
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>
-      <InventoryCategoryFormModal
-        isOpen={isCategoryModalOpen}
-        errorMessage={categoryError}
-        isSubmitting={isCategorySubmitting}
-        onClose={() => setIsCategoryModalOpen(false)}
-        onSubmit={(categoryValues) => handleCreateCategory(categoryValues.name)}
-      />
     </Modal>
   );
 }

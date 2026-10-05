@@ -3,6 +3,7 @@ package com.nforce.retailops.controller;
 import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
 import com.nforce.retailops.dto.StoreOperationsSummaryResponse;
+import com.nforce.retailops.dto.StoreSupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.TrendDataPoint;
 import com.nforce.retailops.service.SuperAdminOperationsService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -47,6 +48,18 @@ public class SuperAdminOperationsController {
     @GetMapping("/outstanding-orders")
     public OutstandingOrdersOverviewResponse getOutstandingOrders() {
         return service.getOutstandingOrdersOverview();
+    }
+
+    // Supplier Purchasing Summary, platform-wide (every store, broken down by
+    // store). A genuinely new access path -- Super Admin has no other route to
+    // order-list data beyond the NEEDS_ORDERING-only overview above, which this
+    // deliberately does not reuse or change.
+    @GetMapping("/order-list/supplier-metrics")
+    public List<StoreSupplierPurchaseMetricResponse> getSupplierPurchaseMetrics(
+        @RequestParam(required = false) LocalDate fromDate,
+        @RequestParam(required = false) LocalDate toDate
+    ) {
+        return service.getSupplierPurchaseMetrics(fromDate, toDate);
     }
 
     @GetMapping("/platform-trend")

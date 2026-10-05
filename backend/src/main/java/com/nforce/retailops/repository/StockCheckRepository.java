@@ -57,4 +57,36 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
     // Delete guard for StoreInventoryItemService: an item with any stock-check
     // history can't be hard-deleted.
     boolean existsByStoreInventoryItemId(Long storeInventoryItemId);
+
+    // Each item's single most recent check (any date, not just today) --
+    // backs the live Inventory Counts view, where an item not counted today
+    // still shows its last known count flagged as stale rather than
+    // disappearing. JPQL has no DISTINCT ON, so "latest per item" is a
+    // correlated subquery instead.
+    @Query("select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS
+        + "where sc.store.id = :storeId "
+        + "and sc.checkDate = (select max(sc2.checkDate) from StockCheck sc2 "
+        + "where sc2.storeInventoryItem = sc.storeInventoryItem)")
+    List<StockCheck> findLatestPerItemForStore(@Param("storeId") Long storeId);
+
+    // Same "latest per item" shape as findLatestPerItemForStore, but across a
+    // caller-supplied set of items spanning multiple stores -- backs Super
+    // Admin's cross-store stock-level comparison, which needs one store's
+    // worth of items filtered to a single matching name rather than every
+    // item in one store. Callers must not pass an empty list (an empty
+    // "in ()" is invalid JPQL).
+    @Query("select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS
+        + "where sc.storeInventoryItem.id in :itemIds "
+        + "and sc.checkDate = (select max(sc2.checkDate) from StockCheck sc2 "
+        + "where sc2.storeInventoryItem = sc.storeInventoryItem)")
+    List<StockCheck> findLatestPerItemForItemIds(@Param("itemIds") List<Long> itemIds);
+
+    // One item's most recent checks, newest first -- the count-history
+    // timeline on an Inventory Counts row. Caller bounds how many via
+    // Pageable (e.g. PageRequest.of(0, 15)); no total count needed so this
+    // returns a plain List rather than a Page.
+    @Query("select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS
+        + "where sc.storeInventoryItem.id = :itemId "
+        + "order by sc.checkDate desc, sc.id desc")
+    List<StockCheck> findRecentForItem(@Param("itemId") Long itemId, Pageable pageable);
 }

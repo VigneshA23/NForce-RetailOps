@@ -6,8 +6,8 @@ import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/
 function toBody(values: StoreInventoryItemFormValues) {
   return {
     storeId: values.storeId,
-    categoryId: values.categoryId,
     name: values.name,
+    category: values.category,
     unitOfMeasurement: values.unitOfMeasurement,
     minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
     minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),

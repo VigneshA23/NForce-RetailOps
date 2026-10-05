@@ -4,7 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import StoreInventoryItemFormModal from './StoreInventoryItemFormModal';
 import type { Supplier } from '../types/supplier';
-import type { InventoryCategory } from '../types/inventoryCategory';
 import type { StoreInventoryItemFormValues } from '../types/storeInventory';
 
 const initialSuppliers: Supplier[] = [
@@ -13,12 +12,8 @@ const initialSuppliers: Supplier[] = [
   { id: 3, name: 'Old Supplier', active: false },
 ];
 
-const initialCategories: InventoryCategory[] = [
-  { id: 1, name: 'Dairy', active: true },
-];
-
-// Mirrors the pages: the parent owns the supplier/category lists and merges
-// in anything the form creates inline.
+// Mirrors the pages: the parent owns the supplier list and merges in
+// anything the form creates inline.
 function Harness({
   onSubmit,
   onCreate,
@@ -29,15 +24,9 @@ function Harness({
   initialValues?: StoreInventoryItemFormValues;
 }) {
   const [suppliers, setSuppliers] = useState(initialSuppliers);
-  const [categories, setCategories] = useState(initialCategories);
   async function handleCreate(name: string) {
     const created = onCreate ? await onCreate(name) : { id: 99, name, active: true };
     setSuppliers((current) => [...current, created]);
-    return created;
-  }
-  async function handleCreateCategory(name: string) {
-    const created = { id: 99, name, active: true };
-    setCategories((current) => [...current, created]);
     return created;
   }
   return (
@@ -45,8 +34,6 @@ function Harness({
       <StoreInventoryItemFormModal
         isOpen
         mode={initialValues ? 'edit' : 'create'}
-        categories={categories}
-        onCreateCategory={handleCreateCategory}
         suppliers={suppliers}
         onCreateSupplier={handleCreate}
         initialValues={initialValues}
@@ -63,8 +50,6 @@ function Harness({
 }
 
 async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: 'Category' }));
-  await user.click(screen.getByRole('option', { name: 'Dairy' }));
   await user.type(screen.getByLabelText('Item Name'), 'Milk');
   await user.type(screen.getByLabelText('Min Par Level (Weekday)'), '5');
 }
@@ -114,8 +99,8 @@ describe('StoreInventoryItemFormModal', () => {
         onSubmit={onSubmit}
         initialValues={{
           storeId: null,
-          categoryId: 1,
           name: 'Cups',
+          category: 'SUPPLIES',
           unitOfMeasurement: 'box',
           minWeekday: '2',
           minWeekend: '',

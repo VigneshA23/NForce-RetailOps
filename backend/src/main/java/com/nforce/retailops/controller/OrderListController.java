@@ -1,15 +1,19 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.OrderListEntryResponse;
+import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.service.OrderListService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -36,6 +40,29 @@ public class OrderListController {
     @GetMapping("/needs-ordering-count")
     public ResponseEntity<Map<String, Long>> needsOrderingCount(@AuthenticationPrincipal AppUserDetails principal) {
         return ResponseEntity.ok(orderListService.needsOrderingCount(principal.getUser().getId()));
+    }
+
+    // Supplier Purchasing Summary. Also a literal path, same reasoning as
+    // above. The store is never taken from the request -- the service derives
+    // it from the caller's own StoreOwner link, so another store's data can't
+    // be requested by passing a different ID; there is no storeId parameter
+    // to pass one in.
+    @GetMapping("/supplier-metrics")
+    public ResponseEntity<List<SupplierPurchaseMetricResponse>> supplierMetrics(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @RequestParam(required = false) LocalDate fromDate,
+        @RequestParam(required = false) LocalDate toDate
+    ) {
+        return ResponseEntity.ok(orderListService.getSupplierMetricsForOwner(principal.getUser().getId(), fromDate, toDate));
+    }
+
+    @PostMapping
+    public ResponseEntity<OrderListEntryResponse> create(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @Valid @RequestBody CreateOrderListEntryRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(orderListService.createEntry(principal.getUser().getId(), request));
     }
 
     @PatchMapping("/{id}")

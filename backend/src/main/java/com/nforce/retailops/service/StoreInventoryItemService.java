@@ -1,25 +1,24 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
-import com.nforce.retailops.entity.InventoryCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
-import com.nforce.retailops.exception.InventoryCategoryNotFoundException;
 import com.nforce.retailops.exception.StoreInventoryItemHasHistoryException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
-import com.nforce.retailops.repository.InventoryCategoryRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
+import com.nforce.retailops.util.InventoryCountStatusCalculator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,28 +36,28 @@ public class StoreInventoryItemService {
 
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final SupplierRepository supplierRepository;
-    private final InventoryCategoryRepository inventoryCategoryRepository;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final StockCheckRepository stockCheckRepository;
     private final OrderListEntryRepository orderListEntryRepository;
+    private final ActivityLogService activityLogService;
 
     public StoreInventoryItemService(
         StoreInventoryItemRepository storeInventoryItemRepository,
         SupplierRepository supplierRepository,
-        InventoryCategoryRepository inventoryCategoryRepository,
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         StockCheckRepository stockCheckRepository,
-        OrderListEntryRepository orderListEntryRepository
+        OrderListEntryRepository orderListEntryRepository,
+        ActivityLogService activityLogService
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.supplierRepository = supplierRepository;
-        this.inventoryCategoryRepository = inventoryCategoryRepository;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.stockCheckRepository = stockCheckRepository;
         this.orderListEntryRepository = orderListEntryRepository;
+        this.activityLogService = activityLogService;
     }
 
     // ---------------------------------------------------------------------
@@ -157,6 +156,65 @@ public class StoreInventoryItemService {
         deleteItem(item);
     }
 
+    // Every active store's current stock position for one item, matched by
+    // case-insensitive name since there is no shared item catalog to join
+    // on. A store with no (active) item of that name comes back with
+    // assigned=false and every other field null rather than a misleading
+    // zero. Reflects each store's latest submitted count, not just today's,
+    // same staleness-aware tiering as the Owner/Admin Inventory Counts view
+    // -- see InventoryCountStatusCalculator.
+    @Transactional(readOnly = true)
+    public List<StockLevelComparisonRowResponse> compareAcrossStores(String itemName) {
+        List<Store> activeStores = storeRepository.findByActiveTrueOrderByName();
+
+        // Nothing enforces one active item per name per store, so a store can
+        // legitimately have two active "Milk"s (e.g. entered under different
+        // categories). Pick the lowest id deterministically rather than
+        // letting Collectors.toMap blow up on the duplicate key.
+        Map<Long, StoreInventoryItem> itemByStoreId = storeInventoryItemRepository
+            .findByNameIgnoreCase(itemName).stream()
+            .filter(StoreInventoryItem::isActive)
+            .collect(Collectors.toMap(
+                item -> item.getStore().getId(),
+                item -> item,
+                (a, b) -> a.getId() <= b.getId() ? a : b
+            ));
+
+        List<Long> itemIds = itemByStoreId.values().stream().map(StoreInventoryItem::getId).toList();
+        Map<Long, StockCheck> latestByItemId = itemIds.isEmpty()
+            ? Map.of()
+            : stockCheckRepository.findLatestPerItemForItemIds(itemIds).stream()
+                .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), sc -> sc));
+
+        LocalDate today = LocalDate.now();
+        List<StockLevelComparisonRowResponse> rows = activeStores.stream()
+            .map(store -> toComparisonRow(store, itemByStoreId.get(store.getId()), latestByItemId, today))
+            .toList();
+
+        activityLogService.logPlatform(
+            "STOCK_LEVELS_COMPARED", "Super Admin", "SUPER_ADMIN",
+            "INVENTORY_ITEM", itemName,
+            "Compared stock levels for \"" + itemName + "\" across stores"
+        );
+        return rows;
+    }
+
+    private StockLevelComparisonRowResponse toComparisonRow(
+        Store store, StoreInventoryItem item, Map<Long, StockCheck> latestByItemId, LocalDate today
+    ) {
+        if (item == null) {
+            return new StockLevelComparisonRowResponse(store.getId(), store.getName(), false, null, null, null, null);
+        }
+        Integer minimum = item.requiredMinimumOn(today);
+        StockCheck latest = latestByItemId.get(item.getId());
+        return new StockLevelComparisonRowResponse(
+            store.getId(), store.getName(), true, minimum,
+            latest == null ? null : latest.getCurrentCount(),
+            latest == null ? null : latest.getCheckDate(),
+            InventoryCountStatusCalculator.calculate(latest, today, minimum)
+        );
+    }
+
     // ---------------------------------------------------------------------
     // Shared helpers
     // ---------------------------------------------------------------------
@@ -199,15 +257,12 @@ public class StoreInventoryItemService {
 
     private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request) {
         item.setName(request.name().trim());
+        item.setCategory(request.category());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
         item.setMinWeekday(request.minWeekday());
         item.setMinWeekend(request.minWeekend());
         item.setNote(request.note() != null ? request.note().trim() : null);
         item.setAutoPoEnabled(request.autoPoEnabled());
-
-        InventoryCategory category = inventoryCategoryRepository.findById(request.categoryId())
-            .orElseThrow(() -> new InventoryCategoryNotFoundException("Category not found"));
-        item.setCategory(category);
 
         if (request.preferredSupplierId() == null) {
             item.setPreferredSupplier(null);

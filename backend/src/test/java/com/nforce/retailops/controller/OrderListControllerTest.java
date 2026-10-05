@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
@@ -7,12 +8,14 @@ import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +27,10 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -46,6 +53,7 @@ class OrderListControllerTest {
     @Autowired private StoreOwnerRepository storeOwnerRepository;
     @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
     @Autowired private OrderListEntryRepository orderListEntryRepository;
+    @Autowired private SupplierRepository supplierRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -101,6 +109,22 @@ class OrderListControllerTest {
         entry.setStore(store);
         entry.setStoreInventoryItem(inventoryItem(store));
         entry.setQuantityNeeded(2);
+        entry.setStatus(status);
+        return orderListEntryRepository.save(entry);
+    }
+
+    private Supplier supplier(String name) {
+        Supplier supplier = new Supplier();
+        supplier.setName(name);
+        return supplierRepository.save(supplier);
+    }
+
+    private OrderListEntry orderEntry(Store store, OrderStatus status, Supplier supplier, int quantity) {
+        OrderListEntry entry = new OrderListEntry();
+        entry.setStore(store);
+        entry.setStoreInventoryItem(inventoryItem(store));
+        entry.setQuantityNeeded(quantity);
+        entry.setSupplier(supplier);
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);
     }
@@ -198,6 +222,188 @@ class OrderListControllerTest {
         String token = login("ord-count-emp-f@nforce.test");
 
         mockMvc.perform(get("/api/stores/order-list/needs-ordering-count")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void createEntryFromInventoryAddsItToTheOrderList() throws Exception {
+        User owner = user("ord-create-owner-a@nforce.test", "OWNER_ADMIN", "Owner Create A");
+        Store store = store("Store Create A", 8204L);
+        linkOwnerToStore(owner, store);
+        StoreInventoryItem milk = inventoryItem(store);
+
+        String token = login("ord-create-owner-a@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of(
+            "storeInventoryItemId", milk.getId(),
+            "quantityNeeded", 4,
+            "note", "Extra for Saturday event"
+        ));
+
+        mockMvc.perform(post("/api/stores/order-list")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.itemName").value(milk.getName()))
+            .andExpect(jsonPath("$.quantityNeeded").value(4))
+            .andExpect(jsonPath("$.status").value("NEEDS_ORDERING"));
+    }
+
+    @Test
+    @Transactional
+    void createEntryForACustomItemNotSavedToInventoryKeepsItOutOfTheInventoryList() throws Exception {
+        User owner = user("ord-create-owner-b@nforce.test", "OWNER_ADMIN", "Owner Create B");
+        Store store = store("Store Create B", 8205L);
+        linkOwnerToStore(owner, store);
+
+        String token = login("ord-create-owner-b@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of(
+            "itemName", "Birthday candles",
+            "category", "SUPPLIES",
+            "unitOfMeasurement", "packs",
+            "saveToInventory", false,
+            "quantityNeeded", 2
+        ));
+
+        mockMvc.perform(post("/api/stores/order-list")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.itemName").value("Birthday candles"));
+
+        // Created as an inactive catalog item -- it shows up on the owner's
+        // Inventory list, but flagged inactive rather than ready to count.
+        String inventoryJson = mockMvc.perform(get("/api/stores/inventory")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        JsonNode candlesNode = null;
+        for (JsonNode node : objectMapper.readTree(inventoryJson)) {
+            if (node.get("name").asText().equals("Birthday candles")) {
+                candlesNode = node;
+                break;
+            }
+        }
+        assertThat(candlesNode).isNotNull();
+        assertThat(candlesNode.get("active").asBoolean()).isFalse();
+    }
+
+    @Test
+    @Transactional
+    void createEntryRejectsACustomItemMissingRequiredFields() throws Exception {
+        User owner = user("ord-create-owner-c@nforce.test", "OWNER_ADMIN", "Owner Create C");
+        linkOwnerToStore(owner, store("Store Create C", 8206L));
+
+        String token = login("ord-create-owner-c@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of("quantityNeeded", 1));
+
+        mockMvc.perform(post("/api/stores/order-list")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Item name is required for a custom item"));
+    }
+
+    // ---- Supplier Purchasing Summary (supplier-metrics) ---------------------
+
+    @Test
+    @Transactional
+    void supplierMetricsOnlyCountsOrderedAndReceivedEntries() throws Exception {
+        User owner = user("ord-spm-owner-a@nforce.test", "OWNER_ADMIN", "Owner Metrics A");
+        Store store = store("Store Metrics A", 8210L);
+        linkOwnerToStore(owner, store);
+        Supplier supplierA = supplier("Supplier Metrics A");
+
+        orderEntry(store, OrderStatus.ORDERED, supplierA, 5);
+        orderEntry(store, OrderStatus.RECEIVED, supplierA, 7);
+        orderEntry(store, OrderStatus.NEEDS_ORDERING, supplierA, 10);
+
+        String token = login("ord-spm-owner-a@nforce.test");
+
+        mockMvc.perform(get("/api/stores/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].supplierName").value("Supplier Metrics A"))
+            .andExpect(jsonPath("$[0].orderEntryCount").value(2))
+            .andExpect(jsonPath("$[0].totalQuantity").value(12));
+    }
+
+    @Test
+    @Transactional
+    void supplierMetricsIsScopedToTheCallersOwnStoreNotAnother() throws Exception {
+        User ownerA = user("ord-spm-owner-b@nforce.test", "OWNER_ADMIN", "Owner Metrics B");
+        User ownerB = user("ord-spm-owner-c@nforce.test", "OWNER_ADMIN", "Owner Metrics C");
+        Store storeA = store("Store Metrics B", 8211L);
+        Store storeB = store("Store Metrics C", 8212L);
+        linkOwnerToStore(ownerA, storeA);
+        linkOwnerToStore(ownerB, storeB);
+        Supplier shared = supplier("Supplier Metrics Shared");
+
+        orderEntry(storeA, OrderStatus.ORDERED, shared, 10);
+        orderEntry(storeB, OrderStatus.ORDERED, shared, 20);
+
+        mockMvc.perform(get("/api/stores/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
+                .header("Authorization", "Bearer " + login("ord-spm-owner-b@nforce.test")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].totalQuantity").value(10));
+
+        mockMvc.perform(get("/api/stores/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
+                .header("Authorization", "Bearer " + login("ord-spm-owner-c@nforce.test")))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].totalQuantity").value(20));
+    }
+
+    @Test
+    @Transactional
+    void supplierMetricsReturnsAnEmptyArrayWhenNothingQualifies() throws Exception {
+        User owner = user("ord-spm-owner-d@nforce.test", "OWNER_ADMIN", "Owner Metrics D");
+        linkOwnerToStore(owner, store("Store Metrics D", 8213L));
+
+        String token = login("ord-spm-owner-d@nforce.test");
+
+        mockMvc.perform(get("/api/stores/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray())
+            .andExpect(jsonPath("$").isEmpty());
+    }
+
+    @Test
+    @Transactional
+    void supplierMetricsRejectsAnInvertedDateRange() throws Exception {
+        User owner = user("ord-spm-owner-e@nforce.test", "OWNER_ADMIN", "Owner Metrics E");
+        linkOwnerToStore(owner, store("Store Metrics E", 8214L));
+
+        String token = login("ord-spm-owner-e@nforce.test");
+
+        mockMvc.perform(get("/api/stores/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().toString())
+                .param("toDate", LocalDate.now().minusDays(1).toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Transactional
+    void supplierMetricsRejectsAnEmployee() throws Exception {
+        user("ord-spm-emp-f@nforce.test", "EMPLOYEE", "Employee Metrics F");
+        String token = login("ord-spm-emp-f@nforce.test");
+
+        mockMvc.perform(get("/api/stores/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isForbidden());
     }

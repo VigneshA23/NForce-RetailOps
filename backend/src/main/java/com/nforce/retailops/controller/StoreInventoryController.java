@@ -1,7 +1,10 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.EodSupplierReportResponse;
+import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
+import com.nforce.retailops.dto.InventoryCountsPageResponse;
 import com.nforce.retailops.dto.StatusRequest;
+import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
 import com.nforce.retailops.dto.StockCheckResponse;
@@ -97,6 +100,29 @@ public class StoreInventoryController {
         @RequestParam(required = false) LocalDate date
     ) {
         return ResponseEntity.ok(stockCheckService.getEodSupplierReport(principal.getUser().getId(), date));
+    }
+
+    // Literal path, so it cannot collide with the {id} mapping below.
+    @GetMapping("/counts")
+    public ResponseEntity<InventoryCountsPageResponse> inventoryCounts(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @RequestParam(required = false) String search,
+        @RequestParam(required = false) InventoryItemCategory category,
+        @RequestParam(required = false) String level,
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size
+    ) {
+        return ResponseEntity.ok(
+            stockCheckService.listInventoryCounts(principal.getUser().getId(), search, category, level, page, size)
+        );
+    }
+
+    @GetMapping("/counts/{itemId}/history")
+    public ResponseEntity<List<InventoryCountHistoryEntryResponse>> countHistory(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @PathVariable Long itemId
+    ) {
+        return ResponseEntity.ok(stockCheckService.getCountHistory(principal.getUser().getId(), itemId));
     }
 
     @PatchMapping("/stock-checks/{id}")

@@ -9,6 +9,7 @@ import FilterClearButton from './FilterClearButton';
 import ItemIcon from './ItemIcon';
 import ButtonDots from './ButtonDots';
 import { getStockCheckHistory } from '../api/storeInventory';
+import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
 import { toStockCheckHistoryRowView, type StockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
 import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
 import { buildAndDownloadStockCheckHistoryPdf, buildStockCheckHistoryWorkbook } from '../utils/stockCheckHistoryExport';
@@ -28,6 +29,8 @@ function widestAllowedRange(): { startDate: string; endDate: string } {
 }
 
 type StatusFilter = 'all' | 'shortage' | 'sufficient';
+
+const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
 // Deterministic initials-circle color, same 6-variant palette ItemIcon picks
 // from, so avatars read as "part of the same system" without duplicating
@@ -147,7 +150,9 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
   }, [dateRange, page]);
 
   const distinctCategories = useMemo(
-    () => [...new Set(items.map((i) => i.categoryName).filter((name): name is string => !!name))].sort((a, b) => a.localeCompare(b)),
+    () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
+      CATEGORY_LABELS[a].localeCompare(CATEGORY_LABELS[b]),
+    ),
     [items],
   );
 
@@ -159,7 +164,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
         !term ||
         row.itemName.toLowerCase().includes(term) ||
         recordedBy.toLowerCase().includes(term);
-      const matchesCategory = !categoryFilter || row.categoryName === categoryFilter;
+      const matchesCategory = !categoryFilter || row.category === categoryFilter;
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'shortage' && row.status === 'shortage') ||
@@ -257,7 +262,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
           className="filter"
           options={[
             { value: '', label: `All Categories (${distinctCategories.length})` },
-            ...distinctCategories.map((name) => ({ value: name, label: name })),
+            ...distinctCategories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
           ]}
           value={categoryFilter}
           onChange={setCategoryFilter}
@@ -320,7 +325,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
                         <ItemIcon id={row.storeInventoryItemId} name={row.itemName} size="sm" />
                         <div>
                           <div className="stock-check-history__item-name">{row.itemName}</div>
-                          {row.categoryName && <div className="stock-check-history__item-category">{row.categoryName}</div>}
+                          {row.category && <div className="stock-check-history__item-category">{CATEGORY_LABELS[row.category]}</div>}
                         </div>
                       </div>
                     </td>

@@ -13,4 +13,10 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
     List<StoreInventoryItem> findByStoreIdAndActiveTrueOrderById(Long storeId);
 
     Optional<StoreInventoryItem> findByIdAndStoreId(Long id, Long storeId);
+
+    // Every store's item with this exact name, case-insensitive -- there is
+    // no shared item catalog, so "the same item across stores" can only be
+    // matched by name. Includes inactive items; callers filter those out
+    // when "assigned" should mean "currently tracked".
+    List<StoreInventoryItem> findByNameIgnoreCase(String name);
 }

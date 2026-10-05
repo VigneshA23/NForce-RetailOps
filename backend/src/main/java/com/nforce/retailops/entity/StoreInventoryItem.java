@@ -30,6 +30,11 @@ public class StoreInventoryItem {
     @Column(name = "unit_of_measurement", nullable = false, columnDefinition = "TEXT")
     private String unitOfMeasurement;
 
+    // Nullable -- items created before V77 have none until edited.
+    @Enumerated(EnumType.STRING)
+    @Column(length = 40)
+    private InventoryItemCategory category;
+
     @Column(name = "min_weekday")
     private Integer minWeekday;
 
@@ -40,10 +45,6 @@ public class StoreInventoryItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "preferred_supplier_id")
     private Supplier preferredSupplier;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "category_id")
-    private InventoryCategory category;
 
     @Column(columnDefinition = "TEXT")
     private String note;
@@ -103,6 +104,14 @@ public class StoreInventoryItem {
         this.unitOfMeasurement = unitOfMeasurement;
     }
 
+    public InventoryItemCategory getCategory() {
+        return category;
+    }
+
+    public void setCategory(InventoryItemCategory category) {
+        this.category = category;
+    }
+
     public Integer getMinWeekday() {
         return minWeekday;
     }
@@ -138,14 +147,6 @@ public class StoreInventoryItem {
 
     public void setPreferredSupplier(Supplier preferredSupplier) {
         this.preferredSupplier = preferredSupplier;
-    }
-
-    public InventoryCategory getCategory() {
-        return category;
-    }
-
-    public void setCategory(InventoryCategory category) {
-        this.category = category;
     }
 
     public String getNote() {

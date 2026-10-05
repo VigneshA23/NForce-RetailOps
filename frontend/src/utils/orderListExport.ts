@@ -1,4 +1,5 @@
 import type { OrderListEntry } from '../types/orderList';
+import type { EodSupplierReport } from '../types/stockCheck';
 
 const UNASSIGNED_SUPPLIER_LABEL = 'Unassigned Supplier';
 
@@ -119,6 +120,31 @@ export function buildReorderListText(
     lines.push(group.label);
     for (const entry of group.items) {
       lines.push(`* ${entry.itemName} — ${entry.quantityNeeded} ${entry.unitOfMeasurement}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n').trim();
+}
+
+function value(n: number | null): string {
+  return n == null ? '—' : String(n);
+}
+
+// Plain-text End of Day report grouped by supplier, for the same
+// WhatsApp/SMS paste target as the order lists above. Dated by the report's
+// own business day, not "now" -- a report can be copied for any past day.
+export function buildEodReportText(report: EodSupplierReport, storeName: string | null | undefined): string {
+  if (report.groups.length === 0) {
+    return 'No inventory items to report for this day.';
+  }
+
+  const lines = buildHeaderLines('End of Day Report', storeName, new Date(`${report.date}T00:00:00`));
+  for (const group of report.groups) {
+    lines.push(group.supplierName);
+    for (const row of group.items) {
+      const need = row.quantityToOrder ? ` — order ${row.quantityToOrder} ${row.unitOfMeasurement}` : '';
+      lines.push(`* ${row.itemName}: start ${value(row.startOfDayAvailable)}, end ${value(row.endOfDayAvailable)}, used ${value(row.stockUsed)}${need}`);
     }
     lines.push('');
   }

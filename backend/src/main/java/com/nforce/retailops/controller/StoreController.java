@@ -2,8 +2,6 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.AssignStoreOwnerRequest;
 import com.nforce.retailops.dto.CreateStoreRequest;
-import com.nforce.retailops.dto.InventoryCategoryRequest;
-import com.nforce.retailops.dto.InventoryCategoryResponse;
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.dto.SuperAdminStoreResponse;
@@ -11,7 +9,6 @@ import com.nforce.retailops.dto.SupplierRequest;
 import com.nforce.retailops.dto.SupplierResponse;
 import com.nforce.retailops.dto.UpdateStoreStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
-import com.nforce.retailops.service.InventoryCategoryService;
 import com.nforce.retailops.service.StoreService;
 import com.nforce.retailops.service.SupplierService;
 import jakarta.validation.Valid;
@@ -30,16 +27,10 @@ public class StoreController {
 
     private final StoreService storeService;
     private final SupplierService supplierService;
-    private final InventoryCategoryService inventoryCategoryService;
 
-    public StoreController(
-        StoreService storeService,
-        SupplierService supplierService,
-        InventoryCategoryService inventoryCategoryService
-    ) {
+    public StoreController(StoreService storeService, SupplierService supplierService) {
         this.storeService = storeService;
         this.supplierService = supplierService;
-        this.inventoryCategoryService = inventoryCategoryService;
     }
 
     @GetMapping
@@ -62,20 +53,6 @@ public class StoreController {
     @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<SupplierResponse> findOrCreateSupplier(@Valid @RequestBody SupplierRequest request) {
         return ResponseEntity.ok(supplierService.findOrCreateSupplier(request));
-    }
-
-    // Read-only global inventory category directory, mirroring listSuppliers.
-    @GetMapping("/inventory-categories")
-    public ResponseEntity<List<InventoryCategoryResponse>> listInventoryCategories() {
-        return ResponseEntity.ok(inventoryCategoryService.listCategories());
-    }
-
-    // Inline "Add New Category" from the inventory item form, for both roles,
-    // mirroring findOrCreateSupplier.
-    @PostMapping("/inventory-categories")
-    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<InventoryCategoryResponse> findOrCreateInventoryCategory(@Valid @RequestBody InventoryCategoryRequest request) {
-        return ResponseEntity.ok(inventoryCategoryService.findOrCreateCategory(request));
     }
 
     // Read-only, cross-owner directory for the Super Admin's Stores page.

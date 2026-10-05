@@ -1,12 +1,14 @@
-import type { StoreInventoryItem } from '../types/storeInventory';
+import { INVENTORY_ITEM_CATEGORY_OPTIONS, type StoreInventoryItem } from '../types/storeInventory';
 import { STOCK_STATUS_META, getStockStatus } from './storeInventoryStatus';
+
+const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
 const CSV_COLUMNS = ['Name', 'Category', 'Supplier', 'Unit', 'Wkday Qty', 'Wkend Qty', 'On Hand', 'Status'];
 
 function csvRow(item: StoreInventoryItem): string[] {
   return [
     item.name,
-    item.categoryName ?? '',
+    item.category ? CATEGORY_LABELS[item.category] : '',
     item.preferredSupplierName ?? '',
     item.unitOfMeasurement,
     item.minWeekday != null ? String(item.minWeekday) : '',

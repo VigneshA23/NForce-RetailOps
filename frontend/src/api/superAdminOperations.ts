@@ -1,4 +1,5 @@
 import { apiRequest } from './client';
+import type { StoreSupplierPurchaseMetric } from '../types/orderList';
 
 export interface StoreOperationsSummary {
   storeId: number;
@@ -59,6 +60,14 @@ export interface OutstandingOrdersOverview {
 // Read-only: status changes stay on the owner's Order Dashboard.
 export async function getOutstandingOrders(): Promise<OutstandingOrdersOverview> {
   return apiRequest<OutstandingOrdersOverview>('/super-admin/outstanding-orders');
+}
+
+// Platform-wide Supplier Purchasing Summary, broken down by store. A genuinely
+// new access path -- separate from getOutstandingOrders above, which is a
+// different (NEEDS_ORDERING-only) report and is untouched by this one.
+export async function getSupplierPurchaseMetrics(fromDate: string, toDate: string): Promise<StoreSupplierPurchaseMetric[]> {
+  const params = new URLSearchParams({ fromDate, toDate });
+  return apiRequest<StoreSupplierPurchaseMetric[]>(`/super-admin/order-list/supplier-metrics?${params}`);
 }
 
 export interface TrendDataPoint {

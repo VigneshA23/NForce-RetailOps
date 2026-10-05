@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 
@@ -12,8 +13,9 @@ public record StockCheckResponse(
     Long id,
     Long storeInventoryItemId,
     String itemName,
-    Long categoryId,
-    String categoryName,
+    // Null for items created before category support (V77) that haven't
+    // been edited since.
+    InventoryItemCategory category,
     String unitOfMeasurement,
     LocalDate checkDate,
     // This day's own par level (item.requiredMinimumOn(checkDate)) -- unlike
@@ -37,8 +39,7 @@ public record StockCheckResponse(
             check.getId(),
             check.getStoreInventoryItem().getId(),
             check.getStoreInventoryItem().getName(),
-            check.getStoreInventoryItem().getCategory() != null ? check.getStoreInventoryItem().getCategory().getId() : null,
-            check.getStoreInventoryItem().getCategory() != null ? check.getStoreInventoryItem().getCategory().getName() : null,
+            check.getStoreInventoryItem().getCategory(),
             check.getStoreInventoryItem().getUnitOfMeasurement(),
             check.getCheckDate(),
             check.getStoreInventoryItem().requiredMinimumOn(check.getCheckDate()),

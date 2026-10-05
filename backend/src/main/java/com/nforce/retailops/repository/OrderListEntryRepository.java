@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -68,4 +69,43 @@ public interface OrderListEntryRepository extends JpaRepository<OrderListEntry, 
         + "group by s.id, s.storeCode, s.name, o.fullName "
         + "order by count(distinct e) desc, s.id asc")
     List<Object[]> findOutstandingRowsGroupedByStore(@Param("status") OrderStatus status);
+
+    // Supplier Purchasing Summary (Owner/Admin): one store's entries whose
+    // status is in `statuses` (ORDERED/RECEIVED -- see OrderStatus.PURCHASED_STATUSES)
+    // and whose createdAt falls in [from, to), grouped by supplier. A `left join`
+    // because supplier is nullable on OrderListEntry -- an inner join would
+    // silently drop entries with no assigned supplier instead of grouping them
+    // under their own null-supplier row. COUNT/SUM happen here, in the
+    // database, not in Java.
+    //
+    // Tuple: [0] supplierId (nullable), [1] supplierName (nullable),
+    //        [2] order entry count, [3] total quantity.
+    @Query("select sup.id, sup.name, count(e), sum(e.quantityNeeded) "
+        + "from OrderListEntry e left join e.supplier sup "
+        + "where e.store.id = :storeId and e.status in :statuses "
+        + "and e.createdAt >= :from and e.createdAt < :to "
+        + "group by sup.id, sup.name")
+    List<Object[]> findSupplierMetricsForStore(
+        @Param("storeId") Long storeId,
+        @Param("statuses") List<OrderStatus> statuses,
+        @Param("from") OffsetDateTime from,
+        @Param("to") OffsetDateTime to
+    );
+
+    // Same as above but platform-wide and additionally grouped by store --
+    // Super Admin's cross-store Supplier Purchasing Summary. `join e.store s`
+    // is safe as an inner join (store_id is NOT NULL on every entry).
+    //
+    // Tuple: [0] storeId, [1] storeName, [2] supplierId (nullable),
+    //        [3] supplierName (nullable), [4] order entry count, [5] total quantity.
+    @Query("select s.id, s.name, sup.id, sup.name, count(e), sum(e.quantityNeeded) "
+        + "from OrderListEntry e join e.store s left join e.supplier sup "
+        + "where e.status in :statuses "
+        + "and e.createdAt >= :from and e.createdAt < :to "
+        + "group by s.id, s.name, sup.id, sup.name")
+    List<Object[]> findSupplierMetricsGroupedByStore(
+        @Param("statuses") List<OrderStatus> statuses,
+        @Param("from") OffsetDateTime from,
+        @Param("to") OffsetDateTime to
+    );
 }

@@ -9,16 +9,16 @@ import {
   updateInventoryItem,
 } from '../api/inventoryItems';
 import { createSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
-import { findOrCreateCategory, getCategories } from '../api/inventoryCategories';
 import { getAllStores } from '../api/superAdminStores';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
-import type { InventoryCategory } from '../types/inventoryCategory';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
+import StockLevelComparison from '../components/StockLevelComparison';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryTable from '../components/StoreInventoryTable';
 import SupplierFormModal from '../components/SupplierFormModal';
+import SuperAdminSupplierPurchaseReport from '../components/SuperAdminSupplierPurchaseReport';
 import Toggle from '../components/Toggle';
 import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
@@ -29,11 +29,13 @@ import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './SuperAdminInventory.css';
 
-type SubTab = 'inventory' | 'suppliers';
+type SubTab = 'inventory' | 'suppliers' | 'comparison' | 'purchasing-report';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'inventory', label: 'Inventory' },
   { key: 'suppliers', label: 'Suppliers' },
+  { key: 'comparison', label: 'Stock Comparison' },
+  { key: 'purchasing-report', label: 'Purchasing Report' },
 ];
 
 const STATUS_FILTER_OPTIONS = [
@@ -53,7 +55,6 @@ function SuperAdminInventory() {
   const isMobile = useIsMobile();
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [categories, setCategories] = useState<InventoryCategory[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -62,10 +63,9 @@ function SuperAdminInventory() {
   function loadAll() {
     setIsLoading(true);
     setLoadError(null);
-    Promise.all([getSuppliers(), getCategories(), getAllStores(), getAllInventoryItems()])
-      .then(([sups, cats, sts, its]) => {
+    Promise.all([getSuppliers(), getAllStores(), getAllInventoryItems()])
+      .then(([sups, sts, its]) => {
         setSuppliers(sups);
-        setCategories(cats);
         setStores(sts.filter((s) => s.storeActive).map((s) => ({ id: s.storeId, name: s.storeName })));
         setItems(its);
       })
@@ -115,20 +115,6 @@ function SuperAdminInventory() {
     );
     nfToast.success(`"${supplier.name}" supplier added.`);
     return supplier;
-  }
-
-  // Inline "Add New Category" from the item form: persist it, then merge it
-  // into the local directory so it's selectable for every later item too.
-  async function handleCreateCategory(name: string): Promise<InventoryCategory> {
-    const category = await findOrCreateCategory(name);
-    setCategories((current) =>
-      (current.some((c) => c.id === category.id)
-        ? current.map((c) => (c.id === category.id ? category : c))
-        : [...current, category]
-      ).sort((a, b) => a.name.localeCompare(b.name)),
-    );
-    nfToast.success(`"${category.name}" category added.`);
-    return category;
   }
 
   async function handleItemSubmit(values: StoreInventoryItemFormValues) {
@@ -214,8 +200,8 @@ function SuperAdminInventory() {
     if (itemModal?.mode === 'edit') {
       return {
         storeId: itemModal.item.storeId,
-        categoryId: itemModal.item.categoryId,
         name: itemModal.item.name,
+        category: itemModal.item.category ?? 'INGREDIENTS',
         unitOfMeasurement: itemModal.item.unitOfMeasurement,
         minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
         minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
@@ -227,8 +213,8 @@ function SuperAdminInventory() {
     if (itemModal?.mode === 'create') {
       return {
         storeId: selectedStoreId,
-        categoryId: null,
         name: '',
+        category: 'INGREDIENTS',
         unitOfMeasurement: '',
         minWeekday: '',
         minWeekend: '',
@@ -481,11 +467,12 @@ function SuperAdminInventory() {
         </>
       )}
 
+      {subTab === 'comparison' && <StockLevelComparison items={items} />}
+      {subTab === 'purchasing-report' && <SuperAdminSupplierPurchaseReport />}
+
       <StoreInventoryItemFormModal
         isOpen={itemModal !== null}
         mode={itemModal?.mode ?? 'create'}
-        categories={categories}
-        onCreateCategory={handleCreateCategory}
         suppliers={suppliers}
         onCreateSupplier={handleCreateSupplier}
         stores={stores}
