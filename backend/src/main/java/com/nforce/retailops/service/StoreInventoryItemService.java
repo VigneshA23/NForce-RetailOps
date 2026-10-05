@@ -42,7 +42,6 @@ public class StoreInventoryItemService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StockCheckRepository stockCheckRepository;
     private final OrderListEntryRepository orderListEntryRepository;
-    private final ActivityLogService activityLogService;
     private final InventoryItemImageRepository inventoryItemImageRepository;
     private final UnsplashService unsplashService;
 
@@ -53,7 +52,6 @@ public class StoreInventoryItemService {
         StoreOwnerRepository storeOwnerRepository,
         StockCheckRepository stockCheckRepository,
         OrderListEntryRepository orderListEntryRepository,
-        ActivityLogService activityLogService,
         InventoryItemImageRepository inventoryItemImageRepository,
         UnsplashService unsplashService
     ) {
@@ -63,7 +61,6 @@ public class StoreInventoryItemService {
         this.storeOwnerRepository = storeOwnerRepository;
         this.stockCheckRepository = stockCheckRepository;
         this.orderListEntryRepository = orderListEntryRepository;
-        this.activityLogService = activityLogService;
         this.inventoryItemImageRepository = inventoryItemImageRepository;
         this.unsplashService = unsplashService;
     }
@@ -199,11 +196,6 @@ public class StoreInventoryItemService {
             .map(store -> toComparisonRow(store, itemByStoreId.get(store.getId()), latestByItemId, today))
             .toList();
 
-        activityLogService.logPlatform(
-            "STOCK_LEVELS_COMPARED", "Super Admin", "SUPER_ADMIN",
-            "INVENTORY_ITEM", itemName,
-            "Compared stock levels for \"" + itemName + "\" across stores"
-        );
         return rows;
     }
 

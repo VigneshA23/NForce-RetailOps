@@ -26,7 +26,6 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,7 +40,6 @@ class StoreInventoryItemServiceTest {
     @Mock private StoreOwnerRepository storeOwnerRepository;
     @Mock private StockCheckRepository stockCheckRepository;
     @Mock private OrderListEntryRepository orderListEntryRepository;
-    @Mock private ActivityLogService activityLogService;
     @Mock private InventoryItemImageRepository inventoryItemImageRepository;
     @Mock private UnsplashService unsplashService;
 
@@ -54,7 +52,7 @@ class StoreInventoryItemServiceTest {
     void setUp() {
         service = new StoreInventoryItemService(
             storeInventoryItemRepository, supplierRepository, storeRepository,
-            storeOwnerRepository, stockCheckRepository, orderListEntryRepository, activityLogService,
+            storeOwnerRepository, stockCheckRepository, orderListEntryRepository,
             inventoryItemImageRepository, unsplashService
         );
 
@@ -154,17 +152,5 @@ class StoreInventoryItemServiceTest {
         StockLevelComparisonRowResponse row = service.compareAcrossStores("Napkins").get(0);
 
         assertThat(row.requiredToday()).isEqualTo(10);
-    }
-
-    @Test
-    void compareAcrossStoresLogsAPlatformLevelActivityEntry() {
-        when(storeRepository.findByActiveTrueOrderByName()).thenReturn(List.of(storeA));
-        when(storeInventoryItemRepository.findByNameIgnoreCase(any())).thenReturn(List.of());
-
-        service.compareAcrossStores("Napkins");
-
-        verify(activityLogService).logPlatform(
-            any(), any(), any(), any(), any(), any()
-        );
     }
 }
