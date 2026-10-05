@@ -31,6 +31,7 @@ import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.util.DateRangeValidator;
+import com.nforce.retailops.util.InventoryCountStatusCalculator;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -388,16 +389,7 @@ public class StockCheckService {
             : StockCheckSnapshot.START_OF_DAY;
         int currentStock = latest.getCurrentCount();
 
-        InventoryCountStatus status;
-        if (!latest.getCheckDate().isEqual(today)) {
-            status = InventoryCountStatus.STALE;
-        } else if (currentStock <= 0) {
-            status = InventoryCountStatus.OUT_OF_STOCK;
-        } else if (minimum != null && currentStock < minimum) {
-            status = InventoryCountStatus.LOW;
-        } else {
-            status = InventoryCountStatus.HEALTHY;
-        }
+        InventoryCountStatus status = InventoryCountStatusCalculator.calculate(latest, today, minimum);
 
         Integer change = null;
         LocalDate changeFromDate = null;

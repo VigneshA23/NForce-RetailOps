@@ -14,6 +14,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
+import StockLevelComparison from '../components/StockLevelComparison';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryTable from '../components/StoreInventoryTable';
 import SupplierFormModal from '../components/SupplierFormModal';
@@ -27,11 +28,12 @@ import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './SuperAdminInventory.css';
 
-type SubTab = 'inventory' | 'suppliers';
+type SubTab = 'inventory' | 'suppliers' | 'comparison';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'inventory', label: 'Inventory' },
   { key: 'suppliers', label: 'Suppliers' },
+  { key: 'comparison', label: 'Stock Comparison' },
 ];
 
 const STATUS_FILTER_OPTIONS = [
@@ -462,6 +464,8 @@ function SuperAdminInventory() {
           </div>
         </>
       )}
+
+      {subTab === 'comparison' && <StockLevelComparison items={items} />}
 
       <StoreInventoryItemFormModal
         isOpen={itemModal !== null}

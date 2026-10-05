@@ -1,6 +1,7 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.StatusRequest;
+import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
 import com.nforce.retailops.service.StoreInventoryItemService;
@@ -55,5 +56,10 @@ public class InventoryCatalogController {
     public ResponseEntity<Void> deleteItem(@PathVariable Long id) {
         storeInventoryItemService.deleteForSuperAdmin(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/stock-comparison")
+    public ResponseEntity<List<StockLevelComparisonRowResponse>> compareStockLevels(@RequestParam String itemName) {
+        return ResponseEntity.ok(storeInventoryItemService.compareAcrossStores(itemName));
     }
 }

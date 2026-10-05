@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
 import com.nforce.retailops.entity.StockCheck;
@@ -17,6 +18,7 @@ import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
+import com.nforce.retailops.util.InventoryCountStatusCalculator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +40,7 @@ public class StoreInventoryItemService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StockCheckRepository stockCheckRepository;
     private final OrderListEntryRepository orderListEntryRepository;
+    private final ActivityLogService activityLogService;
 
     public StoreInventoryItemService(
         StoreInventoryItemRepository storeInventoryItemRepository,
@@ -45,7 +48,8 @@ public class StoreInventoryItemService {
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         StockCheckRepository stockCheckRepository,
-        OrderListEntryRepository orderListEntryRepository
+        OrderListEntryRepository orderListEntryRepository,
+        ActivityLogService activityLogService
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.supplierRepository = supplierRepository;
@@ -53,6 +57,7 @@ public class StoreInventoryItemService {
         this.storeOwnerRepository = storeOwnerRepository;
         this.stockCheckRepository = stockCheckRepository;
         this.orderListEntryRepository = orderListEntryRepository;
+        this.activityLogService = activityLogService;
     }
 
     // ---------------------------------------------------------------------
@@ -149,6 +154,57 @@ public class StoreInventoryItemService {
         StoreInventoryItem item = storeInventoryItemRepository.findById(itemId)
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
         deleteItem(item);
+    }
+
+    // Every active store's current stock position for one item, matched by
+    // case-insensitive name since there is no shared item catalog to join
+    // on. A store with no (active) item of that name comes back with
+    // assigned=false and every other field null rather than a misleading
+    // zero. Reflects each store's latest submitted count, not just today's,
+    // same staleness-aware tiering as the Owner/Admin Inventory Counts view
+    // -- see InventoryCountStatusCalculator.
+    @Transactional(readOnly = true)
+    public List<StockLevelComparisonRowResponse> compareAcrossStores(String itemName) {
+        List<Store> activeStores = storeRepository.findByActiveTrueOrderByName();
+
+        Map<Long, StoreInventoryItem> itemByStoreId = storeInventoryItemRepository
+            .findByNameIgnoreCase(itemName).stream()
+            .filter(StoreInventoryItem::isActive)
+            .collect(Collectors.toMap(item -> item.getStore().getId(), item -> item));
+
+        List<Long> itemIds = itemByStoreId.values().stream().map(StoreInventoryItem::getId).toList();
+        Map<Long, StockCheck> latestByItemId = itemIds.isEmpty()
+            ? Map.of()
+            : stockCheckRepository.findLatestPerItemForItemIds(itemIds).stream()
+                .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), sc -> sc));
+
+        LocalDate today = LocalDate.now();
+        List<StockLevelComparisonRowResponse> rows = activeStores.stream()
+            .map(store -> toComparisonRow(store, itemByStoreId.get(store.getId()), latestByItemId, today))
+            .toList();
+
+        activityLogService.logPlatform(
+            "STOCK_LEVELS_COMPARED", "Super Admin", "SUPER_ADMIN",
+            "INVENTORY_ITEM", itemName,
+            "Compared stock levels for \"" + itemName + "\" across stores"
+        );
+        return rows;
+    }
+
+    private StockLevelComparisonRowResponse toComparisonRow(
+        Store store, StoreInventoryItem item, Map<Long, StockCheck> latestByItemId, LocalDate today
+    ) {
+        if (item == null) {
+            return new StockLevelComparisonRowResponse(store.getId(), store.getName(), false, null, null, null, null);
+        }
+        Integer minimum = item.requiredMinimumOn(today);
+        StockCheck latest = latestByItemId.get(item.getId());
+        return new StockLevelComparisonRowResponse(
+            store.getId(), store.getName(), true, minimum,
+            latest == null ? null : latest.getCurrentCount(),
+            latest == null ? null : latest.getCheckDate(),
+            InventoryCountStatusCalculator.calculate(latest, today, minimum)
+        );
     }
 
     // ---------------------------------------------------------------------

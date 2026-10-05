@@ -1,0 +1,142 @@
+/* @import must be the first statement in the file, or PostCSS drops it and the
+   @custom-media queries below silently never resolve. */
+@import '../styles/breakpoints.css';
+
+.slc {
+  padding: 0;
+  overflow-x: auto;
+}
+
+.slc__table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.slc__th {
+  padding: 10px var(--space-md);
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.slc__th--center { text-align: center; }
+
+.slc__row:not(:last-child) .slc__td {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.slc__row:hover {
+  background: var(--color-surface-hover, rgba(0, 0, 0, 0.03));
+}
+
+.slc__td {
+  padding: 12px var(--space-md);
+  font-size: 14px;
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.slc__td--center { text-align: center; }
+.slc__td--name { font-weight: 600; }
+
+.slc__none {
+  color: var(--color-text-muted);
+}
+
+.slc__status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.slc__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.slc__loading,
+.slc__empty {
+  padding: var(--space-lg);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Mobile card list -- hidden by default, swapped in for the table below
+   --mobile (see .slc__desktop below). */
+.slc__mobile-cards {
+  display: none;
+}
+
+@media (--mobile) {
+  .slc__desktop {
+    display: none;
+  }
+
+  .slc {
+    overflow-x: visible;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+  }
+
+  .slc__mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  .slc-mobile-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  }
+
+  .slc-mobile-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  .slc-mobile-card__name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .slc-mobile-card__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    font-size: 13px;
+  }
+
+  .slc-mobile-card__label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+  }
+}

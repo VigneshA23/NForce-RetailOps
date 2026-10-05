@@ -4,10 +4,10 @@ import { getInventoryCountHistory, getInventoryCounts, correctStockCheck } from 
 import type {
   InventoryCountHistoryEntry,
   InventoryCountRow,
-  InventoryCountStatus,
   InventoryItemCategory,
 } from '../types/storeInventory';
 import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
+import { INVENTORY_COUNT_STATUS_META } from '../utils/inventoryCountStatusMeta';
 import { nfToast } from '../utils/toast';
 import { formatDateLabel, formatTimeLabel } from '../utils/checklistHistoryOptions';
 import StatCard from './StatCard';
@@ -23,12 +23,7 @@ const PAGE_SIZE = 10;
 
 type LevelFilter = 'all' | 'out' | 'low' | 'stale';
 
-const STATUS_META: Record<InventoryCountStatus, { label: string; fg: string; bg: string; dot: string }> = {
-  OUT_OF_STOCK: { label: 'Out of Stock', fg: '#b3162a', bg: '#fde8ea', dot: '#e11d33' },
-  LOW: { label: 'Below Minimum', fg: '#a3620a', bg: '#fdf1de', dot: '#f59e0b' },
-  STALE: { label: 'Not Updated Today', fg: '#52525b', bg: '#f1f1f4', dot: '#a1a1aa' },
-  HEALTHY: { label: 'Healthy', fg: '#15803d', bg: '#e3f6ea', dot: '#16a34a' },
-};
+const STATUS_META = INVENTORY_COUNT_STATUS_META;
 
 function InventoryCounts() {
   const [search, setSearch] = useState('');
