@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
 import com.nforce.retailops.entity.OrderListEntry;
@@ -9,12 +10,16 @@ import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.InvalidOrderListEntryException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
+import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
+import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.SupplierRepository;
+import com.nforce.retailops.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,15 +36,21 @@ public class OrderListService {
     private final OrderListEntryRepository orderListEntryRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final SupplierRepository supplierRepository;
+    private final StoreInventoryItemRepository storeInventoryItemRepository;
+    private final UserRepository userRepository;
 
     public OrderListService(
         OrderListEntryRepository orderListEntryRepository,
         StoreOwnerRepository storeOwnerRepository,
-        SupplierRepository supplierRepository
+        SupplierRepository supplierRepository,
+        StoreInventoryItemRepository storeInventoryItemRepository,
+        UserRepository userRepository
     ) {
         this.orderListEntryRepository = orderListEntryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.supplierRepository = supplierRepository;
+        this.storeInventoryItemRepository = storeInventoryItemRepository;
+        this.userRepository = userRepository;
     }
 
     // Picks the caller's active store the same multi-store-safe way
@@ -92,6 +103,71 @@ public class OrderListService {
 
         entry = orderListEntryRepository.save(entry);
         return OrderListEntryResponse.from(entry);
+    }
+
+    // Owner/Admin manually adding to the order list ("Add to order"), as
+    // opposed to a stock check auto-detecting a shortage. Reuses the same
+    // upsertShortage path a detected shortage takes (including its V49/V70
+    // unique-index race handling) rather than inserting directly -- so if
+    // the item already has an active entry, this bumps its quantity/note
+    // instead of risking a duplicate. One trade-off of that reuse: a
+    // supplier chosen here only applies when creating a fresh entry, not
+    // when bumping an existing one (upsertShortage never reassigns supplier
+    // on an existing row) -- acceptable since this is the rare manual path,
+    // not the common case.
+    @Transactional
+    public OrderListEntryResponse createEntry(Long ownerId, CreateOrderListEntryRequest request) {
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
+        Store store = storeOwner.getStore();
+        User raisedBy = userRepository.getReferenceById(ownerId);
+
+        Supplier supplier = null;
+        if (request.supplierId() != null) {
+            supplier = supplierRepository.findById(request.supplierId())
+                .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+        }
+
+        StoreInventoryItem item = resolveOrderItem(store, request, supplier);
+        Supplier defaultSupplier = supplier != null ? supplier : item.getPreferredSupplier();
+        upsertShortage(store, item, request.quantityNeeded(), request.note(), true, raisedBy, defaultSupplier);
+
+        OrderListEntry entry = orderListEntryRepository
+            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
+            .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
+        return OrderListEntryResponse.from(entry);
+    }
+
+    // Either an existing catalog item (storeInventoryItemId set) or a
+    // freshly-created one for a custom one-off ("Other item"). The custom
+    // item is saved active only when the caller asked to also keep it in
+    // the store's inventory -- otherwise it's created inactive, existing
+    // purely to satisfy order_list_entries.store_inventory_item_id (nullable
+    // = false) without showing up in the Inventory page or daily counts.
+    private StoreInventoryItem resolveOrderItem(Store store, CreateOrderListEntryRequest request, Supplier supplier) {
+        if (request.storeInventoryItemId() != null) {
+            return storeInventoryItemRepository.findByIdAndStoreId(request.storeInventoryItemId(), store.getId())
+                .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
+        }
+
+        if (request.itemName() == null || request.itemName().isBlank()) {
+            throw new InvalidOrderListEntryException("Item name is required for a custom item");
+        }
+        if (request.unitOfMeasurement() == null || request.unitOfMeasurement().isBlank()) {
+            throw new InvalidOrderListEntryException("Unit is required for a custom item");
+        }
+        if (request.category() == null) {
+            throw new InvalidOrderListEntryException("Category is required for a custom item");
+        }
+
+        StoreInventoryItem item = new StoreInventoryItem();
+        item.setStore(store);
+        item.setName(request.itemName().trim());
+        item.setCategory(request.category());
+        item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
+        item.setMinWeekday(0);
+        item.setPreferredSupplier(supplier);
+        item.setActive(request.saveToInventory());
+        return storeInventoryItemRepository.save(item);
     }
 
     // Shared upsert: raises a new shortage or bumps the quantity/note on an

@@ -193,6 +193,7 @@ public class StoreInventoryItemService {
 
     private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request) {
         item.setName(request.name().trim());
+        item.setCategory(request.category());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
         item.setMinWeekday(request.minWeekday());
         item.setMinWeekend(request.minWeekend());

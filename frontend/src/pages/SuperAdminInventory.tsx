@@ -197,6 +197,7 @@ function SuperAdminInventory() {
       return {
         storeId: itemModal.item.storeId,
         name: itemModal.item.name,
+        category: itemModal.item.category ?? 'INGREDIENTS',
         unitOfMeasurement: itemModal.item.unitOfMeasurement,
         minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
         minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
@@ -208,6 +209,7 @@ function SuperAdminInventory() {
       return {
         storeId: selectedStoreId,
         name: '',
+        category: 'INGREDIENTS',
         unitOfMeasurement: '',
         minWeekday: '',
         minWeekend: '',

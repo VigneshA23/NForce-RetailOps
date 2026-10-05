@@ -1,9 +1,14 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.EodSupplierReportResponse;
+import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
+import com.nforce.retailops.dto.InventoryCountRowResponse;
+import com.nforce.retailops.dto.InventoryCountStatus;
+import com.nforce.retailops.dto.InventoryCountsPageResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
+import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.StockCheckSnapshot;
@@ -13,6 +18,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidStockCheckException;
+import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StockCheckCorrectionRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
@@ -25,9 +31,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.assertj.core.groups.Tuple;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
@@ -342,5 +350,172 @@ class StockCheckServiceTest {
 
         verify(orderListService).resolveShortageIfPresent(store, milk);
         verify(orderListService, never()).upsertShortage(any(), any(), anyInt(), any(), anyBoolean(), any(), any());
+    }
+
+    // ---- Inventory Counts (live per-item status) ---------------------------
+
+    private StockCheck checkWithCount(StoreInventoryItem item, LocalDate date, int available, int dead) {
+        StockCheck check = new StockCheck();
+        check.setStore(store);
+        check.setStoreInventoryItem(item);
+        check.setCheckDate(date);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, dead, employee, OffsetDateTime.now());
+        return check;
+    }
+
+    @Test
+    void inventoryCountsClassifiesEachRowByFreshnessThenStockLevel() {
+        milk.setMinWeekday(10);
+        milk.setMinWeekend(10);
+        StockCheck staleButWouldBeOutOfStock = checkWithCount(milk, LocalDate.now().minusDays(1), 0, 0);
+
+        StoreInventoryItem eggs = new StoreInventoryItem();
+        ReflectionTestUtils.setField(eggs, "id", 23L);
+        eggs.setStore(store);
+        eggs.setName("Eggs");
+        eggs.setMinWeekday(10);
+        eggs.setMinWeekend(10);
+        StockCheck outToday = checkWithCount(eggs, LocalDate.now(), 0, 0);
+
+        StoreInventoryItem bread = new StoreInventoryItem();
+        ReflectionTestUtils.setField(bread, "id", 24L);
+        bread.setStore(store);
+        bread.setName("Bread");
+        bread.setMinWeekday(10);
+        bread.setMinWeekend(10);
+        StockCheck lowToday = checkWithCount(bread, LocalDate.now(), 5, 0);
+
+        StoreInventoryItem butter = new StoreInventoryItem();
+        ReflectionTestUtils.setField(butter, "id", 25L);
+        butter.setStore(store);
+        butter.setName("Butter");
+        butter.setMinWeekday(10);
+        butter.setMinWeekend(10);
+        StockCheck healthyToday = checkWithCount(butter, LocalDate.now(), 20, 0);
+
+        when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID))
+            .thenReturn(List.of(milk, eggs, bread, butter));
+        when(stockCheckRepository.findLatestPerItemForStore(STORE_ID))
+            .thenReturn(List.of(staleButWouldBeOutOfStock, outToday, lowToday, healthyToday));
+        when(stockCheckRepository.findRecentForItem(any(), any(Pageable.class))).thenReturn(List.of());
+
+        InventoryCountsPageResponse page = stockCheckService.listInventoryCounts(OWNER_ID, null, null, null, null, null);
+
+        assertThat(page.rows()).extracting(InventoryCountRowResponse::name, InventoryCountRowResponse::status)
+            .containsExactlyInAnyOrder(
+                Tuple.tuple("Milk", InventoryCountStatus.STALE),
+                Tuple.tuple("Eggs", InventoryCountStatus.OUT_OF_STOCK),
+                Tuple.tuple("Bread", InventoryCountStatus.LOW),
+                Tuple.tuple("Butter", InventoryCountStatus.HEALTHY)
+            );
+        assertThat(page.allCount()).isEqualTo(4);
+        assertThat(page.outCount()).isEqualTo(1);
+        assertThat(page.lowCount()).isEqualTo(1);
+        assertThat(page.staleCount()).isEqualTo(1);
+    }
+
+    @Test
+    void inventoryCountsShowsAnItemWithNoCheckAtAllAsStaleWithNullStock() {
+        when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of());
+
+        InventoryCountsPageResponse page = stockCheckService.listInventoryCounts(OWNER_ID, null, null, null, null, null);
+
+        InventoryCountRowResponse row = page.rows().get(0);
+        assertThat(row.status()).isEqualTo(InventoryCountStatus.STALE);
+        assertThat(row.currentStock()).isNull();
+        assertThat(row.lastUpdatedAt()).isNull();
+        assertThat(row.latestCheckId()).isNull();
+    }
+
+    @Test
+    void inventoryCountsComputesChangeAgainstThePreviousCount() {
+        StockCheck today = checkWithCount(milk, LocalDate.now(), 30, 0);
+        StockCheck yesterday = checkWithCount(milk, LocalDate.now().minusDays(1), 24, 0);
+
+        when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of(today));
+        when(stockCheckRepository.findRecentForItem(eq(ITEM_ID), any(Pageable.class))).thenReturn(List.of(today, yesterday));
+
+        InventoryCountRowResponse row = stockCheckService.listInventoryCounts(OWNER_ID, null, null, null, null, null)
+            .rows().get(0);
+
+        assertThat(row.change()).isEqualTo(6);
+        assertThat(row.changeFromDate()).isEqualTo(LocalDate.now().minusDays(1));
+    }
+
+    @Test
+    void inventoryCountsFiltersBySearchCategoryAndLevelWithoutChangingKpiCounts() {
+        milk.setCategory(InventoryItemCategory.DAIRY);
+        StockCheck milkCheck = checkWithCount(milk, LocalDate.now(), 0, 0);
+
+        StoreInventoryItem apples = new StoreInventoryItem();
+        ReflectionTestUtils.setField(apples, "id", 26L);
+        apples.setStore(store);
+        apples.setName("Apples");
+        apples.setCategory(InventoryItemCategory.FRUITS);
+        StockCheck applesCheck = checkWithCount(apples, LocalDate.now(), 50, 0);
+
+        when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk, apples));
+        when(stockCheckRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of(milkCheck, applesCheck));
+        when(stockCheckRepository.findRecentForItem(any(), any(Pageable.class))).thenReturn(List.of());
+
+        InventoryCountsPageResponse byName = stockCheckService.listInventoryCounts(OWNER_ID, "milk", null, null, null, null);
+        assertThat(byName.rows()).extracting(InventoryCountRowResponse::name).containsExactly("Milk");
+        assertThat(byName.allCount()).isEqualTo(2);
+
+        InventoryCountsPageResponse byCategory = stockCheckService.listInventoryCounts(
+            OWNER_ID, null, InventoryItemCategory.FRUITS, null, null, null);
+        assertThat(byCategory.rows()).extracting(InventoryCountRowResponse::name).containsExactly("Apples");
+
+        InventoryCountsPageResponse byLevel = stockCheckService.listInventoryCounts(OWNER_ID, null, null, "out", null, null);
+        assertThat(byLevel.rows()).extracting(InventoryCountRowResponse::name).containsExactly("Milk");
+        assertThat(byLevel.allCount()).isEqualTo(2);
+        assertThat(byLevel.outCount()).isEqualTo(1);
+    }
+
+    @Test
+    void inventoryCountsPaginatesTheFilteredRows() {
+        StoreInventoryItem apples = new StoreInventoryItem();
+        ReflectionTestUtils.setField(apples, "id", 26L);
+        apples.setStore(store);
+        apples.setName("Apples");
+
+        when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk, apples));
+        when(stockCheckRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of());
+        when(stockCheckRepository.findRecentForItem(any(), any(Pageable.class))).thenReturn(List.of());
+
+        InventoryCountsPageResponse page = stockCheckService.listInventoryCounts(OWNER_ID, null, null, null, 2, 1);
+
+        assertThat(page.rows()).hasSize(1);
+        assertThat(page.page()).isEqualTo(2);
+        assertThat(page.totalPages()).isEqualTo(2);
+        assertThat(page.totalElements()).isEqualTo(2);
+    }
+
+    @Test
+    void countHistoryReturnsNewestFirstWithDeltaAgainstTheNextOlderEntry() {
+        StockCheck newest = checkWithCount(milk, LocalDate.now(), 30, 0);
+        StockCheck middle = checkWithCount(milk, LocalDate.now().minusDays(1), 24, 0);
+        StockCheck oldest = checkWithCount(milk, LocalDate.now().minusDays(2), 20, 0);
+        when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
+        when(stockCheckRepository.findRecentForItem(eq(ITEM_ID), any(Pageable.class)))
+            .thenReturn(List.of(newest, middle, oldest));
+
+        List<InventoryCountHistoryEntryResponse> history = stockCheckService.getCountHistory(OWNER_ID, ITEM_ID);
+
+        assertThat(history).hasSize(3);
+        assertThat(history.get(0).count()).isEqualTo(30);
+        assertThat(history.get(0).delta()).isEqualTo(6);
+        assertThat(history.get(1).delta()).isEqualTo(4);
+        assertThat(history.get(2).delta()).isNull();
+    }
+
+    @Test
+    void countHistoryThrowsWhenTheItemBelongsToAnotherStore() {
+        when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> stockCheckService.getCountHistory(OWNER_ID, ITEM_ID))
+            .isInstanceOf(StoreInventoryItemNotFoundException.class);
     }
 }

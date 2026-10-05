@@ -1,5 +1,11 @@
 import { apiRequest } from './client';
-import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
+import type {
+  InventoryCountHistoryEntry,
+  InventoryCountsPage,
+  InventoryItemCategory,
+  StoreInventoryItem,
+  StoreInventoryItemFormValues,
+} from '../types/storeInventory';
 import type {
   EodSupplierReport,
   StockCheckHistoryPage,
@@ -11,6 +17,7 @@ import type {
 function toBody(values: StoreInventoryItemFormValues) {
   return {
     name: values.name,
+    category: values.category,
     unitOfMeasurement: values.unitOfMeasurement,
     minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
     minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
@@ -72,4 +79,30 @@ export async function correctStockCheck(
 // End of Day supplier report for one business day (YYYY-MM-DD).
 export async function getEodSupplierReport(date: string): Promise<EodSupplierReport> {
   return apiRequest<EodSupplierReport>(`/stores/inventory/eod-report?date=${encodeURIComponent(date)}`);
+}
+
+export interface InventoryCountsParams {
+  search?: string;
+  category?: InventoryItemCategory;
+  level?: string;
+  page?: number;
+  size?: number;
+}
+
+// Live per-item stock status for the Inventory Counts tab (page is
+// 1-indexed, matching Pagination.tsx).
+export async function getInventoryCounts(params: InventoryCountsParams = {}): Promise<InventoryCountsPage> {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  if (params.category) query.set('category', params.category);
+  if (params.level) query.set('level', params.level);
+  if (params.page) query.set('page', String(params.page));
+  if (params.size) query.set('size', String(params.size));
+  const qs = query.toString();
+  return apiRequest<InventoryCountsPage>(`/stores/inventory/counts${qs ? `?${qs}` : ''}`);
+}
+
+// Newest-first count-history timeline for one Inventory Counts row.
+export async function getInventoryCountHistory(itemId: number): Promise<InventoryCountHistoryEntry[]> {
+  return apiRequest<InventoryCountHistoryEntry[]>(`/stores/inventory/counts/${itemId}/history`);
 }

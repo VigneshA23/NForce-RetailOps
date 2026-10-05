@@ -15,17 +15,15 @@ import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormMod
 import StoreInventoryTable from '../components/StoreInventoryTable';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StockCheckHistory from '../components/StockCheckHistory';
-import EodSupplierReport from '../components/EodSupplierReport';
 import SearchInput from '../components/SearchInput';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './StoreInventory.css';
 
-type SubTab = 'items' | 'eod-report' | 'history';
+type SubTab = 'items' | 'history';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'items', label: 'Items' },
-  { key: 'eod-report', label: 'EOD Supplier Report' },
   { key: 'history', label: 'Inventory History' },
 ];
 
@@ -224,6 +222,7 @@ function StoreInventory() {
                   ? {
                       storeId: null,
                       name: itemModal.item.name,
+                      category: itemModal.item.category ?? 'INGREDIENTS',
                       unitOfMeasurement: itemModal.item.unitOfMeasurement,
                       minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
                       minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
@@ -249,7 +248,6 @@ function StoreInventory() {
         )
       )}
 
-      {subTab === 'eod-report' && <EodSupplierReport />}
       {subTab === 'history' && <StockCheckHistory />}
     </div>
   );

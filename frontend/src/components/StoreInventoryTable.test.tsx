@@ -9,6 +9,7 @@ function item(overrides: Partial<StoreInventoryItem>): StoreInventoryItem {
     storeId: 1,
     storeName: 'Store 1',
     name: 'Milk',
+    category: null,
     unitOfMeasurement: 'L',
     minWeekday: 8,
     minWeekend: 12,

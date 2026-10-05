@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import type { StoreInventoryItemFormValues } from '../types/storeInventory';
+import { INVENTORY_ITEM_CATEGORY_OPTIONS, type InventoryItemCategory, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -33,6 +33,7 @@ interface StoreInventoryItemFormModalProps {
 const EMPTY_VALUES: StoreInventoryItemFormValues = {
   storeId: null,
   name: '',
+  category: 'INGREDIENTS',
   unitOfMeasurement: '',
   minWeekday: '',
   minWeekend: '',
@@ -126,6 +127,16 @@ function StoreInventoryItemFormModal({
             value={values.name}
             onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
             placeholder="e.g. Coffee Beans, Milk"
+          />
+        </FormField>
+        <FormField label="Category" htmlFor="inventory-item-category">
+          <Select
+            id="inventory-item-category"
+            options={INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
+            value={values.category}
+            onChange={(value) => setValues((current) => ({ ...current, category: value as InventoryItemCategory }))}
+            ariaLabel="Category"
+            indicator="radio"
           />
         </FormField>
         <FormField label="Unit" htmlFor="inventory-item-unit" error={errors.unitOfMeasurement}>

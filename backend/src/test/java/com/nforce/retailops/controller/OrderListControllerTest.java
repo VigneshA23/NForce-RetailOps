@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
@@ -24,6 +25,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Map;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -200,6 +204,88 @@ class OrderListControllerTest {
         mockMvc.perform(get("/api/stores/order-list/needs-ordering-count")
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void createEntryFromInventoryAddsItToTheOrderList() throws Exception {
+        User owner = user("ord-create-owner-a@nforce.test", "OWNER_ADMIN", "Owner Create A");
+        Store store = store("Store Create A", 8204L);
+        linkOwnerToStore(owner, store);
+        StoreInventoryItem milk = inventoryItem(store);
+
+        String token = login("ord-create-owner-a@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of(
+            "storeInventoryItemId", milk.getId(),
+            "quantityNeeded", 4,
+            "note", "Extra for Saturday event"
+        ));
+
+        mockMvc.perform(post("/api/stores/order-list")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.itemName").value(milk.getName()))
+            .andExpect(jsonPath("$.quantityNeeded").value(4))
+            .andExpect(jsonPath("$.status").value("NEEDS_ORDERING"));
+    }
+
+    @Test
+    @Transactional
+    void createEntryForACustomItemNotSavedToInventoryKeepsItOutOfTheInventoryList() throws Exception {
+        User owner = user("ord-create-owner-b@nforce.test", "OWNER_ADMIN", "Owner Create B");
+        Store store = store("Store Create B", 8205L);
+        linkOwnerToStore(owner, store);
+
+        String token = login("ord-create-owner-b@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of(
+            "itemName", "Birthday candles",
+            "category", "SUPPLIES",
+            "unitOfMeasurement", "packs",
+            "saveToInventory", false,
+            "quantityNeeded", 2
+        ));
+
+        mockMvc.perform(post("/api/stores/order-list")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.itemName").value("Birthday candles"));
+
+        // Created as an inactive catalog item -- it shows up on the owner's
+        // Inventory list, but flagged inactive rather than ready to count.
+        String inventoryJson = mockMvc.perform(get("/api/stores/inventory")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        JsonNode candlesNode = null;
+        for (JsonNode node : objectMapper.readTree(inventoryJson)) {
+            if (node.get("name").asText().equals("Birthday candles")) {
+                candlesNode = node;
+                break;
+            }
+        }
+        assertThat(candlesNode).isNotNull();
+        assertThat(candlesNode.get("active").asBoolean()).isFalse();
+    }
+
+    @Test
+    @Transactional
+    void createEntryRejectsACustomItemMissingRequiredFields() throws Exception {
+        User owner = user("ord-create-owner-c@nforce.test", "OWNER_ADMIN", "Owner Create C");
+        linkOwnerToStore(owner, store("Store Create C", 8206L));
+
+        String token = login("ord-create-owner-c@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of("quantityNeeded", 1));
+
+        mockMvc.perform(post("/api/stores/order-list")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.message").value("Item name is required for a custom item"));
     }
 
     record LoginPayload(String email, String password) {}

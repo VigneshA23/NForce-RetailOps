@@ -100,6 +100,7 @@ describe('StoreInventoryItemFormModal', () => {
         initialValues={{
           storeId: null,
           name: 'Cups',
+          category: 'SUPPLIES',
           unitOfMeasurement: 'box',
           minWeekday: '2',
           minWeekend: '',

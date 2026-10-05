@@ -1,0 +1,6 @@
+.edit-inventory-count-modal__diff {
+  margin: -8px 0 var(--space-md);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}

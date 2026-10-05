@@ -3,12 +3,17 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.AdHocShortageRequest;
 import com.nforce.retailops.dto.DailyStockCheckItemResponse;
 import com.nforce.retailops.dto.EodSupplierReportResponse;
+import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
+import com.nforce.retailops.dto.InventoryCountRowResponse;
+import com.nforce.retailops.dto.InventoryCountStatus;
+import com.nforce.retailops.dto.InventoryCountsPageResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckEditResponse;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
 import com.nforce.retailops.dto.StockSnapshotResponse;
+import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.StockCheckSnapshot;
@@ -61,6 +66,10 @@ public class StockCheckService {
     private static final int DEFAULT_PAGE_SIZE = 50;
     private static final int MAX_PAGE_SIZE = 200;
     private static final int MAX_DATE_RANGE_DAYS = 92;
+
+    // Inventory Counts row's expandable count-history timeline: how many of
+    // an item's most recent StockCheck rows to show.
+    private static final int MAX_HISTORY_ENTRIES = 15;
 
     static final String NO_SUPPLIER = "No Supplier";
 
@@ -289,6 +298,124 @@ public class StockCheckService {
         }
 
         return new EodSupplierReportResponse(reportDate, groups, needingOrder, pendingEod);
+    }
+
+    // Live per-item stock status for the Inventory Counts view: current
+    // usable stock, today's minimum, a status tier, who/when last touched it,
+    // and the change vs. the previous count on record. KPI counts are over
+    // every active item regardless of the search/category/level filters
+    // applied to rows (see InventoryCountsPageResponse).
+    @Transactional(readOnly = true)
+    public InventoryCountsPageResponse listInventoryCounts(
+        Long ownerId, String search, InventoryItemCategory category, String level, Integer page, Integer size
+    ) {
+        Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
+        LocalDate today = LocalDate.now();
+
+        List<StoreInventoryItem> items = storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(storeId);
+        Map<Long, StockCheck> latestByItemId = stockCheckRepository.findLatestPerItemForStore(storeId).stream()
+            .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), Function.identity()));
+
+        List<InventoryCountRowResponse> allRows = items.stream()
+            .map(item -> toCountRow(item, latestByItemId.get(item.getId()), today))
+            .toList();
+
+        long allCount = allRows.size();
+        long outCount = allRows.stream().filter(r -> r.status() == InventoryCountStatus.OUT_OF_STOCK).count();
+        long lowCount = allRows.stream().filter(r -> r.status() == InventoryCountStatus.LOW).count();
+        long staleCount = allRows.stream().filter(r -> r.status() == InventoryCountStatus.STALE).count();
+
+        String needle = search == null ? "" : search.trim().toLowerCase();
+        List<InventoryCountRowResponse> filtered = allRows.stream()
+            .filter(r -> needle.isEmpty() || r.name().toLowerCase().contains(needle))
+            .filter(r -> category == null || r.category() == category)
+            .filter(r -> matchesLevel(r.status(), level))
+            .toList();
+
+        int requestedPage = page == null ? 1 : Math.max(page, 1);
+        int clampedSize = size == null ? DEFAULT_PAGE_SIZE : Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int totalPages = Math.max(1, (int) Math.ceil(filtered.size() / (double) clampedSize));
+        int clampedPage = Math.min(requestedPage, totalPages);
+        int fromIndex = Math.min((clampedPage - 1) * clampedSize, filtered.size());
+        int toIndex = Math.min(fromIndex + clampedSize, filtered.size());
+
+        return new InventoryCountsPageResponse(
+            filtered.subList(fromIndex, toIndex), clampedPage, clampedSize, totalPages, filtered.size(),
+            allCount, outCount, lowCount, staleCount
+        );
+    }
+
+    private static boolean matchesLevel(InventoryCountStatus status, String level) {
+        if (level == null || level.equalsIgnoreCase("all")) return true;
+        return switch (level.toLowerCase()) {
+            case "out" -> status == InventoryCountStatus.OUT_OF_STOCK;
+            case "low" -> status == InventoryCountStatus.LOW;
+            case "stale" -> status == InventoryCountStatus.STALE;
+            case "healthy", "ok" -> status == InventoryCountStatus.HEALTHY;
+            default -> true;
+        };
+    }
+
+    private InventoryCountRowResponse toCountRow(StoreInventoryItem item, StockCheck latest, LocalDate today) {
+        Integer minimum = item.requiredMinimumOn(today);
+
+        if (latest == null) {
+            return new InventoryCountRowResponse(
+                item.getId(), item.getName(), item.getCategory(), item.getUnitOfMeasurement(),
+                null, minimum, InventoryCountStatus.STALE, null, null, null, null, null, null, null, null
+            );
+        }
+
+        StockCheckSnapshot latestSnapshot = latest.hasSnapshot(StockCheckSnapshot.END_OF_DAY)
+            ? StockCheckSnapshot.END_OF_DAY
+            : StockCheckSnapshot.START_OF_DAY;
+        int currentStock = latest.getCurrentCount();
+
+        InventoryCountStatus status;
+        if (!latest.getCheckDate().isEqual(today)) {
+            status = InventoryCountStatus.STALE;
+        } else if (currentStock <= 0) {
+            status = InventoryCountStatus.OUT_OF_STOCK;
+        } else if (minimum != null && currentStock < minimum) {
+            status = InventoryCountStatus.LOW;
+        } else {
+            status = InventoryCountStatus.HEALTHY;
+        }
+
+        Integer change = null;
+        LocalDate changeFromDate = null;
+        List<StockCheck> recent = stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2));
+        if (recent.size() > 1) {
+            StockCheck previous = recent.get(1);
+            change = currentStock - previous.getCurrentCount();
+            changeFromDate = previous.getCheckDate();
+        }
+
+        return new InventoryCountRowResponse(
+            item.getId(), item.getName(), item.getCategory(), item.getUnitOfMeasurement(),
+            currentStock, minimum, status, latest.getUpdatedAt(), latest.getCheckedBy().getFullName(),
+            change, changeFromDate,
+            latest.getId(), latestSnapshot, latest.availableFor(latestSnapshot), latest.deadStockFor(latestSnapshot)
+        );
+    }
+
+    // Count-history timeline for one Inventory Counts row, newest first.
+    @Transactional(readOnly = true)
+    public List<InventoryCountHistoryEntryResponse> getCountHistory(Long ownerId, Long itemId) {
+        Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
+        StoreInventoryItem item = storeInventoryItemRepository.findByIdAndStoreId(itemId, storeId)
+            .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
+
+        List<StockCheck> recent = stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, MAX_HISTORY_ENTRIES));
+        List<InventoryCountHistoryEntryResponse> entries = new ArrayList<>();
+        for (int i = 0; i < recent.size(); i++) {
+            StockCheck check = recent.get(i);
+            Integer delta = i + 1 < recent.size() ? check.getCurrentCount() - recent.get(i + 1).getCurrentCount() : null;
+            entries.add(new InventoryCountHistoryEntryResponse(
+                check.getCheckDate(), check.getCurrentCount(), delta, check.getCheckedBy().getFullName(), check.getUpdatedAt()
+            ));
+        }
+        return entries;
     }
 
     // ---- Shared helpers ------------------------------------------------------

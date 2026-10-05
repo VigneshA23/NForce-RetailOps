@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Clipboard } from 'lucide-react';
 import CalendarPopover from './CalendarPopover';
 import { getEodSupplierReport } from '../api/storeInventory';
 import type { EodReportRow, EodReportStatus, EodSupplierReport as EodSupplierReportData } from '../types/stockCheck';
 import { formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
+import { buildEodReportText } from '../utils/orderListExport';
+import { nfToast } from '../utils/toast';
 import './EodSupplierReport.css';
 
 const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
@@ -44,7 +46,7 @@ function ReportRow({ row, supplierName }: { row: EodReportRow; supplierName: str
 // Owner/Admin's End of Day supplier report: each item's Start/End of Day
 // stock, usage, tomorrow's requirement and quantity to order for one
 // business day, grouped by supplier ("No Supplier" last).
-function EodSupplierReport() {
+function EodSupplierReport({ storeName }: { storeName?: string | null }) {
   const [date, setDate] = useState(todayDate());
   const [report, setReport] = useState<EodSupplierReportData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +75,17 @@ function EodSupplierReport() {
 
   const isToday = date >= todayDate();
   const hasItems = (report?.groups.length ?? 0) > 0;
+
+  async function handleCopy() {
+    if (!report) return;
+    const text = buildEodReportText(report, storeName);
+    try {
+      await navigator.clipboard.writeText(text);
+      nfToast.success('Report copied to clipboard.');
+    } catch {
+      nfToast.error('Could not copy to clipboard. Please copy manually.');
+    }
+  }
 
   return (
     <div className="eod-report">
@@ -107,6 +120,10 @@ function EodSupplierReport() {
             {report.itemsNeedingOrder} to order · {report.itemsPendingEndOfDay} awaiting End of Day count
           </p>
         )}
+        <button type="button" className="btn btn--secondary" onClick={handleCopy} disabled={isLoading || !hasItems}>
+          <Clipboard size={16} />
+          Copy Report
+        </button>
       </div>
       <CalendarPopover
         value={date}
