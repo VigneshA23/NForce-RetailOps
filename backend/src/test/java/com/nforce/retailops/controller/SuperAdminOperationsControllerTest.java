@@ -14,6 +14,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.SuperAdmin;
+import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.TimeMode;
@@ -27,6 +28,7 @@ import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SuperAdminRepository;
+import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -68,6 +70,7 @@ class SuperAdminOperationsControllerTest {
     @Autowired private SuperAdminRepository superAdminRepository;
     @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
     @Autowired private OrderListEntryRepository orderListEntryRepository;
+    @Autowired private SupplierRepository supplierRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -189,6 +192,22 @@ class SuperAdminOperationsControllerTest {
         entry.setStore(store);
         entry.setStoreInventoryItem(item);
         entry.setQuantityNeeded(2);
+        entry.setStatus(status);
+        return orderListEntryRepository.save(entry);
+    }
+
+    private Supplier supplier(String name) {
+        Supplier supplier = new Supplier();
+        supplier.setName(name);
+        return supplierRepository.save(supplier);
+    }
+
+    private OrderListEntry orderEntry(Store store, StoreInventoryItem item, OrderStatus status, Supplier supplier, int quantity) {
+        OrderListEntry entry = new OrderListEntry();
+        entry.setStore(store);
+        entry.setStoreInventoryItem(item);
+        entry.setQuantityNeeded(quantity);
+        entry.setSupplier(supplier);
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);
     }
@@ -445,6 +464,95 @@ class SuperAdminOperationsControllerTest {
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.stores[?(@.storeCode == 9242)]").isEmpty());
+    }
+
+    @Test
+    @Transactional
+    void supplierPurchaseMetricsRequiresSuperAdminRole() throws Exception {
+        ownerUser("sa-spm-owner-a@nforce.test");
+        String ownerToken = login("sa-spm-owner-a@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/order-list/supplier-metrics")
+                .param("fromDate", "2026-09-01")
+                .param("toDate", "2026-09-04")
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void supplierPurchaseMetricsBreaksDownEachStoreWithExactTotals() throws Exception {
+        superAdmin("sa-spm-admin-b@nforce.test");
+        Store storeOne = store("Store Purchasing One", 9250L);
+        Store storeTwo = store("Store Purchasing Two", 9251L);
+        Supplier supplierA = supplier("Supplier Purchasing A");
+
+        orderEntry(storeOne, inventoryItem(storeOne, "Milk One"), OrderStatus.ORDERED, supplierA, 10);
+        orderEntry(storeTwo, inventoryItem(storeTwo, "Milk Two"), OrderStatus.ORDERED, supplierA, 20);
+
+        String token = login("sa-spm-admin-b@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.storeId == " + storeOne.getId() + ")].totalQuantity").value(10))
+            .andExpect(jsonPath("$[?(@.storeId == " + storeTwo.getId() + ")].totalQuantity").value(20));
+    }
+
+    @Test
+    @Transactional
+    void supplierPurchaseMetricsExcludesNeedsOrderingEntries() throws Exception {
+        superAdmin("sa-spm-admin-c@nforce.test");
+        Store storeC = store("Store Purchasing Exclude", 9252L);
+        Supplier supplierA = supplier("Supplier Purchasing Exclude A");
+
+        orderEntry(storeC, inventoryItem(storeC, "Milk C"), OrderStatus.NEEDS_ORDERING, supplierA, 99);
+
+        String token = login("sa-spm-admin-c@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.storeId == " + storeC.getId() + ")]").isEmpty());
+    }
+
+    @Test
+    @Transactional
+    void supplierPurchaseMetricsReturnsEmptyArrayWhenNothingQualifies() throws Exception {
+        superAdmin("sa-spm-admin-d@nforce.test");
+        String token = login("sa-spm-admin-d@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/order-list/supplier-metrics")
+                .param("fromDate", "2026-01-01")
+                .param("toDate", "2026-01-02")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$").isArray());
+    }
+
+    @Test
+    @Transactional
+    void supplierPurchaseMetricsExcludesEntriesOutsideTheDateRange() throws Exception {
+        superAdmin("sa-spm-admin-e@nforce.test");
+        Store storeE = store("Store Purchasing Dates", 9253L);
+        Supplier supplierA = supplier("Supplier Purchasing Dates A");
+
+        orderEntry(storeE, inventoryItem(storeE, "Milk E"), OrderStatus.ORDERED, supplierA, 5);
+
+        String token = login("sa-spm-admin-e@nforce.test");
+
+        // The only entry was just created (createdAt = now); a range entirely
+        // in the past must not include it.
+        mockMvc.perform(get("/api/super-admin/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().minusDays(10).toString())
+                .param("toDate", LocalDate.now().minusDays(5).toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.storeId == " + storeE.getId() + ")]").isEmpty());
     }
 
     @Test

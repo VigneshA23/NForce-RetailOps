@@ -1,5 +1,10 @@
 import { apiRequest } from './client';
-import type { CreateOrderListEntryValues, OrderListEntry, UpdateOrderListEntryValues } from '../types/orderList';
+import type {
+  CreateOrderListEntryValues,
+  OrderListEntry,
+  SupplierPurchaseMetric,
+  UpdateOrderListEntryValues,
+} from '../types/orderList';
 
 // Owner/Admin's Order Dashboard, scoped to their own store.
 export async function getOrderList(): Promise<OrderListEntry[]> {
@@ -29,6 +34,13 @@ export async function createOrderListEntry(values: CreateOrderListEntryValues): 
       note: values.note.trim() === '' ? null : values.note.trim(),
     },
   });
+}
+
+// Supplier Purchasing Summary, scoped server-side to the owner's own store --
+// there is no storeId to pass here.
+export async function getSupplierPurchaseMetrics(fromDate: string, toDate: string): Promise<SupplierPurchaseMetric[]> {
+  const params = new URLSearchParams({ fromDate, toDate });
+  return apiRequest<SupplierPurchaseMetric[]>(`/stores/order-list/supplier-metrics?${params}`);
 }
 
 export async function updateOrderListEntry(id: number, values: UpdateOrderListEntryValues): Promise<OrderListEntry> {
