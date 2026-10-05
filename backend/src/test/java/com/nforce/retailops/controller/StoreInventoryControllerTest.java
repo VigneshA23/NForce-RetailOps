@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -300,6 +301,29 @@ class StoreInventoryControllerTest {
             .andExpect(jsonPath("$[1].delta").doesNotExist());
     }
 
+    @Test
+    @Transactional
+    void correctCheckRejectsANegativeAvailableCount() throws Exception {
+        User owner = owner("stockcheck-correct-negative-owner@nforce.test");
+        Store store = store("Negative Correction Store", 9305L);
+        linkOwnerToStore(owner, store);
+
+        StoreInventoryItem milk = item(store, "Milk", 20, 20);
+        LocalDate today = LocalDate.now();
+        check(milk, owner, today, 30, 0, 28, 0);
+        StockCheck saved = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(milk.getId(), today).orElseThrow();
+
+        String token = login("stockcheck-correct-negative-owner@nforce.test");
+        String body = objectMapper.writeValueAsString(new CorrectionPayload("END_OF_DAY", -1, 0, "Recount"));
+
+        mockMvc.perform(patch("/api/stores/inventory/stock-checks/" + saved.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.available").value("Available stock cannot be negative"));
+    }
+
     private void check(StoreInventoryItem item, User by, LocalDate date,
                        int sodAvailable, int sodDead, Integer eodAvailable, Integer eodDead) {
         StockCheck check = new StockCheck();
@@ -325,5 +349,8 @@ class StoreInventoryControllerTest {
     }
 
     private record LoginPayload(String email, String password) {
+    }
+
+    private record CorrectionPayload(String snapshot, int available, int deadStock, String reason) {
     }
 }

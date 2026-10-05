@@ -51,6 +51,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -376,6 +377,38 @@ class StockCheckServiceTest {
 
         verify(orderListService).resolveShortageIfPresent(store, milk);
         verify(orderListService, never()).upsertShortage(any(), any(), anyInt(), any(), anyBoolean(), any(), any());
+    }
+
+    @Test
+    void correctingTheSameCheckTwiceProducesTwoSeparateAuditRows() {
+        StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, OffsetDateTime.now().minusDays(3));
+        when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
+
+        stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 6, 1, "First correction"));
+        stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 8, 0, "Second correction"));
+
+        ArgumentCaptor<StockCheckCorrection> captor = ArgumentCaptor.forClass(StockCheckCorrection.class);
+        verify(stockCheckCorrectionRepository, times(2)).save(captor.capture());
+        List<StockCheckCorrection> saved = captor.getAllValues();
+        assertThat(saved).hasSize(2);
+        assertThat(saved.get(0).getOriginalCount()).isEqualTo(10);
+        assertThat(saved.get(0).getCorrectedCount()).isEqualTo(6);
+        assertThat(saved.get(0).getReason()).isEqualTo("First correction");
+        assertThat(saved.get(1).getOriginalCount()).isEqualTo(6);
+        assertThat(saved.get(1).getCorrectedCount()).isEqualTo(8);
+        assertThat(saved.get(1).getReason()).isEqualTo("Second correction");
+    }
+
+    @Test
+    void correctCheckRejectsAnotherStoresCheck() {
+        when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 6, 1, "Recount")))
+            .isInstanceOf(StoreInventoryItemNotFoundException.class);
     }
 
     // ---- Inventory Counts (live per-item status) ---------------------------

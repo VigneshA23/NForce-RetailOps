@@ -25,3 +25,30 @@
   color: var(--color-text-secondary);
   margin-top: 2px;
 }
+
+.stock-check-history__snapshot-cell {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.stock-check-history__icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-card);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.stock-check-history__icon-btn:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}

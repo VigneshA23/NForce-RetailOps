@@ -7,9 +7,15 @@ import type { StockCheckHistoryPage, StockCheckResponse } from '../types/stockCh
 
 vi.mock('../api/storeInventory', () => ({
   getStockCheckHistory: vi.fn(),
+  correctStockCheck: vi.fn(),
+}));
+
+vi.mock('../utils/toast', () => ({
+  nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const mockGetStockCheckHistory = vi.mocked(storeInventoryApi.getStockCheckHistory);
+const mockCorrectStockCheck = vi.mocked(storeInventoryApi.correctStockCheck);
 
 function row(overrides: Partial<StockCheckResponse>): StockCheckResponse {
   return {
@@ -51,6 +57,7 @@ function page(overrides: Partial<StockCheckHistoryPage>): StockCheckHistoryPage 
 
 beforeEach(() => {
   mockGetStockCheckHistory.mockReset();
+  mockCorrectStockCheck.mockReset();
 });
 
 describe('StockCheckHistory', () => {
@@ -167,5 +174,110 @@ describe('StockCheckHistory', () => {
     // [startDate, endDate, page, size] -- page must be 1 even though the
     // first call could have left it anywhere.
     expect(secondCallArgs[2]).toBe(1);
+  });
+
+  it('opens a correction form for a past Start of Day entry, pre-filled with its current values', async () => {
+    const user = userEvent.setup();
+    mockGetStockCheckHistory.mockResolvedValue(page({
+      items: [row({
+        startOfDay: {
+          available: 48,
+          deadStock: 2,
+          usable: 46,
+          enteredByName: 'John',
+          enteredAt: '2026-09-20T09:00:00Z',
+          lastUpdatedByName: 'John',
+          lastUpdatedAt: '2026-09-20T09:00:00Z',
+          edited: false,
+        },
+      })],
+      totalItems: 1,
+    }));
+
+    render(<StockCheckHistory />);
+    const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    await user.click(within(tableRow).getByRole('button', { name: 'Correct this count' }));
+
+    expect(await screen.findByText('Correct Start of Day count: Paper Towels')).toBeInTheDocument();
+    const availableInput = screen.getAllByRole('spinbutton')[0];
+    expect(availableInput).toHaveValue(48);
+  });
+
+  it('submits a correction and updates the row in place without a full refetch', async () => {
+    const user = userEvent.setup();
+    const original = row({
+      startOfDay: {
+        available: 48,
+        deadStock: 2,
+        usable: 46,
+        enteredByName: 'John',
+        enteredAt: '2026-09-20T09:00:00Z',
+        lastUpdatedByName: 'John',
+        lastUpdatedAt: '2026-09-20T09:00:00Z',
+        edited: false,
+      },
+    });
+    mockGetStockCheckHistory.mockResolvedValue(page({ items: [original], totalItems: 1 }));
+    mockCorrectStockCheck.mockResolvedValue({
+      ...original,
+      startOfDay: { ...original.startOfDay!, available: 50, edited: true },
+      edits: [{
+        snapshot: 'START_OF_DAY',
+        previousAvailable: 48,
+        previousDeadStock: 2,
+        newAvailable: 50,
+        newDeadStock: 2,
+        editedByName: 'Owner Olivia',
+        editedAt: '2026-09-20T11:00:00Z',
+        reason: 'Recount (count was wrong)',
+      }],
+    });
+
+    render(<StockCheckHistory />);
+    const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    await user.click(within(tableRow).getByRole('button', { name: 'Correct this count' }));
+    await screen.findByText('Correct Start of Day count: Paper Towels');
+
+    await user.click(screen.getByRole('button', { name: 'Save correction' }));
+
+    await waitFor(() => expect(mockCorrectStockCheck).toHaveBeenCalledWith(
+      original.id, 'START_OF_DAY', 48, 2, 'Recount (count was wrong)',
+    ));
+    await waitFor(() => expect(screen.queryByText('Correct Start of Day count: Paper Towels')).not.toBeInTheDocument());
+    // mockGetStockCheckHistory is only ever called once more if the component
+    // refetches -- it should not, since the row is replaced in place.
+    expect(mockGetStockCheckHistory).toHaveBeenCalledTimes(1);
+    const updatedRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    expect(within(updatedRow).getByText('50')).toBeInTheDocument();
+  });
+
+  it('shows an inline error and keeps the form open when the correction fails', async () => {
+    const user = userEvent.setup();
+    mockGetStockCheckHistory.mockResolvedValue(page({
+      items: [row({
+        startOfDay: {
+          available: 48,
+          deadStock: 2,
+          usable: 46,
+          enteredByName: 'John',
+          enteredAt: '2026-09-20T09:00:00Z',
+          lastUpdatedByName: 'John',
+          lastUpdatedAt: '2026-09-20T09:00:00Z',
+          edited: false,
+        },
+      })],
+      totalItems: 1,
+    }));
+    mockCorrectStockCheck.mockRejectedValue(new Error('This check belongs to another store'));
+
+    render(<StockCheckHistory />);
+    const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    await user.click(within(tableRow).getByRole('button', { name: 'Correct this count' }));
+    await screen.findByText('Correct Start of Day count: Paper Towels');
+
+    await user.click(screen.getByRole('button', { name: 'Save correction' }));
+
+    expect(await screen.findByText('This check belongs to another store')).toBeInTheDocument();
+    expect(screen.getByText('Correct Start of Day count: Paper Towels')).toBeInTheDocument();
   });
 });

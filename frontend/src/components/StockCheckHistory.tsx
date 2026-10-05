@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react';
+import { Pencil } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
-import { getStockCheckHistory } from '../api/storeInventory';
-import type { StockCheckEdit, StockCheckResponse, StockSnapshot } from '../types/stockCheck';
+import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
+import { correctStockCheck, getStockCheckHistory } from '../api/storeInventory';
+import type { StockCheckEdit, StockCheckResponse, StockCheckSnapshotKey, StockSnapshot } from '../types/stockCheck';
 import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
+import { countLabel } from '../utils/stockCheckFormat';
+import { nfToast } from '../utils/toast';
 import './StockCheckHistory.css';
 
 const PAGE_SIZE = 50;
@@ -17,22 +21,29 @@ function widestAllowedRange(): { startDate: string; endDate: string } {
   return { startDate: daysAgo(91), endDate: todayDate() };
 }
 
-function SnapshotCell({ snapshot }: { snapshot: StockSnapshot | null }) {
+function SnapshotCell({ snapshot, onCorrect }: { snapshot: StockSnapshot | null; onCorrect: () => void }) {
   if (!snapshot) return <span className="stock-check-history__muted">Not counted</span>;
   return (
-    <>
-      {snapshot.available}
-      {snapshot.deadStock > 0 && <span className="stock-check-history__dead"> ({snapshot.deadStock} dead)</span>}
-      <span className="stock-check-history__note">
-        by {snapshot.lastUpdatedByName ?? 'Unknown'}
-        {snapshot.edited && snapshot.enteredByName ? `, first entered by ${snapshot.enteredByName}` : ''}
-      </span>
-    </>
+    <div className="stock-check-history__snapshot-cell">
+      <div>
+        {snapshot.available}
+        {snapshot.deadStock > 0 && <span className="stock-check-history__dead"> ({snapshot.deadStock} dead)</span>}
+        <span className="stock-check-history__note">
+          by {snapshot.lastUpdatedByName ?? 'Unknown'}
+          {snapshot.edited && snapshot.enteredByName ? `, first entered by ${snapshot.enteredByName}` : ''}
+        </span>
+      </div>
+      <button
+        type="button"
+        className="stock-check-history__icon-btn"
+        aria-label="Correct this count"
+        title="Correct this count"
+        onClick={onCorrect}
+      >
+        <Pencil size={14} />
+      </button>
+    </div>
   );
-}
-
-function countLabel(available: number, deadStock: number | null): string {
-  return deadStock == null ? String(available) : `${available} (${deadStock} dead)`;
 }
 
 function editLabel(edit: StockCheckEdit): string {
@@ -54,6 +65,10 @@ function StockCheckHistory() {
   const [totalItems, setTotalItems] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [correctionTarget, setCorrectionTarget] = useState<{ row: StockCheckResponse; snapshot: StockCheckSnapshotKey } | null>(null);
+  const [correctionError, setCorrectionError] = useState<string | null>(null);
+  const [isCorrecting, setIsCorrecting] = useState(false);
 
   // Changing the range resets to page 1 in the same update so the fetch
   // effect below fires exactly once (not once for the range change and
@@ -86,6 +101,28 @@ function StockCheckHistory() {
       cancelled = true;
     };
   }, [dateRange, page]);
+
+  // Replaces the corrected row in place with the endpoint's returned (fully
+  // updated, including its new edit entry) row, instead of refetching the
+  // whole page -- cheaper and keeps the user's scroll position.
+  async function handleCorrectSubmit(values: CorrectStockCheckValues) {
+    if (!correctionTarget) return;
+    const { row, snapshot } = correctionTarget;
+    setCorrectionError(null);
+    setIsCorrecting(true);
+    try {
+      const updated = await correctStockCheck(row.id, snapshot, values.available, values.deadStock, values.reason);
+      setItems((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      nfToast.success(`"${row.itemName}" count corrected.`);
+      setCorrectionTarget(null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to correct count';
+      setCorrectionError(message);
+      nfToast.error(message);
+    } finally {
+      setIsCorrecting(false);
+    }
+  }
 
   return (
     <div className="stock-check-history">
@@ -120,8 +157,24 @@ function StockCheckHistory() {
                     ))}
                   </td>
                   <td data-label="Date">{formatDateLabel(row.checkDate)}</td>
-                  <td data-label="Start of Day"><SnapshotCell snapshot={row.startOfDay} /></td>
-                  <td data-label="End of Day"><SnapshotCell snapshot={row.endOfDay} /></td>
+                  <td data-label="Start of Day">
+                    <SnapshotCell
+                      snapshot={row.startOfDay}
+                      onCorrect={() => {
+                        setCorrectionError(null);
+                        setCorrectionTarget({ row, snapshot: 'START_OF_DAY' });
+                      }}
+                    />
+                  </td>
+                  <td data-label="End of Day">
+                    <SnapshotCell
+                      snapshot={row.endOfDay}
+                      onCorrect={() => {
+                        setCorrectionError(null);
+                        setCorrectionTarget({ row, snapshot: 'END_OF_DAY' });
+                      }}
+                    />
+                  </td>
                   <td data-label="Stock Used">{row.stockUsed ?? '—'}</td>
                   <td data-label="To Order">{row.quantityToOrder ?? '—'}</td>
                 </tr>
@@ -142,6 +195,16 @@ function StockCheckHistory() {
         pageSize={PAGE_SIZE}
         onPageChange={setPage}
         itemLabel="stock checks"
+      />
+
+      <CorrectStockCheckModal
+        isOpen={correctionTarget !== null}
+        row={correctionTarget?.row ?? null}
+        snapshot={correctionTarget?.snapshot ?? null}
+        errorMessage={correctionError}
+        isSubmitting={isCorrecting}
+        onClose={() => setCorrectionTarget(null)}
+        onSubmit={handleCorrectSubmit}
       />
     </div>
   );
