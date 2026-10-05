@@ -16,16 +16,16 @@ const saved: StockSnapshot = {
 };
 
 describe('StockSnapshotCard', () => {
-  it('saves a pending snapshot with available and dead stock', async () => {
+  it('saves a not-yet-recorded snapshot with available and dead stock', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(true);
-    render(<StockSnapshotCard title="Start of Day" idPrefix="milk-sod" unit="L" snapshot={null} onSave={onSave} />);
+    render(<StockSnapshotCard title="Start of Day" idPrefix="milk-sod" snapshot={null} onSave={onSave} />);
 
-    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText('In Progress')).toBeInTheDocument();
     await user.type(screen.getByLabelText('Available Stock'), '50');
-    await user.clear(screen.getByLabelText('Dead Stock'));
-    await user.type(screen.getByLabelText('Dead Stock'), '2');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.clear(screen.getByLabelText('Dead / Spoilage'));
+    await user.type(screen.getByLabelText('Dead / Spoilage'), '2');
+    await user.click(screen.getByRole('button', { name: 'Save Check' }));
 
     expect(onSave).toHaveBeenCalledWith(50, 2);
   });
@@ -33,32 +33,30 @@ describe('StockSnapshotCard', () => {
   it('blocks dead stock above available without calling the API', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn();
-    render(<StockSnapshotCard title="End of Day" idPrefix="milk-eod" unit="L" snapshot={null} onSave={onSave} />);
+    render(<StockSnapshotCard title="End of Day" idPrefix="milk-eod" snapshot={null} onSave={onSave} />);
 
     await user.type(screen.getByLabelText('Available Stock'), '3');
-    await user.clear(screen.getByLabelText('Dead Stock'));
-    await user.type(screen.getByLabelText('Dead Stock'), '5');
-    await user.click(screen.getByRole('button', { name: 'Save' }));
+    await user.clear(screen.getByLabelText('Dead / Spoilage'));
+    await user.type(screen.getByLabelText('Dead / Spoilage'), '5');
+    await user.click(screen.getByRole('button', { name: 'Save Check' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Dead stock cannot be more than available stock.');
     expect(onSave).not.toHaveBeenCalled();
   });
 
-  it('shows a completed snapshot and edits it in place via Update', async () => {
+  it('shows a saved snapshot pre-filled and editable via Update Count', async () => {
     const user = userEvent.setup();
     const onSave = vi.fn().mockResolvedValue(true);
-    render(<StockSnapshotCard title="Start of Day" idPrefix="milk-sod" unit="L" snapshot={saved} onSave={onSave} />);
+    render(<StockSnapshotCard title="Start of Day" idPrefix="milk-sod" snapshot={saved} onSave={onSave} />);
 
-    expect(screen.getByText('Completed')).toBeInTheDocument();
-    expect(screen.getByText(/Checked by John/)).toBeInTheDocument();
-    expect(screen.getByText('48')).toBeInTheDocument();
+    expect(screen.getByText('Editable Count')).toBeInTheDocument();
+    expect(screen.getByText(/Verified by John/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /Edit/ }));
     const available = screen.getByLabelText('Available Stock');
     expect(available).toHaveValue(50);
     await user.clear(available);
     await user.type(available, '48');
-    await user.click(screen.getByRole('button', { name: 'Update' }));
+    await user.click(screen.getByRole('button', { name: 'Update Count' }));
 
     expect(onSave).toHaveBeenCalledWith(48, 2);
   });

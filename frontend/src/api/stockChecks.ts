@@ -1,5 +1,10 @@
 import { apiRequest } from './client';
-import type { DailyStockCheckItem, StockCheckResponse, StockCheckSnapshotKey } from '../types/stockCheck';
+import type {
+  DailyStockCheckItem,
+  StockCheckHistoryPage,
+  StockCheckResponse,
+  StockCheckSnapshotKey,
+} from '../types/stockCheck';
 
 // Employee-facing: Daily Stock Check screen + ad-hoc shortage reporting.
 export async function getTodayStockCheck(storeId: number): Promise<DailyStockCheckItem[]> {
@@ -19,6 +24,25 @@ export async function submitStockCheck(
     method: 'POST',
     body: { storeId, storeInventoryItemId, snapshot, available, deadStock },
   });
+}
+
+// Employee-facing mirror of Owner/Admin's stock-check history, scoped to one
+// of the caller's own assigned stores.
+export async function getEmployeeStockCheckHistory(
+  storeId: number,
+  startDate: string,
+  endDate: string,
+  page: number,
+  size: number,
+): Promise<StockCheckHistoryPage> {
+  const params = new URLSearchParams({
+    storeId: String(storeId),
+    startDate,
+    endDate,
+    page: String(page),
+    size: String(size),
+  });
+  return apiRequest<StockCheckHistoryPage>(`/me/inventory/stock-checks?${params.toString()}`);
 }
 
 export async function reportAdHocShortage(

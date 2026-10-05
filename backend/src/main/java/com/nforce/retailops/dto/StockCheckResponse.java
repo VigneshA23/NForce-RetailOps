@@ -14,6 +14,10 @@ public record StockCheckResponse(
     String itemName,
     String unitOfMeasurement,
     LocalDate checkDate,
+    // This day's own par level (item.requiredMinimumOn(checkDate)) -- unlike
+    // requiredTomorrow below, this is set whether or not End of Day was ever
+    // recorded, so history views can show a par target for every row.
+    Integer requiredPar,
     StockSnapshotResponse startOfDay,
     StockSnapshotResponse endOfDay,
     Integer stockUsed,
@@ -33,6 +37,7 @@ public record StockCheckResponse(
             check.getStoreInventoryItem().getName(),
             check.getStoreInventoryItem().getUnitOfMeasurement(),
             check.getCheckDate(),
+            check.getStoreInventoryItem().requiredMinimumOn(check.getCheckDate()),
             StockSnapshotResponse.from(check, StockCheckSnapshot.START_OF_DAY),
             StockSnapshotResponse.from(check, StockCheckSnapshot.END_OF_DAY),
             check.stockUsed(),

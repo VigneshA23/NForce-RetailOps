@@ -33,6 +33,10 @@ export interface StockCheckResponse {
   itemName: string;
   unitOfMeasurement: string;
   checkDate: string;
+  // This day's own par level (set whether or not End of Day was recorded) --
+  // distinct from requiredTomorrow below, which is the forward-looking
+  // threshold used to drive the order list.
+  requiredPar: number | null;
   startOfDay: StockSnapshot | null;
   endOfDay: StockSnapshot | null;
   stockUsed: number | null;

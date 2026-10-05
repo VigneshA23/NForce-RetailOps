@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { getTodayStockCheck, reportAdHocShortage, submitStockCheck } from '../api/stockChecks';
 import type { DailyStockCheckItem, StockCheckSnapshotKey } from '../types/stockCheck';
 import type { StoreSummary } from '../types/store';
 import AdHocShortageModal, { type AdHocShortageValues } from '../components/AdHocShortageModal';
+import EmployeeStockCheckHistory from '../components/EmployeeStockCheckHistory';
 import StockSnapshotCard from '../components/StockSnapshotCard';
+import ItemIcon from '../components/ItemIcon';
+import SearchInput from '../components/SearchInput';
 import './EmployeeStockCheck.css';
 
 interface EmployeeStockCheckProps {
@@ -13,13 +16,37 @@ interface EmployeeStockCheckProps {
 }
 
 const SNAPSHOT_LABELS: Record<StockCheckSnapshotKey, string> = {
-  START_OF_DAY: 'Start of Day',
-  END_OF_DAY: 'End of Day',
+  START_OF_DAY: 'Start of Day Stock Check',
+  END_OF_DAY: 'End of Day Stock Check',
 };
+
+type StatusFilter = 'all' | 'shortage' | 'optimal';
+type ItemStatus = 'shortage' | 'optimal' | 'pending';
+
+interface StockCheckViewItem extends DailyStockCheckItem {
+  available: number | null;
+  needed: number | null;
+  status: ItemStatus;
+}
+
+// "Available" is the latest known snapshot (End of Day once saved, else Start
+// of Day), so a live shortage/optimal indicator can show before End of Day is
+// saved. This is a display-only estimate -- it never feeds quantityToOrder,
+// which the backend only finalizes once End of Day is saved.
+function toViewItem(item: DailyStockCheckItem): StockCheckViewItem {
+  const available = item.endOfDay?.usable ?? item.startOfDay?.usable ?? null;
+  const needed = item.minTarget != null && available != null ? Math.max(0, item.minTarget - available) : null;
+  const status: ItemStatus = needed != null && needed > 0 ? 'shortage' : available != null ? 'optimal' : 'pending';
+  return { ...item, available, needed, status };
+}
 
 // Each item gets two independent counts per day -- Start of Day and End of
 // Day -- with no time window on either. Saving a count again updates it.
+type View = 'today' | 'history';
+
 function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
+  const [view, setView] = useState<View>('today');
+  const [historyTotal, setHistoryTotal] = useState<number | null>(null);
   const [items, setItems] = useState<DailyStockCheckItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -27,6 +54,9 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
   const [isAdHocOpen, setIsAdHocOpen] = useState(false);
   const [adHocError, setAdHocError] = useState<string | null>(null);
   const [isAdHocSubmitting, setIsAdHocSubmitting] = useState(false);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [collapsedOverrides, setCollapsedOverrides] = useState<Record<number, boolean>>({});
 
   function load() {
     setIsLoading(true);
@@ -96,28 +126,89 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
   const startCount = useMemo(() => items.filter((i) => i.startOfDay != null).length, [items]);
   const endCount = useMemo(() => items.filter((i) => i.endOfDay != null).length, [items]);
 
-  if (loadError) {
-    return (
-      <div className="employee-stock-check-page">
+  const viewItems = useMemo(() => items.map(toViewItem), [items]);
+
+  const shortageCount = useMemo(() => viewItems.filter((i) => i.status === 'shortage').length, [viewItems]);
+  const optimalCount = useMemo(() => viewItems.filter((i) => i.status === 'optimal').length, [viewItems]);
+
+  function isExpanded(item: StockCheckViewItem): boolean {
+    return collapsedOverrides[item.storeInventoryItemId] ?? item.status === 'shortage';
+  }
+
+  function toggleExpanded(item: StockCheckViewItem) {
+    setCollapsedOverrides((current) => ({
+      ...current,
+      [item.storeInventoryItemId]: !isExpanded(item),
+    }));
+  }
+
+  const visibleItems = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return viewItems.filter((item) => {
+      if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+      if (query === '') return true;
+      return (
+        item.itemName.toLowerCase().includes(query) ||
+        item.unitOfMeasurement.toLowerCase().includes(query)
+      );
+    });
+  }, [viewItems, search, statusFilter]);
+
+  return (
+    <div className="employee-stock-check-page">
+      <div className="employee-stock-check-page__tabs" role="tablist" aria-label="Stock check view">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'today'}
+          className={`employee-stock-check-page__tab${view === 'today' ? ' employee-stock-check-page__tab--active' : ''}`}
+          onClick={() => setView('today')}
+        >
+          <List size={14} />
+          Daily Stock Entry
+          {!isLoading && <span className="employee-stock-check-page__tab-count">{items.length}</span>}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === 'history'}
+          className={`employee-stock-check-page__tab${view === 'history' ? ' employee-stock-check-page__tab--active' : ''}`}
+          onClick={() => setView('history')}
+        >
+          <History size={14} />
+          Stock Check History
+          {historyTotal != null && <span className="employee-stock-check-page__tab-count">{historyTotal}</span>}
+        </button>
+      </div>
+
+      {view === 'history' ? (
+        <EmployeeStockCheckHistory storeId={store.id} onTotalChange={setHistoryTotal} />
+      ) : loadError ? (
         <div className="employee-stock-check-page__error">
           {loadError}
           <button type="button" className="btn btn--secondary" onClick={load}>
             Retry
           </button>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="employee-stock-check-page">
+      ) : (
+        <>
       <div className="employee-stock-check-page__header">
-        <p className="employee-stock-check-page__summary">
-          {isLoading
-            ? 'Loading...'
-            : `Start of Day: ${startCount} of ${items.length} · End of Day: ${endCount} of ${items.length}`}
-        </p>
-        <button type="button" className="btn btn--secondary" onClick={() => { setAdHocError(null); setIsAdHocOpen(true); }}>
+        <div>
+          <h1 className="employee-stock-check-page__title">Daily Stock Check</h1>
+          <p className="employee-stock-check-page__subtitle">
+            Enter on-hand shelf counts. System will automatically compute orders against store par levels.
+          </p>
+          <p className="employee-stock-check-page__summary">
+            {isLoading
+              ? 'Loading...'
+              : `Start of Day: ${startCount} of ${items.length} · End of Day: ${endCount} of ${items.length}`}
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn btn--danger"
+          onClick={() => { setAdHocError(null); setIsAdHocOpen(true); }}
+        >
           <AlertTriangle size={16} />
           Report Shortage
         </button>
@@ -129,48 +220,188 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
         </div>
       )}
 
+      {!isLoading && items.length > 0 && (
+        <div className="employee-stock-check-page__toolbar">
+          <div className="employee-stock-check-page__toolbar-row">
+            <div className="filter--search employee-stock-check-page__search">
+              <SearchInput
+                variant="filter"
+                value={search}
+                onChange={setSearch}
+                placeholder="Search stock items, SKUs, categories..."
+              />
+            </div>
+            <p className="employee-stock-check-page__formula-hint">
+              <Info size={13} />
+              <span>
+                <strong>Formula:</strong> Quantity Needed = Minimum Target − Available Count
+              </span>
+            </p>
+          </div>
+          <div className="employee-stock-check-page__filters" role="group" aria-label="Filter by status">
+            <button
+              type="button"
+              className={`employee-stock-check-page__filter-pill${statusFilter === 'all' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
+              onClick={() => setStatusFilter('all')}
+            >
+              All Items ({viewItems.length})
+            </button>
+            <button
+              type="button"
+              className={`employee-stock-check-page__filter-pill${statusFilter === 'shortage' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
+              onClick={() => setStatusFilter('shortage')}
+            >
+              Shortage ({shortageCount})
+            </button>
+            <button
+              type="button"
+              className={`employee-stock-check-page__filter-pill${statusFilter === 'optimal' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
+              onClick={() => setStatusFilter('optimal')}
+            >
+              Optimal ({optimalCount})
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!isLoading && items.length > 0 && visibleItems.length === 0 && (
+        <div className="employee-stock-check-page__empty">No items match your search or filter.</div>
+      )}
+
       <div className="employee-stock-check-page__list">
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const idPrefix = `stock-${item.storeInventoryItemId}`;
+          const expanded = isExpanded(item);
+          const shiftsActive = (item.startOfDay != null ? 1 : 0) + (item.endOfDay != null ? 1 : 0);
           return (
-            <article key={item.storeInventoryItemId} className="employee-stock-check-page__item">
+            <article
+              key={item.storeInventoryItemId}
+              className={`employee-stock-check-page__item${item.status === 'shortage' ? ' employee-stock-check-page__item--shortage' : ''}${item.status === 'optimal' ? ' employee-stock-check-page__item--optimal' : ''}`}
+            >
               <div className="employee-stock-check-page__item-header">
-                <h2 className="employee-stock-check-page__item-name">{item.itemName}</h2>
-                <p className="employee-stock-check-page__item-meta">
-                  Today&apos;s target: {item.minTarget ?? '—'} {item.unitOfMeasurement}
-                </p>
-              </div>
-
-              <div className="employee-stock-check-page__snapshots">
-                {(['START_OF_DAY', 'END_OF_DAY'] as const).map((snapshot) => (
-                  <StockSnapshotCard
-                    key={snapshot}
-                    title={SNAPSHOT_LABELS[snapshot]}
-                    idPrefix={`${idPrefix}-${snapshot === 'START_OF_DAY' ? 'sod' : 'eod'}`}
-                    unit={item.unitOfMeasurement}
-                    snapshot={snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay}
-                    isSubmitting={pendingKey === `${item.storeInventoryItemId}:${snapshot}`}
-                    onSave={(available, deadStock) => handleSave(item, snapshot, available, deadStock)}
-                  />
-                ))}
-              </div>
-
-              <div className="employee-stock-check-page__totals">
-                <span>
-                  Stock used: <strong>{item.stockUsed ?? '—'}</strong>
-                </span>
-                <span>
-                  Needed tomorrow: <strong>{item.requiredTomorrow ?? '—'}</strong>
-                </span>
-                <span>
-                  To order:{' '}
-                  <strong
-                    className={item.quantityToOrder && item.quantityToOrder > 0 ? 'employee-stock-check-page__shortage' : undefined}
+                <div className="employee-stock-check-page__item-identity">
+                  <ItemIcon id={item.storeInventoryItemId} name={item.itemName} />
+                  <div>
+                    <h2 className="employee-stock-check-page__item-name">{item.itemName}</h2>
+                    <p className="employee-stock-check-page__item-meta">
+                      Today&apos;s target: {item.minTarget ?? '—'} {item.unitOfMeasurement}
+                    </p>
+                  </div>
+                </div>
+                <div className="employee-stock-check-page__item-chips">
+                  <div className="employee-stock-check-page__available">
+                    <span className="employee-stock-check-page__available-label">Available:</span>
+                    <span className="employee-stock-check-page__available-pill">
+                      {item.available ?? '—'}
+                      <span className="employee-stock-check-page__available-tag">Auto-calc</span>
+                    </span>
+                    {item.minTarget != null && (
+                      <span className="employee-stock-check-page__available-target">/ {item.minTarget} target</span>
+                    )}
+                  </div>
+                  {item.status === 'shortage' && (
+                    <>
+                      <span className="badge badge--dot badge--danger">{item.needed} {item.unitOfMeasurement} Needed</span>
+                      <span className="badge badge--danger">Shortage</span>
+                    </>
+                  )}
+                  {item.status === 'optimal' && (
+                    <>
+                      <span className="badge badge--dot badge--success">{item.needed ?? 0} Sufficient</span>
+                      <span className="badge badge--success">Par Met</span>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    className="employee-stock-check-page__collapse-toggle"
+                    aria-expanded={expanded}
+                    aria-label={expanded ? `Collapse ${item.itemName}` : `Expand ${item.itemName}`}
+                    onClick={() => toggleExpanded(item)}
                   >
-                    {item.quantityToOrder ?? '—'}
-                  </strong>
-                </span>
+                    {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </button>
+                </div>
               </div>
+
+              {expanded && (
+                <>
+                  <div className="employee-stock-check-page__shift-header">
+                    <span className="employee-stock-check-page__shift-label">
+                      Shift Stock Reconciliations
+                      <span className={`badge ${item.status === 'optimal' ? 'badge--success' : 'badge--danger'}`}>
+                        {shiftsActive} Shifts Active
+                      </span>
+                    </span>
+                    <span className="employee-stock-check-page__shift-target">
+                      Reconciliation Target: {item.minTarget ?? '—'} {item.unitOfMeasurement} / day
+                    </span>
+                  </div>
+
+                  <div className="employee-stock-check-page__snapshots">
+                    {(['START_OF_DAY', 'END_OF_DAY'] as const).map((snapshot) => (
+                      <StockSnapshotCard
+                        key={snapshot}
+                        title={SNAPSHOT_LABELS[snapshot]}
+                        idPrefix={`${idPrefix}-${snapshot === 'START_OF_DAY' ? 'sod' : 'eod'}`}
+                        snapshot={snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay}
+                        isSubmitting={pendingKey === `${item.storeInventoryItemId}:${snapshot}`}
+                        onSave={(available, deadStock) => handleSave(item, snapshot, available, deadStock)}
+                        savedLabel={snapshot === 'END_OF_DAY' ? 'Completed' : 'Editable Count'}
+                        footer={
+                          snapshot === 'START_OF_DAY' ? (
+                            <>Opening Stock: <strong>{item.startOfDay?.available ?? '—'} {item.unitOfMeasurement}</strong></>
+                          ) : item.quantityToOrder != null && item.quantityToOrder > 0 ? (
+                            <>
+                              Usage: <strong>{item.stockUsed ?? '—'} {item.unitOfMeasurement}</strong> · To Order:{' '}
+                              <strong>{item.quantityToOrder} {item.unitOfMeasurement}</strong>
+                            </>
+                          ) : item.endOfDay != null && item.minTarget != null && item.available != null ? (
+                            <>
+                              Usage: <strong>{item.stockUsed ?? '—'} {item.unitOfMeasurement}</strong> · Buffer:{' '}
+                              <strong>+{item.available - item.minTarget} {item.unitOfMeasurement}</strong>
+                            </>
+                          ) : (
+                            <>Usage: <strong>{item.stockUsed ?? '—'} {item.unitOfMeasurement}</strong></>
+                          )
+                        }
+                      />
+                    ))}
+                  </div>
+
+                  <div
+                    className={`employee-stock-check-page__totals${item.status === 'optimal' ? ' employee-stock-check-page__totals--optimal' : ''}`}
+                  >
+                    {item.status === 'optimal' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                    {item.status === 'optimal' ? (
+                      <span>
+                        Reconciliation: <strong>Optimal buffer maintained</strong>
+                        {item.available != null && item.minTarget != null && (
+                          <> (+{item.available - item.minTarget} {item.unitOfMeasurement})</>
+                        )}{' '}
+                        · No order required
+                      </span>
+                    ) : (
+                      <span>
+                        Reconciliation: Stock used today: <strong>{item.stockUsed ?? '—'}</strong> {item.unitOfMeasurement} · Tomorrow
+                        opening need: <strong>{item.requiredTomorrow ?? '—'}</strong> {item.unitOfMeasurement}
+                      </span>
+                    )}
+                    <span className="employee-stock-check-page__totals-spacer" />
+                    {item.status === 'optimal' ? (
+                      <span>Par satisfied for current cycle</span>
+                    ) : (
+                      <span>
+                        To order:{' '}
+                        <strong
+                          className={item.quantityToOrder && item.quantityToOrder > 0 ? 'employee-stock-check-page__shortage' : undefined}
+                        >
+                          {item.quantityToOrder ?? '—'}
+                        </strong>
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
             </article>
           );
         })}
@@ -184,6 +415,8 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
         onClose={() => setIsAdHocOpen(false)}
         onSubmit={handleAdHocSubmit}
       />
+        </>
+      )}
     </div>
   );
 }

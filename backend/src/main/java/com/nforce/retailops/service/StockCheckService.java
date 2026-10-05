@@ -199,16 +199,33 @@ public class StockCheckService {
     public StockCheckHistoryPageResponse listHistoricalChecks(
         Long ownerId, LocalDate startDate, LocalDate endDate, Integer page, Integer size
     ) {
-        DateRangeValidator.validate(startDate, endDate, MAX_DATE_RANGE_DAYS);
-
         StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
+        return historicalChecksForStore(storeOwner.getStore().getId(), startDate, endDate, page, size);
+    }
+
+    // Employee-facing mirror of the Owner/Admin history above, scoped to one
+    // of the caller's own assigned stores (requireAssignedStore) rather than
+    // the owner's single active store. Read-only -- corrections stay
+    // Owner/Admin-only via correctCheck below.
+    @Transactional(readOnly = true)
+    public StockCheckHistoryPageResponse listHistoricalChecksForEmployee(
+        Long employeeUserId, Long storeId, LocalDate startDate, LocalDate endDate, Integer page, Integer size
+    ) {
+        userProfileService.requireAssignedStore(employeeUserId, storeId);
+        return historicalChecksForStore(storeId, startDate, endDate, page, size);
+    }
+
+    private StockCheckHistoryPageResponse historicalChecksForStore(
+        Long storeId, LocalDate startDate, LocalDate endDate, Integer page, Integer size
+    ) {
+        DateRangeValidator.validate(startDate, endDate, MAX_DATE_RANGE_DAYS);
 
         int requestedPage = page == null ? 1 : page;
         int clampedPage = Math.max(requestedPage, 1);
         int clampedSize = size == null ? DEFAULT_PAGE_SIZE : Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
 
         Page<StockCheck> resultPage = stockCheckRepository.findForStoreInRange(
-            storeOwner.getStore().getId(), startDate, endDate, PageRequest.of(clampedPage - 1, clampedSize)
+            storeId, startDate, endDate, PageRequest.of(clampedPage - 1, clampedSize)
         );
 
         List<Long> checkIds = resultPage.getContent().stream().map(StockCheck::getId).toList();
