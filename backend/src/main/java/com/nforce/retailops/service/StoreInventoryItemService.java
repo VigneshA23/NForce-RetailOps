@@ -10,6 +10,7 @@ import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.exception.StoreInventoryItemHasHistoryException;
+import com.nforce.retailops.exception.StoreInventoryItemNameExistsException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
@@ -244,6 +245,7 @@ public class StoreInventoryItemService {
     }
 
     private StoreInventoryItem createItem(Store store, StoreInventoryItemRequest request) {
+        checkNameAvailable(store.getId(), request.name().trim(), null);
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
         applyFields(item, request);
@@ -251,8 +253,23 @@ public class StoreInventoryItemService {
     }
 
     private StoreInventoryItem applyUpdate(StoreInventoryItem item, StoreInventoryItemRequest request) {
+        checkNameAvailable(item.getStore().getId(), request.name().trim(), item.getId());
         applyFields(item, request);
         return storeInventoryItemRepository.save(item);
+    }
+
+    // Blocks a same-store, case-insensitive name collision regardless of the
+    // other item's active state -- matches CategoryService.namesOverlapInStores,
+    // which also doesn't free up a name just because the row holding it was
+    // deactivated.
+    private void checkNameAvailable(Long storeId, String name, Long excludeItemId) {
+        boolean exists = excludeItemId == null
+            ? storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(storeId, name)
+            : storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCaseAndIdNot(storeId, name, excludeItemId);
+        if (exists) {
+            throw new StoreInventoryItemNameExistsException(
+                "An inventory item with this name already exists for this store.");
+        }
     }
 
     private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request) {
@@ -264,13 +281,11 @@ public class StoreInventoryItemService {
         item.setNote(request.note() != null ? request.note().trim() : null);
         item.setAutoPoEnabled(request.autoPoEnabled());
 
-        if (request.preferredSupplierId() == null) {
-            item.setPreferredSupplier(null);
-        } else {
-            Supplier supplier = supplierRepository.findById(request.preferredSupplierId())
-                .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
-            item.setPreferredSupplier(supplier);
-        }
+        // preferredSupplierId is @NotNull on the request DTO, so this always
+        // resolves to a real supplier by the time validation lets it through.
+        Supplier supplier = supplierRepository.findById(request.preferredSupplierId())
+            .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+        item.setPreferredSupplier(supplier);
 
         applyImage(item, request);
     }

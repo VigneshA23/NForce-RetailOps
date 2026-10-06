@@ -31,6 +31,7 @@ public record StoreInventoryItemRequest(
     @PositiveOrZero(message = "Minimum weekend quantity cannot be negative")
     Integer minWeekend,
 
+    @NotNull(message = "Preferred supplier is required")
     Long preferredSupplierId,
 
     @Size(max = 500, message = "Note must be at most 500 characters")

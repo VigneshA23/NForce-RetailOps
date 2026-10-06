@@ -78,6 +78,9 @@ function StoreInventoryItemEditPanel({
     if (values.minWeekend.trim() !== '' && Number(values.minWeekend) < 0) {
       nextErrors.minWeekend = 'Weekend min cannot be negative';
     }
+    if (!values.preferredSupplierId) {
+      nextErrors.preferredSupplierId = 'Preferred supplier is required';
+    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -186,7 +189,7 @@ function StoreInventoryItemEditPanel({
           </div>
         </div>
 
-        <FormField label="Preferred Supplier" htmlFor="edit-item-supplier">
+        <FormField label="Preferred Supplier" htmlFor="edit-item-supplier" error={errors.preferredSupplierId}>
           <SupplierCombobox
             id="edit-item-supplier"
             suppliers={suppliers}

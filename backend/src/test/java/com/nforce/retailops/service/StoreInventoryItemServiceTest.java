@@ -2,10 +2,14 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.InventoryCountStatus;
 import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
+import com.nforce.retailops.dto.StoreInventoryItemRequest;
+import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
+import com.nforce.retailops.entity.Supplier;
+import com.nforce.retailops.exception.StoreInventoryItemNameExistsException;
 import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
@@ -25,6 +29,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
@@ -82,6 +87,24 @@ class StoreInventoryItemServiceTest {
         check.setCheckDate(date);
         check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, null, OffsetDateTime.now());
         return check;
+    }
+
+    private StoreInventoryItemRequest request(String name, Long preferredSupplierId) {
+        return requestForStore(null, name, preferredSupplierId);
+    }
+
+    private StoreInventoryItemRequest requestForStore(Long storeId, String name, Long preferredSupplierId) {
+        return new StoreInventoryItemRequest(
+            storeId, name, InventoryItemCategory.INGREDIENTS, "Nos.", 5, 0,
+            preferredSupplierId, null, false, null, null
+        );
+    }
+
+    private Supplier supplier(Long id) {
+        Supplier supplier = new Supplier();
+        ReflectionTestUtils.setField(supplier, "id", id);
+        supplier.setName("Acme Supplies");
+        return supplier;
     }
 
     @Test
@@ -152,5 +175,75 @@ class StoreInventoryItemServiceTest {
         StockLevelComparisonRowResponse row = service.compareAcrossStores("Napkins").get(0);
 
         assertThat(row.requiredToday()).isEqualTo(10);
+    }
+
+    // --- RTS-301: duplicate item names within a store ---------------------
+
+    @Test
+    void createForSuperAdminRejectsNameCollidingCaseInsensitivelyWithAnActiveItemInTheSameStore() {
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(1L, "milk")).thenReturn(true);
+
+        StoreInventoryItemRequest request = requestForStore(1L, "milk", 7L);
+
+        assertThatThrownBy(() -> service.createForSuperAdmin(request))
+            .isInstanceOf(StoreInventoryItemNameExistsException.class)
+            .hasMessage("An inventory item with this name already exists for this store.");
+        verify(storeInventoryItemRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createForSuperAdminRejectsNameCollidingWithAnInactiveItemInTheSameStore() {
+        // Deactivated items still hold their name -- matches CategoryService's
+        // duplicate-name check, which also doesn't filter by active.
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(1L, "Milk")).thenReturn(true);
+
+        StoreInventoryItemRequest request = requestForStore(1L, "Milk", 7L);
+
+        assertThatThrownBy(() -> service.createForSuperAdmin(request))
+            .isInstanceOf(StoreInventoryItemNameExistsException.class);
+    }
+
+    @Test
+    void createForSuperAdminAllowsTheSameNameInADifferentStore() {
+        when(storeRepository.findById(2L)).thenReturn(java.util.Optional.of(storeB));
+        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(2L, "Milk")).thenReturn(false);
+        when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(supplier(7L)));
+        when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        StoreInventoryItemRequest request = requestForStore(2L, "Milk", 7L);
+
+        service.createForSuperAdmin(request);
+
+        verify(storeInventoryItemRepository).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void updateForSuperAdminAllowsKeepingTheItemsOwnExistingName() {
+        StoreInventoryItem existing = item(10L, storeA, 5);
+        when(storeInventoryItemRepository.findById(10L)).thenReturn(java.util.Optional.of(existing));
+        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCaseAndIdNot(1L, "Napkins", 10L))
+            .thenReturn(false);
+        when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(supplier(7L)));
+        when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateForSuperAdmin(10L, request("Napkins", 7L));
+
+        verify(storeInventoryItemRepository).save(existing);
+    }
+
+    @Test
+    void updateForSuperAdminRejectsRenamingToAnotherItemsExistingName() {
+        StoreInventoryItem existing = item(10L, storeA, 5);
+        when(storeInventoryItemRepository.findById(10L)).thenReturn(java.util.Optional.of(existing));
+        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCaseAndIdNot(1L, "Milk", 10L))
+            .thenReturn(true);
+
+        assertThatThrownBy(() -> service.updateForSuperAdmin(10L, request("Milk", 7L)))
+            .isInstanceOf(StoreInventoryItemNameExistsException.class);
+        verify(storeInventoryItemRepository, never()).save(existing);
     }
 }

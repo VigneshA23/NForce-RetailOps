@@ -1,15 +1,7 @@
 import type ExcelJS from 'exceljs';
-
-export interface StockCheckHistoryExportRow {
-  itemName: string;
-  checkDate: string;
-  counted: number | null;
-  requiredPar: number | null;
-  unitOfMeasurement: string;
-  status: 'shortage' | 'optimal' | 'pending';
-  deficit: number | null;
-  buffer: number | null;
-}
+import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
+import { formatDateLabel, formatTimeLabel } from './checklistHistoryOptions';
+import type { StockCheckHistoryRowView } from './stockCheckHistoryStatus';
 
 // Same 3-color report palette as the daily checklist's own export
 // (operationsReportExport.ts) -- reused here so this reads as the same
@@ -47,24 +39,44 @@ function formatLongDate(date: string): string {
   return `${MONTH_NAMES[month - 1]} ${day}, ${year}`;
 }
 
-function formatDDMMYYYY(date: string): string {
-  const [year, month, day] = date.split('-');
-  return `${day}-${month}-${year}`;
+const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
+
+// Mirrors StockCheckHistory.tsx's own row derivation exactly, so the export
+// can never drift from what the table shows again -- see RTS-303.
+function recordedByName(row: StockCheckHistoryRowView): string | null {
+  return row.endOfDay?.lastUpdatedByName ?? row.startOfDay?.lastUpdatedByName ?? null;
 }
 
-const STATUS_LABELS: Record<StockCheckHistoryExportRow['status'], string> = {
-  shortage: 'Shortage',
-  optimal: 'Optimal',
-  pending: 'Not Counted',
-};
-
-function varianceLabel(row: StockCheckHistoryExportRow): string {
-  if (row.status === 'shortage') return `-${row.deficit} ${row.unitOfMeasurement}`;
-  if (row.status === 'optimal') return `+${row.buffer} ${row.unitOfMeasurement}`;
-  return '—';
+function recordedAt(row: StockCheckHistoryRowView): string | null {
+  return row.endOfDay?.lastUpdatedAt ?? row.startOfDay?.lastUpdatedAt ?? null;
 }
 
-function applyStatusStyle(cell: ExcelJS.Cell, status: StockCheckHistoryExportRow['status']): void {
+function countEntered(row: StockCheckHistoryRowView): number | null {
+  return row.endOfDay?.usable ?? row.startOfDay?.usable ?? null;
+}
+
+function itemAndCategoryLabel(row: StockCheckHistoryRowView): string {
+  return row.category ? `${row.itemName} (${CATEGORY_LABELS[row.category]})` : row.itemName;
+}
+
+function dateAndTimestampLabel(row: StockCheckHistoryRowView): string {
+  const at = recordedAt(row);
+  return at ? `${formatDateLabel(row.checkDate)} ${formatTimeLabel(at)}` : formatDateLabel(row.checkDate);
+}
+
+function countEnteredLabel(row: StockCheckHistoryRowView): string {
+  const counted = countEntered(row);
+  return counted != null ? `${counted} ${row.unitOfMeasurement}` : '—';
+}
+
+// Plain-string port of StockCheckHistory.tsx's QtyNeededBadge JSX branches.
+function qtyNeededLabel(row: StockCheckHistoryRowView): string {
+  if (row.status === 'shortage') return `+${row.deficit} ${row.unitOfMeasurement} needed`;
+  if (row.status === 'pending') return '— (Not Counted)';
+  return row.buffer && row.buffer > 0 ? '— (Optimal)' : '0 (Sufficient)';
+}
+
+function applyStatusStyle(cell: ExcelJS.Cell, status: StockCheckHistoryRowView['status']): void {
   const [textColor, bgColor] = status === 'optimal'
     ? [COLOR_GREEN_TEXT, COLOR_GREEN_BG]
     : status === 'pending'
@@ -74,15 +86,15 @@ function applyStatusStyle(cell: ExcelJS.Cell, status: StockCheckHistoryExportRow
   cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
 }
 
-const HEADERS = ['Item', 'Date', 'Counted', 'Required Par', 'Unit', 'Status', 'Variance'];
-const COLUMN_WIDTHS = [28, 14, 12, 14, 10, 14, 14];
+const HEADERS = ['Item & Category', 'Date & Timestamp', 'Count Entered', 'Qty Needed (Par Reconciled)', 'Recorded By'];
+const COLUMN_WIDTHS = [30, 20, 16, 24, 20];
 
 // Mirrors buildOperationsReportWorkbook's banner/header/stripe layout
 // (operationsReportExport.ts), built fresh for this table's own columns
 // rather than trying to force stock-check rows through that function's
 // checklist-specific (Store/Category/Task Detail) section shape.
 export async function buildStockCheckHistoryWorkbook(
-  rows: StockCheckHistoryExportRow[],
+  rows: StockCheckHistoryRowView[],
   startDate: string,
   endDate: string,
 ): Promise<ExcelJS.Workbook> {
@@ -127,13 +139,11 @@ export async function buildStockCheckHistoryWorkbook(
   rows.forEach((row, idx) => {
     const excelRow = worksheet.getRow(headerRowNumber + 1 + idx);
     const values: Array<string | number> = [
-      row.itemName,
-      formatDDMMYYYY(row.checkDate),
-      row.counted ?? '—',
-      row.requiredPar ?? '—',
-      row.unitOfMeasurement,
-      STATUS_LABELS[row.status],
-      varianceLabel(row),
+      itemAndCategoryLabel(row),
+      dateAndTimestampLabel(row),
+      countEnteredLabel(row),
+      qtyNeededLabel(row),
+      recordedByName(row) ?? '—',
     ];
     values.forEach((value, i) => {
       const cell = excelRow.getCell(i + 1);
@@ -142,7 +152,7 @@ export async function buildStockCheckHistoryWorkbook(
       cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'center' };
       if (idx % 2 === 1) cell.fill = STRIPE_FILL;
     });
-    applyStatusStyle(excelRow.getCell(6), row.status);
+    applyStatusStyle(excelRow.getCell(4), row.status);
     excelRow.height = 16;
   });
 
@@ -165,7 +175,7 @@ const PDF_GRAY: [number, number, number] = [107, 114, 128];
 // autoTable body, generated-at footer) -- same libraries, same visual
 // language, this table's own columns.
 export async function buildAndDownloadStockCheckHistoryPdf(
-  rows: StockCheckHistoryExportRow[],
+  rows: StockCheckHistoryRowView[],
   startDate: string,
   endDate: string,
   storeName: string | null | undefined,
@@ -196,13 +206,11 @@ export async function buildAndDownloadStockCheckHistoryPdf(
 
   const rowStatuses = rows.map((row) => row.status);
   const body = rows.map((row) => [
-    row.itemName,
-    formatDDMMYYYY(row.checkDate),
-    row.counted ?? '—',
-    row.requiredPar ?? '—',
-    row.unitOfMeasurement,
-    STATUS_LABELS[row.status],
-    varianceLabel(row),
+    itemAndCategoryLabel(row),
+    dateAndTimestampLabel(row),
+    countEnteredLabel(row),
+    qtyNeededLabel(row),
+    recordedByName(row) ?? '—',
   ]);
 
   autoTable(doc, {
@@ -214,7 +222,7 @@ export async function buildAndDownloadStockCheckHistoryPdf(
     styles: { fontSize: 9, cellPadding: 2 },
     headStyles: { fillColor: PDF_NAVY, textColor: 255, fontStyle: 'bold' },
     didParseCell: (data) => {
-      if (data.section !== 'body' || data.column.index !== 5) return;
+      if (data.section !== 'body' || data.column.index !== 3) return;
       const status = rowStatuses[data.row.index];
       data.cell.styles.textColor = status === 'optimal' ? PDF_GREEN : status === 'pending' ? PDF_GRAY : PDF_RED;
       data.cell.styles.fontStyle = 'bold';

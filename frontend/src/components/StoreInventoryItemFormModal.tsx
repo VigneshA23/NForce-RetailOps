@@ -84,6 +84,9 @@ function StoreInventoryItemFormModal({
     if (values.minWeekend.trim() !== '' && Number(values.minWeekend) < 0) {
       nextErrors.minWeekend = 'Minimum weekend quantity cannot be negative';
     }
+    if (!values.preferredSupplierId) {
+      nextErrors.preferredSupplierId = 'Preferred supplier is required';
+    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -193,7 +196,7 @@ function StoreInventoryItemFormModal({
             />
           </FormField>
         </div>
-        <FormField label="Preferred Supplier" htmlFor="inventory-item-supplier">
+        <FormField label="Preferred Supplier" htmlFor="inventory-item-supplier" error={errors.preferredSupplierId}>
           <SupplierCombobox
             id="inventory-item-supplier"
             suppliers={suppliers}
