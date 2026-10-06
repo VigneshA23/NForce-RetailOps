@@ -44,6 +44,11 @@ public record StoreInventoryItemRequest(
     @Pattern(regexp = "[A-Za-z0-9_-]*", message = "Image id is invalid")
     String imagePhotoId,
 
+    // An image the user uploaded themselves, as a base64 data URL
+    // (data:image/jpeg;base64,...). Takes precedence over imagePhotoId.
+    @Size(max = 3_000_000, message = "Image is too large")
+    String imageUploadData,
+
     // True removes the current image (ignored when imagePhotoId is set).
     Boolean removeImage
 ) {

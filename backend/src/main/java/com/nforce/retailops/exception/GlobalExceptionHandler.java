@@ -243,6 +243,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(InvalidImageUploadException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidImageUpload(InvalidImageUploadException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(ImageProviderException.class)
     public ResponseEntity<Map<String, String>> handleImageProvider(ImageProviderException ex) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("message", ex.getMessage()));

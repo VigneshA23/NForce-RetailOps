@@ -1,8 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Plus } from 'lucide-react';
+import { Check, ChevronDown, Plus, Trash2, X } from 'lucide-react';
 import type { Supplier } from '../types/supplier';
 import useDismissablePanel from '../hooks/useDismissablePanel';
+import { nfToast } from '../utils/toast';
+import ConfirmDialog from './ConfirmDialog';
 import './SupplierCombobox.css';
 
 const VIEWPORT_MARGIN = 8;
@@ -16,23 +18,31 @@ interface SupplierComboboxProps {
   // resolves with it. The caller is expected to add it to `suppliers` so it
   // shows up for future items too.
   onCreate: (name: string) => Promise<Supplier>;
+  // Permanently removes a supplier (the server only deactivates it when orders
+  // reference it). Rejects on failure. Omit to hide the per-row delete button.
+  onDelete?: (supplier: Supplier) => Promise<void>;
   ariaLabel?: string;
 }
 
 type ComboOption =
   | { kind: 'none' }
   | { kind: 'supplier'; supplier: Supplier }
-  | { kind: 'create'; name: string };
+  | { kind: 'create'; name: string }
+  | { kind: 'new' };
 
 // Type-to-search supplier picker for the inventory item form. Filters the
 // supplier directory as the user types and, when nothing matches the typed
 // name exactly, offers "Add New Supplier" to create it in place -- so the
 // user never has to leave the item form to set up a supplier first.
-function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel }: SupplierComboboxProps) {
+function SupplierCombobox({ id, suppliers, value, onChange, onCreate, onDelete, ariaLabel }: SupplierComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
+  // "Add new supplier" collapses the list and turns the main textbox into a
+  // name field for the new supplier.
+  const [isAdding, setIsAdding] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -52,6 +62,8 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
     if (!term) next.push({ kind: 'none' });
     next.push(...matches.map((supplier) => ({ kind: 'supplier' as const, supplier })));
     if (term && !exactMatch) next.push({ kind: 'create', name: query.trim() });
+    // With nothing typed there is no typed-name create row, so offer an explicit way in.
+    if (!term) next.push({ kind: 'new' });
     return next;
   }, [suppliers, query]);
 
@@ -110,6 +122,14 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
       close();
       return;
     }
+    if (option.kind === 'new') {
+      setCreateError(null);
+      setIsOpen(false);
+      setQuery('');
+      setIsAdding(true);
+      inputRef.current?.focus();
+      return;
+    }
     if (option.kind === 'supplier') {
       onChange(option.supplier.id);
       close();
@@ -120,6 +140,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
     try {
       const created = await onCreate(option.name);
       onChange(created.id);
+      setIsAdding(false);
       close();
       inputRef.current?.blur();
     } catch (error) {
@@ -129,7 +150,40 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
     }
   }
 
+  function cancelAdding() {
+    setIsAdding(false);
+    setQuery('');
+    setCreateError(null);
+  }
+
+  function submitNew() {
+    const name = query.trim();
+    if (name && !isCreating) void choose({ kind: 'create', name });
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget || !onDelete) return;
+    const target = deleteTarget;
+    try {
+      await onDelete(target);
+      if (value === target.id) onChange(null);
+      setDeleteTarget(null);
+    } catch (error) {
+      nfToast.error(error instanceof Error ? error.message : 'Failed to delete supplier');
+    }
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (isAdding) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submitNew();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        cancelAdding();
+      }
+      return;
+    }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       if (!isOpen) open();
@@ -146,14 +200,14 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
     }
   }
 
-  const inputValue = isOpen ? query : selected?.name ?? '';
+  const inputValue = isOpen || isAdding ? query : selected?.name ?? '';
 
   return (
     <div className="supplier-combobox" ref={wrapperRef}>
       <input
         ref={inputRef}
         id={id}
-        className="input supplier-combobox__input"
+        className={`input supplier-combobox__input${isAdding ? ' supplier-combobox__input--adding' : ''}`}
         role="combobox"
         aria-label={ariaLabel}
         aria-expanded={isOpen}
@@ -161,17 +215,41 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
         aria-autocomplete="list"
         autoComplete="off"
         value={inputValue}
-        placeholder={isOpen && selected ? selected.name : 'Search or add a supplier'}
-        onFocus={open}
-        onClick={open}
+        placeholder={isAdding ? 'Type the new supplier name' : isOpen && selected ? selected.name : 'Search or add a supplier'}
+        onFocus={() => !isAdding && open()}
+        onClick={() => !isAdding && open()}
         onChange={(event) => {
-          if (!isOpen) open();
+          if (!isOpen && !isAdding) open();
           setQuery(event.target.value);
         }}
         onKeyDown={handleKeyDown}
         disabled={isCreating}
       />
-      <ChevronDown size={16} className="supplier-combobox__chevron" aria-hidden="true" />
+      {isAdding ? (
+        <div className="supplier-combobox__adding-actions">
+          <button
+            type="button"
+            className="supplier-combobox__icon-btn supplier-combobox__icon-btn--confirm"
+            aria-label="Add supplier"
+            disabled={isCreating || !query.trim()}
+            onClick={submitNew}
+          >
+            <Check size={16} />
+          </button>
+          <button
+            type="button"
+            className="supplier-combobox__icon-btn"
+            aria-label="Cancel adding supplier"
+            disabled={isCreating}
+            onClick={cancelAdding}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      ) : (
+        <ChevronDown size={16} className="supplier-combobox__chevron" aria-hidden="true" />
+      )}
+      {isAdding && createError && <div className="supplier-combobox__error">{createError}</div>}
 
       {isOpen &&
         createPortal(
@@ -186,6 +264,23 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
             {options.map((option, index) => {
               const isHighlighted = index === highlighted;
               const className = `supplier-combobox__option${isHighlighted ? ' supplier-combobox__option--highlighted' : ''}`;
+
+              if (option.kind === 'new') {
+                return (
+                  <button
+                    key="new"
+                    type="button"
+                    role="option"
+                    aria-selected={isHighlighted}
+                    className={`${className} supplier-combobox__option--create`}
+                    onMouseEnter={() => setHighlighted(index)}
+                    onClick={() => void choose(option)}
+                  >
+                    <Plus size={14} />
+                    <span>Add new supplier</span>
+                  </button>
+                );
+              }
 
               if (option.kind === 'create') {
                 return (
@@ -208,7 +303,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
               }
 
               const isSelected = option.kind === 'none' ? value == null : option.supplier.id === value;
-              return (
+              const optionButton = (
                 <button
                   key={option.kind === 'none' ? 'none' : option.supplier.id}
                   type="button"
@@ -222,11 +317,41 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
                   {option.kind === 'none' ? 'No preferred supplier' : option.supplier.name}
                 </button>
               );
+              if (option.kind !== 'supplier' || !onDelete) return optionButton;
+
+              const supplier = option.supplier;
+              return (
+                <div key={supplier.id} className="supplier-combobox__row">
+                  {optionButton}
+                  <button
+                    type="button"
+                    className="supplier-combobox__delete"
+                    aria-label={`Delete ${supplier.name}`}
+                    title="Delete supplier"
+                    onClick={() => {
+                      close();
+                      setDeleteTarget(supplier);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              );
             })}
             {createError && <div className="supplier-combobox__state supplier-combobox__state--error">{createError}</div>}
           </div>,
           document.body,
         )}
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        title="Delete supplier"
+        message={`Are you sure you want to permanently delete "${deleteTarget?.name ?? ''}"? Items that use this supplier will be set to no preferred supplier. If this supplier has order history it will be deactivated instead of removed.`}
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+        centered
+      />
     </div>
   );
 }

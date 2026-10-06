@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.CreateStoreRequest;
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.dto.SuperAdminStoreResponse;
+import com.nforce.retailops.dto.SupplierDeleteResponse;
 import com.nforce.retailops.dto.SupplierRequest;
 import com.nforce.retailops.dto.SupplierResponse;
 import com.nforce.retailops.dto.UpdateStoreStatusRequest;
@@ -53,6 +54,14 @@ public class StoreController {
     @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<SupplierResponse> findOrCreateSupplier(@Valid @RequestBody SupplierRequest request) {
         return ResponseEntity.ok(supplierService.findOrCreateSupplier(request));
+    }
+
+    // Permanent-delete from the item form's supplier picker: removes the
+    // supplier, or only deactivates it when orders reference it.
+    @DeleteMapping("/suppliers/{id}")
+    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
+    public ResponseEntity<SupplierDeleteResponse> deleteSupplier(@PathVariable Long id) {
+        return ResponseEntity.ok(supplierService.deleteSupplier(id));
     }
 
     // Read-only, cross-owner directory for the Super Admin's Stores page.

@@ -19,6 +19,7 @@ interface StoreInventoryItemEditPanelProps {
   item: StoreInventoryItem;
   suppliers: Supplier[];
   onCreateSupplier: (name: string) => Promise<Supplier>;
+  onDeleteSupplier?: (supplier: Supplier) => Promise<void>;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -48,6 +49,7 @@ function StoreInventoryItemEditPanel({
   item,
   suppliers,
   onCreateSupplier,
+  onDeleteSupplier,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -193,6 +195,7 @@ function StoreInventoryItemEditPanel({
             value={values.preferredSupplierId}
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
             onCreate={onCreateSupplier}
+            onDelete={onDeleteSupplier}
             ariaLabel="Preferred supplier"
           />
         </FormField>
