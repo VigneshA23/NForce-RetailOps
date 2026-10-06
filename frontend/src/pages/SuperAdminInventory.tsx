@@ -8,7 +8,7 @@ import {
   setInventoryItemActive,
   updateInventoryItem,
 } from '../api/inventoryItems';
-import { createSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
+import { createSupplier, deleteSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
 import { getAllStores } from '../api/superAdminStores';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
@@ -115,6 +115,16 @@ function SuperAdminInventory() {
     );
     nfToast.success(`"${supplier.name}" supplier added.`);
     return supplier;
+  }
+
+  // Per-row delete in the supplier picker. A supplier with order history is
+  // only deactivated server-side; either way it leaves the list, and items
+  // that preferred it are reloaded since the server cleared their supplier.
+  async function handleDeleteSupplier(supplier: Supplier): Promise<void> {
+    const result = await deleteSupplier(supplier.id);
+    setSuppliers((current) => current.filter((s) => s.id !== supplier.id));
+    getAllInventoryItems().then(setItems).catch(() => {});
+    nfToast.success(result.deactivated ? `"${supplier.name}" deactivated (it has order history).` : `"${supplier.name}" deleted.`);
   }
 
   async function handleItemSubmit(values: StoreInventoryItemFormValues) {
@@ -483,6 +493,7 @@ function SuperAdminInventory() {
         mode={itemModal?.mode ?? 'create'}
         suppliers={suppliers}
         onCreateSupplier={handleCreateSupplier}
+        onDeleteSupplier={handleDeleteSupplier}
         stores={stores}
         showStoreField
         initialValues={itemInitialValues}

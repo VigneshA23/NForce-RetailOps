@@ -84,3 +84,66 @@
 .supplier-combobox__state--error {
   color: var(--color-accent);
 }
+
+.supplier-combobox__input--adding {
+  padding-right: 76px;
+}
+
+.supplier-combobox__adding-actions {
+  position: absolute;
+  right: 6px;
+  top: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.supplier-combobox__icon-btn,
+.supplier-combobox__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.supplier-combobox__icon-btn:hover:not(:disabled) {
+  background: var(--color-bg-page);
+}
+
+.supplier-combobox__icon-btn--confirm {
+  color: var(--color-accent);
+}
+
+.supplier-combobox__icon-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.supplier-combobox__delete:hover {
+  background: var(--color-bg-page);
+  color: var(--color-accent);
+}
+
+.supplier-combobox__row {
+  display: flex;
+  align-items: center;
+}
+
+.supplier-combobox__row .supplier-combobox__option {
+  flex: 1;
+  min-width: 0;
+}
+
+.supplier-combobox__error {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-accent);
+}

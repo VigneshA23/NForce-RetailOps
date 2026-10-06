@@ -51,6 +51,8 @@ export interface StoreInventoryItemFormValues {
   // photo the server downloads on save, or a request to remove it.
   imageId: number | null;
   imagePhotoId: string | null;
+  // An image the user uploaded themselves, as a base64 data URL.
+  imageUploadData?: string | null;
   imagePreviewUrl: string | null;
   removeImage: boolean;
 }

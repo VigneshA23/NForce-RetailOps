@@ -29,3 +29,15 @@ export async function updateSupplier(id: number, values: SupplierFormValues): Pr
 export async function setSupplierActive(id: number, active: boolean): Promise<Supplier> {
   return apiRequest<Supplier>(`/super-admin/suppliers/${id}/status`, { method: 'PATCH', body: { active } });
 }
+
+export interface SupplierDeleteResult {
+  deleted: boolean;
+  // True when the supplier had order history and was only marked inactive.
+  deactivated: boolean;
+}
+
+// Permanent delete from the item form's supplier picker (Owner/Admin and
+// Super Admin). Items using the supplier fall back to "no preferred supplier".
+export async function deleteSupplier(id: number): Promise<SupplierDeleteResult> {
+  return apiRequest<SupplierDeleteResult>(`/stores/suppliers/${id}`, { method: 'DELETE' });
+}
