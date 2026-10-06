@@ -429,8 +429,17 @@
   border-top: 1px solid #f4f4f5;
 }
 
+/* No !important: a selected row's pink background is inline (only present
+   when row.checked), so it already beats this on specificity whenever both
+   would otherwise apply -- hover only ever wins for an unselected row, which
+   is what should happen. With !important here, hover used to beat the
+   selected background outright: on mobile, tapping a row's checkbox can
+   leave the row "stuck" in :hover (there's no real mouse to un-hover it),
+   so the pink highlight would silently disappear until something else
+   cleared that hover state -- the inconsistent/delayed highlight this was
+   reported as. */
 .order-list__row:hover {
-  background: #fafafb !important;
+  background: #fafafb;
 }
 
 /* Qualified with the table class so this outranks the generic td/th padding
