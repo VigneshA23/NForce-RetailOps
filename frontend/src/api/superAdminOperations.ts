@@ -1,5 +1,5 @@
 import { apiRequest } from './client';
-import type { StoreSupplierPurchaseMetric } from '../types/orderList';
+import type { OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
 
 export interface StoreOperationsSummary {
   storeId: number;
@@ -57,9 +57,23 @@ export interface OutstandingOrdersOverview {
   stores: StoreOutstandingOrdersRow[];
 }
 
-// Read-only: status changes stay on the owner's Order Dashboard.
 export async function getOutstandingOrders(): Promise<OutstandingOrdersOverview> {
   return apiRequest<OutstandingOrdersOverview>('/super-admin/outstanding-orders');
+}
+
+// Drill-down from the overview above into one store's individual order-list
+// entries, and the action that moves one through its lifecycle. Unlike the
+// Owner/Admin API, Super Admin can act on any store -- the storeId comes from
+// the overview row the caller drilled into, not from the caller's own store.
+export async function getOrderListForStore(storeId: number): Promise<OrderListEntry[]> {
+  return apiRequest<OrderListEntry[]>(`/super-admin/stores/${storeId}/order-list`);
+}
+
+export async function updateSuperAdminOrderStatus(storeId: number, entryId: number, status: OrderStatus): Promise<OrderListEntry> {
+  return apiRequest<OrderListEntry>(`/super-admin/stores/${storeId}/order-list/${entryId}/status`, {
+    method: 'PATCH',
+    body: { status },
+  });
 }
 
 // Platform-wide Supplier Purchasing Summary, broken down by store. A genuinely

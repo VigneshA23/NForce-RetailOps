@@ -9,6 +9,7 @@ import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus } from '..
 import type { Supplier } from '../types/supplier';
 import type { InventoryItemCategory } from '../types/storeInventory';
 import { buildOrderListText } from '../utils/orderListExport';
+import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
 import StatCard from '../components/StatCard';
 import CategoryIcon from '../components/CategoryIcon';
@@ -20,13 +21,6 @@ import FilterClearButton from '../components/FilterClearButton';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
 import './OrderList.css';
-
-const STATUS_META: Record<OrderStatus, { label: string; fg: string; bg: string }> = {
-  NEEDS_ORDERING: { label: 'Needs ordering', fg: '#b3162a', bg: '#fde8ea' },
-  ORDERED: { label: 'Ordered', fg: '#1d5fb8', bg: '#e5f1fd' },
-  RECEIVED: { label: 'Received', fg: '#137a47', bg: '#e1f8ec' },
-};
-const STATUS_ORDER: OrderStatus[] = ['NEEDS_ORDERING', 'ORDERED', 'RECEIVED'];
 
 type StatusFilter = 'OPEN' | OrderStatus;
 

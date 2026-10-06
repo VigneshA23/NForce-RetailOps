@@ -37,6 +37,7 @@ class SuperAdminOperationsServiceOutstandingOrdersTest {
     @Mock private RaisedIssueRepository raisedIssueRepository;
     @Mock private StoreEmployeeRepository storeEmployeeRepository;
     @Mock private OrderListEntryRepository orderListEntryRepository;
+    @Mock private OrderListService orderListService;
 
     private SuperAdminOperationsService service;
 
@@ -49,7 +50,8 @@ class SuperAdminOperationsServiceOutstandingOrdersTest {
             taskMakeupLinkRepository,
             raisedIssueRepository,
             storeEmployeeRepository,
-            orderListEntryRepository
+            orderListEntryRepository,
+            orderListService
         );
     }
 

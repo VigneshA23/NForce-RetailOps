@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
 import com.nforce.retailops.dto.StoreOperationsSummaryResponse;
@@ -64,6 +65,7 @@ public class SuperAdminOperationsService {
     private final RaisedIssueRepository raisedIssueRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final OrderListEntryRepository orderListEntryRepository;
+    private final OrderListService orderListService;
 
     public SuperAdminOperationsService(
         StoreOwnerRepository storeOwnerRepository,
@@ -72,7 +74,8 @@ public class SuperAdminOperationsService {
         TaskMakeupLinkRepository taskMakeupLinkRepository,
         RaisedIssueRepository raisedIssueRepository,
         StoreEmployeeRepository storeEmployeeRepository,
-        OrderListEntryRepository orderListEntryRepository
+        OrderListEntryRepository orderListEntryRepository,
+        OrderListService orderListService
     ) {
         this.storeOwnerRepository = storeOwnerRepository;
         this.taskRepository = taskRepository;
@@ -81,6 +84,21 @@ public class SuperAdminOperationsService {
         this.raisedIssueRepository = raisedIssueRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.orderListEntryRepository = orderListEntryRepository;
+        this.orderListService = orderListService;
+    }
+
+    // Super Admin's per-store order-list drill-down from the outstanding-orders
+    // overview above, and the status-update action on it. Both simply delegate to
+    // OrderListService so the NEEDS_ORDERING -> ORDERED -> RECEIVED transition rule
+    // (ALLOWED_TRANSITIONS) stays defined in exactly one place for both roles.
+    @Transactional(readOnly = true)
+    public List<OrderListEntryResponse> getOrderListForStore(Long storeId) {
+        return orderListService.listForStore(storeId);
+    }
+
+    @Transactional
+    public OrderListEntryResponse updateOrderStatus(Long storeId, Long entryId, OrderStatus status) {
+        return orderListService.updateStatusForSuperAdmin(storeId, entryId, status);
     }
 
     // Platform-wide "what still needs ordering", in a single grouped query -- never

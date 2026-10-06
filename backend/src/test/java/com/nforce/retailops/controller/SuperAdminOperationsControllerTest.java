@@ -43,6 +43,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -583,6 +584,113 @@ class SuperAdminOperationsControllerTest {
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
+            .andExpect(status().isNotFound());
+    }
+
+    // ---- Super Admin cross-store order-list drill-down and status update ----
+
+    @Test
+    @Transactional
+    void getOrderListForStoreRequiresSuperAdminRole() throws Exception {
+        User owner = ownerUser("sa-orl-owner-a@nforce.test");
+        Store store = store("Store Order List A", 9260L);
+        linkOwnerToStore(owner, store);
+        String ownerToken = login("sa-orl-owner-a@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/stores/" + store.getId() + "/order-list")
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void getOrderListForStoreReturnsThatStoresEntries() throws Exception {
+        superAdmin("sa-orl-admin-b@nforce.test");
+        User owner = ownerUser("sa-orl-owner-b@nforce.test");
+        Store store = store("Store Order List B", 9261L);
+        linkOwnerToStore(owner, store);
+        orderEntry(store, inventoryItem(store, "Milk Order List B"), OrderStatus.NEEDS_ORDERING);
+
+        String token = login("sa-orl-admin-b@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/stores/" + store.getId() + "/order-list")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].itemName").value("Milk Order List B"))
+            .andExpect(jsonPath("$[0].status").value("NEEDS_ORDERING"));
+    }
+
+    @Test
+    @Transactional
+    void updateOrderStatusRequiresSuperAdminRole() throws Exception {
+        User owner = ownerUser("sa-orl-owner-c@nforce.test");
+        Store store = store("Store Order List C", 9262L);
+        linkOwnerToStore(owner, store);
+        OrderListEntry entry = orderEntry(store, inventoryItem(store, "Milk Order List C"), OrderStatus.NEEDS_ORDERING);
+        String ownerToken = login("sa-orl-owner-c@nforce.test");
+
+        String body = objectMapper.writeValueAsString(Map.of("status", "ORDERED"));
+
+        mockMvc.perform(patch("/api/super-admin/stores/" + store.getId() + "/order-list/" + entry.getId() + "/status")
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void updateOrderStatusAllowsTheSingleLegalForwardStep() throws Exception {
+        superAdmin("sa-orl-admin-d@nforce.test");
+        Store store = store("Store Order List D", 9263L);
+        OrderListEntry entry = orderEntry(store, inventoryItem(store, "Milk Order List D"), OrderStatus.NEEDS_ORDERING);
+
+        String token = login("sa-orl-admin-d@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of("status", "ORDERED"));
+
+        mockMvc.perform(patch("/api/super-admin/stores/" + store.getId() + "/order-list/" + entry.getId() + "/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.status").value("ORDERED"));
+    }
+
+    @Test
+    @Transactional
+    void updateOrderStatusRejectsSkippingOrderedOnTheWayToReceived() throws Exception {
+        superAdmin("sa-orl-admin-e@nforce.test");
+        Store store = store("Store Order List E", 9264L);
+        OrderListEntry entry = orderEntry(store, inventoryItem(store, "Milk Order List E"), OrderStatus.NEEDS_ORDERING);
+
+        String token = login("sa-orl-admin-e@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of("status", "RECEIVED"));
+
+        mockMvc.perform(patch("/api/super-admin/stores/" + store.getId() + "/order-list/" + entry.getId() + "/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isConflict());
+    }
+
+    // The storeId in the path must match the entry's own store -- a Super Admin
+    // (or a stale UI) pointing a valid entryId at the wrong store 404s exactly
+    // like an Owner/Admin's cross-store access already does (findByIdAndStoreId).
+    @Test
+    @Transactional
+    void updateOrderStatusReturnsNotFoundWhenEntryBelongsToAnotherStore() throws Exception {
+        superAdmin("sa-orl-admin-f@nforce.test");
+        Store storeF = store("Store Order List F", 9265L);
+        Store otherStore = store("Store Order List F Other", 9266L);
+        OrderListEntry entry = orderEntry(storeF, inventoryItem(storeF, "Milk Order List F"), OrderStatus.NEEDS_ORDERING);
+
+        String token = login("sa-orl-admin-f@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of("status", "ORDERED"));
+
+        mockMvc.perform(patch("/api/super-admin/stores/" + otherStore.getId() + "/order-list/" + entry.getId() + "/status")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
             .andExpect(status().isNotFound());
     }
 
