@@ -96,7 +96,7 @@ class StoreInventoryItemServiceTest {
     private StoreInventoryItemRequest requestForStore(Long storeId, String name, Long preferredSupplierId) {
         return new StoreInventoryItemRequest(
             storeId, name, InventoryItemCategory.INGREDIENTS, "Nos.", 5, 0,
-            preferredSupplierId, null, false, null, null
+            preferredSupplierId, null, false, null, null, null
         );
     }
 
