@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from 'react';
-import { Boxes, ChevronDown, CircleX, Clock, Pencil, TrendingDown } from 'lucide-react';
+import { ArrowDown, ArrowUp, Boxes, ChevronDown, CircleX, Clock, Pencil, TrendingDown } from 'lucide-react';
 import { getInventoryCountHistory, getInventoryCounts, correctStockCheck } from '../api/storeInventory';
 import type {
   InventoryCountHistoryEntry,
@@ -10,6 +10,7 @@ import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
 import { INVENTORY_COUNT_STATUS_META } from '../utils/inventoryCountStatusMeta';
 import { nfToast } from '../utils/toast';
 import { formatDateLabel, formatTimeLabel } from '../utils/checklistHistoryOptions';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import StatCard from './StatCard';
 import CategoryIcon from './CategoryIcon';
 import SearchInput from './SearchInput';
@@ -25,7 +26,21 @@ type LevelFilter = 'all' | 'out' | 'low' | 'stale';
 
 const STATUS_META = INVENTORY_COUNT_STATUS_META;
 
+// "Today, 9:05 AM" for same-day updates (the overwhelming majority, since
+// counts are a daily habit); a short date instead once it isn't today, so an
+// old count can't be mistaken for one from this morning.
+function formatCardTimestamp(isoTimestamp: string): string {
+  const date = new Date(isoTimestamp);
+  // Not formatTimeLabel: that omits AM/PM under this app's default locale,
+  // fine for the desktop table sitting next to a date column but ambiguous
+  // standing alone in this card's footer.
+  const time = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+  const isToday = date.toDateString() === new Date().toDateString();
+  return isToday ? `Today, ${time}` : `${formatDateLabel(isoTimestamp.slice(0, 10))}, ${time}`;
+}
+
 function InventoryCounts() {
+  const isMobile = useIsMobile();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<InventoryItemCategory | 'ALL'>('ALL');
   const [level, setLevel] = useState<LevelFilter>('all');
@@ -138,6 +153,142 @@ function InventoryCounts() {
     setPage(1);
   }
 
+  function renderHistoryContent(row: InventoryCountRow) {
+    const history = historyByItemId[row.itemId];
+    if (historyLoadingId === row.itemId) {
+      return <div className="inventory-counts__history-empty">Loading history...</div>;
+    }
+    if (!history || history.length === 0) {
+      return <div className="inventory-counts__history-empty">No count history yet.</div>;
+    }
+    return (
+      <table className="inventory-counts__history-table">
+        <thead>
+          <tr>
+            <th scope="col">Updated</th>
+            <th scope="col">Count</th>
+            <th scope="col">Change</th>
+            <th scope="col">Updated by</th>
+          </tr>
+        </thead>
+        <tbody>
+          {history.map((entry, index) => (
+            <tr key={`${entry.checkDate}-${index}`}>
+              <td>{formatDateLabel(entry.checkDate)}</td>
+              <td>
+                {entry.count} {row.unitOfMeasurement}
+              </td>
+              <td>{entry.delta != null ? (entry.delta > 0 ? `+${entry.delta}` : entry.delta) : '—'}</td>
+              <td>
+                <span className="inventory-counts__avatar">{entry.updatedByName.slice(0, 2).toUpperCase()}</span>
+                {entry.updatedByName}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
+  function renderMobileCard(row: InventoryCountRow) {
+    const meta = STATUS_META[row.status];
+    const isExpanded = expandedItemId === row.itemId;
+    const categoryLabel = INVENTORY_ITEM_CATEGORY_OPTIONS.find((o) => o.value === row.category)?.label ?? '—';
+    // The "9 -> 4" sub-line is derived, not a separate field: change is
+    // already (current - previous), so previous = current - change.
+    const previous = row.change != null && row.currentStock != null ? row.currentStock - row.change : null;
+    return (
+      <div key={row.itemId} className="inventory-counts__card">
+        <div className="inventory-counts__card-top">
+          <CategoryIcon category={row.category} name={row.name} size={44} imageId={row.imageId} />
+          <div className="inventory-counts__card-title">
+            <div className="inventory-counts__item-name">{row.name}</div>
+            <div className="inventory-counts__item-category">{categoryLabel}</div>
+          </div>
+          <span className="inventory-counts__status-pill" style={{ color: meta.fg, background: meta.bg }}>
+            <span className="inventory-counts__status-dot" style={{ background: meta.dot }} />
+            {meta.label}
+          </span>
+        </div>
+
+        <div className="inventory-counts__card-stats">
+          <div className="inventory-counts__card-stat">
+            <span className="inventory-counts__card-stat-label">Current</span>
+            <span>
+              {row.currentStock != null ? (
+                <>
+                  <span className="inventory-counts__num" style={{ color: row.status === 'HEALTHY' ? '#18181b' : meta.fg }}>{row.currentStock}</span>
+                  <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
+                </>
+              ) : (
+                '—'
+              )}
+            </span>
+          </div>
+          <div className="inventory-counts__card-stat">
+            <span className="inventory-counts__card-stat-label">Minimum</span>
+            <span>
+              {row.minimum != null ? (
+                <>
+                  <span className="inventory-counts__num">{row.minimum}</span>
+                  <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
+                </>
+              ) : (
+                '—'
+              )}
+            </span>
+          </div>
+          <div className="inventory-counts__card-stat">
+            <span className="inventory-counts__card-stat-label">Change</span>
+            {row.change != null ? (
+              <>
+                <span className={row.change < 0 ? 'inventory-counts__change--down' : 'inventory-counts__change--up'}>
+                  {row.change < 0 ? <ArrowDown size={13} /> : <ArrowUp size={13} />}
+                  {Math.abs(row.change)}
+                </span>
+                {previous != null && <span className="inventory-counts__card-change-sub">{previous} → {row.currentStock}</span>}
+              </>
+            ) : (
+              '—'
+            )}
+          </div>
+          <button
+            type="button"
+            className="inventory-counts__icon-btn"
+            aria-label={`Edit count for ${row.name}`}
+            title="Edit count"
+            disabled={row.latestCheckId == null}
+            onClick={() => { setEditError(null); setEditTarget(row); }}
+          >
+            <Pencil size={16} />
+          </button>
+        </div>
+
+        <button
+          type="button"
+          className="inventory-counts__card-footer"
+          aria-expanded={isExpanded}
+          aria-label={`Show count history for ${row.name}`}
+          onClick={() => toggleHistory(row)}
+        >
+          <span>
+            {row.lastUpdatedAt ? (
+              <>
+                <span style={{ color: row.status === 'STALE' ? '#a3620a' : '#18181b', fontWeight: 600 }}>{formatCardTimestamp(row.lastUpdatedAt)}</span>
+                <span className="inventory-counts__muted"> · by {row.lastUpdatedByName}</span>
+              </>
+            ) : (
+              'Never counted'
+            )}
+          </span>
+          <ChevronDown size={16} className={isExpanded ? 'inventory-counts__chevron--open' : ''} />
+        </button>
+
+        {isExpanded && <div className="inventory-counts__card-history">{renderHistoryContent(row)}</div>}
+      </div>
+    );
+  }
+
   if (loadError) {
     return (
       <div className="inventory-counts__error">
@@ -184,6 +335,19 @@ function InventoryCounts() {
         {hasActiveFilters && <FilterClearButton onClick={clearFilters} />}
       </div>
 
+      {isMobile && (
+        <div className="inventory-counts__cards">
+          {rows.map((row) => renderMobileCard(row))}
+          {!isLoading && rows.length === 0 && (
+            <div className="inventory-counts__empty">
+              {totalItems === 0 && !hasActiveFilters ? 'No inventory items yet.' : 'No items match these filters.'}
+            </div>
+          )}
+          {isLoading && <div className="inventory-counts__empty">Loading...</div>}
+        </div>
+      )}
+
+      {!isMobile && (
       <div className="table-card">
         <div className="table-scroll">
           <table className="data-table inventory-counts__table">
@@ -202,7 +366,6 @@ function InventoryCounts() {
               {rows.map((row) => {
                 const meta = STATUS_META[row.status];
                 const isExpanded = expandedItemId === row.itemId;
-                const history = historyByItemId[row.itemId];
                 return (
                   <Fragment key={row.itemId}>
                     <tr>
@@ -289,39 +452,7 @@ function InventoryCounts() {
                     </tr>
                     {isExpanded && (
                       <tr className="inventory-counts__history-row">
-                        <td colSpan={7}>
-                          {historyLoadingId === row.itemId ? (
-                            <div className="inventory-counts__history-empty">Loading history...</div>
-                          ) : !history || history.length === 0 ? (
-                            <div className="inventory-counts__history-empty">No count history yet.</div>
-                          ) : (
-                            <table className="inventory-counts__history-table">
-                              <thead>
-                                <tr>
-                                  <th scope="col">Updated</th>
-                                  <th scope="col">Count</th>
-                                  <th scope="col">Change</th>
-                                  <th scope="col">Updated by</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {history.map((entry, index) => (
-                                  <tr key={`${entry.checkDate}-${index}`}>
-                                    <td>{formatDateLabel(entry.checkDate)}</td>
-                                    <td>
-                                      {entry.count} {row.unitOfMeasurement}
-                                    </td>
-                                    <td>{entry.delta != null ? (entry.delta > 0 ? `+${entry.delta}` : entry.delta) : '—'}</td>
-                                    <td>
-                                      <span className="inventory-counts__avatar">{entry.updatedByName.slice(0, 2).toUpperCase()}</span>
-                                      {entry.updatedByName}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
-                        </td>
+                        <td colSpan={7}>{renderHistoryContent(row)}</td>
                       </tr>
                     )}
                   </Fragment>
@@ -337,6 +468,7 @@ function InventoryCounts() {
         )}
         {isLoading && <div className="inventory-counts__empty">Loading...</div>}
       </div>
+      )}
 
       <Pagination page={page} pageCount={pageCount} totalItems={totalItems} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="items" />
 
