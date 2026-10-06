@@ -6,6 +6,7 @@ import type { OwnerSummary } from '../types/owner';
 import StatCard from '../components/StatCard';
 import StoreComparisonTable from '../components/StoreComparisonTable';
 import StoreComparisonDetailModal from '../components/StoreComparisonDetailModal';
+import SuperAdminOrderListModal from '../components/SuperAdminOrderListModal';
 import CompletionRateCard from '../components/CompletionRateCard';
 import ActivityFeedList from '../components/ActivityFeedList';
 import { useRecentActivity } from '../hooks/useRecentActivity';
@@ -63,9 +64,13 @@ function SuperAdminHome({
   const [trendDays, setTrendDays] = useState(7);
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
   const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
-  // Read-only: there is no per-store order drill-down to navigate to yet.
   const [outstandingOrders, setOutstandingOrders] = useState<OutstandingOrdersOverview | null>(null);
+  const [orderListStore, setOrderListStore] = useState<{ storeId: number; storeName: string } | null>(null);
   const recentActivity = useRecentActivity(ACTIVITY_COLLAPSED_LIMIT);
+
+  function refreshOutstandingOrders() {
+    getOutstandingOrders().then(setOutstandingOrders).catch(() => {});
+  }
 
   useEffect(() => {
     let active = true;
@@ -311,7 +316,13 @@ function SuperAdminHome({
           </div>
           <div className="sa-home__orders-list">
             {outstandingOrders.stores.map((store) => (
-              <div key={store.storeId} className="sa-home__orders-item">
+              <button
+                key={store.storeId}
+                type="button"
+                className="sa-home__orders-item"
+                style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit' }}
+                onClick={() => setOrderListStore({ storeId: store.storeId, storeName: store.storeName })}
+              >
                 <div className="sa-home__orders-store">
                   <span className="sa-home__attention-store">{store.storeName}</span>
                   <span className="sa-home__orders-meta">
@@ -324,7 +335,7 @@ function SuperAdminHome({
                     oldest {formatOldest(store.oldestOutstandingAt)}
                   </span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
           {outstandingOrders.truncated && (
@@ -347,6 +358,12 @@ function SuperAdminHome({
       <StoreComparisonDetailModal
         store={detailStore}
         onClose={() => setDetailStore(null)}
+      />
+
+      <SuperAdminOrderListModal
+        store={orderListStore}
+        onClose={() => setOrderListStore(null)}
+        onStatusChanged={refreshOutstandingOrders}
       />
     </div>
   );

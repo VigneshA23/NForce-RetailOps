@@ -139,6 +139,38 @@ public class OrderListService {
         return OrderListEntryResponse.from(entry);
     }
 
+    // Super Admin's cross-store order-list drill-down (SuperAdminOperationsService).
+    // No store-existence check -- a bad/non-existent storeId simply yields an
+    // empty list, a reasonable response for a list endpoint rather than a 404.
+    @Transactional(readOnly = true)
+    public List<OrderListEntryResponse> listForStore(Long storeId) {
+        return orderListEntryRepository.findByStoreIdOrderByCreatedAtDesc(storeId).stream()
+            .map(OrderListEntryResponse::from)
+            .toList();
+    }
+
+    // Super Admin's status-only edit, counterpart to updateEntry above but store-id
+    // based (a Super Admin has no StoreOwner link to resolve a store from). Reuses
+    // the same ALLOWED_TRANSITIONS one-step-at-a-time rule and the existing
+    // findByIdAndStoreId lookup, so a cross-store entryId 404s exactly like it
+    // already does for Owner/Admin.
+    @Transactional
+    public OrderListEntryResponse updateStatusForSuperAdmin(Long storeId, Long entryId, OrderStatus targetStatus) {
+        OrderListEntry entry = orderListEntryRepository.findByIdAndStoreId(entryId, storeId)
+            .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
+
+        OrderStatus currentStatus = entry.getStatus();
+        if (currentStatus != targetStatus && !ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of()).contains(targetStatus)) {
+            throw new InvalidOrderEntryTransitionException(
+                "Cannot move this order from " + currentStatus + " to " + targetStatus
+                    + ". Orders must go Needs Ordering → Ordered → Received, one step at a time.");
+        }
+
+        entry.setStatus(targetStatus);
+        entry = orderListEntryRepository.save(entry);
+        return OrderListEntryResponse.from(entry);
+    }
+
     // Owner/Admin manually adding to the order list ("Add to order"), as
     // opposed to a stock check auto-detecting a shortage. Reuses the same
     // upsertShortage path a detected shortage takes (including its V49/V70

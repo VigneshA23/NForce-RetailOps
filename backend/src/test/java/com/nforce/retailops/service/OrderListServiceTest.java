@@ -10,9 +10,11 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
+import com.nforce.retailops.exception.OrderListEntryNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
@@ -399,5 +401,69 @@ class OrderListServiceTest {
 
         assertThatThrownBy(() -> orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE))
             .isInstanceOf(StoreNotFoundException.class);
+    }
+
+    // ---- listForStore / updateStatusForSuperAdmin (Super Admin, cross-store) ----
+
+    @Test
+    void listForStoreMapsAStoresEntriesWithoutRequiringAnOwnerLink() {
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByStoreIdOrderByCreatedAtDesc(STORE_ID)).thenReturn(List.of(entry));
+
+        List<OrderListEntryResponse> result = orderListService.listForStore(STORE_ID);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).id()).isEqualTo(ENTRY_ID);
+        verify(storeOwnerRepository, never()).findByOwnerId(any());
+    }
+
+    @Test
+    void listForStoreReturnsAnEmptyListForAStoreWithNoEntries() {
+        when(orderListEntryRepository.findByStoreIdOrderByCreatedAtDesc(STORE_ID)).thenReturn(List.of());
+
+        assertThat(orderListService.listForStore(STORE_ID)).isEmpty();
+    }
+
+    @Test
+    void updateStatusForSuperAdminAllowsTheSingleLegalForwardStep() {
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.updateStatusForSuperAdmin(STORE_ID, ENTRY_ID, OrderStatus.ORDERED);
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+    }
+
+    @Test
+    void updateStatusForSuperAdminRejectsSkippingOrderedOnTheWayToReceived() {
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> orderListService.updateStatusForSuperAdmin(STORE_ID, ENTRY_ID, OrderStatus.RECEIVED))
+            .isInstanceOf(InvalidOrderEntryTransitionException.class);
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void updateStatusForSuperAdminRejectsMovingBackward() {
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> orderListService.updateStatusForSuperAdmin(STORE_ID, ENTRY_ID, OrderStatus.NEEDS_ORDERING))
+            .isInstanceOf(InvalidOrderEntryTransitionException.class);
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void updateStatusForSuperAdminThrowsNotFoundForAnEntryBelongingToAnotherStore() {
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderListService.updateStatusForSuperAdmin(STORE_ID, ENTRY_ID, OrderStatus.ORDERED))
+            .isInstanceOf(OrderListEntryNotFoundException.class);
     }
 }

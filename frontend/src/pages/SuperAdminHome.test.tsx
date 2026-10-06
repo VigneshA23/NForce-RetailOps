@@ -10,6 +10,8 @@ vi.mock('../api/superAdminOperations', () => ({
   getOperationsOverview: vi.fn(),
   getPlatformTrend: vi.fn(),
   getOutstandingOrders: vi.fn(),
+  getOrderListForStore: vi.fn(),
+  updateSuperAdminOrderStatus: vi.fn(),
 }));
 vi.mock('../api/activity', () => ({ getRecentActivity: vi.fn() }));
 

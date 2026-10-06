@@ -1,15 +1,20 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
 import com.nforce.retailops.dto.StoreOperationsSummaryResponse;
 import com.nforce.retailops.dto.StoreSupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.TrendDataPoint;
+import com.nforce.retailops.dto.UpdateOrderStatusRequest;
 import com.nforce.retailops.service.SuperAdminOperationsService;
+import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,12 +47,33 @@ public class SuperAdminOperationsController {
         return service.getPlatformStats(date != null ? date : LocalDate.now());
     }
 
-    // Read-only. Status changes stay on the owner's Order Dashboard. No principal
-    // is resolved here -- a Super Admin has no users row and therefore no store
-    // scope; the class-level @PreAuthorize is the whole guard.
+    // Read-only platform-wide rollup. Per-store drill-down and status changes are
+    // the two endpoints below. No principal is resolved here -- a Super Admin has
+    // no users row and therefore no store scope; the class-level @PreAuthorize is
+    // the whole guard.
     @GetMapping("/outstanding-orders")
     public OutstandingOrdersOverviewResponse getOutstandingOrders() {
         return service.getOutstandingOrdersOverview();
+    }
+
+    // Drill-down from the overview above into one store's individual order-list
+    // entries, and the action that moves one through its lifecycle. Unlike every
+    // other endpoint here, Super Admin can act on ANY store (it has none of its
+    // own) -- the transition rule itself (one step at a time, Needs Ordering ->
+    // Ordered -> Received) is unchanged from Owner/Admin's, enforced in
+    // OrderListService so both roles share exactly one definition of it.
+    @GetMapping("/stores/{storeId}/order-list")
+    public List<OrderListEntryResponse> getOrderListForStore(@PathVariable Long storeId) {
+        return service.getOrderListForStore(storeId);
+    }
+
+    @PatchMapping("/stores/{storeId}/order-list/{entryId}/status")
+    public OrderListEntryResponse updateOrderStatus(
+        @PathVariable Long storeId,
+        @PathVariable Long entryId,
+        @Valid @RequestBody UpdateOrderStatusRequest request
+    ) {
+        return service.updateOrderStatus(storeId, entryId, request.status());
     }
 
     // Supplier Purchasing Summary, platform-wide (every store, broken down by
