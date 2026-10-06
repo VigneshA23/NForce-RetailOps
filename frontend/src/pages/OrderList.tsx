@@ -1,16 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Pencil, Plus, Truck } from 'lucide-react';
+import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { createOrderListEntry, getOrderList, updateOrderListEntry } from '../api/orderList';
 import { getOwnerSuppliers } from '../api/suppliers';
 import { getInventoryCounts, getStoreInventoryItems } from '../api/storeInventory';
-import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus, UpdateOrderListEntryValues } from '../types/orderList';
+import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
 import type { InventoryItemCategory } from '../types/storeInventory';
 import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
-import OrderListEntryEditModal from '../components/OrderListEntryEditModal';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
 import StatCard from '../components/StatCard';
 import CategoryIcon from '../components/CategoryIcon';
@@ -62,10 +61,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
 
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
-  const [editTarget, setEditTarget] = useState<OrderListEntry | null>(null);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
-
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [isAddSubmitting, setIsAddSubmitting] = useState(false);
@@ -114,24 +109,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
       const index = current.findIndex((e) => e.id === updated.id);
       return index === -1 ? [...current, updated] : current.map((e) => (e.id === updated.id ? updated : e));
     });
-  }
-
-  async function handleEditSubmit(values: UpdateOrderListEntryValues) {
-    if (!editTarget) return;
-    setEditError(null);
-    setIsEditSubmitting(true);
-    try {
-      const updated = await updateOrderListEntry(editTarget.id, values);
-      applyUpdatedEntry(updated);
-      nfToast.success(`"${updated.itemName}" order updated.`);
-      setEditTarget(null);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Failed to update order';
-      setEditError(msg);
-      nfToast.error(msg);
-    } finally {
-      setIsEditSubmitting(false);
-    }
   }
 
   async function handleAddSubmit(values: CreateOrderListEntryValues) {
@@ -393,49 +370,14 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <td className="order-list__note-cell order-list__mobile-hide">{row.noteShown}</td>
           </>
         )}
-        {isFlat ? (
-          <td className="order-list__status-cell">
-            <div className="order-list__status-actions">
-              <button
-                type="button"
-                className="order-list__edit-btn"
-                aria-label={`Edit ${entry.itemName}`}
-                title="Edit quantity, supplier or note"
-                onClick={() => { setEditError(null); setEditTarget(entry); }}
-              >
-                <Pencil size={14} />
-              </button>
-              <StatusDotMenu
-                options={row.statusOptions}
-                value={entry.status}
-                onChange={(value) => handleStatusChange(entry, value as OrderStatus)}
-                ariaLabel={`Change status for ${entry.itemName}`}
-              />
-            </div>
-          </td>
-        ) : (
-          <>
-            <td className="order-list__status-dropdown-cell">
-              <StatusDotMenu
-                options={row.statusOptions}
-                value={entry.status}
-                onChange={(value) => handleStatusChange(entry, value as OrderStatus)}
-                ariaLabel={`Change status for ${entry.itemName}`}
-              />
-            </td>
-            <td className="order-list__actions-cell">
-              <button
-                type="button"
-                className="order-list__edit-btn"
-                aria-label={`Edit ${entry.itemName}`}
-                title="Edit quantity, supplier or note"
-                onClick={() => { setEditError(null); setEditTarget(entry); }}
-              >
-                <Pencil size={14} />
-              </button>
-            </td>
-          </>
-        )}
+        <td className={isFlat ? 'order-list__status-cell' : 'order-list__status-dropdown-cell'}>
+          <StatusDotMenu
+            options={row.statusOptions}
+            value={entry.status}
+            onChange={(value) => handleStatusChange(entry, value as OrderStatus)}
+            ariaLabel={`Change status for ${entry.itemName}`}
+          />
+        </td>
       </tr>
     );
   }
@@ -461,40 +403,47 @@ function OrderList({ storeName, seed }: OrderListProps) {
       </div>
 
       <div className="order-list__filter-row">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search items" variant="surface" />
-        <div className="order-list__filter-group">
-          <Select className="order-list__filter-select order-list__filter-select--category" options={[{ value: 'all', label: 'All categories' }, ...INVENTORY_ITEM_CATEGORY_OPTIONS]} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Category" />
-          <Select className="order-list__filter-select order-list__filter-select--status" options={STATUS_FILTER_OPTIONS} value={statusFilter} onChange={(v) => setStatusFilter(v as StatusFilter)} ariaLabel="Status" />
-          <Select className="order-list__filter-select order-list__filter-select--supplier" options={supplierFilterOptions} value={supplierFilter} onChange={setSupplierFilter} ariaLabel="Supplier" />
-          {/* Mobile-only (display:none elsewhere): a zero-height, full-width flex
-              item forces everything after it onto a fresh row regardless of the
-              other items' actual widths -- see OrderList.css for why relying on
-              widths/flex-basis math alone to trigger the wrap was unreliable. */}
-          <span className="order-list__row-break" aria-hidden="true" />
-          <div
-            className={`order-list__clear-slot${hasActiveFilters ? '' : ' order-list__clear-slot--empty'}`}
-            style={hasActiveFilters ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
-          >
-            <FilterClearButton onClick={clearFilters} />
+        {/* display:contents outside mobile -- dissolves into plain flex
+            siblings of SearchInput/filter-fields so desktop/tablet keep
+            their existing single-row layout untouched. At mobile it becomes
+            a real white card (search + filters only; the toggle/Add item
+            row below stays outside it, on the page background). */}
+        <div className="order-list__filter-card">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search items" variant="surface" />
+          <div className="order-list__filter-fields">
+            <Select className="order-list__filter-select order-list__filter-select--category" options={[{ value: 'all', label: 'All categories' }, ...INVENTORY_ITEM_CATEGORY_OPTIONS]} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Category" />
+            <Select className="order-list__filter-select order-list__filter-select--status" options={STATUS_FILTER_OPTIONS} value={statusFilter} onChange={(v) => setStatusFilter(v as StatusFilter)} ariaLabel="Status" />
+            <Select className="order-list__filter-select order-list__filter-select--supplier" options={supplierFilterOptions} value={supplierFilter} onChange={setSupplierFilter} ariaLabel="Supplier" />
+            {/* Mobile-only (display:none elsewhere): a zero-height, full-width
+                flex item forces everything after it onto a fresh row
+                regardless of the other items' actual widths -- see
+                OrderList.css for why relying on widths/flex-basis math alone
+                to trigger the wrap was unreliable. */}
+            <span className="order-list__row-break" aria-hidden="true" />
+            <div
+              className={`order-list__clear-slot${hasActiveFilters ? '' : ' order-list__clear-slot--empty'}`}
+              style={hasActiveFilters ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
+            >
+              <FilterClearButton onClick={clearFilters} />
+            </div>
           </div>
-          <span className="order-list__row-break" aria-hidden="true" />
-          <div role="group" aria-label="View" className="order-list__view-toggle order-list__view-toggle--spaced">
-            <button type="button" aria-pressed={grouped} className={`order-list__view-btn${grouped ? ' order-list__view-btn--active' : ''}`} onClick={() => setGrouped(true)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
-              By supplier
-            </button>
-            <button type="button" aria-pressed={!grouped} className={`order-list__view-btn${!grouped ? ' order-list__view-btn--active' : ''}`} onClick={() => setGrouped(false)}>
-              <List size={14} />
-              List
-            </button>
-          </div>
-          {isMobile && (
-            <button type="button" className="order-list__action-btn order-list__action-btn--primary order-list__add-item-btn" onClick={() => { setAddError(null); setIsAddOpen(true); }}>
-              <Plus size={16} />
-              Add item
-            </button>
-          )}
         </div>
+        <div role="group" aria-label="View" className="order-list__view-toggle order-list__view-toggle--spaced">
+          <button type="button" aria-pressed={grouped} className={`order-list__view-btn${grouped ? ' order-list__view-btn--active' : ''}`} onClick={() => setGrouped(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+            By supplier
+          </button>
+          <button type="button" aria-pressed={!grouped} className={`order-list__view-btn${!grouped ? ' order-list__view-btn--active' : ''}`} onClick={() => setGrouped(false)}>
+            <List size={14} />
+            List
+          </button>
+        </div>
+        {isMobile && (
+          <button type="button" className="order-list__action-btn order-list__action-btn--primary order-list__add-item-btn" onClick={() => { setAddError(null); setIsAddOpen(true); }}>
+            <Plus size={16} />
+            Add item
+          </button>
+        )}
       </div>
 
       {!isMobile && (
@@ -570,20 +519,20 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <section key={group.key} className="order-list__group">
               {isMobile ? (
                 <div className="order-list__group-header order-list__group-header--mobile">
-                  <div className="order-list__group-mobile-row">
-                    <CheckboxButton checked={group.checked} indeterminate={group.indeterminate} ariaLabel={`Select all items from ${group.name}`} onClick={() => setGroupSelected(group.items.map((r) => r.entry.id), !group.checked)} />
+                  <CheckboxButton checked={group.checked} indeterminate={group.indeterminate} ariaLabel={`Select all items from ${group.name}`} onClick={() => setGroupSelected(group.items.map((r) => r.entry.id), !group.checked)} />
+                  <div className="order-list__group-mobile-top">
                     <span className="order-list__group-name">{group.name}</span>
-                    <button type="button" className="order-list__group-chevron-btn" aria-expanded={group.isOpen} aria-label={group.isOpen ? `Collapse ${group.name}` : `Expand ${group.name}`} onClick={() => setGroupOpen((c) => ({ ...c, [group.key]: !group.isOpen }))}>
-                      <ChevronDown size={18} className={group.isOpen ? undefined : 'order-list__group-chevron--collapsed'} />
-                    </button>
-                  </div>
-                  <div className="order-list__group-progress-block">
                     <span className="order-list__group-mobile-progress">{group.mobileProgress}</span>
+                  </div>
+                  <div className="order-list__group-mobile-bottom">
                     <div className="order-list__progress-track">
                       <div className="order-list__progress-fill" style={{ width: group.pct, background: group.barColor }} />
                     </div>
                     <span className="order-list__group-mobile-summary">{group.mobileSummary}</span>
                   </div>
+                  <button type="button" className="order-list__group-chevron-btn" aria-expanded={group.isOpen} aria-label={group.isOpen ? `Collapse ${group.name}` : `Expand ${group.name}`} onClick={() => setGroupOpen((c) => ({ ...c, [group.key]: !group.isOpen }))}>
+                    <ChevronDown size={18} className={group.isOpen ? 'order-list__group-chevron--mobile-open' : undefined} />
+                  </button>
                 </div>
               ) : (
                 <div className="order-list__group-header">
@@ -630,7 +579,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
                         <col className="order-list__col--num" />
                         <col className="order-list__col--num" />
                         <col className="order-list__col--status" />
-                        <col className="order-list__col--actions" />
                       </colgroup>
                       <thead>
                         <tr>
@@ -640,7 +588,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
                           <th className="order-list__num-header">Stock</th>
                           <th className="order-list__num-header">Need</th>
                           <th>Status</th>
-                          <th className="order-list__actions-cell" aria-hidden="true" />
                         </tr>
                       </thead>
                       <tbody>{group.shown.map((row) => renderRow(row, 'grouped'))}</tbody>
@@ -691,16 +638,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
           </div>
         </div>
       )}
-
-      <OrderListEntryEditModal
-        isOpen={editTarget !== null}
-        entry={editTarget}
-        suppliers={suppliers}
-        errorMessage={editError}
-        isSubmitting={isEditSubmitting}
-        onClose={() => setEditTarget(null)}
-        onSubmit={handleEditSubmit}
-      />
 
       <AddToOrderPanel
         isOpen={isAddOpen}

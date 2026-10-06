@@ -302,26 +302,6 @@ describe('OrderList inline status change', () => {
   });
 });
 
-describe('OrderList edit modal', () => {
-  it('saves quantity/supplier/note/status changes through the edit modal', async () => {
-    const user = userEvent.setup();
-    mockGetOrderList.mockReset().mockResolvedValue([entry({ id: 1, itemName: 'Milk', quantityNeeded: 2, status: 'NEEDS_ORDERING' })]);
-    mockUpdateOrderListEntry.mockResolvedValue(entry({ id: 1, itemName: 'Milk', quantityNeeded: 5, status: 'ORDERED' }));
-    render(<OrderList storeName="Downtown" />);
-    await screen.findByText('Milk');
-
-    await user.click(screen.getByLabelText('Edit Milk'));
-    expect(await screen.findByText('Edit Order — Milk')).toBeInTheDocument();
-
-    const quantityInput = screen.getByLabelText(/Quantity Needed/);
-    await user.clear(quantityInput);
-    await user.type(quantityInput, '5');
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-    await waitFor(() => expect(mockUpdateOrderListEntry).toHaveBeenCalledWith(1, expect.objectContaining({ quantityNeeded: '5' })));
-  });
-});
-
 describe('OrderList bulk selection', () => {
   beforeEach(() => {
     mockGetOrderList.mockReset().mockResolvedValue([
