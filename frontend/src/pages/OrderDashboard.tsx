@@ -2,17 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import OrderList from './OrderList';
 import InventoryCounts from '../components/InventoryCounts';
 import EodSupplierReport from '../components/EodSupplierReport';
+import SupplierPurchaseReport from '../components/SupplierPurchaseReport';
 import './OrderDashboard.css';
 
-type SubTab = 'orders' | 'counts' | 'eod-report';
+type SubTab = 'orders' | 'counts' | 'eod-report' | 'supplier-report';
 
-// shortLabel is what mobile shows instead -- "Order List"/"Inventory Counts"/
-// "End of Day Report" don't fit a 3-way pill tab at phone width the way they
-// do as underline tabs with room to breathe.
+// shortLabel is what mobile shows instead -- these full labels don't fit a
+// 4-way pill tab at phone width the way they do as underline tabs with room
+// to breathe.
 const SUB_TABS: { key: SubTab; label: string; shortLabel: string }[] = [
   { key: 'orders', label: 'Order List', shortLabel: 'Orders' },
   { key: 'counts', label: 'Inventory Counts', shortLabel: 'Inventory' },
   { key: 'eod-report', label: 'End of Day Report', shortLabel: 'Report' },
+  { key: 'supplier-report', label: 'Supplier Purchasing Summary', shortLabel: 'Purchases' },
 ];
 
 interface OrderDashboardProps {
@@ -58,6 +60,7 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
       {subTab === 'orders' && <OrderList storeName={storeName} seed={seed} />}
       {subTab === 'counts' && <InventoryCounts />}
       {subTab === 'eod-report' && <EodSupplierReport storeName={storeName} />}
+      {subTab === 'supplier-report' && <SupplierPurchaseReport />}
     </div>
   );
 }

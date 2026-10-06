@@ -1,11 +1,80 @@
 @import '../styles/breakpoints.css';
 
+/* No top padding here -- it lives on .store-inventory-page__subtabs instead
+   (see below), so the sticky bar starts flush with the scroll container's
+   top edge and never has to visibly shift into place on the first scroll. */
+.store-inventory-page {
+  padding: 0 var(--space-lg) var(--space-lg);
+}
+
 .store-inventory-page__subtabs {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-sm);
+  /* Explicit full width + border-box, not just "block-level flex defaults to
+     100%" -- without this the sticky bar can end up narrower than the page's
+     actual content row, leaving a sliver on the right where whatever's
+     scrolling underneath (e.g. the Add Item button's rim-glow effect, which
+     intentionally renders up to 20px past its own edges) isn't covered and
+     visibly pokes through during scroll. */
+  width: 100%;
+  box-sizing: border-box;
+  padding-top: var(--space-lg);
   margin-bottom: var(--space-lg);
   border-bottom: 1px solid var(--color-border);
+  /* A soft shadow instead of a hard second line under the border -- reads as
+     a smooth, deliberate separation from the scrolling content rather than
+     an abrupt cutoff. */
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  /* Two short tabs never actually overflow; hidden (not auto) means no
+     scrollbar ever renders here even transiently during layout. Setting
+     overflow-y too matters: per spec, leaving one axis at its default
+     'visible' while the other is 'hidden' computes that default to 'auto'
+     instead -- which is what was spawning a vertical scrollbar here. */
+  overflow-x: hidden;
+  overflow-y: hidden;
+  /* Stays put while the rest of the page scrolls underneath it, inside
+     .app-shell__page (the nearest scrolling ancestor). isolate + a solid,
+     fully opaque background guarantee it fully occludes anything scrolling
+     behind it (shadows/glows included) rather than just visually layering
+     on top with gaps. */
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  isolation: isolate;
+  background: var(--color-bg-page);
+}
+
+.store-inventory-page__subtab-list {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  /* Scrollable horizontally for now (room for more sub-tabs later); overflow-y
+     must be set explicitly too -- leaving it at its 'visible' default while
+     overflow-x isn't 'visible' makes it compute to 'auto' instead per spec,
+     which is exactly what was spawning a vertical scrollbar here. */
   overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+}
+
+.store-inventory-page__sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.store-inventory-page__sync-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-badge-icon-success-fg);
 }
 
 .store-inventory-page__subtab {
@@ -26,6 +95,58 @@
   border-bottom-color: var(--color-accent);
 }
 
+.store-inventory-page__subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.store-inventory-page__subtab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.store-inventory-page__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.store-inventory-page__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--color-text-primary);
+}
+
+.store-inventory-page__catalog-line {
+  margin: 0 0 var(--space-sm);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.store-inventory-page__catalog-line strong {
+  color: var(--color-text-primary);
+}
+
+@media (--mobile) {
+  .store-inventory-page__title-row {
+    flex-wrap: wrap;
+  }
+}
+
 .store-inventory-page__error {
   display: flex;
   align-items: center;
@@ -34,30 +155,54 @@
   color: var(--color-text-secondary);
 }
 
-.store-inventory-page__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  margin-bottom: var(--space-md);
-}
-
 .store-inventory-page__add-label {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
 }
 
-.store-inventory-page__summary {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-text-secondary);
+.store-inventory-page__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
-@media (--mobile) {
-  .store-inventory-page__header {
-    flex-wrap: wrap;
-  }
+.store-inventory-page__export {
+  position: relative;
+}
+
+.store-inventory-page__export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 180px;
+  padding: var(--space-xs);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-card);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.store-inventory-page__export-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  text-align: left;
+}
+
+.store-inventory-page__export-item:hover {
+  background: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
 }
 
 .store-inventory-page__empty {

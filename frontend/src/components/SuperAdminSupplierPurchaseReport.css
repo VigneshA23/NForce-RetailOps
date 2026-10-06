@@ -1,0 +1,25 @@
+.sa-supplier-purchase-report__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
+}
+
+.sa-supplier-purchase-report__error {
+  font-size: 13px;
+  color: var(--color-accent);
+  margin: 0 0 var(--space-md);
+}
+
+.sa-supplier-purchase-report__group-row th {
+  background: var(--color-surface-hovered);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: left;
+}
+
+.sa-supplier-purchase-report__group-count {
+  margin-left: var(--space-sm);
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}

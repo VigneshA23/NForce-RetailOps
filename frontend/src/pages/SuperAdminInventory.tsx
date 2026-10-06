@@ -14,9 +14,11 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
+import StockLevelComparison from '../components/StockLevelComparison';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryTable from '../components/StoreInventoryTable';
 import SupplierFormModal from '../components/SupplierFormModal';
+import SuperAdminSupplierPurchaseReport from '../components/SuperAdminSupplierPurchaseReport';
 import Toggle from '../components/Toggle';
 import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
@@ -27,11 +29,13 @@ import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './SuperAdminInventory.css';
 
-type SubTab = 'inventory' | 'suppliers';
+type SubTab = 'inventory' | 'suppliers' | 'comparison' | 'purchasing-report';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'inventory', label: 'Inventory' },
   { key: 'suppliers', label: 'Suppliers' },
+  { key: 'comparison', label: 'Stock Comparison' },
+  { key: 'purchasing-report', label: 'Purchasing Report' },
 ];
 
 const STATUS_FILTER_OPTIONS = [
@@ -203,6 +207,11 @@ function SuperAdminInventory() {
         minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
         preferredSupplierId: itemModal.item.preferredSupplierId,
         note: itemModal.item.note ?? '',
+        autoPoEnabled: itemModal.item.autoPoEnabled,
+        imageId: itemModal.item.imageId,
+        imagePhotoId: null,
+        imagePreviewUrl: null,
+        removeImage: false,
       };
     }
     if (itemModal?.mode === 'create') {
@@ -215,6 +224,11 @@ function SuperAdminInventory() {
         minWeekend: '',
         preferredSupplierId: null,
         note: '',
+        autoPoEnabled: true,
+        imageId: null,
+        imagePhotoId: null,
+        imagePreviewUrl: null,
+        removeImage: false,
       };
     }
     return undefined;
@@ -353,9 +367,7 @@ function SuperAdminInventory() {
                   onChange={(value) => setItemStatusFilter(value as StatusFilter)}
                   ariaLabel="Filter by status"
                 />
-                {itemStatusFilter !== 'ALL' && (
-                  <FilterClearButton onClick={() => setItemStatusFilter('ALL')} />
-                )}
+                <FilterClearButton onClick={() => setItemStatusFilter('ALL')} />
               </div>
 
               <StoreInventoryTable
@@ -462,6 +474,9 @@ function SuperAdminInventory() {
           </div>
         </>
       )}
+
+      {subTab === 'comparison' && <StockLevelComparison items={items} />}
+      {subTab === 'purchasing-report' && <SuperAdminSupplierPurchaseReport />}
 
       <StoreInventoryItemFormModal
         isOpen={itemModal !== null}

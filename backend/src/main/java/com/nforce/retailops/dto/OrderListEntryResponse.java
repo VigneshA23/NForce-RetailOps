@@ -17,7 +17,8 @@ public record OrderListEntryResponse(
     boolean adHoc,
     String raisedByName,
     OffsetDateTime createdAt,
-    OffsetDateTime updatedAt
+    OffsetDateTime updatedAt,
+    Long imageId
 ) {
     public static OrderListEntryResponse from(OrderListEntry entry) {
         return new OrderListEntryResponse(
@@ -33,7 +34,8 @@ public record OrderListEntryResponse(
             entry.isAdHoc(),
             entry.getRaisedBy() != null ? entry.getRaisedBy().getFullName() : null,
             entry.getCreatedAt(),
-            entry.getUpdatedAt()
+            entry.getUpdatedAt(),
+            entry.getStoreInventoryItem().getImageId()
         );
     }
 }

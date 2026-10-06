@@ -19,6 +19,7 @@ function entry(overrides: Partial<OrderListEntry>): OrderListEntry {
     raisedByName: null,
     createdAt: '2026-09-24T15:30:00Z',
     updatedAt: '2026-09-24T15:30:00Z',
+    imageId: null,
     ...overrides,
   };
 }

@@ -16,6 +16,7 @@ export interface OrderListEntry {
   raisedByName: string | null;
   createdAt: string;
   updatedAt: string;
+  imageId: number | null;
 }
 
 export interface UpdateOrderListEntryValues {
@@ -37,4 +38,22 @@ export interface CreateOrderListEntryValues {
   quantityNeeded: string;
   supplierId: number | null;
   note: string;
+}
+
+// Owner/Admin's Supplier Purchasing Summary -- already aggregated server-side
+// (COUNT/SUM), scoped to the caller's own store.
+export interface SupplierPurchaseMetric {
+  supplierName: string;
+  orderEntryCount: number;
+  totalQuantity: number;
+}
+
+// Super Admin's cross-store version: a flat, already-aggregated list; the
+// frontend only groups these rows by storeId for display, it never sums them.
+export interface StoreSupplierPurchaseMetric {
+  storeId: number;
+  storeName: string;
+  supplierName: string;
+  orderEntryCount: number;
+  totalQuantity: number;
 }

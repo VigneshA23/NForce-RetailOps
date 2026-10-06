@@ -2,6 +2,7 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.OrderListEntryResponse;
+import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
@@ -10,6 +11,7 @@ import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
@@ -20,18 +22,42 @@ import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.UserRepository;
+import com.nforce.retailops.util.DateRangeValidator;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 // Owner/Admin's Order Dashboard, plus the shared "raise or bump a shortage"
 // logic used by both the stock-check auto-detection path and the employee
 // ad-hoc report path.
 @Service
 public class OrderListService {
+
+    // Owner/Admin's manual status edit (updateEntry below) must move forward
+    // one step at a time -- Needs Ordering -> Ordered -> Received, never
+    // skipped or reversed. This does NOT apply to resolveShortageIfPresent,
+    // which auto-closes an entry straight to RECEIVED when a fresh count
+    // shows the shortage is gone on its own (a different, system-driven
+    // resolution path, not a manual edit).
+    private static final Map<OrderStatus, Set<OrderStatus>> ALLOWED_TRANSITIONS = Map.of(
+        OrderStatus.NEEDS_ORDERING, Set.of(OrderStatus.ORDERED),
+        OrderStatus.ORDERED, Set.of(OrderStatus.RECEIVED),
+        OrderStatus.RECEIVED, Set.of()
+    );
+
+    static final String NO_SUPPLIER = "No Supplier";
+
+    // Matches ChecklistHistoryService/StockCheckService's own cap for a
+    // bounded from/to report range.
+    private static final int MAX_DATE_RANGE_DAYS = 92;
 
     private final OrderListEntryRepository orderListEntryRepository;
     private final StoreOwnerRepository storeOwnerRepository;
@@ -89,9 +115,17 @@ public class OrderListService {
         OrderListEntry entry = orderListEntryRepository.findByIdAndStoreId(entryId, storeOwner.getStore().getId())
             .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
 
+        OrderStatus currentStatus = entry.getStatus();
+        OrderStatus targetStatus = request.status();
+        if (currentStatus != targetStatus && !ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of()).contains(targetStatus)) {
+            throw new InvalidOrderEntryTransitionException(
+                "Cannot move this order from " + currentStatus + " to " + targetStatus
+                    + ". Orders must go Needs Ordering → Ordered → Received, one step at a time.");
+        }
+
         entry.setQuantityNeeded(request.quantityNeeded());
         entry.setNote(request.note());
-        entry.setStatus(request.status());
+        entry.setStatus(targetStatus);
 
         if (request.supplierId() == null) {
             entry.setSupplier(null);
@@ -226,5 +260,41 @@ public class OrderListService {
                 entry.setStatus(OrderStatus.RECEIVED);
                 orderListEntryRepository.save(entry);
             });
+    }
+
+    // Owner/Admin's Supplier Purchasing Summary: the store always comes from
+    // the caller's own StoreOwner link (requireActiveStoreOwner), never from a
+    // client-supplied store ID, so another store's data can never be reached
+    // this way. Aggregation (COUNT/SUM/GROUP BY) happens entirely in
+    // findSupplierMetricsForStore -- this method only validates the range and
+    // maps the resulting tuples.
+    @Transactional(readOnly = true)
+    public List<SupplierPurchaseMetricResponse> getSupplierMetricsForOwner(Long ownerId, LocalDate fromDate, LocalDate toDate) {
+        DateRangeValidator.validate(fromDate, toDate, MAX_DATE_RANGE_DAYS);
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
+
+        List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
+            storeOwner.getStore().getId(), OrderStatus.PURCHASED_STATUSES, rangeStart(fromDate), rangeEndExclusive(toDate));
+
+        return rows.stream()
+            .map(row -> new SupplierPurchaseMetricResponse(
+                row[1] != null ? (String) row[1] : NO_SUPPLIER,
+                ((Number) row[2]).longValue(),
+                ((Number) row[3]).longValue()
+            ))
+            .sorted(Comparator.comparing(SupplierPurchaseMetricResponse::supplierName, String.CASE_INSENSITIVE_ORDER))
+            .toList();
+    }
+
+    // Same half-open-interval convention as ActivityLogService.rangeStart/
+    // rangeEndExclusive: [start of fromDate, start of the day after toDate),
+    // in the server's local zone -- so the range is inclusive of both the
+    // selected From and To calendar days.
+    static OffsetDateTime rangeStart(LocalDate date) {
+        return date.atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
+    }
+
+    static OffsetDateTime rangeEndExclusive(LocalDate date) {
+        return date.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
     }
 }

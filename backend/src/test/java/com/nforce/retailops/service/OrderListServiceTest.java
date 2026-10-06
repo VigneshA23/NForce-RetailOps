@@ -1,6 +1,8 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
+import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
+import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
 import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
@@ -8,7 +10,10 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.InvalidDateRangeException;
+import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
+import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -25,6 +30,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -147,6 +153,78 @@ class OrderListServiceTest {
         verify(orderListEntryRepository, never()).save(any());
     }
 
+    private static final Long ENTRY_ID = 55L;
+
+    private StoreOwner storeOwner() {
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setStore(store());
+        storeOwner.setActive(true);
+        return storeOwner;
+    }
+
+    private OrderListEntry entryWithStatus(OrderStatus status) {
+        OrderListEntry entry = new OrderListEntry();
+        ReflectionTestUtils.setField(entry, "id", ENTRY_ID);
+        entry.setStore(store());
+        entry.setStoreInventoryItem(item());
+        entry.setStatus(status);
+        entry.setQuantityNeeded(5);
+        return entry;
+    }
+
+    @Test
+    void updateEntryAllowsTheSingleLegalForwardStep() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(5, null, null, OrderStatus.ORDERED));
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+    }
+
+    @Test
+    void updateEntryRejectsSkippingOrderedOnTheWayToReceived() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() ->
+            orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(5, null, null, OrderStatus.RECEIVED))
+        ).isInstanceOf(InvalidOrderEntryTransitionException.class);
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void updateEntryRejectsMovingBackward() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() ->
+            orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(5, null, null, OrderStatus.NEEDS_ORDERING))
+        ).isInstanceOf(InvalidOrderEntryTransitionException.class);
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void updateEntryAllowsEditingWithoutChangingStatus() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(9, null, "note", OrderStatus.ORDERED));
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+        assertThat(entry.getQuantityNeeded()).isEqualTo(9);
+    }
+
     // ---- createEntry ("Add to order") ---------------------------------------
 
     private void stubActiveStoreOwner(Store store) {
@@ -237,5 +315,89 @@ class OrderListServiceTest {
             null, "  ", InventoryItemCategory.SUPPLIES, "packs", false, 1, null, null)))
             .isInstanceOf(InvalidOrderListEntryException.class);
         verify(storeInventoryItemRepository, never()).save(any());
+    }
+
+    // ---- getSupplierMetricsForOwner (Supplier Purchasing Summary) -----------
+
+    private static final LocalDate FROM_DATE = LocalDate.of(2026, 9, 1);
+    private static final LocalDate TO_DATE = LocalDate.of(2026, 9, 4);
+
+    @Test
+    void getSupplierMetricsForOwnerDerivesTheStoreFromTheCallersOwnStoreOwnerLinkNotAParameter() {
+        Store store = store();
+        stubActiveStoreOwner(store);
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
+            .thenReturn(List.of());
+
+        orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
+
+        // The only store ID ever reaches the repository via the owner's own
+        // link (stubActiveStoreOwner) -- there is no storeId parameter on the
+        // service method for a caller to override.
+        verify(orderListEntryRepository).findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any());
+    }
+
+    @Test
+    void getSupplierMetricsForOwnerMapsRowsAndSortsSupplierNamesCaseInsensitively() {
+        stubActiveStoreOwner(store());
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
+            .thenReturn(List.of(
+                new Object[]{2L, "fresh foods", 3L, 17L},
+                new Object[]{1L, "Acme Supplies", 8L, 42L}
+            ));
+
+        List<SupplierPurchaseMetricResponse> result = orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
+
+        assertThat(result).extracting(SupplierPurchaseMetricResponse::supplierName)
+            .containsExactly("Acme Supplies", "fresh foods");
+        assertThat(result.get(0).orderEntryCount()).isEqualTo(8L);
+        assertThat(result.get(0).totalQuantity()).isEqualTo(42L);
+    }
+
+    @Test
+    void getSupplierMetricsForOwnerLabelsANullSupplierAsNoSupplier() {
+        stubActiveStoreOwner(store());
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
+            .thenReturn(List.<Object[]>of(new Object[]{null, null, 1L, 9L}));
+
+        List<SupplierPurchaseMetricResponse> result = orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
+
+        assertThat(result).extracting(SupplierPurchaseMetricResponse::supplierName).containsExactly("No Supplier");
+    }
+
+    @Test
+    void getSupplierMetricsForOwnerReturnsAnEmptyListWhenNothingQualifies() {
+        stubActiveStoreOwner(store());
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
+            .thenReturn(List.of());
+
+        List<SupplierPurchaseMetricResponse> result = orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void getSupplierMetricsForOwnerRejectsAnInvertedDateRange() {
+        stubActiveStoreOwner(store());
+
+        assertThatThrownBy(() -> orderListService.getSupplierMetricsForOwner(OWNER_ID, TO_DATE, FROM_DATE))
+            .isInstanceOf(InvalidDateRangeException.class);
+        verify(orderListEntryRepository, never()).findSupplierMetricsForStore(any(), any(), any(), any());
+    }
+
+    @Test
+    void getSupplierMetricsForOwnerRejectsMissingDates() {
+        stubActiveStoreOwner(store());
+
+        assertThatThrownBy(() -> orderListService.getSupplierMetricsForOwner(OWNER_ID, null, TO_DATE))
+            .isInstanceOf(InvalidDateRangeException.class);
+    }
+
+    @Test
+    void getSupplierMetricsForOwnerThrowsForAnOwnerWithNoActiveStore() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE))
+            .isInstanceOf(StoreNotFoundException.class);
     }
 }

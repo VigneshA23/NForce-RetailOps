@@ -226,6 +226,38 @@
   line-height: 1.1;
 }
 
+.stat-card__unit {
+  margin-left: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.stat-card__caption {
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.stat-card__caption--primary {
+  color: var(--color-badge-icon-primary-fg);
+}
+
+.stat-card__caption--success {
+  color: var(--color-badge-icon-success-fg);
+}
+
+.stat-card__caption--warning {
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.stat-card__caption--info {
+  color: var(--color-badge-icon-info-fg);
+}
+
+.stat-card__caption--purple {
+  color: var(--color-badge-icon-purple-fg);
+}
+
 .stat-card__trend {
   display: inline-flex;
   align-items: center;

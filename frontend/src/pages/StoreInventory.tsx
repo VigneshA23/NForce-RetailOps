@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Boxes, CircleCheck, CircleSlash, Plus } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Boxes, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createStoreInventoryItem,
@@ -9,35 +9,62 @@ import {
   updateStoreInventoryItem,
 } from '../api/storeInventory';
 import { findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
-import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
+import { INVENTORY_ITEM_CATEGORY_OPTIONS, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
-import StoreInventoryTable from '../components/StoreInventoryTable';
+import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
+import StoreInventoryCardGrid from '../components/StoreInventoryCardGrid';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StockCheckHistory from '../components/StockCheckHistory';
 import SearchInput from '../components/SearchInput';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
+import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
+import useDismissablePanel from '../hooks/useDismissablePanel';
+import { getStockStatus } from '../utils/storeInventoryStatus';
+import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
 import './StoreInventory.css';
 
 type SubTab = 'items' | 'history';
 
-const SUB_TABS: { key: SubTab; label: string }[] = [
-  { key: 'items', label: 'Items' },
-  { key: 'history', label: 'Inventory History' },
+const SUB_TABS: { key: SubTab; label: string; icon: typeof Package }[] = [
+  { key: 'items', label: 'Items', icon: Package },
+  { key: 'history', label: 'History', icon: Clock },
 ];
 
-type ItemModalState = { mode: 'create' } | { mode: 'edit'; item: StoreInventoryItem } | null;
+type SortOption = 'name' | 'status' | 'supplier' | 'category';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'name', label: 'Sort: Category & Name' },
+  { value: 'status', label: 'Sort: Status' },
+  { value: 'supplier', label: 'Sort: Supplier' },
+  { value: 'category', label: 'Sort: Category' },
+];
+
+const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
+
+const STATUS_SORT_ORDER = { low: 0, out: 1, in: 2, inactive: 3 } as const;
 
 function StoreInventory() {
   const [subTab, setSubTab] = useState<SubTab>('items');
+  const [historyTotal, setHistoryTotal] = useState(0);
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [sort, setSort] = useState<SortOption>('name');
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  useDismissablePanel({ isOpen: isExportMenuOpen, onClose: () => setIsExportMenuOpen(false), refs: [exportMenuRef] });
 
-  const [itemModal, setItemModal] = useState<ItemModalState>(null);
+  // Add uses a centered modal; Edit opens the item in a right-side sliding
+  // panel instead -- different enough UIs (see mockups) to keep as separate
+  // state rather than one "mode" flag.
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<StoreInventoryItem | null>(null);
   const [itemFormError, setItemFormError] = useState<string | null>(null);
   const [isItemSubmitting, setIsItemSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<StoreInventoryItem | null>(null);
@@ -68,6 +95,18 @@ function StoreInventory() {
     return () => window.clearInterval(id);
   }, []);
 
+  // Keep the open edit panel's own item reference fresh across that same
+  // poll (e.g. its "Current Available" or active flag), without resetting
+  // whatever the owner is mid-typing -- StoreInventoryItemEditPanel only
+  // resets its form when item.id itself changes.
+  useEffect(() => {
+    if (!editTarget) return;
+    const fresh = items.find((i) => i.id === editTarget.id);
+    if (fresh && fresh !== editTarget) {
+      setEditTarget(fresh);
+    }
+  }, [items, editTarget]);
+
   // Inline "Add New Supplier" from the item form: persist it, then merge it
   // into the local directory so it's selectable for every later item too.
   async function handleCreateSupplier(name: string): Promise<Supplier> {
@@ -82,20 +121,32 @@ function StoreInventory() {
     return supplier;
   }
 
-  async function handleItemSubmit(values: StoreInventoryItemFormValues) {
+  async function handleCreateSubmit(values: StoreInventoryItemFormValues) {
     setItemFormError(null);
     setIsItemSubmitting(true);
     try {
-      if (itemModal?.mode === 'edit') {
-        const updated = await updateStoreInventoryItem(itemModal.item.id, values);
-        setItems((current) => current.map((i) => (i.id === updated.id ? updated : i)));
-        nfToast.success(`"${updated.name}" updated.`);
-      } else {
-        const created = await createStoreInventoryItem(values);
-        setItems((current) => [...current, created]);
-        nfToast.success(`"${created.name}" added.`);
-      }
-      setItemModal(null);
+      const created = await createStoreInventoryItem(values);
+      setItems((current) => [...current, created]);
+      nfToast.success(`"${created.name}" added.`);
+      setIsCreateModalOpen(false);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setItemFormError(msg);
+      nfToast.error(msg);
+    } finally {
+      setIsItemSubmitting(false);
+    }
+  }
+
+  async function handleEditSubmit(values: StoreInventoryItemFormValues) {
+    if (!editTarget) return;
+    setItemFormError(null);
+    setIsItemSubmitting(true);
+    try {
+      const updated = await updateStoreInventoryItem(editTarget.id, values);
+      setItems((current) => current.map((i) => (i.id === updated.id ? updated : i)));
+      nfToast.success(`"${updated.name}" updated.`);
+      setEditTarget(null);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setItemFormError(msg);
@@ -135,26 +186,67 @@ function StoreInventory() {
   }
 
   const activeCount = useMemo(() => items.filter((i) => i.active).length, [items]);
+  const lowStockCount = useMemo(() => items.filter((i) => getStockStatus(i) === 'low').length, [items]);
+  const outOfStockCount = useMemo(() => items.filter((i) => getStockStatus(i) === 'out').length, [items]);
+
+  const distinctCategories = useMemo(
+    () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
+      CATEGORY_LABELS[a].localeCompare(CATEGORY_LABELS[b]),
+    ),
+    [items],
+  );
 
   const filteredItems = items.filter((item) => {
     const term = search.trim().toLowerCase();
-    if (!term) return true;
-    return item.name.toLowerCase().includes(term);
+    const matchesSearch =
+      !term ||
+      item.name.toLowerCase().includes(term) ||
+      (item.category ? CATEGORY_LABELS[item.category].toLowerCase().includes(term) : false) ||
+      (item.preferredSupplierName?.toLowerCase().includes(term) ?? false);
+    const matchesCategory = !categoryFilter || item.category === categoryFilter;
+    return matchesSearch && matchesCategory;
   });
+
+  const sortedItems = [...filteredItems].sort((a, b) => {
+    switch (sort) {
+      case 'status':
+        return STATUS_SORT_ORDER[getStockStatus(a)] - STATUS_SORT_ORDER[getStockStatus(b)] || a.name.localeCompare(b.name);
+      case 'supplier':
+        return (a.preferredSupplierName ?? '').localeCompare(b.preferredSupplierName ?? '') || a.name.localeCompare(b.name);
+      case 'category':
+      case 'name':
+      default:
+        return (a.category ? CATEGORY_LABELS[a.category] : '').localeCompare(b.category ? CATEGORY_LABELS[b.category] : '') || a.name.localeCompare(b.name);
+    }
+  });
+
+  const storeName = items[0]?.storeName ?? null;
 
   return (
     <div className="store-inventory-page">
       <div className="store-inventory-page__subtabs">
-        {SUB_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`store-inventory-page__subtab${subTab === tab.key ? ' store-inventory-page__subtab--active' : ''}`}
-            onClick={() => setSubTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        <div className="store-inventory-page__subtab-list">
+          {SUB_TABS.map((tab) => {
+            const Icon = tab.icon;
+            const badgeCount = tab.key === 'items' ? items.length : historyTotal;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                className={`store-inventory-page__subtab${subTab === tab.key ? ' store-inventory-page__subtab--active' : ''}`}
+                onClick={() => setSubTab(tab.key)}
+              >
+                <Icon size={14} />
+                {tab.label}
+                <span className="store-inventory-page__subtab-badge">{badgeCount}</span>
+              </button>
+            );
+          })}
+        </div>
+        <span className="store-inventory-page__sync-indicator" title="Items and history refresh automatically every 60 seconds">
+          <span className="store-inventory-page__sync-dot" aria-hidden="true" />
+          Auto-Synced
+        </span>
       </div>
 
       {subTab === 'items' && (
@@ -167,75 +259,129 @@ function StoreInventory() {
           </div>
         ) : (
           <>
-            <div className="stat-card-row">
-              <StatCard icon={Boxes} label="Inventory Items" value={items.length} tone="primary" />
-              <StatCard icon={CircleCheck} label="Active" value={activeCount} tone="success" />
-              <StatCard icon={CircleSlash} label="Inactive" value={items.length - activeCount} tone="warning" />
+            <div className="store-inventory-page__title-row">
+              <h1 className="store-inventory-page__title">Inventory Master</h1>
+              <div className="store-inventory-page__header-actions">
+                <div className="store-inventory-page__export" ref={exportMenuRef}>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => setIsExportMenuOpen((open) => !open)}
+                  >
+                    <FileText size={14} /> Export
+                  </button>
+                  {isExportMenuOpen && (
+                    <div className="store-inventory-page__export-menu">
+                      <button
+                        type="button"
+                        className="store-inventory-page__export-item"
+                        onClick={() => { exportInventoryCatalogCsv(sortedItems); setIsExportMenuOpen(false); }}
+                      >
+                        <FileSpreadsheet size={14} /> Export as CSV
+                      </button>
+                      <button
+                        type="button"
+                        className="store-inventory-page__export-item"
+                        onClick={() => { exportInventoryCatalogPdf(sortedItems); setIsExportMenuOpen(false); }}
+                      >
+                        <FileText size={14} /> Export as PDF
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <SpecularButton
+                  size="sm"
+                  radius={999}
+                  tint="var(--color-badge-solid-bg)"
+                  tintOpacity={1}
+                  textColor="var(--color-badge-solid-text)"
+                  lineColor="#e11d33"
+                  baseColor="#e4e4e7"
+                  followMouse
+                  proximity={180}
+                  onClick={() => { setItemFormError(null); setIsCreateModalOpen(true); }}
+                >
+                  <span className="store-inventory-page__add-label">
+                    <Plus size={16} />
+                    Add Item
+                  </span>
+                </SpecularButton>
+              </div>
             </div>
 
-            <div className="store-inventory-page__header">
-              <p className="store-inventory-page__summary">
-                {isLoading ? 'Loading...' : `${filteredItems.length} of ${items.length} items`}
-              </p>
-              <SpecularButton
-                size="sm"
-                radius={999}
-                tint="var(--color-badge-solid-bg)"
-                tintOpacity={1}
-                textColor="var(--color-badge-solid-text)"
-                lineColor="#e11d33"
-                baseColor="#e4e4e7"
-                followMouse
-                proximity={180}
-                onClick={() => { setItemFormError(null); setItemModal({ mode: 'create' }); }}
-              >
-                <span className="store-inventory-page__add-label">
-                  <Plus size={16} />
-                  Add Inventory Item
-                </span>
-              </SpecularButton>
+            <div className="stat-card-row">
+              <StatCard icon={Boxes} label="Total Items" value={items.length} unit="items" tone="primary" caption={storeName ?? undefined} />
+              <StatCard icon={CircleCheck} label="Active Items" value={activeCount} unit="items" tone="success" caption="In Stock & Ready" />
+              <StatCard icon={AlertTriangle} label="Low Stock" value={lowStockCount} unit="items" tone="warning" caption="Below Minimum Threshold" />
+              <StatCard icon={PackageX} label="Out of Stock" value={outOfStockCount} unit="items" tone="info" caption="Reorder Immediately" />
             </div>
 
             <div className="filter-bar">
               <div className="filter filter--search">
-                <SearchInput value={search} onChange={setSearch} placeholder="Search inventory" variant="filter" />
+                <SearchInput value={search} onChange={setSearch} placeholder="Search items by name, category, or supplier" variant="filter" />
               </div>
+              <Select
+                className="filter"
+                options={[
+                  { value: '', label: `All Categories (${distinctCategories.length})` },
+                  ...distinctCategories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
+                ]}
+                value={categoryFilter}
+                onChange={setCategoryFilter}
+                ariaLabel="Filter by category"
+              />
+              <Select
+                className="filter"
+                options={SORT_OPTIONS}
+                value={sort}
+                onChange={(value) => setSort(value as SortOption)}
+                ariaLabel="Sort items"
+              />
+              <FilterClearButton
+                ariaLabel="Clear inventory filters"
+                onClick={() => { setSearch(''); setCategoryFilter(''); setSort('name'); }}
+              />
             </div>
 
-            <StoreInventoryTable
-              items={filteredItems}
-              showStore={false}
+            <p className="store-inventory-page__catalog-line">
+              <strong>Catalog Directory</strong>
+              <span aria-hidden="true"> · </span>
+              {isLoading ? 'Loading...' : `Showing ${sortedItems.length} Active Items Across ${distinctCategories.length} Categories`}
+            </p>
+
+            <StoreInventoryCardGrid
+              items={sortedItems}
               isLoading={isLoading}
-              onEdit={(item) => { setItemFormError(null); setItemModal({ mode: 'edit', item }); }}
+              selectedId={editTarget?.id ?? null}
+              onEdit={(item) => { setItemFormError(null); setEditTarget(item); }}
               onDelete={(item) => { setDeleteError(null); setDeleteTarget(item); }}
               onToggleStatus={handleToggleStatus}
             />
             {deleteError && <div className="store-inventory-page__error">{deleteError}</div>}
 
             <StoreInventoryItemFormModal
-              isOpen={itemModal !== null}
-              mode={itemModal?.mode ?? 'create'}
+              isOpen={isCreateModalOpen}
+              mode="create"
               suppliers={suppliers}
               onCreateSupplier={handleCreateSupplier}
-              initialValues={
-                itemModal?.mode === 'edit'
-                  ? {
-                      storeId: null,
-                      name: itemModal.item.name,
-                      category: itemModal.item.category ?? 'INGREDIENTS',
-                      unitOfMeasurement: itemModal.item.unitOfMeasurement,
-                      minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
-                      minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
-                      preferredSupplierId: itemModal.item.preferredSupplierId,
-                      note: itemModal.item.note ?? '',
-                    }
-                  : undefined
-              }
               errorMessage={itemFormError}
               isSubmitting={isItemSubmitting}
-              onClose={() => setItemModal(null)}
-              onSubmit={handleItemSubmit}
+              onClose={() => setIsCreateModalOpen(false)}
+              onSubmit={handleCreateSubmit}
             />
+
+            {editTarget && (
+              <StoreInventoryItemEditPanel
+                isOpen
+                item={editTarget}
+                suppliers={suppliers}
+                onCreateSupplier={handleCreateSupplier}
+                errorMessage={itemFormError}
+                isSubmitting={isItemSubmitting}
+                onClose={() => setEditTarget(null)}
+                onSubmit={handleEditSubmit}
+              />
+            )}
 
             <ConfirmDialog
               isOpen={deleteTarget !== null}
@@ -248,7 +394,7 @@ function StoreInventory() {
         )
       )}
 
-      {subTab === 'history' && <StockCheckHistory />}
+      {subTab === 'history' && <StockCheckHistory onTotalChange={setHistoryTotal} />}
     </div>
   );
 }

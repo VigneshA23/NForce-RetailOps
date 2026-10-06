@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { getTodayStockCheck, reportAdHocShortage, submitStockCheck } from '../api/stockChecks';
-import type { DailyStockCheckItem, StockCheckSnapshotKey } from '../types/stockCheck';
+import { getAllStoreItemsForEmployee, getTodayStockCheck, reportAdHocShortage, submitStockCheck } from '../api/stockChecks';
+import type { DailyStockCheckItem, StockCheckSnapshotKey, StoreInventoryItemOption } from '../types/stockCheck';
 import type { StoreSummary } from '../types/store';
 import AdHocShortageModal, { type AdHocShortageValues } from '../components/AdHocShortageModal';
 import EmployeeStockCheckHistory from '../components/EmployeeStockCheckHistory';
@@ -54,6 +54,12 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
   const [isAdHocOpen, setIsAdHocOpen] = useState(false);
   const [adHocError, setAdHocError] = useState<string | null>(null);
   const [isAdHocSubmitting, setIsAdHocSubmitting] = useState(false);
+  // All of the store's items (active and inactive, matching Owner/Admin's
+  // Inventory Items list) for the Report Shortage picker -- deliberately a
+  // separate fetch from `items` above, which is today's active checklist
+  // only. Fetched on demand when the modal opens rather than on every page
+  // load, since the feature is used occasionally.
+  const [adHocItemOptions, setAdHocItemOptions] = useState<StoreInventoryItemOption[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<number, boolean>>({});
@@ -207,7 +213,11 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
         <button
           type="button"
           className="btn btn--danger"
-          onClick={() => { setAdHocError(null); setIsAdHocOpen(true); }}
+          onClick={() => {
+            setAdHocError(null);
+            setIsAdHocOpen(true);
+            getAllStoreItemsForEmployee(store.id).then(setAdHocItemOptions).catch(() => {});
+          }}
         >
           <AlertTriangle size={16} />
           Report Shortage
@@ -280,7 +290,7 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
             >
               <div className="employee-stock-check-page__item-header">
                 <div className="employee-stock-check-page__item-identity">
-                  <ItemIcon id={item.storeInventoryItemId} name={item.itemName} />
+                  <ItemIcon id={item.storeInventoryItemId} name={item.itemName} imageId={item.imageId} />
                   <div>
                     <h2 className="employee-stock-check-page__item-name">{item.itemName}</h2>
                     <p className="employee-stock-check-page__item-meta">
@@ -349,7 +359,7 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
                         savedLabel={snapshot === 'END_OF_DAY' ? 'Completed' : 'Editable Count'}
                         footer={
                           snapshot === 'START_OF_DAY' ? (
-                            <>Opening Stock: <strong>{item.startOfDay?.available ?? '—'} {item.unitOfMeasurement}</strong></>
+                            <>Opening Stock: <strong>{item.startOfDay?.usable ?? '—'} {item.unitOfMeasurement}</strong></>
                           ) : item.quantityToOrder != null && item.quantityToOrder > 0 ? (
                             <>
                               Usage: <strong>{item.stockUsed ?? '—'} {item.unitOfMeasurement}</strong> · To Order:{' '}
@@ -409,7 +419,7 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
 
       <AdHocShortageModal
         isOpen={isAdHocOpen}
-        items={items}
+        items={adHocItemOptions}
         errorMessage={adHocError}
         isSubmitting={isAdHocSubmitting}
         onClose={() => setIsAdHocOpen(false)}

@@ -113,9 +113,7 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry, 
               onChange={(value) => setStatusFilter(value as StatusFilter)}
               ariaLabel="Filter by status"
             />
-            {statusFilter !== 'ALL' && (
-              <FilterClearButton onClick={() => setStatusFilter('ALL')} />
-            )}
+            <FilterClearButton onClick={() => setStatusFilter('ALL')} />
           </div>
 
           {!canReorder && !isLoading && categories.length > 0 && (

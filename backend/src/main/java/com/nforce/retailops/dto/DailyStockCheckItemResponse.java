@@ -13,6 +13,7 @@ public record DailyStockCheckItemResponse(
     StockSnapshotResponse startOfDay,
     StockSnapshotResponse endOfDay,
     Integer stockUsed,
-    Integer quantityToOrder
+    Integer quantityToOrder,
+    Long imageId
 ) {
 }

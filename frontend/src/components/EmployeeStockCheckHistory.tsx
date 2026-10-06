@@ -8,6 +8,7 @@ import ItemIcon from './ItemIcon';
 import ButtonDots from './ButtonDots';
 import { getEmployeeStockCheckHistory } from '../api/stockChecks';
 import type { StockCheckResponse } from '../types/stockCheck';
+import { toStockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
 import { daysAgo, formatDateLabel, todayDate } from '../utils/checklistHistoryOptions';
 import { buildAndDownloadStockCheckHistoryPdf, buildStockCheckHistoryWorkbook } from '../utils/stockCheckHistoryExport';
 import { downloadWorkbook } from '../utils/xlsx';
@@ -21,31 +22,6 @@ const PAGE_SIZE = 50;
 // this endpoint enforces allows, since a missing bound is a 400 here.
 function widestAllowedRange(): { startDate: string; endDate: string } {
   return { startDate: daysAgo(91), endDate: todayDate() };
-}
-
-type RowStatus = 'shortage' | 'optimal' | 'pending';
-
-interface HistoryRowView extends StockCheckResponse {
-  counted: number | null;
-  deficit: number | null;
-  buffer: number | null;
-  status: RowStatus;
-}
-
-// "Counted" is the day's End of Day count (what actually got reconciled);
-// "Required Par" (requiredPar) is that day's own par level, set regardless of
-// whether End of Day was ever recorded -- unlike requiredTomorrow (the
-// forward-looking threshold that drives the order list), so a row always has
-// a par to compare against. Deficit/buffer are computed here against that
-// par, the same "available vs target" comparison the live Daily Stock Entry
-// page uses, rather than reusing quantityToOrder (a different, next-day metric).
-function toRowView(row: StockCheckResponse): HistoryRowView {
-  const counted = row.endOfDay?.usable ?? null;
-  const hasData = counted != null && row.requiredPar != null;
-  const deficit = hasData ? Math.max(0, row.requiredPar! - counted!) : null;
-  const status: RowStatus = deficit != null && deficit > 0 ? 'shortage' : hasData ? 'optimal' : 'pending';
-  const buffer = hasData && status === 'optimal' ? counted! - row.requiredPar! : null;
-  return { ...row, counted, deficit, buffer, status };
 }
 
 type StatusFilter = 'all' | 'shortage' | 'optimal';
@@ -115,7 +91,7 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storeId, dateRange, page]);
 
-  const viewRows = useMemo(() => rows.map(toRowView), [rows]);
+  const viewRows = useMemo(() => rows.map(toStockCheckHistoryRowView), [rows]);
 
   const shortageCount = useMemo(() => viewRows.filter((r) => r.status === 'shortage').length, [viewRows]);
   const optimalCount = useMemo(() => viewRows.filter((r) => r.status === 'optimal').length, [viewRows]);

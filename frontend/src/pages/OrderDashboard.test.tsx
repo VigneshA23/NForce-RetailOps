@@ -11,6 +11,7 @@ vi.mock('../api/orderList', () => ({
   updateOrderListEntry: vi.fn(),
   createOrderListEntry: vi.fn(),
   getNeedsOrderingCount: vi.fn(),
+  getSupplierPurchaseMetrics: vi.fn(),
 }));
 vi.mock('../api/suppliers', () => ({ getOwnerSuppliers: vi.fn() }));
 vi.mock('../api/storeInventory', () => ({
@@ -34,6 +35,7 @@ beforeEach(() => {
   vi.mocked(storeInventoryApi.getEodSupplierReport).mockReset().mockResolvedValue({
     date: '2026-09-30', itemsNeedingOrder: 0, itemsPendingEndOfDay: 0, groups: [],
   });
+  vi.mocked(orderListApi.getSupplierPurchaseMetrics).mockReset().mockResolvedValue([]);
 });
 
 describe('OrderDashboard shell', () => {
@@ -54,6 +56,9 @@ describe('OrderDashboard shell', () => {
 
     await user.click(screen.getByRole('button', { name: 'End of Day Report' }));
     expect(await screen.findByText('No inventory items to report for this day.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Supplier Purchasing Summary' }));
+    expect(await screen.findByText('No purchasing activity found for the selected date range.')).toBeInTheDocument();
   });
 
   // Arriving from the Home low-stock tile always lands on Order List, even if

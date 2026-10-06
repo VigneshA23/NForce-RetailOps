@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
 import com.nforce.retailops.dto.StoreOperationsSummaryResponse;
 import com.nforce.retailops.dto.StoreOutstandingOrdersRow;
+import com.nforce.retailops.dto.StoreSupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.TrendDataPoint;
 import com.nforce.retailops.entity.MakeupLinkStatus;
 import com.nforce.retailops.entity.OrderStatus;
@@ -18,6 +19,7 @@ import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.TaskMakeupLinkRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
+import com.nforce.retailops.util.DateRangeValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +50,12 @@ public class SuperAdminOperationsService {
     // throws when exceeded, rather than a silent cap on response rows. Coupling
     // them would let a change to one quietly break the other's contract.
     private static final int MAX_OUTSTANDING_ROWS = 50;
+
+    // Matches OrderListService's own cap for its (store-scoped) version of
+    // this same report.
+    private static final int MAX_DATE_RANGE_DAYS = 92;
+
+    static final String NO_SUPPLIER = "No Supplier";
 
     private final StoreOwnerRepository storeOwnerRepository;
     private final TaskRepository taskRepository;
@@ -114,6 +122,32 @@ public class SuperAdminOperationsService {
 
         return new OutstandingOrdersOverviewResponse(
             platformOutstandingCount, rows.size(), rows.size() > MAX_OUTSTANDING_ROWS, stores);
+    }
+
+    // Super Admin's cross-store Supplier Purchasing Summary. Deliberately a
+    // separate query from getOutstandingOrdersOverview above: that one is
+    // locked to NEEDS_ORDERING for a different feature (what still needs
+    // ordering right now) and must not change behavior for this one (what was
+    // actually purchased, ORDERED/RECEIVED, in a date range). COUNT/SUM/GROUP
+    // BY all happen in findSupplierMetricsGroupedByStore, not here.
+    @Transactional(readOnly = true)
+    public List<StoreSupplierPurchaseMetricResponse> getSupplierPurchaseMetrics(LocalDate fromDate, LocalDate toDate) {
+        DateRangeValidator.validate(fromDate, toDate, MAX_DATE_RANGE_DAYS);
+
+        List<Object[]> rows = orderListEntryRepository.findSupplierMetricsGroupedByStore(
+            OrderStatus.PURCHASED_STATUSES, OrderListService.rangeStart(fromDate), OrderListService.rangeEndExclusive(toDate));
+
+        return rows.stream()
+            .map(row -> new StoreSupplierPurchaseMetricResponse(
+                ((Number) row[0]).longValue(),
+                (String) row[1],
+                row[3] != null ? (String) row[3] : NO_SUPPLIER,
+                ((Number) row[4]).longValue(),
+                ((Number) row[5]).longValue()
+            ))
+            .sorted(Comparator.comparing(StoreSupplierPurchaseMetricResponse::storeName, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(StoreSupplierPurchaseMetricResponse::supplierName, String.CASE_INSENSITIVE_ORDER))
+            .toList();
     }
 
     @Transactional(readOnly = true)

@@ -1,0 +1,5 @@
+.store-inventory-table__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}

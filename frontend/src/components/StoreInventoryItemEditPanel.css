@@ -1,0 +1,174 @@
+@import '../styles/breakpoints.css';
+
+/* Right-side sliding panel instead of a centered dialog -- overrides the
+   shared .modal-overlay/.modal layout only when this panel's own class is
+   present, so every other Modal usage is untouched. */
+.modal-overlay:has(> .item-edit-panel) {
+  justify-content: flex-end;
+  align-items: stretch;
+  padding: 0;
+}
+
+.item-edit-panel {
+  max-width: 440px;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 0;
+  animation: item-edit-panel-slide-in 0.18s ease-out;
+}
+
+@keyframes item-edit-panel-slide-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@media (--mobile) {
+  .item-edit-panel {
+    max-width: 100%;
+  }
+}
+
+.item-edit-panel__status {
+  text-transform: none;
+}
+
+.item-edit-panel .form-field__label {
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.item-edit-panel__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+  /* Matches .form-field's own margin-bottom (forms.css) so every block in
+     this form -- plain field or custom section alike -- is spaced the same
+     as the Add Item form's fields. */
+  margin-bottom: var(--space-md);
+}
+
+.item-edit-panel__category-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.item-edit-panel__add-category {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.item-edit-panel__add-category:hover {
+  text-decoration: underline;
+}
+
+.item-edit-panel__section {
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-sunken, rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--color-border);
+  margin-bottom: var(--space-md);
+}
+
+.item-edit-panel__section-title {
+  margin: 0 0 var(--space-sm);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.item-edit-panel__store-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.item-edit-panel__store-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-badge-icon-success-fg);
+}
+
+.item-edit-panel__quantities {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-md);
+}
+
+.item-edit-panel__quantity-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.item-edit-panel__quantity-sublabel {
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.item-edit-panel__auto-po {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-card);
+  margin-bottom: var(--space-md);
+}
+
+.item-edit-panel__auto-po-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.item-edit-panel__auto-po-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.item-edit-panel__auto-po-badge {
+  padding: 2px 8px;
+  font-size: 10px;
+}
+
+.item-edit-panel__auto-po-hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}

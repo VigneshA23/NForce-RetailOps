@@ -21,7 +21,7 @@ interface EditInventoryCountModalProps {
   onSubmit: (values: EditInventoryCountValues) => void;
 }
 
-const REASON_OPTIONS = [
+export const REASON_OPTIONS = [
   { value: 'Recount', label: 'Recount (count was wrong)' },
   { value: 'Delivery received', label: 'Delivery received, restocked' },
   { value: 'Waste or spoilage', label: 'Waste or spoilage' },

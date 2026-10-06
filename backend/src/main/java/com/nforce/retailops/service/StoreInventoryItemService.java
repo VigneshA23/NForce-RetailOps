@@ -1,7 +1,9 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
+import com.nforce.retailops.entity.InventoryItemImage;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
@@ -11,12 +13,14 @@ import com.nforce.retailops.exception.StoreInventoryItemHasHistoryException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
+import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
+import com.nforce.retailops.util.InventoryCountStatusCalculator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +42,8 @@ public class StoreInventoryItemService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StockCheckRepository stockCheckRepository;
     private final OrderListEntryRepository orderListEntryRepository;
+    private final InventoryItemImageRepository inventoryItemImageRepository;
+    private final UnsplashService unsplashService;
 
     public StoreInventoryItemService(
         StoreInventoryItemRepository storeInventoryItemRepository,
@@ -45,7 +51,9 @@ public class StoreInventoryItemService {
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         StockCheckRepository stockCheckRepository,
-        OrderListEntryRepository orderListEntryRepository
+        OrderListEntryRepository orderListEntryRepository,
+        InventoryItemImageRepository inventoryItemImageRepository,
+        UnsplashService unsplashService
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.supplierRepository = supplierRepository;
@@ -53,6 +61,8 @@ public class StoreInventoryItemService {
         this.storeOwnerRepository = storeOwnerRepository;
         this.stockCheckRepository = stockCheckRepository;
         this.orderListEntryRepository = orderListEntryRepository;
+        this.inventoryItemImageRepository = inventoryItemImageRepository;
+        this.unsplashService = unsplashService;
     }
 
     // ---------------------------------------------------------------------
@@ -151,6 +161,60 @@ public class StoreInventoryItemService {
         deleteItem(item);
     }
 
+    // Every active store's current stock position for one item, matched by
+    // case-insensitive name since there is no shared item catalog to join
+    // on. A store with no (active) item of that name comes back with
+    // assigned=false and every other field null rather than a misleading
+    // zero. Reflects each store's latest submitted count, not just today's,
+    // same staleness-aware tiering as the Owner/Admin Inventory Counts view
+    // -- see InventoryCountStatusCalculator.
+    @Transactional(readOnly = true)
+    public List<StockLevelComparisonRowResponse> compareAcrossStores(String itemName) {
+        List<Store> activeStores = storeRepository.findByActiveTrueOrderByName();
+
+        // Nothing enforces one active item per name per store, so a store can
+        // legitimately have two active "Milk"s (e.g. entered under different
+        // categories). Pick the lowest id deterministically rather than
+        // letting Collectors.toMap blow up on the duplicate key.
+        Map<Long, StoreInventoryItem> itemByStoreId = storeInventoryItemRepository
+            .findByNameIgnoreCase(itemName).stream()
+            .filter(StoreInventoryItem::isActive)
+            .collect(Collectors.toMap(
+                item -> item.getStore().getId(),
+                item -> item,
+                (a, b) -> a.getId() <= b.getId() ? a : b
+            ));
+
+        List<Long> itemIds = itemByStoreId.values().stream().map(StoreInventoryItem::getId).toList();
+        Map<Long, StockCheck> latestByItemId = itemIds.isEmpty()
+            ? Map.of()
+            : stockCheckRepository.findLatestPerItemForItemIds(itemIds).stream()
+                .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), sc -> sc));
+
+        LocalDate today = LocalDate.now();
+        List<StockLevelComparisonRowResponse> rows = activeStores.stream()
+            .map(store -> toComparisonRow(store, itemByStoreId.get(store.getId()), latestByItemId, today))
+            .toList();
+
+        return rows;
+    }
+
+    private StockLevelComparisonRowResponse toComparisonRow(
+        Store store, StoreInventoryItem item, Map<Long, StockCheck> latestByItemId, LocalDate today
+    ) {
+        if (item == null) {
+            return new StockLevelComparisonRowResponse(store.getId(), store.getName(), false, null, null, null, null);
+        }
+        Integer minimum = item.requiredMinimumOn(today);
+        StockCheck latest = latestByItemId.get(item.getId());
+        return new StockLevelComparisonRowResponse(
+            store.getId(), store.getName(), true, minimum,
+            latest == null ? null : latest.getCurrentCount(),
+            latest == null ? null : latest.getCheckDate(),
+            InventoryCountStatusCalculator.calculate(latest, today, minimum)
+        );
+    }
+
     // ---------------------------------------------------------------------
     // Shared helpers
     // ---------------------------------------------------------------------
@@ -198,6 +262,7 @@ public class StoreInventoryItemService {
         item.setMinWeekday(request.minWeekday());
         item.setMinWeekend(request.minWeekend());
         item.setNote(request.note() != null ? request.note().trim() : null);
+        item.setAutoPoEnabled(request.autoPoEnabled());
 
         if (request.preferredSupplierId() == null) {
             item.setPreferredSupplier(null);
@@ -205,6 +270,37 @@ public class StoreInventoryItemService {
             Supplier supplier = supplierRepository.findById(request.preferredSupplierId())
                 .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
             item.setPreferredSupplier(supplier);
+        }
+
+        applyImage(item, request);
+    }
+
+    // Swaps in a newly picked Unsplash photo (downloaded now and stored as a
+    // new image row) or removes the current one. The replaced row is deleted
+    // rather than orphaned; Hibernate flushes that delete after the item's
+    // update, so the FK never points at a missing row.
+    private void applyImage(StoreInventoryItem item, StoreInventoryItemRequest request) {
+        String photoId = request.imagePhotoId() != null ? request.imagePhotoId().trim() : "";
+        boolean remove = Boolean.TRUE.equals(request.removeImage());
+        if (photoId.isEmpty() && !remove) {
+            return;
+        }
+
+        InventoryItemImage previous = item.getImage();
+        if (photoId.isEmpty()) {
+            item.setImage(null);
+        } else {
+            UnsplashService.DownloadedPhoto photo = unsplashService.download(photoId);
+            InventoryItemImage image = new InventoryItemImage();
+            image.setContentType(photo.contentType());
+            image.setData(photo.data());
+            image.setUnsplashPhotoId(photo.photoId());
+            image.setPhotographerName(photo.photographerName());
+            image.setPhotographerUrl(photo.photographerUrl());
+            item.setImage(inventoryItemImageRepository.save(image));
+        }
+        if (previous != null) {
+            inventoryItemImageRepository.delete(previous);
         }
     }
 
@@ -217,6 +313,10 @@ public class StoreInventoryItemService {
             throw new StoreInventoryItemHasHistoryException(
                 "This inventory item has stock-check or order history and cannot be deleted. Deactivate it instead.");
         }
+        InventoryItemImage image = item.getImage();
         storeInventoryItemRepository.delete(item);
+        if (image != null) {
+            inventoryItemImageRepository.delete(image);
+        }
     }
 }

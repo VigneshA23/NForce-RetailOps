@@ -10,6 +10,11 @@ import java.util.List;
 
 public interface StoreRepository extends JpaRepository<Store, Long> {
 
+    // Every active store, alphabetical -- the row set for Super Admin's
+    // cross-store stock-level comparison (a deactivated store has no current
+    // operations to compare).
+    List<Store> findByActiveTrueOrderByName();
+
     // Case-insensitive, trimmed name+location match -- used to reject
     // creating a new store that duplicates an existing one (active or not;
     // a deactivated store's name/location should be reassigned via the
