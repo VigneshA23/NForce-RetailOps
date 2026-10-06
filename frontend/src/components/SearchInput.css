@@ -128,3 +128,17 @@
 .search-input--filter .search-input__clear:hover {
   color: var(--color-text-primary);
 }
+
+.search-input--filter--surface {
+  /* No max-width: it's the row's only flex-grow item, so it should absorb
+     every bit of free space itself -- otherwise that space ends up as a gap
+     next to it instead, pushed there by the filter group's margin-left:auto. */
+  flex: 1 1 260px;
+  background: var(--color-surface-card);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.search-input--filter--surface .search-input--filter__field {
+  font-size: 14px;
+}

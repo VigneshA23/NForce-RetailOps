@@ -21,13 +21,26 @@
   flex-wrap: wrap;
 }
 
-.order-list__search {
-  width: 320px;
-  max-width: 100%;
+.order-list__filter-select {
+  min-width: 170px;
 }
 
-.order-list__filter-spacer {
-  flex-grow: 1;
+/* Mobile-only row-break spacers -- see the @media (--mobile) block below. */
+.order-list__row-break {
+  display: none;
+}
+
+/* Keeps categories/status/supplier/Clear/the view toggle together as one
+   block, pushed to the right of the row via margin-left: auto -- the search
+   box (the row's only other flexible item) absorbs all the freed-up space
+   on the left instead of that space sitting between the filters and the
+   toggle. */
+.order-list__filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
 }
 
 .order-list__view-toggle {
@@ -60,6 +73,42 @@
 .order-list__view-btn--active {
   background: #ececef;
   color: #18181b;
+}
+
+/* No extra margin -- the toggle just sits in the normal 10px flex gap like
+   every other filter in this group, whether or not Clear is currently
+   showing (its slot is reserved, not unmounted, so the toggle never jumps). */
+.order-list__view-toggle--spaced {
+  margin-left: 0;
+}
+
+/* Below desktop width there usually isn't room for "search + 3 selects +
+   toggle" all on one line without everything getting cramped or truncated.
+   Splitting the row into two full-width lines (search on its own, the
+   filter group on its own) keeps every control at a readable size instead
+   of fighting the others for space. */
+@media (--tablet-down) {
+  /* Higher specificity than SearchInput.css's own rule, needed since both
+     files' load order isn't guaranteed -- this must win regardless. */
+  .order-list__filter-row .search-input--filter--surface {
+    flex-basis: 100%;
+    max-width: none;
+  }
+
+  .order-list__filter-group {
+    flex-basis: 100%;
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .order-list__filter-select {
+    flex: 1 1 140px;
+    min-width: 120px;
+  }
+
+  .order-list__view-toggle--spaced {
+    margin-left: 0;
+  }
 }
 
 .order-list__action-bar {
@@ -189,11 +238,13 @@
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
 }
 
+/* Same 16px side padding as the table cells below it, so this row's left
+   edge lines up with the checkbox column instead of sitting 4px further in. */
 .order-list__group-header {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 12px 16px 12px 12px;
+  padding: 12px var(--space-md);
   flex-wrap: wrap;
 }
 
@@ -262,6 +313,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.order-list__group-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .order-list__dark-btn {
   height: 34px;
   border: none;
@@ -293,26 +350,18 @@
   white-space: nowrap;
 }
 
-.order-list__group-columns {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 1.4fr) minmax(0, 1fr) 80px 100px 196px;
-  column-gap: 32px;
-  align-items: center;
-  padding: 8px 20px;
-  background: #fafafa;
-  border-top: 1px solid #f0f0f2;
-  border-bottom: 1px solid #f0f0f2;
-  font-size: 11px;
-  font-weight: 700;
-  color: #71717a;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
 .order-list__status-header {
   text-align: right;
 }
 
+/* table-layout: fixed with a <colgroup> of percentages that add up to
+   exactly 100% -- each column gets a deliberate, proportional share of the
+   row instead of auto-layout's unreliable "give leftover space to whichever
+   column the engine feels like" behavior (which left dead gaps in one
+   browser and over-grew a single column in another). Content too long for
+   its column wraps/truncates there rather than resizing the table itself.
+   Below min-width, the .table-scroll wrapper scrolls horizontally instead
+   of columns being squeezed unreadably. */
 .order-list__group-table,
 .order-list__flat-table {
   width: 100%;
@@ -321,9 +370,46 @@
   table-layout: fixed;
 }
 
-.order-list__group-table col:nth-child(1),
-.order-list__flat-table col.order-list__col-checkbox {
-  width: 20px;
+.order-list__group-table {
+  min-width: 680px;
+}
+
+.order-list__flat-table {
+  min-width: 1100px;
+}
+
+/* Grouped table's colgroup: every fixed-width column below is a px/%
+   length, and Item (the lone <col> left with no width) absorbs whatever's
+   left -- this is why Item no longer balloons or starves depending on
+   content, and why every supplier card lines up identically (same classes,
+   same widths, regardless of that card's own row content). */
+.order-list__col--checkbox {
+  width: 48px;
+}
+
+.order-list__col--category {
+  width: 16%;
+}
+
+.order-list__col--num {
+  width: 10%;
+}
+
+.order-list__col--status {
+  width: 200px;
+}
+
+.order-list__col--actions {
+  width: 56px;
+}
+
+/* Category is the least essential column at a glance (mostly "--" anyway),
+   so it's the first thing dropped when space is tight. */
+@media (max-width: 768px) {
+  .order-list__col--category,
+  .order-list__category-cell {
+    display: none;
+  }
 }
 
 .order-list__row {
@@ -334,9 +420,14 @@
   background: #fafafb !important;
 }
 
-.order-list__checkbox-cell {
-  width: 20px;
-  padding: 11px 0 11px 20px;
+/* Qualified with the table class so this outranks the generic td/th padding
+   rule below it (both are otherwise equal specificity, and source order
+   alone can't be relied on here). Width is left to the <colgroup> now --
+   redeclaring it here would just be a second, possibly-conflicting source
+   of truth for the same column. */
+.order-list__group-table .order-list__checkbox-cell,
+.order-list__flat-table .order-list__checkbox-cell {
+  padding: 11px 0 11px var(--space-md);
   text-align: center;
 }
 
@@ -356,9 +447,19 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-size: 14px;
   font-weight: 700;
   color: #18181b;
+}
+
+/* Truncates with an ellipsis instead of wrapping onto a second line, so a
+   long item name can't push the row taller or crowd the columns beside it. */
+.order-list__item-name-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .order-list__manual-badge {
@@ -378,6 +479,18 @@
   text-overflow: ellipsis;
 }
 
+/* Mobile's sub-line is "Category · Person · Time" instead of desktop's
+   "Person [· note]" -- shown/hidden opposite .order-list__item-meta inside
+   the @media (--mobile) block below. */
+.order-list__item-mobile-meta {
+  display: none;
+  font-size: 12px;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .order-list__category-cell {
   font-size: 13px;
   color: #52525b;
@@ -388,6 +501,19 @@
   font-size: 14px;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.order-list__num-header {
+  text-align: right;
+}
+
+/* Wraps Stock/Need's two value spans (e.g. "2" + "/ 6") so mobile's
+   flex-direction: column cell (label above value) has exactly two flex
+   items -- the label and this one wrapper -- instead of one per span,
+   which stacked "2" and "/ 6" onto separate lines. */
+.order-list__cell-value {
+  white-space: nowrap;
 }
 
 .order-list__on-hand {
@@ -410,12 +536,16 @@
   color: #52525b;
 }
 
+.order-list__group-table td,
+.order-list__group-table th,
 .order-list__flat-table td,
 .order-list__flat-table th {
-  padding: 13px 12px;
+  padding: 12px var(--space-md);
   text-align: left;
+  vertical-align: middle;
 }
 
+.order-list__group-table thead tr,
 .order-list__flat-table thead tr {
   background: #fafafa;
   color: #71717a;
@@ -424,6 +554,7 @@
   letter-spacing: 0.06em;
 }
 
+.order-list__group-table thead th,
 .order-list__flat-table thead th {
   font-weight: 700;
   border-bottom: 1px solid #ececef;
@@ -432,6 +563,12 @@
 .order-list__status-cell {
   text-align: right;
   padding: 10px 20px !important;
+}
+
+/* Grouped table only -- the edit (pencil) button's own column, separate
+   from Status's dropdown column, right-aligned under its (empty) header. */
+.order-list__actions-cell {
+  text-align: right;
 }
 
 .order-list__status-actions {
@@ -479,4 +616,350 @@
   border-radius: 14px;
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   overflow: hidden;
+}
+
+/* Phone width can't fit a real table, so each row becomes a small stacked
+   card: checkbox + item on top, Stock/Need/Status in a second line below.
+   Both tables share one grid shape (checkbox | stock | need | status |
+   actions, with item spanning the last four on its own row) -- the classes
+   that differ between grouped and flat (status-dropdown-cell + actions-cell
+   vs. the flat table's single combined status-cell) just slot into the same
+   columns, so one ruleset covers both. */
+@media (--mobile) {
+  /* Mobile's header is a wholly separate JSX branch in OrderList.tsx
+     (order-list__group-header--mobile), not a CSS reflow of the desktop
+     one -- the two layouts (checkbox+name+chevron vs chevron+name+summary,
+     different element altogether) diverge too much for one shared markup
+     to serve both via grid-order tricks. Its own 16px padding matches
+     .order-list__row's exactly, so the name/checkbox above lines up with
+     the checkbox/item below it. */
+  /* align-items: stretch overrides the base header's align-items: center,
+     which in a column layout would centre the rows and shrink the progress
+     bar to its content. */
+  .order-list__group-header--mobile {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .order-list__group-mobile-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .order-list__group-mobile-row .order-list__group-name {
+    flex-grow: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .order-list__group-chevron-btn {
+    flex-shrink: 0;
+    display: flex;
+    border: none;
+    background: none;
+    padding: 2px;
+    color: #71717a;
+    cursor: pointer;
+  }
+
+  /* The three lines "under the name" (progress text, bar, to-order text) are
+     one flex column so each is naturally full-width and stacks in order --
+     the two text lines right-align themselves via align-self rather than
+     needing a second grid column just for them. */
+  .order-list__group-progress-block {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .order-list__group-mobile-progress {
+    align-self: flex-end;
+    font-size: 12px;
+    font-weight: 600;
+    color: #52525b;
+    white-space: nowrap;
+  }
+
+  .order-list__group-mobile-summary {
+    align-self: flex-end;
+    font-size: 12px;
+    color: #71717a;
+    white-space: nowrap;
+  }
+
+  .order-list__group-table,
+  .order-list__flat-table {
+    min-width: 0;
+    table-layout: auto;
+  }
+
+  .order-list__group-table thead,
+  .order-list__flat-table thead {
+    display: none;
+  }
+
+  /* width/box-sizing is explicit here because a <tr> blockified to
+     display:grid no longer gets its width from the table's own layout the
+     way a real table-row does -- left to "auto" it was shrinking to its
+     content instead of filling the card, so a selected row's highlight
+     background looked inset ("floating") rather than full-bleed edge to
+     edge. 16px padding on every side, matching the card/header's own --
+     Status and the edit button right-align themselves within that via
+     justify-content: flex-end rather than by shrinking the row's own
+     padding down on the right. */
+  .order-list__row {
+    display: grid;
+    grid-template-columns: 26px 1fr 1fr auto auto;
+    column-gap: 12px;
+    row-gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 16px;
+  }
+
+  /* Explicit display on every cell instead of leaning on the browser's own
+     table/grid "fixup" rules for a <td> whose row is no longer a table-row
+     -- that fixup is inconsistent enough across engines that the app's other
+     mobile-card tables (styles/table.css) do the same. Every specific cell
+     rule below is qualified with .order-list__row so it outranks this one
+     (a plain class alone is lower specificity than ".table td", so without
+     that qualifier this reset would win and silently flatten them back to
+     block). */
+  .order-list__group-table td,
+  .order-list__flat-table td {
+    display: block;
+    padding: 0;
+  }
+
+  .order-list__group-table .order-list__checkbox-cell,
+  .order-list__flat-table .order-list__checkbox-cell {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    display: flex;
+    align-items: flex-start;
+    padding: 2px 0 0 !important;
+  }
+
+  /* Item leaves column 5 free on row 1 for the edit (pencil) button -- in
+     the grouped view (the only one with a separate actions-cell) it sits
+     top-right next to the item name, not beside the status dropdown on row
+     2 the way it did before. The flat table has no actions-cell of its own
+     (edit stays paired with the status dropdown there), so its item-td
+     still wants the full 2/6 span -- row.item-td rules below override this
+     back for it. */
+  .order-list__row .order-list__item-td {
+    grid-column: 2 / 5;
+    grid-row: 1;
+  }
+
+  .order-list__flat-table .order-list__row .order-list__item-td {
+    grid-column: 2 / 6;
+  }
+
+  .order-list__item-meta {
+    display: none;
+  }
+
+  .order-list__item-mobile-meta {
+    display: block;
+  }
+
+  .order-list__row .order-list__stock-cell {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .order-list__row .order-list__need-cell {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .order-list__row .order-list__stock-cell,
+  .order-list__row .order-list__need-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+
+  .order-list__stock-cell::before,
+  .order-list__need-cell::before {
+    content: attr(data-label);
+    font-size: 10px;
+    font-weight: 700;
+    color: #a1a1aa;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .order-list__row .order-list__status-dropdown-cell {
+    grid-column: 4 / 6;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+
+  /* Top-right, same row as the item name -- not row 2 beside the status
+     dropdown, which is where it sat before this and had its own column. */
+  .order-list__row .order-list__actions-cell {
+    grid-column: 5;
+    grid-row: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+  }
+
+  .order-list__row .order-list__status-cell {
+    grid-column: 4 / 6;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 0 !important;
+  }
+
+  .order-list__row .order-list__mobile-hide,
+  .order-list__row .order-list__category-cell {
+    display: none !important;
+  }
+
+  /* Reorders Category/Supplier onto one row, Status/Clear onto the next, and
+     the view toggle/Add item onto a third -- every flex child in the group
+     gets an explicit order (ties would otherwise sort by DOM position, which
+     is Category/Status/Supplier/.../Toggle, not the pairing the design
+     wants). The two .order-list__row-break spans are zero-size flex items
+     with flex-basis: 100% -- nothing can share a line with a 100%-wide item,
+     which is what actually forces each group onto its own row. Relying on
+     the real items' widths/flex-basis to sum to exactly 100% was unreliable:
+     a flex-basis: 0% Status (sized purely by flex-grow) contributes ~0 to
+     the browser's line-wrapping math, so it was joining the Toggle/Add item
+     line instead of getting a line of its own. */
+  .order-list__filter-select--category {
+    order: 1;
+    flex: 1 1 calc(50% - 5px);
+  }
+
+  .order-list__filter-select--supplier {
+    order: 2;
+    flex: 1 1 calc(50% - 5px);
+  }
+
+  .order-list__row-break {
+    display: block;
+    flex-basis: 100%;
+    height: 0;
+    margin: 0;
+    padding: 0;
+  }
+
+  .order-list__row-break:nth-of-type(1) {
+    order: 3;
+  }
+
+  .order-list__filter-select--status {
+    order: 4;
+    flex: 1 1 0%;
+    min-width: 0;
+  }
+
+  .order-list__clear-slot {
+    order: 5;
+    flex: 0 0 auto;
+  }
+
+  /* Unlike the desktop toolbar, Clear's slot is only reserved while a filter
+     is active -- Status has nothing else sharing its row at mobile width, so
+     there's no sibling position for Clear's absence to protect, and leaving
+     the gap reserved would just read as empty space to the right of Status. */
+  .order-list__clear-slot--empty {
+    flex: 0 0 0;
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+  }
+
+  .order-list__row-break:nth-of-type(2) {
+    order: 6;
+  }
+
+  .order-list__view-toggle--spaced {
+    order: 7;
+  }
+
+  .order-list__add-item-btn {
+    order: 8;
+    margin-left: auto;
+  }
+
+  /* Dark floating bar, fixed to the bottom of the screen while any row is
+     selected -- replaces the desktop toolbar (hidden outright on mobile via
+     the isMobile check in OrderList.tsx, not just visually here) since there
+     isn't room for its 4 buttons plus a selection count on one phone-width
+     line. */
+  /* BottomNav.css: the pill nav sits calc(16px + safe-area) off the viewport
+     bottom and is 64px tall, so its top edge is 80px + safe-area up from the
+     bottom. This bar's own bottom needs to clear that (plus a visible gap of
+     its own), or it sits flush against / under the nav instead of floating
+     above it. */
+  .order-list__mobile-selection-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    bottom: calc(80px + 14px + env(safe-area-inset-bottom, 0px));
+    z-index: 20;
+    background: #18181b;
+    color: #ffffff;
+    border-radius: 16px;
+    padding: 10px 10px 10px 16px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  }
+
+  .order-list__mobile-selection-count {
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .order-list__mobile-selection-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .order-list__mobile-selection-actions button {
+    height: 36px;
+    border: none;
+    border-radius: 10px;
+    background: #27272a;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 0 14px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .order-list__mobile-selection-copy {
+    width: 36px;
+    padding: 0 !important;
+    background: #e11d33 !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 }

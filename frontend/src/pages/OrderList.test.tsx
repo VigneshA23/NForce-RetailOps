@@ -217,16 +217,18 @@ describe('OrderList filters', () => {
     expect(screen.queryByText('Bread')).not.toBeInTheDocument();
   });
 
-  it('always shows the Clear button, and it resets every filter', async () => {
+  it('shows the Clear button once a filter is active, and it resets every filter', async () => {
     const user = userEvent.setup();
     render(<OrderList storeName="Downtown" />);
     await screen.findByText('Milk');
 
-    // Always rendered, even with no filter active yet -- a stable, always
-    // findable reset control rather than something that pops in and out.
-    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
+    // Its slot is reserved (not unmounted) so the toggle beside it never
+    // jumps, but it's inert -- hidden via visibility, not merely styled --
+    // until a filter is actually active.
+    expect(screen.queryByRole('button', { name: 'Clear filters' })).not.toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText('Search items'), 'milk');
+    expect(screen.getByRole('button', { name: 'Clear filters' })).toBeInTheDocument();
     expect(screen.queryByText('Bread')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Clear filters' }));

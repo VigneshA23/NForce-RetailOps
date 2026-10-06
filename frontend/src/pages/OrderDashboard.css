@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .order-dashboard-page {
   padding: var(--space-lg);
 }
@@ -26,4 +28,52 @@
 .order-dashboard-page__subtab--active {
   color: var(--color-accent);
   border-bottom-color: var(--color-accent);
+}
+
+.order-dashboard-page__subtab-label-short {
+  display: none;
+}
+
+/* Mobile only: a rounded segmented control (matching the Order List view
+   toggle's own pill style) reads better at phone width than underline tabs,
+   which need room to breathe that a 390px screen doesn't have. Desktop keeps
+   the underline tabs untouched. */
+@media (--mobile) {
+  .order-dashboard-page {
+    padding: var(--space-md);
+  }
+
+  .order-dashboard-page__subtabs {
+    border-bottom: none;
+    background: #ececef;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 2px;
+    overflow-x: visible;
+  }
+
+  .order-dashboard-page__subtab {
+    flex: 1;
+    text-align: center;
+    border-bottom: none;
+    margin-bottom: 0;
+    border-radius: 9px;
+    padding: 9px 8px;
+    color: #71717a;
+    font-weight: 700;
+  }
+
+  .order-dashboard-page__subtab--active {
+    background: #ffffff;
+    color: #18181b;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+  }
+
+  .order-dashboard-page__subtab-label-full {
+    display: none;
+  }
+
+  .order-dashboard-page__subtab-label-short {
+    display: inline;
+  }
 }

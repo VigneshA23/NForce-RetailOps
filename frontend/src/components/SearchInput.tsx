@@ -5,13 +5,18 @@ interface SearchInputProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  variant?: 'header' | 'card' | 'filter';
+  // 'surface': same layout as 'filter', but a white/bordered surface that
+  // grows to fill its row -- for a filter row that isn't recessed inside a
+  // card already (e.g. Orders), where the plain 'filter' gray box would look
+  // sunken against the page background instead of sitting level with the
+  // white dropdowns beside it.
+  variant?: 'header' | 'card' | 'filter' | 'surface';
 }
 
 function SearchInput({ value, onChange, placeholder = 'Search...', variant = 'header' }: SearchInputProps) {
-  if (variant === 'filter') {
+  if (variant === 'filter' || variant === 'surface') {
     return (
-      <div className="search-input--filter">
+      <div className={`search-input--filter${variant === 'surface' ? ' search-input--filter--surface' : ''}`}>
         <Search size={14} className="search-input--filter__icon" aria-hidden="true" />
         <input
           type="search"
