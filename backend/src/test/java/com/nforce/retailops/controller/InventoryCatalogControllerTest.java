@@ -110,7 +110,7 @@ class InventoryCatalogControllerTest {
         check.setStore(item.getStore());
         check.setStoreInventoryItem(item);
         check.setCheckDate(date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, by, OffsetDateTime.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, by, OffsetDateTime.now(), false);
         stockCheckRepository.save(check);
     }
 

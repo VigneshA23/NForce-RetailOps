@@ -49,7 +49,7 @@ describe('CorrectStockCheckModal', () => {
     expect(deadStock).toHaveValue(2);
   });
 
-  it('shows the prior correction for that snapshot only', () => {
+  it('shows the full correction history for the row, labelled by snapshot, regardless of the active toggle', () => {
     render(
       <CorrectStockCheckModal
         isOpen
@@ -67,7 +67,28 @@ describe('CorrectStockCheckModal', () => {
     );
 
     expect(screen.getByText('50 (2 dead) → 48 (2 dead)')).toBeInTheDocument();
-    expect(screen.queryByText('10 (2 dead) → 8 (2 dead)')).not.toBeInTheDocument();
+    expect(screen.getByText('10 (2 dead) → 8 (2 dead)')).toBeInTheDocument();
+    expect(screen.getByText(/Start of Day corrected by/)).toBeInTheDocument();
+    expect(screen.getByText(/End of Day corrected by/)).toBeInTheDocument();
+  });
+
+  it('opens on a snapshot that was never recorded, with zeroed defaults and a "not yet recorded" subtitle', () => {
+    render(
+      <CorrectStockCheckModal
+        isOpen
+        row={{ ...ROW, startOfDay: null }}
+        snapshot="START_OF_DAY"
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    const [available, deadStock] = screen.getAllByRole('spinbutton');
+    expect(available).toHaveValue(0);
+    expect(deadStock).toHaveValue(0);
+    expect(screen.getByText(/Start of Day not yet recorded/)).toBeInTheDocument();
+    // The toggle is always available, even though the row has only one snapshot.
+    expect(screen.getByRole('button', { name: 'Snapshot' })).toBeInTheDocument();
   });
 
   it('shows no-corrections-yet when the snapshot has never been edited', () => {

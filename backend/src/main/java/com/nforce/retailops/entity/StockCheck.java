@@ -159,9 +159,20 @@ public class StockCheck {
 
     // Writes one snapshot's values and who/when, keeping the original enterer
     // on an edit. Also refreshes the legacy-compatible derived columns.
-    public void recordSnapshot(StockCheckSnapshot snapshot, int available, int deadStock, User by, OffsetDateTime at) {
+    //
+    // isCorrection distinguishes an Owner/Admin correction from an employee's
+    // own submission: a correction can fill in a snapshot that was never
+    // recorded (e.g. backfilling a missed Start of Day), but it must never
+    // claim "enteredBy" credit for doing so -- that stays reserved for
+    // whoever's own submitCheck call is the genuine original entry, which may
+    // happen AFTER a correction already put a value there. Gating on
+    // enteredAt (rather than the available figure itself) is what makes that
+    // possible: a correction leaves enteredAt untouched even when it's the
+    // first non-null write, so a later genuine employee entry still gets
+    // credited correctly.
+    public void recordSnapshot(StockCheckSnapshot snapshot, int available, int deadStock, User by, OffsetDateTime at, boolean isCorrection) {
         if (snapshot == StockCheckSnapshot.START_OF_DAY) {
-            if (startOfDayAvailable == null) {
+            if (startOfDayEnteredAt == null && !isCorrection) {
                 startOfDayEnteredBy = by;
                 startOfDayEnteredAt = at;
             }
@@ -170,7 +181,7 @@ public class StockCheck {
             startOfDayCheckedBy = by;
             startOfDayCheckedAt = at;
         } else {
-            if (endOfDayAvailable == null) {
+            if (endOfDayEnteredAt == null && !isCorrection) {
                 endOfDayEnteredBy = by;
                 endOfDayEnteredAt = at;
             }
