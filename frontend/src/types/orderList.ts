@@ -29,13 +29,17 @@ export interface UpdateOrderListEntryValues {
 
 // "Add to order": either an existing catalog item (storeInventoryItemId set)
 // or a one-off custom item (itemName/category/unitOfMeasurement set instead).
-// saveToInventory only matters for the custom-item shape.
+// saveToInventory, minWeekday and minWeekend only matter for the custom-item
+// shape -- ignored server-side when storeInventoryItemId is set, same as
+// itemName/category/unitOfMeasurement.
 export interface CreateOrderListEntryValues {
   storeInventoryItemId: number | null;
   itemName: string;
   category: InventoryItemCategory | null;
   unitOfMeasurement: string;
   saveToInventory: boolean;
+  minWeekday: string;
+  minWeekend: string;
   quantityNeeded: string;
   supplierId: number | null;
   note: string;

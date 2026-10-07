@@ -13,6 +13,9 @@ import jakarta.validation.constraints.Size;
 //    category/unitOfMeasurement. saveToInventory decides whether it's also
 //    kept as a real (active) catalog item afterward, or created inactive
 //    purely to satisfy order_list_entries' required item reference.
+//    minWeekday/minWeekend only matter when saveToInventory is true --
+//    minWeekday defaults to 0 when omitted, minWeekend stays null (falls
+//    back to minWeekday, same as the main catalog form).
 public record CreateOrderListEntryRequest(
     Long storeInventoryItemId,
 
@@ -25,6 +28,12 @@ public record CreateOrderListEntryRequest(
     String unitOfMeasurement,
 
     boolean saveToInventory,
+
+    @Min(value = 0, message = "Weekday min cannot be negative")
+    Integer minWeekday,
+
+    @Min(value = 0, message = "Weekend min cannot be negative")
+    Integer minWeekend,
 
     @NotNull(message = "Quantity is required")
     @Min(value = 1, message = "Quantity must be at least 1")

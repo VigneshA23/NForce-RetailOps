@@ -227,7 +227,8 @@ public class OrderListService {
         item.setName(request.itemName().trim());
         item.setCategory(request.category());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
-        item.setMinWeekday(0);
+        item.setMinWeekday(request.minWeekday() != null ? request.minWeekday() : 0);
+        item.setMinWeekend(request.minWeekend());
         item.setPreferredSupplier(supplier);
         item.setActive(request.saveToInventory());
         return storeInventoryItemRepository.save(item);

@@ -289,7 +289,7 @@ class OrderListServiceTest {
             .thenReturn(Optional.of(savedEntry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, 5, null, "Extra for event"));
+        orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, 5, null, "Extra for event"));
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
@@ -316,7 +316,7 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "Birthday candles", InventoryItemCategory.SUPPLIES, "packs", false, 2, null, null));
+            null, "Birthday candles", InventoryItemCategory.SUPPLIES, "packs", false, null, null, 2, null, null));
 
         ArgumentCaptor<StoreInventoryItem> itemCaptor = ArgumentCaptor.forClass(StoreInventoryItem.class);
         verify(storeInventoryItemRepository).save(itemCaptor.capture());
@@ -324,6 +324,8 @@ class OrderListServiceTest {
         assertThat(saved.getName()).isEqualTo("Birthday candles");
         assertThat(saved.getCategory()).isEqualTo(InventoryItemCategory.SUPPLIES);
         assertThat(saved.isActive()).isFalse();
+        assertThat(saved.getMinWeekday()).isEqualTo(0);
+        assertThat(saved.getMinWeekend()).isNull();
     }
 
     @Test
@@ -342,11 +344,14 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "Napkins", InventoryItemCategory.SUPPLIES, "packs", true, 3, null, null));
+            null, "Napkins", InventoryItemCategory.SUPPLIES, "packs", true, 5, 8, 3, null, null));
 
         ArgumentCaptor<StoreInventoryItem> itemCaptor = ArgumentCaptor.forClass(StoreInventoryItem.class);
         verify(storeInventoryItemRepository).save(itemCaptor.capture());
-        assertThat(itemCaptor.getValue().isActive()).isTrue();
+        StoreInventoryItem saved = itemCaptor.getValue();
+        assertThat(saved.isActive()).isTrue();
+        assertThat(saved.getMinWeekday()).isEqualTo(5);
+        assertThat(saved.getMinWeekend()).isEqualTo(8);
     }
 
     @Test
@@ -354,7 +359,7 @@ class OrderListServiceTest {
         stubActiveStoreOwner(store());
 
         assertThatThrownBy(() -> orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "  ", InventoryItemCategory.SUPPLIES, "packs", false, 1, null, null)))
+            null, "  ", InventoryItemCategory.SUPPLIES, "packs", false, null, null, 1, null, null)))
             .isInstanceOf(InvalidOrderListEntryException.class);
         verify(storeInventoryItemRepository, never()).save(any());
     }

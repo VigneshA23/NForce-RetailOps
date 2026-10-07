@@ -723,10 +723,21 @@
      their content and a selected row's highlight stops short of the right
      edge. */
   .order-list__group-table,
-  .order-list__flat-table,
-  .order-list__group-table tbody,
-  .order-list__flat-table tbody {
+  .order-list__group-table tbody {
     display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* List (flat/ungrouped) view has no per-supplier card to group rows into,
+     so each item becomes its own card instead -- a flex column with a gap,
+     rather than the single continuous sheet .order-list__flat-card gives
+     every other view. */
+  .order-list__flat-table,
+  .order-list__flat-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     width: 100%;
     min-width: 0;
   }
@@ -752,6 +763,28 @@
     display: block;
     width: 100%;
     box-sizing: border-box;
+  }
+
+  /* The sheet that gives .order-list__flat-table its own white
+     background/border/shadow is exactly what the rows now carry
+     individually, so it's turned transparent here rather than removed --
+     the table still needs it present (and the spacing below it) just not
+     visible. */
+  .order-list__flat-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  /* Overrides the base .order-list__row's border-top (a plain divider line,
+     for rows packed into one continuous sheet) with a full border on all
+     four sides now that each row is its own card. */
+  .order-list__flat-table .order-list__row {
+    background: #ffffff;
+    border: 1px solid #e4e4e7;
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   }
 
   /* Explicit display on the cell instead of leaning on the browser's own
@@ -817,6 +850,7 @@
   .order-list__mobile-footer {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 10px;
   }
 
@@ -840,19 +874,16 @@
     flex-shrink: 0;
   }
 
-  /* Status is the footer's other half -- it grows to fill whatever width the
-     category pill (auto-width, left) doesn't take, stretching the trigger
-     button (overriding its inline width style, the only way to beat it) to
-     match, so it reads with the same weight the category pill has rather
-     than looking like an afterthought squeezed beside it. */
+  /* Status sizes to its own label, same as the category pill beside it --
+     "Ordered" reads narrower than "Needs ordering" rather than both
+     stretching to fill an equal share of the row (overriding the trigger's
+     inline width style, the only way to beat it). */
   .order-list__mobile-footer .status-dot-menu {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: block;
+    flex: 0 0 auto;
   }
 
   .order-list__mobile-footer .status-dot-menu__trigger {
-    width: 100% !important;
+    width: auto !important;
     border-radius: 10px;
   }
 
