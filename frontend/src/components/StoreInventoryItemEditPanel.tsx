@@ -143,7 +143,6 @@ function StoreInventoryItemEditPanel({
               value={values.category}
               onChange={(value) => setValues((current) => ({ ...current, category: value as InventoryItemCategory }))}
               ariaLabel="Category"
-              indicator="radio"
             />
           </FormField>
           <FormField label="Unit of Measurement" htmlFor="edit-item-unit" error={errors.unitOfMeasurement}>
@@ -154,7 +153,6 @@ function StoreInventoryItemEditPanel({
               onChange={(value) => setValues((current) => ({ ...current, unitOfMeasurement: value }))}
               ariaLabel="Unit"
               placeholder="Select unit..."
-              indicator="radio"
             />
           </FormField>
         </div>

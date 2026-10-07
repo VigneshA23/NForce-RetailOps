@@ -143,7 +143,6 @@ function StoreInventoryItemFormModal({
             value={values.category}
             onChange={(value) => setValues((current) => ({ ...current, category: value as InventoryItemCategory }))}
             ariaLabel="Category"
-            indicator="radio"
           />
         </FormField>
         <FormField label="Item Name" htmlFor="inventory-item-name" error={errors.name}>
@@ -171,7 +170,6 @@ function StoreInventoryItemFormModal({
             onChange={(value) => setValues((current) => ({ ...current, unitOfMeasurement: value }))}
             ariaLabel="Unit"
             placeholder="Select unit..."
-            indicator="radio"
           />
         </FormField>
         <div className="store-inventory-item-form__row">

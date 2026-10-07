@@ -24,8 +24,6 @@ interface InventoryImagePickerProps {
   onChange: (value: InventoryImageSelection) => void;
 }
 
-const UNSPLASH_REFERRAL = '?utm_source=nforce_retailops&utm_medium=referral';
-
 // Dropdown under the item form's name field: searches Unsplash for the
 // inventory name (10 results) and shows them in a vertically scrolling
 // grid of portrait tiles. Picking one only records its id -- the
@@ -236,13 +234,6 @@ function InventoryImagePicker({ id, itemName, value, onChange }: InventoryImageP
               </div>
             </div>
           )}
-
-          <p className="inventory-image-picker__attribution">
-            Photos from{' '}
-            <a href={`https://unsplash.com/${UNSPLASH_REFERRAL}`} target="_blank" rel="noreferrer">
-              Unsplash
-            </a>
-          </p>
         </div>
       )}
     </div>
