@@ -221,9 +221,6 @@ public class OrderListService {
         if (request.unitOfMeasurement() == null || request.unitOfMeasurement().isBlank()) {
             throw new InvalidOrderListEntryException("Unit is required for a custom item");
         }
-        if (request.category() == null) {
-            throw new InvalidOrderListEntryException("Category is required for a custom item");
-        }
 
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);

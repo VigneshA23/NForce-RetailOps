@@ -130,7 +130,7 @@
 
 .order-list__action-bar {
   position: sticky;
-  top: -28px;
+  top: 0;
   z-index: 12;
   display: flex;
   align-items: center;
@@ -575,10 +575,6 @@
   font-weight: 600;
 }
 
-.order-list__note-cell {
-  color: #52525b;
-}
-
 .order-list__group-table td,
 .order-list__group-table th,
 .order-list__flat-table td,
@@ -965,6 +961,19 @@
 
   .order-list__add-item-btn {
     margin-left: auto;
+  }
+
+  /* Mobile's stand-in for the desktop action bar's own select-all checkbox --
+     same white-card treatment as .order-list__filter-card above it, just a
+     single row instead of a stack. */
+  .order-list__mobile-select-all {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 12px 14px;
   }
 
   /* Dark floating bar, fixed to the bottom of the screen while any row is

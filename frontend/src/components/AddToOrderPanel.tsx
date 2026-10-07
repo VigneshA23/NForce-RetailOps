@@ -17,11 +17,20 @@ export interface OrderableInventoryItem {
   preferredSupplierId: number | null;
 }
 
+// At most one active (non-RECEIVED) order-list entry per item, keyed by
+// storeInventoryItemId -- lets the panel show what's already queued for an
+// item before the user adds more on top of it.
+export interface ActiveItemNeed {
+  quantityNeeded: number;
+  manualAddition: number;
+}
+
 interface AddToOrderPanelProps {
   isOpen: boolean;
   storeName?: string | null;
   inventoryItems: OrderableInventoryItem[];
   suppliers: Supplier[];
+  activeNeedByItemId?: Map<number, ActiveItemNeed>;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -35,22 +44,26 @@ interface FormState {
   storeInventoryItemId: number | null;
   customName: string;
   customUnit: string;
-  customCategory: InventoryItemCategory;
+  customCategory: InventoryItemCategory | null;
   saveToInventory: boolean;
   quantity: number;
   supplierId: number | null;
   note: string;
 }
 
-function emptyState(firstItemId: number | null): FormState {
+function emptyState(): FormState {
   return {
     source: 'inventory',
-    storeInventoryItemId: firstItemId,
+    storeInventoryItemId: null,
     customName: '',
     customUnit: '',
-    customCategory: 'INGREDIENTS',
+    customCategory: null,
     saveToInventory: false,
-    quantity: 1,
+    // Defaults to 0, not 1 -- this is almost always a top-up on an item that
+    // already has a system-calculated Need (see the hint shown once an item
+    // with one is selected), so submitting without deliberately choosing an
+    // amount should not silently add anything.
+    quantity: 0,
     supplierId: null,
     note: '',
   };
@@ -65,17 +78,18 @@ function AddToOrderPanel({
   storeName,
   inventoryItems,
   suppliers,
+  activeNeedByItemId,
   errorMessage,
   isSubmitting = false,
   onClose,
   onSubmit,
 }: AddToOrderPanelProps) {
-  const [values, setValues] = useState<FormState>(() => emptyState(inventoryItems[0]?.id ?? null));
+  const [values, setValues] = useState<FormState>(emptyState);
   const [validationError, setValidationError] = useState<string | undefined>();
 
   useEffect(() => {
     if (isOpen) {
-      setValues(emptyState(inventoryItems[0]?.id ?? null));
+      setValues(emptyState());
       setValidationError(undefined);
     }
     // Only reset when the panel opens -- inventoryItems can re-fetch while
@@ -113,7 +127,9 @@ function AddToOrderPanel({
             unitOfMeasurement: '',
             saveToInventory: false,
             quantityNeeded: String(values.quantity),
-            supplierId: values.supplierId ?? selectedItem?.preferredSupplierId ?? null,
+            // No Supplier field for this tab (see below) -- the item's own
+            // preferred supplier is used automatically.
+            supplierId: selectedItem?.preferredSupplierId ?? null,
             note: values.note,
           }
         : {
@@ -134,8 +150,13 @@ function AddToOrderPanel({
     { value: '', label: 'No supplier' },
     ...suppliers.filter((s) => s.active).map((s) => ({ value: String(s.id), label: s.name })),
   ];
+  const categoryOptions = [{ value: '', label: 'No category' }, ...INVENTORY_ITEM_CATEGORY_OPTIONS];
   const selectedItem = inventoryItems.find((item) => item.id === values.storeInventoryItemId);
   const unit = values.source === 'inventory' ? selectedItem?.unitOfMeasurement ?? '' : values.customUnit;
+  const existingNeed =
+    values.source === 'inventory' && values.storeInventoryItemId != null
+      ? activeNeedByItemId?.get(values.storeInventoryItemId)
+      : undefined;
 
   return (
     <Modal
@@ -188,6 +209,11 @@ function AddToOrderPanel({
               placeholder={inventoryOptions.length === 0 ? 'No inventory items yet' : 'Select an item'}
               disabled={inventoryOptions.length === 0}
             />
+            {existingNeed && (
+              <p className="add-to-order-panel__need-hint">
+                Already needs <b>{existingNeed.quantityNeeded + existingNeed.manualAddition} {unit}</b> -- this adds extra on top.
+              </p>
+            )}
           </FormField>
         ) : (
           <>
@@ -215,9 +241,9 @@ function AddToOrderPanel({
               <FormField label="Category" htmlFor="ato-category">
                 <Select
                   id="ato-category"
-                  options={INVENTORY_ITEM_CATEGORY_OPTIONS}
-                  value={values.customCategory}
-                  onChange={(value) => setValues((current) => ({ ...current, customCategory: value as InventoryItemCategory }))}
+                  options={categoryOptions}
+                  value={values.customCategory ?? ''}
+                  onChange={(value) => setValues((current) => ({ ...current, customCategory: value === '' ? null : (value as InventoryItemCategory) }))}
                   ariaLabel="Category"
                   indicator="radio"
                 />
@@ -250,15 +276,19 @@ function AddToOrderPanel({
           />
         </FormField>
 
-        <FormField label="Supplier" htmlFor="ato-supplier">
-          <Select
-            id="ato-supplier"
-            options={supplierOptions}
-            value={values.supplierId != null ? String(values.supplierId) : ''}
-            onChange={(value) => setValues((current) => ({ ...current, supplierId: value === '' ? null : Number(value) }))}
-            ariaLabel="Supplier"
-          />
-        </FormField>
+        {/* Only for a brand-new custom item -- an existing inventory item
+            already has its own preferred supplier, used automatically. */}
+        {values.source === 'custom' && (
+          <FormField label="Supplier" htmlFor="ato-supplier">
+            <Select
+              id="ato-supplier"
+              options={supplierOptions}
+              value={values.supplierId != null ? String(values.supplierId) : ''}
+              onChange={(value) => setValues((current) => ({ ...current, supplierId: value === '' ? null : Number(value) }))}
+              ariaLabel="Supplier"
+            />
+          </FormField>
+        )}
 
         <FormField label="Note (optional)" htmlFor="ato-note">
           <input

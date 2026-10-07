@@ -15,6 +15,8 @@ import StatCard from '../components/StatCard';
 import CategoryIcon, { CATEGORY_VISUAL, FALLBACK_CATEGORY_VISUAL } from '../components/CategoryIcon';
 import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
+import ChangeOrderStatusModal from '../components/ChangeOrderStatusModal';
+import BulkChangeOrderStatusModal, { type BulkStatusChangeItem } from '../components/BulkChangeOrderStatusModal';
 import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
 import FilterClearButton from '../components/FilterClearButton';
@@ -64,6 +66,17 @@ function OrderList({ storeName, seed }: OrderListProps) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [isAddSubmitting, setIsAddSubmitting] = useState(false);
+
+  // A status picked from the dropdown doesn't take effect immediately --
+  // ChangeOrderStatusModal confirms it first, since one click on the wrong
+  // option could otherwise mark an order received by accident.
+  const [pendingStatusChange, setPendingStatusChange] = useState<{ entry: OrderListEntry; nextStatus: OrderStatus } | null>(null);
+
+  // Same confirmation, for the selection-based "Mark ordered"/"Mark
+  // received" action-bar buttons -- `ids` is the raw selection, which can mix
+  // eligible and ineligible rows (BulkChangeOrderStatusModal below works out
+  // which is which from the current `entries`).
+  const [pendingBulkStatusChange, setPendingBulkStatusChange] = useState<{ ids: number[]; nextStatus: OrderStatus } | null>(null);
 
   const isMobile = useIsMobile();
 
@@ -149,6 +162,17 @@ function OrderList({ storeName, seed }: OrderListProps) {
     if (ok) nfToast.success(`"${entry.itemName}" marked as ${STATUS_META[nextStatus].label.toLowerCase()}.`);
   }
 
+  function requestStatusChange(entry: OrderListEntry, nextStatus: OrderStatus) {
+    if (nextStatus === entry.status) return;
+    setPendingStatusChange({ entry, nextStatus });
+  }
+
+  async function confirmPendingStatusChange() {
+    if (!pendingStatusChange) return;
+    await handleStatusChange(pendingStatusChange.entry, pendingStatusChange.nextStatus);
+    setPendingStatusChange(null);
+  }
+
   async function bulkSetStatus(ids: number[], nextStatus: OrderStatus) {
     const targets = entries.filter((e) => ids.includes(e.id));
     if (targets.length === 0) return;
@@ -162,6 +186,31 @@ function OrderList({ storeName, seed }: OrderListProps) {
       ids.forEach((id) => next.delete(id));
       return next;
     });
+  }
+
+  // Only the row directly below the target status can actually move to it in
+  // one step (see OrderListService.ALLOWED_TRANSITIONS) -- a mixed selection
+  // (e.g. some already Ordered, some still Needs ordering) silently skips
+  // anything else rather than sending the whole batch through.
+  function eligibleIdsForBulkStatus(ids: number[], nextStatus: OrderStatus): number[] {
+    const fromStatus: OrderStatus = nextStatus === 'ORDERED' ? 'NEEDS_ORDERING' : 'ORDERED';
+    return entries.filter((e) => ids.includes(e.id) && e.status === fromStatus).map((e) => e.id);
+  }
+
+  function requestBulkStatusChange(ids: number[], nextStatus: OrderStatus) {
+    const eligible = eligibleIdsForBulkStatus(ids, nextStatus);
+    if (eligible.length === 0) {
+      nfToast.info('None of the selected items can move to that status.');
+      return;
+    }
+    setPendingBulkStatusChange({ ids, nextStatus });
+  }
+
+  async function confirmPendingBulkStatusChange() {
+    if (!pendingBulkStatusChange) return;
+    const eligible = eligibleIdsForBulkStatus(pendingBulkStatusChange.ids, pendingBulkStatusChange.nextStatus);
+    await bulkSetStatus(eligible, pendingBulkStatusChange.nextStatus);
+    setPendingBulkStatusChange(null);
   }
 
   async function copyText(text: string | null, emptyMessage: string, successMessage: string) {
@@ -236,8 +285,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
       // folds category into `meta`'s neighbor, `mobileMeta`, only when there's
       // no note.
       mobileMeta: `${raisedBy} · ${new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`,
-      noteShown: entry.note || '—',
-      sourceLabel: entry.adHoc ? 'Manual' : 'Count',
       statusLabel: meta.label,
       statusDot: meta.fg,
       statusFg: meta.fg,
@@ -248,6 +295,19 @@ function OrderList({ storeName, seed }: OrderListProps) {
   }
 
   const decorated = useMemo(() => filteredEntries.map(decorate), [filteredEntries, stockByItemId, selectedIds]);
+
+  // What "Add to order" needs to show its "Already needs N" hint -- at most
+  // one active (non-RECEIVED) entry per item, same invariant the backend
+  // enforces (see OrderListService.doUpsertShortage).
+  const activeNeedByItemId = useMemo(() => {
+    const map = new Map<number, { quantityNeeded: number; manualAddition: number }>();
+    for (const e of entries) {
+      if (e.status !== 'RECEIVED') {
+        map.set(e.storeInventoryItemId, { quantityNeeded: e.quantityNeeded, manualAddition: e.manualAddition });
+      }
+    }
+    return map;
+  }, [entries]);
 
   const supplierFilterOptions = useMemo(
     () => [
@@ -334,6 +394,24 @@ function OrderList({ storeName, seed }: OrderListProps) {
     setStatusFilter((current) => (current === next ? 'OPEN' : next));
   }
 
+  const bulkEligibleItems: BulkStatusChangeItem[] = pendingBulkStatusChange
+    ? eligibleIdsForBulkStatus(pendingBulkStatusChange.ids, pendingBulkStatusChange.nextStatus)
+        .map((id) => entries.find((e) => e.id === id))
+        .filter((e): e is OrderListEntry => e != null)
+        .map((entry) => {
+          const row = decorate(entry);
+          return {
+            id: entry.id,
+            itemName: entry.itemName,
+            quantityLabel: `${entry.quantityNeeded + entry.manualAddition} ${entry.unitOfMeasurement}`,
+            meta: row.meta,
+            category: row.category,
+            imageId: entry.imageId,
+          };
+        })
+    : [];
+  const bulkSkippedCount = pendingBulkStatusChange ? pendingBulkStatusChange.ids.length - bulkEligibleItems.length : 0;
+
   // Mobile's card diverges too far from desktop's table now (a nested
   // stats box, category/status as colored pills instead of plain cells) for
   // one shared <td>-per-column markup to serve both via CSS reflow alone --
@@ -391,7 +469,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <StatusDotMenu
               options={row.statusOptions}
               value={entry.status}
-              onChange={(value) => handleStatusChange(entry, value as OrderStatus)}
+              onChange={(value) => requestStatusChange(entry, value as OrderStatus)}
               ariaLabel={`Change status for ${entry.itemName}`}
               background={row.statusBg}
               color={row.statusFg}
@@ -450,15 +528,13 @@ function OrderList({ storeName, seed }: OrderListProps) {
           <>
             <td className="order-list__mobile-hide">{entry.supplierName ?? '—'}</td>
             <td className="order-list__mobile-hide">{row.categoryLabel}</td>
-            <td className="order-list__mobile-hide">{row.sourceLabel}</td>
-            <td className="order-list__note-cell order-list__mobile-hide">{row.noteShown}</td>
           </>
         )}
         <td className={isFlat ? 'order-list__status-cell' : 'order-list__status-dropdown-cell'}>
           <StatusDotMenu
             options={row.statusOptions}
             value={entry.status}
-            onChange={(value) => handleStatusChange(entry, value as OrderStatus)}
+            onChange={(value) => requestStatusChange(entry, value as OrderStatus)}
             ariaLabel={`Change status for ${entry.itemName}`}
           />
         </td>
@@ -542,11 +618,11 @@ function OrderList({ storeName, seed }: OrderListProps) {
             )}
           </div>
           <div className="order-list__action-bar-spacer" />
-          <button type="button" className="order-list__action-btn" disabled={!someChecked} onClick={() => bulkSetStatus([...selectedIds], 'ORDERED')}>
+          <button type="button" className="order-list__action-btn" disabled={!someChecked} onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>
             <Truck size={16} />
             Mark ordered
           </button>
-          <button type="button" className="order-list__action-btn" disabled={!someChecked} onClick={() => bulkSetStatus([...selectedIds], 'RECEIVED')}>
+          <button type="button" className="order-list__action-btn" disabled={!someChecked} onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>
             <CircleCheck size={16} />
             Mark received
           </button>
@@ -558,6 +634,25 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <Plus size={16} />
             Add item
           </button>
+        </div>
+      )}
+
+      {/* Mobile has no equivalent of the desktop action bar's own checkbox --
+          per-row and per-group checkboxes exist, but nothing to select every
+          visible order in one tap. This is that control, always shown (not
+          just once something's selected) since tapping it from a clean slate
+          is the whole point. */}
+      {isMobile && !isLoading && decorated.length > 0 && (
+        <div className="order-list__mobile-select-all">
+          <CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} />
+          <span className="order-list__select-label">
+            {someChecked ? `${selectedIds.size} selected` : `Select all ${decorated.length} ${decorated.length === 1 ? 'order' : 'orders'}`}
+          </span>
+          {someChecked && (
+            <button type="button" className="order-list__clear-selection" onClick={() => setSelectedIds(new Set())}>
+              Clear
+            </button>
+          )}
         </div>
       )}
 
@@ -573,8 +668,8 @@ function OrderList({ storeName, seed }: OrderListProps) {
         <div className="order-list__mobile-selection-bar">
           <span className="order-list__mobile-selection-count">{selectedIds.size} selected</span>
           <div className="order-list__mobile-selection-actions">
-            <button type="button" onClick={() => bulkSetStatus([...selectedIds], 'ORDERED')}>Ordered</button>
-            <button type="button" onClick={() => bulkSetStatus([...selectedIds], 'RECEIVED')}>Received</button>
+            <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>Ordered</button>
+            <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>Received</button>
             <button
               type="button"
               className="order-list__mobile-selection-copy"
@@ -697,14 +792,12 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <table className="order-list__flat-table">
               <colgroup>
                 <col style={{ width: '3%' }} />
-                <col style={{ width: '22%' }} />
+                <col style={{ width: '32%' }} />
                 <col style={{ width: '7%' }} />
                 <col style={{ width: '8%' }} />
                 <col style={{ width: '8%' }} />
-                <col style={{ width: '10%' }} />
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '6%' }} />
-                <col style={{ width: '10%' }} />
+                <col style={{ width: '13%' }} />
+                <col style={{ width: '11%' }} />
                 <col style={{ width: '18%' }} />
               </colgroup>
               <thead>
@@ -716,8 +809,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
                   <th className="order-list__num-header">Manual</th>
                   <th>Supplier</th>
                   <th>Category</th>
-                  <th>Source</th>
-                  <th>Note</th>
                   <th className="order-list__status-header">Status</th>
                 </tr>
               </thead>
@@ -732,11 +823,35 @@ function OrderList({ storeName, seed }: OrderListProps) {
         storeName={storeName}
         inventoryItems={inventoryItems}
         suppliers={suppliers}
+        activeNeedByItemId={activeNeedByItemId}
         errorMessage={addError}
         isSubmitting={isAddSubmitting}
         onClose={() => setIsAddOpen(false)}
         onSubmit={handleAddSubmit}
       />
+
+      {pendingStatusChange && (
+        <ChangeOrderStatusModal
+          itemName={pendingStatusChange.entry.itemName}
+          supplierName={pendingStatusChange.entry.supplierName}
+          category={categoryByItemId.get(pendingStatusChange.entry.storeInventoryItemId) ?? null}
+          imageId={pendingStatusChange.entry.imageId}
+          fromStatus={pendingStatusChange.entry.status}
+          toStatus={pendingStatusChange.nextStatus}
+          onConfirm={confirmPendingStatusChange}
+          onCancel={() => setPendingStatusChange(null)}
+        />
+      )}
+
+      {pendingBulkStatusChange && (
+        <BulkChangeOrderStatusModal
+          nextStatus={pendingBulkStatusChange.nextStatus}
+          eligibleItems={bulkEligibleItems}
+          skippedCount={bulkSkippedCount}
+          onConfirm={confirmPendingBulkStatusChange}
+          onCancel={() => setPendingBulkStatusChange(null)}
+        />
+      )}
     </div>
   );
 }
