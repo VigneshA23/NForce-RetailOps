@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import StockCheckHistory from './StockCheckHistory';
 import * as storeInventoryApi from '../api/storeInventory';
+import * as stockCheckHistoryExportUtil from '../utils/stockCheckHistoryExport';
 import type { StockCheckHistoryPage, StockCheckResponse, StockSnapshot } from '../types/stockCheck';
 
 vi.mock('../api/storeInventory', () => ({
@@ -14,8 +15,18 @@ vi.mock('../utils/toast', () => ({
   nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
+vi.mock('../utils/stockCheckHistoryExport', () => ({
+  buildStockCheckHistoryWorkbook: vi.fn().mockResolvedValue({}),
+  buildAndDownloadStockCheckHistoryPdf: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock('../utils/xlsx', () => ({
+  downloadWorkbook: vi.fn().mockResolvedValue(undefined),
+}));
+
 const mockGetStockCheckHistory = vi.mocked(storeInventoryApi.getStockCheckHistory);
 const mockCorrectStockCheck = vi.mocked(storeInventoryApi.correctStockCheck);
+const mockBuildStockCheckHistoryWorkbook = vi.mocked(stockCheckHistoryExportUtil.buildStockCheckHistoryWorkbook);
 
 function snapshot(overrides: Partial<StockSnapshot>): StockSnapshot {
   return {
@@ -64,6 +75,7 @@ function page(overrides: Partial<StockCheckHistoryPage>): StockCheckHistoryPage 
 beforeEach(() => {
   mockGetStockCheckHistory.mockReset();
   mockCorrectStockCheck.mockReset();
+  mockBuildStockCheckHistoryWorkbook.mockReset().mockResolvedValue({} as never);
 });
 
 describe('StockCheckHistory', () => {
@@ -333,5 +345,33 @@ describe('StockCheckHistory', () => {
 
     expect(await screen.findByText('This check belongs to another store')).toBeInTheDocument();
     expect(screen.getByText('Correct Start of Day count: Paper Towels')).toBeInTheDocument();
+  });
+
+  // Regression test for RTS-316: export must cover every record matching the
+  // current filters across ALL pages, not just the page on screen.
+  it('exports records from every page, not just the one on screen', async () => {
+    const user = userEvent.setup();
+    mockGetStockCheckHistory.mockImplementation((_startDate, _endDate, requestedPage, size) =>
+      Promise.resolve(
+        requestedPage === 1
+          ? page({ items: [row({ id: 1, itemName: 'Page 1 Item' })], page: 1, pageSize: size, pageCount: 2, totalItems: 2 })
+          : page({ items: [row({ id: 2, itemName: 'Page 2 Item' })], page: 2, pageSize: size, pageCount: 2, totalItems: 2 }),
+      ),
+    );
+
+    render(<StockCheckHistory />);
+    await screen.findByText('Page 1 Item');
+
+    await user.click(screen.getByRole('button', { name: /Export/ }));
+    await user.click(screen.getByRole('menuitem', { name: /Download Excel/ }));
+
+    await waitFor(() => expect(mockBuildStockCheckHistoryWorkbook).toHaveBeenCalled());
+    const exportedRows = mockBuildStockCheckHistoryWorkbook.mock.calls[0][0];
+    expect(exportedRows.map((exportedRow) => exportedRow.itemName)).toEqual(['Page 1 Item', 'Page 2 Item']);
+
+    // Fetched at the server's max page size (200), not the UI's page size of
+    // 10 -- the fewest possible round trips to get every matching record.
+    expect(mockGetStockCheckHistory).toHaveBeenCalledWith(expect.any(String), expect.any(String), 1, 200);
+    expect(mockGetStockCheckHistory).toHaveBeenCalledWith(expect.any(String), expect.any(String), 2, 200);
   });
 });
