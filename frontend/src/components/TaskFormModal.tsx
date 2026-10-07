@@ -80,6 +80,14 @@ function TaskFormModal({
   const [values, setValues] = useState<AdminTaskFormValues>(emptyTaskFormValues());
   const [errors, setErrors] = useState<AdminTaskFormErrors>({});
 
+  // Deliberately NOT keyed on `stores`/`storeScopeSelectable` -- both are only
+  // read here, once, when the modal opens. Watching them re-fires this reset
+  // (wiping the whole form in create mode) whenever the caller hands down a
+  // new-but-equivalent stores array, which happens as a side effect of
+  // picking a store at all (onStoreScopeChange triggers a parent re-render
+  // for its own category refetch) -- see RTS-314. Mirrors
+  // CategoryFormModal.tsx's reset effect, which excludes its own store list
+  // for the same reason.
   useEffect(() => {
     if (isOpen) {
       if (initialTask) {
@@ -93,7 +101,8 @@ function TaskFormModal({
       }
       setErrors({});
     }
-  }, [isOpen, initialTask, stores, storeScopeSelectable]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialTask]);
 
   function handleStoreScopeChange(scope: { appliesToAllStores: boolean; storeIds: number[] }) {
     setValues((current) => ({ ...current, ...scope }));

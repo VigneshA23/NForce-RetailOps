@@ -177,6 +177,12 @@ function Tasks({
     [tasks],
   );
 
+  // Memoized so TaskFormModal gets a stable `stores` reference across the
+  // re-renders onStoreScopeChange's own category refetch causes -- an
+  // unmemoized array here fed TaskFormModal's reset effect a new-but-
+  // equivalent array on every store pick, wiping the form (RTS-314).
+  const activeStores = useMemo(() => stores.filter((store) => store.active), [stores]);
+
   const storeCoverageCount = useMemo(() => {
     if (tasks.some((task) => task.appliesToAllStores)) return stores.length;
     const storeIds = new Set<number>();
@@ -408,7 +414,7 @@ function Tasks({
         categoriesError={formCategoriesError}
         onRetryCategories={() => {}}
         onManageCategories={() => onNavigateToCategories?.()}
-        stores={stores.filter((store) => store.active)}
+        stores={activeStores}
         storeScopeSelectable
         onStoreScopeChange={loadCategoriesForScope}
         errorMessage={formError}
