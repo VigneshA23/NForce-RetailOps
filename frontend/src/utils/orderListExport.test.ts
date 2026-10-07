@@ -11,6 +11,7 @@ function entry(overrides: Partial<OrderListEntry>): OrderListEntry {
     itemName: 'Milk',
     unitOfMeasurement: 'gallons',
     quantityNeeded: 12,
+    manualAddition: 0,
     supplierId: 1,
     supplierName: 'Acme Supplies',
     note: null,
@@ -38,8 +39,20 @@ describe('buildReorderListText', () => {
   });
 
   it('excludes zero-quantity items even if flagged NEEDS_ORDERING', () => {
-    const entries = [entry({ quantityNeeded: 0 })];
+    const entries = [entry({ quantityNeeded: 0, manualAddition: 0 })];
     expect(buildReorderListText(entries, 'Downtown', GENERATED_AT)).toBeNull();
+  });
+
+  it('still includes an item whose need has reset to zero but carries a manual addition', () => {
+    const entries = [entry({ itemName: 'Napkins', quantityNeeded: 0, manualAddition: 2 })];
+    const text = buildReorderListText(entries, 'Downtown', GENERATED_AT)!;
+    expect(text).toContain('* Napkins — 2 gallons');
+  });
+
+  it('exports the Need + Manual total as the real quantity to order', () => {
+    const entries = [entry({ itemName: 'Milk', quantityNeeded: 12, manualAddition: 3 })];
+    const text = buildReorderListText(entries, 'Downtown', GENERATED_AT)!;
+    expect(text).toContain('* Milk — 15 gallons');
   });
 
   it('excludes items already ordered or received, keeping only what still needs ordering', () => {
@@ -154,6 +167,11 @@ describe('buildOrderListText', () => {
   it('formats each line with an asterisk bullet and an en dash', () => {
     const text = buildOrderListText([entry({ itemName: 'Milk', quantityNeeded: 4, unitOfMeasurement: 'bottles' })], 'Downtown', GENERATED_AT);
     expect(text).toContain('* Milk – 4 bottles');
+  });
+
+  it('exports the Need + Manual total as the real quantity to order', () => {
+    const text = buildOrderListText([entry({ itemName: 'Milk', quantityNeeded: 4, manualAddition: 2, unitOfMeasurement: 'bottles' })], 'Downtown', GENERATED_AT);
+    expect(text).toContain('* Milk – 6 bottles');
   });
 
   it('groups supplier-less entries under "No Supplier Assigned"', () => {

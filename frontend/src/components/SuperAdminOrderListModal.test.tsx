@@ -23,6 +23,7 @@ function entry(overrides: Partial<OrderListEntry> = {}): OrderListEntry {
     itemName: 'Milk',
     unitOfMeasurement: 'Gallons',
     quantityNeeded: 4,
+    manualAddition: 0,
     supplierId: null,
     supplierName: null,
     note: null,

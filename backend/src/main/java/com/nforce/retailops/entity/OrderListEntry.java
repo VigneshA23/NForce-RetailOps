@@ -28,6 +28,16 @@ public class OrderListEntry {
     @Column(name = "quantity_needed", nullable = false)
     private int quantityNeeded;
 
+    // Extra quantity a person added by hand on top of quantityNeeded (via
+    // "Add to order" on an item that already has an active entry), not a
+    // replacement for it -- the two are shown as separate figures on the
+    // Order List, and the real quantity to order is their sum. Reset to 0
+    // whenever quantityNeeded is next recalculated from a fresh stock count
+    // (see OrderListService.doUpsertShortage) -- a manual top-up only ever
+    // applies to that day's figure, not indefinitely.
+    @Column(name = "manual_addition", nullable = false)
+    private int manualAddition;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id")
     private Supplier supplier;
@@ -93,6 +103,14 @@ public class OrderListEntry {
 
     public void setQuantityNeeded(int quantityNeeded) {
         this.quantityNeeded = quantityNeeded;
+    }
+
+    public int getManualAddition() {
+        return manualAddition;
+    }
+
+    public void setManualAddition(int manualAddition) {
+        this.manualAddition = manualAddition;
     }
 
     public Supplier getSupplier() {
