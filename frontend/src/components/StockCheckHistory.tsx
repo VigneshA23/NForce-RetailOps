@@ -11,7 +11,7 @@ import ButtonDots from './ButtonDots';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { correctStockCheck, getStockCheckHistory } from '../api/storeInventory';
 import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
-import type { StockCheckSnapshotKey } from '../types/stockCheck';
+import type { StockCheckResponse, StockCheckSnapshotKey } from '../types/stockCheck';
 import { toStockCheckHistoryRowView, type StockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
 import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
 import { buildAndDownloadStockCheckHistoryPdf, buildStockCheckHistoryWorkbook } from '../utils/stockCheckHistoryExport';
@@ -22,6 +22,11 @@ import './StockCheckHistory.css';
 
 const PAGE_SIZE = 10;
 
+// The backend's own page-size ceiling (StockCheckService.MAX_PAGE_SIZE) --
+// used when fetching every page for export, so that's the fewest possible
+// round trips rather than paging at the UI's 10-row page size.
+const MAX_EXPORT_PAGE_SIZE = 200;
+
 // DateRangePicker's ALL_TIME preset resolves to `undefined` (no bound) --
 // this endpoint requires a bounded range (a missing bound is a 400), so
 // ALL_TIME here means "the widest window the 92-day cap allows", not
@@ -30,7 +35,42 @@ function widestAllowedRange(): { startDate: string; endDate: string } {
   return { startDate: daysAgo(91), endDate: todayDate() };
 }
 
+// Export needs every record matching the current filters, not just the
+// page on screen -- there's no unbounded "give me everything" endpoint (by
+// design: a 92-day range times a full item list can be thousands of rows),
+// so this pages through at the server's own max page size and concatenates.
+async function fetchAllStockCheckHistory(startDate: string, endDate: string): Promise<StockCheckResponse[]> {
+  const all: StockCheckResponse[] = [];
+  let page = 1;
+  let pageCount = 1;
+  do {
+    const result = await getStockCheckHistory(startDate, endDate, page, MAX_EXPORT_PAGE_SIZE);
+    all.push(...result.items);
+    pageCount = result.pageCount;
+    page += 1;
+  } while (page <= pageCount);
+  return all;
+}
+
 type StatusFilter = 'all' | 'shortage' | 'sufficient';
+
+// Shared by the on-screen table (visibleItems below) and the export path, so
+// "export everything the current filters match" can't drift from what the
+// table itself is showing.
+function matchesFilters(row: StockCheckHistoryRowView, search: string, categoryFilter: string, statusFilter: StatusFilter): boolean {
+  const term = search.trim().toLowerCase();
+  const recordedBy = row.endOfDay?.lastUpdatedByName ?? row.startOfDay?.lastUpdatedByName ?? '';
+  const matchesSearch =
+    !term ||
+    row.itemName.toLowerCase().includes(term) ||
+    recordedBy.toLowerCase().includes(term);
+  const matchesCategory = !categoryFilter || row.category === categoryFilter;
+  const matches =
+    statusFilter === 'all' ||
+    (statusFilter === 'shortage' && row.status === 'shortage') ||
+    (statusFilter === 'sufficient' && row.status !== 'shortage');
+  return matchesSearch && matchesCategory && matches;
+}
 
 const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
@@ -163,22 +203,10 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
     [items],
   );
 
-  const visibleItems = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return items.filter((row) => {
-      const recordedBy = row.endOfDay?.lastUpdatedByName ?? row.startOfDay?.lastUpdatedByName ?? '';
-      const matchesSearch =
-        !term ||
-        row.itemName.toLowerCase().includes(term) ||
-        recordedBy.toLowerCase().includes(term);
-      const matchesCategory = !categoryFilter || row.category === categoryFilter;
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'shortage' && row.status === 'shortage') ||
-        (statusFilter === 'sufficient' && row.status !== 'shortage');
-      return matchesSearch && matchesCategory && matchesStatus;
-    });
-  }, [items, search, categoryFilter, statusFilter]);
+  const visibleItems = useMemo(
+    () => items.filter((row) => matchesFilters(row, search, categoryFilter, statusFilter)),
+    [items, search, categoryFilter, statusFilter],
+  );
 
   function clearFilters() {
     setSearch('');
@@ -186,11 +214,24 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
     setStatusFilter('all');
   }
 
+  // Exports every record matching the current filters across ALL pages, not
+  // just the page on screen (RTS-316) -- re-fetches the full date range at
+  // the server's max page size rather than reusing `items`/`visibleItems`,
+  // which only ever hold the current page.
+  async function buildExportRows(): Promise<StockCheckHistoryRowView[]> {
+    const resolved = resolveDateRange(dateRange) ?? widestAllowedRange();
+    const all = await fetchAllStockCheckHistory(resolved.startDate, resolved.endDate);
+    return all
+      .map(toStockCheckHistoryRowView)
+      .filter((row) => matchesFilters(row, search, categoryFilter, statusFilter));
+  }
+
   async function handleExportExcel() {
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange();
     setIsExcelExporting(true);
     try {
-      const workbook = await buildStockCheckHistoryWorkbook(visibleItems, resolved.startDate, resolved.endDate);
+      const rows = await buildExportRows();
+      const workbook = await buildStockCheckHistoryWorkbook(rows, resolved.startDate, resolved.endDate);
       await downloadWorkbook(`stock-check-history-${resolved.startDate}_to_${resolved.endDate}.xlsx`, workbook);
       setIsExportMenuOpen(false);
     } catch (error) {
@@ -204,8 +245,9 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange();
     setIsPdfExporting(true);
     try {
+      const rows = await buildExportRows();
       await buildAndDownloadStockCheckHistoryPdf(
-        visibleItems, resolved.startDate, resolved.endDate, null,
+        rows, resolved.startDate, resolved.endDate, null,
         `stock-check-history-${resolved.startDate}_to_${resolved.endDate}.pdf`,
       );
       setIsExportMenuOpen(false);
