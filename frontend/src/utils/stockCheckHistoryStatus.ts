@@ -1,4 +1,4 @@
-import type { StockCheckResponse } from '../types/stockCheck';
+import type { StockCheckResponse, SuperAdminStockCheckResponse } from '../types/stockCheck';
 
 export type StockCheckHistoryRowStatus = 'shortage' | 'optimal' | 'pending';
 
@@ -26,4 +26,15 @@ export function toStockCheckHistoryRowView(row: StockCheckResponse): StockCheckH
   const status: StockCheckHistoryRowStatus = deficit != null && deficit > 0 ? 'shortage' : hasData ? 'optimal' : 'pending';
   const buffer = hasData && status === 'optimal' ? counted! - row.requiredPar! : null;
   return { ...row, counted, deficit, buffer, status };
+}
+
+// Super Admin's cross-store history (RTS-305) -- same row shape, labelled
+// with its store, so the table can show a Store column in all-stores mode.
+export interface SuperAdminStockCheckHistoryRowView extends StockCheckHistoryRowView {
+  storeId: number;
+  storeName: string;
+}
+
+export function toSuperAdminStockCheckHistoryRowView(entry: SuperAdminStockCheckResponse): SuperAdminStockCheckHistoryRowView {
+  return { ...toStockCheckHistoryRowView(entry.check), storeId: entry.storeId, storeName: entry.storeName };
 }

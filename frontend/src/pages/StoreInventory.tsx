@@ -46,7 +46,14 @@ const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((
 
 const STATUS_SORT_ORDER = { low: 0, out: 1, in: 2, inactive: 3 } as const;
 
-function StoreInventory() {
+interface StoreInventoryProps {
+  // Set by DashboardShell when a notification (e.g. a Super Admin's stock
+  // check correction, RTS-306) is clicked, so this tab opens already on the
+  // History sub-tab. `ts` is a nonce, not data -- see the effect below.
+  historySeed?: { ts: number };
+}
+
+function StoreInventory({ historySeed }: StoreInventoryProps) {
   const [subTab, setSubTab] = useState<SubTab>('items');
   const [historyTotal, setHistoryTotal] = useState(0);
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
@@ -69,6 +76,13 @@ function StoreInventory() {
   const [isItemSubmitting, setIsItemSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<StoreInventoryItem | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const appliedHistorySeedTs = useRef<number | null>(null);
+  useEffect(() => {
+    if (!historySeed || historySeed.ts === appliedHistorySeedTs.current) return;
+    appliedHistorySeedTs.current = historySeed.ts;
+    setSubTab('history');
+  }, [historySeed]);
 
   function load() {
     setIsLoading(true);

@@ -1,5 +1,6 @@
 import { apiRequest } from './client';
 import type { OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
+import type { StockCheckSnapshotKey, StockCheckResponse, SuperAdminStockCheckHistoryPage } from '../types/stockCheck';
 
 export interface StoreOperationsSummary {
   storeId: number;
@@ -95,4 +96,37 @@ export async function getPlatformTrend(days: number): Promise<TrendDataPoint[]> 
 
 export async function getStoreTrend(storeId: number, days: number): Promise<TrendDataPoint[]> {
   return apiRequest<TrendDataPoint[]>(`/super-admin/stores/${storeId}/trend?days=${days}`);
+}
+
+// Super Admin's cross-store stock-check history (RTS-305). storeId omitted
+// (null) means "every store"; the backend applies a tighter date-range cap
+// in that mode than the per-store one.
+export async function getSuperAdminStockCheckHistory(
+  storeId: number | null,
+  startDate: string,
+  endDate: string,
+  page: number,
+  size: number,
+): Promise<SuperAdminStockCheckHistoryPage> {
+  const params = new URLSearchParams({ startDate, endDate, page: String(page), size: String(size) });
+  if (storeId != null) params.set('storeId', String(storeId));
+  return apiRequest<SuperAdminStockCheckHistoryPage>(`/super-admin/stock-checks?${params.toString()}`);
+}
+
+// Super Admin's cross-store stock-check correction (RTS-306) -- storeId is
+// explicit (unlike Owner/Admin's own correctStockCheck in api/storeInventory.ts,
+// which is scoped from the caller's own store server-side), and a reason is
+// mandatory here, enforced server-side regardless of what the form sends.
+export async function correctSuperAdminStockCheck(
+  storeId: number,
+  id: number,
+  snapshot: StockCheckSnapshotKey,
+  available: number,
+  deadStock: number,
+  reason: string,
+): Promise<StockCheckResponse> {
+  return apiRequest<StockCheckResponse>(`/super-admin/stores/${storeId}/stock-checks/${id}`, {
+    method: 'PATCH',
+    body: { snapshot, available, deadStock, reason },
+  });
 }

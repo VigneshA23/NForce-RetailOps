@@ -294,6 +294,7 @@ describe('StockCheckHistory', () => {
         newAvailable: 50,
         newDeadStock: 2,
         editedByName: 'Owner Olivia',
+        editedByRole: 'STORE_USER',
         editedAt: '2026-09-20T11:00:00Z',
         reason: 'Recount (count was wrong)',
       }],

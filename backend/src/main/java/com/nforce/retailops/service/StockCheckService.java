@@ -18,10 +18,14 @@ import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.StockCheckSnapshot;
+import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.dto.SuperAdminStockCheckHistoryPageResponse;
+import com.nforce.retailops.dto.SuperAdminStockCheckResponse;
 import com.nforce.retailops.exception.InvalidStockCheckException;
 import com.nforce.retailops.exception.InventoryItemNotAssignedException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
@@ -30,6 +34,7 @@ import com.nforce.retailops.repository.StockCheckCorrectionRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.util.DateRangeValidator;
 import com.nforce.retailops.util.InventoryCountStatusCalculator;
@@ -69,6 +74,11 @@ public class StockCheckService {
     private static final int MAX_PAGE_SIZE = 200;
     private static final int MAX_DATE_RANGE_DAYS = 92;
 
+    // Super Admin's "every store" history query (RTS-305) is far more
+    // expensive per day of range than one store's -- a tighter cap than the
+    // per-store 92 days above, per that story's own dev notes.
+    private static final int MAX_DATE_RANGE_DAYS_ALL_STORES = 31;
+
     // Inventory Counts row's expandable count-history timeline: how many of
     // an item's most recent StockCheck rows to show.
     private static final int MAX_HISTORY_ENTRIES = 15;
@@ -80,8 +90,10 @@ public class StockCheckService {
     private final StockCheckCorrectionRepository stockCheckCorrectionRepository;
     private final UserRepository userRepository;
     private final StoreOwnerRepository storeOwnerRepository;
+    private final StoreRepository storeRepository;
     private final OrderListService orderListService;
     private final UserProfileService userProfileService;
+    private final NotificationService notificationService;
 
     public StockCheckService(
         StoreInventoryItemRepository storeInventoryItemRepository,
@@ -89,16 +101,20 @@ public class StockCheckService {
         StockCheckCorrectionRepository stockCheckCorrectionRepository,
         UserRepository userRepository,
         StoreOwnerRepository storeOwnerRepository,
+        StoreRepository storeRepository,
         OrderListService orderListService,
-        UserProfileService userProfileService
+        UserProfileService userProfileService,
+        NotificationService notificationService
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.stockCheckRepository = stockCheckRepository;
         this.stockCheckCorrectionRepository = stockCheckCorrectionRepository;
         this.userRepository = userRepository;
         this.storeOwnerRepository = storeOwnerRepository;
+        this.storeRepository = storeRepository;
         this.orderListService = orderListService;
         this.userProfileService = userProfileService;
+        this.notificationService = notificationService;
     }
 
     // ---- Employee: today's checklist --------------------------------------
@@ -173,7 +189,7 @@ public class StockCheckService {
                 return created;
             });
 
-        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null, false);
+        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null, null, false);
         syncOrderList(check, request.snapshot(), employee);
         return StockCheckResponse.from(check);
     }
@@ -262,6 +278,60 @@ public class StockCheckService {
         );
     }
 
+    // Super Admin's cross-store history (RTS-305): storeId == null means
+    // "every store" (the tighter MAX_DATE_RANGE_DAYS_ALL_STORES cap applies),
+    // a given storeId means "just that one" (same 92-day cap and same query
+    // historicalChecksForStore already uses for Owner/Admin -- no more
+    // expensive than what Owner/Admin already runs). Always returns the
+    // store-labelled row shape so the frontend has one response shape to
+    // handle regardless of scope.
+    @Transactional(readOnly = true)
+    public SuperAdminStockCheckHistoryPageResponse listHistoricalChecksForSuperAdmin(
+        Long storeId, LocalDate startDate, LocalDate endDate, Integer page, Integer size
+    ) {
+        if (storeId != null) {
+            StockCheckHistoryPageResponse scoped = historicalChecksForStore(storeId, startDate, endDate, page, size);
+            Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+            List<SuperAdminStockCheckResponse> items = scoped.items().stream()
+                .map(check -> new SuperAdminStockCheckResponse(store.getId(), store.getName(), check))
+                .toList();
+            return new SuperAdminStockCheckHistoryPageResponse(
+                items, scoped.page(), scoped.pageSize(), scoped.pageCount(), scoped.totalItems()
+            );
+        }
+
+        DateRangeValidator.validate(startDate, endDate, MAX_DATE_RANGE_DAYS_ALL_STORES);
+
+        int requestedPage = page == null ? 1 : page;
+        int clampedPage = Math.max(requestedPage, 1);
+        int clampedSize = size == null ? DEFAULT_PAGE_SIZE : Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+
+        Page<StockCheck> resultPage = stockCheckRepository.findInRange(
+            startDate, endDate, PageRequest.of(clampedPage - 1, clampedSize)
+        );
+
+        List<Long> checkIds = resultPage.getContent().stream().map(StockCheck::getId).toList();
+        Map<Long, List<StockCheckEditResponse>> editsByCheckId = checkIds.isEmpty()
+            ? Map.of()
+            : stockCheckCorrectionRepository.findWithEditorByStockCheckIds(checkIds).stream()
+                .collect(Collectors.groupingBy(
+                    c -> c.getStockCheck().getId(),
+                    Collectors.mapping(StockCheckEditResponse::from, Collectors.toList())
+                ));
+
+        List<SuperAdminStockCheckResponse> items = resultPage.getContent().stream()
+            .map(check -> new SuperAdminStockCheckResponse(
+                check.getStore().getId(), check.getStore().getName(),
+                StockCheckResponse.from(check, editsByCheckId.getOrDefault(check.getId(), List.of()))
+            ))
+            .toList();
+
+        return new SuperAdminStockCheckHistoryPageResponse(
+            items, clampedPage, clampedSize, resultPage.getTotalPages(), resultPage.getTotalElements()
+        );
+    }
+
     @Transactional
     public StockCheckResponse correctCheck(Long ownerId, Long checkId, StockCheckCorrectionRequest request) {
         StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
@@ -272,7 +342,7 @@ public class StockCheckService {
         requireDeadStockWithinAvailable(request.available(), request.deadStock());
 
         User owner = userRepository.getReferenceById(ownerId);
-        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), owner, request.reason(), true);
+        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), owner, null, request.reason(), true);
 
         // Only propagate to the order list for TODAY's record -- correcting a
         // stale historical entry shouldn't resurrect or distort today's live
@@ -288,6 +358,46 @@ public class StockCheckService {
             .findWithEditorByStockCheckIds(List.of(check.getId())).stream()
             .map(StockCheckEditResponse::from)
             .toList();
+        return StockCheckResponse.from(check, edits);
+    }
+
+    // Super Admin's cross-store correction (RTS-306): storeId is taken
+    // directly from the request path (no owner-link resolution -- a Super
+    // Admin can act on any store), and the reason is mandatory here (unlike
+    // Owner/Admin's optional one above), since a Super Admin is editing data
+    // they didn't enter themselves. Shares applySnapshot/the same audit trail
+    // and order-list sync as correctCheck, per RTS-306's own dev notes
+    // ("one validation and audit code path"), and notifies the store's
+    // active owner (if any) that their data changed under them.
+    @Transactional
+    public StockCheckResponse correctCheckForSuperAdmin(
+        Long storeId, Long checkId, SuperAdmin superAdmin, StockCheckCorrectionRequest request
+    ) {
+        if (request.reason() == null || request.reason().isBlank()) {
+            throw new InvalidStockCheckException("A reason is required for Super Admin corrections");
+        }
+
+        StockCheck check = stockCheckRepository.findByIdAndStoreId(checkId, storeId)
+            .orElseThrow(() -> new StoreInventoryItemNotFoundException("Stock check not found"));
+
+        requireDeadStockWithinAvailable(request.available(), request.deadStock());
+
+        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), null, superAdmin, request.reason(), true);
+
+        if (check.getCheckDate().isEqual(LocalDate.now())) {
+            syncOrderList(check, request.snapshot(), check.getCheckedBy());
+        }
+
+        List<StockCheckEditResponse> edits = stockCheckCorrectionRepository
+            .findWithEditorByStockCheckIds(List.of(check.getId())).stream()
+            .map(StockCheckEditResponse::from)
+            .toList();
+
+        StockCheck notifiedCheck = check;
+        storeOwnerRepository.findByStoreIdAndActiveTrue(storeId)
+            .map(StoreOwner::getOwner)
+            .ifPresent(owner -> notificationService.notifyOwnerOfSuperAdminStockCheckCorrection(notifiedCheck, owner));
+
         return StockCheckResponse.from(check, edits);
     }
 
@@ -466,20 +576,29 @@ public class StockCheckService {
 
     // Writes one snapshot in place. Re-saving an existing snapshot appends an
     // audit row with the previous values first; an employee's genuine first
-    // save writes none (the enterer is recorded on the check itself). An
-    // Owner/Admin correction (isCorrection) always appends an audit row, even
-    // when filling in a snapshot that had no prior value -- originalCount is
-    // null in that case -- and never claims "enteredBy" credit for doing so
-    // (see StockCheck.recordSnapshot). Saving End of Day also persists
-    // tomorrow's requirement and the resulting quantity to order.
+    // save writes none (the enterer is recorded on the check itself). A
+    // correction (isCorrection) always appends an audit row, even when
+    // filling in a snapshot that had no prior value -- originalCount is null
+    // in that case -- and never claims "enteredBy" credit for doing so (see
+    // StockCheck.recordSnapshot). Saving End of Day also persists tomorrow's
+    // requirement and the resulting quantity to order.
+    //
+    // Exactly one of userActor/superAdminActor is non-null. StockCheck's own
+    // checked-by/entered-by columns (User-only) only ever receive userActor --
+    // a Super Admin correction (RTS-306) passes null there, which is safe
+    // because recordSnapshot only writes those columns on a genuine first
+    // entry, never on a correction, and a row can't exist to correct without
+    // one already having happened. superAdminActor only ever reaches the
+    // StockCheckCorrection audit row.
     private StockCheck applySnapshot(
-        StockCheck check, StockCheckSnapshot snapshot, int available, int deadStock, User by, String reason, boolean isCorrection
+        StockCheck check, StockCheckSnapshot snapshot, int available, int deadStock,
+        User userActor, SuperAdmin superAdminActor, String reason, boolean isCorrection
     ) {
         boolean hadValue = check.hasSnapshot(snapshot);
         Integer previousAvailable = hadValue ? check.availableFor(snapshot) : null;
         Integer previousDeadStock = hadValue ? check.deadStockFor(snapshot) : null;
 
-        check.recordSnapshot(snapshot, available, deadStock, by, OffsetDateTime.now(), isCorrection);
+        check.recordSnapshot(snapshot, available, deadStock, userActor, OffsetDateTime.now(), isCorrection);
 
         if (snapshot == StockCheckSnapshot.END_OF_DAY) {
             Integer required = check.getStoreInventoryItem().requiredMinimumOn(check.getCheckDate().plusDays(1));
@@ -497,7 +616,8 @@ public class StockCheckService {
             correction.setOriginalDeadStock(previousDeadStock);
             correction.setCorrectedCount(available);
             correction.setCorrectedDeadStock(deadStock);
-            correction.setCorrectedBy(by);
+            correction.setCorrectedByUser(userActor);
+            correction.setCorrectedBySuperAdmin(superAdminActor);
             correction.setReason(reason);
             stockCheckCorrectionRepository.save(correction);
         }

@@ -161,7 +161,7 @@ class StockCheckRepositoryTest {
 
         assertThat(edits).extracting(StockCheckCorrection::getId).containsExactly(first.getId(), second.getId());
         assertThat(edits.get(0).getOriginalCount()).isEqualTo(10);
-        assertThat(edits.get(1).getCorrectedBy().getEmail()).isEqualTo("repo-edits-second@nforce.test");
+        assertThat(edits.get(1).getCorrectedByUser().getEmail()).isEqualTo("repo-edits-second@nforce.test");
     }
 
     private StockCheckCorrection edit(StockCheck check, int from, int to, User by, OffsetDateTime at) {
@@ -172,7 +172,7 @@ class StockCheckRepositoryTest {
         correction.setOriginalDeadStock(0);
         correction.setCorrectedCount(to);
         correction.setCorrectedDeadStock(0);
-        correction.setCorrectedBy(by);
+        correction.setCorrectedByUser(by);
         stockCheckCorrectionRepository.saveAndFlush(correction);
         ReflectionTestUtils.setField(correction, "correctedAt", at);
         return stockCheckCorrectionRepository.saveAndFlush(correction);

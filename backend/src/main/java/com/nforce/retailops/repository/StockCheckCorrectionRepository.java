@@ -13,7 +13,9 @@ public interface StockCheckCorrectionRepository extends JpaRepository<StockCheck
     // Every edit recorded against a page of checks, oldest first, with the
     // editor fetched in the same query (the history view names each one).
     // The earliest row for a snapshot holds the value first entered.
-    @Query("select c from StockCheckCorrection c join fetch c.correctedBy "
+    @Query("select c from StockCheckCorrection c "
+        + "left join fetch c.correctedByUser "
+        + "left join fetch c.correctedBySuperAdmin "
         + "where c.stockCheck.id in :stockCheckIds "
         + "order by c.correctedAt asc, c.id asc")
     List<StockCheckCorrection> findWithEditorByStockCheckIds(@Param("stockCheckIds") Collection<Long> stockCheckIds);

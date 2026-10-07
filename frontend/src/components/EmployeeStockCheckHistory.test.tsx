@@ -83,6 +83,7 @@ describe('EmployeeStockCheckHistory', () => {
             newAvailable: 12,
             newDeadStock: 0,
             editedByName: 'Owner Olivia',
+            editedByRole: 'STORE_USER',
             editedAt: '2026-09-20T10:00:00Z',
             reason: 'Recount',
           }],
