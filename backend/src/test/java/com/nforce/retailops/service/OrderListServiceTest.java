@@ -130,6 +130,46 @@ class OrderListServiceTest {
     }
 
     @Test
+    void upsertShortageAccumulatesIntoManualAdditionWhenAdHocAndAnEntryIsAlreadyActive() {
+        OrderListEntry existing = new OrderListEntry();
+        ReflectionTestUtils.setField(existing, "id", 99L);
+        existing.setQuantityNeeded(4);
+        existing.setStatus(OrderStatus.NEEDS_ORDERING);
+
+        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
+            .thenReturn(Optional.of(existing));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertShortage(store(), item(), 2, null, true, new User(), null);
+
+        assertThat(existing.getQuantityNeeded()).isEqualTo(4);
+        assertThat(existing.getManualAddition()).isEqualTo(2);
+
+        orderListService.upsertShortage(store(), item(), 3, null, true, new User(), null);
+
+        assertThat(existing.getQuantityNeeded()).isEqualTo(4);
+        assertThat(existing.getManualAddition()).isEqualTo(5);
+    }
+
+    @Test
+    void upsertShortageResetsManualAdditionWhenTheSystemRecalculatesQuantityNeeded() {
+        OrderListEntry existing = new OrderListEntry();
+        ReflectionTestUtils.setField(existing, "id", 99L);
+        existing.setQuantityNeeded(4);
+        existing.setManualAddition(2);
+        existing.setStatus(OrderStatus.NEEDS_ORDERING);
+
+        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
+            .thenReturn(Optional.of(existing));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertShortage(store(), item(), 7, null, false, new User(), null);
+
+        assertThat(existing.getQuantityNeeded()).isEqualTo(7);
+        assertThat(existing.getManualAddition()).isZero();
+    }
+
+    @Test
     void resolveShortageIfPresentMarksTheActiveEntryReceivedWithoutCreatingAnything() {
         OrderListEntry existing = new OrderListEntry();
         ReflectionTestUtils.setField(existing, "id", 55L);

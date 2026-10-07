@@ -12,7 +12,7 @@ import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
 import StatCard from '../components/StatCard';
-import CategoryIcon from '../components/CategoryIcon';
+import CategoryIcon, { CATEGORY_VISUAL, FALLBACK_CATEGORY_VISUAL } from '../components/CategoryIcon';
 import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
 import Select from '../components/Select';
@@ -220,23 +220,28 @@ function OrderList({ storeName, seed }: OrderListProps) {
     const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
     const meta = STATUS_META[entry.status];
     const categoryLabel = INVENTORY_ITEM_CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? '—';
+    const categoryVisual = category ? CATEGORY_VISUAL[category] : FALLBACK_CATEGORY_VISUAL;
     const raisedBy = entry.raisedByName ?? (entry.adHoc ? 'Manual' : 'Auto-detected');
     return {
       entry,
       category,
       categoryLabel,
+      categoryVisual,
       onHand: stock?.current ?? null,
       par: stock?.minimum ?? null,
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
       meta: entry.note ? `${raisedBy} · ${entry.note}` : raisedBy,
-      // Mobile's item card shows a different sub-line than desktop's table
-      // (category + who + when, instead of who [+ note]) -- a separate field
-      // rather than changing `meta` itself, so desktop's row is untouched.
-      mobileMeta: `${categoryLabel} · ${raisedBy} · ${new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+      // Mobile's card shows category as its own pill below the stats box now,
+      // so its sub-line is just who/when -- unlike desktop's row, which still
+      // folds category into `meta`'s neighbor, `mobileMeta`, only when there's
+      // no note.
+      mobileMeta: `${raisedBy} · ${new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`,
       noteShown: entry.note || '—',
       sourceLabel: entry.adHoc ? 'Manual' : 'Count',
       statusLabel: meta.label,
       statusDot: meta.fg,
+      statusFg: meta.fg,
+      statusBg: meta.bg,
       checked: selectedIds.has(entry.id),
       statusOptions: STATUS_ORDER.map((key) => ({ value: key, label: STATUS_META[key].label, dot: STATUS_META[key].fg })),
     };
@@ -329,9 +334,78 @@ function OrderList({ storeName, seed }: OrderListProps) {
     setStatusFilter((current) => (current === next ? 'OPEN' : next));
   }
 
+  // Mobile's card diverges too far from desktop's table now (a nested
+  // stats box, category/status as colored pills instead of plain cells) for
+  // one shared <td>-per-column markup to serve both via CSS reflow alone --
+  // see the group header above for the same split (order-list__group-header
+  // vs. order-list__group-header--mobile). The desktop grouped/flat tables
+  // below are untouched; this is the only caller for the mobile branch.
+  function renderMobileCard(row: ReturnType<typeof decorate>) {
+    const { entry } = row;
+    return (
+      <tr key={entry.id} className="order-list__row" style={{ background: row.checked ? '#fff5f6' : undefined }}>
+        <td className="order-list__mobile-card-td">
+          <div className="order-list__mobile-card-header">
+            <CheckboxButton checked={row.checked} ariaLabel={`Select ${entry.itemName}`} onClick={() => toggleSelected(entry.id)} />
+            <CategoryIcon category={row.category} name={entry.itemName} size={44} imageId={entry.imageId} />
+            <div className="order-list__item-text">
+              <div className="order-list__item-name">
+                <span className="order-list__item-name-text">{entry.itemName}</span>
+                {entry.adHoc && <span className="order-list__manual-badge">Manual</span>}
+              </div>
+              <div className="order-list__item-mobile-meta">{row.mobileMeta}</div>
+            </div>
+          </div>
+          <div className="order-list__mobile-stats">
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Stock</span>
+              <span className="order-list__cell-value">
+                <span className="order-list__on-hand">{row.onHand ?? '—'}</span>
+                <span className="order-list__par"> / {row.par ?? '—'}</span>
+              </span>
+            </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Need</span>
+              <span className="order-list__cell-value" style={{ color: row.needFg, fontWeight: 800 }}>
+                {entry.quantityNeeded} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+              </span>
+            </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Manual</span>
+              <span className="order-list__cell-value">
+                {entry.manualAddition > 0 ? (
+                  <span className="order-list__manual-value">
+                    +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+                  </span>
+                ) : (
+                  <span className="order-list__manual-empty">—</span>
+                )}
+              </span>
+            </div>
+          </div>
+          <div className="order-list__mobile-footer">
+            <span className="order-list__mobile-pill" style={{ background: row.categoryVisual.bg, color: row.categoryVisual.fg }}>
+              <span className="order-list__mobile-pill-dot" style={{ background: row.categoryVisual.fg }} />
+              {row.categoryLabel}
+            </span>
+            <StatusDotMenu
+              options={row.statusOptions}
+              value={entry.status}
+              onChange={(value) => handleStatusChange(entry, value as OrderStatus)}
+              ariaLabel={`Change status for ${entry.itemName}`}
+              background={row.statusBg}
+              color={row.statusFg}
+            />
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
   function renderRow(row: ReturnType<typeof decorate>, variant: 'grouped' | 'flat') {
     const { entry } = row;
     const isFlat = variant === 'flat';
+    if (isMobile) return renderMobileCard(row);
     return (
       <tr key={entry.id} className="order-list__row" style={{ background: row.checked ? '#fff5f6' : undefined }}>
         <td className="order-list__checkbox-cell">
@@ -339,14 +413,13 @@ function OrderList({ storeName, seed }: OrderListProps) {
         </td>
         <td className="order-list__item-td">
           <div className="order-list__item-cell">
-            <CategoryIcon category={row.category} name={entry.itemName} size={isMobile ? 44 : isFlat ? 36 : 40} imageId={entry.imageId} />
+            <CategoryIcon category={row.category} name={entry.itemName} size={isFlat ? 48 : 56} imageId={entry.imageId} />
             <div className="order-list__item-text">
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
                 {entry.adHoc && <span className="order-list__manual-badge">Manual</span>}
               </div>
               <div className="order-list__item-meta">{row.meta}</div>
-              <div className="order-list__item-mobile-meta">{row.mobileMeta}</div>
             </div>
           </div>
         </td>
@@ -360,6 +433,17 @@ function OrderList({ storeName, seed }: OrderListProps) {
         <td className="order-list__num-cell order-list__need-cell" data-label="Need" style={{ color: row.needFg, fontWeight: 800 }}>
           <span className="order-list__cell-value">
             {entry.quantityNeeded} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+          </span>
+        </td>
+        <td className="order-list__num-cell order-list__manual-cell" data-label="Manual">
+          <span className="order-list__cell-value">
+            {entry.manualAddition > 0 ? (
+              <span className="order-list__manual-value">
+                +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+              </span>
+            ) : (
+              <span className="order-list__manual-empty">—</span>
+            )}
           </span>
         </td>
         {isFlat && (
@@ -578,6 +662,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                         <col className="order-list__col--category" />
                         <col className="order-list__col--num" />
                         <col className="order-list__col--num" />
+                        <col className="order-list__col--num" />
                         <col className="order-list__col--status" />
                       </colgroup>
                       <thead>
@@ -587,6 +672,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                           <th className="order-list__category-cell">Category</th>
                           <th className="order-list__num-header">Stock</th>
                           <th className="order-list__num-header">Need</th>
+                          <th className="order-list__num-header">Manual</th>
                           <th>Status</th>
                         </tr>
                       </thead>
@@ -611,13 +697,14 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <table className="order-list__flat-table">
               <colgroup>
                 <col style={{ width: '3%' }} />
-                <col style={{ width: '25%' }} />
+                <col style={{ width: '22%' }} />
                 <col style={{ width: '7%' }} />
                 <col style={{ width: '8%' }} />
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '9%' }} />
-                <col style={{ width: '7%' }} />
-                <col style={{ width: '12%' }} />
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '8%' }} />
+                <col style={{ width: '6%' }} />
+                <col style={{ width: '10%' }} />
                 <col style={{ width: '18%' }} />
               </colgroup>
               <thead>
@@ -626,6 +713,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                   <th>Item</th>
                   <th className="order-list__num-header">Stock</th>
                   <th className="order-list__num-header">Need</th>
+                  <th className="order-list__num-header">Manual</th>
                   <th>Supplier</th>
                   <th>Category</th>
                   <th>Source</th>

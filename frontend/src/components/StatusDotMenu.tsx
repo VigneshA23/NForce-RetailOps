@@ -16,6 +16,12 @@ interface StatusDotMenuProps {
   onChange: (value: string) => void;
   ariaLabel: string;
   width?: number;
+  // Optional trigger fill -- used by OrderList's mobile card, which shows the
+  // status as a solid colored pill (matching STATUS_META's fg/bg) rather than
+  // the plain white/bordered look every other caller keeps by leaving these
+  // unset.
+  background?: string;
+  color?: string;
 }
 
 const VIEWPORT_MARGIN = 8;
@@ -24,7 +30,7 @@ const VIEWPORT_MARGIN = 8;
 // trigger and each option, instead of Select's plain text list. Shares
 // Select's portaled/viewport-clamped positioning so it behaves the same in a
 // table cell near the edge of the screen.
-function StatusDotMenu({ options, value, onChange, ariaLabel, width = 172 }: StatusDotMenuProps) {
+function StatusDotMenu({ options, value, onChange, ariaLabel, width = 172, background, color }: StatusDotMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -79,7 +85,7 @@ function StatusDotMenu({ options, value, onChange, ariaLabel, width = 172 }: Sta
         ref={triggerRef}
         type="button"
         className="status-dot-menu__trigger"
-        style={{ width }}
+        style={background ? { width, background, color, borderColor: background } : { width }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label={ariaLabel}

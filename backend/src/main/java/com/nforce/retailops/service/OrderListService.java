@@ -265,8 +265,25 @@ public class OrderListService {
                 return created;
             });
 
-        entry.setQuantityNeeded(quantityNeeded);
-        entry.setAdHoc(entry.getId() == null ? adHoc : entry.isAdHoc());
+        boolean isNewEntry = entry.getId() == null;
+
+        // A manual "Add to order" (adHoc) on an item that already has an
+        // active entry tops it up rather than replacing it -- quantityNeeded
+        // stays whatever the stock count last calculated, and the typed
+        // amount accumulates in manualAddition instead (Order List shows the
+        // two separately; the real quantity to order is their sum). Every
+        // other case -- a system stock-check recalculation, or a brand-new
+        // entry of either kind -- treats quantityNeeded as the fresh
+        // baseline and clears any manual top-up, since that top-up was for
+        // the figure being replaced, not a running total.
+        if (adHoc && !isNewEntry) {
+            entry.setManualAddition(entry.getManualAddition() + quantityNeeded);
+        } else {
+            entry.setQuantityNeeded(quantityNeeded);
+            entry.setManualAddition(0);
+        }
+
+        entry.setAdHoc(isNewEntry ? adHoc : entry.isAdHoc());
         if (note != null) {
             entry.setNote(note);
         }

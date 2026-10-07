@@ -8,6 +8,7 @@ export interface OrderListEntry {
   itemName: string;
   unitOfMeasurement: string;
   quantityNeeded: number;
+  manualAddition: number;
   supplierId: number | null;
   supplierName: string | null;
   note: string | null;
