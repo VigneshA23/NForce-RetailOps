@@ -822,7 +822,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
         isOpen={isAddOpen}
         storeName={storeName}
         inventoryItems={inventoryItems}
-        suppliers={suppliers}
         activeNeedByItemId={activeNeedByItemId}
         errorMessage={addError}
         isSubmitting={isAddSubmitting}
