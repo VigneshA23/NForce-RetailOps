@@ -115,6 +115,56 @@ function EditHarness({ nextCategoriesForNewScope }: { nextCategoriesForNewScope:
   );
 }
 
+// Same async-round-trip shape as EditHarness, but create mode (no
+// initialTask) -- this is the exact configuration Tasks.tsx renders for
+// Owner/Admin, and where RTS-314 reproduced as a full form wipe rather than
+// edit mode's (harmless, since initialTask is stable in production) revert.
+function CreateHarness() {
+  const [formCategories, setFormCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+
+  async function loadCategoriesForScope() {
+    setCategoriesLoading(true);
+    await Promise.resolve();
+    setFormCategories([cleaningCategory]);
+    setCategoriesLoading(false);
+  }
+
+  return (
+    <TaskFormModal
+      isOpen
+      mode="create"
+      categories={formCategories}
+      categoriesLoading={categoriesLoading}
+      categoriesError={null}
+      onRetryCategories={() => {}}
+      onManageCategories={() => {}}
+      stores={[stores[0], store2]}
+      storeScopeSelectable
+      onStoreScopeChange={loadCategoriesForScope}
+      onClose={() => {}}
+      onSubmit={vi.fn()}
+    />
+  );
+}
+
+// Regression test for RTS-314: picking a store while creating a task must
+// not wipe the Task Name or the just-picked store, even though picking a
+// store triggers an async category refetch in the parent (onStoreScopeChange).
+describe('TaskFormModal create-mode store selection', () => {
+  it('keeps the typed Task Name and the picked store through the async category refetch', async () => {
+    const user = userEvent.setup();
+    render(<CreateHarness />);
+
+    await user.type(screen.getByLabelText('Task Name *'), 'Prepare Waffle Cones');
+    await user.click(screen.getByLabelText('Store *'));
+    await user.click(screen.getByRole('button', { name: 'Store 2' }));
+
+    await waitFor(() => expect(screen.getByLabelText('Store *')).toHaveTextContent('Store 2'));
+    expect(screen.getByLabelText('Task Name *')).toHaveValue('Prepare Waffle Cones');
+  });
+});
+
 // Regression tests for the reported bug: changing/adding to an existing
 // task's store scope must not blindly clear its already-selected category.
 describe('TaskFormModal store-scope change preserves a still-valid category', () => {

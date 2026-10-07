@@ -241,53 +241,69 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
       {isLoading && <div className="employee-stock-check-page__empty">Loading...</div>}
 
       <div className="employee-stock-history__list">
-        {visibleRows.map((row) => (
-          <article
-            key={row.id}
-            className={`employee-stock-history__item employee-stock-history__item--${row.status}`}
-          >
-            <ItemIcon id={row.storeInventoryItemId} name={row.itemName} />
-            <div className="employee-stock-history__item-main">
-              <h3 className="employee-stock-history__item-name">{row.itemName}</h3>
-              <p className="employee-stock-history__item-meta">
-                Min Par: {row.requiredPar ?? '—'} {row.unitOfMeasurement} · {formatDateLabel(row.checkDate)}
-              </p>
-              {row.status === 'shortage' && (
-                <span className="badge badge--danger employee-stock-history__status">
-                  <TrendingDown size={12} /> {row.deficit} {row.unitOfMeasurement} Deficit
-                </span>
-              )}
-              {row.status === 'optimal' && (
-                <span className="badge badge--success employee-stock-history__status">
-                  <CheckCircle2 size={12} /> Optimal (+{row.buffer} Buffer)
-                </span>
-              )}
-              {row.status === 'pending' && (
-                <span className="badge badge--outline employee-stock-history__status">Not Counted</span>
-              )}
-            </div>
-            <div className="employee-stock-history__stats">
-              <div className="employee-stock-history__stat">
-                <span className="employee-stock-history__stat-label">Counted</span>
-                <strong
-                  className={
-                    row.status === 'shortage'
-                      ? 'employee-stock-history__stat-value--danger'
-                      : row.status === 'optimal'
-                        ? 'employee-stock-history__stat-value--success'
-                        : undefined
-                  }
-                >
-                  {row.counted ?? '—'} {row.unitOfMeasurement}
-                </strong>
+        {visibleRows.map((row) => {
+          // Same "whoever last touched End of Day, else Start of Day"
+          // derivation Owner/Admin's StockCheckHistory uses for its own
+          // "Recorded By" column, so an employee sees the same answer an
+          // Admin would for the same row.
+          const recordedBy = row.endOfDay?.lastUpdatedByName ?? row.startOfDay?.lastUpdatedByName ?? null;
+          return (
+            <article
+              key={row.id}
+              className={`employee-stock-history__item employee-stock-history__item--${row.status}`}
+            >
+              <ItemIcon id={row.storeInventoryItemId} name={row.itemName} />
+              <div className="employee-stock-history__item-main">
+                <h3 className="employee-stock-history__item-name">{row.itemName}</h3>
+                <p className="employee-stock-history__item-meta">
+                  Min Par: {row.requiredPar ?? '—'} {row.unitOfMeasurement} · {formatDateLabel(row.checkDate)}
+                  {recordedBy && ` · Recorded by ${recordedBy}`}
+                </p>
+                {row.status === 'shortage' && (
+                  <span className="badge badge--danger employee-stock-history__status">
+                    <TrendingDown size={12} /> {row.deficit} {row.unitOfMeasurement} Deficit
+                  </span>
+                )}
+                {row.status === 'optimal' && (
+                  <span className="badge badge--success employee-stock-history__status">
+                    <CheckCircle2 size={12} /> Optimal (+{row.buffer} Buffer)
+                  </span>
+                )}
+                {row.status === 'pending' && (
+                  <span className="badge badge--outline employee-stock-history__status">Not Counted</span>
+                )}
+                {row.edits.length > 0 && (
+                  <span
+                    className="badge badge--info employee-stock-history__status"
+                    title="An Owner/Admin corrected this count"
+                  >
+                    Corrected
+                  </span>
+                )}
               </div>
-              <div className="employee-stock-history__stat">
-                <span className="employee-stock-history__stat-label">Required Par</span>
-                <strong>{row.requiredPar ?? '—'} {row.unitOfMeasurement}</strong>
+              <div className="employee-stock-history__stats">
+                <div className="employee-stock-history__stat">
+                  <span className="employee-stock-history__stat-label">Counted</span>
+                  <strong
+                    className={
+                      row.status === 'shortage'
+                        ? 'employee-stock-history__stat-value--danger'
+                        : row.status === 'optimal'
+                          ? 'employee-stock-history__stat-value--success'
+                          : undefined
+                    }
+                  >
+                    {row.counted ?? '—'} {row.unitOfMeasurement}
+                  </strong>
+                </div>
+                <div className="employee-stock-history__stat">
+                  <span className="employee-stock-history__stat-label">Required Par</span>
+                  <strong>{row.requiredPar ?? '—'} {row.unitOfMeasurement}</strong>
+                </div>
               </div>
-            </div>
-          </article>
-        ))}
+            </article>
+          );
+        })}
       </div>
 
       <Pagination

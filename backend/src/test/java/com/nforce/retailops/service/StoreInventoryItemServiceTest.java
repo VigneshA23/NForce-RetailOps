@@ -85,7 +85,7 @@ class StoreInventoryItemServiceTest {
         StockCheck check = new StockCheck();
         check.setStoreInventoryItem(item);
         check.setCheckDate(date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, null, OffsetDateTime.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, null, OffsetDateTime.now(), false);
         return check;
     }
 

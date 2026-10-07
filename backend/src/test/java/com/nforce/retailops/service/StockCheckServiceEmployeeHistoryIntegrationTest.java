@@ -88,8 +88,8 @@ class StockCheckServiceEmployeeHistoryIntegrationTest {
         check.setStore(store);
         check.setStoreInventoryItem(item);
         check.setCheckDate(LocalDate.of(2026, 9, 1));
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 8, 0, employee, OffsetDateTime.now());
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 5, 0, employee, OffsetDateTime.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 8, 0, employee, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 5, 0, employee, OffsetDateTime.now(), false);
         stockCheckRepository.save(check);
 
         StockCheckHistoryPageResponse response = stockCheckService.listHistoricalChecksForEmployee(

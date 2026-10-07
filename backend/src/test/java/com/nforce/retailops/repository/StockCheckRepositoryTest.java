@@ -84,7 +84,7 @@ class StockCheckRepositoryTest {
 
     private StockCheck startOfDay(StoreInventoryItem item, User by, LocalDate date, int available) {
         StockCheck check = newCheck(item, date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, by, OffsetDateTime.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, by, OffsetDateTime.now(), false);
         return stockCheckRepository.save(check);
     }
 
@@ -134,7 +134,7 @@ class StockCheckRepositoryTest {
         stockCheckRepository.flush();
 
         StockCheck duplicate = newCheck(item, day);
-        duplicate.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 5, 0, recorder, OffsetDateTime.now());
+        duplicate.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 5, 0, recorder, OffsetDateTime.now(), false);
 
         assertThatThrownBy(() -> stockCheckRepository.saveAndFlush(duplicate))
             .isInstanceOf(DataIntegrityViolationException.class);

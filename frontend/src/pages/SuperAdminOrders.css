@@ -1,0 +1,169 @@
+.super-admin-orders {
+  padding: var(--space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.super-admin-orders__title {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.super-admin-orders__section-title {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Outstanding-across-stores summary -- same visual language as
+   SuperAdminHome's own Outstanding Orders card (.sa-home__orders), reused
+   here as the cross-store view this ticket's acceptance criteria ask for. */
+.super-admin-orders__overview {
+  background: rgba(225, 29, 51, 0.06);
+  border: 1px solid rgba(225, 29, 51, 0.22);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-lg);
+}
+
+.super-admin-orders__overview-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-sm);
+}
+
+.super-admin-orders__overview-total {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.super-admin-orders__overview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.super-admin-orders__overview-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: 13px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font-family: inherit;
+}
+
+.super-admin-orders__overview-store {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.super-admin-orders__overview-name {
+  font-weight: 600;
+}
+
+.super-admin-orders__overview-figures {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  flex-shrink: 0;
+}
+
+.super-admin-orders__overview-count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-accent);
+}
+
+.super-admin-orders__overview-meta {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.super-admin-orders__overview-truncated {
+  margin: var(--space-sm) 0 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.super-admin-orders__picker {
+  max-width: 420px;
+}
+
+.super-admin-orders__store {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.super-admin-orders__filter-row {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.super-admin-orders__status-select {
+  min-width: 160px;
+}
+
+.super-admin-orders__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm) var(--space-md);
+}
+
+.super-admin-orders__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.super-admin-orders__row:last-child {
+  border-bottom: none;
+}
+
+.super-admin-orders__row-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.super-admin-orders__row-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.super-admin-orders__row-meta {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.super-admin-orders__error {
+  color: var(--color-accent);
+  font-size: 14px;
+}
+
+.super-admin-orders__loading,
+.super-admin-orders__empty,
+.super-admin-orders__hint {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}

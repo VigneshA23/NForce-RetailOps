@@ -173,7 +173,7 @@ public class StockCheckService {
                 return created;
             });
 
-        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null);
+        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null, false);
         syncOrderList(check, request.snapshot(), employee);
         return StockCheckResponse.from(check);
     }
@@ -272,7 +272,7 @@ public class StockCheckService {
         requireDeadStockWithinAvailable(request.available(), request.deadStock());
 
         User owner = userRepository.getReferenceById(ownerId);
-        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), owner, request.reason());
+        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), owner, request.reason(), true);
 
         // Only propagate to the order list for TODAY's record -- correcting a
         // stale historical entry shouldn't resurrect or distort today's live
@@ -281,7 +281,14 @@ public class StockCheckService {
             syncOrderList(check, request.snapshot(), check.getCheckedBy());
         }
 
-        return StockCheckResponse.from(check);
+        // Returned with the check's own up-to-date edit list (rather than the
+        // empty list the single-arg StockCheckResponse.from gives) so the
+        // caller sees the correction it just made without a separate refetch.
+        List<StockCheckEditResponse> edits = stockCheckCorrectionRepository
+            .findWithEditorByStockCheckIds(List.of(check.getId())).stream()
+            .map(StockCheckEditResponse::from)
+            .toList();
+        return StockCheckResponse.from(check, edits);
     }
 
     // Every active item plus any inactive one that was counted that day,
@@ -458,17 +465,21 @@ public class StockCheckService {
     }
 
     // Writes one snapshot in place. Re-saving an existing snapshot appends an
-    // audit row with the previous values first; the first save writes none
-    // (the enterer is recorded on the check itself). Saving End of Day also
-    // persists tomorrow's requirement and the resulting quantity to order.
+    // audit row with the previous values first; an employee's genuine first
+    // save writes none (the enterer is recorded on the check itself). An
+    // Owner/Admin correction (isCorrection) always appends an audit row, even
+    // when filling in a snapshot that had no prior value -- originalCount is
+    // null in that case -- and never claims "enteredBy" credit for doing so
+    // (see StockCheck.recordSnapshot). Saving End of Day also persists
+    // tomorrow's requirement and the resulting quantity to order.
     private StockCheck applySnapshot(
-        StockCheck check, StockCheckSnapshot snapshot, int available, int deadStock, User by, String reason
+        StockCheck check, StockCheckSnapshot snapshot, int available, int deadStock, User by, String reason, boolean isCorrection
     ) {
-        boolean isEdit = check.hasSnapshot(snapshot);
-        int previousAvailable = isEdit ? check.availableFor(snapshot) : 0;
-        Integer previousDeadStock = isEdit ? check.deadStockFor(snapshot) : null;
+        boolean hadValue = check.hasSnapshot(snapshot);
+        Integer previousAvailable = hadValue ? check.availableFor(snapshot) : null;
+        Integer previousDeadStock = hadValue ? check.deadStockFor(snapshot) : null;
 
-        check.recordSnapshot(snapshot, available, deadStock, by, OffsetDateTime.now());
+        check.recordSnapshot(snapshot, available, deadStock, by, OffsetDateTime.now(), isCorrection);
 
         if (snapshot == StockCheckSnapshot.END_OF_DAY) {
             Integer required = check.getStoreInventoryItem().requiredMinimumOn(check.getCheckDate().plusDays(1));
@@ -478,7 +489,7 @@ public class StockCheckService {
 
         StockCheck saved = stockCheckRepository.save(check);
 
-        if (isEdit) {
+        if (isCorrection || hadValue) {
             StockCheckCorrection correction = new StockCheckCorrection();
             correction.setStockCheck(saved);
             correction.setSnapshot(snapshot);

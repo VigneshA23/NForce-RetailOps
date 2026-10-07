@@ -5,11 +5,13 @@ import com.nforce.retailops.entity.StockCheckSnapshot;
 
 import java.time.OffsetDateTime;
 
-// One edit of an existing snapshot, for Inventory History. previousDeadStock
-// is null on edits recorded before dead stock was tracked.
+// One edit of an existing snapshot, for Inventory History. previousAvailable
+// is null when the snapshot had no prior value at all (an Owner/Admin
+// correction filling in one that was never recorded); previousDeadStock is
+// null on edits recorded before dead stock was tracked.
 public record StockCheckEditResponse(
     StockCheckSnapshot snapshot,
-    int previousAvailable,
+    Integer previousAvailable,
     Integer previousDeadStock,
     int newAvailable,
     Integer newDeadStock,

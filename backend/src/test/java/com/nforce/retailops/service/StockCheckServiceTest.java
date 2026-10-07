@@ -158,7 +158,7 @@ class StockCheckServiceTest {
     void resavingStartOfDayUpdatesTheSameRecordAndAuditsThePreviousValue() {
         StockCheck check = existingCheck(LocalDate.now());
         User john = user(3L, "John");
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, john, OffsetDateTime.now().minusHours(3));
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, john, OffsetDateTime.now().minusHours(3), false);
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.of(check));
 
@@ -189,7 +189,7 @@ class StockCheckServiceTest {
         milk.setMinWeekday(40);
         milk.setMinWeekend(40);
         StockCheck check = existingCheck(LocalDate.now());
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, employee, OffsetDateTime.now().minusHours(9));
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, employee, OffsetDateTime.now().minusHours(9), false);
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.of(check));
 
@@ -254,7 +254,7 @@ class StockCheckServiceTest {
         milk.setMinWeekday(40);
         milk.setMinWeekend(40);
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, OffsetDateTime.now().minusDays(3));
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, OffsetDateTime.now().minusDays(3), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
@@ -301,8 +301,8 @@ class StockCheckServiceTest {
 
         LocalDate day = LocalDate.of(2026, 6, 15);
         StockCheck milkCheck = existingCheck(day);
-        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, employee, OffsetDateTime.now());
-        milkCheck.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 35, 1, employee, OffsetDateTime.now());
+        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, employee, OffsetDateTime.now(), false);
+        milkCheck.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 35, 1, employee, OffsetDateTime.now(), false);
         milkCheck.setRequiredTomorrow(40);
         milkCheck.setQuantityNeeded(6);
 
@@ -368,7 +368,7 @@ class StockCheckServiceTest {
         milk.setMinWeekday(20);
         milk.setMinWeekend(20);
         StockCheck check = existingCheck(LocalDate.now());
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 15, 0, employee, OffsetDateTime.now().minusHours(1));
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 15, 0, employee, OffsetDateTime.now().minusHours(1), false);
         check.setQuantityNeeded(5);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
@@ -382,7 +382,7 @@ class StockCheckServiceTest {
     @Test
     void correctingTheSameCheckTwiceProducesTwoSeparateAuditRows() {
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, OffsetDateTime.now().minusDays(3));
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, OffsetDateTime.now().minusDays(3), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
@@ -411,6 +411,78 @@ class StockCheckServiceTest {
             .isInstanceOf(StoreInventoryItemNotFoundException.class);
     }
 
+    // ---- RTS-69: correcting a snapshot that was never recorded -------------
+
+    @Test
+    void correctingANeverRecordedSnapshotAuditsItWithNoOriginalValueAndDoesNotClaimEnteredBy() {
+        StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
+        when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
+
+        stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
+            new StockCheckCorrectionRequest(StockCheckSnapshot.START_OF_DAY, 12, 0, "Backfilled missed count"));
+
+        ArgumentCaptor<StockCheckCorrection> captor = ArgumentCaptor.forClass(StockCheckCorrection.class);
+        verify(stockCheckCorrectionRepository).save(captor.capture());
+        StockCheckCorrection saved = captor.getValue();
+        assertThat(saved.getOriginalCount()).isNull();
+        assertThat(saved.getCorrectedCount()).isEqualTo(12);
+        assertThat(saved.getCorrectedBy()).isEqualTo(owner);
+
+        // A correction never claims credit for the original entry -- there
+        // wasn't one.
+        assertThat(check.getStartOfDayEnteredBy()).isNull();
+        assertThat(check.getStartOfDayEnteredAt()).isNull();
+        assertThat(check.getStartOfDayAvailable()).isEqualTo(12);
+    }
+
+    @Test
+    void anEmployeeEnteringTheRealCountAfterAnAdminBackfillGetsCreditedAsTheEnterer() {
+        StockCheck check = existingCheck(LocalDate.now());
+        when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
+        stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
+            new StockCheckCorrectionRequest(StockCheckSnapshot.START_OF_DAY, 12, 0, "Backfilled missed count"));
+
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, 15, 1));
+
+        assertThat(check.getStartOfDayEnteredBy()).isEqualTo(employee);
+        assertThat(check.getStartOfDayEnteredAt()).isNotNull();
+        assertThat(check.getStartOfDayAvailable()).isEqualTo(15);
+
+        ArgumentCaptor<StockCheckCorrection> captor = ArgumentCaptor.forClass(StockCheckCorrection.class);
+        verify(stockCheckCorrectionRepository, times(2)).save(captor.capture());
+        StockCheckCorrection employeeEntry = captor.getAllValues().get(1);
+        assertThat(employeeEntry.getOriginalCount()).isEqualTo(12);
+        assertThat(employeeEntry.getCorrectedCount()).isEqualTo(15);
+        assertThat(employeeEntry.getCorrectedBy()).isEqualTo(employee);
+    }
+
+    @Test
+    void correctCheckReturnsItsOwnUpdatedEditsWithoutARefetch() {
+        StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, OffsetDateTime.now().minusDays(3), false);
+        when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
+
+        StockCheckCorrection correction = new StockCheckCorrection();
+        correction.setStockCheck(check);
+        correction.setSnapshot(StockCheckSnapshot.END_OF_DAY);
+        correction.setOriginalCount(10);
+        correction.setCorrectedCount(6);
+        correction.setCorrectedBy(owner);
+        correction.setCorrectedAt(OffsetDateTime.now());
+        when(stockCheckCorrectionRepository.findWithEditorByStockCheckIds(List.of(CHECK_ID)))
+            .thenReturn(List.of(correction));
+
+        StockCheckResponse response = stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 6, 1, "Recount"));
+
+        assertThat(response.edits()).hasSize(1);
+        assertThat(response.edits().get(0).newAvailable()).isEqualTo(6);
+    }
+
     // ---- Inventory Counts (live per-item status) ---------------------------
 
     private StockCheck checkWithCount(StoreInventoryItem item, LocalDate date, int available, int dead) {
@@ -418,7 +490,7 @@ class StockCheckServiceTest {
         check.setStore(store);
         check.setStoreInventoryItem(item);
         check.setCheckDate(date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, dead, employee, OffsetDateTime.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, dead, employee, OffsetDateTime.now(), false);
         return check;
     }
 

@@ -4,13 +4,15 @@ import jakarta.persistence.*;
 
 import java.time.OffsetDateTime;
 
-// Immutable, append-only audit trail of every edit to an existing Start of
-// Day or End of Day snapshot -- an employee re-saving today's count, or
-// Owner/Admin correcting a past one. The first save of a snapshot writes no
-// row (who entered it lives on StockCheck itself). admin_corrections can't
-// be reused here -- its FK to task_response_id is hard and NOT NULL, with no
-// polymorphic entity reference. originalCount / correctedCount hold the
-// available figure (column names predate dead stock, V71).
+// Immutable, append-only audit trail of every edit to a Start of Day or End
+// of Day snapshot -- an employee re-saving today's count, or Owner/Admin
+// correcting a past one. An employee's genuine first save of a snapshot
+// writes no row (who entered it lives on StockCheck itself); an Owner/Admin
+// correction always writes one, even when it's filling in a snapshot that
+// was never recorded -- originalCount is null in that case. admin_corrections
+// can't be reused here -- its FK to task_response_id is hard and NOT NULL,
+// with no polymorphic entity reference. originalCount / correctedCount hold
+// the available figure (column names predate dead stock, V71).
 @Entity
 @Table(name = "stock_check_corrections")
 public class StockCheckCorrection {
@@ -27,8 +29,11 @@ public class StockCheckCorrection {
     @Column(name = "snapshot", nullable = false, length = 16)
     private StockCheckSnapshot snapshot = StockCheckSnapshot.END_OF_DAY;
 
-    @Column(name = "original_count", nullable = false)
-    private int originalCount;
+    // Null when the snapshot had no prior value at all (an Admin correction
+    // filling in one that was never recorded) -- distinct from a prior value
+    // of 0.
+    @Column(name = "original_count")
+    private Integer originalCount;
 
     @Column(name = "corrected_count", nullable = false)
     private int correctedCount;
@@ -77,8 +82,8 @@ public class StockCheckCorrection {
     public Integer getCorrectedDeadStock() { return correctedDeadStock; }
     public void setCorrectedDeadStock(Integer correctedDeadStock) { this.correctedDeadStock = correctedDeadStock; }
 
-    public int getOriginalCount() { return originalCount; }
-    public void setOriginalCount(int originalCount) { this.originalCount = originalCount; }
+    public Integer getOriginalCount() { return originalCount; }
+    public void setOriginalCount(Integer originalCount) { this.originalCount = originalCount; }
 
     public int getCorrectedCount() { return correctedCount; }
     public void setCorrectedCount(int correctedCount) { this.correctedCount = correctedCount; }

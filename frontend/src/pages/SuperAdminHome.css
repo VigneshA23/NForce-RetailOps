@@ -104,6 +104,17 @@
   color: var(--color-text-secondary);
 }
 
+.sa-home__orders-view-all {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+}
+
 .sa-home__orders-list {
   display: flex;
   flex-direction: column;

@@ -227,7 +227,7 @@ class StoreInventoryControllerTest {
             .andExpect(jsonPath("$.itemsPendingEndOfDay").value(2));
 
         StockCheck saved = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(milk.getId(), today).orElseThrow();
-        saved.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 35, 1, owner, OffsetDateTime.now());
+        saved.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 35, 1, owner, OffsetDateTime.now(), false);
         saved.setRequiredTomorrow(40);
         saved.setQuantityNeeded(6);
         stockCheckRepository.save(saved);
@@ -330,9 +330,9 @@ class StoreInventoryControllerTest {
         check.setStore(item.getStore());
         check.setStoreInventoryItem(item);
         check.setCheckDate(date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, sodAvailable, sodDead, by, OffsetDateTime.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, sodAvailable, sodDead, by, OffsetDateTime.now(), false);
         if (eodAvailable != null) {
-            check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, eodAvailable, eodDead, by, OffsetDateTime.now());
+            check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, eodAvailable, eodDead, by, OffsetDateTime.now(), false);
         }
         stockCheckRepository.save(check);
     }
