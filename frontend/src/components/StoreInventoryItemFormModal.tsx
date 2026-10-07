@@ -22,6 +22,7 @@ interface StoreInventoryItemFormModalProps {
   suppliers: Supplier[];
   // Backs the supplier field's inline "Add New Supplier" option.
   onCreateSupplier: (name: string) => Promise<Supplier>;
+  onDeleteSupplier?: (supplier: Supplier) => Promise<void>;
   // Only Super Admin's page passes stores + true here -- Owner/Admin's own
   // store is derived server-side, so their form never shows this field.
   stores?: StoreOption[];
@@ -54,6 +55,7 @@ function StoreInventoryItemFormModal({
   mode,
   suppliers,
   onCreateSupplier,
+  onDeleteSupplier,
   stores = [],
   showStoreField = false,
   initialValues,
@@ -203,6 +205,7 @@ function StoreInventoryItemFormModal({
             value={values.preferredSupplierId}
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
             onCreate={onCreateSupplier}
+            onDelete={onDeleteSupplier}
             ariaLabel="Preferred supplier"
           />
         </FormField>

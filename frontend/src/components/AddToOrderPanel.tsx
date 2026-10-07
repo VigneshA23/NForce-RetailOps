@@ -7,6 +7,7 @@ import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
 import QuantityStepper from './QuantityStepper';
+import CounterStepper from './CounterStepper';
 import ButtonDots from './ButtonDots';
 import './AddToOrderPanel.css';
 
@@ -17,11 +18,20 @@ export interface OrderableInventoryItem {
   preferredSupplierId: number | null;
 }
 
+// At most one active (non-RECEIVED) order-list entry per item, keyed by
+// storeInventoryItemId -- lets the panel show what's already queued for an
+// item before the user adds more on top of it.
+export interface ActiveItemNeed {
+  quantityNeeded: number;
+  manualAddition: number;
+}
+
 interface AddToOrderPanelProps {
   isOpen: boolean;
   storeName?: string | null;
   inventoryItems: OrderableInventoryItem[];
   suppliers: Supplier[];
+  activeNeedByItemId?: Map<number, ActiveItemNeed>;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -35,22 +45,60 @@ interface FormState {
   storeInventoryItemId: number | null;
   customName: string;
   customUnit: string;
-  customCategory: InventoryItemCategory;
+  // undefined: nothing chosen yet (shows the "Select category" placeholder).
+  // null: "No category" deliberately picked from the list. A real category
+  // once one is. Submission treats the first two the same way (null).
+  customCategory: InventoryItemCategory | null | undefined;
   saveToInventory: boolean;
+  minWeekday: string;
+  minWeekend: string;
   quantity: number;
   supplierId: number | null;
   note: string;
 }
 
-function emptyState(firstItemId: number | null): FormState {
+// Saturday/Sunday count as the weekend minimum, same cutover as the backend's
+// StoreInventoryItem.requiredMinimumOn -- kept in sync by hand since this is
+// a client-only default, not a value the server computes for an item that
+// doesn't exist yet.
+function isWeekendToday(): boolean {
+  const day = new Date().getDay();
+  return day === 0 || day === 6;
+}
+
+function todaysMinimum(minWeekday: string, minWeekend: string): number {
+  const weekday = Number(minWeekday) || 0;
+  if (!isWeekendToday()) return weekday;
+  // Weekend min falls back to weekday when blank, same as the entity itself.
+  return minWeekend.trim() === '' ? weekday : Number(minWeekend) || 0;
+}
+
+// Whenever a minimum changes, the order quantity floor moves with it --
+// bumped up to match if it's currently short, left alone (never pulled back
+// down) if the user already raised it past that. Only applies once the item
+// is actually joining the catalog; a one-time purchase has no minimum to
+// honor.
+function syncQuantityToMinimum(state: FormState): FormState {
+  if (state.source !== 'custom' || !state.saveToInventory) return state;
+  const floor = todaysMinimum(state.minWeekday, state.minWeekend);
+  return state.quantity < floor ? { ...state, quantity: floor } : state;
+}
+
+function emptyState(): FormState {
   return {
     source: 'inventory',
-    storeInventoryItemId: firstItemId,
+    storeInventoryItemId: null,
     customName: '',
     customUnit: '',
-    customCategory: 'INGREDIENTS',
+    customCategory: undefined,
     saveToInventory: false,
-    quantity: 1,
+    minWeekday: '0',
+    minWeekend: '',
+    // Defaults to 0, not 1 -- this is almost always a top-up on an item that
+    // already has a system-calculated Need (see the hint shown once an item
+    // with one is selected), so submitting without deliberately choosing an
+    // amount should not silently add anything.
+    quantity: 0,
     supplierId: null,
     note: '',
   };
@@ -65,17 +113,18 @@ function AddToOrderPanel({
   storeName,
   inventoryItems,
   suppliers,
+  activeNeedByItemId,
   errorMessage,
   isSubmitting = false,
   onClose,
   onSubmit,
 }: AddToOrderPanelProps) {
-  const [values, setValues] = useState<FormState>(() => emptyState(inventoryItems[0]?.id ?? null));
+  const [values, setValues] = useState<FormState>(emptyState);
   const [validationError, setValidationError] = useState<string | undefined>();
 
   useEffect(() => {
     if (isOpen) {
-      setValues(emptyState(inventoryItems[0]?.id ?? null));
+      setValues(emptyState());
       setValidationError(undefined);
     }
     // Only reset when the panel opens -- inventoryItems can re-fetch while
@@ -112,16 +161,22 @@ function AddToOrderPanel({
             category: null,
             unitOfMeasurement: '',
             saveToInventory: false,
+            minWeekday: '0',
+            minWeekend: '',
             quantityNeeded: String(values.quantity),
-            supplierId: values.supplierId ?? selectedItem?.preferredSupplierId ?? null,
+            // No Supplier field for this tab (see below) -- the item's own
+            // preferred supplier is used automatically.
+            supplierId: selectedItem?.preferredSupplierId ?? null,
             note: values.note,
           }
         : {
             storeInventoryItemId: null,
             itemName: values.customName,
-            category: values.customCategory,
+            category: values.customCategory ?? null,
             unitOfMeasurement: values.customUnit,
             saveToInventory: values.saveToInventory,
+            minWeekday: values.minWeekday,
+            minWeekend: values.minWeekend,
             quantityNeeded: String(values.quantity),
             supplierId: values.supplierId,
             note: values.note,
@@ -134,8 +189,16 @@ function AddToOrderPanel({
     { value: '', label: 'No supplier' },
     ...suppliers.filter((s) => s.active).map((s) => ({ value: String(s.id), label: s.name })),
   ];
+  const categoryOptions = [{ value: '', label: 'No category' }, ...INVENTORY_ITEM_CATEGORY_OPTIONS];
   const selectedItem = inventoryItems.find((item) => item.id === values.storeInventoryItemId);
   const unit = values.source === 'inventory' ? selectedItem?.unitOfMeasurement ?? '' : values.customUnit;
+  const existingNeed =
+    values.source === 'inventory' && values.storeInventoryItemId != null
+      ? activeNeedByItemId?.get(values.storeInventoryItemId)
+      : undefined;
+  // Quantity can never be ordered below today's minimum once one's set --
+  // still floored at 1 the rest of the time (can't submit "add 0 of this").
+  const quantityMin = Math.max(1, values.source === 'custom' && values.saveToInventory ? todaysMinimum(values.minWeekday, values.minWeekend) : 0);
 
   return (
     <Modal
@@ -188,6 +251,11 @@ function AddToOrderPanel({
               placeholder={inventoryOptions.length === 0 ? 'No inventory items yet' : 'Select an item'}
               disabled={inventoryOptions.length === 0}
             />
+            {existingNeed && (
+              <p className="add-to-order-panel__need-hint">
+                Already needs <b>{existingNeed.quantityNeeded + existingNeed.manualAddition} {unit}</b> -- this adds extra on top.
+              </p>
+            )}
           </FormField>
         ) : (
           <>
@@ -215,10 +283,15 @@ function AddToOrderPanel({
               <FormField label="Category" htmlFor="ato-category">
                 <Select
                   id="ato-category"
-                  options={INVENTORY_ITEM_CATEGORY_OPTIONS}
-                  value={values.customCategory}
-                  onChange={(value) => setValues((current) => ({ ...current, customCategory: value as InventoryItemCategory }))}
+                  options={categoryOptions}
+                  // No option has this value, so until the owner actually
+                  // picks something (even "No category" itself) the trigger
+                  // falls through to the placeholder below instead of
+                  // reading as though "No category" were already chosen.
+                  value={values.customCategory === undefined ? '__unset__' : values.customCategory ?? ''}
+                  onChange={(value) => setValues((current) => ({ ...current, customCategory: value === '' ? null : (value as InventoryItemCategory) }))}
                   ariaLabel="Category"
+                  placeholder="Select category"
                   indicator="radio"
                 />
               </FormField>
@@ -227,7 +300,7 @@ function AddToOrderPanel({
               <input
                 type="checkbox"
                 checked={values.saveToInventory}
-                onChange={(event) => setValues((current) => ({ ...current, saveToInventory: event.target.checked }))}
+                onChange={(event) => setValues((current) => syncQuantityToMinimum({ ...current, saveToInventory: event.target.checked }))}
               />
               <span>
                 Also add to {storeName ?? 'this store'}&rsquo;s inventory
@@ -236,6 +309,41 @@ function AddToOrderPanel({
                 </span>
               </span>
             </label>
+
+            {/* Only once it's actually joining the catalog -- a one-time
+                purchase has no ongoing minimum to set. Same fields/layout as
+                the main catalog form's own Store Parity section. */}
+            {values.saveToInventory && (
+              <div className="add-to-order-panel__section">
+                <h3 className="add-to-order-panel__section-title">Store Parity &amp; Minimum Quantities</h3>
+                <div className="add-to-order-panel__store-row">
+                  <span className="add-to-order-panel__store-dot" aria-hidden="true" />
+                  <span>{storeName ?? 'This store'}</span>
+                </div>
+                <div className="add-to-order-panel__quantities">
+                  <div>
+                    <label className="add-to-order-panel__quantity-label" htmlFor="ato-min-weekday">
+                      Weekday Min <span className="add-to-order-panel__quantity-sublabel">Mon-Thu</span>
+                    </label>
+                    <CounterStepper
+                      id="ato-min-weekday"
+                      value={values.minWeekday}
+                      onChange={(value) => setValues((current) => syncQuantityToMinimum({ ...current, minWeekday: value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="add-to-order-panel__quantity-label" htmlFor="ato-min-weekend">
+                      Weekend Min <span className="add-to-order-panel__quantity-sublabel">Fri-Sun</span>
+                    </label>
+                    <CounterStepper
+                      id="ato-min-weekend"
+                      value={values.minWeekend}
+                      onChange={(value) => setValues((current) => syncQuantityToMinimum({ ...current, minWeekend: value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -244,21 +352,25 @@ function AddToOrderPanel({
             id="ato-quantity"
             value={values.quantity}
             unit={unit}
-            min={1}
+            min={quantityMin}
             ariaLabel="Quantity"
             onChange={(quantity) => setValues((current) => ({ ...current, quantity }))}
           />
         </FormField>
 
-        <FormField label="Supplier" htmlFor="ato-supplier">
-          <Select
-            id="ato-supplier"
-            options={supplierOptions}
-            value={values.supplierId != null ? String(values.supplierId) : ''}
-            onChange={(value) => setValues((current) => ({ ...current, supplierId: value === '' ? null : Number(value) }))}
-            ariaLabel="Supplier"
-          />
-        </FormField>
+        {/* Only for a brand-new custom item -- an existing inventory item
+            already has its own preferred supplier, used automatically. */}
+        {values.source === 'custom' && (
+          <FormField label="Supplier" htmlFor="ato-supplier">
+            <Select
+              id="ato-supplier"
+              options={supplierOptions}
+              value={values.supplierId != null ? String(values.supplierId) : ''}
+              onChange={(value) => setValues((current) => ({ ...current, supplierId: value === '' ? null : Number(value) }))}
+              ariaLabel="Supplier"
+            />
+          </FormField>
+        )}
 
         <FormField label="Note (optional)" htmlFor="ato-note">
           <input

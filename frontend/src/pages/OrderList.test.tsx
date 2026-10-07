@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import OrderList from './OrderList';
@@ -37,6 +37,7 @@ function entry(overrides: Partial<OrderListEntry>): OrderListEntry {
     itemName: 'Milk',
     unitOfMeasurement: 'L',
     quantityNeeded: 2,
+    manualAddition: 0,
     supplierId: null,
     supplierName: null,
     note: null,
@@ -289,7 +290,7 @@ describe('OrderList inline status change', () => {
     mockGetOrderList.mockReset().mockResolvedValue([entry({ id: 1, itemName: 'Milk', status: 'NEEDS_ORDERING' })]);
   });
 
-  it('updates status immediately when the inline dropdown changes', async () => {
+  it('asks for confirmation before applying a status picked from the inline dropdown', async () => {
     const user = userEvent.setup();
     mockUpdateOrderListEntry.mockResolvedValue(entry({ id: 1, itemName: 'Milk', status: 'ORDERED' }));
     render(<OrderList storeName="Downtown" />);
@@ -298,7 +299,28 @@ describe('OrderList inline status change', () => {
     await user.click(screen.getByLabelText('Change status for Milk'));
     await user.click(screen.getByRole('option', { name: 'Ordered' }));
 
+    expect(mockUpdateOrderListEntry).not.toHaveBeenCalled();
+    expect(await screen.findByText('Change status?')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Yes, change' }));
+
     expect(mockUpdateOrderListEntry).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'ORDERED' }));
+    await waitFor(() => expect(screen.queryByText('Change status?')).not.toBeInTheDocument());
+  });
+
+  it('cancels without applying anything', async () => {
+    const user = userEvent.setup();
+    render(<OrderList storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByLabelText('Change status for Milk'));
+    await user.click(screen.getByRole('option', { name: 'Ordered' }));
+    await screen.findByText('Change status?');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText('Change status?')).not.toBeInTheDocument();
+    expect(mockUpdateOrderListEntry).not.toHaveBeenCalled();
   });
 });
 
@@ -310,7 +332,7 @@ describe('OrderList bulk selection', () => {
     ]);
   });
 
-  it('keeps the bulk action buttons disabled until rows are selected, then marks them ordered together', async () => {
+  it('keeps the bulk action buttons disabled until rows are selected, then confirms before marking them ordered together', async () => {
     const user = userEvent.setup();
     mockUpdateOrderListEntry.mockImplementation((id) =>
       Promise.resolve(entry({ id, itemName: id === 1 ? 'Milk' : 'Bread', status: 'ORDERED' })),
@@ -327,9 +349,49 @@ describe('OrderList bulk selection', () => {
 
     await user.click(screen.getByRole('button', { name: 'Mark ordered' }));
 
+    expect(mockUpdateOrderListEntry).not.toHaveBeenCalled();
+    expect(await screen.findByText('Mark 2 items ordered?')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Yes, mark 2 ordered' }));
+
     await waitFor(() => expect(mockUpdateOrderListEntry).toHaveBeenCalledTimes(2));
     expect(mockUpdateOrderListEntry).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'ORDERED' }));
     expect(mockUpdateOrderListEntry).toHaveBeenCalledWith(2, expect.objectContaining({ status: 'ORDERED' }));
+  });
+
+  it('skips items that are already past the target status and says so', async () => {
+    mockGetOrderList.mockReset().mockResolvedValue([
+      entry({ id: 1, itemName: 'Milk', status: 'NEEDS_ORDERING', supplierId: null, supplierName: null }),
+      entry({ id: 2, itemName: 'Bread', status: 'ORDERED', supplierId: null, supplierName: null }),
+    ]);
+    const user = userEvent.setup();
+    render(<OrderList storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByLabelText('Select Milk'));
+    await user.click(screen.getByLabelText('Select Bread'));
+    await user.click(screen.getByRole('button', { name: 'Mark ordered' }));
+
+    expect(await screen.findByText('Mark 1 item ordered?')).toBeInTheDocument();
+    expect(screen.getByText('1 item will be marked as ordered. 1 item already ordered or received will be skipped.')).toBeInTheDocument();
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByText('Milk')).toBeInTheDocument();
+    expect(within(dialog).queryByText('Bread')).not.toBeInTheDocument();
+  });
+
+  it('cancels the bulk confirmation without changing anything', async () => {
+    const user = userEvent.setup();
+    render(<OrderList storeName="Downtown" />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByLabelText('Select Milk'));
+    await user.click(screen.getByRole('button', { name: 'Mark ordered' }));
+    await screen.findByText('Mark 1 item ordered?');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByText('Mark 1 item ordered?')).not.toBeInTheDocument();
+    expect(mockUpdateOrderListEntry).not.toHaveBeenCalled();
   });
 
   it('copies only the selected rows via Copy selected items', async () => {
@@ -394,6 +456,9 @@ describe('OrderList Add to order', () => {
 
     await user.click(screen.getByRole('button', { name: 'Add item' }));
     await screen.findByText('Add to order');
+    await user.click(screen.getByLabelText('Item'));
+    await user.click(screen.getByRole('option', { name: 'Napkins' }));
+    await user.click(screen.getByLabelText('Increase'));
     await user.click(screen.getByRole('button', { name: 'Add to order list' }));
 
     await waitFor(() => expect(screen.queryByText('Add to order')).not.toBeInTheDocument());

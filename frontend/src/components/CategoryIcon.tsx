@@ -3,7 +3,10 @@ import type { InventoryItemCategory } from '../types/storeInventory';
 import { useInventoryImageUrl } from '../hooks/useInventoryImageUrl';
 import './CategoryIcon.css';
 
-const CATEGORY_VISUAL: Record<InventoryItemCategory, { bg: string; fg: string; border: string; Icon: typeof Milk }> = {
+// Exported so other surfaces needing this same category color scheme (e.g.
+// OrderList's mobile category pill) share one definition instead of a second,
+// possibly-drifting copy of the palette.
+export const CATEGORY_VISUAL: Record<InventoryItemCategory, { bg: string; fg: string; border: string; Icon: typeof Milk }> = {
   DAIRY: { bg: '#eef5ff', fg: '#2563eb', border: '#d7e6fd', Icon: Milk },
   FRUITS: { bg: '#fdf0f3', fg: '#e11d48', border: '#f9d3dc', Icon: Apple },
   PACKAGING: { bg: '#fdf5e8', fg: '#b45309', border: '#f5dfbd', Icon: Package },
@@ -12,7 +15,7 @@ const CATEGORY_VISUAL: Record<InventoryItemCategory, { bg: string; fg: string; b
   CLEANING: { bg: '#eefafa', fg: '#0e7490', border: '#c9ecef', Icon: SprayCan },
 };
 
-const FALLBACK = { bg: '#f4f4f5', fg: '#71717a', border: '#e4e4e7', Icon: Package };
+export const FALLBACK_CATEGORY_VISUAL = { bg: '#f4f4f5', fg: '#71717a', border: '#e4e4e7', Icon: Package };
 
 interface CategoryIconProps {
   category: InventoryItemCategory | null;
@@ -24,7 +27,7 @@ interface CategoryIconProps {
 
 function CategoryIcon({ category, name, size = 40, imageId }: CategoryIconProps) {
   const imageUrl = useInventoryImageUrl(imageId);
-  const visual = category ? CATEGORY_VISUAL[category] : FALLBACK;
+  const visual = category ? CATEGORY_VISUAL[category] : FALLBACK_CATEGORY_VISUAL;
   const Icon = visual.Icon;
   if (imageUrl) {
     return (

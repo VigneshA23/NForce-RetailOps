@@ -130,7 +130,7 @@
 
 .order-list__action-bar {
   position: sticky;
-  top: -28px;
+  top: 0;
   z-index: 12;
   display: flex;
   align-items: center;
@@ -453,6 +453,17 @@
   text-align: center;
 }
 
+/* Same double-padding fix as the checkbox cell above: the generic td rule's
+   12px top/bottom would otherwise stack with .order-list__item-cell's own
+   11px below, inflating the row well past the thumbnail's actual height
+   (very visible once the thumbnail grew from 40px to 56px). Left/right stay
+   on the generic rule -- only top/bottom are overridden here. */
+.order-list__group-table .order-list__item-td,
+.order-list__flat-table .order-list__item-td {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 .order-list__item-cell {
   display: flex;
   align-items: center;
@@ -554,8 +565,14 @@
   font-size: 12px;
 }
 
-.order-list__note-cell {
-  color: #52525b;
+.order-list__manual-value {
+  font-weight: 800;
+  color: #6d28d9;
+}
+
+.order-list__manual-empty {
+  color: #a1a1aa;
+  font-weight: 600;
 }
 
 .order-list__group-table td,
@@ -706,10 +723,21 @@
      their content and a selected row's highlight stops short of the right
      edge. */
   .order-list__group-table,
-  .order-list__flat-table,
-  .order-list__group-table tbody,
-  .order-list__flat-table tbody {
+  .order-list__group-table tbody {
     display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  /* List (flat/ungrouped) view has no per-supplier card to group rows into,
+     so each item becomes its own card instead -- a flex column with a gap,
+     rather than the single continuous sheet .order-list__flat-card gives
+     every other view. */
+  .order-list__flat-table,
+  .order-list__flat-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     width: 100%;
     min-width: 0;
   }
@@ -725,80 +753,93 @@
   }
 
   /* width/box-sizing is explicit here because a <tr> blockified to
-     display:grid no longer gets its width from the table's own layout the
+     display:block no longer gets its width from the table's own layout the
      way a real table-row does -- left to "auto" it was shrinking to its
      content instead of filling the card, so a selected row's highlight
      background looked inset ("floating") rather than full-bleed edge to
-     edge. 16px padding on every side, matching the card/header's own --
-     Status right-aligns itself within that via justify-content: flex-end
-     rather than by shrinking the row's own padding down on the right. */
+     edge. The row's own single cell (order-list__mobile-card-td, below)
+     carries the 16px padding every edge of the card needs. */
   .order-list__row {
-    display: grid;
-    grid-template-columns: 26px 1fr 1fr auto;
-    column-gap: 12px;
-    row-gap: 12px;
+    display: block;
     width: 100%;
     box-sizing: border-box;
-    padding: 16px;
   }
 
-  /* Explicit display on every cell instead of leaning on the browser's own
-     table/grid "fixup" rules for a <td> whose row is no longer a table-row
-     -- that fixup is inconsistent enough across engines that the app's other
-     mobile-card tables (styles/table.css) do the same. Every specific cell
-     rule below is qualified with .order-list__row so it outranks this one
-     (a plain class alone is lower specificity than ".table td", so without
-     that qualifier this reset would win and silently flatten them back to
-     block). */
+  /* The sheet that gives .order-list__flat-table its own white
+     background/border/shadow is exactly what the rows now carry
+     individually, so it's turned transparent here rather than removed --
+     the table still needs it present (and the spacing below it) just not
+     visible. */
+  .order-list__flat-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  /* Overrides the base .order-list__row's border-top (a plain divider line,
+     for rows packed into one continuous sheet) with a full border on all
+     four sides now that each row is its own card. */
+  .order-list__flat-table .order-list__row {
+    background: #ffffff;
+    border: 1px solid #e4e4e7;
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+
+  /* Explicit display on the cell instead of leaning on the browser's own
+     table "fixup" rules for a <td> whose row is no longer a table-row --
+     that fixup is inconsistent enough across engines that the app's other
+     mobile-card tables (styles/table.css) do the same. */
   .order-list__group-table td,
   .order-list__flat-table td {
     display: block;
     padding: 0;
   }
 
-  .order-list__group-table .order-list__checkbox-cell,
-  .order-list__flat-table .order-list__checkbox-cell {
-    grid-column: 1;
-    grid-row: 1 / 3;
+  /* Qualified with the table class, same reason as the checkbox/item-td
+     overrides above: a plain .order-list__mobile-card-td alone is lower
+     specificity than the generic td reset right above, so without this
+     qualifier the card would lose its padding back to 0. */
+  .order-list__group-table .order-list__mobile-card-td,
+  .order-list__flat-table .order-list__mobile-card-td {
+    display: block;
+    padding: 16px;
+  }
+
+  .order-list__mobile-card-header {
     display: flex;
-    align-items: flex-start;
-    padding: 2px 0 0 !important;
-  }
-
-  .order-list__row .order-list__item-td {
-    grid-column: 2 / 5;
-    grid-row: 1;
-  }
-
-  .order-list__item-meta {
-    display: none;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
   }
 
   .order-list__item-mobile-meta {
     display: block;
   }
 
-  .order-list__row .order-list__stock-cell {
-    grid-column: 2;
-    grid-row: 2;
+  /* The nested grey box grouping Stock/Need/Manual, replacing the old
+     per-column grid cells -- one real wrapper element now that mobile has
+     its own markup, instead of faking a shared background across three
+     separately-positioned grid items. */
+  .order-list__mobile-stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    background: #f4f4f5;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
   }
 
-  .order-list__row .order-list__need-cell {
-    grid-column: 3;
-    grid-row: 2;
-  }
-
-  .order-list__row .order-list__stock-cell,
-  .order-list__row .order-list__need-cell {
+  .order-list__mobile-stat {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    text-align: left;
+    gap: 4px;
+    min-width: 0;
   }
 
-  .order-list__stock-cell::before,
-  .order-list__need-cell::before {
-    content: attr(data-label);
+  .order-list__mobile-stat-label {
     font-size: 10px;
     font-weight: 700;
     color: #a1a1aa;
@@ -806,26 +847,44 @@
     letter-spacing: 0.06em;
   }
 
-  .order-list__row .order-list__status-dropdown-cell {
-    grid-column: 4;
-    grid-row: 2;
+  .order-list__mobile-footer {
     display: flex;
     align-items: center;
-    justify-content: flex-end;
+    justify-content: space-between;
+    gap: 10px;
   }
 
-  .order-list__row .order-list__status-cell {
-    grid-column: 4;
-    grid-row: 2;
-    display: flex;
+  .order-list__mobile-pill {
+    display: inline-flex;
     align-items: center;
-    justify-content: flex-end;
-    padding: 0 !important;
+    gap: 6px;
+    flex-shrink: 0;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
   }
 
-  .order-list__row .order-list__mobile-hide,
-  .order-list__row .order-list__category-cell {
-    display: none !important;
+  .order-list__mobile-pill-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* Status sizes to its own label, same as the category pill beside it --
+     "Ordered" reads narrower than "Needs ordering" rather than both
+     stretching to fill an equal share of the row (overriding the trigger's
+     inline width style, the only way to beat it). */
+  .order-list__mobile-footer .status-dot-menu {
+    flex: 0 0 auto;
+  }
+
+  .order-list__mobile-footer .status-dot-menu__trigger {
+    width: auto !important;
+    border-radius: 10px;
   }
 
   /* The search + category/status/supplier/Clear card -- sized and coloured
@@ -933,6 +992,19 @@
 
   .order-list__add-item-btn {
     margin-left: auto;
+  }
+
+  /* Mobile's stand-in for the desktop action bar's own select-all checkbox --
+     same white-card treatment as .order-list__filter-card above it, just a
+     single row instead of a stack. */
+  .order-list__mobile-select-all {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 12px 14px;
   }
 
   /* Dark floating bar, fixed to the bottom of the screen while any row is

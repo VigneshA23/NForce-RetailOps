@@ -26,6 +26,8 @@ public interface OrderListEntryRepository extends JpaRepository<OrderListEntry, 
     // historical order-list entries can't be hard-deleted.
     boolean existsByStoreInventoryItemId(Long storeInventoryItemId);
 
+    boolean existsBySupplierId(Long supplierId);
+
     // Scalar badge count for the Owner/Admin Home tile -- only entries still
     // awaiting an order, so an entry stops contributing the moment the owner
     // advances it to ORDERED.

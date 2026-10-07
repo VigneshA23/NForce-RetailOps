@@ -2,6 +2,9 @@ package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.StoreInventoryItem;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -26,4 +29,8 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
     boolean existsByStoreIdAndNameIgnoreCase(Long storeId, String name);
 
     boolean existsByStoreIdAndNameIgnoreCaseAndIdNot(Long storeId, String name, Long id);
+    // Detaches a removed/deactivated supplier from every item that preferred it.
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update StoreInventoryItem i set i.preferredSupplier = null where i.preferredSupplier.id = :supplierId")
+    int clearPreferredSupplier(@Param("supplierId") Long supplierId);
 }

@@ -1,9 +1,12 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.SupplierDeleteResponse;
 import com.nforce.retailops.dto.SupplierRequest;
 import com.nforce.retailops.dto.SupplierResponse;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.exception.SupplierNotFoundException;
+import com.nforce.retailops.repository.OrderListEntryRepository;
+import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.SupplierRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,9 +17,17 @@ import java.util.List;
 public class SupplierService {
 
     private final SupplierRepository supplierRepository;
+    private final StoreInventoryItemRepository storeInventoryItemRepository;
+    private final OrderListEntryRepository orderListEntryRepository;
 
-    public SupplierService(SupplierRepository supplierRepository) {
+    public SupplierService(
+        SupplierRepository supplierRepository,
+        StoreInventoryItemRepository storeInventoryItemRepository,
+        OrderListEntryRepository orderListEntryRepository
+    ) {
         this.supplierRepository = supplierRepository;
+        this.storeInventoryItemRepository = storeInventoryItemRepository;
+        this.orderListEntryRepository = orderListEntryRepository;
     }
 
     @Transactional(readOnly = true)
@@ -73,5 +84,23 @@ public class SupplierService {
         supplier.setActive(active);
         supplier = supplierRepository.save(supplier);
         return SupplierResponse.from(supplier);
+    }
+
+    // Items that preferred this supplier fall back to "no preferred supplier"
+    // either way. A supplier with order history is only deactivated, so past
+    // orders and purchasing reports keep their supplier; with none, the row
+    // is removed outright.
+    @Transactional
+    public SupplierDeleteResponse deleteSupplier(Long supplierId) {
+        Supplier supplier = supplierRepository.findById(supplierId)
+            .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+        storeInventoryItemRepository.clearPreferredSupplier(supplierId);
+        if (orderListEntryRepository.existsBySupplierId(supplierId)) {
+            supplier.setActive(false);
+            supplierRepository.save(supplier);
+            return new SupplierDeleteResponse(false, true);
+        }
+        supplierRepository.delete(supplier);
+        return new SupplierDeleteResponse(true, false);
     }
 }

@@ -9,6 +9,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
+import com.nforce.retailops.exception.InvalidImageUploadException;
 import com.nforce.retailops.exception.StoreInventoryItemHasHistoryException;
 import com.nforce.retailops.exception.StoreInventoryItemNameExistsException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
@@ -26,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -296,13 +298,16 @@ public class StoreInventoryItemService {
     // update, so the FK never points at a missing row.
     private void applyImage(StoreInventoryItem item, StoreInventoryItemRequest request) {
         String photoId = request.imagePhotoId() != null ? request.imagePhotoId().trim() : "";
+        String uploadData = request.imageUploadData() != null ? request.imageUploadData().trim() : "";
         boolean remove = Boolean.TRUE.equals(request.removeImage());
-        if (photoId.isEmpty() && !remove) {
+        if (photoId.isEmpty() && uploadData.isEmpty() && !remove) {
             return;
         }
 
         InventoryItemImage previous = item.getImage();
-        if (photoId.isEmpty()) {
+        if (!uploadData.isEmpty()) {
+            item.setImage(inventoryItemImageRepository.save(uploadedImage(uploadData)));
+        } else if (photoId.isEmpty()) {
             item.setImage(null);
         } else {
             UnsplashService.DownloadedPhoto photo = unsplashService.download(photoId);
@@ -317,6 +322,49 @@ public class StoreInventoryItemService {
         if (previous != null) {
             inventoryItemImageRepository.delete(previous);
         }
+    }
+
+    private static final int MAX_UPLOAD_BYTES = 2 * 1024 * 1024;
+
+    // Decodes a user-uploaded data URL. The content type comes from the
+    // file's own magic bytes, not the client's claim, and only the formats
+    // browsers render inline are accepted.
+    private InventoryItemImage uploadedImage(String dataUrl) {
+        int comma = dataUrl.indexOf(',');
+        if (!dataUrl.startsWith("data:image/") || comma < 0 || !dataUrl.substring(0, comma).endsWith(";base64")) {
+            throw new InvalidImageUploadException("Uploaded image is invalid");
+        }
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(dataUrl.substring(comma + 1));
+        } catch (IllegalArgumentException e) {
+            throw new InvalidImageUploadException("Uploaded image is invalid");
+        }
+        if (bytes.length > MAX_UPLOAD_BYTES) {
+            throw new InvalidImageUploadException("Image must be 2 MB or smaller");
+        }
+        String contentType = sniffImageType(bytes);
+        if (contentType == null) {
+            throw new InvalidImageUploadException("Image must be a JPEG, PNG or WebP file");
+        }
+        InventoryItemImage image = new InventoryItemImage();
+        image.setContentType(contentType);
+        image.setData(bytes);
+        return image;
+    }
+
+    private static String sniffImageType(byte[] b) {
+        if (b.length >= 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8 && (b[2] & 0xFF) == 0xFF) {
+            return "image/jpeg";
+        }
+        if (b.length >= 8 && (b[0] & 0xFF) == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G') {
+            return "image/png";
+        }
+        if (b.length >= 12 && b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F'
+            && b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P') {
+            return "image/webp";
+        }
+        return null;
     }
 
     // Mirrors TaskService.deleteTaskAsSuperAdmin's guard-then-delete shape:

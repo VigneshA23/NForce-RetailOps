@@ -29,6 +29,8 @@ export async function createOrderListEntry(values: CreateOrderListEntryValues): 
       category: values.category,
       unitOfMeasurement: values.unitOfMeasurement.trim() === '' ? null : values.unitOfMeasurement.trim(),
       saveToInventory: values.saveToInventory,
+      minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
+      minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
       quantityNeeded: Number(values.quantityNeeded),
       supplierId: values.supplierId,
       note: values.note.trim() === '' ? null : values.note.trim(),

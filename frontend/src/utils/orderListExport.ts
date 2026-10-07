@@ -60,7 +60,7 @@ export function buildOrderListText(entries: OrderListEntry[], storeName: string 
     lines.push(supplierName);
     for (const entry of bySupplier.get(supplierName)!) {
       const statusNote = entry.status === 'ORDERED' ? ' (already ordered)' : '';
-      lines.push(`* ${entry.itemName} – ${entry.quantityNeeded} ${entry.unitOfMeasurement}${statusNote}`);
+      lines.push(`* ${entry.itemName} – ${entry.quantityNeeded + entry.manualAddition} ${entry.unitOfMeasurement}${statusNote}`);
     }
     lines.push('');
   }
@@ -85,7 +85,7 @@ export function buildReorderListText(
   storeName: string | null | undefined,
   generatedAt: Date,
 ): string | null {
-  const needsOrdering = entries.filter((entry) => entry.status === 'NEEDS_ORDERING' && entry.quantityNeeded > 0);
+  const needsOrdering = entries.filter((entry) => entry.status === 'NEEDS_ORDERING' && entry.quantityNeeded + entry.manualAddition > 0);
   if (needsOrdering.length === 0) {
     return null;
   }
@@ -119,7 +119,7 @@ export function buildReorderListText(
   for (const group of sortedGroups) {
     lines.push(group.label);
     for (const entry of group.items) {
-      lines.push(`* ${entry.itemName} — ${entry.quantityNeeded} ${entry.unitOfMeasurement}`);
+      lines.push(`* ${entry.itemName} — ${entry.quantityNeeded + entry.manualAddition} ${entry.unitOfMeasurement}`);
     }
     lines.push('');
   }

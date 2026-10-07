@@ -4,10 +4,15 @@
    auto-fill packs as many fixed 270px cards as fit per row (roughly 4-5 on a
    typical laptop), with no breakpoint-specific column count override.
    Columns are a fixed 270px (not minmax(...,1fr)) so cards keep their own
-   fixed 270x350 size instead of stretching to fill the row. */
+   fixed 270x350 size instead of stretching to fill the row. justify-content:
+   space-between spends whatever's left over (the container width minus
+   however many 270px columns actually fit) as extra gap between those
+   columns instead of as dead space stranded after the last one, which is
+   grid's own default ("start"-aligned content, leftover at the end). */
 .store-inventory-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, 270px);
+  justify-content: space-between;
   gap: var(--space-md);
 }
 
