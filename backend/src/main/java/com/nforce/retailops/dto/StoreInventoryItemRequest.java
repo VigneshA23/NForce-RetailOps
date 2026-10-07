@@ -31,6 +31,7 @@ public record StoreInventoryItemRequest(
     @PositiveOrZero(message = "Minimum weekend quantity cannot be negative")
     Integer minWeekend,
 
+    @NotNull(message = "Preferred supplier is required")
     Long preferredSupplierId,
 
     @Size(max = 500, message = "Note must be at most 500 characters")
@@ -43,6 +44,11 @@ public record StoreInventoryItemRequest(
     @Size(max = 64, message = "Image id is invalid")
     @Pattern(regexp = "[A-Za-z0-9_-]*", message = "Image id is invalid")
     String imagePhotoId,
+
+    // An image the user uploaded themselves, as a base64 data URL
+    // (data:image/jpeg;base64,...). Takes precedence over imagePhotoId.
+    @Size(max = 3_000_000, message = "Image is too large")
+    String imageUploadData,
 
     // True removes the current image (ignored when imagePhotoId is set).
     Boolean removeImage

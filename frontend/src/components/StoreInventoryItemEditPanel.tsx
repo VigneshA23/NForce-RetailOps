@@ -19,6 +19,7 @@ interface StoreInventoryItemEditPanelProps {
   item: StoreInventoryItem;
   suppliers: Supplier[];
   onCreateSupplier: (name: string) => Promise<Supplier>;
+  onDeleteSupplier?: (supplier: Supplier) => Promise<void>;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -48,6 +49,7 @@ function StoreInventoryItemEditPanel({
   item,
   suppliers,
   onCreateSupplier,
+  onDeleteSupplier,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -77,6 +79,9 @@ function StoreInventoryItemEditPanel({
     }
     if (values.minWeekend.trim() !== '' && Number(values.minWeekend) < 0) {
       nextErrors.minWeekend = 'Weekend min cannot be negative';
+    }
+    if (!values.preferredSupplierId) {
+      nextErrors.preferredSupplierId = 'Preferred supplier is required';
     }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
@@ -186,13 +191,14 @@ function StoreInventoryItemEditPanel({
           </div>
         </div>
 
-        <FormField label="Preferred Supplier" htmlFor="edit-item-supplier">
+        <FormField label="Preferred Supplier" htmlFor="edit-item-supplier" error={errors.preferredSupplierId}>
           <SupplierCombobox
             id="edit-item-supplier"
             suppliers={suppliers}
             value={values.preferredSupplierId}
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
             onCreate={onCreateSupplier}
+            onDelete={onDeleteSupplier}
             ariaLabel="Preferred supplier"
           />
         </FormField>

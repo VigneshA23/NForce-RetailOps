@@ -8,7 +8,7 @@ import {
   setStoreInventoryItemActive,
   updateStoreInventoryItem,
 } from '../api/storeInventory';
-import { findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
+import { deleteSupplier, findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
 import { INVENTORY_ITEM_CATEGORY_OPTIONS, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
@@ -119,6 +119,16 @@ function StoreInventory() {
     );
     nfToast.success(`"${supplier.name}" supplier added.`);
     return supplier;
+  }
+
+  // Per-row delete in the supplier picker. A supplier with order history is
+  // only deactivated server-side; either way it leaves the list, and items
+  // that preferred it are reloaded since the server cleared their supplier.
+  async function handleDeleteSupplier(supplier: Supplier): Promise<void> {
+    const result = await deleteSupplier(supplier.id);
+    setSuppliers((current) => current.filter((s) => s.id !== supplier.id));
+    getStoreInventoryItems().then(setItems).catch(() => {});
+    nfToast.success(result.deactivated ? `"${supplier.name}" deactivated (it has order history).` : `"${supplier.name}" deleted.`);
   }
 
   async function handleCreateSubmit(values: StoreInventoryItemFormValues) {
@@ -364,6 +374,7 @@ function StoreInventory() {
               mode="create"
               suppliers={suppliers}
               onCreateSupplier={handleCreateSupplier}
+              onDeleteSupplier={handleDeleteSupplier}
               errorMessage={itemFormError}
               isSubmitting={isItemSubmitting}
               onClose={() => setIsCreateModalOpen(false)}
@@ -376,6 +387,7 @@ function StoreInventory() {
                 item={editTarget}
                 suppliers={suppliers}
                 onCreateSupplier={handleCreateSupplier}
+                onDeleteSupplier={handleDeleteSupplier}
                 errorMessage={itemFormError}
                 isSubmitting={isItemSubmitting}
                 onClose={() => setEditTarget(null)}

@@ -22,6 +22,7 @@ interface StoreInventoryItemFormModalProps {
   suppliers: Supplier[];
   // Backs the supplier field's inline "Add New Supplier" option.
   onCreateSupplier: (name: string) => Promise<Supplier>;
+  onDeleteSupplier?: (supplier: Supplier) => Promise<void>;
   // Only Super Admin's page passes stores + true here -- Owner/Admin's own
   // store is derived server-side, so their form never shows this field.
   stores?: StoreOption[];
@@ -54,6 +55,7 @@ function StoreInventoryItemFormModal({
   mode,
   suppliers,
   onCreateSupplier,
+  onDeleteSupplier,
   stores = [],
   showStoreField = false,
   initialValues,
@@ -83,6 +85,9 @@ function StoreInventoryItemFormModal({
     }
     if (values.minWeekend.trim() !== '' && Number(values.minWeekend) < 0) {
       nextErrors.minWeekend = 'Minimum weekend quantity cannot be negative';
+    }
+    if (!values.preferredSupplierId) {
+      nextErrors.preferredSupplierId = 'Preferred supplier is required';
     }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
@@ -193,13 +198,14 @@ function StoreInventoryItemFormModal({
             />
           </FormField>
         </div>
-        <FormField label="Preferred Supplier" htmlFor="inventory-item-supplier">
+        <FormField label="Preferred Supplier" htmlFor="inventory-item-supplier" error={errors.preferredSupplierId}>
           <SupplierCombobox
             id="inventory-item-supplier"
             suppliers={suppliers}
             value={values.preferredSupplierId}
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
             onCreate={onCreateSupplier}
+            onDelete={onDeleteSupplier}
             ariaLabel="Preferred supplier"
           />
         </FormField>

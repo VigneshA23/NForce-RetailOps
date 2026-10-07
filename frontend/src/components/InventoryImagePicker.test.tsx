@@ -11,7 +11,7 @@ vi.mock('../api/inventoryImages', () => ({
 
 const mockSearch = vi.mocked(inventoryImagesApi.searchInventoryImages);
 
-const EMPTY: InventoryImageSelection = { imageId: null, imagePhotoId: null, imagePreviewUrl: null, removeImage: false };
+const EMPTY: InventoryImageSelection = { imageId: null, imagePhotoId: null, imageUploadData: null, imagePreviewUrl: null, removeImage: false };
 
 describe('InventoryImagePicker', () => {
   beforeEach(() => {

@@ -47,3 +47,7 @@
   grid-template-columns: 1fr 1fr;
   gap: var(--space-md);
 }
+
+.modal.store-inventory-item-form {
+  max-width: 720px;
+}
