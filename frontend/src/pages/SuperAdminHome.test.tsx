@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SuperAdminHome from './SuperAdminHome';
 import * as saOpsApi from '../api/superAdminOperations';
@@ -43,7 +44,7 @@ function overview(overrides: Partial<OutstandingOrdersOverview> = {}): Outstandi
   };
 }
 
-function renderPage() {
+function renderPage(overrides: { onViewStoreOrders?: (storeId: number, storeName: string) => void; onOrdersClick?: () => void } = {}) {
   return render(
     <SuperAdminHome
       userName="Ada Admin"
@@ -58,6 +59,7 @@ function renderPage() {
       onCategoriesClick={() => {}}
       onChecklistClick={() => {}}
       onViewAllActivity={() => {}}
+      {...overrides}
     />,
   );
 }
@@ -131,5 +133,28 @@ describe('SuperAdminHome outstanding orders', () => {
 
     expect(await screen.findByText('Outstanding Orders')).toBeInTheDocument();
     expect(mockGetOutstandingOrders).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking a store row opens the Orders tab pre-selected on that store', async () => {
+    mockGetOutstandingOrders.mockResolvedValue(overview());
+    const onViewStoreOrders = vi.fn();
+
+    renderPage({ onViewStoreOrders });
+    await screen.findByText('Downtown');
+    await userEvent.click(screen.getByRole('button', { name: /Downtown/ }));
+
+    expect(onViewStoreOrders).toHaveBeenCalledWith(1, 'Downtown');
+  });
+
+  it('"View all" opens the Orders tab with no store pre-selected', async () => {
+    mockGetOutstandingOrders.mockResolvedValue(overview());
+    const onOrdersClick = vi.fn();
+
+    renderPage({ onOrdersClick });
+    const ordersHeading = await screen.findByText('Outstanding Orders');
+    const ordersCard = ordersHeading.closest('.sa-home__orders') as HTMLElement;
+    await userEvent.click(within(ordersCard).getByRole('button', { name: 'View all' }));
+
+    expect(onOrdersClick).toHaveBeenCalled();
   });
 });

@@ -36,6 +36,7 @@ import SuperAdminHome from '../pages/SuperAdminHome';
 import SuperAdminChecklist, { type ChecklistNav } from '../pages/SuperAdminChecklist';
 import SuperAdminIssues from '../pages/SuperAdminIssues';
 import SuperAdminInventory from '../pages/SuperAdminInventory';
+import SuperAdminOrders, { type OrderStoreFocus } from '../pages/SuperAdminOrders';
 import SuperAdminActivity from '../pages/SuperAdminActivity';
 import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
@@ -102,6 +103,15 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   const [ownerFocus, setOwnerFocus] = useState<{ id: number; ts: number } | null>(null);
   const [employeeFocus, setEmployeeFocus] = useState<{ id: number; ts: number } | null>(null);
   const [issueFocus, setIssueFocus] = useState<IssueFocusRequest | undefined>(undefined);
+  const [orderStoreFocus, setOrderStoreFocus] = useState<OrderStoreFocus | null>(null);
+
+  function navigateToOrders(storeId: number, storeName: string) {
+    setOrderStoreFocus({ storeId, storeName, ts: Date.now() });
+    setShowProfile(false);
+    setShowHelp(false);
+    setShowActivity(false);
+    setActiveTab('orders');
+  }
 
   function navigateToChecklist(storeId: number) {
     setChecklistNav({ storeId, ts: Date.now() });
@@ -468,6 +478,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
           onCategoriesClick={() => setActiveTab('categories')}
           onChecklistClick={() => setActiveTab('checklist')}
           onViewAllActivity={viewAllActivity}
+          onViewStoreOrders={navigateToOrders}
+          onOrdersClick={() => setActiveTab('orders')}
         />
       ) : activeTab === 'stores' ? (
         <SuperAdminStores onNavigateToChecklist={navigateToChecklist} onOwnersDataStale={refreshOwnersSilently} />
@@ -481,6 +493,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminIssues focusIssueId={issueFocus} />
       ) : activeTab === 'inventory' ? (
         <SuperAdminInventory />
+      ) : activeTab === 'orders' ? (
+        <SuperAdminOrders focusStore={orderStoreFocus} />
       ) : (
         <div className="owners-page">
           <div className="stat-card-row">

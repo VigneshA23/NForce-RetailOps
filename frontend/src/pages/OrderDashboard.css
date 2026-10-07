@@ -10,6 +10,12 @@
   margin-bottom: var(--space-lg);
   border-bottom: 1px solid var(--color-border);
   overflow-x: auto;
+  /* overflow-y must be set explicitly too -- leaving it at its "visible"
+     default while overflow-x isn't "visible" makes it compute to "auto"
+     instead per spec, which is exactly what was spawning a vertical
+     scrollbar here (RTS-311). Same fix as .store-inventory-page__subtab-list
+     in StoreInventory.css -- keep both in sync if this changes again. */
+  overflow-y: hidden;
 }
 
 .order-dashboard-page__subtab {

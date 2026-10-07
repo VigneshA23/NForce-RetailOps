@@ -6,7 +6,6 @@ import type { OwnerSummary } from '../types/owner';
 import StatCard from '../components/StatCard';
 import StoreComparisonTable from '../components/StoreComparisonTable';
 import StoreComparisonDetailModal from '../components/StoreComparisonDetailModal';
-import SuperAdminOrderListModal from '../components/SuperAdminOrderListModal';
 import CompletionRateCard from '../components/CompletionRateCard';
 import ActivityFeedList from '../components/ActivityFeedList';
 import { useRecentActivity } from '../hooks/useRecentActivity';
@@ -42,6 +41,10 @@ interface SuperAdminHomeProps {
   onCategoriesClick?: () => void;
   onChecklistClick?: () => void;
   onViewAllActivity?: () => void;
+  // Opens the Super Admin Orders tab, pre-selected on the given store (row
+  // click) or with no store selected (the "View all" header link).
+  onViewStoreOrders?: (storeId: number, storeName: string) => void;
+  onOrdersClick?: () => void;
 }
 
 function SuperAdminHome({
@@ -57,6 +60,8 @@ function SuperAdminHome({
   onCategoriesClick,
   onChecklistClick,
   onViewAllActivity,
+  onViewStoreOrders,
+  onOrdersClick,
 }: SuperAdminHomeProps) {
   const [platformStats, setPlatformStats] = useState<PlatformStats | null>(null);
   const [overview, setOverview] = useState<StoreOperationsSummary[] | null>(null);
@@ -65,12 +70,7 @@ function SuperAdminHome({
   const [trendData, setTrendData] = useState<TrendDataPoint[]>([]);
   const [detailStore, setDetailStore] = useState<StoreOperationsSummary | null>(null);
   const [outstandingOrders, setOutstandingOrders] = useState<OutstandingOrdersOverview | null>(null);
-  const [orderListStore, setOrderListStore] = useState<{ storeId: number; storeName: string } | null>(null);
   const recentActivity = useRecentActivity(ACTIVITY_COLLAPSED_LIMIT);
-
-  function refreshOutstandingOrders() {
-    getOutstandingOrders().then(setOutstandingOrders).catch(() => {});
-  }
 
   useEffect(() => {
     let active = true;
@@ -313,6 +313,11 @@ function SuperAdminHome({
               {outstandingOrders.storesWithOutstanding} store
               {outstandingOrders.storesWithOutstanding === 1 ? '' : 's'}
             </span>
+            {onOrdersClick && (
+              <button type="button" className="sa-home__orders-view-all" onClick={onOrdersClick}>
+                View all
+              </button>
+            )}
           </div>
           <div className="sa-home__orders-list">
             {outstandingOrders.stores.map((store) => (
@@ -321,7 +326,7 @@ function SuperAdminHome({
                 type="button"
                 className="sa-home__orders-item"
                 style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit' }}
-                onClick={() => setOrderListStore({ storeId: store.storeId, storeName: store.storeName })}
+                onClick={() => onViewStoreOrders?.(store.storeId, store.storeName)}
               >
                 <div className="sa-home__orders-store">
                   <span className="sa-home__attention-store">{store.storeName}</span>
@@ -358,12 +363,6 @@ function SuperAdminHome({
       <StoreComparisonDetailModal
         store={detailStore}
         onClose={() => setDetailStore(null)}
-      />
-
-      <SuperAdminOrderListModal
-        store={orderListStore}
-        onClose={() => setOrderListStore(null)}
-        onStatusChanged={refreshOutstandingOrders}
       />
     </div>
   );
