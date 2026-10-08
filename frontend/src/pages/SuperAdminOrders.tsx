@@ -14,7 +14,7 @@ import type { OutstandingOrdersOverview } from '../api/superAdminOperations';
 import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
 import type { InventoryItemCategory } from '../types/storeInventory';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
+import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
@@ -332,8 +332,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     const stock = stockByItemId.get(entry.storeInventoryItemId);
     const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
     const meta = STATUS_META[entry.status];
-    const categoryLabel = INVENTORY_ITEM_CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? '—';
-    const categoryVisual = category ? CATEGORY_VISUAL[category] : FALLBACK_CATEGORY_VISUAL;
+    const categoryLabel = categoryLabelOf(category) || '—';
+    const categoryVisual = category ? (CATEGORY_VISUAL[category] ?? FALLBACK_CATEGORY_VISUAL) : FALLBACK_CATEGORY_VISUAL;
     const raisedBy = entry.raisedByName ?? (entry.adHoc ? 'Manual' : 'Auto-detected');
     return {
       entry,
@@ -666,7 +666,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             <div className="order-list__filter-card">
               <SearchInput value={search} onChange={setSearch} placeholder="Search items" variant="surface" />
               <div className="order-list__filter-fields">
-                <Select className="order-list__filter-select order-list__filter-select--category" options={[{ value: 'all', label: 'All categories' }, ...INVENTORY_ITEM_CATEGORY_OPTIONS]} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Category" />
+                <Select className="order-list__filter-select order-list__filter-select--category" options={[{ value: 'all', label: 'All categories' }, ...buildCategoryOptions([...categoryByItemId.values()], [categoryFilter === 'all' ? null : categoryFilter])]} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Category" />
                 <Select className="order-list__filter-select order-list__filter-select--status" options={STATUS_FILTER_OPTIONS} value={statusFilter} onChange={(v) => setStatusFilter(v as StatusFilter)} ariaLabel="Status" />
                 <Select className="order-list__filter-select order-list__filter-select--supplier" options={supplierFilterOptions} value={supplierFilter} onChange={setSupplierFilter} ariaLabel="Supplier" />
                 <span className="order-list__row-break" aria-hidden="true" />
