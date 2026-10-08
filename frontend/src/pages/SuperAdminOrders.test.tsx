@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SuperAdminOrders from './SuperAdminOrders';
+import { ApiError } from '../api/client';
 import * as superAdminStoresApi from '../api/superAdminStores';
 import * as saOpsApi from '../api/superAdminOperations';
 import * as inventoryItemsApi from '../api/inventoryItems';
@@ -188,6 +189,45 @@ describe('SuperAdminOrders', () => {
     expect(screen.queryByText('Milk')).not.toBeInTheDocument();
   });
 
+  it('changes an entry status and updates the row in place', async () => {
+    mockGetOrderListForStore.mockResolvedValue([entry({ itemName: 'Milk', status: 'NEEDS_ORDERING' })]);
+    mockUpdateSuperAdminOrderStatus.mockResolvedValue(entry({ itemName: 'Milk', status: 'ORDERED' }));
+
+    render(<SuperAdminOrders />);
+
+    await screen.findByRole('option', { name: 'Downtown' });
+    await userEvent.selectOptions(screen.getByLabelText('Select a store…'), '10');
+    await screen.findByText('Milk');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Change status for Milk' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Ordered' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Yes, change' }));
+
+    await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(10, 1, 'ORDERED', 'NEEDS_ORDERING'));
+  });
+
+  it('shows an "already updated" popup and refreshes the list when the Owner/Admin got there first', async () => {
+    mockGetOrderListForStore
+      .mockResolvedValueOnce([entry({ itemName: 'Milk', status: 'NEEDS_ORDERING' })])
+      .mockResolvedValueOnce([entry({ itemName: 'Milk', status: 'ORDERED' })]);
+    mockUpdateSuperAdminOrderStatus.mockRejectedValue(
+      new ApiError(409, 'This item has already been updated by Admin. It is now marked as Ordered.'),
+    );
+
+    render(<SuperAdminOrders />);
+
+    await screen.findByRole('option', { name: 'Downtown' });
+    await userEvent.selectOptions(screen.getByLabelText('Select a store…'), '10');
+    await screen.findByText('Milk');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Change status for Milk' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Ordered' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Yes, change' }));
+
+    expect(await screen.findByText(/already been updated by Admin/)).toBeInTheDocument();
+    await waitFor(() => expect(mockGetOrderListForStore).toHaveBeenCalledTimes(2));
+  });
+
   it('opens already selected on a store when focusStore is set', async () => {
     mockGetOrderListForStore.mockResolvedValue([entry({ itemName: 'Milk' })]);
 
@@ -236,7 +276,7 @@ describe('SuperAdminOrders inline status change', () => {
 
     await user.click(screen.getByRole('button', { name: 'Yes, change' }));
 
-    await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 1, 'ORDERED'));
+    await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 1, 'ORDERED', 'NEEDS_ORDERING'));
     await waitFor(() => expect(screen.queryByText('Change status?')).not.toBeInTheDocument());
   });
 
@@ -289,8 +329,8 @@ describe('SuperAdminOrders bulk selection', () => {
     await user.click(screen.getByRole('button', { name: 'Yes, mark 2 ordered' }));
 
     await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledTimes(2));
-    expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 1, 'ORDERED');
-    expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 2, 'ORDERED');
+    expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 1, 'ORDERED', 'NEEDS_ORDERING');
+    expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 2, 'ORDERED', 'NEEDS_ORDERING');
   });
 
   it('skips items that are already past the target status and says so', async () => {

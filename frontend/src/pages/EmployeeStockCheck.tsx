@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List } from 'lucide-react';
 import { nfToast } from '../utils/toast';
+import { ApiError } from '../api/client';
 import { getMe } from '../api/me';
 import { getTodayStockCheck, reportAdHocShortage, submitStockCheck } from '../api/stockChecks';
 import type { DailyStockCheckItem, StockCheckSnapshotKey } from '../types/stockCheck';
@@ -107,6 +108,12 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
       return true;
     } catch (error) {
       nfToast.error(error instanceof Error ? error.message : 'Failed to save count');
+      // 403/404/409 mean the list on screen is out of date (e.g. the owner
+      // deactivated or removed this item after it loaded), so re-fetch it
+      // quietly -- no spinner, so the rest of the page stays put.
+      if (error instanceof ApiError && [403, 404, 409].includes(error.status)) {
+        getTodayStockCheck(store.id).then(setItems).catch(() => {});
+      }
       return false;
     } finally {
       setPendingKey(null);

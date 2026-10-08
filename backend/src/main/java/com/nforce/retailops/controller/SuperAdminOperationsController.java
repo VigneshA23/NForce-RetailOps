@@ -77,7 +77,7 @@ public class SuperAdminOperationsController {
         @PathVariable Long entryId,
         @Valid @RequestBody UpdateOrderStatusRequest request
     ) {
-        return service.updateOrderStatus(storeId, entryId, request.status());
+        return service.updateOrderStatus(storeId, entryId, request.status(), request.expectedStatus());
     }
 
     // Super Admin's "Add to order" for a specific store, counterpart to
