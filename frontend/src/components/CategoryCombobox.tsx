@@ -1,65 +1,53 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, ChevronDown, Plus, X } from 'lucide-react';
-import type { Supplier } from '../types/supplier';
+import { normalizeCategoryName, type InventoryItemCategory } from '../types/storeInventory';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import './SupplierCombobox.css';
 
 const VIEWPORT_MARGIN = 8;
+const MAX_CATEGORY_LENGTH = 40;
 
-interface SupplierComboboxProps {
+interface CategoryComboboxProps {
   id: string;
-  suppliers: Supplier[];
-  value: number | null;
-  onChange: (supplierId: number | null) => void;
-  // Saves a new supplier (or returns the existing one with that name) and
-  // resolves with it. The caller is expected to add it to `suppliers` so it
-  // shows up for future items too.
-  onCreate: (name: string) => Promise<Supplier>;
+  options: { value: InventoryItemCategory; label: string }[];
+  value: InventoryItemCategory;
+  onChange: (category: InventoryItemCategory) => void;
   ariaLabel?: string;
 }
 
 type ComboOption =
-  | { kind: 'none' }
-  | { kind: 'supplier'; supplier: Supplier }
+  | { kind: 'category'; value: InventoryItemCategory; label: string }
   | { kind: 'create'; name: string }
   | { kind: 'new' };
 
-// Type-to-search supplier picker for the inventory item form. Filters the
-// supplier directory as the user types and, when nothing matches the typed
-// name exactly, offers "Add New Supplier" to create it in place -- so the
-// user never has to leave the item form to set up a supplier first.
-function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel }: SupplierComboboxProps) {
+// Category picker for the inventory item form. Mirrors SupplierCombobox: the
+// selected category is shown with a tick, and "Add new category" turns the
+// same textbox into a name field. A new category has no table of its own --
+// it is saved with the item and offered again once an item uses it.
+function CategoryCombobox({ id, options: categories, value, onChange, ariaLabel }: CategoryComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
-  const [isCreating, setIsCreating] = useState(false);
-  // "Add new supplier" collapses the list and turns the main textbox into a
-  // name field for the new supplier.
   const [isAdding, setIsAdding] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const listboxId = `${id}-listbox`;
 
-  const selected = suppliers.find((supplier) => supplier.id === value) ?? null;
+  const selected = categories.find((c) => c.value === value) ?? (value ? { value, label: value } : null);
 
   const options = useMemo<ComboOption[]>(() => {
     const term = query.trim().toLowerCase();
-    const active = suppliers.filter((supplier) => supplier.active);
-    const matches = term ? active.filter((supplier) => supplier.name.toLowerCase().includes(term)) : active;
-    const exactMatch = term !== '' && active.some((supplier) => supplier.name.trim().toLowerCase() === term);
+    const matches = term ? categories.filter((c) => c.label.toLowerCase().includes(term)) : categories;
+    const exactMatch = term !== '' && categories.some((c) => c.label.toLowerCase() === term || c.value.toLowerCase() === term);
 
-    const next: ComboOption[] = [];
-    if (!term) next.push({ kind: 'none' });
-    next.push(...matches.map((supplier) => ({ kind: 'supplier' as const, supplier })));
+    const next: ComboOption[] = matches.map((c) => ({ kind: 'category' as const, value: c.value, label: c.label }));
     if (term && !exactMatch) next.push({ kind: 'create', name: query.trim() });
-    // With nothing typed there is no typed-name create row, so offer an explicit way in.
     if (!term) next.push({ kind: 'new' });
     return next;
-  }, [suppliers, query]);
+  }, [categories, query]);
 
   useEffect(() => {
     setHighlighted(0);
@@ -70,7 +58,6 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
     const rect = wrapperRef.current?.getBoundingClientRect();
     if (rect) setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
     setQuery('');
-    setCreateError(null);
     setIsOpen(true);
   }
 
@@ -79,8 +66,6 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
     setQuery('');
   }
 
-  // Same portal + flip-above-when-no-room positioning as SearchableSelect,
-  // so a modal's scrolling body can't clip the list.
   function repositionPanel() {
     const wrapper = wrapperRef.current;
     const panel = panelRef.current;
@@ -110,49 +95,33 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
 
   useDismissablePanel({ isOpen, onClose: close, refs: [wrapperRef, panelRef] });
 
-  async function choose(option: ComboOption) {
-    if (option.kind === 'none') {
-      onChange(null);
-      close();
-      return;
-    }
+  function choose(option: ComboOption) {
     if (option.kind === 'new') {
-      setCreateError(null);
       setIsOpen(false);
       setQuery('');
       setIsAdding(true);
       inputRef.current?.focus();
       return;
     }
-    if (option.kind === 'supplier') {
-      onChange(option.supplier.id);
+    if (option.kind === 'category') {
+      onChange(option.value);
       close();
       return;
     }
-    setIsCreating(true);
-    setCreateError(null);
-    try {
-      const created = await onCreate(option.name);
-      onChange(created.id);
-      setIsAdding(false);
-      close();
-      inputRef.current?.blur();
-    } catch (error) {
-      setCreateError(error instanceof Error ? error.message : 'Failed to add supplier');
-    } finally {
-      setIsCreating(false);
-    }
+    onChange(normalizeCategoryName(option.name));
+    setIsAdding(false);
+    close();
+    inputRef.current?.blur();
   }
 
   function cancelAdding() {
     setIsAdding(false);
     setQuery('');
-    setCreateError(null);
   }
 
   function submitNew() {
     const name = query.trim();
-    if (name && !isCreating) void choose({ kind: 'create', name });
+    if (name) choose({ kind: 'create', name });
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -176,13 +145,13 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
     } else if (event.key === 'Enter') {
       // Never let Enter here submit the surrounding item form.
       event.preventDefault();
-      if (isOpen && !isCreating && options[highlighted]) void choose(options[highlighted]);
+      if (isOpen && options[highlighted]) choose(options[highlighted]);
     } else if (event.key === 'Tab') {
       close();
     }
   }
 
-  const inputValue = isOpen || isAdding ? query : selected?.name ?? '';
+  const inputValue = isOpen || isAdding ? query : selected?.label ?? '';
 
   return (
     <div className="supplier-combobox" ref={wrapperRef}>
@@ -196,8 +165,9 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
         aria-controls={listboxId}
         aria-autocomplete="list"
         autoComplete="off"
+        maxLength={MAX_CATEGORY_LENGTH}
         value={inputValue}
-        placeholder={isAdding ? 'Type the new supplier name' : isOpen && selected ? selected.name : 'Search or add a supplier'}
+        placeholder={isAdding ? 'Type the new category name' : isOpen && selected ? selected.label : 'Search or add a category'}
         onFocus={() => !isAdding && open()}
         onClick={() => !isAdding && open()}
         onChange={(event) => {
@@ -205,33 +175,25 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
           setQuery(event.target.value);
         }}
         onKeyDown={handleKeyDown}
-        disabled={isCreating}
       />
       {isAdding ? (
         <div className="supplier-combobox__adding-actions">
           <button
             type="button"
             className="supplier-combobox__icon-btn supplier-combobox__icon-btn--confirm"
-            aria-label="Add supplier"
-            disabled={isCreating || !query.trim()}
+            aria-label="Add category"
+            disabled={!query.trim()}
             onClick={submitNew}
           >
             <Check size={16} />
           </button>
-          <button
-            type="button"
-            className="supplier-combobox__icon-btn"
-            aria-label="Cancel adding supplier"
-            disabled={isCreating}
-            onClick={cancelAdding}
-          >
+          <button type="button" className="supplier-combobox__icon-btn" aria-label="Cancel adding category" onClick={cancelAdding}>
             <X size={16} />
           </button>
         </div>
       ) : (
         <ChevronDown size={16} className="supplier-combobox__chevron" aria-hidden="true" />
       )}
-      {isAdding && createError && <div className="supplier-combobox__error">{createError}</div>}
 
       {isOpen &&
         createPortal(
@@ -242,65 +204,45 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
             role="listbox"
             style={{ top: position.top, left: position.left, width: position.width }}
           >
-            {options.length === 0 && <div className="supplier-combobox__state">No suppliers yet. Type a name to add one.</div>}
             {options.map((option, index) => {
               const isHighlighted = index === highlighted;
               const className = `supplier-combobox__option${isHighlighted ? ' supplier-combobox__option--highlighted' : ''}`;
 
-              if (option.kind === 'new') {
+              if (option.kind === 'new' || option.kind === 'create') {
                 return (
                   <button
-                    key="new"
+                    key={option.kind}
                     type="button"
                     role="option"
                     aria-selected={isHighlighted}
                     className={`${className} supplier-combobox__option--create`}
                     onMouseEnter={() => setHighlighted(index)}
-                    onClick={() => void choose(option)}
-                  >
-                    <Plus size={14} />
-                    <span>Add new supplier</span>
-                  </button>
-                );
-              }
-
-              if (option.kind === 'create') {
-                return (
-                  <button
-                    key="create"
-                    type="button"
-                    role="option"
-                    aria-selected={isHighlighted}
-                    className={`${className} supplier-combobox__option--create`}
-                    onMouseEnter={() => setHighlighted(index)}
-                    onClick={() => void choose(option)}
-                    disabled={isCreating}
+                    onClick={() => choose(option)}
                   >
                     <Plus size={14} />
                     <span>
-                      {isCreating ? 'Adding supplier...' : <>Add New Supplier "<strong>{option.name}</strong>"</>}
+                      {option.kind === 'new' ? 'Add new category' : <>Add New Category "<strong>{option.name}</strong>"</>}
                     </span>
                   </button>
                 );
               }
 
-              const isSelected = option.kind === 'none' ? value == null : option.supplier.id === value;
+              const isSelected = option.value === value;
               return (
                 <button
-                  key={option.kind === 'none' ? 'none' : option.supplier.id}
+                  key={option.value}
                   type="button"
                   role="option"
                   aria-selected={isSelected}
-                  className={`${className}${option.kind === 'none' ? ' supplier-combobox__option--muted' : ''}`}
+                  className={className}
                   onMouseEnter={() => setHighlighted(index)}
-                  onClick={() => void choose(option)}
+                  onClick={() => choose(option)}
                 >
                   <span className="supplier-combobox__check">{isSelected && <Check size={14} />}</span>
-                  {option.kind === 'none' ? 'No preferred supplier' : option.supplier.name}
+                  {option.label}
                 </button>
               );
             })}
-            {createError && <div className="supplier-combobox__state supplier-combobox__state--error">{createError}</div>}
           </div>,
           document.body,
         )}
@@ -308,4 +250,4 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
   );
 }
 
-export default SupplierCombobox;
+export default CategoryCombobox;

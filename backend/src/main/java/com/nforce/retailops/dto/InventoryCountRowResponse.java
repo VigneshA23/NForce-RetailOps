@@ -1,6 +1,5 @@
 package com.nforce.retailops.dto;
 
-import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 
 import java.time.LocalDate;
@@ -17,7 +16,7 @@ import java.time.OffsetDateTime;
 public record InventoryCountRowResponse(
     Long itemId,
     String name,
-    InventoryItemCategory category,
+    String category,
     String unitOfMeasurement,
     Integer currentStock,
     Integer minimum,

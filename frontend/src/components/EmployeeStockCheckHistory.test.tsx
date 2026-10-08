@@ -15,6 +15,7 @@ function snapshot(overrides: Partial<StockSnapshot>): StockSnapshot {
     available: 12,
     deadStock: 0,
     usable: 12,
+    enteredById: 1,
     enteredByName: 'Jane Doe',
     enteredAt: '2026-09-20T09:00:00Z',
     lastUpdatedByName: 'Jane Doe',

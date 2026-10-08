@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Boxes, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus } from 'lucide-react';
+import { AlertTriangle, Boxes, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createStoreInventoryItem,
@@ -8,14 +8,16 @@ import {
   setStoreInventoryItemActive,
   updateStoreInventoryItem,
 } from '../api/storeInventory';
-import { deleteSupplier, findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
-import type { Supplier } from '../types/supplier';
+import { findOrCreateSupplier, getOwnerSuppliers, setOwnerSupplierActive, updateOwnerSupplier } from '../api/suppliers';
+import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import type { Supplier, SupplierFormValues } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
 import StoreInventoryCardGrid from '../components/StoreInventoryCardGrid';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StockCheckHistory from '../components/StockCheckHistory';
+import SupplierFormModal from '../components/SupplierFormModal';
+import Toggle from '../components/Toggle';
 import SearchInput from '../components/SearchInput';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
@@ -26,10 +28,11 @@ import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
 import './StoreInventory.css';
 
-type SubTab = 'items' | 'history';
+type SubTab = 'items' | 'suppliers' | 'history';
 
 const SUB_TABS: { key: SubTab; label: string; icon: typeof Package }[] = [
   { key: 'items', label: 'Items', icon: Package },
+  { key: 'suppliers', label: 'Suppliers', icon: Truck },
   { key: 'history', label: 'History', icon: Clock },
 ];
 
@@ -42,7 +45,6 @@ const SORT_OPTIONS: { value: SortOption; label: string }[] = [
   { value: 'category', label: 'Sort: Category' },
 ];
 
-const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
 const STATUS_SORT_ORDER = { low: 0, out: 1, in: 2, inactive: 3 } as const;
 
@@ -135,15 +137,47 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     return supplier;
   }
 
-  // Per-row delete in the supplier picker. A supplier with order history is
-  // only deactivated server-side; either way it leaves the list, and items
-  // that preferred it are reloaded since the server cleared their supplier.
-  async function handleDeleteSupplier(supplier: Supplier): Promise<void> {
-    const result = await deleteSupplier(supplier.id);
-    setSuppliers((current) => current.filter((s) => s.id !== supplier.id));
-    getStoreInventoryItems().then(setItems).catch(() => {});
-    nfToast.success(result.deactivated ? `"${supplier.name}" deactivated (it has order history).` : `"${supplier.name}" deleted.`);
+  // ---- Suppliers tab: rename + activate/deactivate. Adding stays inline in
+  // the item form. -----------------------------------------------------------
+  const [supplierEditTarget, setSupplierEditTarget] = useState<Supplier | null>(null);
+  const [supplierFormError, setSupplierFormError] = useState<string | null>(null);
+  const [isSupplierSubmitting, setIsSupplierSubmitting] = useState(false);
+
+  async function handleSupplierSubmit(values: SupplierFormValues) {
+    if (!supplierEditTarget) return;
+    setSupplierFormError(null);
+    setIsSupplierSubmitting(true);
+    try {
+      const updated = await updateOwnerSupplier(supplierEditTarget.id, values);
+      setSuppliers((current) =>
+        current.map((s) => (s.id === updated.id ? updated : s)).sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      // Items carry the supplier's name, so refresh them after a rename.
+      getStoreInventoryItems().then(setItems).catch(() => {});
+      nfToast.success(`"${updated.name}" supplier updated.`);
+      setSupplierEditTarget(null);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Something went wrong';
+      setSupplierFormError(msg);
+      nfToast.error(msg);
+    } finally {
+      setIsSupplierSubmitting(false);
+    }
   }
+
+  async function handleToggleSupplier(supplier: Supplier, active: boolean) {
+    setSuppliers((current) => current.map((s) => (s.id === supplier.id ? { ...s, active } : s)));
+    try {
+      const updated = await setOwnerSupplierActive(supplier.id, active);
+      setSuppliers((current) => current.map((s) => (s.id === updated.id ? updated : s)));
+      nfToast.success(`"${supplier.name}" supplier ${active ? 'activated' : 'deactivated'}.`);
+    } catch (error) {
+      setSuppliers((current) => current.map((s) => (s.id === supplier.id ? supplier : s)));
+      nfToast.error(error instanceof Error ? error.message : 'Failed to update supplier status');
+    }
+  }
+
+  const activeSupplierCount = useMemo(() => suppliers.filter((s) => s.active).length, [suppliers]);
 
   async function handleCreateSubmit(values: StoreInventoryItemFormValues) {
     setItemFormError(null);
@@ -215,7 +249,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
 
   const distinctCategories = useMemo(
     () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
-      CATEGORY_LABELS[a].localeCompare(CATEGORY_LABELS[b]),
+      categoryLabel(a).localeCompare(categoryLabel(b)),
     ),
     [items],
   );
@@ -225,7 +259,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     const matchesSearch =
       !term ||
       item.name.toLowerCase().includes(term) ||
-      (item.category ? CATEGORY_LABELS[item.category].toLowerCase().includes(term) : false) ||
+      (item.category ? categoryLabel(item.category).toLowerCase().includes(term) : false) ||
       (item.preferredSupplierName?.toLowerCase().includes(term) ?? false);
     const matchesCategory = !categoryFilter || item.category === categoryFilter;
     return matchesSearch && matchesCategory;
@@ -240,7 +274,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
       case 'category':
       case 'name':
       default:
-        return (a.category ? CATEGORY_LABELS[a.category] : '').localeCompare(b.category ? CATEGORY_LABELS[b.category] : '') || a.name.localeCompare(b.name);
+        return (a.category ? categoryLabel(a.category) : '').localeCompare(b.category ? categoryLabel(b.category) : '') || a.name.localeCompare(b.name);
     }
   });
 
@@ -252,7 +286,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
         <div className="store-inventory-page__subtab-list">
           {SUB_TABS.map((tab) => {
             const Icon = tab.icon;
-            const badgeCount = tab.key === 'items' ? items.length : historyTotal;
+            const badgeCount = tab.key === 'items' ? items.length : tab.key === 'suppliers' ? suppliers.length : historyTotal;
             return (
               <button
                 key={tab.key}
@@ -348,7 +382,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 className="filter"
                 options={[
                   { value: '', label: `All Categories (${distinctCategories.length})` },
-                  ...distinctCategories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
+                  ...distinctCategories.map((c) => ({ value: c, label: categoryLabel(c) })),
                 ]}
                 value={categoryFilter}
                 onChange={setCategoryFilter}
@@ -388,7 +422,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               mode="create"
               suppliers={suppliers}
               onCreateSupplier={handleCreateSupplier}
-              onDeleteSupplier={handleDeleteSupplier}
+              existingCategories={items.map((i) => i.category)}
               errorMessage={itemFormError}
               isSubmitting={isItemSubmitting}
               onClose={() => setIsCreateModalOpen(false)}
@@ -401,7 +435,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 item={editTarget}
                 suppliers={suppliers}
                 onCreateSupplier={handleCreateSupplier}
-                onDeleteSupplier={handleDeleteSupplier}
+              existingCategories={items.map((i) => i.category)}
                 errorMessage={itemFormError}
                 isSubmitting={isItemSubmitting}
                 onClose={() => setEditTarget(null)}
@@ -415,6 +449,83 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               message={deleteTarget ? `Are you sure you want to delete "${deleteTarget.name}"? This cannot be undone.` : ''}
               onConfirm={handleConfirmDelete}
               onCancel={() => setDeleteTarget(null)}
+            />
+          </>
+        )
+      )}
+
+      {subTab === 'suppliers' && (
+        loadError ? (
+          <div className="store-inventory-page__error">
+            {loadError}
+            <button type="button" className="btn btn--secondary" onClick={load}>
+              Retry
+            </button>
+          </div>
+        ) : (
+          <>
+            <div className="store-inventory-page__title-row">
+              <h1 className="store-inventory-page__title">Suppliers</h1>
+            </div>
+            <div className="stat-card-row">
+              <StatCard icon={Truck} label="Suppliers" value={suppliers.length} tone="primary" />
+              <StatCard icon={CircleCheck} label="Active" value={activeSupplierCount} tone="success" />
+            </div>
+            <p className="store-inventory-page__catalog-line">
+              {isLoading ? 'Loading...' : `${activeSupplierCount} active of ${suppliers.length} total. New suppliers are added from the item form.`}
+            </p>
+            <div className="table-card">
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Supplier Name</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {suppliers.map((supplier) => (
+                      <tr key={supplier.id}>
+                        <td data-label="Supplier Name">{supplier.name}</td>
+                        <td data-label="Status">
+                          <Toggle
+                            checked={supplier.active}
+                            onChange={(checked) => handleToggleSupplier(supplier, checked)}
+                            label={`${supplier.active ? 'Deactivate' : 'Activate'} ${supplier.name}`}
+                          />
+                        </td>
+                        <td className="table-actions-cell" data-label="Actions">
+                          <div className="table-row-actions">
+                            <button
+                              type="button"
+                              className="table-icon-btn"
+                              aria-label={`Edit ${supplier.name}`}
+                              title="Edit"
+                              onClick={() => { setSupplierFormError(null); setSupplierEditTarget(supplier); }}
+                            >
+                              Edit
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {!isLoading && suppliers.length === 0 && (
+                <div className="table-card__empty">No suppliers yet.</div>
+              )}
+            </div>
+
+            <SupplierFormModal
+              isOpen={supplierEditTarget !== null}
+              mode="edit"
+              initialValues={supplierEditTarget ? { name: supplierEditTarget.name } : undefined}
+              errorMessage={supplierFormError}
+              isSubmitting={isSupplierSubmitting}
+              onClose={() => setSupplierEditTarget(null)}
+              onSubmit={handleSupplierSubmit}
             />
           </>
         )

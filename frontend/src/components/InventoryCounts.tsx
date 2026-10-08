@@ -6,7 +6,7 @@ import type {
   InventoryCountRow,
   InventoryItemCategory,
 } from '../types/storeInventory';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
+import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import { INVENTORY_COUNT_STATUS_META } from '../utils/inventoryCountStatusMeta';
 import { nfToast } from '../utils/toast';
 import { formatDateLabel, formatTimeLabel } from '../utils/checklistHistoryOptions';
@@ -193,7 +193,7 @@ function InventoryCounts() {
   function renderMobileCard(row: InventoryCountRow) {
     const meta = STATUS_META[row.status];
     const isExpanded = expandedItemId === row.itemId;
-    const categoryLabel = INVENTORY_ITEM_CATEGORY_OPTIONS.find((o) => o.value === row.category)?.label ?? '—';
+    const categoryLabel = categoryLabelOf(row.category) || '—';
     // The "9 -> 4" sub-line is derived, not a separate field: change is
     // already (current - previous), so previous = current - change.
     const previous = row.change != null && row.currentStock != null ? row.currentStock - row.change : null;
@@ -315,9 +315,9 @@ function InventoryCounts() {
         </div>
         <Select
           className="filter"
-          options={[{ value: 'ALL', label: 'All categories' }, ...INVENTORY_ITEM_CATEGORY_OPTIONS]}
+          options={[{ value: 'ALL', label: 'All categories' }, ...buildCategoryOptions(rows.map((r) => r.category), [category === 'ALL' ? null : category])]}
           value={category}
-          onChange={(value) => { setCategory(value as InventoryItemCategory | 'ALL'); setPage(1); }}
+          onChange={(value) => { setCategory(value); setPage(1); }}
           ariaLabel="Category"
         />
         <Select
@@ -375,7 +375,7 @@ function InventoryCounts() {
                           <div>
                             <div className="inventory-counts__item-name">{row.name}</div>
                             <div className="inventory-counts__item-category">
-                              {INVENTORY_ITEM_CATEGORY_OPTIONS.find((o) => o.value === row.category)?.label ?? '—'}
+                              {categoryLabelOf(row.category) || '—'}
                             </div>
                           </div>
                         </div>
