@@ -49,6 +49,11 @@ public class OrderListEntry {
     @Column(nullable = false, length = 20)
     private OrderStatus status = OrderStatus.NEEDS_ORDERING;
 
+    // "OWNER_ADMIN" or "SUPER_ADMIN" -- who last changed `status` by hand.
+    // Only used to word the stale-update conflict message.
+    @Column(name = "status_changed_by_role", length = 20)
+    private String statusChangedByRole;
+
     @Column(name = "ad_hoc", nullable = false)
     private boolean adHoc;
 
@@ -135,6 +140,14 @@ public class OrderListEntry {
 
     public void setStatus(OrderStatus status) {
         this.status = status;
+    }
+
+    public String getStatusChangedByRole() {
+        return statusChangedByRole;
+    }
+
+    public void setStatusChangedByRole(String statusChangedByRole) {
+        this.statusChangedByRole = statusChangedByRole;
     }
 
     public boolean isAdHoc() {

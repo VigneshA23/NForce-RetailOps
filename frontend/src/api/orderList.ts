@@ -53,6 +53,7 @@ export async function updateOrderListEntry(id: number, values: UpdateOrderListEn
       supplierId: values.supplierId,
       note: values.note.trim() === '' ? null : values.note.trim(),
       status: values.status,
+      expectedStatus: values.expectedStatus,
     },
   });
 }

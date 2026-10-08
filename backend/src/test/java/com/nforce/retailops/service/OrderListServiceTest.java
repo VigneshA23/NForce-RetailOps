@@ -12,6 +12,7 @@ import com.nforce.retailops.entity.User;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
+import com.nforce.retailops.exception.OrderEntryAlreadyUpdatedException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
@@ -265,6 +266,51 @@ class OrderListServiceTest {
         orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(9, null, "note", OrderStatus.ORDERED));
 
         assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+        assertThat(entry.getQuantityNeeded()).isEqualTo(9);
+    }
+
+    // ---- stale-update conflicts (Owner/Admin vs Super Admin) -----------------
+
+    @Test
+    void ownerUpdateIsRejectedWhenSuperAdminAlreadyMovedTheEntry() {
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        orderListService.updateStatusForSuperAdmin(STORE_ID, ENTRY_ID, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING);
+
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+
+        assertThatThrownBy(() -> orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(5, null, null, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING)))
+            .isInstanceOf(OrderEntryAlreadyUpdatedException.class)
+            .hasMessageContaining("by Super Admin");
+    }
+
+    @Test
+    void superAdminUpdateIsRejectedWhenOwnerAlreadyMovedTheEntry() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(5, null, null, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING));
+
+        assertThatThrownBy(() -> orderListService.updateStatusForSuperAdmin(
+            STORE_ID, ENTRY_ID, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING))
+            .isInstanceOf(OrderEntryAlreadyUpdatedException.class)
+            .hasMessageContaining("by Admin");
+    }
+
+    @Test
+    void updateWithMatchingExpectedStatusStillSucceeds() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(9, null, null, OrderStatus.ORDERED, OrderStatus.ORDERED));
+
         assertThat(entry.getQuantityNeeded()).isEqualTo(9);
     }
 

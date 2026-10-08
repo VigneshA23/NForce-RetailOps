@@ -5,6 +5,12 @@ import jakarta.validation.constraints.NotNull;
 
 public record UpdateOrderStatusRequest(
     @NotNull(message = "Status is required")
-    OrderStatus status
+    OrderStatus status,
+
+    // See UpdateOrderListEntryRequest.expectedStatus.
+    OrderStatus expectedStatus
 ) {
+    public UpdateOrderStatusRequest(OrderStatus status) {
+        this(status, null);
+    }
 }

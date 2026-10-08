@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Plus, Truck } from 'lucide-react';
+import { ApiError } from '../api/client';
 import { getAllStores } from '../api/superAdminStores';
 import { getAllInventoryItems } from '../api/inventoryItems';
 import { getSuppliers } from '../api/suppliers';
@@ -18,6 +19,7 @@ import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types
 import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
+import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
 import StatCard from '../components/StatCard';
 import CategoryIcon, { CATEGORY_VISUAL, FALLBACK_CATEGORY_VISUAL } from '../components/CategoryIcon';
 import CheckboxButton from '../components/CheckboxButton';
@@ -88,6 +90,10 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const [entries, setEntries] = useState<OrderListEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [entriesError, setEntriesError] = useState<string | null>(null);
+
+  // Set when a status change is rejected because the Owner/Admin already
+  // updated the entry (HTTP 409) -- drives OrderAlreadyUpdatedModal.
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -191,10 +197,17 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   async function changeStatus(entry: OrderListEntry, nextStatus: OrderStatus) {
     if (selectedStoreId === null) return false;
     try {
-      const updated = await updateSuperAdminOrderStatus(selectedStoreId, entry.id, nextStatus);
+      const updated = await updateSuperAdminOrderStatus(selectedStoreId, entry.id, nextStatus, entry.status);
       applyUpdatedEntry(updated);
       return true;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        // The Owner/Admin already moved this entry -- tell the user and pull
+        // the fresh list rather than leaving a stale row on screen.
+        setConflictMessage(error.message);
+        getOrderListForStore(selectedStoreId).then(setEntries).catch(() => {});
+        return false;
+      }
       nfToast.error(error instanceof Error ? error.message : 'Failed to update order status');
       return false;
     }
@@ -946,6 +959,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
           onCancel={() => setPendingBulkStatusChange(null)}
         />
       )}
+      {conflictMessage && <OrderAlreadyUpdatedModal message={conflictMessage} onClose={() => setConflictMessage(null)} />}
     </div>
   );
 }

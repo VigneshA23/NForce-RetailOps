@@ -196,8 +196,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
-    @ExceptionHandler(InvalidOrderEntryTransitionException.class)
-    public ResponseEntity<Map<String, String>> handleInvalidOrderEntryTransition(InvalidOrderEntryTransitionException ex) {
+    @ExceptionHandler({InvalidOrderEntryTransitionException.class, OrderEntryAlreadyUpdatedException.class})
+    public ResponseEntity<Map<String, String>> handleInvalidOrderEntryTransition(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
