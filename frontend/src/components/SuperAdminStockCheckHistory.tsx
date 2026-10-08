@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, Download, FileSpreadsheet, FileText, Pencil } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
@@ -7,20 +8,27 @@ import Select from './Select';
 import SearchableSelect from './SearchableSelect';
 import FilterClearButton from './FilterClearButton';
 import ItemIcon from './ItemIcon';
-import { Pencil } from 'lucide-react';
+import ButtonDots from './ButtonDots';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { getAllStores } from '../api/superAdminStores';
 import { getSuperAdminStockCheckHistory, correctSuperAdminStockCheck } from '../api/superAdminOperations';
 import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
-import type { StockCheckSnapshotKey } from '../types/stockCheck';
+import type { SuperAdminStockCheckResponse, StockCheckSnapshotKey } from '../types/stockCheck';
 import {
   toSuperAdminStockCheckHistoryRowView,
   type SuperAdminStockCheckHistoryRowView,
 } from '../utils/stockCheckHistoryStatus';
 import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
+import { buildAndDownloadStockCheckHistoryPdf, buildStockCheckHistoryWorkbook } from '../utils/stockCheckHistoryExport';
+import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 
 const PAGE_SIZE = 10;
+
+// The backend's own page-size ceiling, same constant Owner/Admin's own
+// StockCheckHistory.tsx uses for its "fetch every page for export" helper.
+const MAX_EXPORT_PAGE_SIZE = 200;
 
 // Per-store range cap matches Owner/Admin's own StockCheckHistory; the
 // all-stores cap is the backend's own tighter MAX_DATE_RANGE_DAYS_ALL_STORES
@@ -28,6 +36,21 @@ const PAGE_SIZE = 10;
 // the backend is the actual source of truth for the limit either way.
 function widestAllowedRange(storeId: number | null): { startDate: string; endDate: string } {
   return { startDate: daysAgo(storeId == null ? 30 : 91), endDate: todayDate() };
+}
+
+// Export is store-scoped only (disabled on "All Stores") -- same single-store
+// shape as Owner/Admin's own export, so storeId here is always non-null.
+async function fetchAllSuperAdminStockCheckHistory(storeId: number, startDate: string, endDate: string): Promise<SuperAdminStockCheckResponse[]> {
+  const all: SuperAdminStockCheckResponse[] = [];
+  let page = 1;
+  let pageCount = 1;
+  do {
+    const result = await getSuperAdminStockCheckHistory(storeId, startDate, endDate, page, MAX_EXPORT_PAGE_SIZE);
+    all.push(...result.items);
+    pageCount = result.pageCount;
+    page += 1;
+  } while (page <= pageCount);
+  return all;
 }
 
 type StatusFilter = 'all' | 'shortage' | 'sufficient';
@@ -66,11 +89,17 @@ function QtyNeededBadge({ row }: { row: SuperAdminStockCheckHistoryRowView }) {
 
 // Super Admin's cross-store stock-check audit trail (RTS-305) and correction
 // (RTS-306) -- adapted from Owner/Admin's own StockCheckHistory.tsx, same
-// table/column shape and CorrectStockCheckModal, but store-scoped via a
-// picker (default: every store) instead of hardcoded to the caller's own.
-// Export is deliberately out of scope here (not one of RTS-305/306's
-// acceptance criteria, and the shared export row type has no store field yet).
-function SuperAdminStockCheckHistory() {
+// table/column shape, CorrectStockCheckModal and Export, but store-scoped via
+// a picker (default: every store) instead of hardcoded to the caller's own.
+interface SuperAdminStockCheckHistoryProps {
+  // Lets the parent show this tab's total record count on its own sub-tab
+  // label, same as Owner/Admin's own History sub-tab badge.
+  onTotalChange?: (total: number) => void;
+}
+
+// Export is store-scoped only (disabled on "All Stores") -- it needs one
+// concrete store the same way Owner/Admin's own export always has one.
+function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHistoryProps) {
   const [stores, setStores] = useState<{ id: number; label: string }[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
 
@@ -84,6 +113,11 @@ function SuperAdminStockCheckHistory() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [isExcelExporting, setIsExcelExporting] = useState(false);
+  const [isPdfExporting, setIsPdfExporting] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  useDismissablePanel({ isOpen: isExportMenuOpen, onClose: () => setIsExportMenuOpen(false), refs: [exportMenuRef] });
 
   const [correctionTarget, setCorrectionTarget] = useState<{ row: SuperAdminStockCheckHistoryRowView; snapshot: StockCheckSnapshotKey } | null>(null);
   const [correctionError, setCorrectionError] = useState<string | null>(null);
@@ -116,6 +150,7 @@ function SuperAdminStockCheckHistory() {
         setItems(result.items.map(toSuperAdminStockCheckHistoryRowView));
         setPageCount(result.pageCount);
         setTotalItems(result.totalItems);
+        onTotalChange?.(result.totalItems);
       })
       .catch((error: Error) => {
         if (cancelled) return;
@@ -146,6 +181,53 @@ function SuperAdminStockCheckHistory() {
     setSearch('');
     setCategoryFilter('');
     setStatusFilter('all');
+  }
+
+  // Exports every record matching the current filters for the selected store
+  // across ALL pages, not just the page on screen -- same approach as
+  // Owner/Admin's own StockCheckHistory (RTS-316). Disabled entirely on "All
+  // Stores" (selectedStoreId === null), so this always has a concrete store.
+  async function buildExportRows(storeId: number): Promise<SuperAdminStockCheckHistoryRowView[]> {
+    const resolved = resolveDateRange(dateRange) ?? widestAllowedRange(storeId);
+    const all = await fetchAllSuperAdminStockCheckHistory(storeId, resolved.startDate, resolved.endDate);
+    return all
+      .map(toSuperAdminStockCheckHistoryRowView)
+      .filter((row) => matchesFilters(row, search, categoryFilter, statusFilter));
+  }
+
+  async function handleExportExcel() {
+    if (selectedStoreId === null) return;
+    const resolved = resolveDateRange(dateRange) ?? widestAllowedRange(selectedStoreId);
+    setIsExcelExporting(true);
+    try {
+      const rows = await buildExportRows(selectedStoreId);
+      const workbook = await buildStockCheckHistoryWorkbook(rows, resolved.startDate, resolved.endDate);
+      await downloadWorkbook(`stock-check-history-${resolved.startDate}_to_${resolved.endDate}.xlsx`, workbook);
+      setIsExportMenuOpen(false);
+    } catch (error) {
+      nfToast.error(error instanceof Error ? error.message : 'Export failed. Please try again.');
+    } finally {
+      setIsExcelExporting(false);
+    }
+  }
+
+  async function handleExportPdf() {
+    if (selectedStoreId === null) return;
+    const resolved = resolveDateRange(dateRange) ?? widestAllowedRange(selectedStoreId);
+    const storeName = stores.find((s) => s.id === selectedStoreId)?.label ?? null;
+    setIsPdfExporting(true);
+    try {
+      const rows = await buildExportRows(selectedStoreId);
+      await buildAndDownloadStockCheckHistoryPdf(
+        rows, resolved.startDate, resolved.endDate, storeName,
+        `stock-check-history-${resolved.startDate}_to_${resolved.endDate}.pdf`,
+      );
+      setIsExportMenuOpen(false);
+    } catch (error) {
+      nfToast.error(error instanceof Error ? error.message : 'Export failed. Please try again.');
+    } finally {
+      setIsPdfExporting(false);
+    }
   }
 
   // Super Admin corrections require a reason (enforced server-side
@@ -180,13 +262,48 @@ function SuperAdminStockCheckHistory() {
         <h1 className="stock-check-history__title">Stock Check History</h1>
         <div className="stock-check-history__header-actions">
           <DateRangePicker value={dateRange} onChange={handleRangeChange} />
+          <div className="stock-check-history__export" ref={exportMenuRef}>
+            <button
+              type="button"
+              className="btn btn--danger"
+              disabled={selectedStoreId === null || visibleItems.length === 0}
+              title={selectedStoreId === null ? 'Select a store to export' : undefined}
+              onClick={() => setIsExportMenuOpen((open) => !open)}
+              aria-expanded={isExportMenuOpen}
+              aria-haspopup="menu"
+            >
+              <Download size={14} /> Export <ChevronDown size={13} />
+            </button>
+            {isExportMenuOpen && (
+              <div className="stock-check-history__export-menu" role="menu">
+                <button
+                  type="button"
+                  className="stock-check-history__export-item"
+                  role="menuitem"
+                  onClick={handleExportExcel}
+                  disabled={isExcelExporting || isPdfExporting}
+                >
+                  {isExcelExporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} /> Download Excel</>)}
+                </button>
+                <button
+                  type="button"
+                  className="stock-check-history__export-item"
+                  role="menuitem"
+                  onClick={handleExportPdf}
+                  disabled={isExcelExporting || isPdfExporting}
+                >
+                  {isPdfExporting ? <ButtonDots label="Generating" /> : (<><FileText size={14} /> Download PDF</>)}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       {loadError && <div className="stock-check-history__error">{loadError}</div>}
 
       <div className="filter-bar">
-        <div style={{ minWidth: 220 }}>
+        <div className="filter filter--narrow">
           <SearchableSelect
             id="super-admin-stock-check-store"
             options={stores}

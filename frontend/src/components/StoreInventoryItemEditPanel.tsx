@@ -12,6 +12,7 @@ import ItemIcon from './ItemIcon';
 import InventoryImagePicker from './InventoryImagePicker';
 import ButtonDots from './ButtonDots';
 import { inventoryUnitOptionsFor } from '../utils/inventoryUnits';
+import type { StoreOption } from './StoreInventoryItemFormModal';
 import './StoreInventoryItemEditPanel.css';
 
 interface StoreInventoryItemEditPanelProps {
@@ -20,6 +21,10 @@ interface StoreInventoryItemEditPanelProps {
   suppliers: Supplier[];
   onCreateSupplier: (name: string) => Promise<Supplier>;
   onDeleteSupplier?: (supplier: Supplier) => Promise<void>;
+  // Only Super Admin's page passes stores + true here -- Owner/Admin's own
+  // store is derived server-side and shown as plain read-only text instead.
+  stores?: StoreOption[];
+  showStoreField?: boolean;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -28,7 +33,7 @@ interface StoreInventoryItemEditPanelProps {
 
 function toFormValues(item: StoreInventoryItem): StoreInventoryItemFormValues {
   return {
-    storeId: null,
+    storeId: item.storeId,
     name: item.name,
     category: item.category ?? 'INGREDIENTS',
     unitOfMeasurement: item.unitOfMeasurement,
@@ -50,6 +55,8 @@ function StoreInventoryItemEditPanel({
   suppliers,
   onCreateSupplier,
   onDeleteSupplier,
+  stores = [],
+  showStoreField = false,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -72,6 +79,7 @@ function StoreInventoryItemEditPanel({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const nextErrors: typeof errors = {};
+    if (showStoreField && !values.storeId) nextErrors.storeId = 'Store is required';
     if (!values.name.trim()) nextErrors.name = 'Name is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
     if (values.minWeekday.trim() === '' || Number(values.minWeekday) < 0) {
@@ -96,6 +104,7 @@ function StoreInventoryItemEditPanel({
   }
 
   const unitOptions = inventoryUnitOptionsFor(item.unitOfMeasurement);
+  const storeOptions = stores.map((s) => ({ value: String(s.id), label: s.name }));
 
   return (
     <Modal
@@ -161,10 +170,23 @@ function StoreInventoryItemEditPanel({
 
         <div className="item-edit-panel__section">
           <h3 className="item-edit-panel__section-title">Store Parity &amp; Minimum Quantities</h3>
-          <div className="item-edit-panel__store-row">
-            <span className="item-edit-panel__store-dot" aria-hidden="true" />
-            <span className="item-edit-panel__store-name">{item.storeName}</span>
-          </div>
+          {showStoreField ? (
+            <FormField label="Store" htmlFor="edit-item-store" error={errors.storeId}>
+              <Select
+                id="edit-item-store"
+                options={storeOptions}
+                value={values.storeId ? String(values.storeId) : ''}
+                onChange={(value) => setValues((current) => ({ ...current, storeId: Number(value) }))}
+                ariaLabel="Store"
+                placeholder="Select a store"
+              />
+            </FormField>
+          ) : (
+            <div className="item-edit-panel__store-row">
+              <span className="item-edit-panel__store-dot" aria-hidden="true" />
+              <span className="item-edit-panel__store-name">{item.storeName}</span>
+            </div>
+          )}
           <div className="item-edit-panel__quantities">
             <div className="item-edit-panel__quantity">
               <label className="item-edit-panel__quantity-label" htmlFor="edit-item-min-weekday">

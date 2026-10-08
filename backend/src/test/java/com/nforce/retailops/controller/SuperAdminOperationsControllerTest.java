@@ -694,5 +694,74 @@ class SuperAdminOperationsControllerTest {
             .andExpect(status().isNotFound());
     }
 
+    // ---- Super Admin "Add to order" (createOrderListEntry) ----
+
+    @Test
+    @Transactional
+    void createOrderListEntryRequiresSuperAdminRole() throws Exception {
+        User owner = ownerUser("sa-orc-owner-a@nforce.test");
+        Store store = store("Store Order Create A", 9270L);
+        linkOwnerToStore(owner, store);
+        StoreInventoryItem item = inventoryItem(store, "Milk Order Create A");
+        String ownerToken = login("sa-orc-owner-a@nforce.test");
+
+        String body = objectMapper.writeValueAsString(Map.of(
+            "storeInventoryItemId", item.getId(),
+            "saveToInventory", false,
+            "quantityNeeded", 5
+        ));
+
+        mockMvc.perform(post("/api/super-admin/stores/" + store.getId() + "/order-list")
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void createOrderListEntryAddsAnExistingItemToTheOrderListWithoutAnOwnerLink() throws Exception {
+        superAdmin("sa-orc-admin-b@nforce.test");
+        Store store = store("Store Order Create B", 9271L);
+        StoreInventoryItem item = inventoryItem(store, "Milk Order Create B");
+
+        String token = login("sa-orc-admin-b@nforce.test");
+        String body = objectMapper.writeValueAsString(Map.of(
+            "storeInventoryItemId", item.getId(),
+            "saveToInventory", false,
+            "quantityNeeded", 5,
+            "note", "Extra for event"
+        ));
+
+        mockMvc.perform(post("/api/super-admin/stores/" + store.getId() + "/order-list")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.itemName").value("Milk Order Create B"))
+            .andExpect(jsonPath("$.quantityNeeded").value(5))
+            .andExpect(jsonPath("$.status").value("NEEDS_ORDERING"));
+    }
+
+    @Test
+    @Transactional
+    void createOrderListEntryForAnUnknownStoreReturnsNotFound() throws Exception {
+        superAdmin("sa-orc-admin-c@nforce.test");
+        String token = login("sa-orc-admin-c@nforce.test");
+
+        String body = objectMapper.writeValueAsString(Map.of(
+            "itemName", "Custom Item",
+            "unitOfMeasurement", "packs",
+            "saveToInventory", false,
+            "quantityNeeded", 1
+        ));
+
+        mockMvc.perform(post("/api/super-admin/stores/999999/order-list")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body))
+            .andExpect(status().isNotFound());
+    }
+
     record LoginPayload(String email, String password) {}
 }

@@ -9,7 +9,7 @@ import {
   updateStoreInventoryItem,
 } from '../api/storeInventory';
 import { deleteSupplier, findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
@@ -24,6 +24,7 @@ import FilterClearButton from '../components/FilterClearButton';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
+import { CATEGORY_LABELS, SORT_OPTIONS, STATUS_SORT_ORDER, type SortOption } from '../utils/storeInventorySort';
 import './StoreInventory.css';
 
 type SubTab = 'items' | 'history';
@@ -32,19 +33,6 @@ const SUB_TABS: { key: SubTab; label: string; icon: typeof Package }[] = [
   { key: 'items', label: 'Items', icon: Package },
   { key: 'history', label: 'History', icon: Clock },
 ];
-
-type SortOption = 'name' | 'status' | 'supplier' | 'category';
-
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'name', label: 'Sort: Category & Name' },
-  { value: 'status', label: 'Sort: Status' },
-  { value: 'supplier', label: 'Sort: Supplier' },
-  { value: 'category', label: 'Sort: Category' },
-];
-
-const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
-
-const STATUS_SORT_ORDER = { low: 0, out: 1, in: 2, inactive: 3 } as const;
 
 interface StoreInventoryProps {
   // Set by DashboardShell when a notification (e.g. a Super Admin's stock
