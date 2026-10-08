@@ -6,6 +6,7 @@ import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/
 function toBody(values: StoreInventoryItemFormValues) {
   return {
     storeId: values.storeId,
+    storeIds: values.storeIds ?? [],
     name: values.name,
     category: values.category,
     unitOfMeasurement: values.unitOfMeasurement,
@@ -24,8 +25,21 @@ export async function getAllInventoryItems(): Promise<StoreInventoryItem[]> {
   return apiRequest<StoreInventoryItem[]>('/super-admin/inventory/items');
 }
 
-export async function createInventoryItem(values: StoreInventoryItemFormValues): Promise<StoreInventoryItem> {
-  return apiRequest<StoreInventoryItem>('/super-admin/inventory/items', { method: 'POST', body: toBody(values) });
+export interface CreateInventoryItemsResult {
+  created: StoreInventoryItem[];
+  // Selected stores skipped because they already hold an item with the same
+  // name and category.
+  skippedStoreNames: string[];
+}
+
+// One linked copy is created per selected store that doesn't already have it.
+export async function createInventoryItem(values: StoreInventoryItemFormValues): Promise<CreateInventoryItemsResult> {
+  return apiRequest<CreateInventoryItemsResult>('/super-admin/inventory/items', { method: 'POST', body: toBody(values) });
+}
+
+// Categories already used in every one of the given stores.
+export async function getCommonCategories(storeIds: number[]): Promise<string[]> {
+  return apiRequest<string[]>(`/super-admin/inventory/categories?storeIds=${storeIds.join(',')}`);
 }
 
 export async function updateInventoryItem(id: number, values: StoreInventoryItemFormValues): Promise<StoreInventoryItem> {

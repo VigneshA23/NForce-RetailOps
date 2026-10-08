@@ -131,6 +131,12 @@ public class GlobalExceptionHandler {
             .body(Map.of("message", "You do not have permission to perform this action"));
     }
 
+    // A snapshot is owned by whoever entered it first; anyone else is refused.
+    @ExceptionHandler(StockCheckLockedException.class)
+    public ResponseEntity<Map<String, String>> handleStockCheckLocked(StockCheckLockedException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidStockCheckException.class)
     public ResponseEntity<Map<String, String>> handleInvalidStockCheck(InvalidStockCheckException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
@@ -190,8 +196,8 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
-    @ExceptionHandler(InvalidOrderEntryTransitionException.class)
-    public ResponseEntity<Map<String, String>> handleInvalidOrderEntryTransition(InvalidOrderEntryTransitionException ex) {
+    @ExceptionHandler({InvalidOrderEntryTransitionException.class, OrderEntryAlreadyUpdatedException.class})
+    public ResponseEntity<Map<String, String>> handleInvalidOrderEntryTransition(RuntimeException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 

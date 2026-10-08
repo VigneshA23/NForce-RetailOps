@@ -13,6 +13,7 @@ import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
+import com.nforce.retailops.exception.OrderEntryAlreadyUpdatedException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
@@ -20,6 +21,7 @@ import com.nforce.retailops.exception.SupplierNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.util.DateRangeValidator;
@@ -55,12 +57,41 @@ public class OrderListService {
 
     static final String NO_SUPPLIER = "No Supplier";
 
+    private static final String ROLE_OWNER_ADMIN = "OWNER_ADMIN";
+    private static final String ROLE_SUPER_ADMIN = "SUPER_ADMIN";
+
+    // Both roles can edit the same entry, so a caller acting on a stale view
+    // (it loaded the entry as expectedStatus, but someone has since moved it)
+    // must be told rather than silently overwriting -- or, for a same-status
+    // re-save, silently "succeeding" on a change that's already been made.
+    // expectedStatus == null means an older client that doesn't send it: no check.
+    private static void rejectIfStale(OrderListEntry entry, OrderStatus expectedStatus) {
+        if (expectedStatus == null || entry.getStatus() == expectedStatus) {
+            return;
+        }
+        String by = ROLE_SUPER_ADMIN.equals(entry.getStatusChangedByRole()) ? " by Super Admin"
+            : ROLE_OWNER_ADMIN.equals(entry.getStatusChangedByRole()) ? " by Admin"
+            : "";
+        throw new OrderEntryAlreadyUpdatedException(
+            "This item has already been updated" + by + ". It is now marked as "
+                + statusLabel(entry.getStatus()) + ". The list has been refreshed.");
+    }
+
+    private static String statusLabel(OrderStatus status) {
+        return switch (status) {
+            case NEEDS_ORDERING -> "Needs ordering";
+            case ORDERED -> "Ordered";
+            case RECEIVED -> "Received";
+        };
+    }
+
     // Matches ChecklistHistoryService/StockCheckService's own cap for a
     // bounded from/to report range.
     private static final int MAX_DATE_RANGE_DAYS = 92;
 
     private final OrderListEntryRepository orderListEntryRepository;
     private final StoreOwnerRepository storeOwnerRepository;
+    private final StoreRepository storeRepository;
     private final SupplierRepository supplierRepository;
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final UserRepository userRepository;
@@ -68,12 +99,14 @@ public class OrderListService {
     public OrderListService(
         OrderListEntryRepository orderListEntryRepository,
         StoreOwnerRepository storeOwnerRepository,
+        StoreRepository storeRepository,
         SupplierRepository supplierRepository,
         StoreInventoryItemRepository storeInventoryItemRepository,
         UserRepository userRepository
     ) {
         this.orderListEntryRepository = orderListEntryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
+        this.storeRepository = storeRepository;
         this.supplierRepository = supplierRepository;
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.userRepository = userRepository;
@@ -117,12 +150,16 @@ public class OrderListService {
 
         OrderStatus currentStatus = entry.getStatus();
         OrderStatus targetStatus = request.status();
+        rejectIfStale(entry, request.expectedStatus());
         if (currentStatus != targetStatus && !ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of()).contains(targetStatus)) {
             throw new InvalidOrderEntryTransitionException(
                 "Cannot move this order from " + currentStatus + " to " + targetStatus
                     + ". Orders must go Needs Ordering → Ordered → Received, one step at a time.");
         }
 
+        if (currentStatus != targetStatus) {
+            entry.setStatusChangedByRole(ROLE_OWNER_ADMIN);
+        }
         entry.setQuantityNeeded(request.quantityNeeded());
         entry.setNote(request.note());
         entry.setStatus(targetStatus);
@@ -156,16 +193,25 @@ public class OrderListService {
     // already does for Owner/Admin.
     @Transactional
     public OrderListEntryResponse updateStatusForSuperAdmin(Long storeId, Long entryId, OrderStatus targetStatus) {
+        return updateStatusForSuperAdmin(storeId, entryId, targetStatus, null);
+    }
+
+    @Transactional
+    public OrderListEntryResponse updateStatusForSuperAdmin(Long storeId, Long entryId, OrderStatus targetStatus, OrderStatus expectedStatus) {
         OrderListEntry entry = orderListEntryRepository.findByIdAndStoreId(entryId, storeId)
             .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
 
         OrderStatus currentStatus = entry.getStatus();
+        rejectIfStale(entry, expectedStatus);
         if (currentStatus != targetStatus && !ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of()).contains(targetStatus)) {
             throw new InvalidOrderEntryTransitionException(
                 "Cannot move this order from " + currentStatus + " to " + targetStatus
                     + ". Orders must go Needs Ordering → Ordered → Received, one step at a time.");
         }
 
+        if (currentStatus != targetStatus) {
+            entry.setStatusChangedByRole(ROLE_SUPER_ADMIN);
+        }
         entry.setStatus(targetStatus);
         entry = orderListEntryRepository.save(entry);
         return OrderListEntryResponse.from(entry);
@@ -184,9 +230,24 @@ public class OrderListService {
     @Transactional
     public OrderListEntryResponse createEntry(Long ownerId, CreateOrderListEntryRequest request) {
         StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
-        Store store = storeOwner.getStore();
         User raisedBy = userRepository.getReferenceById(ownerId);
+        return createEntryForStore(storeOwner.getStore(), raisedBy, request);
+    }
 
+    // Super Admin's counterpart to createEntry above -- store comes directly
+    // from a path param rather than the caller's own StoreOwner link, since a
+    // Super Admin has none. raisedBy is left null (OrderListEntry.raisedBy is
+    // nullable): Super Admin has no row in `users` to reference, same reason
+    // AdminCorrection/StockCheckCorrection carry a separate "no user row"
+    // fallback for their own correctedBy fields.
+    @Transactional
+    public OrderListEntryResponse createEntryForSuperAdmin(Long storeId, CreateOrderListEntryRequest request) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return createEntryForStore(store, null, request);
+    }
+
+    private OrderListEntryResponse createEntryForStore(Store store, User raisedBy, CreateOrderListEntryRequest request) {
         Supplier supplier = null;
         if (request.supplierId() != null) {
             supplier = supplierRepository.findById(request.supplierId())
@@ -221,11 +282,14 @@ public class OrderListService {
         if (request.unitOfMeasurement() == null || request.unitOfMeasurement().isBlank()) {
             throw new InvalidOrderListEntryException("Unit is required for a custom item");
         }
+        if (request.category() == null || request.category().isBlank()) {
+            throw new InvalidOrderListEntryException("Category is required for a custom item");
+        }
 
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
         item.setName(request.itemName().trim());
-        item.setCategory(request.category());
+        item.setCategory(request.category().trim());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
         item.setMinWeekday(request.minWeekday() != null ? request.minWeekday() : 0);
         item.setMinWeekend(request.minWeekend());
@@ -305,6 +369,7 @@ public class OrderListService {
             .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
             .ifPresent(entry -> {
                 entry.setStatus(OrderStatus.RECEIVED);
+                entry.setStatusChangedByRole(null);
                 orderListEntryRepository.save(entry);
             });
     }

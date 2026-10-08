@@ -1,5 +1,5 @@
 import { apiRequest } from './client';
-import type { OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
+import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
 import type { StockCheckSnapshotKey, StockCheckResponse, SuperAdminStockCheckHistoryPage } from '../types/stockCheck';
 
 export interface StoreOperationsSummary {
@@ -70,10 +70,37 @@ export async function getOrderListForStore(storeId: number): Promise<OrderListEn
   return apiRequest<OrderListEntry[]>(`/super-admin/stores/${storeId}/order-list`);
 }
 
-export async function updateSuperAdminOrderStatus(storeId: number, entryId: number, status: OrderStatus): Promise<OrderListEntry> {
+export async function updateSuperAdminOrderStatus(
+  storeId: number,
+  entryId: number,
+  status: OrderStatus,
+  expectedStatus?: OrderStatus,
+): Promise<OrderListEntry> {
   return apiRequest<OrderListEntry>(`/super-admin/stores/${storeId}/order-list/${entryId}/status`, {
     method: 'PATCH',
-    body: { status },
+    body: { status, expectedStatus },
+  });
+}
+
+// Super Admin's "Add to order" for a specific store -- counterpart to
+// api/orderList.ts's createOrderListEntry, which derives the store from the
+// caller's own StoreOwner link. A Super Admin has none, so the store comes
+// from the path instead.
+export async function createSuperAdminOrderListEntry(storeId: number, values: CreateOrderListEntryValues): Promise<OrderListEntry> {
+  return apiRequest<OrderListEntry>(`/super-admin/stores/${storeId}/order-list`, {
+    method: 'POST',
+    body: {
+      storeInventoryItemId: values.storeInventoryItemId,
+      itemName: values.itemName.trim() === '' ? null : values.itemName.trim(),
+      category: values.category,
+      unitOfMeasurement: values.unitOfMeasurement.trim() === '' ? null : values.unitOfMeasurement.trim(),
+      saveToInventory: values.saveToInventory,
+      minWeekday: values.minWeekday.trim() === '' ? null : Number(values.minWeekday),
+      minWeekend: values.minWeekend.trim() === '' ? null : Number(values.minWeekend),
+      quantityNeeded: Number(values.quantityNeeded),
+      supplierId: values.supplierId,
+      note: values.note.trim() === '' ? null : values.note.trim(),
+    },
   });
 }
 

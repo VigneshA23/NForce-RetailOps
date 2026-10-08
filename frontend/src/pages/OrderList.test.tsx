@@ -1,6 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/client';
 import OrderList from './OrderList';
 import * as orderListApi from '../api/orderList';
 import * as suppliersApi from '../api/suppliers';
@@ -304,8 +305,25 @@ describe('OrderList inline status change', () => {
 
     await user.click(screen.getByRole('button', { name: 'Yes, change' }));
 
-    expect(mockUpdateOrderListEntry).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'ORDERED' }));
+    expect(mockUpdateOrderListEntry).toHaveBeenCalledWith(1, expect.objectContaining({ status: 'ORDERED', expectedStatus: 'NEEDS_ORDERING' }));
     await waitFor(() => expect(screen.queryByText('Change status?')).not.toBeInTheDocument());
+  });
+
+  it('shows an "already updated" popup and refreshes when Super Admin got there first', async () => {
+    const user = userEvent.setup();
+    mockUpdateOrderListEntry.mockRejectedValue(
+      new ApiError(409, 'This item has already been updated by Super Admin. It is now marked as Ordered.'),
+    );
+    render(<OrderList storeName="Downtown" />);
+    await screen.findByText('Milk');
+    mockGetOrderList.mockClear();
+
+    await user.click(screen.getByLabelText('Change status for Milk'));
+    await user.click(screen.getByRole('option', { name: 'Ordered' }));
+    await user.click(await screen.findByRole('button', { name: 'Yes, change' }));
+
+    expect(await screen.findByText(/already been updated by Super Admin/)).toBeInTheDocument();
+    expect(mockGetOrderList).toHaveBeenCalled();
   });
 
   it('cancels without applying anything', async () => {

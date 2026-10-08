@@ -5,16 +5,14 @@
   gap: var(--space-lg);
 }
 
-.super-admin-orders__title {
-  font-size: 22px;
-  font-weight: 700;
-  margin: 0;
-}
-
-.super-admin-orders__section-title {
+/* Non-heading section label -- both "Outstanding Across Stores" and the
+   selected store's name use this, since this page has no in-page <h1>/<h2>
+   of its own (the shell already renders the "Orders" title, same as
+   Owner/Admin's OrderList.tsx, which has no in-page header either). */
+.super-admin-orders__eyebrow {
+  display: block;
   font-size: 15px;
   font-weight: 700;
-  margin: 0;
 }
 
 /* Outstanding-across-stores summary -- same visual language as
@@ -107,62 +105,10 @@
   gap: var(--space-md);
 }
 
-.super-admin-orders__filter-row {
-  display: flex;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-}
+/* Table/filter-row/action-bar/group chrome below the store picker is shared
+   with Owner/Admin's own OrderList.css (RTS-304) via the `order-list__*`
+   classes directly, rather than a parallel copy. */
 
-.super-admin-orders__status-select {
-  min-width: 160px;
-}
-
-.super-admin-orders__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  padding: var(--space-sm) var(--space-md);
-}
-
-.super-admin-orders__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  padding: var(--space-sm) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.super-admin-orders__row:last-child {
-  border-bottom: none;
-}
-
-.super-admin-orders__row-main {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.super-admin-orders__row-name {
-  font-weight: 600;
-  font-size: 14px;
-}
-
-.super-admin-orders__row-meta {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-.super-admin-orders__error {
-  color: var(--color-accent);
-  font-size: 14px;
-}
-
-.super-admin-orders__loading,
-.super-admin-orders__empty,
 .super-admin-orders__hint {
   font-size: 14px;
   color: var(--color-text-secondary);

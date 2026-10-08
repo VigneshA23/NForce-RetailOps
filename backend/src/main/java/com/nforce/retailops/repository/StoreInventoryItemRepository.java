@@ -29,6 +29,12 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
     boolean existsByStoreIdAndNameIgnoreCase(Long storeId, String name);
 
     boolean existsByStoreIdAndNameIgnoreCaseAndIdNot(Long storeId, String name, Long id);
+    // Distinct (store, category) pairs for the given stores, backing the
+    // "categories common to the selected stores" lookup on the Super Admin form.
+    @Query("select distinct i.store.id, i.category from StoreInventoryItem i "
+        + "where i.store.id in :storeIds and i.category is not null")
+    List<Object[]> findStoreCategories(@Param("storeIds") java.util.Collection<Long> storeIds);
+
     // Detaches a removed/deactivated supplier from every item that preferred it.
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update StoreInventoryItem i set i.preferredSupplier = null where i.preferredSupplier.id = :supplierId")

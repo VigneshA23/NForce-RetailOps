@@ -1,16 +1,38 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Layers, PackageCheck, PackageSearch, Truck } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Plus, Truck } from 'lucide-react';
+import { ApiError } from '../api/client';
 import { getAllStores } from '../api/superAdminStores';
-import { getOrderListForStore, getOutstandingOrders, updateSuperAdminOrderStatus } from '../api/superAdminOperations';
+import { getAllInventoryItems } from '../api/inventoryItems';
+import { getSuppliers } from '../api/suppliers';
+import {
+  createSuperAdminOrderListEntry,
+  getOrderListForStore,
+  getOutstandingOrders,
+  updateSuperAdminOrderStatus,
+} from '../api/superAdminOperations';
 import type { OutstandingOrdersOverview } from '../api/superAdminOperations';
-import type { OrderListEntry, OrderStatus } from '../types/orderList';
+import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus } from '../types/orderList';
+import type { Supplier } from '../types/supplier';
+import type { InventoryItemCategory } from '../types/storeInventory';
+import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
+import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
-import SearchableSelect from '../components/SearchableSelect';
-import SearchInput from '../components/SearchInput';
-import Select from '../components/Select';
+import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
+import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
 import StatCard from '../components/StatCard';
+import CategoryIcon, { CATEGORY_VISUAL, FALLBACK_CATEGORY_VISUAL } from '../components/CategoryIcon';
+import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
+import ChangeOrderStatusModal from '../components/ChangeOrderStatusModal';
+import BulkChangeOrderStatusModal, { type BulkStatusChangeItem } from '../components/BulkChangeOrderStatusModal';
+import SearchableSelect from '../components/SearchableSelect';
+import Select from '../components/Select';
+import SearchInput from '../components/SearchInput';
+import FilterClearButton from '../components/FilterClearButton';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { nfToast } from '../utils/toast';
+import '../pages/OrderList.css';
 import './SuperAdminOrders.css';
 
 type StatusFilter = 'OPEN' | OrderStatus;
@@ -22,7 +44,9 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'RECEIVED', label: 'Received' },
 ];
 
-const STATUS_OPTIONS = STATUS_ORDER.map((key) => ({ value: key, label: STATUS_META[key].label, dot: STATUS_META[key].fg }));
+const GROUP_ROW_LIMIT = 5;
+const MOBILE_GROUP_ROW_LIMIT = 3;
+const UNASSIGNED_GROUP_LABEL = 'Unassigned Supplier';
 
 // Same short absolute-date formatting as SuperAdminHome's own Outstanding
 // Orders card -- these entries can be weeks old, so a relative string would
@@ -45,19 +69,21 @@ interface SuperAdminOrdersProps {
   focusStore?: OrderStoreFocus | null;
 }
 
-// Super Admin's cross-store Orders page (RTS-307). Unlike Owner/Admin's own
-// OrderList.tsx, this is deliberately NOT a full ordering workbench --
-// grouping by supplier, bulk actions, "Add to order" and export are all
-// Owner/Admin's day-to-day ordering job, not Super Admin's oversight one.
-// This page covers exactly RTS-307's acceptance criteria: a cross-store
-// outstanding summary, a full per-store list (any store, not just ones with
-// something outstanding, so a fully-caught-up store's history is still
-// reachable), a status filter that doubles as the Received/history view, and
-// status changes that reuse Owner/Admin's exact same transition rules.
+// Super Admin's cross-store Orders page (RTS-307, aligned to Owner/Admin's
+// layout per RTS-304). Same grouped/flat ordering workbench as OrderList.tsx
+// -- supplier grouping, bulk status changes, Add to order, clipboard export --
+// scoped to whichever store is currently selected, plus the two things only
+// Super Admin needs: the store picker and the cross-store Outstanding Orders
+// overview above it.
 function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const [stores, setStores] = useState<{ id: number; label: string }[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
   const [overview, setOverview] = useState<OutstandingOrdersOverview | null>(null);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [allInventoryItems, setAllInventoryItems] = useState<{
+    id: number; storeId: number; name: string; unitOfMeasurement: string; preferredSupplierId: number | null;
+    category: InventoryItemCategory | null; currentAvailable: number | null; requiredToday: number | null;
+  }[]>([]);
 
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   const [selectedStoreName, setSelectedStoreName] = useState<string | null>(null);
@@ -65,8 +91,31 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [entriesError, setEntriesError] = useState<string | null>(null);
 
+  // Set when a status change is rejected because the Owner/Admin already
+  // updated the entry (HTTP 409) -- drives OrderAlreadyUpdatedModal.
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [supplierFilter, setSupplierFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('OPEN');
+  const [grouped, setGrouped] = useState(true);
+  const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
+  const [groupExpanded, setGroupExpanded] = useState<Record<string, boolean>>({});
+
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [isAddSubmitting, setIsAddSubmitting] = useState(false);
+
+  // Same confirm-before-applying pattern as OrderList.tsx -- one click on the
+  // wrong dropdown option, or the wrong bulk button, should not silently mark
+  // an order received by accident.
+  const [pendingStatusChange, setPendingStatusChange] = useState<{ entry: OrderListEntry; nextStatus: OrderStatus } | null>(null);
+  const [pendingBulkStatusChange, setPendingBulkStatusChange] = useState<{ ids: number[]; nextStatus: OrderStatus } | null>(null);
+
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     getAllStores()
@@ -74,13 +123,20 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
       .catch(() => {})
       .finally(() => setStoresLoading(false));
     getOutstandingOrders().then(setOverview).catch(() => {});
+    getSuppliers().then(setSuppliers).catch(() => {});
+    getAllInventoryItems()
+      .then((items) => setAllInventoryItems(items.filter((i) => i.active)))
+      .catch(() => {});
   }, []);
 
   function selectStore(storeId: number, storeName: string) {
     setSelectedStoreId(storeId);
     setSelectedStoreName(storeName);
     setSearch('');
+    setCategoryFilter('all');
+    setSupplierFilter('all');
     setStatusFilter('OPEN');
+    setSelectedIds(new Set());
   }
 
   // Re-keyed off `focusStore` (not a plain initial value), the same way
@@ -95,7 +151,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusStore]);
 
-  useEffect(() => {
+  function loadEntries() {
     if (selectedStoreId === null) {
       setEntries([]);
       return;
@@ -106,27 +162,297 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
       .then(setEntries)
       .catch((error: Error) => setEntriesError(error.message))
       .finally(() => setEntriesLoading(false));
+  }
+
+  useEffect(() => {
+    loadEntries();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStoreId]);
 
-  async function handleStatusChange(entry: OrderListEntry, nextStatus: OrderStatus) {
+  function applyUpdatedEntry(updated: OrderListEntry) {
+    setEntries((current) => {
+      const index = current.findIndex((e) => e.id === updated.id);
+      return index === -1 ? [...current, updated] : current.map((e) => (e.id === updated.id ? updated : e));
+    });
+  }
+
+  async function handleAddSubmit(values: CreateOrderListEntryValues) {
     if (selectedStoreId === null) return;
+    setAddError(null);
+    setIsAddSubmitting(true);
     try {
-      const updated = await updateSuperAdminOrderStatus(selectedStoreId, entry.id, nextStatus);
-      setEntries((current) => current.map((e) => (e.id === updated.id ? updated : e)));
-      nfToast.success(`"${updated.itemName}" marked as ${STATUS_META[nextStatus].label.toLowerCase()}.`);
+      const created = await createSuperAdminOrderListEntry(selectedStoreId, values);
+      applyUpdatedEntry(created);
+      nfToast.success(`"${created.itemName}" added to the order list.`);
+      setIsAddOpen(false);
     } catch (error) {
-      nfToast.error(error instanceof Error ? error.message : 'Failed to update order status');
+      const msg = error instanceof Error ? error.message : 'Failed to add to order list';
+      setAddError(msg);
+      nfToast.error(msg);
+    } finally {
+      setIsAddSubmitting(false);
     }
   }
+
+  async function changeStatus(entry: OrderListEntry, nextStatus: OrderStatus) {
+    if (selectedStoreId === null) return false;
+    try {
+      const updated = await updateSuperAdminOrderStatus(selectedStoreId, entry.id, nextStatus, entry.status);
+      applyUpdatedEntry(updated);
+      return true;
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        // The Owner/Admin already moved this entry -- tell the user and pull
+        // the fresh list rather than leaving a stale row on screen.
+        setConflictMessage(error.message);
+        getOrderListForStore(selectedStoreId).then(setEntries).catch(() => {});
+        return false;
+      }
+      nfToast.error(error instanceof Error ? error.message : 'Failed to update order status');
+      return false;
+    }
+  }
+
+  async function handleStatusChange(entry: OrderListEntry, nextStatus: OrderStatus) {
+    const ok = await changeStatus(entry, nextStatus);
+    if (ok) nfToast.success(`"${entry.itemName}" marked as ${STATUS_META[nextStatus].label.toLowerCase()}.`);
+  }
+
+  function requestStatusChange(entry: OrderListEntry, nextStatus: OrderStatus) {
+    if (nextStatus === entry.status) return;
+    setPendingStatusChange({ entry, nextStatus });
+  }
+
+  async function confirmPendingStatusChange() {
+    if (!pendingStatusChange) return;
+    await handleStatusChange(pendingStatusChange.entry, pendingStatusChange.nextStatus);
+    setPendingStatusChange(null);
+  }
+
+  async function bulkSetStatus(ids: number[], nextStatus: OrderStatus) {
+    const targets = entries.filter((e) => ids.includes(e.id));
+    if (targets.length === 0) return;
+    const results = await Promise.allSettled(targets.map((entry) => changeStatus(entry, nextStatus)));
+    const successCount = results.filter((r) => r.status === 'fulfilled' && r.value).length;
+    if (successCount > 0) {
+      nfToast.success(`${successCount} item${successCount === 1 ? '' : 's'} marked as ${STATUS_META[nextStatus].label.toLowerCase()}.`);
+    }
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      ids.forEach((id) => next.delete(id));
+      return next;
+    });
+  }
+
+  // Only the row directly below the target status can actually move to it in
+  // one step (see OrderListService.ALLOWED_TRANSITIONS) -- a mixed selection
+  // (e.g. some already Ordered, some still Needs ordering) silently skips
+  // anything else rather than sending the whole batch through.
+  function eligibleIdsForBulkStatus(ids: number[], nextStatus: OrderStatus): number[] {
+    const fromStatus: OrderStatus = nextStatus === 'ORDERED' ? 'NEEDS_ORDERING' : 'ORDERED';
+    return entries.filter((e) => ids.includes(e.id) && e.status === fromStatus).map((e) => e.id);
+  }
+
+  function requestBulkStatusChange(ids: number[], nextStatus: OrderStatus) {
+    const eligible = eligibleIdsForBulkStatus(ids, nextStatus);
+    if (eligible.length === 0) {
+      nfToast.info('None of the selected items can move to that status.');
+      return;
+    }
+    setPendingBulkStatusChange({ ids, nextStatus });
+  }
+
+  async function confirmPendingBulkStatusChange() {
+    if (!pendingBulkStatusChange) return;
+    const eligible = eligibleIdsForBulkStatus(pendingBulkStatusChange.ids, pendingBulkStatusChange.nextStatus);
+    await bulkSetStatus(eligible, pendingBulkStatusChange.nextStatus);
+    setPendingBulkStatusChange(null);
+  }
+
+  async function copyText(text: string | null, emptyMessage: string, successMessage: string) {
+    if (text == null) {
+      nfToast.info(emptyMessage);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      nfToast.success(successMessage);
+    } catch {
+      nfToast.error('Could not copy to clipboard. Please copy manually.');
+    }
+  }
+
+  async function handleCopySelected() {
+    const selected = entries.filter((e) => selectedIds.has(e.id));
+    await copyText(buildOrderListText(selected, selectedStoreName, new Date()), 'No items selected.', 'Selected items copied to clipboard.');
+  }
+
+  function toggleSelected(id: number) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function setGroupSelected(ids: number[], on: boolean) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      ids.forEach((id) => (on ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  }
+
+  // Store-scoped slice of the cross-store catalog -- getAllInventoryItems()
+  // already carries category/currentAvailable/requiredToday per item, so this
+  // substitutes for Owner/Admin's separate getStoreInventoryItems/
+  // getInventoryCounts pair without a second endpoint.
+  const storeInventoryItems = useMemo(
+    () => (selectedStoreId == null ? [] : allInventoryItems.filter((i) => i.storeId === selectedStoreId)),
+    [allInventoryItems, selectedStoreId],
+  );
+  const inventoryItems: OrderableInventoryItem[] = useMemo(
+    () => storeInventoryItems.map((i) => ({ id: i.id, name: i.name, unitOfMeasurement: i.unitOfMeasurement, preferredSupplierId: i.preferredSupplierId })),
+    [storeInventoryItems],
+  );
+  const stockByItemId = useMemo(
+    () => new Map(storeInventoryItems.map((i) => [i.id, { current: i.currentAvailable, minimum: i.requiredToday }])),
+    [storeInventoryItems],
+  );
+  const categoryByItemId = useMemo(
+    () => new Map(storeInventoryItems.map((i) => [i.id, i.category])),
+    [storeInventoryItems],
+  );
 
   const matchesStatusFilter = (entry: OrderListEntry) =>
     statusFilter === 'OPEN' ? entry.status !== 'RECEIVED' : entry.status === statusFilter;
 
   const filteredEntries = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return entries.filter((entry) => matchesStatusFilter(entry) && (!term || entry.itemName.toLowerCase().includes(term)));
+    const normalizedSearch = search.trim().toLowerCase();
+    return entries.filter((entry) => {
+      if (!matchesStatusFilter(entry)) return false;
+      if (normalizedSearch && !entry.itemName.toLowerCase().includes(normalizedSearch)) return false;
+      if (categoryFilter !== 'all' && categoryByItemId.get(entry.storeInventoryItemId) !== categoryFilter) return false;
+      if (supplierFilter === 'UNASSIGNED' && entry.supplierId != null) return false;
+      if (supplierFilter !== 'all' && supplierFilter !== 'UNASSIGNED' && String(entry.supplierId) !== supplierFilter) return false;
+      return true;
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, search, statusFilter]);
+  }, [entries, search, categoryFilter, categoryByItemId, supplierFilter, statusFilter]);
+
+  function decorate(entry: OrderListEntry) {
+    const stock = stockByItemId.get(entry.storeInventoryItemId);
+    const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
+    const meta = STATUS_META[entry.status];
+    const categoryLabel = categoryLabelOf(category) || '—';
+    const categoryVisual = category ? (CATEGORY_VISUAL[category] ?? FALLBACK_CATEGORY_VISUAL) : FALLBACK_CATEGORY_VISUAL;
+    const raisedBy = entry.raisedByName ?? (entry.adHoc ? 'Manual' : 'Auto-detected');
+    return {
+      entry,
+      category,
+      categoryLabel,
+      categoryVisual,
+      onHand: stock?.current ?? null,
+      par: stock?.minimum ?? null,
+      needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
+      meta: entry.note ? `${raisedBy} · ${entry.note}` : raisedBy,
+      mobileMeta: `${raisedBy} · ${new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+      statusLabel: meta.label,
+      statusDot: meta.fg,
+      statusFg: meta.fg,
+      statusBg: meta.bg,
+      checked: selectedIds.has(entry.id),
+      statusOptions: STATUS_ORDER.map((key) => ({ value: key, label: STATUS_META[key].label, dot: STATUS_META[key].fg })),
+    };
+  }
+
+  const decorated = useMemo(() => filteredEntries.map(decorate), [filteredEntries, stockByItemId, selectedIds]);
+
+  // What "Add to order" needs to show its "Already needs N" hint -- at most
+  // one active (non-RECEIVED) entry per item, same invariant the backend
+  // enforces (see OrderListService.doUpsertShortage).
+  const activeNeedByItemId = useMemo(() => {
+    const map = new Map<number, { quantityNeeded: number; manualAddition: number }>();
+    for (const e of entries) {
+      if (e.status !== 'RECEIVED') {
+        map.set(e.storeInventoryItemId, { quantityNeeded: e.quantityNeeded, manualAddition: e.manualAddition });
+      }
+    }
+    return map;
+  }, [entries]);
+
+  const supplierFilterOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All suppliers' },
+      ...[...suppliers]
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        .map((supplier) => ({ value: String(supplier.id), label: supplier.name })),
+      { value: 'UNASSIGNED', label: 'Unassigned Supplier' },
+    ],
+    [suppliers],
+  );
+
+  const groups = useMemo(() => {
+    const named = new Map<string, typeof decorated>();
+    const unassigned: typeof decorated = [];
+    for (const row of decorated) {
+      if (row.entry.supplierId == null || !row.entry.supplierName) {
+        unassigned.push(row);
+        continue;
+      }
+      const key = String(row.entry.supplierId);
+      const bucket = named.get(key) ?? [];
+      bucket.push(row);
+      named.set(key, bucket);
+    }
+    const result = [...named.entries()]
+      .map(([key, items]) => ({ key, name: items[0].entry.supplierName!, items }))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+    if (unassigned.length > 0) result.push({ key: 'UNASSIGNED', name: UNASSIGNED_GROUP_LABEL, items: unassigned });
+
+    const rowLimit = isMobile ? MOBILE_GROUP_ROW_LIMIT : GROUP_ROW_LIMIT;
+    return result.map((group) => {
+      const needs = group.items.filter((row) => row.entry.status === 'NEEDS_ORDERING');
+      const done = group.items.length - needs.length;
+      const isOpen = groupOpen[group.key] ?? needs.length > 0;
+      const isExpanded = groupExpanded[group.key] ?? false;
+      const selectedCount = group.items.filter((row) => row.checked).length;
+      return {
+        ...group,
+        needsCount: needs.length,
+        isOpen,
+        shown: isExpanded ? group.items : group.items.slice(0, rowLimit),
+        hasMore: group.items.length > rowLimit,
+        moreLabel: isExpanded ? 'Show less' : `Show all ${group.items.length} items`,
+        summary: `${group.items.length} item${group.items.length === 1 ? '' : 's'} · ${needs.length ? `${needs.length} to order` : 'nothing left to order'}`,
+        progress: `${done} of ${group.items.length} ordered`,
+        mobileProgress: `${done}/${group.items.length} ordered`,
+        mobileSummary: needs.length ? `${needs.length} to order` : 'All ordered',
+        pct: `${Math.round((done / group.items.length) * 100)}%`,
+        barColor: needs.length ? '#1d5fb8' : '#16a34a',
+        canBulk: needs.length > 0,
+        allDone: needs.length === 0,
+        checked: selectedCount === group.items.length && group.items.length > 0,
+        indeterminate: selectedCount > 0 && selectedCount < group.items.length,
+      };
+    });
+  }, [decorated, groupOpen, groupExpanded, isMobile]);
+
+  const allChecked = decorated.length > 0 && decorated.every((row) => row.checked);
+  const someChecked = decorated.some((row) => row.checked);
+
+  function toggleSelectAll() {
+    setGroupSelected(decorated.map((row) => row.entry.id), !allChecked);
+  }
+
+  const hasActiveFilters = search !== '' || categoryFilter !== 'all' || supplierFilter !== 'all' || statusFilter !== 'OPEN';
+  function clearFilters() {
+    setSearch('');
+    setCategoryFilter('all');
+    setSupplierFilter('all');
+    setStatusFilter('OPEN');
+  }
 
   const openCount = useMemo(() => entries.filter((e) => e.status !== 'RECEIVED').length, [entries]);
   const needsCount = useMemo(() => entries.filter((e) => e.status === 'NEEDS_ORDERING').length, [entries]);
@@ -137,14 +463,154 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     setStatusFilter((current) => (current === next ? 'OPEN' : next));
   }
 
+  const bulkEligibleItems: BulkStatusChangeItem[] = pendingBulkStatusChange
+    ? eligibleIdsForBulkStatus(pendingBulkStatusChange.ids, pendingBulkStatusChange.nextStatus)
+        .map((id) => entries.find((e) => e.id === id))
+        .filter((e): e is OrderListEntry => e != null)
+        .map((entry) => {
+          const row = decorate(entry);
+          return {
+            id: entry.id,
+            itemName: entry.itemName,
+            quantityLabel: `${entry.quantityNeeded + entry.manualAddition} ${entry.unitOfMeasurement}`,
+            meta: row.meta,
+            category: row.category,
+            imageId: entry.imageId,
+          };
+        })
+    : [];
+  const bulkSkippedCount = pendingBulkStatusChange ? pendingBulkStatusChange.ids.length - bulkEligibleItems.length : 0;
+
+  function renderMobileCard(row: ReturnType<typeof decorate>) {
+    const { entry } = row;
+    return (
+      <tr key={entry.id} className="order-list__row" style={{ background: row.checked ? '#fff5f6' : undefined }}>
+        <td className="order-list__mobile-card-td">
+          <div className="order-list__mobile-card-header">
+            <CheckboxButton checked={row.checked} ariaLabel={`Select ${entry.itemName}`} onClick={() => toggleSelected(entry.id)} />
+            <CategoryIcon category={row.category} name={entry.itemName} size={44} imageId={entry.imageId} />
+            <div className="order-list__item-text">
+              <div className="order-list__item-name">
+                <span className="order-list__item-name-text">{entry.itemName}</span>
+                {entry.adHoc && <span className="order-list__manual-badge">Manual</span>}
+              </div>
+              <div className="order-list__item-mobile-meta">{row.mobileMeta}</div>
+            </div>
+          </div>
+          <div className="order-list__mobile-stats">
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Stock</span>
+              <span className="order-list__cell-value">
+                <span className="order-list__on-hand">{row.onHand ?? '—'}</span>
+                <span className="order-list__par"> / {row.par ?? '—'}</span>
+              </span>
+            </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Need</span>
+              <span className="order-list__cell-value" style={{ color: row.needFg, fontWeight: 800 }}>
+                {entry.quantityNeeded} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+              </span>
+            </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Manual</span>
+              <span className="order-list__cell-value">
+                {entry.manualAddition > 0 ? (
+                  <span className="order-list__manual-value">
+                    +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+                  </span>
+                ) : (
+                  <span className="order-list__manual-empty">—</span>
+                )}
+              </span>
+            </div>
+          </div>
+          <div className="order-list__mobile-footer">
+            <span className="order-list__mobile-pill" style={{ background: row.categoryVisual.bg, color: row.categoryVisual.fg }}>
+              <span className="order-list__mobile-pill-dot" style={{ background: row.categoryVisual.fg }} />
+              {row.categoryLabel}
+            </span>
+            <StatusDotMenu
+              options={row.statusOptions}
+              value={entry.status}
+              onChange={(value) => requestStatusChange(entry, value as OrderStatus)}
+              ariaLabel={`Change status for ${entry.itemName}`}
+              background={row.statusBg}
+              color={row.statusFg}
+            />
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  function renderRow(row: ReturnType<typeof decorate>, variant: 'grouped' | 'flat') {
+    const { entry } = row;
+    const isFlat = variant === 'flat';
+    if (isMobile) return renderMobileCard(row);
+    return (
+      <tr key={entry.id} className="order-list__row" style={{ background: row.checked ? '#fff5f6' : undefined }}>
+        <td className="order-list__checkbox-cell">
+          <CheckboxButton checked={row.checked} ariaLabel={`Select ${entry.itemName}`} onClick={() => toggleSelected(entry.id)} />
+        </td>
+        <td className="order-list__item-td">
+          <div className="order-list__item-cell">
+            <CategoryIcon category={row.category} name={entry.itemName} size={isFlat ? 48 : 56} imageId={entry.imageId} />
+            <div className="order-list__item-text">
+              <div className="order-list__item-name">
+                <span className="order-list__item-name-text">{entry.itemName}</span>
+                {entry.adHoc && <span className="order-list__manual-badge">Manual</span>}
+              </div>
+              <div className="order-list__item-meta">{row.meta}</div>
+            </div>
+          </div>
+        </td>
+        {!isFlat && <td className="order-list__category-cell">{row.categoryLabel}</td>}
+        <td className="order-list__num-cell order-list__stock-cell" data-label="Stock">
+          <span className="order-list__cell-value">
+            <span className="order-list__on-hand">{row.onHand ?? '—'}</span>
+            <span className="order-list__par"> / {row.par ?? '—'}</span>
+          </span>
+        </td>
+        <td className="order-list__num-cell order-list__need-cell" data-label="Need" style={{ color: row.needFg, fontWeight: 800 }}>
+          <span className="order-list__cell-value">
+            {entry.quantityNeeded} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+          </span>
+        </td>
+        <td className="order-list__num-cell order-list__manual-cell" data-label="Manual">
+          <span className="order-list__cell-value">
+            {entry.manualAddition > 0 ? (
+              <span className="order-list__manual-value">
+                +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+              </span>
+            ) : (
+              <span className="order-list__manual-empty">—</span>
+            )}
+          </span>
+        </td>
+        {isFlat && (
+          <>
+            <td className="order-list__mobile-hide">{entry.supplierName ?? '—'}</td>
+            <td className="order-list__mobile-hide">{row.categoryLabel}</td>
+          </>
+        )}
+        <td className={isFlat ? 'order-list__status-cell' : 'order-list__status-dropdown-cell'}>
+          <StatusDotMenu
+            options={row.statusOptions}
+            value={entry.status}
+            onChange={(value) => requestStatusChange(entry, value as OrderStatus)}
+            ariaLabel={`Change status for ${entry.itemName}`}
+          />
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <div className="super-admin-orders">
-      <h1 className="super-admin-orders__title">Orders</h1>
-
       {overview !== null && overview.platformOutstandingCount > 0 && (
         <div className="super-admin-orders__overview">
           <div className="super-admin-orders__overview-head">
-            <h2 className="super-admin-orders__section-title">Outstanding Across Stores</h2>
+            <span className="super-admin-orders__eyebrow">Outstanding Across Stores</span>
             <span className="super-admin-orders__overview-total">
               {overview.platformOutstandingCount} item{overview.platformOutstandingCount === 1 ? '' : 's'} across{' '}
               {overview.storesWithOutstanding} store{overview.storesWithOutstanding === 1 ? '' : 's'}
@@ -200,7 +666,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
 
       {selectedStoreId !== null && (
         <div className="super-admin-orders__store">
-          <h2 className="super-admin-orders__section-title">{selectedStoreName}</h2>
+          <span className="super-admin-orders__eyebrow">{selectedStoreName}</span>
 
           <div className="stat-card-row">
             <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
@@ -209,51 +675,291 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             <StatCard icon={PackageCheck} label="Received" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
           </div>
 
-          <div className="super-admin-orders__filter-row">
-            <SearchInput value={search} onChange={setSearch} placeholder="Search items" variant="surface" />
-            <Select
-              className="super-admin-orders__status-select"
-              options={STATUS_FILTER_OPTIONS}
-              value={statusFilter}
-              onChange={(v) => setStatusFilter(v as StatusFilter)}
-              ariaLabel="Status"
-            />
+          <div className="order-list__filter-row">
+            <div className="order-list__filter-card">
+              <SearchInput value={search} onChange={setSearch} placeholder="Search items" variant="surface" />
+              <div className="order-list__filter-fields">
+                <Select className="order-list__filter-select order-list__filter-select--category" options={[{ value: 'all', label: 'All categories' }, ...buildCategoryOptions([...categoryByItemId.values()], [categoryFilter === 'all' ? null : categoryFilter])]} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Category" />
+                <Select className="order-list__filter-select order-list__filter-select--status" options={STATUS_FILTER_OPTIONS} value={statusFilter} onChange={(v) => setStatusFilter(v as StatusFilter)} ariaLabel="Status" />
+                <Select className="order-list__filter-select order-list__filter-select--supplier" options={supplierFilterOptions} value={supplierFilter} onChange={setSupplierFilter} ariaLabel="Supplier" />
+                <span className="order-list__row-break" aria-hidden="true" />
+                <div
+                  className={`order-list__clear-slot${hasActiveFilters ? '' : ' order-list__clear-slot--empty'}`}
+                  style={hasActiveFilters ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
+                >
+                  <FilterClearButton onClick={clearFilters} />
+                </div>
+              </div>
+            </div>
+            <div role="group" aria-label="View" className="order-list__view-toggle order-list__view-toggle--spaced">
+              <button type="button" aria-pressed={grouped} className={`order-list__view-btn${grouped ? ' order-list__view-btn--active' : ''}`} onClick={() => setGrouped(true)}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+                By supplier
+              </button>
+              <button type="button" aria-pressed={!grouped} className={`order-list__view-btn${!grouped ? ' order-list__view-btn--active' : ''}`} onClick={() => setGrouped(false)}>
+                <List size={14} />
+                List
+              </button>
+            </div>
+            {isMobile && (
+              <button type="button" className="order-list__action-btn order-list__action-btn--primary order-list__add-item-btn" onClick={() => { setAddError(null); setIsAddOpen(true); }}>
+                <Plus size={16} />
+                Add item
+              </button>
+            )}
           </div>
 
+          {!isMobile && (
+            <div className="order-list__action-bar">
+              <div className="order-list__action-bar-select">
+                <CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} />
+                <span className="order-list__select-label">{someChecked ? `${selectedIds.size} selected` : `${decorated.length} ${decorated.length === 1 ? 'order' : 'orders'}`}</span>
+                {someChecked && (
+                  <button type="button" className="order-list__clear-selection" onClick={() => setSelectedIds(new Set())}>
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="order-list__action-bar-spacer" />
+              <button type="button" className="order-list__action-btn" disabled={!someChecked} onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>
+                <Truck size={16} />
+                Mark ordered
+              </button>
+              <button type="button" className="order-list__action-btn" disabled={!someChecked} onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>
+                <CircleCheck size={16} />
+                Mark received
+              </button>
+              <button type="button" className="order-list__action-btn" disabled={!someChecked} onClick={handleCopySelected}>
+                <Clipboard size={16} />
+                Copy selected items
+              </button>
+              <button type="button" className="order-list__action-btn order-list__action-btn--primary" onClick={() => { setAddError(null); setIsAddOpen(true); }}>
+                <Plus size={16} />
+                Add item
+              </button>
+            </div>
+          )}
+
+          {isMobile && !entriesLoading && decorated.length > 0 && (
+            <div className="order-list__mobile-select-all">
+              <CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} />
+              <span className="order-list__select-label">
+                {someChecked ? `${selectedIds.size} selected` : `Select all ${decorated.length} ${decorated.length === 1 ? 'order' : 'orders'}`}
+              </span>
+              {someChecked && (
+                <button type="button" className="order-list__clear-selection" onClick={() => setSelectedIds(new Set())}>
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
+
+          {isMobile && someChecked && createPortal(
+            // Portaled straight to <body>, same reason as OrderList.tsx's own
+            // mobile floating bar -- see that file's comment on
+            // AppShell's page-transition wrapper and `will-change: transform`.
+            <div className="order-list__mobile-selection-bar">
+              <span className="order-list__mobile-selection-count">{selectedIds.size} selected</span>
+              <div className="order-list__mobile-selection-actions">
+                <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>Ordered</button>
+                <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>Received</button>
+                <button
+                  type="button"
+                  className="order-list__mobile-selection-copy"
+                  aria-label="Copy selected items"
+                  onClick={handleCopySelected}
+                >
+                  <Clipboard size={16} />
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )}
+
           {entriesError && (
-            <div className="super-admin-orders__error">{entriesError}</div>
+            <div className="order-list__error">
+              {entriesError}
+              <button type="button" className="btn btn--secondary" onClick={loadEntries}>
+                Retry
+              </button>
+            </div>
           )}
-          {entriesLoading && <div className="super-admin-orders__loading">Loading...</div>}
-          {!entriesLoading && !entriesError && filteredEntries.length === 0 && (
-            <div className="super-admin-orders__empty">No orders match these filters.</div>
+
+          {!entriesLoading && !entriesError && decorated.length === 0 && (
+            <div className="order-list__no-results">
+              <div className="order-list__no-results-title">No orders match these filters</div>
+              <div className="order-list__no-results-sub">Try a different search, or clear the filters to see every open order.</div>
+            </div>
           )}
-          {!entriesLoading && !entriesError && filteredEntries.length > 0 && (
-            <div className="super-admin-orders__list">
-              {filteredEntries.map((entry) => (
-                <div key={entry.id} className="super-admin-orders__row">
-                  <div className="super-admin-orders__row-main">
-                    <span className="super-admin-orders__row-name">{entry.itemName}</span>
-                    <span className="super-admin-orders__row-meta">
-                      {entry.quantityNeeded} {entry.unitOfMeasurement}
-                      {entry.supplierName ? ` · ${entry.supplierName}` : ''}
-                    </span>
-                  </div>
-                  <StatusDotMenu
-                    options={STATUS_OPTIONS}
-                    value={entry.status}
-                    onChange={(value) => handleStatusChange(entry, value as OrderStatus)}
-                    ariaLabel={`Change status for ${entry.itemName}`}
-                  />
-                </div>
+
+          {entriesLoading && <div className="order-list__loading">Loading...</div>}
+
+          {!entriesLoading && !entriesError && decorated.length > 0 && grouped && (
+            <div className="order-list__groups">
+              {groups.map((group) => (
+                <section key={group.key} className="order-list__group">
+                  {isMobile ? (
+                    <div className="order-list__group-header order-list__group-header--mobile">
+                      <CheckboxButton checked={group.checked} indeterminate={group.indeterminate} ariaLabel={`Select all items from ${group.name}`} onClick={() => setGroupSelected(group.items.map((r) => r.entry.id), !group.checked)} />
+                      <div className="order-list__group-mobile-top">
+                        <span className="order-list__group-name">{group.name}</span>
+                        <span className="order-list__group-mobile-progress">{group.mobileProgress}</span>
+                      </div>
+                      <div className="order-list__group-mobile-bottom">
+                        <div className="order-list__progress-track">
+                          <div className="order-list__progress-fill" style={{ width: group.pct, background: group.barColor }} />
+                        </div>
+                        <span className="order-list__group-mobile-summary">{group.mobileSummary}</span>
+                      </div>
+                      <button type="button" className="order-list__group-chevron-btn" aria-expanded={group.isOpen} aria-label={group.isOpen ? `Collapse ${group.name}` : `Expand ${group.name}`} onClick={() => setGroupOpen((c) => ({ ...c, [group.key]: !group.isOpen }))}>
+                        <ChevronDown size={18} className={group.isOpen ? 'order-list__group-chevron--mobile-open' : undefined} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="order-list__group-header">
+                      <button type="button" className="order-list__group-toggle" aria-expanded={group.isOpen} onClick={() => setGroupOpen((c) => ({ ...c, [group.key]: !group.isOpen }))}>
+                        <ChevronDown size={18} className={group.isOpen ? undefined : 'order-list__group-chevron--collapsed'} />
+                        <span className="order-list__group-title">
+                          <span className="order-list__group-name">{group.name}</span>
+                          <span className="order-list__group-summary">{group.summary}</span>
+                        </span>
+                      </button>
+                      <div className="order-list__group-progress">
+                        <div className="order-list__progress-track">
+                          <div className="order-list__progress-fill" style={{ width: group.pct, background: group.barColor }} />
+                        </div>
+                        <span className="order-list__progress-label">{group.progress}</span>
+                      </div>
+                      <div className="order-list__group-actions">
+                        <button type="button" className="order-list__action-btn order-list__action-btn--sm" onClick={() => copyText(buildOrderListText(group.items.map((r) => r.entry), selectedStoreName, new Date()), 'Nothing to copy.', `${group.name} list copied.`)}>
+                          <Clipboard size={14} />
+                          Copy
+                        </button>
+                        {group.canBulk && (
+                          <button type="button" className="order-list__dark-btn" onClick={() => bulkSetStatus(group.items.filter((r) => r.entry.status === 'NEEDS_ORDERING').map((r) => r.entry.id), 'ORDERED')}>
+                            Mark all ordered
+                          </button>
+                        )}
+                        {group.allDone && (
+                          <span className="order-list__all-ordered">
+                            <CircleCheck size={14} />
+                            All ordered
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {group.isOpen && (
+                    <>
+                      <div className="table-scroll">
+                        <table className="order-list__group-table">
+                          <colgroup>
+                            <col className="order-list__col--checkbox" />
+                            <col />
+                            <col className="order-list__col--category" />
+                            <col className="order-list__col--num" />
+                            <col className="order-list__col--num" />
+                            <col className="order-list__col--num" />
+                            <col className="order-list__col--status" />
+                          </colgroup>
+                          <thead>
+                            <tr>
+                              <th className="order-list__checkbox-cell"><CheckboxButton checked={group.checked} indeterminate={group.indeterminate} ariaLabel={`Select all items from ${group.name}`} onClick={() => setGroupSelected(group.items.map((r) => r.entry.id), !group.checked)} /></th>
+                              <th>Item</th>
+                              <th className="order-list__category-cell">Category</th>
+                              <th className="order-list__num-header">Stock</th>
+                              <th className="order-list__num-header">Need</th>
+                              <th className="order-list__num-header">Manual</th>
+                              <th>Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>{group.shown.map((row) => renderRow(row, 'grouped'))}</tbody>
+                        </table>
+                      </div>
+                      {group.hasMore && (
+                        <button type="button" className="order-list__more-btn" onClick={() => setGroupExpanded((c) => ({ ...c, [group.key]: !(groupExpanded[group.key] ?? false) }))}>
+                          {group.moreLabel}
+                        </button>
+                      )}
+                    </>
+                  )}
+                </section>
               ))}
             </div>
           )}
+
+          {!entriesLoading && !entriesError && decorated.length > 0 && !grouped && (
+            <div className="order-list__flat-card">
+              <div className="table-scroll">
+                <table className="order-list__flat-table">
+                  <colgroup>
+                    <col style={{ width: '3%' }} />
+                    <col style={{ width: '32%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '11%' }} />
+                    <col style={{ width: '18%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th className="order-list__checkbox-cell"><CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} /></th>
+                      <th>Item</th>
+                      <th className="order-list__num-header">Stock</th>
+                      <th className="order-list__num-header">Need</th>
+                      <th className="order-list__num-header">Manual</th>
+                      <th>Supplier</th>
+                      <th>Category</th>
+                      <th className="order-list__status-header">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>{decorated.map((row) => renderRow(row, 'flat'))}</tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          <AddToOrderPanel
+            isOpen={isAddOpen}
+            storeName={selectedStoreName}
+            inventoryItems={inventoryItems}
+            activeNeedByItemId={activeNeedByItemId}
+            errorMessage={addError}
+            isSubmitting={isAddSubmitting}
+            onClose={() => setIsAddOpen(false)}
+            onSubmit={handleAddSubmit}
+          />
         </div>
       )}
 
       {selectedStoreId === null && (
         <p className="super-admin-orders__hint">Select a store above to view and manage its order list.</p>
       )}
+
+      {pendingStatusChange && (
+        <ChangeOrderStatusModal
+          itemName={pendingStatusChange.entry.itemName}
+          supplierName={pendingStatusChange.entry.supplierName}
+          category={categoryByItemId.get(pendingStatusChange.entry.storeInventoryItemId) ?? null}
+          imageId={pendingStatusChange.entry.imageId}
+          fromStatus={pendingStatusChange.entry.status}
+          toStatus={pendingStatusChange.nextStatus}
+          onConfirm={confirmPendingStatusChange}
+          onCancel={() => setPendingStatusChange(null)}
+        />
+      )}
+
+      {pendingBulkStatusChange && (
+        <BulkChangeOrderStatusModal
+          nextStatus={pendingBulkStatusChange.nextStatus}
+          eligibleItems={bulkEligibleItems}
+          skippedCount={bulkSkippedCount}
+          onConfirm={confirmPendingBulkStatusChange}
+          onCancel={() => setPendingBulkStatusChange(null)}
+        />
+      )}
+      {conflictMessage && <OrderAlreadyUpdatedModal message={conflictMessage} onClose={() => setConflictMessage(null)} />}
     </div>
   );
 }

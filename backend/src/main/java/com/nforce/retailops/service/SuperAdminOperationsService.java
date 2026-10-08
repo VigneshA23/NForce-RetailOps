@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
@@ -97,8 +98,13 @@ public class SuperAdminOperationsService {
     }
 
     @Transactional
-    public OrderListEntryResponse updateOrderStatus(Long storeId, Long entryId, OrderStatus status) {
-        return orderListService.updateStatusForSuperAdmin(storeId, entryId, status);
+    public OrderListEntryResponse updateOrderStatus(Long storeId, Long entryId, OrderStatus status, OrderStatus expectedStatus) {
+        return orderListService.updateStatusForSuperAdmin(storeId, entryId, status, expectedStatus);
+    }
+
+    @Transactional
+    public OrderListEntryResponse createOrderListEntry(Long storeId, CreateOrderListEntryRequest request) {
+        return orderListService.createEntryForSuperAdmin(storeId, request);
     }
 
     // Platform-wide "what still needs ordering", in a single grouped query -- never

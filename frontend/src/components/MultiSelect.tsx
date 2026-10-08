@@ -17,6 +17,9 @@ interface MultiSelectProps {
   onChange: (ids: number[]) => void;
   placeholder?: string;
   searchPlaceholder?: string;
+  // When set and every option is selected, the trigger shows this single chip
+  // (removing it clears the selection) instead of one chip per option.
+  allSelectedLabel?: string;
 }
 
 function MultiSelect({
@@ -26,6 +29,7 @@ function MultiSelect({
   onChange,
   placeholder = 'Select...',
   searchPlaceholder = 'Search...',
+  allSelectedLabel,
 }: MultiSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -119,6 +123,7 @@ function MultiSelect({
   }
 
   const selectedOptions = options.filter((option) => value.includes(option.id));
+  const showAllChip = !!allSelectedLabel && options.length > 1 && selectedOptions.length === options.length;
   const filteredOptions = options.filter((option) =>
     option.label.toLowerCase().includes(query.trim().toLowerCase()),
   );
@@ -140,7 +145,23 @@ function MultiSelect({
           <span className="multi-select__placeholder">{placeholder}</span>
         ) : (
           <span className="multi-select__chips">
-            {selectedOptions.map((option) => (
+            {showAllChip && (
+              <span className="badge badge--outline multi-select__chip">
+                {allSelectedLabel}
+                <button
+                  type="button"
+                  className="multi-select__chip-remove"
+                  aria-label={`Remove ${allSelectedLabel}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onChange([]);
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+            {!showAllChip && selectedOptions.map((option) => (
               <span key={option.id} className="badge badge--outline multi-select__chip">
                 {option.label}
                 <button

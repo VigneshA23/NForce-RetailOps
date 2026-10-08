@@ -416,4 +416,13 @@ button.stat-card {
   .stat-card-row .stat-card__label {
     font-size: 9px;
   }
+
+  /* The compact 2-column mobile grid doesn't have room for the caption
+     line (e.g. store name, "Below Minimum Threshold") without the tile
+     growing noticeably taller than its neighbors -- dropped here so every
+     mobile stat-card row reads like the plain label/value/icon tiles used
+     elsewhere (no page currently relies on the caption surviving mobile). */
+  .stat-card-row .stat-card__caption {
+    display: none;
+  }
 }

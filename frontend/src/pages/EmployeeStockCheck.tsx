@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { getAllStoreItemsForEmployee, getTodayStockCheck, reportAdHocShortage, submitStockCheck } from '../api/stockChecks';
-import type { DailyStockCheckItem, StockCheckSnapshotKey, StoreInventoryItemOption } from '../types/stockCheck';
+import { ApiError } from '../api/client';
+import { getMe } from '../api/me';
+import { getTodayStockCheck, reportAdHocShortage, submitStockCheck } from '../api/stockChecks';
+import type { DailyStockCheckItem, StockCheckSnapshotKey } from '../types/stockCheck';
 import type { StoreSummary } from '../types/store';
 import AdHocShortageModal, { type AdHocShortageValues } from '../components/AdHocShortageModal';
 import EmployeeStockCheckHistory from '../components/EmployeeStockCheckHistory';
@@ -46,6 +48,11 @@ type View = 'today' | 'history';
 
 function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
   const [view, setView] = useState<View>('today');
+  const [myUserId, setMyUserId] = useState<number | null>(null);
+
+  useEffect(() => {
+    getMe().then((me) => setMyUserId(me.id)).catch(() => setMyUserId(null));
+  }, []);
   const [historyTotal, setHistoryTotal] = useState<number | null>(null);
   const [items, setItems] = useState<DailyStockCheckItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -54,12 +61,6 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
   const [isAdHocOpen, setIsAdHocOpen] = useState(false);
   const [adHocError, setAdHocError] = useState<string | null>(null);
   const [isAdHocSubmitting, setIsAdHocSubmitting] = useState(false);
-  // All of the store's items (active and inactive, matching Owner/Admin's
-  // Inventory Items list) for the Report Shortage picker -- deliberately a
-  // separate fetch from `items` above, which is today's active checklist
-  // only. Fetched on demand when the modal opens rather than on every page
-  // load, since the feature is used occasionally.
-  const [adHocItemOptions, setAdHocItemOptions] = useState<StoreInventoryItemOption[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<number, boolean>>({});
@@ -107,6 +108,12 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
       return true;
     } catch (error) {
       nfToast.error(error instanceof Error ? error.message : 'Failed to save count');
+      // 403/404/409 mean the list on screen is out of date (e.g. the owner
+      // deactivated or removed this item after it loaded), so re-fetch it
+      // quietly -- no spinner, so the rest of the page stays put.
+      if (error instanceof ApiError && [403, 404, 409].includes(error.status)) {
+        getTodayStockCheck(store.id).then(setItems).catch(() => {});
+      }
       return false;
     } finally {
       setPendingKey(null);
@@ -131,6 +138,22 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
 
   const startCount = useMemo(() => items.filter((i) => i.startOfDay != null).length, [items]);
   const endCount = useMemo(() => items.filter((i) => i.endOfDay != null).length, [items]);
+
+  // Report Shortage is only open once today's Start of Day count has been
+  // given, and only for the items that have one.
+  const adHocItemOptions = useMemo(
+    () =>
+      items
+        .filter((i) => i.startOfDay != null)
+        .map((i) => ({
+          storeInventoryItemId: i.storeInventoryItemId,
+          itemName: i.itemName,
+          unitOfMeasurement: i.unitOfMeasurement,
+          active: true,
+        })),
+    [items],
+  );
+  const canReportShortage = adHocItemOptions.length > 0;
 
   const viewItems = useMemo(() => items.map(toViewItem), [items]);
 
@@ -213,10 +236,11 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
         <button
           type="button"
           className="btn btn--danger"
+          disabled={isLoading || !canReportShortage}
+          title={canReportShortage ? undefined : 'Submit a Start of Day stock check first'}
           onClick={() => {
             setAdHocError(null);
             setIsAdHocOpen(true);
-            getAllStoreItemsForEmployee(store.id).then(setAdHocItemOptions).catch(() => {});
           }}
         >
           <AlertTriangle size={16} />
@@ -351,6 +375,10 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
                     {(['START_OF_DAY', 'END_OF_DAY'] as const).map((snapshot) => (
                       <StockSnapshotCard
                         key={snapshot}
+                        canEdit={(() => {
+                          const saved = snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay;
+                          return !saved || saved.enteredById == null || myUserId == null || saved.enteredById === myUserId;
+                        })()}
                         title={SNAPSHOT_LABELS[snapshot]}
                         idPrefix={`${idPrefix}-${snapshot === 'START_OF_DAY' ? 'sod' : 'eod'}`}
                         snapshot={snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay}

@@ -52,6 +52,8 @@ function Harness({
 async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Item Name'), 'Milk');
   await user.type(screen.getByLabelText('Min Par Level (Weekday)'), '5');
+  await user.click(screen.getByRole('combobox', { name: 'Category' }));
+  await user.click(screen.getByRole('option', { name: 'Dairy' }));
 }
 
 describe('StoreInventoryItemFormModal', () => {
@@ -216,4 +218,48 @@ describe('StoreInventoryItemFormModal', () => {
     expect(supplierInput).toHaveValue('Fresh Farms');
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it('loads categories for the selected stores and offers only those', async () => {
+    const user = userEvent.setup();
+    const loadCategories = vi.fn().mockResolvedValue(['Dairy', 'Cleaning']);
+    render(
+      <StoreInventoryItemFormModal
+        isOpen
+        mode="create"
+        suppliers={initialSuppliers}
+        onCreateSupplier={vi.fn()}
+        stores={[{ id: 1, name: 'Downtown' }, { id: 2, name: 'Uptown' }]}
+        showStoreField
+        loadCategories={loadCategories}
+        initialValues={{ ...EMPTY, storeId: 1, storeIds: [1] }}
+        onClose={() => {}}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(loadCategories).toHaveBeenCalledWith([1]));
+
+    await user.click(screen.getByRole('button', { name: 'Select all stores' }));
+    await waitFor(() => expect(loadCategories).toHaveBeenLastCalledWith([1, 2]));
+
+    await user.click(screen.getByRole('combobox', { name: 'Category' }));
+    expect(await screen.findByText('Dairy')).toBeInTheDocument();
+    expect(screen.queryByText('Packaging')).not.toBeInTheDocument();
+  });
 });
+
+const EMPTY: StoreInventoryItemFormValues = {
+  storeId: null,
+  name: '',
+  category: '',
+  unitOfMeasurement: '',
+  minWeekday: '',
+  minWeekend: '',
+  preferredSupplierId: null,
+  note: '',
+  autoPoEnabled: true,
+  imageId: null,
+  imagePhotoId: null,
+  imagePreviewUrl: null,
+  removeImage: false,
+};

@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.CreateStoreInventoryItemsResponse;
 import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
@@ -19,6 +20,7 @@ import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
+import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
@@ -27,9 +29,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 // Full CRUD for a store's own inventory items (Phase 2 redesign). Split into
@@ -47,6 +54,8 @@ public class StoreInventoryItemService {
     private final OrderListEntryRepository orderListEntryRepository;
     private final InventoryItemImageRepository inventoryItemImageRepository;
     private final UnsplashService unsplashService;
+    private final StoreEmployeeRepository storeEmployeeRepository;
+    private final NotificationService notificationService;
 
     public StoreInventoryItemService(
         StoreInventoryItemRepository storeInventoryItemRepository,
@@ -56,7 +65,9 @@ public class StoreInventoryItemService {
         StockCheckRepository stockCheckRepository,
         OrderListEntryRepository orderListEntryRepository,
         InventoryItemImageRepository inventoryItemImageRepository,
-        UnsplashService unsplashService
+        UnsplashService unsplashService,
+        StoreEmployeeRepository storeEmployeeRepository,
+        NotificationService notificationService
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.supplierRepository = supplierRepository;
@@ -66,6 +77,8 @@ public class StoreInventoryItemService {
         this.orderListEntryRepository = orderListEntryRepository;
         this.inventoryItemImageRepository = inventoryItemImageRepository;
         this.unsplashService = unsplashService;
+        this.storeEmployeeRepository = storeEmployeeRepository;
+        this.notificationService = notificationService;
     }
 
     // ---------------------------------------------------------------------
@@ -132,14 +145,103 @@ public class StoreInventoryItemService {
         return toResponses(storeInventoryItemRepository.findAll());
     }
 
+    // Creates one copy of the item per selected store, all sharing an
+    // itemGroupId. A store that already has an item with this name AND
+    // category is skipped (reported back); one that has the name under a
+    // different category is a genuine clash, so nothing is created and the
+    // message names those stores.
     @Transactional
-    public StoreInventoryItemResponse createForSuperAdmin(StoreInventoryItemRequest request) {
-        if (request.storeId() == null) {
-            throw new StoreNotFoundException("Store is required");
+    public CreateStoreInventoryItemsResponse createForSuperAdmin(StoreInventoryItemRequest request) {
+        Set<Long> ids = new LinkedHashSet<>();
+        if (request.storeIds() != null && !request.storeIds().isEmpty()) {
+            ids.addAll(request.storeIds());
+        } else if (request.storeId() != null) {
+            ids.add(request.storeId());
         }
-        Store store = storeRepository.findById(request.storeId())
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return toResponse(createItem(store, request));
+        if (ids.isEmpty()) {
+            throw new StoreNotFoundException("Select at least one store");
+        }
+        List<Store> stores = new ArrayList<>();
+        for (Long id : ids) {
+            stores.add(storeRepository.findById(id)
+                .orElseThrow(() -> new StoreNotFoundException("Store not found")));
+        }
+
+        String name = request.name().trim();
+        String category = request.category().trim();
+        Map<Long, StoreInventoryItem> sameName = storeInventoryItemRepository.findByNameIgnoreCase(name).stream()
+            .filter(i -> ids.contains(i.getStore().getId()))
+            .collect(Collectors.toMap(i -> i.getStore().getId(), i -> i, (a, b) -> a));
+        List<String> clashing = new ArrayList<>();
+        List<String> skipped = new ArrayList<>();
+        List<Store> toCreate = new ArrayList<>();
+        for (Store store : stores) {
+            StoreInventoryItem existing = sameName.get(store.getId());
+            if (existing == null) {
+                toCreate.add(store);
+            } else if (existing.getCategory() != null && existing.getCategory().trim().equalsIgnoreCase(category)) {
+                skipped.add(store.getName());
+            } else {
+                clashing.add(store.getName());
+            }
+        }
+        if (!clashing.isEmpty()) {
+            throw new StoreInventoryItemNameExistsException(
+                "An inventory item named \"" + name + "\" already exists in a different category in: "
+                    + String.join(", ", clashing) + ".");
+        }
+        if (toCreate.isEmpty()) {
+            return new CreateStoreInventoryItemsResponse(List.of(), skipped);
+        }
+
+        // Each store's item owns its own image row (it is deleted with the
+        // item), so the picture is fetched once and copied per store.
+        InventoryItemImage template = newImage(request);
+        UUID groupId = UUID.randomUUID();
+        List<StoreInventoryItem> created = new ArrayList<>();
+        for (Store store : toCreate) {
+            StoreInventoryItem item = new StoreInventoryItem();
+            item.setStore(store);
+            item.setItemGroupId(groupId);
+            applyFields(item, request, false);
+            if (template != null) {
+                item.setImage(inventoryItemImageRepository.save(copyOf(template)));
+            }
+            StoreInventoryItem saved = storeInventoryItemRepository.save(item);
+            notifyEmployeesOfNewItem(store, saved);
+            created.add(saved);
+        }
+        return new CreateStoreInventoryItemsResponse(toResponses(created), skipped);
+    }
+
+    // Categories used by items in every one of the given stores (case-
+    // insensitive), for the Super Admin create form. With one store that is
+    // simply the store's own categories.
+    @Transactional(readOnly = true)
+    public List<String> commonCategories(List<Long> storeIds) {
+        Set<Long> ids = new LinkedHashSet<>(storeIds == null ? List.<Long>of() : storeIds);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Map<String, String>> byStore = new LinkedHashMap<>();
+        for (Long id : ids) {
+            byStore.put(id, new LinkedHashMap<>());
+        }
+        for (Object[] row : storeInventoryItemRepository.findStoreCategories(ids)) {
+            String category = ((String) row[1]).trim();
+            if (!category.isEmpty()) {
+                byStore.get((Long) row[0]).putIfAbsent(category.toLowerCase(), category);
+            }
+        }
+        Map<String, String> common = null;
+        for (Map<String, String> categories : byStore.values()) {
+            if (common == null) {
+                common = new LinkedHashMap<>(categories);
+            } else {
+                common.keySet().retainAll(categories.keySet());
+            }
+        }
+        return common.values().stream().sorted(String.CASE_INSENSITIVE_ORDER).toList();
     }
 
     @Transactional
@@ -251,7 +353,25 @@ public class StoreInventoryItemService {
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
         applyFields(item, request);
-        return storeInventoryItemRepository.save(item);
+        StoreInventoryItem saved = storeInventoryItemRepository.save(item);
+        notifyEmployeesOfNewItem(store, saved);
+        return saved;
+    }
+
+    // Every employee assigned to the store is told the new item is on today's
+    // stock check, since each item takes one Start of Day snapshot per day.
+    private void notifyEmployeesOfNewItem(Store store, StoreInventoryItem item) {
+        if (!item.isActive()) {
+            return;
+        }
+        String itemName = item.getName();
+        storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(Set.of(store.getId()))
+            .forEach(se -> notificationService.send(
+                se.getEmployee(), "STOCK_ITEM_ADDED",
+                "New stock item: " + itemName,
+                "\"" + itemName + "\" has been added to your store's stock check. Please complete its "
+                    + "Start of Day check - only one response is allowed per item.",
+                "/stock-check"));
     }
 
     private StoreInventoryItem applyUpdate(StoreInventoryItem item, StoreInventoryItemRequest request) {
@@ -275,8 +395,12 @@ public class StoreInventoryItemService {
     }
 
     private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request) {
+        applyFields(item, request, true);
+    }
+
+    private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request, boolean withImage) {
         item.setName(request.name().trim());
-        item.setCategory(request.category());
+        item.setCategory(request.category().trim());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
         item.setMinWeekday(request.minWeekday());
         item.setMinWeekend(request.minWeekend());
@@ -289,7 +413,9 @@ public class StoreInventoryItemService {
             .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
         item.setPreferredSupplier(supplier);
 
-        applyImage(item, request);
+        if (withImage) {
+            applyImage(item, request);
+        }
     }
 
     // Swaps in a newly picked Unsplash photo (downloaded now and stored as a
@@ -297,31 +423,48 @@ public class StoreInventoryItemService {
     // rather than orphaned; Hibernate flushes that delete after the item's
     // update, so the FK never points at a missing row.
     private void applyImage(StoreInventoryItem item, StoreInventoryItemRequest request) {
-        String photoId = request.imagePhotoId() != null ? request.imagePhotoId().trim() : "";
-        String uploadData = request.imageUploadData() != null ? request.imageUploadData().trim() : "";
         boolean remove = Boolean.TRUE.equals(request.removeImage());
-        if (photoId.isEmpty() && uploadData.isEmpty() && !remove) {
+        InventoryItemImage fresh = newImage(request);
+        if (fresh == null && !remove) {
             return;
         }
 
         InventoryItemImage previous = item.getImage();
-        if (!uploadData.isEmpty()) {
-            item.setImage(inventoryItemImageRepository.save(uploadedImage(uploadData)));
-        } else if (photoId.isEmpty()) {
-            item.setImage(null);
-        } else {
-            UnsplashService.DownloadedPhoto photo = unsplashService.download(photoId);
-            InventoryItemImage image = new InventoryItemImage();
-            image.setContentType(photo.contentType());
-            image.setData(photo.data());
-            image.setUnsplashPhotoId(photo.photoId());
-            image.setPhotographerName(photo.photographerName());
-            image.setPhotographerUrl(photo.photographerUrl());
-            item.setImage(inventoryItemImageRepository.save(image));
-        }
+        item.setImage(fresh == null ? null : inventoryItemImageRepository.save(fresh));
         if (previous != null) {
             inventoryItemImageRepository.delete(previous);
         }
+    }
+
+    // The new image a request asks for (an upload wins over an Unsplash id),
+    // unsaved; null when the request carries neither.
+    private InventoryItemImage newImage(StoreInventoryItemRequest request) {
+        String photoId = request.imagePhotoId() != null ? request.imagePhotoId().trim() : "";
+        String uploadData = request.imageUploadData() != null ? request.imageUploadData().trim() : "";
+        if (!uploadData.isEmpty()) {
+            return uploadedImage(uploadData);
+        }
+        if (photoId.isEmpty()) {
+            return null;
+        }
+        UnsplashService.DownloadedPhoto photo = unsplashService.download(photoId);
+        InventoryItemImage image = new InventoryItemImage();
+        image.setContentType(photo.contentType());
+        image.setData(photo.data());
+        image.setUnsplashPhotoId(photo.photoId());
+        image.setPhotographerName(photo.photographerName());
+        image.setPhotographerUrl(photo.photographerUrl());
+        return image;
+    }
+
+    private static InventoryItemImage copyOf(InventoryItemImage source) {
+        InventoryItemImage copy = new InventoryItemImage();
+        copy.setContentType(source.getContentType());
+        copy.setData(source.getData());
+        copy.setUnsplashPhotoId(source.getUnsplashPhotoId());
+        copy.setPhotographerName(source.getPhotographerName());
+        copy.setPhotographerUrl(source.getPhotographerUrl());
+        return copy;
     }
 
     private static final int MAX_UPLOAD_BYTES = 2 * 1024 * 1024;

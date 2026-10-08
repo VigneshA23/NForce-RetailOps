@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.CreateStoreInventoryItemsResponse;
 import com.nforce.retailops.dto.StatusRequest;
 import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
@@ -32,8 +33,13 @@ public class InventoryCatalogController {
     }
 
     @PostMapping("/items")
-    public ResponseEntity<StoreInventoryItemResponse> createItem(@Valid @RequestBody StoreInventoryItemRequest request) {
+    public ResponseEntity<CreateStoreInventoryItemsResponse> createItem(@Valid @RequestBody StoreInventoryItemRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(storeInventoryItemService.createForSuperAdmin(request));
+    }
+
+    @GetMapping("/categories")
+    public ResponseEntity<List<String>> commonCategories(@RequestParam List<Long> storeIds) {
+        return ResponseEntity.ok(storeInventoryItemService.commonCategories(storeIds));
     }
 
     @PutMapping("/items/{id}")

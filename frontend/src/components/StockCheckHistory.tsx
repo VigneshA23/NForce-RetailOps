@@ -10,7 +10,7 @@ import ItemIcon from './ItemIcon';
 import ButtonDots from './ButtonDots';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { correctStockCheck, getStockCheckHistory } from '../api/storeInventory';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
+import { categoryLabel } from '../types/storeInventory';
 import type { StockCheckResponse, StockCheckSnapshotKey } from '../types/stockCheck';
 import { toStockCheckHistoryRowView, type StockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
 import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
@@ -71,8 +71,6 @@ function matchesFilters(row: StockCheckHistoryRowView, search: string, categoryF
     (statusFilter === 'sufficient' && row.status !== 'shortage');
   return matchesSearch && matchesCategory && matches;
 }
-
-const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
 // Deterministic initials-circle color, same 6-variant palette ItemIcon picks
 // from, so avatars read as "part of the same system" without duplicating
@@ -178,9 +176,9 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange, page]);
 
-  // 60-second silent refresh of the current page, same pattern (and backing
-  // the same real "Auto-Synced" indicator) as the Items tab's own poll. A
-  // failed poll keeps the last list rather than surfacing an error.
+  // 60-second silent refresh of the current page, same pattern as the Items
+  // tab's own poll. A failed poll keeps the last list rather than surfacing
+  // an error.
   useEffect(() => {
     const id = window.setInterval(() => {
       const resolved = resolveDateRange(dateRange) ?? widestAllowedRange();
@@ -198,7 +196,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
 
   const distinctCategories = useMemo(
     () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
-      CATEGORY_LABELS[a].localeCompare(CATEGORY_LABELS[b]),
+      categoryLabel(a).localeCompare(categoryLabel(b)),
     ),
     [items],
   );
@@ -334,7 +332,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
           className="filter"
           options={[
             { value: '', label: `All Categories (${distinctCategories.length})` },
-            ...distinctCategories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
+            ...distinctCategories.map((c) => ({ value: c, label: categoryLabel(c) })),
           ]}
           value={categoryFilter}
           onChange={setCategoryFilter}
@@ -403,7 +401,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
                         <ItemIcon id={row.storeInventoryItemId} name={row.itemName} size="sm" />
                         <div>
                           <div className="stock-check-history__item-name">{row.itemName}</div>
-                          {row.category && <div className="stock-check-history__item-category">{CATEGORY_LABELS[row.category]}</div>}
+                          {row.category && <div className="stock-check-history__item-category">{categoryLabel(row.category)}</div>}
                         </div>
                       </div>
                     </td>

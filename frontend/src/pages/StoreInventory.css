@@ -59,24 +59,6 @@
   min-width: 0;
 }
 
-.store-inventory-page__sync-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-.store-inventory-page__sync-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--color-badge-icon-success-fg);
-}
-
 .store-inventory-page__subtab {
   padding: var(--space-sm) var(--space-md);
   border: none;
@@ -101,6 +83,10 @@
   gap: 6px;
 }
 
+/* Only Super Admin's own sub-tab bar uses this now (SuperAdminInventory.tsx,
+   RTS-304) -- Owner/Admin's StoreInventory.tsx dropped its badges, but this
+   shared stylesheet is still the right home for a class named
+   store-inventory-page__subtab-badge. */
 .store-inventory-page__subtab-badge {
   display: inline-flex;
   align-items: center;
@@ -113,6 +99,42 @@
   color: var(--color-badge-icon-primary-fg);
   font-size: 10px;
   font-weight: 700;
+}
+
+/* Mobile only: a rounded segmented control (matching Order Dashboard's own
+   pill tabs, OrderDashboard.css) reads better at phone width than underline
+   tabs. Desktop keeps the underline tabs untouched. */
+@media (--mobile) {
+  .store-inventory-page__subtab-list {
+    /* Stretches the pill to the full row width (it otherwise only sizes to
+       its buttons' content, via its own default flex:0 1 auto, leaving a
+       gap before the row's right edge) so the three tabs below, each
+       flex:1, can actually divide the whole width evenly between them. */
+    flex: 1 1 auto;
+    width: 100%;
+    background: #ececef;
+    border-radius: 12px;
+    padding: 4px;
+    gap: 2px;
+    overflow-x: visible;
+  }
+
+  .store-inventory-page__subtab {
+    flex: 1;
+    justify-content: center;
+    border-bottom: none;
+    margin-bottom: 0;
+    border-radius: 9px;
+    padding: 9px 8px;
+    color: #71717a;
+    font-weight: 700;
+  }
+
+  .store-inventory-page__subtab--active {
+    background: #ffffff;
+    color: #18181b;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+  }
 }
 
 .store-inventory-page__title-row {
@@ -145,6 +167,19 @@
   .store-inventory-page__title-row {
     flex-wrap: wrap;
   }
+
+  /* Add Item moves below the stat cards on mobile (see isMobile branch in
+     StoreInventory.tsx), so header-actions holds only the Export button
+     here and sits right next to the title on one line. An auto left
+     margin (rather than the title-row's own space-between, which has
+     nothing to distribute once header-actions is the sole item on its
+     line) keeps it pinned to the right edge even on the rare viewport
+     narrow enough to wrap it onto its own line -- otherwise it falls back
+     flush left and the Export dropdown (anchored right:0 to its own small
+     wrapper) runs off the left edge of the screen. */
+  .store-inventory-page__header-actions {
+    margin-left: auto;
+  }
 }
 
 .store-inventory-page__error {
@@ -159,6 +194,17 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
+}
+
+/* Mobile-only placement of Add Item below the stat cards (desktop/tablet
+   keep it next to Export in header-actions) -- see isMobile branch in
+   StoreInventory.tsx, which renders the button in exactly one of the two
+   spots rather than both. Sized to its own label, not stretched full
+   width, and pinned to the right edge. */
+.store-inventory-page__add-item-mobile {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
 }
 
 .store-inventory-page__header-actions {
@@ -213,4 +259,16 @@
 
 .store-inventory-page__actions-header {
   text-align: center;
+}
+
+@media (--tablet-down) {
+  /* filters.css puts Category and Sort at a rigid 50/50 split on tablet and
+     below, sized for exactly two selects per row -- there's no room left for
+     the Clear button once it appears, so it wraps onto a third row by
+     itself. Letting the two selects share the row's remaining space instead
+     (rather than a fixed half each) keeps Clear sitting right next to Sort
+     on the same row. */
+  .store-inventory-page__filter-bar .filter:not(.filter--search) {
+    flex: 1 1 0;
+  }
 }

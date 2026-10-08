@@ -126,13 +126,3 @@
 .inventory-image-picker__option--selected:hover {
   border-color: var(--color-accent);
 }
-
-.inventory-image-picker__attribution {
-  margin: var(--space-sm) 0 0;
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-
-.inventory-image-picker__attribution a {
-  color: inherit;
-}

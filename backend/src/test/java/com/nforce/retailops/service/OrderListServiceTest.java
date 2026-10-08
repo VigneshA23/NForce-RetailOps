@@ -3,7 +3,6 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
-import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Store;
@@ -13,12 +12,14 @@ import com.nforce.retailops.entity.User;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
+import com.nforce.retailops.exception.OrderEntryAlreadyUpdatedException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -55,6 +56,7 @@ class OrderListServiceTest {
 
     @Mock private OrderListEntryRepository orderListEntryRepository;
     @Mock private StoreOwnerRepository storeOwnerRepository;
+    @Mock private StoreRepository storeRepository;
     @Mock private SupplierRepository supplierRepository;
     @Mock private StoreInventoryItemRepository storeInventoryItemRepository;
     @Mock private UserRepository userRepository;
@@ -267,6 +269,51 @@ class OrderListServiceTest {
         assertThat(entry.getQuantityNeeded()).isEqualTo(9);
     }
 
+    // ---- stale-update conflicts (Owner/Admin vs Super Admin) -----------------
+
+    @Test
+    void ownerUpdateIsRejectedWhenSuperAdminAlreadyMovedTheEntry() {
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        orderListService.updateStatusForSuperAdmin(STORE_ID, ENTRY_ID, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING);
+
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+
+        assertThatThrownBy(() -> orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(5, null, null, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING)))
+            .isInstanceOf(OrderEntryAlreadyUpdatedException.class)
+            .hasMessageContaining("by Super Admin");
+    }
+
+    @Test
+    void superAdminUpdateIsRejectedWhenOwnerAlreadyMovedTheEntry() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(5, null, null, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING));
+
+        assertThatThrownBy(() -> orderListService.updateStatusForSuperAdmin(
+            STORE_ID, ENTRY_ID, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING))
+            .isInstanceOf(OrderEntryAlreadyUpdatedException.class)
+            .hasMessageContaining("by Admin");
+    }
+
+    @Test
+    void updateWithMatchingExpectedStatusStillSucceeds() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(9, null, null, OrderStatus.ORDERED, OrderStatus.ORDERED));
+
+        assertThat(entry.getQuantityNeeded()).isEqualTo(9);
+    }
+
     // ---- createEntry ("Add to order") ---------------------------------------
 
     private void stubActiveStoreOwner(Store store) {
@@ -316,13 +363,13 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "Birthday candles", InventoryItemCategory.SUPPLIES, "packs", false, null, null, 2, null, null));
+            null, "Birthday candles", "SUPPLIES", "packs", false, null, null, 2, null, null));
 
         ArgumentCaptor<StoreInventoryItem> itemCaptor = ArgumentCaptor.forClass(StoreInventoryItem.class);
         verify(storeInventoryItemRepository).save(itemCaptor.capture());
         StoreInventoryItem saved = itemCaptor.getValue();
         assertThat(saved.getName()).isEqualTo("Birthday candles");
-        assertThat(saved.getCategory()).isEqualTo(InventoryItemCategory.SUPPLIES);
+        assertThat(saved.getCategory()).isEqualTo("SUPPLIES");
         assertThat(saved.isActive()).isFalse();
         assertThat(saved.getMinWeekday()).isEqualTo(0);
         assertThat(saved.getMinWeekend()).isNull();
@@ -344,7 +391,7 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "Napkins", InventoryItemCategory.SUPPLIES, "packs", true, 5, 8, 3, null, null));
+            null, "Napkins", "SUPPLIES", "packs", true, 5, 8, 3, null, null));
 
         ArgumentCaptor<StoreInventoryItem> itemCaptor = ArgumentCaptor.forClass(StoreInventoryItem.class);
         verify(storeInventoryItemRepository).save(itemCaptor.capture());
@@ -359,9 +406,44 @@ class OrderListServiceTest {
         stubActiveStoreOwner(store());
 
         assertThatThrownBy(() -> orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "  ", InventoryItemCategory.SUPPLIES, "packs", false, null, null, 1, null, null)))
+            null, "  ", "SUPPLIES", "packs", false, null, null, 1, null, null)))
             .isInstanceOf(InvalidOrderListEntryException.class);
         verify(storeInventoryItemRepository, never()).save(any());
+    }
+
+    // ---- createEntryForSuperAdmin (Super Admin "Add to order", cross-store) ----
+
+    @Test
+    void createEntryForSuperAdminAddsToTheOrderListForAnExistingItemWithoutAnOwnerLink() {
+        Store store = store();
+        StoreInventoryItem milk = item();
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
+        when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
+        OrderListEntry savedEntry = new OrderListEntry();
+        savedEntry.setStoreInventoryItem(milk);
+        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
+            .thenReturn(Optional.empty())
+            .thenReturn(Optional.of(savedEntry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.createEntryForSuperAdmin(STORE_ID, new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, 5, null, "Extra for event"));
+
+        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
+        verify(orderListEntryRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuantityNeeded()).isEqualTo(5);
+        assertThat(captor.getValue().isAdHoc()).isTrue();
+        assertThat(captor.getValue().getRaisedBy()).isNull();
+        verify(storeOwnerRepository, never()).findByOwnerId(any());
+        verify(userRepository, never()).getReferenceById(any());
+    }
+
+    @Test
+    void createEntryForSuperAdminThrowsNotFoundForAnUnknownStore() {
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> orderListService.createEntryForSuperAdmin(STORE_ID, new CreateOrderListEntryRequest(
+            ITEM_ID, null, null, null, false, null, null, 5, null, null)))
+            .isInstanceOf(StoreNotFoundException.class);
     }
 
     // ---- getSupplierMetricsForOwner (Supplier Purchasing Summary) -----------

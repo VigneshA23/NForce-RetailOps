@@ -1,23 +1,25 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Boxes, CircleCheck, CircleSlash, Plus, Truck } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, Boxes, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createInventoryItem,
   deleteInventoryItem,
   getAllInventoryItems,
+  getCommonCategories,
   setInventoryItemActive,
   updateInventoryItem,
 } from '../api/inventoryItems';
-import { createSupplier, deleteSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
+import { createSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
 import { getAllStores } from '../api/superAdminStores';
-import { useIsMobile } from '../hooks/useMediaQuery';
+import useDismissablePanel from '../hooks/useDismissablePanel';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
-import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
+import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
 import StockLevelComparison from '../components/StockLevelComparison';
 import SuperAdminStockCheckHistory from '../components/SuperAdminStockCheckHistory';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
-import StoreInventoryTable from '../components/StoreInventoryTable';
+import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
+import StoreInventoryCardGrid from '../components/StoreInventoryCardGrid';
 import SupplierFormModal from '../components/SupplierFormModal';
 import SuperAdminSupplierPurchaseReport from '../components/SuperAdminSupplierPurchaseReport';
 import Toggle from '../components/Toggle';
@@ -25,36 +27,33 @@ import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
 import FilterClearButton from '../components/FilterClearButton';
 import ConfirmDialog from '../components/ConfirmDialog';
-import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
+import { getStockStatus } from '../utils/storeInventoryStatus';
+import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
+import { SORT_OPTIONS, STATUS_SORT_ORDER, type SortOption } from '../utils/storeInventorySort';
+import './StoreInventory.css';
 import './SuperAdminInventory.css';
 
 type SubTab = 'inventory' | 'suppliers' | 'comparison' | 'purchasing-report' | 'stock-check-history';
 
-const SUB_TABS: { key: SubTab; label: string }[] = [
-  { key: 'inventory', label: 'Inventory' },
-  { key: 'suppliers', label: 'Suppliers' },
+// Icons + live count badges on Inventory/Suppliers/Stock Check History match
+// Owner/Admin's own StoreInventory.tsx sub-tab bar (RTS-304); Stock Comparison
+// and Purchasing Report have no Owner/Admin equivalent to match, so they stay
+// text-only.
+const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
+  { key: 'inventory', label: 'Inventory', icon: Package },
+  { key: 'suppliers', label: 'Suppliers', icon: Truck },
   { key: 'comparison', label: 'Stock Comparison' },
   { key: 'purchasing-report', label: 'Purchasing Report' },
-  { key: 'stock-check-history', label: 'Stock Check History' },
+  { key: 'stock-check-history', label: 'Stock Check History', icon: Clock },
 ];
 
-const STATUS_FILTER_OPTIONS = [
-  { value: 'ALL', label: 'All Status' },
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'INACTIVE', label: 'Inactive' },
-];
-
-type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
-type ItemModalState = { mode: 'create' } | { mode: 'edit'; item: StoreInventoryItem } | null;
-
-const PAGE_SIZE = 10;
 
 function SuperAdminInventory() {
   const [subTab, setSubTab] = useState<SubTab>('inventory');
-  const isMobile = useIsMobile();
+  const [historyTotal, setHistoryTotal] = useState(0);
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
@@ -89,21 +88,40 @@ function SuperAdminInventory() {
   }, []);
 
   // ---- Inventory items -----------------------------------------------------
-  const [itemModal, setItemModal] = useState<ItemModalState>(null);
+  // Same shape as Owner/Admin's Inventory page: Add is a centered modal, Edit
+  // opens the item in the right-side panel.
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<StoreInventoryItem | null>(null);
   const [itemFormError, setItemFormError] = useState<string | null>(null);
   const [isItemSubmitting, setIsItemSubmitting] = useState(false);
   const [itemDeleteTarget, setItemDeleteTarget] = useState<StoreInventoryItem | null>(null);
   const [itemDeleteError, setItemDeleteError] = useState<string | null>(null);
   const [itemSearch, setItemSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [sort, setSort] = useState<SortOption>('name');
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  useDismissablePanel({ isOpen: isExportMenuOpen, onClose: () => setIsExportMenuOpen(false), refs: [exportMenuRef] });
   // Like the Checklist tab, nothing on the Inventory sub-tab shows until a
   // store is picked -- every stat, filter and row is scoped to that store.
+  // This selector is the one thing that differs from the Owner/Admin page.
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
-  const [itemStatusFilter, setItemStatusFilter] = useState<StatusFilter>('ALL');
-  const [itemPage, setItemPage] = useState(1);
 
+  // Switching store resets the view and closes anything open for the old one.
   useEffect(() => {
-    setItemPage(1);
-  }, [itemSearch, selectedStoreId, itemStatusFilter]);
+    setItemSearch('');
+    setCategoryFilter('');
+    setEditTarget(null);
+    setIsCreateModalOpen(false);
+  }, [selectedStoreId]);
+
+  // Keep the open edit panel's item reference fresh across the 60s poll
+  // without resetting what is being typed (the panel keys its reset on id).
+  useEffect(() => {
+    if (!editTarget) return;
+    const fresh = items.find((i) => i.id === editTarget.id);
+    if (fresh && fresh !== editTarget) setEditTarget(fresh);
+  }, [items, editTarget]);
 
   // Inline "Add New Supplier" from the item form: persist it, then merge it
   // into the local directory so it's selectable for every later item too.
@@ -119,30 +137,32 @@ function SuperAdminInventory() {
     return supplier;
   }
 
-  // Per-row delete in the supplier picker. A supplier with order history is
-  // only deactivated server-side; either way it leaves the list, and items
-  // that preferred it are reloaded since the server cleared their supplier.
-  async function handleDeleteSupplier(supplier: Supplier): Promise<void> {
-    const result = await deleteSupplier(supplier.id);
-    setSuppliers((current) => current.filter((s) => s.id !== supplier.id));
-    getAllInventoryItems().then(setItems).catch(() => {});
-    nfToast.success(result.deactivated ? `"${supplier.name}" deactivated (it has order history).` : `"${supplier.name}" deleted.`);
-  }
-
   async function handleItemSubmit(values: StoreInventoryItemFormValues) {
     setItemFormError(null);
     setIsItemSubmitting(true);
     try {
-      if (itemModal?.mode === 'edit') {
-        const updated = await updateInventoryItem(itemModal.item.id, values);
+      if (editTarget) {
+        // The edit panel carries no store; keep the item in its own.
+        const updated = await updateInventoryItem(editTarget.id, { ...values, storeId: editTarget.storeId });
         setItems((current) => current.map((i) => (i.id === updated.id ? updated : i)));
-        nfToast.success(`"${updated.name}" inventory item updated.`);
+        nfToast.success(`"${updated.name}" updated.`);
+        setEditTarget(null);
       } else {
-        const created = await createInventoryItem(values);
-        setItems((current) => [...current, created]);
-        nfToast.success(`"${created.name}" inventory item added.`);
+        const { created, skippedStoreNames } = await createInventoryItem(values);
+        setItems((current) => [...current, ...created]);
+        const name = values.name;
+        const skippedNote = skippedStoreNames.length > 0
+          ? ` Skipped (already has it): ${skippedStoreNames.join(', ')}.`
+          : '';
+        if (created.length === 0) {
+          nfToast.info(`"${name}" already exists in the selected stores.`);
+        } else {
+          nfToast.success(
+            `"${name}" added${created.length > 1 ? ` to ${created.length} stores` : ''}.${skippedNote}`,
+          );
+        }
+        setIsCreateModalOpen(false);
       }
-      setItemModal(null);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
       setItemFormError(msg);
@@ -186,65 +206,65 @@ function SuperAdminInventory() {
     [items, selectedStoreId],
   );
   const activeItemCount = useMemo(() => storeItems.filter((i) => i.active).length, [storeItems]);
+  const lowStockCount = useMemo(() => storeItems.filter((i) => getStockStatus(i) === 'low').length, [storeItems]);
+  const outOfStockCount = useMemo(() => storeItems.filter((i) => getStockStatus(i) === 'out').length, [storeItems]);
 
-  const filteredItems = useMemo(() => {
+  const distinctCategories = useMemo(
+    () => [...new Set(storeItems.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
+      categoryLabel(a).localeCompare(categoryLabel(b)),
+    ),
+    [storeItems],
+  );
+
+  const sortedItems = useMemo(() => {
     const term = itemSearch.trim().toLowerCase();
-    return storeItems.filter((item) => {
-      if (term && !item.name.toLowerCase().includes(term)) return false;
-      if (itemStatusFilter === 'ACTIVE' && !item.active) return false;
-      if (itemStatusFilter === 'INACTIVE' && item.active) return false;
-      return true;
+    const filtered = storeItems.filter((item) => {
+      const matchesSearch =
+        !term ||
+        item.name.toLowerCase().includes(term) ||
+        (item.category ? categoryLabel(item.category).toLowerCase().includes(term) : false) ||
+        (item.preferredSupplierName?.toLowerCase().includes(term) ?? false);
+      return matchesSearch && (!categoryFilter || item.category === categoryFilter);
     });
-  }, [storeItems, itemSearch, itemStatusFilter]);
-
-  const itemPageCount = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
-  const itemCurrentPage = Math.min(itemPage, itemPageCount);
-  const visibleItems = isMobile
-    ? filteredItems
-    : filteredItems.slice((itemCurrentPage - 1) * PAGE_SIZE, itemCurrentPage * PAGE_SIZE);
+    return filtered.sort((a, b) => {
+      switch (sort) {
+        case 'status':
+          return STATUS_SORT_ORDER[getStockStatus(a)] - STATUS_SORT_ORDER[getStockStatus(b)] || a.name.localeCompare(b.name);
+        case 'supplier':
+          return (a.preferredSupplierName ?? '').localeCompare(b.preferredSupplierName ?? '') || a.name.localeCompare(b.name);
+        case 'category':
+        case 'name':
+        default:
+          return (a.category ? categoryLabel(a.category) : '').localeCompare(b.category ? categoryLabel(b.category) : '') || a.name.localeCompare(b.name);
+      }
+    });
+  }, [storeItems, itemSearch, categoryFilter, sort]);
 
   const storeOptions = useMemo(() => stores.map((s) => ({ value: String(s.id), label: s.name })), [stores]);
+  const selectedStoreName = stores.find((s) => s.id === selectedStoreId)?.name;
 
   // Memoised because the form modal resets its fields whenever this reference
   // changes -- an inline object would wipe in-progress input on every re-render
-  // (e.g. the 60s poll). Create mode pre-fills the currently selected store.
-  const itemInitialValues = useMemo<StoreInventoryItemFormValues | undefined>(() => {
-    if (itemModal?.mode === 'edit') {
-      return {
-        storeId: itemModal.item.storeId,
-        name: itemModal.item.name,
-        category: itemModal.item.category ?? 'INGREDIENTS',
-        unitOfMeasurement: itemModal.item.unitOfMeasurement,
-        minWeekday: itemModal.item.minWeekday != null ? String(itemModal.item.minWeekday) : '',
-        minWeekend: itemModal.item.minWeekend != null ? String(itemModal.item.minWeekend) : '',
-        preferredSupplierId: itemModal.item.preferredSupplierId,
-        note: itemModal.item.note ?? '',
-        autoPoEnabled: itemModal.item.autoPoEnabled,
-        imageId: itemModal.item.imageId,
-        imagePhotoId: null,
-        imagePreviewUrl: null,
-        removeImage: false,
-      };
-    }
-    if (itemModal?.mode === 'create') {
-      return {
-        storeId: selectedStoreId,
-        name: '',
-        category: 'INGREDIENTS',
-        unitOfMeasurement: '',
-        minWeekday: '',
-        minWeekend: '',
-        preferredSupplierId: null,
-        note: '',
-        autoPoEnabled: true,
-        imageId: null,
-        imagePhotoId: null,
-        imagePreviewUrl: null,
-        removeImage: false,
-      };
-    }
-    return undefined;
-  }, [itemModal, selectedStoreId]);
+  // (e.g. the 60s poll).
+  const createInitialValues = useMemo<StoreInventoryItemFormValues>(
+    () => ({
+      storeId: selectedStoreId,
+      storeIds: selectedStoreId == null ? [] : [selectedStoreId],
+      name: '',
+      category: '',
+      unitOfMeasurement: '',
+      minWeekday: '',
+      minWeekend: '',
+      preferredSupplierId: null,
+      note: '',
+      autoPoEnabled: true,
+      imageId: null,
+      imagePhotoId: null,
+      imagePreviewUrl: null,
+      removeImage: false,
+    }),
+    [selectedStoreId],
+  );
 
   // ---- Suppliers ------------------------------------------------------------
   const [supplierModal, setSupplierModal] = useState<SupplierModalState>(null);
@@ -290,7 +310,7 @@ function SuperAdminInventory() {
 
   if (loadError) {
     return (
-      <div className="super-admin-inventory-page">
+      <div className="store-inventory-page super-admin-inventory-page">
         <div className="owners-page__error">
           {loadError}
           <button type="button" className="btn btn--secondary" onClick={loadAll}>
@@ -302,35 +322,46 @@ function SuperAdminInventory() {
   }
 
   return (
-    <div className="super-admin-inventory-page">
-      <div className="super-admin-inventory-page__subtabs">
-        {SUB_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`super-admin-inventory-page__subtab${subTab === tab.key ? ' super-admin-inventory-page__subtab--active' : ''}`}
-            onClick={() => setSubTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
+    <div className="store-inventory-page super-admin-inventory-page">
+      <div className="store-inventory-page__subtabs">
+        <div className="store-inventory-page__subtab-list">
+        {SUB_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const badgeCount =
+            tab.key === 'inventory' ? (selectedStoreId === null ? 0 : storeItems.length)
+              : tab.key === 'suppliers' ? suppliers.length
+                : tab.key === 'stock-check-history' ? historyTotal
+                  : null;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              className={`store-inventory-page__subtab${subTab === tab.key ? ' store-inventory-page__subtab--active' : ''}`}
+              onClick={() => setSubTab(tab.key)}
+            >
+              {Icon && <Icon size={14} />}
+              {tab.label}
+              {badgeCount !== null && <span className="store-inventory-page__subtab-badge">{badgeCount}</span>}
+            </button>
+          );
+        })}
+        </div>
+        {subTab === 'inventory' && (
+          <Select
+            id="sa-inventory-store-select"
+            className={`super-admin-inventory-page__store-select${selectedStoreId === null ? ' super-admin-inventory-page__store-select--unselected' : ''}`}
+            options={storeOptions}
+            value={selectedStoreId !== null ? String(selectedStoreId) : ''}
+            onChange={(value) => setSelectedStoreId(value ? Number(value) : null)}
+            placeholder={isLoading ? 'Loading stores…' : 'Select a store…'}
+            ariaLabel="Select a store"
+            disabled={isLoading}
+          />
+        )}
       </div>
 
       {subTab === 'inventory' && (
         <>
-          <div className="super-admin-inventory-page__store-row">
-            <Select
-              id="sa-inventory-store-select"
-              className={`super-admin-inventory-page__store-select${selectedStoreId === null ? ' super-admin-inventory-page__store-select--unselected' : ''}`}
-              options={storeOptions}
-              value={selectedStoreId !== null ? String(selectedStoreId) : ''}
-              onChange={(value) => setSelectedStoreId(value ? Number(value) : null)}
-              placeholder={isLoading ? 'Loading stores…' : 'Select a store…'}
-              ariaLabel="Select a store"
-              disabled={isLoading}
-            />
-          </div>
-
           {selectedStoreId === null ? (
             <div className="table-card">
               <div className="table-card__empty super-admin-inventory-page__no-store-msg">
@@ -339,74 +370,103 @@ function SuperAdminInventory() {
             </div>
           ) : (
             <>
-              <div className="stat-card-row">
-                <StatCard icon={Boxes} label="Inventory Items" value={storeItems.length} tone="primary" />
-                <StatCard icon={CircleCheck} label="Active" value={activeItemCount} tone="success" />
-                <StatCard icon={CircleSlash} label="Inactive" value={storeItems.length - activeItemCount} tone="warning" />
+              <div className="store-inventory-page__title-row">
+                <h1 className="store-inventory-page__title">Inventory Master</h1>
+                <div className="store-inventory-page__header-actions">
+                  <div className="store-inventory-page__export" ref={exportMenuRef}>
+                    <button
+                      type="button"
+                      className="btn btn--secondary"
+                      onClick={() => setIsExportMenuOpen((open) => !open)}
+                    >
+                      <FileText size={14} /> Export
+                    </button>
+                    {isExportMenuOpen && (
+                      <div className="store-inventory-page__export-menu">
+                        <button
+                          type="button"
+                          className="store-inventory-page__export-item"
+                          onClick={() => { exportInventoryCatalogCsv(sortedItems); setIsExportMenuOpen(false); }}
+                        >
+                          <FileSpreadsheet size={14} /> Export as CSV
+                        </button>
+                        <button
+                          type="button"
+                          className="store-inventory-page__export-item"
+                          onClick={() => { exportInventoryCatalogPdf(sortedItems); setIsExportMenuOpen(false); }}
+                        >
+                          <FileText size={14} /> Export as PDF
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  <SpecularButton
+                    size="sm"
+                    radius={999}
+                    tint="var(--color-badge-solid-bg)"
+                    tintOpacity={1}
+                    textColor="var(--color-badge-solid-text)"
+                    lineColor="#e11d33"
+                    baseColor="#e4e4e7"
+                    followMouse
+                    proximity={180}
+                    onClick={() => { setItemFormError(null); setIsCreateModalOpen(true); }}
+                  >
+                    <span className="store-inventory-page__add-label">
+                      <Plus size={16} />
+                      Add Item
+                    </span>
+                  </SpecularButton>
+                </div>
               </div>
 
-              <div className="super-admin-inventory-page__header">
-                <p className="super-admin-inventory-page__summary">
-                  {`${filteredItems.length} of ${storeItems.length} items`}
-                </p>
-                <SpecularButton
-                  size="sm"
-                  radius={999}
-                  tint="var(--color-badge-solid-bg)"
-                  tintOpacity={1}
-                  textColor="var(--color-badge-solid-text)"
-                  lineColor="#e11d33"
-                  baseColor="#e4e4e7"
-                  followMouse
-                  proximity={180}
-                  onClick={() => { setItemFormError(null); setItemModal({ mode: 'create' }); }}
-                >
-                  <span className="super-admin-inventory-page__add-label">
-                    <Plus size={16} />
-                    Add Inventory Item
-                  </span>
-                </SpecularButton>
+              <div className="stat-card-row">
+                <StatCard icon={Boxes} label="Total Items" value={storeItems.length} unit="items" tone="primary" caption={selectedStoreName} />
+                <StatCard icon={CircleCheck} label="Active Items" value={activeItemCount} unit="items" tone="success" caption="In Stock & Ready" />
+                <StatCard icon={AlertTriangle} label="Low Stock" value={lowStockCount} unit="items" tone="warning" caption="Below Minimum Threshold" />
+                <StatCard icon={PackageX} label="Out of Stock" value={outOfStockCount} unit="items" tone="info" caption="Reorder Immediately" />
               </div>
 
               <div className="filter-bar">
                 <div className="filter filter--search">
-                  <SearchInput value={itemSearch} onChange={setItemSearch} placeholder="Search inventory" variant="filter" />
+                  <SearchInput value={itemSearch} onChange={setItemSearch} placeholder="Search items by name, category, or supplier" variant="filter" />
                 </div>
                 <Select
-                  className="filter filter--narrow"
-                  options={STATUS_FILTER_OPTIONS}
-                  value={itemStatusFilter}
-                  onChange={(value) => setItemStatusFilter(value as StatusFilter)}
-                  ariaLabel="Filter by status"
+                  className="filter"
+                  options={[
+                    { value: '', label: `All Categories (${distinctCategories.length})` },
+                    ...distinctCategories.map((c) => ({ value: c, label: categoryLabel(c) })),
+                  ]}
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  ariaLabel="Filter by category"
                 />
-                <FilterClearButton onClick={() => setItemStatusFilter('ALL')} />
+                <Select
+                  className="filter"
+                  options={SORT_OPTIONS}
+                  value={sort}
+                  onChange={(value) => setSort(value as SortOption)}
+                  ariaLabel="Sort items"
+                />
+                <FilterClearButton
+                  ariaLabel="Clear inventory filters"
+                  onClick={() => { setItemSearch(''); setCategoryFilter(''); setSort('name'); }}
+                />
               </div>
 
-              <StoreInventoryTable
-                items={visibleItems}
-                showStore={false}
+              <p className="store-inventory-page__catalog-line">
+                <strong>Catalog Directory</strong>
+                <span aria-hidden="true"> · </span>
+                {isLoading ? 'Loading...' : `Showing ${sortedItems.length} Items Across ${distinctCategories.length} Categories`}
+              </p>
+
+              <StoreInventoryCardGrid
+                items={sortedItems}
                 isLoading={isLoading}
-                onEdit={(item) => {
-                  setItemFormError(null);
-                  setItemModal({ mode: 'edit', item });
-                }}
-                onDelete={(item) => {
-                  setItemDeleteError(null);
-                  setItemDeleteTarget(item);
-                }}
+                selectedId={editTarget?.id ?? null}
+                onEdit={(item) => { setItemFormError(null); setEditTarget(item); }}
+                onDelete={(item) => { setItemDeleteError(null); setItemDeleteTarget(item); }}
                 onToggleStatus={handleToggleItem}
-                footer={
-                  !isMobile && filteredItems.length > 0 ? (
-                    <Pagination
-                      page={itemCurrentPage}
-                      pageCount={itemPageCount}
-                      totalItems={filteredItems.length}
-                      pageSize={PAGE_SIZE}
-                      onPageChange={setItemPage}
-                      itemLabel="items"
-                    />
-                  ) : null
-                }
               />
             </>
           )}
@@ -489,22 +549,36 @@ function SuperAdminInventory() {
 
       {subTab === 'comparison' && <StockLevelComparison items={items} />}
       {subTab === 'purchasing-report' && <SuperAdminSupplierPurchaseReport />}
-      {subTab === 'stock-check-history' && <SuperAdminStockCheckHistory />}
+      {subTab === 'stock-check-history' && <SuperAdminStockCheckHistory onTotalChange={setHistoryTotal} />}
 
       <StoreInventoryItemFormModal
-        isOpen={itemModal !== null}
-        mode={itemModal?.mode ?? 'create'}
+        isOpen={isCreateModalOpen}
+        mode="create"
         suppliers={suppliers}
         onCreateSupplier={handleCreateSupplier}
-        onDeleteSupplier={handleDeleteSupplier}
         stores={stores}
         showStoreField
-        initialValues={itemInitialValues}
+        loadCategories={getCommonCategories}
+        initialValues={createInitialValues}
         errorMessage={itemFormError}
         isSubmitting={isItemSubmitting}
-        onClose={() => setItemModal(null)}
+        onClose={() => setIsCreateModalOpen(false)}
         onSubmit={handleItemSubmit}
       />
+
+      {editTarget && (
+        <StoreInventoryItemEditPanel
+          isOpen
+          item={editTarget}
+          suppliers={suppliers}
+          onCreateSupplier={handleCreateSupplier}
+              existingCategories={items.map((i) => i.category)}
+          errorMessage={itemFormError}
+          isSubmitting={isItemSubmitting}
+          onClose={() => setEditTarget(null)}
+          onSubmit={handleItemSubmit}
+        />
+      )}
 
       <ConfirmDialog
         isOpen={itemDeleteTarget !== null}

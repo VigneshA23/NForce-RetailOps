@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
@@ -10,10 +11,13 @@ import com.nforce.retailops.dto.UpdateOrderStatusRequest;
 import com.nforce.retailops.service.SuperAdminOperationsService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -73,7 +77,20 @@ public class SuperAdminOperationsController {
         @PathVariable Long entryId,
         @Valid @RequestBody UpdateOrderStatusRequest request
     ) {
-        return service.updateOrderStatus(storeId, entryId, request.status());
+        return service.updateOrderStatus(storeId, entryId, request.status(), request.expectedStatus());
+    }
+
+    // Super Admin's "Add to order" for a specific store, counterpart to
+    // OrderListController.create. Unlike that one, the store comes from the
+    // path rather than the caller's own StoreOwner link, since a Super Admin
+    // has none.
+    @PostMapping("/stores/{storeId}/order-list")
+    public ResponseEntity<OrderListEntryResponse> createOrderListEntry(
+        @PathVariable Long storeId,
+        @Valid @RequestBody CreateOrderListEntryRequest request
+    ) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(service.createOrderListEntry(storeId, request));
     }
 
     // Supplier Purchasing Summary, platform-wide (every store, broken down by

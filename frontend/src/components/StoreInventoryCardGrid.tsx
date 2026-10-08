@@ -1,11 +1,10 @@
 import { Trash2 } from 'lucide-react';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS, type StoreInventoryItem } from '../types/storeInventory';
+import { categoryLabel, type StoreInventoryItem } from '../types/storeInventory';
 import { STOCK_STATUS_META, getStockStatus } from '../utils/storeInventoryStatus';
 import ItemIcon from './ItemIcon';
 import Toggle from './Toggle';
 import './StoreInventoryCardGrid.css';
 
-const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
 interface StoreInventoryCardGridProps {
   items: StoreInventoryItem[];
@@ -74,7 +73,7 @@ function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, o
               <ItemIcon id={item.id} name={item.name} size="xl" imageId={item.imageId} />
             </div>
 
-            {item.category && <span className="store-inventory-card__category">{CATEGORY_LABELS[item.category]}</span>}
+            {item.category && <span className="store-inventory-card__category">{categoryLabel(item.category)}</span>}
             <span className="store-inventory-card__name">{item.name}</span>
 
             <p className="store-inventory-card__quantities">

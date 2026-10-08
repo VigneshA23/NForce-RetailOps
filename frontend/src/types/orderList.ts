@@ -25,6 +25,9 @@ export interface UpdateOrderListEntryValues {
   supplierId: number | null;
   note: string;
   status: OrderStatus;
+  // The status the user was looking at; the server rejects the edit with a 409
+  // if the entry has since been moved by someone else.
+  expectedStatus?: OrderStatus;
 }
 
 // "Add to order": either an existing catalog item (storeInventoryItemId set)
