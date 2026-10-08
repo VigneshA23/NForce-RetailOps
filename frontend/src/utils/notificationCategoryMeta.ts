@@ -59,6 +59,7 @@ export const CATEGORY_META: Record<string, CategoryMeta> = {
   TASK_MAKEUP_FULFILLED: { icon: ClipboardCheck, ...SUCCESS, displayCategory: 'Checklist Updates' },
   CATEGORY_ADDED: { icon: ListPlus, ...INFO, displayCategory: 'Checklist Updates' },
   STOCK_ITEM_ADDED: { icon: PackagePlus, ...INFO, displayCategory: 'Checklist Updates' },
+  STOCK_ITEM_REACTIVATED: { icon: PackagePlus, ...SUCCESS, displayCategory: 'Checklist Updates' },
 
   STORE_DEACTIVATED: { icon: Store, ...WARNING, displayCategory: 'Store Management' },
   STORE_REACTIVATED: { icon: Store, ...SUCCESS, displayCategory: 'Store Management' },

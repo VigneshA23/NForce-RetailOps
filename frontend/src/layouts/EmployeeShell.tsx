@@ -79,6 +79,9 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
   // above since that one only ever targets today's checklist.
   const [focusHistoryTaskId, setFocusHistoryTaskId] = useState<{ taskId: number; ts: number } | undefined>(undefined)
   const [focusIssueId, setFocusIssueId] = useState<IssueFocusRequest | undefined>(undefined)
+  // Bumped on every stock-check notification click so the page refetches even
+  // when it is already the active tab (a plain setActiveTab would be a no-op).
+  const [stockCheckRefresh, setStockCheckRefresh] = useState(0)
   const [mountedTabs, setMountedTabs] = useState<Set<EmployeeNavTabKey>>(new Set(['today']))
   const prevTab = useRef<EmployeeNavTabKey>('today')
   useEffect(() => {
@@ -137,6 +140,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     if (target === 'issues' && context?.relatedIssueId != null) {
       setFocusIssueId({ issueId: context.relatedIssueId, ts: Date.now() })
     }
+    if (target === 'stock-check') setStockCheckRefresh(Date.now())
     setActiveTab(target)
     setOverlay(null)
   }
@@ -256,7 +260,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                 {tab === 'missing' && (
                   <MissingTasks store={store} onMoved={refreshMissedCount} onBack={() => setActiveTab('today')} />
                 )}
-                {tab === 'stock-check' && <EmployeeStockCheck store={store} />}
+                {tab === 'stock-check' && <EmployeeStockCheck store={store} refreshSignal={stockCheckRefresh} />}
               </div>
             ) : null,
           )
