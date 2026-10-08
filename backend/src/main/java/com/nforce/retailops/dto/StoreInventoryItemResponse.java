@@ -1,6 +1,5 @@
 package com.nforce.retailops.dto;
 
-import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StoreInventoryItem;
 
 import java.time.LocalDate;
@@ -12,7 +11,7 @@ public record StoreInventoryItemResponse(
     String name,
     // Null for items created before category support (V77) that haven't
     // been edited since.
-    InventoryItemCategory category,
+    String category,
     String unitOfMeasurement,
     Integer minWeekday,
     Integer minWeekend,

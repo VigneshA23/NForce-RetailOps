@@ -1,9 +1,9 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.InventoryCountStatus;
+import com.nforce.retailops.dto.CreateStoreInventoryItemsResponse;
 import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
-import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.Store;
@@ -14,6 +14,7 @@ import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
+import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
@@ -47,6 +48,8 @@ class StoreInventoryItemServiceTest {
     @Mock private OrderListEntryRepository orderListEntryRepository;
     @Mock private InventoryItemImageRepository inventoryItemImageRepository;
     @Mock private UnsplashService unsplashService;
+    @Mock private StoreEmployeeRepository storeEmployeeRepository;
+    @Mock private NotificationService notificationService;
 
     private StoreInventoryItemService service;
 
@@ -58,7 +61,8 @@ class StoreInventoryItemServiceTest {
         service = new StoreInventoryItemService(
             storeInventoryItemRepository, supplierRepository, storeRepository,
             storeOwnerRepository, stockCheckRepository, orderListEntryRepository,
-            inventoryItemImageRepository, unsplashService
+            inventoryItemImageRepository, unsplashService,
+            storeEmployeeRepository, notificationService
         );
 
         storeA = new Store();
@@ -81,6 +85,13 @@ class StoreInventoryItemServiceTest {
         return item;
     }
 
+    private StoreInventoryItem existing(Long id, Store store, String name, String category) {
+        StoreInventoryItem item = item(id, store, 5);
+        item.setName(name);
+        item.setCategory(category);
+        return item;
+    }
+
     private StockCheck checkWithCount(StoreInventoryItem item, LocalDate date, int available) {
         StockCheck check = new StockCheck();
         check.setStoreInventoryItem(item);
@@ -95,7 +106,14 @@ class StoreInventoryItemServiceTest {
 
     private StoreInventoryItemRequest requestForStore(Long storeId, String name, Long preferredSupplierId) {
         return new StoreInventoryItemRequest(
-            storeId, name, InventoryItemCategory.INGREDIENTS, "Nos.", 5, 0,
+            storeId, null, name, "INGREDIENTS", "Nos.", 5, 0,
+            preferredSupplierId, null, false, null, null, null
+        );
+    }
+
+    private StoreInventoryItemRequest requestForStores(List<Long> storeIds, String name, Long preferredSupplierId) {
+        return new StoreInventoryItemRequest(
+            null, storeIds, name, "INGREDIENTS", "Nos.", 5, 0,
             preferredSupplierId, null, false, null, null, null
         );
     }
@@ -180,16 +198,91 @@ class StoreInventoryItemServiceTest {
     // --- RTS-301: duplicate item names within a store ---------------------
 
     @Test
-    void createForSuperAdminRejectsNameCollidingCaseInsensitivelyWithAnActiveItemInTheSameStore() {
+    void createForSuperAdminRejectsSameNameInADifferentCategoryCaseInsensitively() {
         when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
-        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(1L, "milk")).thenReturn(true);
+        when(storeInventoryItemRepository.findByNameIgnoreCase("milk"))
+            .thenReturn(List.of(existing(20L, storeA, "Milk", "Dairy")));
 
         StoreInventoryItemRequest request = requestForStore(1L, "milk", 7L);
 
         assertThatThrownBy(() -> service.createForSuperAdmin(request))
             .isInstanceOf(StoreInventoryItemNameExistsException.class)
-            .hasMessage("An inventory item with this name already exists for this store.");
+            .hasMessageContaining("different category in: " + storeA.getName());
         verify(storeInventoryItemRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createForSuperAdminSkipsStoresWithTheSameNameAndCategoryAndCreatesTheRest() {
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(storeRepository.findById(2L)).thenReturn(java.util.Optional.of(storeB));
+        when(storeInventoryItemRepository.findByNameIgnoreCase("Milk"))
+            .thenReturn(List.of(existing(20L, storeA, "milk", "ingredients")));
+        when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(supplier(7L)));
+        when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        CreateStoreInventoryItemsResponse result =
+            service.createForSuperAdmin(requestForStores(List.of(1L, 2L), "Milk", 7L));
+
+        assertThat(result.skippedStoreNames()).containsExactly(storeA.getName());
+        org.mockito.ArgumentCaptor<StoreInventoryItem> saved = org.mockito.ArgumentCaptor.forClass(StoreInventoryItem.class);
+        verify(storeInventoryItemRepository).save(saved.capture());
+        assertThat(saved.getValue().getStore().getId()).isEqualTo(2L);
+    }
+
+    @Test
+    void createForSuperAdminCreatesNothingWhenEverySelectedStoreAlreadyHasTheItem() {
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(storeInventoryItemRepository.findByNameIgnoreCase("Milk"))
+            .thenReturn(List.of(existing(20L, storeA, "Milk", "INGREDIENTS")));
+
+        CreateStoreInventoryItemsResponse result = service.createForSuperAdmin(requestForStore(1L, "Milk", 7L));
+
+        assertThat(result.created()).isEmpty();
+        assertThat(result.skippedStoreNames()).containsExactly(storeA.getName());
+        verify(storeInventoryItemRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createForSuperAdminCreatesOneLinkedCopyPerSelectedStore() {
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(storeRepository.findById(2L)).thenReturn(java.util.Optional.of(storeB));
+        when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(supplier(7L)));
+        when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createForSuperAdmin(requestForStores(List.of(1L, 2L), "Milk", 7L));
+
+        org.mockito.ArgumentCaptor<StoreInventoryItem> saved = org.mockito.ArgumentCaptor.forClass(StoreInventoryItem.class);
+        verify(storeInventoryItemRepository, org.mockito.Mockito.times(2)).save(saved.capture());
+        assertThat(saved.getAllValues()).extracting(i -> i.getStore().getId()).containsExactly(1L, 2L);
+        assertThat(saved.getAllValues().get(0).getItemGroupId()).isNotNull()
+            .isEqualTo(saved.getAllValues().get(1).getItemGroupId());
+    }
+
+    @Test
+    void createForSuperAdminCreatesNothingWhenAnySelectedStoreHasTheNameUnderAnotherCategory() {
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(storeRepository.findById(2L)).thenReturn(java.util.Optional.of(storeB));
+        when(storeInventoryItemRepository.findByNameIgnoreCase("Milk"))
+            .thenReturn(List.of(existing(20L, storeB, "Milk", "Dairy")));
+
+        assertThatThrownBy(() -> service.createForSuperAdmin(requestForStores(List.of(1L, 2L), "Milk", 7L)))
+            .isInstanceOf(StoreInventoryItemNameExistsException.class)
+            .hasMessageContaining(storeB.getName());
+        verify(storeInventoryItemRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void commonCategoriesKeepsOnlyCategoriesUsedInEverySelectedStore() {
+        when(storeInventoryItemRepository.findStoreCategories(org.mockito.ArgumentMatchers.anyCollection()))
+            .thenReturn(List.of(
+                new Object[] {1L, "Dairy"}, new Object[] {1L, "Cleaning"},
+                new Object[] {2L, "dairy"}, new Object[] {2L, "Packaging"}))
+            .thenReturn(List.of(new Object[] {1L, "Dairy"}, new Object[] {1L, "Cleaning"}));
+
+        assertThat(service.commonCategories(List.of(1L, 2L))).containsExactly("Dairy");
+        assertThat(service.commonCategories(List.of(1L))).containsExactly("Cleaning", "Dairy");
     }
 
     @Test
@@ -197,7 +290,9 @@ class StoreInventoryItemServiceTest {
         // Deactivated items still hold their name -- matches CategoryService's
         // duplicate-name check, which also doesn't filter by active.
         when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
-        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(1L, "Milk")).thenReturn(true);
+        StoreInventoryItem inactive = existing(20L, storeA, "Milk", "Dairy");
+        inactive.setActive(false);
+        when(storeInventoryItemRepository.findByNameIgnoreCase("Milk")).thenReturn(List.of(inactive));
 
         StoreInventoryItemRequest request = requestForStore(1L, "Milk", 7L);
 
@@ -208,7 +303,6 @@ class StoreInventoryItemServiceTest {
     @Test
     void createForSuperAdminAllowsTheSameNameInADifferentStore() {
         when(storeRepository.findById(2L)).thenReturn(java.util.Optional.of(storeB));
-        when(storeInventoryItemRepository.existsByStoreIdAndNameIgnoreCase(2L, "Milk")).thenReturn(false);
         when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(supplier(7L)));
         when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
             .thenAnswer(invocation -> invocation.getArgument(0));

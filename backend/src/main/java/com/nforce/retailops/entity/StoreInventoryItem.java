@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 // A store's own inventory item (Phase 2). Fully store-scoped: name, unit
 // and note all live here directly rather than on a shared global
@@ -31,9 +32,8 @@ public class StoreInventoryItem {
     private String unitOfMeasurement;
 
     // Nullable -- items created before V77 have none until edited.
-    @Enumerated(EnumType.STRING)
     @Column(length = 40)
-    private InventoryItemCategory category;
+    private String category;
 
     @Column(name = "min_weekday")
     private Integer minWeekday;
@@ -60,6 +60,11 @@ public class StoreInventoryItem {
 
     @Column(name = "auto_po_enabled", nullable = false)
     private boolean autoPoEnabled = true;
+
+    // Shared by every store's copy of an item Super Admin created for several
+    // stores at once; null otherwise. Copies stay independently editable.
+    @Column(name = "item_group_id")
+    private UUID itemGroupId;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -110,11 +115,19 @@ public class StoreInventoryItem {
         this.unitOfMeasurement = unitOfMeasurement;
     }
 
-    public InventoryItemCategory getCategory() {
+    public UUID getItemGroupId() {
+        return itemGroupId;
+    }
+
+    public void setItemGroupId(UUID itemGroupId) {
+        this.itemGroupId = itemGroupId;
+    }
+
+    public String getCategory() {
         return category;
     }
 
-    public void setCategory(InventoryItemCategory category) {
+    public void setCategory(String category) {
         this.category = category;
     }
 

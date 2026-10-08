@@ -4,7 +4,6 @@ import com.nforce.retailops.dto.EodSupplierReportResponse;
 import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
 import com.nforce.retailops.dto.InventoryCountsPageResponse;
 import com.nforce.retailops.dto.StatusRequest;
-import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
 import com.nforce.retailops.dto.StockCheckResponse;
@@ -107,7 +106,7 @@ public class StoreInventoryController {
     public ResponseEntity<InventoryCountsPageResponse> inventoryCounts(
         @AuthenticationPrincipal AppUserDetails principal,
         @RequestParam(required = false) String search,
-        @RequestParam(required = false) InventoryItemCategory category,
+        @RequestParam(required = false) String category,
         @RequestParam(required = false) String level,
         @RequestParam(required = false) Integer page,
         @RequestParam(required = false) Integer size

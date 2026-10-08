@@ -3,7 +3,6 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
-import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Store;
@@ -316,13 +315,13 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "Birthday candles", InventoryItemCategory.SUPPLIES, "packs", false, null, null, 2, null, null));
+            null, "Birthday candles", "SUPPLIES", "packs", false, null, null, 2, null, null));
 
         ArgumentCaptor<StoreInventoryItem> itemCaptor = ArgumentCaptor.forClass(StoreInventoryItem.class);
         verify(storeInventoryItemRepository).save(itemCaptor.capture());
         StoreInventoryItem saved = itemCaptor.getValue();
         assertThat(saved.getName()).isEqualTo("Birthday candles");
-        assertThat(saved.getCategory()).isEqualTo(InventoryItemCategory.SUPPLIES);
+        assertThat(saved.getCategory()).isEqualTo("SUPPLIES");
         assertThat(saved.isActive()).isFalse();
         assertThat(saved.getMinWeekday()).isEqualTo(0);
         assertThat(saved.getMinWeekend()).isNull();
@@ -344,7 +343,7 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "Napkins", InventoryItemCategory.SUPPLIES, "packs", true, 5, 8, 3, null, null));
+            null, "Napkins", "SUPPLIES", "packs", true, 5, 8, 3, null, null));
 
         ArgumentCaptor<StoreInventoryItem> itemCaptor = ArgumentCaptor.forClass(StoreInventoryItem.class);
         verify(storeInventoryItemRepository).save(itemCaptor.capture());
@@ -359,7 +358,7 @@ class OrderListServiceTest {
         stubActiveStoreOwner(store());
 
         assertThatThrownBy(() -> orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "  ", InventoryItemCategory.SUPPLIES, "packs", false, null, null, 1, null, null)))
+            null, "  ", "SUPPLIES", "packs", false, null, null, 1, null, null)))
             .isInstanceOf(InvalidOrderListEntryException.class);
         verify(storeInventoryItemRepository, never()).save(any());
     }
