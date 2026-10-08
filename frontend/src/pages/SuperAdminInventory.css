@@ -1,31 +1,10 @@
 @import '../styles/breakpoints.css';
 
-.super-admin-inventory-page__subtabs {
-  display: flex;
-  gap: var(--space-sm);
-  margin-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--color-border);
-  overflow-x: auto;
-  align-items: center;
-}
-
-.super-admin-inventory-page__subtab {
-  padding: var(--space-sm) var(--space-md);
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  white-space: nowrap;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-}
-
-.super-admin-inventory-page__subtab--active {
-  color: var(--color-accent);
-  border-bottom-color: var(--color-accent);
-}
+/* Sub-tab bar, title row, header-actions, Export menu, stat-card-row and
+   catalog-line are shared with Owner/Admin's own StoreInventory.css (RTS-304)
+   -- this page renders those with the `store-inventory-page__*` classes
+   directly rather than a parallel copy. Only genuinely Super-Admin-only
+   pieces (store picker, Suppliers table chrome) live here. */
 
 .super-admin-inventory-page__store-select {
   /* Pushed to the right end of the sub-tab bar. */

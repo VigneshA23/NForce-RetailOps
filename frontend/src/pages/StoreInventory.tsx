@@ -27,6 +27,7 @@ import useDismissablePanel from '../hooks/useDismissablePanel';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
+import { SORT_OPTIONS, STATUS_SORT_ORDER, type SortOption } from '../utils/storeInventorySort';
 import './StoreInventory.css';
 
 type SubTab = 'items' | 'suppliers' | 'history';
@@ -36,18 +37,6 @@ const SUB_TABS: { key: SubTab; label: string; icon: typeof Package }[] = [
   { key: 'suppliers', label: 'Suppliers', icon: Truck },
   { key: 'history', label: 'History', icon: Clock },
 ];
-
-type SortOption = 'name' | 'status' | 'supplier' | 'category';
-
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'name', label: 'Sort: Category & Name' },
-  { value: 'status', label: 'Sort: Status' },
-  { value: 'supplier', label: 'Sort: Supplier' },
-  { value: 'category', label: 'Sort: Category' },
-];
-
-
-const STATUS_SORT_ORDER = { low: 0, out: 1, in: 2, inactive: 3 } as const;
 
 interface StoreInventoryProps {
   // Set by DashboardShell when a notification (e.g. a Super Admin's stock

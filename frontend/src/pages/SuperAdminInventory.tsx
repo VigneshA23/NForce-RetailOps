@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Boxes, CircleCheck, FileSpreadsheet, FileText, PackageX, Plus, Truck } from 'lucide-react';
+import { AlertTriangle, Boxes, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createInventoryItem,
@@ -31,35 +31,29 @@ import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
+import { SORT_OPTIONS, STATUS_SORT_ORDER, type SortOption } from '../utils/storeInventorySort';
 import './StoreInventory.css';
 import './SuperAdminInventory.css';
 
 type SubTab = 'inventory' | 'suppliers' | 'comparison' | 'purchasing-report' | 'stock-check-history';
 
-const SUB_TABS: { key: SubTab; label: string }[] = [
-  { key: 'inventory', label: 'Inventory' },
-  { key: 'suppliers', label: 'Suppliers' },
+// Icons + live count badges on Inventory/Suppliers/Stock Check History match
+// Owner/Admin's own StoreInventory.tsx sub-tab bar (RTS-304); Stock Comparison
+// and Purchasing Report have no Owner/Admin equivalent to match, so they stay
+// text-only.
+const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
+  { key: 'inventory', label: 'Inventory', icon: Package },
+  { key: 'suppliers', label: 'Suppliers', icon: Truck },
   { key: 'comparison', label: 'Stock Comparison' },
   { key: 'purchasing-report', label: 'Purchasing Report' },
-  { key: 'stock-check-history', label: 'Stock Check History' },
+  { key: 'stock-check-history', label: 'Stock Check History', icon: Clock },
 ];
-
-type SortOption = 'name' | 'status' | 'supplier' | 'category';
-
-const SORT_OPTIONS: { value: SortOption; label: string }[] = [
-  { value: 'name', label: 'Sort: Category & Name' },
-  { value: 'status', label: 'Sort: Status' },
-  { value: 'supplier', label: 'Sort: Supplier' },
-  { value: 'category', label: 'Sort: Category' },
-];
-
-
-const STATUS_SORT_ORDER = { low: 0, out: 1, in: 2, inactive: 3 } as const;
 
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
 
 function SuperAdminInventory() {
   const [subTab, setSubTab] = useState<SubTab>('inventory');
+  const [historyTotal, setHistoryTotal] = useState(0);
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
@@ -331,16 +325,26 @@ function SuperAdminInventory() {
     <div className="store-inventory-page super-admin-inventory-page">
       <div className="store-inventory-page__subtabs">
         <div className="store-inventory-page__subtab-list">
-        {SUB_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`store-inventory-page__subtab${subTab === tab.key ? ' store-inventory-page__subtab--active' : ''}`}
-            onClick={() => setSubTab(tab.key)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {SUB_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const badgeCount =
+            tab.key === 'inventory' ? (selectedStoreId === null ? 0 : storeItems.length)
+              : tab.key === 'suppliers' ? suppliers.length
+                : tab.key === 'stock-check-history' ? historyTotal
+                  : null;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              className={`store-inventory-page__subtab${subTab === tab.key ? ' store-inventory-page__subtab--active' : ''}`}
+              onClick={() => setSubTab(tab.key)}
+            >
+              {Icon && <Icon size={14} />}
+              {tab.label}
+              {badgeCount !== null && <span className="store-inventory-page__subtab-badge">{badgeCount}</span>}
+            </button>
+          );
+        })}
         </div>
         {subTab === 'inventory' && (
           <Select
@@ -545,7 +549,7 @@ function SuperAdminInventory() {
 
       {subTab === 'comparison' && <StockLevelComparison items={items} />}
       {subTab === 'purchasing-report' && <SuperAdminSupplierPurchaseReport />}
-      {subTab === 'stock-check-history' && <SuperAdminStockCheckHistory />}
+      {subTab === 'stock-check-history' && <SuperAdminStockCheckHistory onTotalChange={setHistoryTotal} />}
 
       <StoreInventoryItemFormModal
         isOpen={isCreateModalOpen}

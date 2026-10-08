@@ -20,6 +20,7 @@ import com.nforce.retailops.exception.SupplierNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
+import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.util.DateRangeValidator;
@@ -61,6 +62,7 @@ public class OrderListService {
 
     private final OrderListEntryRepository orderListEntryRepository;
     private final StoreOwnerRepository storeOwnerRepository;
+    private final StoreRepository storeRepository;
     private final SupplierRepository supplierRepository;
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final UserRepository userRepository;
@@ -68,12 +70,14 @@ public class OrderListService {
     public OrderListService(
         OrderListEntryRepository orderListEntryRepository,
         StoreOwnerRepository storeOwnerRepository,
+        StoreRepository storeRepository,
         SupplierRepository supplierRepository,
         StoreInventoryItemRepository storeInventoryItemRepository,
         UserRepository userRepository
     ) {
         this.orderListEntryRepository = orderListEntryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
+        this.storeRepository = storeRepository;
         this.supplierRepository = supplierRepository;
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.userRepository = userRepository;
@@ -184,9 +188,24 @@ public class OrderListService {
     @Transactional
     public OrderListEntryResponse createEntry(Long ownerId, CreateOrderListEntryRequest request) {
         StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
-        Store store = storeOwner.getStore();
         User raisedBy = userRepository.getReferenceById(ownerId);
+        return createEntryForStore(storeOwner.getStore(), raisedBy, request);
+    }
 
+    // Super Admin's counterpart to createEntry above -- store comes directly
+    // from a path param rather than the caller's own StoreOwner link, since a
+    // Super Admin has none. raisedBy is left null (OrderListEntry.raisedBy is
+    // nullable): Super Admin has no row in `users` to reference, same reason
+    // AdminCorrection/StockCheckCorrection carry a separate "no user row"
+    // fallback for their own correctedBy fields.
+    @Transactional
+    public OrderListEntryResponse createEntryForSuperAdmin(Long storeId, CreateOrderListEntryRequest request) {
+        Store store = storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return createEntryForStore(store, null, request);
+    }
+
+    private OrderListEntryResponse createEntryForStore(Store store, User raisedBy, CreateOrderListEntryRequest request) {
         Supplier supplier = null;
         if (request.supplierId() != null) {
             supplier = supplierRepository.findById(request.supplierId())
