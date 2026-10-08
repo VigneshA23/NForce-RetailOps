@@ -214,9 +214,10 @@ describe('SuperAdminStockCheckHistory', () => {
     await user.click(within(tableRow).getByRole('button', { name: 'Correct count for Paper Towels' }));
     await screen.findByText('Correct Start of Day count: Paper Towels');
 
+    await user.click(screen.getAllByLabelText('Increase')[0]);
     await user.click(screen.getByRole('button', { name: 'Save correction' }));
 
-    await waitFor(() => expect(mockCorrect).toHaveBeenCalledWith(1, original.check.id, 'START_OF_DAY', 48, 2, 'Recount (count was wrong)'));
+    await waitFor(() => expect(mockCorrect).toHaveBeenCalledWith(1, original.check.id, 'START_OF_DAY', 49, 2, 'Recount (count was wrong)'));
     await waitFor(() => expect(screen.queryByText('Correct Start of Day count: Paper Towels')).not.toBeInTheDocument());
     expect(mockGetHistory).toHaveBeenCalledTimes(1);
     const updatedRow = (await screen.findByText('Paper Towels')).closest('tr')!;
@@ -252,6 +253,7 @@ describe('SuperAdminStockCheckHistory', () => {
     await user.click(within(tableRow).getByRole('button', { name: 'Correct count for Paper Towels' }));
     await screen.findByText('Correct Start of Day count: Paper Towels');
 
+    await user.click(screen.getAllByLabelText('Increase')[0]);
     await user.click(screen.getByRole('button', { name: 'Save correction' }));
 
     expect(await screen.findByText('A reason is required for Super Admin corrections')).toBeInTheDocument();

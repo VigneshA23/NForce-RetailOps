@@ -43,6 +43,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -185,6 +186,7 @@ public class StockCheckService {
                 StockCheck created = new StockCheck();
                 created.setStore(item.getStore());
                 created.setStoreInventoryItem(item);
+                created.setSupplier(item.getPreferredSupplier());
                 created.setCheckDate(today);
                 return created;
             });
@@ -467,7 +469,9 @@ public class StockCheckService {
             if (row.status() == EodSupplierReportResponse.Status.NEEDS_TO_ORDER) needingOrder++;
             if (row.status() == EodSupplierReportResponse.Status.END_OF_DAY_PENDING) pendingEod++;
 
-            Supplier supplier = item.getPreferredSupplier();
+            // A counted day keeps the supplier recorded then; an uncounted
+            // day falls back to the item's current one.
+            Supplier supplier = check != null ? check.getSupplier() : item.getPreferredSupplier();
             if (supplier == null) {
                 noSupplierRows.add(row);
             } else {
@@ -559,7 +563,7 @@ public class StockCheckService {
     }
 
     private InventoryCountRowResponse toCountRow(StoreInventoryItem item, StockCheck latest, LocalDate today) {
-        Integer minimum = item.requiredMinimumOn(today);
+        BigDecimal minimum = item.requiredMinimumOn(today);
 
         if (latest == null) {
             return new InventoryCountRowResponse(
@@ -572,16 +576,16 @@ public class StockCheckService {
         StockCheckSnapshot latestSnapshot = latest.hasSnapshot(StockCheckSnapshot.END_OF_DAY)
             ? StockCheckSnapshot.END_OF_DAY
             : StockCheckSnapshot.START_OF_DAY;
-        int currentStock = latest.getCurrentCount();
+        BigDecimal currentStock = latest.getCurrentCount();
 
         InventoryCountStatus status = InventoryCountStatusCalculator.calculate(latest, today, minimum);
 
-        Integer change = null;
+        BigDecimal change = null;
         LocalDate changeFromDate = null;
         List<StockCheck> recent = stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2));
         if (recent.size() > 1) {
             StockCheck previous = recent.get(1);
-            change = currentStock - previous.getCurrentCount();
+            change = currentStock.subtract(previous.getCurrentCount());
             changeFromDate = previous.getCheckDate();
         }
 
@@ -616,7 +620,7 @@ public class StockCheckService {
         List<InventoryCountHistoryEntryResponse> entries = new ArrayList<>();
         for (int i = 0; i < recent.size(); i++) {
             StockCheck check = recent.get(i);
-            Integer delta = i + 1 < recent.size() ? check.getCurrentCount() - recent.get(i + 1).getCurrentCount() : null;
+            BigDecimal delta = i + 1 < recent.size() ? check.getCurrentCount().subtract(recent.get(i + 1).getCurrentCount()) : null;
             entries.add(new InventoryCountHistoryEntryResponse(
                 check.getCheckDate(), check.getCurrentCount(), delta, check.getCheckedBy().getFullName(), check.getUpdatedAt()
             ));
@@ -631,13 +635,14 @@ public class StockCheckService {
             .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), Function.identity()));
     }
 
-    private static void requireDeadStockWithinAvailable(int available, int deadStock) {
-        if (deadStock > available) {
+    private static void requireDeadStockWithinAvailable(BigDecimal available, BigDecimal deadStock) {
+        if (deadStock.compareTo(available) > 0) {
             throw new InvalidStockCheckException("Dead stock cannot be more than available stock");
         }
     }
 
-    // Writes one snapshot in place. Re-saving an existing snapshot appends an
+    // Writes one snapshot in place. Re-saving an existing snapshot with the same
+    // figures is rejected (nothing to record); with different ones it appends an
     // audit row with the previous values first; an employee's genuine first
     // save writes none (the enterer is recorded on the check itself). A
     // correction (isCorrection) always appends an audit row, even when
@@ -653,17 +658,25 @@ public class StockCheckService {
     // is NOT NULL, so it can't be cleared). superAdminActor only ever reaches
     // the StockCheckCorrection audit row.
     private StockCheck applySnapshot(
-        StockCheck check, StockCheckSnapshot snapshot, int available, int deadStock,
+        StockCheck check, StockCheckSnapshot snapshot, BigDecimal available, BigDecimal deadStock,
         User userActor, SuperAdmin superAdminActor, String reason, boolean isCorrection
     ) {
         boolean hadValue = check.hasSnapshot(snapshot);
-        Integer previousAvailable = hadValue ? check.availableFor(snapshot) : null;
-        Integer previousDeadStock = hadValue ? check.deadStockFor(snapshot) : null;
+        BigDecimal previousAvailable = hadValue ? check.availableFor(snapshot) : null;
+        BigDecimal previousDeadStock = hadValue ? check.deadStockFor(snapshot) : null;
+
+        // Re-saving identical figures changes nothing, so reject it rather than
+        // bumping "last updated" and appending a no-op audit row.
+        if (hadValue
+            && previousAvailable.compareTo(available) == 0
+            && (previousDeadStock == null ? BigDecimal.ZERO : previousDeadStock).compareTo(deadStock) == 0) {
+            throw new InvalidStockCheckException("No changes to save - the values are the same as the current ones");
+        }
 
         check.recordSnapshot(snapshot, available, deadStock, userActor, OffsetDateTime.now(), isCorrection);
 
         if (snapshot == StockCheckSnapshot.END_OF_DAY) {
-            Integer required = check.getStoreInventoryItem().requiredMinimumOn(check.getCheckDate().plusDays(1));
+            BigDecimal required = check.getStoreInventoryItem().requiredMinimumOn(check.getCheckDate().plusDays(1));
             check.setRequiredTomorrow(required);
             check.setQuantityNeeded(orderQuantity(required, check.usableFor(StockCheckSnapshot.END_OF_DAY)));
         }
@@ -701,7 +714,7 @@ public class StockCheckService {
         if (!item.isAutoPoEnabled()) {
             return;
         }
-        if (check.getQuantityNeeded() <= 0) {
+        if (check.getQuantityNeeded().signum() <= 0) {
             orderListService.resolveShortageIfPresent(item.getStore(), item);
             return;
         }
@@ -711,33 +724,33 @@ public class StockCheckService {
         );
     }
 
-    static int orderQuantity(Integer requiredTomorrow, Integer endUsable) {
+    static BigDecimal orderQuantity(BigDecimal requiredTomorrow, BigDecimal endUsable) {
         if (requiredTomorrow == null || endUsable == null) {
-            return 0;
+            return BigDecimal.ZERO;
         }
-        return Math.max(0, requiredTomorrow - endUsable);
+        return requiredTomorrow.subtract(endUsable).max(BigDecimal.ZERO);
     }
 
     // Persisted at EOD save; before that, what the item's thresholds say now.
-    private static Integer requiredTomorrow(StoreInventoryItem item, StockCheck check, LocalDate date) {
+    private static BigDecimal requiredTomorrow(StoreInventoryItem item, StockCheck check, LocalDate date) {
         if (check != null && check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
             return check.getRequiredTomorrow();
         }
         return item.requiredMinimumOn(date.plusDays(1));
     }
 
-    private static Integer quantityToOrder(StockCheck check) {
+    private static BigDecimal quantityToOrder(StockCheck check) {
         return check != null && check.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? check.getQuantityNeeded() : null;
     }
 
     private static EodSupplierReportResponse.Row toReportRow(StoreInventoryItem item, StockCheck check, LocalDate date) {
-        Integer required = requiredTomorrow(item, check, date);
-        Integer toOrder = quantityToOrder(check);
+        BigDecimal required = requiredTomorrow(item, check, date);
+        BigDecimal toOrder = quantityToOrder(check);
 
         EodSupplierReportResponse.Status status;
         if (toOrder == null) {
             status = EodSupplierReportResponse.Status.END_OF_DAY_PENDING;
-        } else if (toOrder > 0) {
+        } else if (toOrder.signum() > 0) {
             status = EodSupplierReportResponse.Status.NEEDS_TO_ORDER;
         } else if (required == null) {
             status = EodSupplierReportResponse.Status.NO_MINIMUM_SET;

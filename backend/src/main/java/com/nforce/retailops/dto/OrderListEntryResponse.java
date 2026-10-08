@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
 import com.nforce.retailops.entity.OrderListEntry;
 
 import java.time.OffsetDateTime;
@@ -9,8 +10,8 @@ public record OrderListEntryResponse(
     Long storeInventoryItemId,
     String itemName,
     String unitOfMeasurement,
-    int quantityNeeded,
-    int manualAddition,
+    BigDecimal quantityNeeded,
+    BigDecimal manualAddition,
     Long supplierId,
     String supplierName,
     String note,

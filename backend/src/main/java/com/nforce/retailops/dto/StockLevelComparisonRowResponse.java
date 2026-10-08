@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 // One store's row on Super Admin's cross-store stock-level comparison for a
@@ -12,8 +13,8 @@ public record StockLevelComparisonRowResponse(
     Long storeId,
     String storeName,
     boolean assigned,
-    Integer requiredToday,
-    Integer currentAvailable,
+    BigDecimal requiredToday,
+    BigDecimal currentAvailable,
     LocalDate asOfDate,
     InventoryCountStatus status
 ) {

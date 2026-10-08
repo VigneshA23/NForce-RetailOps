@@ -87,6 +87,9 @@ function CorrectStockCheckModal({ isOpen, row, snapshot, errorMessage, isSubmitt
     return [{ key, by: snap.enteredByName, at: snap.enteredAt, available, dead }];
   });
 
+  // Nothing to save when the figures match what's already recorded.
+  const unchanged = current != null && available === current.available && deadStock === current.deadStock;
+
   function handleSnapshotChange(value: string) {
     const next = value as StockCheckSnapshotKey;
     const target = next === 'START_OF_DAY' ? row!.startOfDay : row!.endOfDay;
@@ -120,7 +123,7 @@ function CorrectStockCheckModal({ isOpen, row, snapshot, errorMessage, isSubmitt
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="correct-stock-check-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+          <button type="submit" form="correct-stock-check-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting || unchanged}>
             {isSubmitting ? <ButtonDots label="Saving" /> : 'Save correction'}
           </button>
         </>

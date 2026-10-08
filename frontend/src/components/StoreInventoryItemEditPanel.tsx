@@ -8,6 +8,7 @@ import Select from './Select';
 import CategoryCombobox from './CategoryCombobox';
 import SupplierCombobox from './SupplierCombobox';
 import CounterStepper from './CounterStepper';
+import { parseQty } from '../utils/quantity';
 import Toggle from './Toggle';
 import ItemIcon from './ItemIcon';
 import InventoryImagePicker from './InventoryImagePicker';
@@ -77,10 +78,10 @@ function StoreInventoryItemEditPanel({
     const nextErrors: typeof errors = {};
     if (!values.name.trim()) nextErrors.name = 'Name is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
-    if (values.minWeekday.trim() === '' || Number(values.minWeekday) < 0) {
+    if (values.minWeekday.trim() === '' || parseQty(values.minWeekday) === null) {
       nextErrors.minWeekday = 'Weekday min is required and cannot be negative';
     }
-    if (values.minWeekend.trim() !== '' && Number(values.minWeekend) < 0) {
+    if (values.minWeekend.trim() !== '' && parseQty(values.minWeekend) === null) {
       nextErrors.minWeekend = 'Weekend min cannot be negative';
     }
     if (!values.preferredSupplierId) {

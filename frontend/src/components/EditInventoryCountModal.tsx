@@ -4,6 +4,7 @@ import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
 import QuantityStepper from './QuantityStepper';
+import { roundQty } from '../utils/quantity';
 import ButtonDots from './ButtonDots';
 import './EditInventoryCountModal.css';
 
@@ -51,7 +52,7 @@ function EditInventoryCountModal({ isOpen, row, errorMessage, isSubmitting = fal
   if (!row) return null;
 
   const previousAvailable = row.latestAvailable ?? 0;
-  const diff = available - previousAvailable;
+  const diff = roundQty(available - previousAvailable);
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -73,7 +74,7 @@ function EditInventoryCountModal({ isOpen, row, errorMessage, isSubmitting = fal
           <button type="button" className="btn btn--secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" form="edit-inventory-count-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
+          <button type="submit" form="edit-inventory-count-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting || diff === 0}>
             {isSubmitting ? <ButtonDots label="Saving" /> : 'Save count'}
           </button>
         </>

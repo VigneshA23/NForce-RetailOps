@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
 import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
@@ -84,12 +85,12 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User employee = new User();
-        orderListService.upsertShortage(store(), item(), 5, null, false, employee, null);
+        orderListService.upsertShortage(store(), item(), bd(5), null, false, employee, null);
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
         OrderListEntry saved = captor.getValue();
-        assertThat(saved.getQuantityNeeded()).isEqualTo(5);
+        assertThat(saved.getQuantityNeeded()).isEqualByComparingTo(bd(5));
         assertThat(saved.getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
         assertThat(saved.isAdHoc()).isFalse();
         assertThat(saved.getRaisedBy()).isEqualTo(employee);
@@ -99,17 +100,17 @@ class OrderListServiceTest {
     void upsertShortageUpdatesTheExistingActiveEntryInsteadOfCreatingASecondOne() {
         OrderListEntry existing = new OrderListEntry();
         ReflectionTestUtils.setField(existing, "id", 99L);
-        existing.setQuantityNeeded(4);
+        existing.setQuantityNeeded(bd(4));
         existing.setStatus(OrderStatus.NEEDS_ORDERING);
 
         when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
             .thenReturn(Optional.of(existing));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.upsertShortage(store(), item(), 6, null, false, new User(), null);
+        orderListService.upsertShortage(store(), item(), bd(6), null, false, new User(), null);
 
         verify(orderListEntryRepository, times(1)).save(existing);
-        assertThat(existing.getQuantityNeeded()).isEqualTo(6);
+        assertThat(existing.getQuantityNeeded()).isEqualByComparingTo(bd(6));
     }
 
     @Test
@@ -125,9 +126,9 @@ class OrderListServiceTest {
             .thenThrow(new DataIntegrityViolationException("duplicate key"))
             .thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.upsertShortage(store(), item(), 4, null, false, new User(), null);
+        orderListService.upsertShortage(store(), item(), bd(4), null, false, new User(), null);
 
-        assertThat(winner.getQuantityNeeded()).isEqualTo(4);
+        assertThat(winner.getQuantityNeeded()).isEqualByComparingTo(bd(4));
         verify(orderListEntryRepository, times(2)).save(any(OrderListEntry.class));
     }
 
@@ -135,39 +136,39 @@ class OrderListServiceTest {
     void upsertShortageAccumulatesIntoManualAdditionWhenAdHocAndAnEntryIsAlreadyActive() {
         OrderListEntry existing = new OrderListEntry();
         ReflectionTestUtils.setField(existing, "id", 99L);
-        existing.setQuantityNeeded(4);
+        existing.setQuantityNeeded(bd(4));
         existing.setStatus(OrderStatus.NEEDS_ORDERING);
 
         when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
             .thenReturn(Optional.of(existing));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.upsertShortage(store(), item(), 2, null, true, new User(), null);
+        orderListService.upsertShortage(store(), item(), bd(2), null, true, new User(), null);
 
-        assertThat(existing.getQuantityNeeded()).isEqualTo(4);
-        assertThat(existing.getManualAddition()).isEqualTo(2);
+        assertThat(existing.getQuantityNeeded()).isEqualByComparingTo(bd(4));
+        assertThat(existing.getManualAddition()).isEqualByComparingTo(bd(2));
 
-        orderListService.upsertShortage(store(), item(), 3, null, true, new User(), null);
+        orderListService.upsertShortage(store(), item(), bd(3), null, true, new User(), null);
 
-        assertThat(existing.getQuantityNeeded()).isEqualTo(4);
-        assertThat(existing.getManualAddition()).isEqualTo(5);
+        assertThat(existing.getQuantityNeeded()).isEqualByComparingTo(bd(4));
+        assertThat(existing.getManualAddition()).isEqualByComparingTo(bd(5));
     }
 
     @Test
     void upsertShortageResetsManualAdditionWhenTheSystemRecalculatesQuantityNeeded() {
         OrderListEntry existing = new OrderListEntry();
         ReflectionTestUtils.setField(existing, "id", 99L);
-        existing.setQuantityNeeded(4);
-        existing.setManualAddition(2);
+        existing.setQuantityNeeded(bd(4));
+        existing.setManualAddition(bd(2));
         existing.setStatus(OrderStatus.NEEDS_ORDERING);
 
         when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
             .thenReturn(Optional.of(existing));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.upsertShortage(store(), item(), 7, null, false, new User(), null);
+        orderListService.upsertShortage(store(), item(), bd(7), null, false, new User(), null);
 
-        assertThat(existing.getQuantityNeeded()).isEqualTo(7);
+        assertThat(existing.getQuantityNeeded()).isEqualByComparingTo(bd(7));
         assertThat(existing.getManualAddition()).isZero();
     }
 
@@ -212,7 +213,7 @@ class OrderListServiceTest {
         entry.setStore(store());
         entry.setStoreInventoryItem(item());
         entry.setStatus(status);
-        entry.setQuantityNeeded(5);
+        entry.setQuantityNeeded(bd(5));
         return entry;
     }
 
@@ -223,7 +224,7 @@ class OrderListServiceTest {
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(5, null, null, OrderStatus.ORDERED));
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.ORDERED));
 
         assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
     }
@@ -235,7 +236,7 @@ class OrderListServiceTest {
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
 
         assertThatThrownBy(() ->
-            orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(5, null, null, OrderStatus.RECEIVED))
+            orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED))
         ).isInstanceOf(InvalidOrderEntryTransitionException.class);
 
         assertThat(entry.getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
@@ -249,7 +250,7 @@ class OrderListServiceTest {
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
 
         assertThatThrownBy(() ->
-            orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(5, null, null, OrderStatus.NEEDS_ORDERING))
+            orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.NEEDS_ORDERING))
         ).isInstanceOf(InvalidOrderEntryTransitionException.class);
 
         assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
@@ -263,10 +264,10 @@ class OrderListServiceTest {
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(9, null, "note", OrderStatus.ORDERED));
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(bd(9), null, "note", OrderStatus.ORDERED));
 
         assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
-        assertThat(entry.getQuantityNeeded()).isEqualTo(9);
+        assertThat(entry.getQuantityNeeded()).isEqualByComparingTo(bd(9));
     }
 
     // ---- stale-update conflicts (Owner/Admin vs Super Admin) -----------------
@@ -281,7 +282,7 @@ class OrderListServiceTest {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
 
         assertThatThrownBy(() -> orderListService.updateEntry(OWNER_ID, ENTRY_ID,
-            new UpdateOrderListEntryRequest(5, null, null, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING)))
+            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING)))
             .isInstanceOf(OrderEntryAlreadyUpdatedException.class)
             .hasMessageContaining("by Super Admin");
     }
@@ -293,7 +294,7 @@ class OrderListServiceTest {
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
         orderListService.updateEntry(OWNER_ID, ENTRY_ID,
-            new UpdateOrderListEntryRequest(5, null, null, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING));
+            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING));
 
         assertThatThrownBy(() -> orderListService.updateStatusForSuperAdmin(
             STORE_ID, ENTRY_ID, OrderStatus.ORDERED, OrderStatus.NEEDS_ORDERING))
@@ -309,9 +310,9 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.updateEntry(OWNER_ID, ENTRY_ID,
-            new UpdateOrderListEntryRequest(9, null, null, OrderStatus.ORDERED, OrderStatus.ORDERED));
+            new UpdateOrderListEntryRequest(bd(9), null, null, OrderStatus.ORDERED, OrderStatus.ORDERED));
 
-        assertThat(entry.getQuantityNeeded()).isEqualTo(9);
+        assertThat(entry.getQuantityNeeded()).isEqualByComparingTo(bd(9));
     }
 
     // ---- createEntry ("Add to order") ---------------------------------------
@@ -336,11 +337,11 @@ class OrderListServiceTest {
             .thenReturn(Optional.of(savedEntry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, 5, null, "Extra for event"));
+        orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, bd(5), null, "Extra for event"));
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
-        assertThat(captor.getValue().getQuantityNeeded()).isEqualTo(5);
+        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(5));
         assertThat(captor.getValue().isAdHoc()).isTrue();
         verify(storeInventoryItemRepository, never()).save(any());
     }
@@ -363,7 +364,7 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "Birthday candles", "SUPPLIES", "packs", false, null, null, 2, null, null));
+            null, "Birthday candles", "SUPPLIES", "packs", false, null, null, bd(2), null, null));
 
         ArgumentCaptor<StoreInventoryItem> itemCaptor = ArgumentCaptor.forClass(StoreInventoryItem.class);
         verify(storeInventoryItemRepository).save(itemCaptor.capture());
@@ -371,7 +372,7 @@ class OrderListServiceTest {
         assertThat(saved.getName()).isEqualTo("Birthday candles");
         assertThat(saved.getCategory()).isEqualTo("SUPPLIES");
         assertThat(saved.isActive()).isFalse();
-        assertThat(saved.getMinWeekday()).isEqualTo(0);
+        assertThat(saved.getMinWeekday()).isEqualByComparingTo(bd(0));
         assertThat(saved.getMinWeekend()).isNull();
     }
 
@@ -391,14 +392,14 @@ class OrderListServiceTest {
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "Napkins", "SUPPLIES", "packs", true, 5, 8, 3, null, null));
+            null, "Napkins", "SUPPLIES", "packs", true, bd(5), bd(8), bd(3), null, null));
 
         ArgumentCaptor<StoreInventoryItem> itemCaptor = ArgumentCaptor.forClass(StoreInventoryItem.class);
         verify(storeInventoryItemRepository).save(itemCaptor.capture());
         StoreInventoryItem saved = itemCaptor.getValue();
         assertThat(saved.isActive()).isTrue();
-        assertThat(saved.getMinWeekday()).isEqualTo(5);
-        assertThat(saved.getMinWeekend()).isEqualTo(8);
+        assertThat(saved.getMinWeekday()).isEqualByComparingTo(bd(5));
+        assertThat(saved.getMinWeekend()).isEqualByComparingTo(bd(8));
     }
 
     @Test
@@ -406,7 +407,7 @@ class OrderListServiceTest {
         stubActiveStoreOwner(store());
 
         assertThatThrownBy(() -> orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
-            null, "  ", "SUPPLIES", "packs", false, null, null, 1, null, null)))
+            null, "  ", "SUPPLIES", "packs", false, null, null, bd(1), null, null)))
             .isInstanceOf(InvalidOrderListEntryException.class);
         verify(storeInventoryItemRepository, never()).save(any());
     }
@@ -426,11 +427,11 @@ class OrderListServiceTest {
             .thenReturn(Optional.of(savedEntry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.createEntryForSuperAdmin(STORE_ID, new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, 5, null, "Extra for event"));
+        orderListService.createEntryForSuperAdmin(STORE_ID, new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, bd(5), null, "Extra for event"));
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
-        assertThat(captor.getValue().getQuantityNeeded()).isEqualTo(5);
+        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(5));
         assertThat(captor.getValue().isAdHoc()).isTrue();
         assertThat(captor.getValue().getRaisedBy()).isNull();
         verify(storeOwnerRepository, never()).findByOwnerId(any());
@@ -442,7 +443,7 @@ class OrderListServiceTest {
         when(storeRepository.findById(STORE_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> orderListService.createEntryForSuperAdmin(STORE_ID, new CreateOrderListEntryRequest(
-            ITEM_ID, null, null, null, false, null, null, 5, null, null)))
+            ITEM_ID, null, null, null, false, null, null, bd(5), null, null)))
             .isInstanceOf(StoreNotFoundException.class);
     }
 
@@ -480,7 +481,7 @@ class OrderListServiceTest {
         assertThat(result).extracting(SupplierPurchaseMetricResponse::supplierName)
             .containsExactly("Acme Supplies", "fresh foods");
         assertThat(result.get(0).orderEntryCount()).isEqualTo(8L);
-        assertThat(result.get(0).totalQuantity()).isEqualTo(42L);
+        assertThat(result.get(0).totalQuantity()).isEqualByComparingTo(bd(42));
     }
 
     @Test

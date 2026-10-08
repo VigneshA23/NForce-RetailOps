@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
 import com.nforce.retailops.entity.StoreInventoryItem;
 
 import java.time.LocalDate;
@@ -13,22 +14,22 @@ public record StoreInventoryItemResponse(
     // been edited since.
     String category,
     String unitOfMeasurement,
-    Integer minWeekday,
-    Integer minWeekend,
+    BigDecimal minWeekday,
+    BigDecimal minWeekend,
     Long preferredSupplierId,
     String preferredSupplierName,
     String note,
     boolean active,
     boolean autoPoEnabled,
     // Today's minimum (weekday or weekend, per requiredMinimumOn).
-    Integer requiredToday,
+    BigDecimal requiredToday,
     // The count from today's employee stock check; null until one is submitted.
-    Integer currentAvailable,
+    BigDecimal currentAvailable,
     // Stored display image, served by GET /api/inventory-images/{imageId};
     // null when none has been picked.
     Long imageId
 ) {
-    public static StoreInventoryItemResponse from(StoreInventoryItem sii, LocalDate today, Integer currentAvailable) {
+    public static StoreInventoryItemResponse from(StoreInventoryItem sii, LocalDate today, BigDecimal currentAvailable) {
         return new StoreInventoryItemResponse(
             sii.getId(),
             sii.getStore().getId(),

@@ -2,6 +2,7 @@ package com.nforce.retailops.entity;
 
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 // Immutable, append-only audit trail of every edit to a Start of Day or End
@@ -34,17 +35,17 @@ public class StockCheckCorrection {
     // filling in one that was never recorded) -- distinct from a prior value
     // of 0.
     @Column(name = "original_count")
-    private Integer originalCount;
+    private BigDecimal originalCount;
 
     @Column(name = "corrected_count", nullable = false)
-    private int correctedCount;
+    private BigDecimal correctedCount;
 
     // Null on rows written before dead stock existed (pre-V76).
     @Column(name = "original_dead_stock")
-    private Integer originalDeadStock;
+    private BigDecimal originalDeadStock;
 
     @Column(name = "corrected_dead_stock")
-    private Integer correctedDeadStock;
+    private BigDecimal correctedDeadStock;
 
     // Employees and OWNER_ADMIN are both real users rows; Super Admin is not
     // (its own super_admins table, no FK to users) -- exactly one of
@@ -82,17 +83,17 @@ public class StockCheckCorrection {
     public StockCheckSnapshot getSnapshot() { return snapshot; }
     public void setSnapshot(StockCheckSnapshot snapshot) { this.snapshot = snapshot; }
 
-    public Integer getOriginalDeadStock() { return originalDeadStock; }
-    public void setOriginalDeadStock(Integer originalDeadStock) { this.originalDeadStock = originalDeadStock; }
+    public BigDecimal getOriginalDeadStock() { return originalDeadStock; }
+    public void setOriginalDeadStock(BigDecimal originalDeadStock) { this.originalDeadStock = originalDeadStock; }
 
-    public Integer getCorrectedDeadStock() { return correctedDeadStock; }
-    public void setCorrectedDeadStock(Integer correctedDeadStock) { this.correctedDeadStock = correctedDeadStock; }
+    public BigDecimal getCorrectedDeadStock() { return correctedDeadStock; }
+    public void setCorrectedDeadStock(BigDecimal correctedDeadStock) { this.correctedDeadStock = correctedDeadStock; }
 
-    public Integer getOriginalCount() { return originalCount; }
-    public void setOriginalCount(Integer originalCount) { this.originalCount = originalCount; }
+    public BigDecimal getOriginalCount() { return originalCount; }
+    public void setOriginalCount(BigDecimal originalCount) { this.originalCount = originalCount; }
 
-    public int getCorrectedCount() { return correctedCount; }
-    public void setCorrectedCount(int correctedCount) { this.correctedCount = correctedCount; }
+    public BigDecimal getCorrectedCount() { return correctedCount; }
+    public void setCorrectedCount(BigDecimal correctedCount) { this.correctedCount = correctedCount; }
 
     public User getCorrectedByUser() { return correctedByUser; }
     public void setCorrectedByUser(User correctedByUser) { this.correctedByUser = correctedByUser; }

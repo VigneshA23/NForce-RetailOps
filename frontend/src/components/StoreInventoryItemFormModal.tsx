@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import { buildCategoryOptions, categoryLabel, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
+import { parseQty } from '../utils/quantity';
 import FormField from './FormField';
 import Select from './Select';
 import CategoryCombobox from './CategoryCombobox';
@@ -123,11 +124,11 @@ function StoreInventoryItemFormModal({
     if (!values.category.trim()) nextErrors.category = 'Category is required';
     if (!values.name.trim()) nextErrors.name = 'Name is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
-    if (values.minWeekday.trim() === '' || Number(values.minWeekday) < 0) {
-      nextErrors.minWeekday = 'Minimum weekday quantity is required and cannot be negative';
+    if (values.minWeekday.trim() === '' || (parseQty(values.minWeekday) === null)) {
+      nextErrors.minWeekday = 'Enter a minimum weekday quantity (0 or more, up to 2 decimals)';
     }
-    if (values.minWeekend.trim() !== '' && Number(values.minWeekend) < 0) {
-      nextErrors.minWeekend = 'Minimum weekend quantity cannot be negative';
+    if (values.minWeekend.trim() !== '' && (parseQty(values.minWeekend) === null)) {
+      nextErrors.minWeekend = 'Enter a valid weekend quantity (0 or more, up to 2 decimals)';
     }
     if (!values.preferredSupplierId) {
       nextErrors.preferredSupplierId = 'Preferred supplier is required';
@@ -233,6 +234,8 @@ function StoreInventoryItemFormModal({
               id="inventory-item-min-weekday"
               type="number"
               min={0}
+              step="any"
+              inputMode="decimal"
               className="input"
               value={values.minWeekday}
               onChange={(event) => setValues((current) => ({ ...current, minWeekday: event.target.value }))}
@@ -244,6 +247,8 @@ function StoreInventoryItemFormModal({
               id="inventory-item-min-weekend"
               type="number"
               min={0}
+              step="any"
+              inputMode="decimal"
               className="input"
               value={values.minWeekend}
               onChange={(event) => setValues((current) => ({ ...current, minWeekend: event.target.value }))}

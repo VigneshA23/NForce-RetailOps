@@ -2,6 +2,7 @@ package com.nforce.retailops.entity;
 
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
@@ -39,15 +40,21 @@ public class StockCheck {
     @JoinColumn(name = "store_inventory_item_id", nullable = false)
     private StoreInventoryItem storeInventoryItem;
 
+    // Preferred supplier the item had when this day's row was created; never
+    // reassigned, so past reports are unaffected by later supplier changes.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "supplier_id")
+    private Supplier supplier;
+
     @Column(name = "check_date", nullable = false)
     private LocalDate checkDate;
 
     // ---- Start of Day ----
     @Column(name = "start_of_day_available")
-    private Integer startOfDayAvailable;
+    private BigDecimal startOfDayAvailable;
 
     @Column(name = "start_of_day_dead_stock")
-    private Integer startOfDayDeadStock;
+    private BigDecimal startOfDayDeadStock;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "start_of_day_entered_by")
@@ -65,10 +72,10 @@ public class StockCheck {
 
     // ---- End of Day ----
     @Column(name = "end_of_day_available")
-    private Integer endOfDayAvailable;
+    private BigDecimal endOfDayAvailable;
 
     @Column(name = "end_of_day_dead_stock")
-    private Integer endOfDayDeadStock;
+    private BigDecimal endOfDayDeadStock;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "end_of_day_entered_by")
@@ -87,7 +94,7 @@ public class StockCheck {
     // The next day's minimum, persisted when EOD is saved so a past report
     // stays accurate even if the item's thresholds change later.
     @Column(name = "required_tomorrow")
-    private Integer requiredTomorrow;
+    private BigDecimal requiredTomorrow;
 
     // ---- Legacy-compatible derived columns (see class comment) ----
     @ManyToOne(fetch = FetchType.LAZY)
@@ -95,10 +102,10 @@ public class StockCheck {
     private User checkedBy;
 
     @Column(name = "current_count", nullable = false)
-    private int currentCount;
+    private BigDecimal currentCount = BigDecimal.ZERO;
 
     @Column(name = "quantity_needed", nullable = false)
-    private int quantityNeeded;
+    private BigDecimal quantityNeeded = BigDecimal.ZERO;
 
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
@@ -131,30 +138,30 @@ public class StockCheck {
         return availableFor(snapshot) != null;
     }
 
-    public Integer availableFor(StockCheckSnapshot snapshot) {
+    public BigDecimal availableFor(StockCheckSnapshot snapshot) {
         return snapshot == StockCheckSnapshot.START_OF_DAY ? startOfDayAvailable : endOfDayAvailable;
     }
 
-    public Integer deadStockFor(StockCheckSnapshot snapshot) {
+    public BigDecimal deadStockFor(StockCheckSnapshot snapshot) {
         return snapshot == StockCheckSnapshot.START_OF_DAY ? startOfDayDeadStock : endOfDayDeadStock;
     }
 
     // Available minus dead stock; null when the snapshot hasn't been taken.
-    public Integer usableFor(StockCheckSnapshot snapshot) {
-        Integer available = availableFor(snapshot);
+    public BigDecimal usableFor(StockCheckSnapshot snapshot) {
+        BigDecimal available = availableFor(snapshot);
         if (available == null) {
             return null;
         }
-        Integer dead = deadStockFor(snapshot);
-        return available - (dead == null ? 0 : dead);
+        BigDecimal dead = deadStockFor(snapshot);
+        return available.subtract(dead == null ? BigDecimal.ZERO : dead);
     }
 
     // Start usable minus end usable; null until both snapshots exist. Can be
     // negative when a delivery arrived during the day.
-    public Integer stockUsed() {
-        Integer start = usableFor(StockCheckSnapshot.START_OF_DAY);
-        Integer end = usableFor(StockCheckSnapshot.END_OF_DAY);
-        return start == null || end == null ? null : start - end;
+    public BigDecimal stockUsed() {
+        BigDecimal start = usableFor(StockCheckSnapshot.START_OF_DAY);
+        BigDecimal end = usableFor(StockCheckSnapshot.END_OF_DAY);
+        return start == null || end == null ? null : start.subtract(end);
     }
 
     // Writes one snapshot's values and who/when, keeping the original enterer
@@ -175,7 +182,7 @@ public class StockCheck {
     // users row, and checked_by_user_id is NOT NULL (V48), so the User-only
     // checked-by columns keep their previous value instead of being nulled.
     // The Super Admin is recorded on the StockCheckCorrection audit row.
-    public void recordSnapshot(StockCheckSnapshot snapshot, int available, int deadStock, User by, OffsetDateTime at, boolean isCorrection) {
+    public void recordSnapshot(StockCheckSnapshot snapshot, BigDecimal available, BigDecimal deadStock, User by, OffsetDateTime at, boolean isCorrection) {
         if (snapshot == StockCheckSnapshot.START_OF_DAY) {
             if (startOfDayEnteredAt == null && !isCorrection) {
                 startOfDayEnteredBy = by;
@@ -202,7 +209,7 @@ public class StockCheck {
         if (by != null) {
             checkedBy = by;
         }
-        Integer latestUsable = usableFor(StockCheckSnapshot.END_OF_DAY);
+        BigDecimal latestUsable = usableFor(StockCheckSnapshot.END_OF_DAY);
         currentCount = latestUsable != null ? latestUsable : usableFor(StockCheckSnapshot.START_OF_DAY);
     }
 
@@ -226,6 +233,14 @@ public class StockCheck {
         this.storeInventoryItem = storeInventoryItem;
     }
 
+    public Supplier getSupplier() {
+        return supplier;
+    }
+
+    public void setSupplier(Supplier supplier) {
+        this.supplier = supplier;
+    }
+
     public LocalDate getCheckDate() {
         return checkDate;
     }
@@ -234,25 +249,25 @@ public class StockCheck {
         this.checkDate = checkDate;
     }
 
-    public Integer getStartOfDayAvailable() { return startOfDayAvailable; }
-    public Integer getStartOfDayDeadStock() { return startOfDayDeadStock; }
+    public BigDecimal getStartOfDayAvailable() { return startOfDayAvailable; }
+    public BigDecimal getStartOfDayDeadStock() { return startOfDayDeadStock; }
     public User getStartOfDayEnteredBy() { return startOfDayEnteredBy; }
     public OffsetDateTime getStartOfDayEnteredAt() { return startOfDayEnteredAt; }
     public User getStartOfDayCheckedBy() { return startOfDayCheckedBy; }
     public OffsetDateTime getStartOfDayCheckedAt() { return startOfDayCheckedAt; }
 
-    public Integer getEndOfDayAvailable() { return endOfDayAvailable; }
-    public Integer getEndOfDayDeadStock() { return endOfDayDeadStock; }
+    public BigDecimal getEndOfDayAvailable() { return endOfDayAvailable; }
+    public BigDecimal getEndOfDayDeadStock() { return endOfDayDeadStock; }
     public User getEndOfDayEnteredBy() { return endOfDayEnteredBy; }
     public OffsetDateTime getEndOfDayEnteredAt() { return endOfDayEnteredAt; }
     public User getEndOfDayCheckedBy() { return endOfDayCheckedBy; }
     public OffsetDateTime getEndOfDayCheckedAt() { return endOfDayCheckedAt; }
 
-    public Integer getRequiredTomorrow() {
+    public BigDecimal getRequiredTomorrow() {
         return requiredTomorrow;
     }
 
-    public void setRequiredTomorrow(Integer requiredTomorrow) {
+    public void setRequiredTomorrow(BigDecimal requiredTomorrow) {
         this.requiredTomorrow = requiredTomorrow;
     }
 
@@ -260,15 +275,15 @@ public class StockCheck {
         return checkedBy;
     }
 
-    public int getCurrentCount() {
+    public BigDecimal getCurrentCount() {
         return currentCount;
     }
 
-    public int getQuantityNeeded() {
+    public BigDecimal getQuantityNeeded() {
         return quantityNeeded;
     }
 
-    public void setQuantityNeeded(int quantityNeeded) {
+    public void setQuantityNeeded(BigDecimal quantityNeeded) {
         this.quantityNeeded = quantityNeeded;
     }
 

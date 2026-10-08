@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 
@@ -20,13 +21,13 @@ public record StockCheckResponse(
     // This day's own par level (item.requiredMinimumOn(checkDate)) -- unlike
     // requiredTomorrow below, this is set whether or not End of Day was ever
     // recorded, so history views can show a par target for every row.
-    Integer requiredPar,
+    BigDecimal requiredPar,
     StockSnapshotResponse startOfDay,
     StockSnapshotResponse endOfDay,
-    Integer stockUsed,
-    Integer requiredTomorrow,
+    BigDecimal stockUsed,
+    BigDecimal requiredTomorrow,
     // Null until End of Day has been counted.
-    Integer quantityToOrder,
+    BigDecimal quantityToOrder,
     List<StockCheckEditResponse> edits
 ) {
     public static StockCheckResponse from(StockCheck check) {

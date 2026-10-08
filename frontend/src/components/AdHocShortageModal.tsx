@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { StoreInventoryItemOption } from '../types/stockCheck';
 import Modal from './Modal';
+import { parseQty } from '../utils/quantity';
 import FormField from './FormField';
 import Select from './Select';
 import ButtonDots from './ButtonDots';
@@ -37,8 +38,8 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
     event.preventDefault();
     const nextErrors: typeof errors = {};
     if (!values.storeInventoryItemId) nextErrors.storeInventoryItemId = 'Item is required';
-    const qty = Number(values.quantity);
-    if (!values.quantity.trim() || Number.isNaN(qty) || qty < 1) nextErrors.quantity = 'Quantity must be at least 1';
+    const qty = parseQty(values.quantity);
+    if (qty === null || qty <= 0) nextErrors.quantity = 'Enter a quantity greater than 0 (up to 2 decimals)';
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -82,8 +83,8 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
         <FormField label="Quantity Needed" htmlFor="ad-hoc-quantity" error={errors.quantity}>
           <input
             id="ad-hoc-quantity"
-            type="number"
-            min={1}
+            type="text"
+            inputMode="decimal"
             className="input"
             value={values.quantity}
             onChange={(event) => setValues((current) => ({ ...current, quantity: event.target.value }))}

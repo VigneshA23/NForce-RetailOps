@@ -30,9 +30,25 @@ describe('EditInventoryCountModal', () => {
     render(<EditInventoryCountModal isOpen row={ROW} onClose={vi.fn()} onSubmit={onSubmit} />);
 
     expect(screen.getByRole('spinbutton')).toHaveValue(30);
+    expect(screen.getByRole('button', { name: 'Save count' })).toBeDisabled();
+    await user.click(screen.getByLabelText('Increase'));
     await user.click(screen.getByRole('button', { name: 'Save count' }));
 
-    expect(onSubmit).toHaveBeenCalledWith({ available: 30, reason: 'Recount (count was wrong)' });
+    expect(onSubmit).toHaveBeenCalledWith({ available: 31, reason: 'Recount (count was wrong)' });
+  });
+
+  it('accepts decimal counts such as 1.25 for kg / litre items', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<EditInventoryCountModal isOpen row={ROW} onClose={vi.fn()} onSubmit={onSubmit} />);
+
+    const input = screen.getByRole('spinbutton');
+    await user.clear(input);
+    await user.type(input, '30.25');
+    expect(screen.getByText('+0.25 L vs. last count')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Save count' }));
+
+    expect(onSubmit).toHaveBeenCalledWith({ available: 30.25, reason: 'Recount (count was wrong)' });
   });
 
   it('shows the diff against the last count once the stepper changes', async () => {
@@ -54,9 +70,10 @@ describe('EditInventoryCountModal', () => {
     await user.click(screen.getByLabelText('Reason'));
     await user.click(screen.getByRole('option', { name: 'Waste or spoilage' }));
     await user.type(screen.getByPlaceholderText(/found 2 extra/i), 'Spilled crate');
+    await user.click(screen.getByLabelText('Increase'));
     await user.click(screen.getByRole('button', { name: 'Save count' }));
 
-    expect(onSubmit).toHaveBeenCalledWith({ available: 30, reason: 'Waste or spoilage — Spilled crate' });
+    expect(onSubmit).toHaveBeenCalledWith({ available: 31, reason: 'Waste or spoilage — Spilled crate' });
   });
 
   it('disables the save button and shows an error message while submitting', () => {

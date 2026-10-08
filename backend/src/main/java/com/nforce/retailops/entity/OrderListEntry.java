@@ -2,6 +2,7 @@ package com.nforce.retailops.entity;
 
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 // References the store's own inventory item directly. At most one active
@@ -26,7 +27,7 @@ public class OrderListEntry {
     private StoreInventoryItem storeInventoryItem;
 
     @Column(name = "quantity_needed", nullable = false)
-    private int quantityNeeded;
+    private BigDecimal quantityNeeded = BigDecimal.ZERO;
 
     // Extra quantity a person added by hand on top of quantityNeeded (via
     // "Add to order" on an item that already has an active entry), not a
@@ -36,7 +37,7 @@ public class OrderListEntry {
     // (see OrderListService.doUpsertShortage) -- a manual top-up only ever
     // applies to that day's figure, not indefinitely.
     @Column(name = "manual_addition", nullable = false)
-    private int manualAddition;
+    private BigDecimal manualAddition = BigDecimal.ZERO;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id")
@@ -102,19 +103,19 @@ public class OrderListEntry {
         this.storeInventoryItem = storeInventoryItem;
     }
 
-    public int getQuantityNeeded() {
+    public BigDecimal getQuantityNeeded() {
         return quantityNeeded;
     }
 
-    public void setQuantityNeeded(int quantityNeeded) {
+    public void setQuantityNeeded(BigDecimal quantityNeeded) {
         this.quantityNeeded = quantityNeeded;
     }
 
-    public int getManualAddition() {
+    public BigDecimal getManualAddition() {
         return manualAddition;
     }
 
-    public void setManualAddition(int manualAddition) {
+    public void setManualAddition(BigDecimal manualAddition) {
         this.manualAddition = manualAddition;
     }
 

@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
@@ -192,7 +193,7 @@ class SuperAdminOperationsControllerTest {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
         entry.setStoreInventoryItem(item);
-        entry.setQuantityNeeded(2);
+        entry.setQuantityNeeded(bd(2));
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);
     }
@@ -207,7 +208,7 @@ class SuperAdminOperationsControllerTest {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
         entry.setStoreInventoryItem(item);
-        entry.setQuantityNeeded(quantity);
+        entry.setQuantityNeeded(bd(quantity));
         entry.setSupplier(supplier);
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);
@@ -498,8 +499,8 @@ class SuperAdminOperationsControllerTest {
                 .param("toDate", LocalDate.now().toString())
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[?(@.storeId == " + storeOne.getId() + ")].totalQuantity").value(10))
-            .andExpect(jsonPath("$[?(@.storeId == " + storeTwo.getId() + ")].totalQuantity").value(20));
+            .andExpect(jsonPath("$[?(@.storeId == " + storeOne.getId() + ")].totalQuantity").value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.closeTo(10.0, 0.001))))
+            .andExpect(jsonPath("$[?(@.storeId == " + storeTwo.getId() + ")].totalQuantity").value(org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.closeTo(20.0, 0.001))));
     }
 
     @Test

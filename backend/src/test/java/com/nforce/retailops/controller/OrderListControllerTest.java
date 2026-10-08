@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.StoreInventoryItem;
@@ -108,7 +109,7 @@ class OrderListControllerTest {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
         entry.setStoreInventoryItem(inventoryItem(store));
-        entry.setQuantityNeeded(2);
+        entry.setQuantityNeeded(bd(2));
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);
     }
@@ -123,7 +124,7 @@ class OrderListControllerTest {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
         entry.setStoreInventoryItem(inventoryItem(store));
-        entry.setQuantityNeeded(quantity);
+        entry.setQuantityNeeded(bd(quantity));
         entry.setSupplier(supplier);
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);

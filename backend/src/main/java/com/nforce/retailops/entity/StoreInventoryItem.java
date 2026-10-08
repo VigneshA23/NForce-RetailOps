@@ -2,6 +2,7 @@ package com.nforce.retailops.entity;
 
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -36,11 +37,11 @@ public class StoreInventoryItem {
     private String category;
 
     @Column(name = "min_weekday")
-    private Integer minWeekday;
+    private BigDecimal minWeekday;
 
     // Nullable -- falls back to minWeekday when not separately configured.
     @Column(name = "min_weekend")
-    private Integer minWeekend;
+    private BigDecimal minWeekend;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "preferred_supplier_id")
@@ -131,19 +132,19 @@ public class StoreInventoryItem {
         this.category = category;
     }
 
-    public Integer getMinWeekday() {
+    public BigDecimal getMinWeekday() {
         return minWeekday;
     }
 
-    public void setMinWeekday(Integer minWeekday) {
+    public void setMinWeekday(BigDecimal minWeekday) {
         this.minWeekday = minWeekday;
     }
 
-    public Integer getMinWeekend() {
+    public BigDecimal getMinWeekend() {
         return minWeekend;
     }
 
-    public void setMinWeekend(Integer minWeekend) {
+    public void setMinWeekend(BigDecimal minWeekend) {
         this.minWeekend = minWeekend;
     }
 
@@ -151,7 +152,7 @@ public class StoreInventoryItem {
     // Saturday/Sunday when one is set, otherwise the weekday minimum. Shared
     // by the employee stock check and the Owner/Admin inventory table so the
     // two can't disagree about what's required today.
-    public Integer requiredMinimumOn(LocalDate date) {
+    public BigDecimal requiredMinimumOn(LocalDate date) {
         DayOfWeek day = date.getDayOfWeek();
         boolean weekend = day == DayOfWeek.SATURDAY || day == DayOfWeek.SUNDAY;
         if (weekend && minWeekend != null) {

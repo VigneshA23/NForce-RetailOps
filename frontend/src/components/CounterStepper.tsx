@@ -1,4 +1,5 @@
 import { Minus, Plus } from 'lucide-react';
+import { roundQty } from '../utils/quantity';
 import './CounterStepper.css';
 
 interface CounterStepperProps {
@@ -16,7 +17,7 @@ function CounterStepper({ id, value, onChange, min = 0, disabled = false }: Coun
   function step(delta: number) {
     const current = Number.isFinite(numeric) ? numeric : min;
     const next = Math.max(min, current + delta);
-    onChange(String(next));
+    onChange(String(roundQty(next)));
   }
 
   return (
@@ -34,8 +35,8 @@ function CounterStepper({ id, value, onChange, min = 0, disabled = false }: Coun
         id={id}
         type="number"
         min={min}
-        step={1}
-        inputMode="numeric"
+        step="any"
+        inputMode="decimal"
         className="counter-stepper__field"
         value={value}
         disabled={disabled}
