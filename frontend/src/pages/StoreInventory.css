@@ -83,6 +83,24 @@
   gap: 6px;
 }
 
+/* Only Super Admin's own sub-tab bar uses this now (SuperAdminInventory.tsx,
+   RTS-304) -- Owner/Admin's StoreInventory.tsx dropped its badges, but this
+   shared stylesheet is still the right home for a class named
+   store-inventory-page__subtab-badge. */
+.store-inventory-page__subtab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
+  font-size: 10px;
+  font-weight: 700;
+}
+
 /* Mobile only: a rounded segmented control (matching Order Dashboard's own
    pill tabs, OrderDashboard.css) reads better at phone width than underline
    tabs. Desktop keeps the underline tabs untouched. */
