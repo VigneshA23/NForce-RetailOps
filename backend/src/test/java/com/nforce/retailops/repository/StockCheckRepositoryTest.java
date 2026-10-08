@@ -1,5 +1,6 @@
 package com.nforce.retailops.repository;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
@@ -84,7 +85,7 @@ class StockCheckRepositoryTest {
 
     private StockCheck startOfDay(StoreInventoryItem item, User by, LocalDate date, int available) {
         StockCheck check = newCheck(item, date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, by, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(available), bd(0), by, OffsetDateTime.now(), false);
         return stockCheckRepository.save(check);
     }
 
@@ -101,7 +102,7 @@ class StockCheckRepositoryTest {
 
         assertThat(page.getContent()).hasSize(1);
         StockCheck loaded = page.getContent().get(0);
-        assertThat(loaded.getStartOfDayAvailable()).isEqualTo(4);
+        assertThat(loaded.getStartOfDayAvailable()).isEqualByComparingTo(bd(4));
         assertThat(loaded.getEndOfDayAvailable()).isNull();
         assertThat(loaded.getStartOfDayEnteredBy().getEmail()).isEqualTo("repo-deactivated@nforce.test");
     }
@@ -120,7 +121,7 @@ class StockCheckRepositoryTest {
         Page<StockCheck> page = stockCheckRepository.findForStoreInRange(
             storeEntity.getId(), LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 30), PageRequest.of(0, 20));
 
-        assertThat(page.getContent()).extracting(StockCheck::getStartOfDayAvailable).containsExactlyInAnyOrder(1, 2);
+        assertThat(page.getContent()).extracting(StockCheck::getStartOfDayAvailable).usingElementComparator(java.math.BigDecimal::compareTo).containsExactlyInAnyOrder(bd(1), bd(2));
     }
 
     @Test
@@ -134,7 +135,7 @@ class StockCheckRepositoryTest {
         stockCheckRepository.flush();
 
         StockCheck duplicate = newCheck(item, day);
-        duplicate.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 5, 0, recorder, OffsetDateTime.now(), false);
+        duplicate.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(5), bd(0), recorder, OffsetDateTime.now(), false);
 
         assertThatThrownBy(() -> stockCheckRepository.saveAndFlush(duplicate))
             .isInstanceOf(DataIntegrityViolationException.class);
@@ -160,7 +161,7 @@ class StockCheckRepositoryTest {
             stockCheckCorrectionRepository.findWithEditorByStockCheckIds(List.of(stockCheck.getId()));
 
         assertThat(edits).extracting(StockCheckCorrection::getId).containsExactly(first.getId(), second.getId());
-        assertThat(edits.get(0).getOriginalCount()).isEqualTo(10);
+        assertThat(edits.get(0).getOriginalCount()).isEqualByComparingTo(bd(10));
         assertThat(edits.get(1).getCorrectedByUser().getEmail()).isEqualTo("repo-edits-second@nforce.test");
     }
 
@@ -168,10 +169,10 @@ class StockCheckRepositoryTest {
         StockCheckCorrection correction = new StockCheckCorrection();
         correction.setStockCheck(check);
         correction.setSnapshot(StockCheckSnapshot.START_OF_DAY);
-        correction.setOriginalCount(from);
-        correction.setOriginalDeadStock(0);
-        correction.setCorrectedCount(to);
-        correction.setCorrectedDeadStock(0);
+        correction.setOriginalCount(bd(from));
+        correction.setOriginalDeadStock(bd(0));
+        correction.setCorrectedCount(bd(to));
+        correction.setCorrectedDeadStock(bd(0));
         correction.setCorrectedByUser(by);
         stockCheckCorrectionRepository.saveAndFlush(correction);
         ReflectionTestUtils.setField(correction, "correctedAt", at);

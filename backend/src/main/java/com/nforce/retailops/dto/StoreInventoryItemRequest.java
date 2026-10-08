@@ -1,11 +1,13 @@
 package com.nforce.retailops.dto;
 
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 // storeId / storeIds are only read on the Super Admin create endpoint
@@ -31,10 +33,12 @@ public record StoreInventoryItemRequest(
 
     @NotNull(message = "Minimum weekday quantity is required")
     @PositiveOrZero(message = "Minimum weekday quantity cannot be negative")
-    Integer minWeekday,
+    @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
+    BigDecimal minWeekday,
 
     @PositiveOrZero(message = "Minimum weekend quantity cannot be negative")
-    Integer minWeekend,
+    @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
+    BigDecimal minWeekend,
 
     @NotNull(message = "Preferred supplier is required")
     Long preferredSupplierId,

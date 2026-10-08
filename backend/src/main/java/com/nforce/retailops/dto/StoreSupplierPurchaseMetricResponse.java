@@ -1,5 +1,7 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
+
 // Super Admin's cross-store Supplier Purchasing Summary: a flat list, one row
 // per store+supplier pairing with qualifying activity in the requested date
 // range. The frontend groups rows by storeId for display -- that's a view
@@ -10,6 +12,6 @@ public record StoreSupplierPurchaseMetricResponse(
     String storeName,
     String supplierName,
     long orderEntryCount,
-    long totalQuantity
+    BigDecimal totalQuantity
 ) {
 }

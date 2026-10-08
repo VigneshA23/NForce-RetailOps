@@ -13,4 +13,8 @@ public interface SupplierRepository extends JpaRepository<Supplier, Long> {
     List<Supplier> findByActiveTrueOrderByNameAsc();
 
     Optional<Supplier> findFirstByNameIgnoreCaseOrderByIdAsc(String name);
+
+    boolean existsByNameIgnoreCase(String name);
+
+    boolean existsByNameIgnoreCaseAndIdNot(String name, Long id);
 }

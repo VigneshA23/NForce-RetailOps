@@ -244,6 +244,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(SupplierNameExistsException.class)
+    public ResponseEntity<Map<String, String>> handleSupplierNameExists(SupplierNameExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InventoryItemImageNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleInventoryItemImageNotFound(InventoryItemImageNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));

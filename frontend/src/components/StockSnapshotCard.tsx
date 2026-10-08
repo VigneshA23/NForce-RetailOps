@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { StockSnapshot } from '../types/stockCheck';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
+import { parseQty } from '../utils/quantity';
 import ButtonDots from './ButtonDots';
 import CounterStepper from './CounterStepper';
 import './StockSnapshotCard.css';
@@ -23,12 +24,6 @@ interface StockSnapshotCardProps {
   // False once another employee has taken this snapshot: the count is shown
   // read-only because only the first responder may edit it.
   canEdit?: boolean;
-}
-
-function parseCount(text: string): number | null {
-  if (text.trim() === '') return null;
-  const value = Number(text);
-  return Number.isInteger(value) && value >= 0 ? value : null;
 }
 
 // One Start of Day or End of Day count for one item. The count stays
@@ -56,18 +51,26 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canEdit) return;
-    const availableValue = parseCount(available);
-    const deadValue = parseCount(deadStock);
+    const availableValue = parseQty(available);
+    const deadValue = parseQty(deadStock);
     if (availableValue === null) {
-      setError('Enter available stock as a whole number (0 or more).');
+      setError('Enter available stock as a number (0 or more, up to 2 decimals).');
       return;
     }
     if (deadValue === null) {
-      setError('Enter dead stock as a whole number (0 or more).');
+      setError('Enter dead stock as a number (0 or more, up to 2 decimals).');
       return;
     }
     if (deadValue > availableValue) {
       setError('Dead stock cannot be more than available stock.');
+      return;
+    }
+    if (
+      snapshot &&
+      availableValue === snapshot.available &&
+      deadValue === snapshot.deadStock
+    ) {
+      setError('No changes to save - the values are the same as the current ones.');
       return;
     }
     setError(null);

@@ -5,6 +5,7 @@ import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
 import QuantityStepper from './QuantityStepper';
+import { roundQty } from '../utils/quantity';
 import ButtonDots from './ButtonDots';
 import './AddToOrderPanel.css';
 
@@ -83,7 +84,7 @@ function AddToOrderPanel({
       setValidationError('Choose an item');
       return;
     }
-    if (values.quantity < 1) {
+    if (values.quantity <= 0) {
       setValidationError('Quantity must be at least 1');
       return;
     }
@@ -142,7 +143,7 @@ function AddToOrderPanel({
           />
           {existingNeed && (
             <p className="add-to-order-panel__need-hint">
-              Already needs <b>{existingNeed.quantityNeeded + existingNeed.manualAddition} {unit}</b> -- this adds extra on top.
+              Already needs <b>{roundQty(existingNeed.quantityNeeded + existingNeed.manualAddition)} {unit}</b> -- this adds extra on top.
             </p>
           )}
         </FormField>
@@ -152,7 +153,7 @@ function AddToOrderPanel({
             id="ato-quantity"
             value={values.quantity}
             unit={unit}
-            min={1}
+            min={0}
             ariaLabel="Quantity"
             onChange={(quantity) => setValues((current) => ({ ...current, quantity }))}
           />

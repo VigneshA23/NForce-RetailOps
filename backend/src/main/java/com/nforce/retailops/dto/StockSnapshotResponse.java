@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.User;
@@ -9,9 +10,9 @@ import java.time.OffsetDateTime;
 // One Start of Day or End of Day snapshot. usable = available - deadStock.
 // edited is true once someone has re-saved it after the first entry.
 public record StockSnapshotResponse(
-    int available,
-    int deadStock,
-    int usable,
+    BigDecimal available,
+    BigDecimal deadStock,
+    BigDecimal usable,
     Long enteredById,
     String enteredByName,
     OffsetDateTime enteredAt,
@@ -29,10 +30,10 @@ public record StockSnapshotResponse(
         User checkedBy = start ? check.getStartOfDayCheckedBy() : check.getEndOfDayCheckedBy();
         OffsetDateTime enteredAt = start ? check.getStartOfDayEnteredAt() : check.getEndOfDayEnteredAt();
         OffsetDateTime checkedAt = start ? check.getStartOfDayCheckedAt() : check.getEndOfDayCheckedAt();
-        Integer dead = check.deadStockFor(snapshot);
+        BigDecimal dead = check.deadStockFor(snapshot);
         return new StockSnapshotResponse(
             check.availableFor(snapshot),
-            dead == null ? 0 : dead,
+            dead == null ? BigDecimal.ZERO : dead,
             check.usableFor(snapshot),
             enteredBy != null ? enteredBy.getId() : null,
             enteredBy != null ? enteredBy.getFullName() : null,

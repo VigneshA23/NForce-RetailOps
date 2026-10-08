@@ -1,5 +1,6 @@
 package com.nforce.retailops.repository;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Role;
@@ -90,7 +91,7 @@ class OrderListEntryAggregateRepositoryTest {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
         entry.setStoreInventoryItem(item(store));
-        entry.setQuantityNeeded(3);
+        entry.setQuantityNeeded(bd(3));
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);
     }
@@ -119,7 +120,7 @@ class OrderListEntryAggregateRepositoryTest {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
         entry.setStoreInventoryItem(item(store));
-        entry.setQuantityNeeded(quantity);
+        entry.setQuantityNeeded(bd(quantity));
         entry.setSupplier(supplier);
         entry.setStatus(status);
         return orderListEntryRepository.save(entry);

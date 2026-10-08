@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -20,13 +21,13 @@ public record EodSupplierReportResponse(
         Long storeInventoryItemId,
         String itemName,
         String unitOfMeasurement,
-        Integer startOfDayAvailable,
-        Integer startOfDayDeadStock,
-        Integer endOfDayAvailable,
-        Integer endOfDayDeadStock,
-        Integer stockUsed,
-        Integer requiredTomorrow,
-        Integer quantityToOrder,
+        BigDecimal startOfDayAvailable,
+        BigDecimal startOfDayDeadStock,
+        BigDecimal endOfDayAvailable,
+        BigDecimal endOfDayDeadStock,
+        BigDecimal stockUsed,
+        BigDecimal requiredTomorrow,
+        BigDecimal quantityToOrder,
         Status status
     ) {
     }

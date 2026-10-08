@@ -25,6 +25,7 @@ import com.nforce.retailops.util.DateRangeValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -167,7 +168,7 @@ public class SuperAdminOperationsService {
                 (String) row[1],
                 row[3] != null ? (String) row[3] : NO_SUPPLIER,
                 ((Number) row[4]).longValue(),
-                ((Number) row[5]).longValue()
+                OrderListService.toDecimal(row[5])
             ))
             .sorted(Comparator.comparing(StoreSupplierPurchaseMetricResponse::storeName, String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(StoreSupplierPurchaseMetricResponse::supplierName, String.CASE_INSENSITIVE_ORDER))

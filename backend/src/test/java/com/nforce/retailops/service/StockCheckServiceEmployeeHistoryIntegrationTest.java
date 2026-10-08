@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.StockCheckSnapshot;
@@ -88,8 +89,8 @@ class StockCheckServiceEmployeeHistoryIntegrationTest {
         check.setStore(store);
         check.setStoreInventoryItem(item);
         check.setCheckDate(LocalDate.of(2026, 9, 1));
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 8, 0, employee, OffsetDateTime.now(), false);
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 5, 0, employee, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(8), bd(0), employee, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(5), bd(0), employee, OffsetDateTime.now(), false);
         stockCheckRepository.save(check);
 
         StockCheckHistoryPageResponse response = stockCheckService.listHistoricalChecksForEmployee(

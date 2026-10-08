@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.StockCheck;
@@ -99,8 +100,8 @@ class InventoryCatalogControllerTest {
         item.setStore(store);
         item.setName(name);
         item.setUnitOfMeasurement("ct");
-        item.setMinWeekday(minWeekday);
-        item.setMinWeekend(minWeekday);
+        item.setMinWeekday(bd(minWeekday));
+        item.setMinWeekend(bd(minWeekday));
         item.setActive(true);
         return storeInventoryItemRepository.save(item);
     }
@@ -110,7 +111,7 @@ class InventoryCatalogControllerTest {
         check.setStore(item.getStore());
         check.setStoreInventoryItem(item);
         check.setCheckDate(date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, by, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(available), bd(0), by, OffsetDateTime.now(), false);
         stockCheckRepository.save(check);
     }
 

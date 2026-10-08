@@ -29,6 +29,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -291,7 +292,7 @@ public class OrderListService {
         item.setName(request.itemName().trim());
         item.setCategory(request.category().trim());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
-        item.setMinWeekday(request.minWeekday() != null ? request.minWeekday() : 0);
+        item.setMinWeekday(request.minWeekday() != null ? request.minWeekday() : BigDecimal.ZERO);
         item.setMinWeekend(request.minWeekend());
         item.setPreferredSupplier(supplier);
         item.setActive(request.saveToInventory());
@@ -307,7 +308,7 @@ public class OrderListService {
     // violation is caught here and retried as an update against the winner's
     // row instead of surfacing as a raw 500.
     @Transactional
-    public void upsertShortage(Store store, StoreInventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+    public void upsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
         try {
             doUpsertShortage(store, item, quantityNeeded, note, adHoc, raisedBy, defaultSupplier);
         } catch (DataIntegrityViolationException raceLostInsert) {
@@ -315,7 +316,7 @@ public class OrderListService {
         }
     }
 
-    private void doUpsertShortage(Store store, StoreInventoryItem item, int quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+    private void doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
         OrderListEntry entry = orderListEntryRepository
             .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
             .orElseGet(() -> {
@@ -339,10 +340,10 @@ public class OrderListService {
         // baseline and clears any manual top-up, since that top-up was for
         // the figure being replaced, not a running total.
         if (adHoc && !isNewEntry) {
-            entry.setManualAddition(entry.getManualAddition() + quantityNeeded);
+            entry.setManualAddition(entry.getManualAddition().add(quantityNeeded));
         } else {
             entry.setQuantityNeeded(quantityNeeded);
-            entry.setManualAddition(0);
+            entry.setManualAddition(BigDecimal.ZERO);
         }
 
         entry.setAdHoc(isNewEntry ? adHoc : entry.isAdHoc());
@@ -380,6 +381,11 @@ public class OrderListService {
     // this way. Aggregation (COUNT/SUM/GROUP BY) happens entirely in
     // findSupplierMetricsForStore -- this method only validates the range and
     // maps the resulting tuples.
+    // SUM over NUMERIC comes back as BigDecimal; null when no rows qualify.
+    static BigDecimal toDecimal(Object sum) {
+        return sum == null ? BigDecimal.ZERO : new BigDecimal(sum.toString());
+    }
+
     @Transactional(readOnly = true)
     public List<SupplierPurchaseMetricResponse> getSupplierMetricsForOwner(Long ownerId, LocalDate fromDate, LocalDate toDate) {
         DateRangeValidator.validate(fromDate, toDate, MAX_DATE_RANGE_DAYS);
@@ -392,7 +398,7 @@ public class OrderListService {
             .map(row -> new SupplierPurchaseMetricResponse(
                 row[1] != null ? (String) row[1] : NO_SUPPLIER,
                 ((Number) row[2]).longValue(),
-                ((Number) row[3]).longValue()
+                toDecimal(row[3])
             ))
             .sorted(Comparator.comparing(SupplierPurchaseMetricResponse::supplierName, String.CASE_INSENSITIVE_ORDER))
             .toList();

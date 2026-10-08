@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.entity.StockCheck;
@@ -100,13 +101,13 @@ class StockCheckServiceSuperAdminCorrectionTest {
     }
 
     private StockCheckCorrectionRequest request(String reason) {
-        return new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 6, 1, reason);
+        return new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, bd(6), bd(1), reason);
     }
 
     @Test
     void correctsAStoreItHasNoOwnerLinkToAndAttributesTheCorrectionToTheSuperAdmin() {
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, null, java.time.OffsetDateTime.now().minusDays(3), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), null, java.time.OffsetDateTime.now().minusDays(3), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
         when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.empty());
 
@@ -135,20 +136,20 @@ class StockCheckServiceSuperAdminCorrectionTest {
         ReflectionTestUtils.setField(employee, "id", 5L);
         employee.setFullName("Employee Eve");
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, java.time.OffsetDateTime.now().minusDays(3), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), employee, java.time.OffsetDateTime.now().minusDays(3), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         stockCheckService.correctCheckForSuperAdmin(STORE_ID, CHECK_ID, superAdmin, request("Recount"));
 
         assertThat(check.getCheckedBy()).isEqualTo(employee);
-        assertThat(check.getEndOfDayAvailable()).isEqualTo(6);
-        assertThat(check.getEndOfDayDeadStock()).isEqualTo(1);
+        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(6));
+        assertThat(check.getEndOfDayDeadStock()).isEqualByComparingTo(bd(1));
     }
 
     @Test
     void rejectsAMissingReason() {
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, null, java.time.OffsetDateTime.now().minusDays(3), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), null, java.time.OffsetDateTime.now().minusDays(3), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         assertThatThrownBy(() -> stockCheckService.correctCheckForSuperAdmin(STORE_ID, CHECK_ID, superAdmin, request(null)))
@@ -169,10 +170,10 @@ class StockCheckServiceSuperAdminCorrectionTest {
 
     @Test
     void correctingTodaysEntryStillSyncsTheOrderList() {
-        milk.setMinWeekday(5);
-        milk.setMinWeekend(5);
+        milk.setMinWeekday(bd(5));
+        milk.setMinWeekend(bd(5));
         StockCheck check = existingCheck(LocalDate.now());
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, null, java.time.OffsetDateTime.now().minusHours(1), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), null, java.time.OffsetDateTime.now().minusHours(1), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         // request() asks for available=6, deadStock=1 -> usable 5, meeting the minimum above.
@@ -184,7 +185,7 @@ class StockCheckServiceSuperAdminCorrectionTest {
     @Test
     void notifiesTheActiveOwnerWhenOneExists() {
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, null, java.time.OffsetDateTime.now().minusDays(3), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), null, java.time.OffsetDateTime.now().minusDays(3), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         User owner = new User();
