@@ -124,8 +124,7 @@ public class StoreInventoryItemService {
         Store store = requireOwnerStore(ownerId);
         StoreInventoryItem item = storeInventoryItemRepository.findByIdAndStoreId(itemId, store.getId())
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
-        item.setActive(active);
-        return toResponse(storeInventoryItemRepository.save(item));
+        return toResponse(applyActive(item, active));
     }
 
     @Transactional
@@ -255,8 +254,7 @@ public class StoreInventoryItemService {
     public StoreInventoryItemResponse setActiveForSuperAdmin(Long itemId, boolean active) {
         StoreInventoryItem item = storeInventoryItemRepository.findById(itemId)
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
-        item.setActive(active);
-        return toResponse(storeInventoryItemRepository.save(item));
+        return toResponse(applyActive(item, active));
     }
 
     @Transactional
@@ -370,6 +368,29 @@ public class StoreInventoryItemService {
                 se.getEmployee(), "STOCK_ITEM_ADDED",
                 "New stock item: " + itemName,
                 "\"" + itemName + "\" has been added to your store's stock check. Please complete its "
+                    + "Start of Day check - only one response is allowed per item.",
+                "/stock-check"));
+    }
+
+    // Only a real inactive -> active flip notifies, so re-sending "activate"
+    // on an already-active item stays silent.
+    private StoreInventoryItem applyActive(StoreInventoryItem item, boolean active) {
+        boolean reactivated = active && !item.isActive();
+        item.setActive(active);
+        StoreInventoryItem saved = storeInventoryItemRepository.save(item);
+        if (reactivated) {
+            notifyEmployeesOfReactivatedItem(saved.getStore(), saved);
+        }
+        return saved;
+    }
+
+    private void notifyEmployeesOfReactivatedItem(Store store, StoreInventoryItem item) {
+        String itemName = item.getName();
+        storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(Set.of(store.getId()))
+            .forEach(se -> notificationService.send(
+                se.getEmployee(), "STOCK_ITEM_REACTIVATED",
+                "Stock item reactivated: " + itemName,
+                "\"" + itemName + "\" is back on your store's stock check. Please complete its "
                     + "Start of Day check - only one response is allowed per item.",
                 "/stock-check"));
     }

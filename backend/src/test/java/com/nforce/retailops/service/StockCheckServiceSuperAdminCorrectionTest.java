@@ -127,6 +127,24 @@ class StockCheckServiceSuperAdminCorrectionTest {
         verify(notificationService, never()).notifyOwnerOfSuperAdminStockCheckCorrection(any(), any());
     }
 
+    // Regression: checked_by_user_id is NOT NULL, so a Super Admin correction
+    // (no users row) must not overwrite the existing checker with null.
+    @Test
+    void keepsTheOriginalCheckerWhenASuperAdminCorrectsARealEmployeeEntry() {
+        User employee = new User();
+        ReflectionTestUtils.setField(employee, "id", 5L);
+        employee.setFullName("Employee Eve");
+        StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, java.time.OffsetDateTime.now().minusDays(3), false);
+        when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
+
+        stockCheckService.correctCheckForSuperAdmin(STORE_ID, CHECK_ID, superAdmin, request("Recount"));
+
+        assertThat(check.getCheckedBy()).isEqualTo(employee);
+        assertThat(check.getEndOfDayAvailable()).isEqualTo(6);
+        assertThat(check.getEndOfDayDeadStock()).isEqualTo(1);
+    }
+
     @Test
     void rejectsAMissingReason() {
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));

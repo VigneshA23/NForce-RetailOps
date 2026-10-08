@@ -74,6 +74,19 @@ function CorrectStockCheckModal({ isOpen, row, snapshot, errorMessage, isSubmitt
   const current = activeSnapshot === 'START_OF_DAY' ? row.startOfDay : row.endOfDay;
   const snapshotLabel = activeSnapshot === 'START_OF_DAY' ? 'Start of Day' : 'End of Day';
 
+  // The first save of each snapshot writes no audit row, so surface it here as
+  // the opening entry: who entered it, when, and the value they entered (the
+  // earliest edit's "previous" value if it has since been corrected).
+  const originals = (['START_OF_DAY', 'END_OF_DAY'] as const).flatMap((key) => {
+    const snap = key === 'START_OF_DAY' ? row.startOfDay : row.endOfDay;
+    if (!snap?.enteredByName || !snap.enteredAt) return [];
+    const firstEdit = row.edits.find((edit) => edit.snapshot === key);
+    if (firstEdit && firstEdit.previousAvailable === null) return []; // backfilled -- no original entry
+    const available = firstEdit ? firstEdit.previousAvailable! : snap.available;
+    const dead = firstEdit ? firstEdit.previousDeadStock ?? 0 : snap.deadStock;
+    return [{ key, by: snap.enteredByName, at: snap.enteredAt, available, dead }];
+  });
+
   function handleSnapshotChange(value: string) {
     const next = value as StockCheckSnapshotKey;
     const target = next === 'START_OF_DAY' ? row!.startOfDay : row!.endOfDay;
@@ -144,8 +157,16 @@ function CorrectStockCheckModal({ isOpen, row, snapshot, errorMessage, isSubmitt
         {row.edits.length === 0 && (
           <p className="correct-stock-check-modal__history-empty">No corrections recorded yet.</p>
         )}
-        {row.edits.length > 0 && (
+        {(row.edits.length > 0 || originals.length > 0) && (
           <ul className="correct-stock-check-modal__history-list">
+            {originals.map((o) => (
+              <li key={`original-${o.key}`} className="correct-stock-check-modal__history-entry">
+                <span className="correct-stock-check-modal__history-meta">
+                  {o.key === 'START_OF_DAY' ? 'Start of Day' : 'End of Day'} entered by {o.by} · {formatDateLabel(row.checkDate)} {formatTimeLabel(o.at)}
+                </span>
+                <span className="correct-stock-check-modal__history-change">{countLabel(o.available, o.dead)}</span>
+              </li>
+            ))}
             {row.edits.map((edit, index) => (
               <li key={index} className="correct-stock-check-modal__history-entry">
                 <span className="correct-stock-check-modal__history-meta">

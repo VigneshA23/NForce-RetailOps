@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { ApiError } from '../api/client';
@@ -15,6 +15,9 @@ import './EmployeeStockCheck.css';
 
 interface EmployeeStockCheckProps {
   store: StoreSummary;
+  // Changes whenever something outside (a notification click) asks for fresh
+  // data; 0 means never asked.
+  refreshSignal?: number;
 }
 
 const SNAPSHOT_LABELS: Record<StockCheckSnapshotKey, string> = {
@@ -46,7 +49,7 @@ function toViewItem(item: DailyStockCheckItem): StockCheckViewItem {
 // Day -- with no time window on either. Saving a count again updates it.
 type View = 'today' | 'history';
 
-function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
+function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProps) {
   const [view, setView] = useState<View>('today');
   const [myUserId, setMyUserId] = useState<number | null>(null);
 
@@ -77,6 +80,16 @@ function EmployeeStockCheck({ store }: EmployeeStockCheckProps) {
   useEffect(() => {
     load();
   }, [store.id]);
+
+  // Quiet refetch (no spinner) so counts being typed aren't wiped. Skips the
+  // value present at mount, since the effect above already loads then.
+  const handledRefresh = useRef(refreshSignal);
+  useEffect(() => {
+    if (refreshSignal === handledRefresh.current) return;
+    handledRefresh.current = refreshSignal;
+    setView('today');
+    getTodayStockCheck(store.id).then(setItems).catch(() => {});
+  }, [refreshSignal]);
 
   async function handleSave(
     item: DailyStockCheckItem,
