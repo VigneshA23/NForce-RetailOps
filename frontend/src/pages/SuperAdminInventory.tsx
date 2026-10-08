@@ -15,6 +15,7 @@ import type { Supplier, SupplierFormValues } from '../types/supplier';
 import type { StoreInventoryItem, StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
 import StockLevelComparison from '../components/StockLevelComparison';
+import SuperAdminStockCheckHistory from '../components/SuperAdminStockCheckHistory';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryTable from '../components/StoreInventoryTable';
 import SupplierFormModal from '../components/SupplierFormModal';
@@ -29,13 +30,14 @@ import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import './SuperAdminInventory.css';
 
-type SubTab = 'inventory' | 'suppliers' | 'comparison' | 'purchasing-report';
+type SubTab = 'inventory' | 'suppliers' | 'comparison' | 'purchasing-report' | 'stock-check-history';
 
 const SUB_TABS: { key: SubTab; label: string }[] = [
   { key: 'inventory', label: 'Inventory' },
   { key: 'suppliers', label: 'Suppliers' },
   { key: 'comparison', label: 'Stock Comparison' },
   { key: 'purchasing-report', label: 'Purchasing Report' },
+  { key: 'stock-check-history', label: 'Stock Check History' },
 ];
 
 const STATUS_FILTER_OPTIONS = [
@@ -487,6 +489,7 @@ function SuperAdminInventory() {
 
       {subTab === 'comparison' && <StockLevelComparison items={items} />}
       {subTab === 'purchasing-report' && <SuperAdminSupplierPurchaseReport />}
+      {subTab === 'stock-check-history' && <SuperAdminStockCheckHistory />}
 
       <StoreInventoryItemFormModal
         isOpen={itemModal !== null}

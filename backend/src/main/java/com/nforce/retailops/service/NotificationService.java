@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.NotificationResponse;
 import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.Notification;
 import com.nforce.retailops.entity.RaisedIssue;
+import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.TaskResponseEntry;
@@ -51,6 +52,7 @@ public class NotificationService {
         PRIORITY_BY_CATEGORY.put("ISSUES_OVERDUE",                "MEDIUM");
         PRIORITY_BY_CATEGORY.put("ISSUE_NUDGE",                   "HIGH");
         PRIORITY_BY_CATEGORY.put("STORE_OWNER_VACANT",            "HIGH");
+        PRIORITY_BY_CATEGORY.put("STOCK_CHECK_CORRECTED",         "MEDIUM");
     }
 
     private final NotificationRepository notificationRepository;
@@ -181,6 +183,18 @@ public class NotificationService {
             "A Super Admin " + (resolved ? "resolved" : "acknowledged") + " an issue at " + storeName,
             "\"" + notePreview + "\"",
             "/issues", issue);
+    }
+
+    // Tells the store owner a Super Admin corrected one of their store's
+    // historical stock-check entries (RTS-306), mirroring
+    // notifyOwnerOfSuperAdminIssueUpdate above -- same reason this exists:
+    // the owner's own Stock Check History view changed under them.
+    @Transactional
+    public void notifyOwnerOfSuperAdminStockCheckCorrection(StockCheck check, User owner) {
+        send(owner, "STOCK_CHECK_CORRECTED",
+            "A Super Admin corrected a stock count at " + check.getStore().getName(),
+            check.getStoreInventoryItem().getName() + " on " + check.getCheckDate(),
+            "/inventory");
     }
 
     @Transactional

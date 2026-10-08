@@ -124,6 +124,13 @@ export async function buildStockCheckHistoryWorkbook(
   subtitleCell.alignment = { vertical: 'middle', horizontal: 'left' };
   worksheet.getRow(2).height = 18;
 
+  worksheet.mergeCells(3, 1, 3, HEADERS.length);
+  const countCell = worksheet.getCell(3, 1);
+  countCell.value = `${rows.length} record${rows.length === 1 ? '' : 's'}`;
+  countCell.font = { name: 'Calibri', size: 11, color: { argb: COLOR_SUBTITLE_TEXT } };
+  countCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  worksheet.getRow(3).height = 16;
+
   const headerRowNumber = 4;
   const headerRow = worksheet.getRow(headerRowNumber);
   HEADERS.forEach((header, i) => {
@@ -155,6 +162,14 @@ export async function buildStockCheckHistoryWorkbook(
     applyStatusStyle(excelRow.getCell(4), row.status);
     excelRow.height = 16;
   });
+
+  const totalRowNumber = headerRowNumber + 1 + rows.length;
+  worksheet.mergeCells(totalRowNumber, 1, totalRowNumber, HEADERS.length);
+  const totalCell = worksheet.getCell(totalRowNumber, 1);
+  totalCell.value = `Total Records: ${rows.length}`;
+  totalCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: COLOR_NAVY } };
+  totalCell.alignment = { vertical: 'middle', horizontal: 'left' };
+  worksheet.getRow(totalRowNumber).height = 18;
 
   worksheet.columns.forEach((column, i) => {
     column.width = COLUMN_WIDTHS[i];
@@ -200,6 +215,9 @@ export async function buildAndDownloadStockCheckHistoryPdf(
   doc.text(storeName ? `${storeName} — ${dateLabel}` : dateLabel, margin, y);
   y += 5;
 
+  doc.text(`${rows.length} record${rows.length === 1 ? '' : 's'}`, margin, y);
+  y += 5;
+
   doc.setDrawColor(220, 220, 220);
   doc.line(margin, y, pageW - margin, y);
   y += 7;
@@ -232,7 +250,8 @@ export async function buildAndDownloadStockCheckHistoryPdf(
   const finalY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y;
   doc.setTextColor(150, 150, 150);
   doc.setFontSize(7.5);
-  doc.text(`Generated ${new Date().toLocaleString()}`, margin, finalY + 6);
+  doc.text(`Total Records: ${rows.length}`, margin, finalY + 6);
+  doc.text(`Generated ${new Date().toLocaleString()}`, pageW - margin, finalY + 6, { align: 'right' });
 
   doc.save(filename);
 }

@@ -33,6 +33,7 @@ const ROW: StockCheckResponse = {
     newAvailable: 48,
     newDeadStock: 2,
     editedByName: 'Owner Olivia',
+    editedByRole: 'STORE_USER',
     editedAt: '2026-09-20T10:00:00Z',
     reason: 'Recount (count was wrong)',
   }],

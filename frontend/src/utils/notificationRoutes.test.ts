@@ -12,7 +12,7 @@ import {
 // route maps) together.
 const BACKEND_LINK_PATHS = {
   employee: ['/checklist', '/audit', '/issues'],
-  owner: ['/issues', '/home', '/profile', '/employees'],
+  owner: ['/issues', '/home', '/profile', '/employees', '/inventory'],
   superAdmin: ['/checklist', '/owners', '/issues'],
 };
 
@@ -33,6 +33,10 @@ describe('notificationRoutes', () => {
     expect(resolveNotificationRoute(EMPLOYEE_NOTIFICATION_ROUTES, '/issues')).toBe('issues');
     expect(resolveNotificationRoute(OWNER_NOTIFICATION_ROUTES, '/issues')).toBe('issues');
     expect(resolveNotificationRoute(SUPER_ADMIN_NOTIFICATION_ROUTES, '/issues')).toBe('issues');
+  });
+
+  it('routes /inventory to the Inventory tab for the owner (a Super Admin stock-check correction)', () => {
+    expect(resolveNotificationRoute(OWNER_NOTIFICATION_ROUTES, '/inventory')).toBe('inventory');
   });
 
   it('ignores a query string', () => {

@@ -54,6 +54,23 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
 
     Optional<StockCheck> findByIdAndStoreId(Long id, Long storeId);
 
+    // Super Admin's cross-store historical review (RTS-305): same shape as
+    // findForStoreInRange, but every store -- the store itself is joined so
+    // each row can carry its own store's name, ordered by store first so
+    // results read as grouped by store rather than interleaved by date.
+    @Query(
+        value = "select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS + "join fetch sc.store st "
+            + "where sc.checkDate between :startDate and :endDate "
+            + "order by st.name asc, sc.checkDate desc, sii.name asc, sc.id desc",
+        countQuery = "select count(sc) from StockCheck sc "
+            + "where sc.checkDate between :startDate and :endDate"
+    )
+    Page<StockCheck> findInRange(
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate,
+        Pageable pageable
+    );
+
     // Delete guard for StoreInventoryItemService: an item with any stock-check
     // history can't be hard-deleted.
     boolean existsByStoreInventoryItemId(Long storeInventoryItemId);

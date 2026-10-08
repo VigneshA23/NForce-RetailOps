@@ -16,9 +16,10 @@ export interface StockSnapshot {
 }
 
 // One edit of an existing snapshot. previousAvailable is null when the
-// snapshot had no prior value at all (an Owner/Admin correction filling in
-// one that was never recorded -- see RTS-69); previousDeadStock/newDeadStock
-// are null on edits recorded before dead stock was tracked.
+// snapshot had no prior value at all (a correction filling in one that was
+// never recorded -- see RTS-69); previousDeadStock/newDeadStock are null on
+// edits recorded before dead stock was tracked. editedByRole distinguishes a
+// Super Admin's cross-store correction (RTS-306) from a store-side one.
 export interface StockCheckEdit {
   snapshot: StockCheckSnapshotKey;
   previousAvailable: number | null;
@@ -26,6 +27,7 @@ export interface StockCheckEdit {
   newAvailable: number;
   newDeadStock: number | null;
   editedByName: string;
+  editedByRole: 'SUPER_ADMIN' | 'STORE_USER';
   editedAt: string;
   reason: string | null;
 }
@@ -58,6 +60,23 @@ export interface StockCheckResponse {
 // view can pass it through without translation.
 export interface StockCheckHistoryPage {
   items: StockCheckResponse[];
+  page: number;
+  pageSize: number;
+  pageCount: number;
+  totalItems: number;
+}
+
+// Super Admin's cross-store history (RTS-305) -- same StockCheckResponse,
+// labelled with its store. Returned this way whether scoped to one store or
+// every store, so the frontend has one shape to handle either way.
+export interface SuperAdminStockCheckResponse {
+  storeId: number;
+  storeName: string;
+  check: StockCheckResponse;
+}
+
+export interface SuperAdminStockCheckHistoryPage {
+  items: SuperAdminStockCheckResponse[];
   page: number;
   pageSize: number;
   pageCount: number;

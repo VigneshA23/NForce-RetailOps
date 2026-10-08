@@ -181,7 +181,7 @@ class StockCheckServiceTest {
         assertThat(audit.getOriginalCount()).isEqualTo(50);
         assertThat(audit.getOriginalDeadStock()).isEqualTo(2);
         assertThat(audit.getCorrectedCount()).isEqualTo(48);
-        assertThat(audit.getCorrectedBy()).isEqualTo(employee);
+        assertThat(audit.getCorrectedByUser()).isEqualTo(employee);
     }
 
     @Test
@@ -266,7 +266,7 @@ class StockCheckServiceTest {
         assertThat(saved.getOriginalCount()).isEqualTo(10);
         assertThat(saved.getCorrectedCount()).isEqualTo(6);
         assertThat(saved.getCorrectedDeadStock()).isEqualTo(1);
-        assertThat(saved.getCorrectedBy()).isEqualTo(owner);
+        assertThat(saved.getCorrectedByUser()).isEqualTo(owner);
         assertThat(saved.getReason()).isEqualTo("Recount after delivery");
 
         assertThat(check.getEndOfDayEnteredBy()).isEqualTo(employee);
@@ -426,7 +426,7 @@ class StockCheckServiceTest {
         StockCheckCorrection saved = captor.getValue();
         assertThat(saved.getOriginalCount()).isNull();
         assertThat(saved.getCorrectedCount()).isEqualTo(12);
-        assertThat(saved.getCorrectedBy()).isEqualTo(owner);
+        assertThat(saved.getCorrectedByUser()).isEqualTo(owner);
 
         // A correction never claims credit for the original entry -- there
         // wasn't one.
@@ -457,7 +457,7 @@ class StockCheckServiceTest {
         StockCheckCorrection employeeEntry = captor.getAllValues().get(1);
         assertThat(employeeEntry.getOriginalCount()).isEqualTo(12);
         assertThat(employeeEntry.getCorrectedCount()).isEqualTo(15);
-        assertThat(employeeEntry.getCorrectedBy()).isEqualTo(employee);
+        assertThat(employeeEntry.getCorrectedByUser()).isEqualTo(employee);
     }
 
     @Test
@@ -471,7 +471,7 @@ class StockCheckServiceTest {
         correction.setSnapshot(StockCheckSnapshot.END_OF_DAY);
         correction.setOriginalCount(10);
         correction.setCorrectedCount(6);
-        correction.setCorrectedBy(owner);
+        correction.setCorrectedByUser(owner);
         correction.setCorrectedAt(OffsetDateTime.now());
         when(stockCheckCorrectionRepository.findWithEditorByStockCheckIds(List.of(CHECK_ID)))
             .thenReturn(List.of(correction));

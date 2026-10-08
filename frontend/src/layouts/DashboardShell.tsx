@@ -49,6 +49,9 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
   const [orderSeed, setOrderSeed] = useState<{ status: string; id: number } | undefined>(undefined);
   // Notification-click navigation into a specific issue (see useIssueFocus).
   const [focusIssueId, setFocusIssueId] = useState<IssueFocusRequest | undefined>(undefined);
+  // Notification-click navigation into the Inventory tab's History sub-tab
+  // (RTS-306: a Super Admin corrected this store's stock check).
+  const [historySeed, setHistorySeed] = useState<{ ts: number } | undefined>(undefined);
   // Lazy-mount: tabs mount on first visit and stay alive — no refetch on tab switch.
   const [mountedTabs, setMountedTabs] = useState<Set<NavTabKey>>(new Set(['home']));
   useEffect(() => {
@@ -85,6 +88,9 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
     if (target === 'profile') { setOverlay('profile'); return; }
     if (target === 'issues' && context?.relatedIssueId != null) {
       setFocusIssueId({ issueId: context.relatedIssueId, ts: Date.now() });
+    }
+    if (target === 'inventory') {
+      setHistorySeed({ ts: Date.now() });
     }
     setActiveTab(target);
     setOverlay(null);
@@ -172,7 +178,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
           />
         );
       case 'inventory':
-        return <StoreInventory />;
+        return <StoreInventory historySeed={historySeed} />;
       case 'orders':
         return <OrderDashboard storeName={storesState.stores[0]?.name} seed={orderSeed} />;
     }
