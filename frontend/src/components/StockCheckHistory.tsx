@@ -10,7 +10,7 @@ import ItemIcon from './ItemIcon';
 import ButtonDots from './ButtonDots';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { correctStockCheck, getStockCheckHistory } from '../api/storeInventory';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
+import { categoryLabel } from '../types/storeInventory';
 import type { StockCheckSnapshotKey } from '../types/stockCheck';
 import { toStockCheckHistoryRowView, type StockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
 import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
@@ -32,7 +32,6 @@ function widestAllowedRange(): { startDate: string; endDate: string } {
 
 type StatusFilter = 'all' | 'shortage' | 'sufficient';
 
-const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
 // Deterministic initials-circle color, same 6-variant palette ItemIcon picks
 // from, so avatars read as "part of the same system" without duplicating
@@ -158,7 +157,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
 
   const distinctCategories = useMemo(
     () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
-      CATEGORY_LABELS[a].localeCompare(CATEGORY_LABELS[b]),
+      categoryLabel(a).localeCompare(categoryLabel(b)),
     ),
     [items],
   );
@@ -292,7 +291,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
           className="filter"
           options={[
             { value: '', label: `All Categories (${distinctCategories.length})` },
-            ...distinctCategories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
+            ...distinctCategories.map((c) => ({ value: c, label: categoryLabel(c) })),
           ]}
           value={categoryFilter}
           onChange={setCategoryFilter}
@@ -361,7 +360,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
                         <ItemIcon id={row.storeInventoryItemId} name={row.itemName} size="sm" />
                         <div>
                           <div className="stock-check-history__item-name">{row.itemName}</div>
-                          {row.category && <div className="stock-check-history__item-category">{CATEGORY_LABELS[row.category]}</div>}
+                          {row.category && <div className="stock-check-history__item-category">{categoryLabel(row.category)}</div>}
                         </div>
                       </div>
                     </td>

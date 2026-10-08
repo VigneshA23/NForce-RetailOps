@@ -37,6 +37,7 @@ export const EMPLOYEE_NOTIFICATION_ROUTES: Record<string, EmployeeNotificationTa
   '/checklist': 'today',
   '/audit': 'audits',
   '/issues': 'issues',
+  '/stock-check': 'stock-check',
 };
 
 export const SUPER_ADMIN_NOTIFICATION_ROUTES: Record<string, SuperAdminNotificationTarget> = {

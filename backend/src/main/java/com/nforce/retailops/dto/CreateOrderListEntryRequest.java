@@ -1,6 +1,5 @@
 package com.nforce.retailops.dto;
 
-import com.nforce.retailops.entity.InventoryItemCategory;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -19,7 +18,7 @@ public record CreateOrderListEntryRequest(
     @Size(max = 200, message = "Name must be at most 200 characters")
     String itemName,
 
-    InventoryItemCategory category,
+    String category,
 
     @Size(max = 50, message = "Unit must be at most 50 characters")
     String unitOfMeasurement,

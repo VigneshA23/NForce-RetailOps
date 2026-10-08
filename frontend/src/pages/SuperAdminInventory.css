@@ -6,6 +6,7 @@
   margin-bottom: var(--space-lg);
   border-bottom: 1px solid var(--color-border);
   overflow-x: auto;
+  align-items: center;
 }
 
 .super-admin-inventory-page__subtab {
@@ -26,13 +27,10 @@
   border-bottom-color: var(--color-accent);
 }
 
-.super-admin-inventory-page__store-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-lg);
-}
-
 .super-admin-inventory-page__store-select {
+  /* Pushed to the right end of the sub-tab bar. */
+  margin-left: auto;
+  flex-shrink: 0;
   width: auto;
   min-width: 180px;
   max-width: 260px;

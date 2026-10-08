@@ -16,6 +16,7 @@ const ROW: StockCheckResponse = {
     available: 48,
     deadStock: 2,
     usable: 46,
+    enteredById: 1,
     enteredByName: 'John',
     enteredAt: '2026-09-20T09:00:00Z',
     lastUpdatedByName: 'John',

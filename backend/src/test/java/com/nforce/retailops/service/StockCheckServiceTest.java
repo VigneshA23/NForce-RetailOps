@@ -8,7 +8,6 @@ import com.nforce.retailops.dto.InventoryCountsPageResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
-import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.StockCheckSnapshot;
@@ -128,6 +127,19 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void anotherEmployeeCannotOverwriteAnAlreadySubmittedSnapshot() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 10, 0, user(99L, "Alex"), OffsetDateTime.now());
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 50, 2)))
+            .isInstanceOf(com.nforce.retailops.exception.StockCheckLockedException.class);
+        assertThat(check.availableFor(StockCheckSnapshot.START_OF_DAY)).isEqualTo(10);
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
+    }
+
+    @Test
     void firstStartOfDaySaveCreatesTheDaysRecordWithNoAuditRowAndNoOrder() {
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.empty());
@@ -155,9 +167,9 @@ class StockCheckServiceTest {
     }
 
     @Test
-    void resavingStartOfDayUpdatesTheSameRecordAndAuditsThePreviousValue() {
+    void originalEntererResavingStartOfDayUpdatesTheSameRecordAndAuditsThePreviousValue() {
         StockCheck check = existingCheck(LocalDate.now());
-        User john = user(3L, "John");
+        User john = employee;
         check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, john, OffsetDateTime.now().minusHours(3));
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.of(check));
@@ -170,7 +182,7 @@ class StockCheckServiceTest {
         assertThat(check.getStartOfDayAvailable()).isEqualTo(48);
         assertThat(check.getStartOfDayEnteredBy()).isEqualTo(john);
         assertThat(check.getStartOfDayCheckedBy()).isEqualTo(employee);
-        assertThat(response.startOfDay().enteredByName()).isEqualTo("John");
+        assertThat(response.startOfDay().enteredByName()).isEqualTo("Sarah");
         assertThat(response.startOfDay().lastUpdatedByName()).isEqualTo("Sarah");
         assertThat(response.startOfDay().edited()).isTrue();
 
@@ -505,14 +517,14 @@ class StockCheckServiceTest {
 
     @Test
     void inventoryCountsFiltersBySearchCategoryAndLevelWithoutChangingKpiCounts() {
-        milk.setCategory(InventoryItemCategory.DAIRY);
+        milk.setCategory("DAIRY");
         StockCheck milkCheck = checkWithCount(milk, LocalDate.now(), 0, 0);
 
         StoreInventoryItem apples = new StoreInventoryItem();
         ReflectionTestUtils.setField(apples, "id", 26L);
         apples.setStore(store);
         apples.setName("Apples");
-        apples.setCategory(InventoryItemCategory.FRUITS);
+        apples.setCategory("FRUITS");
         StockCheck applesCheck = checkWithCount(apples, LocalDate.now(), 50, 0);
 
         when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk, apples));
@@ -524,7 +536,7 @@ class StockCheckServiceTest {
         assertThat(byName.allCount()).isEqualTo(2);
 
         InventoryCountsPageResponse byCategory = stockCheckService.listInventoryCounts(
-            OWNER_ID, null, InventoryItemCategory.FRUITS, null, null, null);
+            OWNER_ID, null, "FRUITS", null, null, null);
         assertThat(byCategory.rows()).extracting(InventoryCountRowResponse::name).containsExactly("Apples");
 
         InventoryCountsPageResponse byLevel = stockCheckService.listInventoryCounts(OWNER_ID, null, null, "out", null, null);

@@ -14,7 +14,6 @@ import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
 import com.nforce.retailops.dto.StockSnapshotResponse;
 import com.nforce.retailops.dto.StoreInventoryItemOptionResponse;
-import com.nforce.retailops.entity.InventoryItemCategory;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.StockCheckSnapshot;
@@ -23,6 +22,7 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidStockCheckException;
+import com.nforce.retailops.exception.StockCheckLockedException;
 import com.nforce.retailops.exception.InventoryItemNotAssignedException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
@@ -173,6 +173,19 @@ public class StockCheckService {
                 return created;
             });
 
+        // First responder owns the snapshot: later employees can't overwrite
+        // or edit it. (Owner/Admin corrections go through correctCheck.)
+        if (check.hasSnapshot(request.snapshot())) {
+            User firstEnterer = request.snapshot() == StockCheckSnapshot.START_OF_DAY
+                ? check.getStartOfDayEnteredBy()
+                : check.getEndOfDayEnteredBy();
+            if (firstEnterer != null && !firstEnterer.getId().equals(employeeUserId)) {
+                throw new StockCheckLockedException(
+                    "This check was already submitted by " + firstEnterer.getFullName()
+                        + ". Only they can edit it.");
+            }
+        }
+
         check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null);
         syncOrderList(check, request.snapshot(), employee);
         return StockCheckResponse.from(check);
@@ -189,6 +202,16 @@ public class StockCheckService {
 
         if (!storeItem.getStore().getId().equals(storeId) || !storeItem.isActive()) {
             throw new InventoryItemNotAssignedException("This item is not assigned to your store");
+        }
+
+        // A shortage can only be reported against an item whose Start of Day
+        // count has been saved today.
+        boolean startOfDayDone = stockCheckRepository
+            .findByStoreInventoryItemIdAndCheckDate(storeItem.getId(), LocalDate.now())
+            .map(check -> check.getStartOfDayAvailable() != null)
+            .orElse(false);
+        if (!startOfDayDone) {
+            throw new InventoryItemNotAssignedException("Submit today's Start of Day stock check for this item before reporting a shortage");
         }
 
         User employee = userRepository.getReferenceById(employeeUserId);
@@ -340,7 +363,7 @@ public class StockCheckService {
     // applied to rows (see InventoryCountsPageResponse).
     @Transactional(readOnly = true)
     public InventoryCountsPageResponse listInventoryCounts(
-        Long ownerId, String search, InventoryItemCategory category, String level, Integer page, Integer size
+        Long ownerId, String search, String category, String level, Integer page, Integer size
     ) {
         Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
         LocalDate today = LocalDate.now();
@@ -361,7 +384,7 @@ public class StockCheckService {
         String needle = search == null ? "" : search.trim().toLowerCase();
         List<InventoryCountRowResponse> filtered = allRows.stream()
             .filter(r -> needle.isEmpty() || r.name().toLowerCase().contains(needle))
-            .filter(r -> category == null || r.category() == category)
+            .filter(r -> category == null || category.isBlank() || category.equalsIgnoreCase(r.category()))
             .filter(r -> matchesLevel(r.status(), level))
             .toList();
 

@@ -1,5 +1,5 @@
 import type ExcelJS from 'exceljs';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
+import { categoryLabel } from '../types/storeInventory';
 import { formatDateLabel, formatTimeLabel } from './checklistHistoryOptions';
 import type { StockCheckHistoryRowView } from './stockCheckHistoryStatus';
 
@@ -39,7 +39,6 @@ function formatLongDate(date: string): string {
   return `${MONTH_NAMES[month - 1]} ${day}, ${year}`;
 }
 
-const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
 // Mirrors StockCheckHistory.tsx's own row derivation exactly, so the export
 // can never drift from what the table shows again -- see RTS-303.
@@ -56,7 +55,7 @@ function countEntered(row: StockCheckHistoryRowView): number | null {
 }
 
 function itemAndCategoryLabel(row: StockCheckHistoryRowView): string {
-  return row.category ? `${row.itemName} (${CATEGORY_LABELS[row.category]})` : row.itemName;
+  return row.category ? `${row.itemName} (${categoryLabel(row.category)})` : row.itemName;
 }
 
 function dateAndTimestampLabel(row: StockCheckHistoryRowView): string {

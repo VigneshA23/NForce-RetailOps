@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Zap } from 'lucide-react';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS, type InventoryItemCategory, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import { buildCategoryOptions, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
+import CategoryCombobox from './CategoryCombobox';
 import SupplierCombobox from './SupplierCombobox';
 import CounterStepper from './CounterStepper';
 import Toggle from './Toggle';
@@ -19,7 +20,9 @@ interface StoreInventoryItemEditPanelProps {
   item: StoreInventoryItem;
   suppliers: Supplier[];
   onCreateSupplier: (name: string) => Promise<Supplier>;
-  onDeleteSupplier?: (supplier: Supplier) => Promise<void>;
+  // Categories already used by existing items, offered alongside the built-in
+  // ones so a category added once can be picked again.
+  existingCategories?: (string | null)[];
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -49,7 +52,7 @@ function StoreInventoryItemEditPanel({
   item,
   suppliers,
   onCreateSupplier,
-  onDeleteSupplier,
+  existingCategories = [],
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -95,6 +98,7 @@ function StoreInventoryItemEditPanel({
     });
   }
 
+  const categoryOptions = buildCategoryOptions(existingCategories, [item.category, values.category]);
   const unitOptions = inventoryUnitOptionsFor(item.unitOfMeasurement);
 
   return (
@@ -137,13 +141,13 @@ function StoreInventoryItemEditPanel({
 
         <div className="item-edit-panel__row">
           <FormField label="Category" htmlFor="edit-item-category">
-            <Select
-              id="edit-item-category"
-              options={INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-              value={values.category}
-              onChange={(value) => setValues((current) => ({ ...current, category: value as InventoryItemCategory }))}
-              ariaLabel="Category"
-            />
+            <CategoryCombobox
+            id="edit-item-category"
+            options={categoryOptions}
+            value={values.category}
+            onChange={(category) => setValues((current) => ({ ...current, category }))}
+            ariaLabel="Category"
+          />
           </FormField>
           <FormField label="Unit of Measurement" htmlFor="edit-item-unit" error={errors.unitOfMeasurement}>
             <Select
@@ -196,7 +200,6 @@ function StoreInventoryItemEditPanel({
             value={values.preferredSupplierId}
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
             onCreate={onCreateSupplier}
-            onDelete={onDeleteSupplier}
             ariaLabel="Preferred supplier"
           />
         </FormField>

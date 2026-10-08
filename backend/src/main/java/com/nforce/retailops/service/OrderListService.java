@@ -221,14 +221,14 @@ public class OrderListService {
         if (request.unitOfMeasurement() == null || request.unitOfMeasurement().isBlank()) {
             throw new InvalidOrderListEntryException("Unit is required for a custom item");
         }
-        if (request.category() == null) {
+        if (request.category() == null || request.category().isBlank()) {
             throw new InvalidOrderListEntryException("Category is required for a custom item");
         }
 
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
         item.setName(request.itemName().trim());
-        item.setCategory(request.category());
+        item.setCategory(request.category().trim());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
         item.setMinWeekday(0);
         item.setPreferredSupplier(supplier);
