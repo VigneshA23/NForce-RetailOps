@@ -97,8 +97,8 @@ public class SuperAdminOperationsService {
     }
 
     @Transactional
-    public OrderListEntryResponse updateOrderStatus(Long storeId, Long entryId, OrderStatus status) {
-        return orderListService.updateStatusForSuperAdmin(storeId, entryId, status);
+    public OrderListEntryResponse updateOrderStatus(Long storeId, Long entryId, OrderStatus status, OrderStatus expectedStatus) {
+        return orderListService.updateStatusForSuperAdmin(storeId, entryId, status, expectedStatus);
     }
 
     // Platform-wide "what still needs ordering", in a single grouped query -- never

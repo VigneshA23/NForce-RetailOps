@@ -16,6 +16,15 @@ public record UpdateOrderListEntryRequest(
     String note,
 
     @NotNull(message = "Status is required")
-    OrderStatus status
+    OrderStatus status,
+
+    // The status the caller was looking at when they made this edit. If the
+    // entry has since moved on (e.g. Super Admin already marked it Ordered),
+    // the update is rejected with a conflict instead of overwriting. Optional
+    // so older clients keep working unchecked.
+    OrderStatus expectedStatus
 ) {
+    public UpdateOrderListEntryRequest(Integer quantityNeeded, Long supplierId, String note, OrderStatus status) {
+        this(quantityNeeded, supplierId, note, status, null);
+    }
 }

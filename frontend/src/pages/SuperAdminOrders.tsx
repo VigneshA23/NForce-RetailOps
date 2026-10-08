@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Layers, PackageCheck, PackageSearch, Truck } from 'lucide-react';
+import { ApiError } from '../api/client';
 import { getAllStores } from '../api/superAdminStores';
 import { getOrderListForStore, getOutstandingOrders, updateSuperAdminOrderStatus } from '../api/superAdminOperations';
 import type { OutstandingOrdersOverview } from '../api/superAdminOperations';
 import type { OrderListEntry, OrderStatus } from '../types/orderList';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
+import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
 import SearchableSelect from '../components/SearchableSelect';
 import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
@@ -65,8 +67,12 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [entriesError, setEntriesError] = useState<string | null>(null);
 
+  // Set when a status change is rejected because the Owner/Admin already
+  // updated the entry (HTTP 409) -- drives OrderAlreadyUpdatedModal.
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
+
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('OPEN');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('NEEDS_ORDERING');
 
   useEffect(() => {
     getAllStores()
@@ -80,7 +86,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     setSelectedStoreId(storeId);
     setSelectedStoreName(storeName);
     setSearch('');
-    setStatusFilter('OPEN');
+    setStatusFilter('NEEDS_ORDERING');
   }
 
   // Re-keyed off `focusStore` (not a plain initial value), the same way
@@ -111,10 +117,17 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   async function handleStatusChange(entry: OrderListEntry, nextStatus: OrderStatus) {
     if (selectedStoreId === null) return;
     try {
-      const updated = await updateSuperAdminOrderStatus(selectedStoreId, entry.id, nextStatus);
+      const updated = await updateSuperAdminOrderStatus(selectedStoreId, entry.id, nextStatus, entry.status);
       setEntries((current) => current.map((e) => (e.id === updated.id ? updated : e)));
       nfToast.success(`"${updated.itemName}" marked as ${STATUS_META[nextStatus].label.toLowerCase()}.`);
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        // The Owner/Admin already moved this entry -- tell the user and pull
+        // the fresh list rather than leaving a stale row on screen.
+        setConflictMessage(error.message);
+        getOrderListForStore(selectedStoreId).then(setEntries).catch(() => {});
+        return;
+      }
       nfToast.error(error instanceof Error ? error.message : 'Failed to update order status');
     }
   }
@@ -254,6 +267,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
       {selectedStoreId === null && (
         <p className="super-admin-orders__hint">Select a store above to view and manage its order list.</p>
       )}
+
+      {conflictMessage && <OrderAlreadyUpdatedModal message={conflictMessage} onClose={() => setConflictMessage(null)} />}
     </div>
   );
 }

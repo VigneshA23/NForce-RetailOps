@@ -73,7 +73,7 @@ public class SuperAdminOperationsController {
         @PathVariable Long entryId,
         @Valid @RequestBody UpdateOrderStatusRequest request
     ) {
-        return service.updateOrderStatus(storeId, entryId, request.status());
+        return service.updateOrderStatus(storeId, entryId, request.status(), request.expectedStatus());
     }
 
     // Supplier Purchasing Summary, platform-wide (every store, broken down by

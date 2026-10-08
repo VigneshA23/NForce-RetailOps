@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
+import { ApiError } from '../api/client';
 import { createOrderListEntry, getOrderList, updateOrderListEntry } from '../api/orderList';
 import { getOwnerSuppliers } from '../api/suppliers';
 import { getInventoryCounts, getStoreInventoryItems } from '../api/storeInventory';
@@ -17,6 +18,7 @@ import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
 import ChangeOrderStatusModal from '../components/ChangeOrderStatusModal';
 import BulkChangeOrderStatusModal, { type BulkStatusChangeItem } from '../components/BulkChangeOrderStatusModal';
+import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
 import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
 import FilterClearButton from '../components/FilterClearButton';
@@ -77,6 +79,10 @@ function OrderList({ storeName, seed }: OrderListProps) {
   // eligible and ineligible rows (BulkChangeOrderStatusModal below works out
   // which is which from the current `entries`).
   const [pendingBulkStatusChange, setPendingBulkStatusChange] = useState<{ ids: number[]; nextStatus: OrderStatus } | null>(null);
+
+  // Set when a status change is rejected because someone else already updated
+  // the entry (HTTP 409) -- drives OrderAlreadyUpdatedModal.
+  const [conflictMessage, setConflictMessage] = useState<string | null>(null);
 
   const isMobile = useIsMobile();
 
@@ -148,10 +154,18 @@ function OrderList({ storeName, seed }: OrderListProps) {
         supplierId: entry.supplierId,
         note: entry.note ?? '',
         status: nextStatus,
+        expectedStatus: entry.status,
       });
       applyUpdatedEntry(updated);
       return true;
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        // Someone else (e.g. Super Admin) already moved this entry. Tell the
+        // user and pull the fresh list instead of leaving a stale row on screen.
+        setConflictMessage((current) => current ?? error.message);
+        getOrderList().then(setEntries).catch(() => {});
+        return false;
+      }
       nfToast.error(error instanceof Error ? error.message : 'Failed to update order status');
       return false;
     }
@@ -850,6 +864,8 @@ function OrderList({ storeName, seed }: OrderListProps) {
           onCancel={() => setPendingBulkStatusChange(null)}
         />
       )}
+
+      {conflictMessage && <OrderAlreadyUpdatedModal message={conflictMessage} onClose={() => setConflictMessage(null)} />}
     </div>
   );
 }

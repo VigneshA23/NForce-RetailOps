@@ -70,10 +70,15 @@ export async function getOrderListForStore(storeId: number): Promise<OrderListEn
   return apiRequest<OrderListEntry[]>(`/super-admin/stores/${storeId}/order-list`);
 }
 
-export async function updateSuperAdminOrderStatus(storeId: number, entryId: number, status: OrderStatus): Promise<OrderListEntry> {
+export async function updateSuperAdminOrderStatus(
+  storeId: number,
+  entryId: number,
+  status: OrderStatus,
+  expectedStatus?: OrderStatus,
+): Promise<OrderListEntry> {
   return apiRequest<OrderListEntry>(`/super-admin/stores/${storeId}/order-list/${entryId}/status`, {
     method: 'PATCH',
-    body: { status },
+    body: { status, expectedStatus },
   });
 }
 

@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SuperAdminOrders from './SuperAdminOrders';
+import { ApiError } from '../api/client';
 import * as superAdminStoresApi from '../api/superAdminStores';
 import * as saOpsApi from '../api/superAdminOperations';
 import type { SuperAdminStore } from '../types/superAdminStore';
@@ -155,7 +156,28 @@ describe('SuperAdminOrders', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Change status for Milk' }));
     await userEvent.click(screen.getByRole('option', { name: 'Ordered' }));
 
-    await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(10, 1, 'ORDERED'));
+    await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(10, 1, 'ORDERED', 'NEEDS_ORDERING'));
+  });
+
+  it('shows an "already updated" popup and refreshes the list when the Owner/Admin got there first', async () => {
+    mockGetOrderListForStore
+      .mockResolvedValueOnce([entry({ itemName: 'Milk', status: 'NEEDS_ORDERING' })])
+      .mockResolvedValueOnce([entry({ itemName: 'Milk', status: 'ORDERED' })]);
+    mockUpdateSuperAdminOrderStatus.mockRejectedValue(
+      new ApiError(409, 'This item has already been updated by Admin. It is now marked as Ordered.'),
+    );
+
+    render(<SuperAdminOrders />);
+
+    await screen.findByRole('option', { name: 'Downtown' });
+    await userEvent.selectOptions(screen.getByLabelText('Select a store…'), '10');
+    await screen.findByText('Milk');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Change status for Milk' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Ordered' }));
+
+    expect(await screen.findByText(/already been updated by Admin/)).toBeInTheDocument();
+    await waitFor(() => expect(mockGetOrderListForStore).toHaveBeenCalledTimes(2));
   });
 
   it('opens already selected on a store when focusStore is set', async () => {
