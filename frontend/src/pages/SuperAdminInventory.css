@@ -6,13 +6,10 @@
    directly rather than a parallel copy. Only genuinely Super-Admin-only
    pieces (store picker, Suppliers table chrome) live here. */
 
-.super-admin-inventory-page__store-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: var(--space-lg);
-}
-
 .super-admin-inventory-page__store-select {
+  /* Pushed to the right end of the sub-tab bar. */
+  margin-left: auto;
+  flex-shrink: 0;
   width: auto;
   min-width: 180px;
   max-width: 260px;

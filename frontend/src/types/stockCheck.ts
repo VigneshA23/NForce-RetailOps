@@ -8,6 +8,7 @@ export interface StockSnapshot {
   available: number;
   deadStock: number;
   usable: number;
+  enteredById: number | null;
   enteredByName: string | null;
   enteredAt: string | null;
   lastUpdatedByName: string | null;

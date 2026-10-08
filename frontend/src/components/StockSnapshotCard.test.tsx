@@ -8,6 +8,7 @@ const saved: StockSnapshot = {
   available: 50,
   deadStock: 2,
   usable: 48,
+  enteredById: 1,
   enteredByName: 'John',
   enteredAt: '2026-09-30T09:05:00Z',
   lastUpdatedByName: 'John',
@@ -22,7 +23,7 @@ describe('StockSnapshotCard', () => {
     render(<StockSnapshotCard title="Start of Day" idPrefix="milk-sod" snapshot={null} onSave={onSave} />);
 
     expect(screen.getByText('In Progress')).toBeInTheDocument();
-    await user.type(screen.getByLabelText('Available Stock'), '50');
+    await user.type(screen.getByLabelText('Total Stock'), '50');
     await user.clear(screen.getByLabelText('Dead / Spoilage'));
     await user.type(screen.getByLabelText('Dead / Spoilage'), '2');
     await user.click(screen.getByRole('button', { name: 'Save Check' }));
@@ -35,7 +36,7 @@ describe('StockSnapshotCard', () => {
     const onSave = vi.fn();
     render(<StockSnapshotCard title="End of Day" idPrefix="milk-eod" snapshot={null} onSave={onSave} />);
 
-    await user.type(screen.getByLabelText('Available Stock'), '3');
+    await user.type(screen.getByLabelText('Total Stock'), '3');
     await user.clear(screen.getByLabelText('Dead / Spoilage'));
     await user.type(screen.getByLabelText('Dead / Spoilage'), '5');
     await user.click(screen.getByRole('button', { name: 'Save Check' }));
@@ -52,7 +53,7 @@ describe('StockSnapshotCard', () => {
     expect(screen.getByText('Editable Count')).toBeInTheDocument();
     expect(screen.getByText(/Verified by John/)).toBeInTheDocument();
 
-    const available = screen.getByLabelText('Available Stock');
+    const available = screen.getByLabelText('Total Stock');
     expect(available).toHaveValue(50);
     await user.clear(available);
     await user.type(available, '48');

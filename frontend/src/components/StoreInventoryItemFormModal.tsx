@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus } from 'lucide-react';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS, type InventoryItemCategory, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import { buildCategoryOptions, categoryLabel, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
+import CategoryCombobox from './CategoryCombobox';
+import MultiSelect from './MultiSelect';
 import SupplierCombobox from './SupplierCombobox';
 import { inventoryUnitOptionsFor } from '../utils/inventoryUnits';
 import ButtonDots from './ButtonDots';
@@ -22,11 +24,16 @@ interface StoreInventoryItemFormModalProps {
   suppliers: Supplier[];
   // Backs the supplier field's inline "Add New Supplier" option.
   onCreateSupplier: (name: string) => Promise<Supplier>;
-  onDeleteSupplier?: (supplier: Supplier) => Promise<void>;
+  // Categories already used by existing items, offered alongside the built-in
+  // ones so a category added once can be picked again.
+  existingCategories?: (string | null)[];
   // Only Super Admin's page passes stores + true here -- Owner/Admin's own
   // store is derived server-side, so their form never shows this field.
   stores?: StoreOption[];
   showStoreField?: boolean;
+  // With the store field: fetches the categories common to the selected
+  // stores, which then replace the built-in category list.
+  loadCategories?: (storeIds: number[]) => Promise<string[]>;
   initialValues?: StoreInventoryItemFormValues;
   errorMessage?: string | null;
   isSubmitting?: boolean;
@@ -36,6 +43,7 @@ interface StoreInventoryItemFormModalProps {
 
 const EMPTY_VALUES: StoreInventoryItemFormValues = {
   storeId: null,
+  storeIds: [],
   name: '',
   category: 'INGREDIENTS',
   unitOfMeasurement: '',
@@ -50,14 +58,25 @@ const EMPTY_VALUES: StoreInventoryItemFormValues = {
   removeImage: false,
 };
 
+// Categories shared by the selected stores, plus the one currently chosen so a
+// freshly typed category stays visible in the list.
+function buildStoreCategoryOptions(categories: string[], current: string) {
+  const options = categories.map((c) => ({ value: c, label: categoryLabel(c) }));
+  if (current && !categories.some((c) => c.toLowerCase() === current.toLowerCase())) {
+    options.push({ value: current, label: categoryLabel(current) });
+  }
+  return options;
+}
+
 function StoreInventoryItemFormModal({
   isOpen,
   mode,
   suppliers,
   onCreateSupplier,
-  onDeleteSupplier,
+  existingCategories = [],
   stores = [],
   showStoreField = false,
+  loadCategories,
   initialValues,
   errorMessage,
   isSubmitting = false,
@@ -67,6 +86,10 @@ function StoreInventoryItemFormModal({
   const [values, setValues] = useState<StoreInventoryItemFormValues>(initialValues ?? EMPTY_VALUES);
   const [errors, setErrors] = useState<Partial<Record<keyof StoreInventoryItemFormValues, string>>>({});
 
+  const [storeCategories, setStoreCategories] = useState<string[]>([]);
+  const selectedStoreIds = values.storeIds ?? [];
+  const storeIdsKey = selectedStoreIds.join(',');
+
   useEffect(() => {
     if (isOpen) {
       setValues(initialValues ?? EMPTY_VALUES);
@@ -74,10 +97,30 @@ function StoreInventoryItemFormModal({
     }
   }, [isOpen, initialValues]);
 
+  // Common categories of whichever stores are currently selected.
+  useEffect(() => {
+    if (!isOpen || !showStoreField || !loadCategories || storeIdsKey === '') {
+      setStoreCategories([]);
+      return;
+    }
+    let cancelled = false;
+    loadCategories(storeIdsKey.split(',').map(Number))
+      .then((categories) => { if (!cancelled) setStoreCategories(categories); })
+      .catch(() => { if (!cancelled) setStoreCategories([]); });
+    return () => { cancelled = true; };
+  }, [isOpen, showStoreField, loadCategories, storeIdsKey]);
+
+  function changeStores(ids: number[]) {
+    // The category list depends on the stores, so a category picked for a
+    // different selection is cleared rather than silently kept.
+    setValues((current) => ({ ...current, storeIds: ids, storeId: ids[0] ?? null, category: '' }));
+  }
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const nextErrors: typeof errors = {};
-    if (showStoreField && !values.storeId) nextErrors.storeId = 'Store is required';
+    if (showStoreField && selectedStoreIds.length === 0) nextErrors.storeId = 'Select at least one store';
+    if (!values.category.trim()) nextErrors.category = 'Category is required';
     if (!values.name.trim()) nextErrors.name = 'Name is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
     if (values.minWeekday.trim() === '' || Number(values.minWeekday) < 0) {
@@ -101,7 +144,10 @@ function StoreInventoryItemFormModal({
     });
   }
 
-  const storeOptions = stores.map((s) => ({ value: String(s.id), label: s.name }));
+  const categoryOptions = showStoreField
+    ? buildStoreCategoryOptions(storeCategories, values.category)
+    : buildCategoryOptions(existingCategories, [values.category]);
+  const storeOptions = stores.map((s) => ({ id: s.id, label: s.name }));
   const unitOptions = inventoryUnitOptionsFor(initialValues?.unitOfMeasurement ?? '');
 
   return (
@@ -124,28 +170,6 @@ function StoreInventoryItemFormModal({
       }
     >
       <form id="store-inventory-item-form" onSubmit={handleSubmit} noValidate>
-        {showStoreField && (
-          <FormField label="Store" htmlFor="inventory-item-store" error={errors.storeId}>
-            <Select
-              id="inventory-item-store"
-              options={storeOptions}
-              value={values.storeId ? String(values.storeId) : ''}
-              onChange={(value) => setValues((current) => ({ ...current, storeId: Number(value) }))}
-              ariaLabel="Store"
-              placeholder="Select a store"
-            />
-          </FormField>
-        )}
-        <FormField label="Category" htmlFor="inventory-item-category">
-          <Select
-            id="inventory-item-category"
-            options={INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-            value={values.category}
-            onChange={(value) => setValues((current) => ({ ...current, category: value as InventoryItemCategory }))}
-            ariaLabel="Category"
-            indicator="radio"
-          />
-        </FormField>
         <FormField label="Item Name" htmlFor="inventory-item-name" error={errors.name}>
           <input
             id="inventory-item-name"
@@ -153,6 +177,36 @@ function StoreInventoryItemFormModal({
             value={values.name}
             onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
             placeholder="e.g. Whole Milk 1 Gallon, Chocolate Chip Cookie Dough, Strawberry Syrup"
+          />
+        </FormField>
+        {showStoreField && (
+          <FormField label="Stores" htmlFor="inventory-item-store" error={errors.storeId}>
+            <MultiSelect
+              id="inventory-item-store"
+              options={storeOptions}
+              value={selectedStoreIds}
+              onChange={changeStores}
+              placeholder="Select one or more stores"
+              searchPlaceholder="Search stores..."
+              allSelectedLabel="All stores"
+            />
+            <button
+              type="button"
+              className="btn btn--text btn--sm"
+              onClick={() => changeStores(stores.map((s) => s.id))}
+              disabled={stores.length === 0 || selectedStoreIds.length === stores.length}
+            >
+              Select all stores
+            </button>
+          </FormField>
+        )}
+        <FormField label="Category" htmlFor="inventory-item-category" error={errors.category}>
+          <CategoryCombobox
+            id="inventory-item-category"
+            options={categoryOptions}
+            value={values.category}
+            onChange={(category) => setValues((current) => ({ ...current, category }))}
+            ariaLabel="Category"
           />
         </FormField>
         <FormField label="Display Image (optional)" htmlFor="inventory-item-image">
@@ -171,7 +225,6 @@ function StoreInventoryItemFormModal({
             onChange={(value) => setValues((current) => ({ ...current, unitOfMeasurement: value }))}
             ariaLabel="Unit"
             placeholder="Select unit..."
-            indicator="radio"
           />
         </FormField>
         <div className="store-inventory-item-form__row">
@@ -205,7 +258,6 @@ function StoreInventoryItemFormModal({
             value={values.preferredSupplierId}
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
             onCreate={onCreateSupplier}
-            onDelete={onDeleteSupplier}
             ariaLabel="Preferred supplier"
           />
         </FormField>

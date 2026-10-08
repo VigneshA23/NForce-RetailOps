@@ -20,6 +20,9 @@ interface StockSnapshotCardProps {
   // "Completed" since nothing reconciles against it the way SOD's opening
   // count does.
   savedLabel?: string;
+  // False once another employee has taken this snapshot: the count is shown
+  // read-only because only the first responder may edit it.
+  canEdit?: boolean;
 }
 
 function parseCount(text: string): number | null {
@@ -33,7 +36,7 @@ function parseCount(text: string): number | null {
 // one), so the fields are always shown rather than toggling to a read-only
 // view -- the "Editable Count" / "In Progress" badge is the only thing that
 // changes once it's been saved.
-function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, onSave, footer, savedLabel = 'Editable Count' }: StockSnapshotCardProps) {
+function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, onSave, footer, savedLabel = 'Editable Count', canEdit = true }: StockSnapshotCardProps) {
   const [available, setAvailable] = useState(() => (snapshot ? String(snapshot.available) : ''));
   const [deadStock, setDeadStock] = useState(() => (snapshot ? String(snapshot.deadStock) : '0'));
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +55,7 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!canEdit) return;
     const availableValue = parseCount(available);
     const deadValue = parseCount(deadStock);
     if (availableValue === null) {
@@ -97,11 +101,11 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
       <form className="stock-snapshot-card__form" onSubmit={handleSubmit} noValidate>
         <div className="stock-snapshot-card__fields">
           <div className="stock-snapshot-card__field">
-            <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-available`}>Available Stock</label>
+            <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-available`}>Total Stock</label>
             <CounterStepper
               id={`${idPrefix}-available`}
               value={available}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !canEdit}
               onChange={setAvailable}
             />
           </div>
@@ -110,7 +114,7 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
             <CounterStepper
               id={`${idPrefix}-dead`}
               value={deadStock}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !canEdit}
               onChange={setDeadStock}
             />
           </div>
@@ -118,9 +122,13 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
         {error && <p className="stock-snapshot-card__error" role="alert">{error}</p>}
         <div className="stock-snapshot-card__actions">
           <span className="stock-snapshot-card__footer-text">{footer}</span>
-          <button type="submit" className={`btn ${isSaved ? 'btn--secondary' : 'btn--danger'}`} disabled={isSubmitting}>
-            {isSubmitting ? <ButtonDots /> : isSaved ? 'Update Count' : 'Save Check'}
-          </button>
+          {canEdit ? (
+            <button type="submit" className={`btn ${isSaved ? 'btn--secondary' : 'btn--danger'}`} disabled={isSubmitting}>
+              {isSubmitting ? <ButtonDots /> : isSaved ? 'Update Count' : 'Save Check'}
+            </button>
+          ) : (
+            <span className="stock-snapshot-card__footer-text">Only {snapshot?.enteredByName ?? 'the first responder'} can edit this count</span>
+          )}
         </div>
       </form>
     </section>

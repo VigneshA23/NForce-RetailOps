@@ -30,14 +30,12 @@ export async function setSupplierActive(id: number, active: boolean): Promise<Su
   return apiRequest<Supplier>(`/super-admin/suppliers/${id}/status`, { method: 'PATCH', body: { active } });
 }
 
-export interface SupplierDeleteResult {
-  deleted: boolean;
-  // True when the supplier had order history and was only marked inactive.
-  deactivated: boolean;
+// Owner/Admin's Suppliers tab: rename and activate/deactivate through the
+// owner-scoped endpoints (the Super Admin ones above are role-gated).
+export async function updateOwnerSupplier(id: number, values: SupplierFormValues): Promise<Supplier> {
+  return apiRequest<Supplier>(`/stores/suppliers/${id}`, { method: 'PUT', body: values });
 }
 
-// Permanent delete from the item form's supplier picker (Owner/Admin and
-// Super Admin). Items using the supplier fall back to "no preferred supplier".
-export async function deleteSupplier(id: number): Promise<SupplierDeleteResult> {
-  return apiRequest<SupplierDeleteResult>(`/stores/suppliers/${id}`, { method: 'DELETE' });
+export async function setOwnerSupplierActive(id: number, active: boolean): Promise<Supplier> {
+  return apiRequest<Supplier>(`/stores/suppliers/${id}/status`, { method: 'PATCH', body: { active } });
 }

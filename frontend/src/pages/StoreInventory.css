@@ -59,24 +59,6 @@
   min-width: 0;
 }
 
-.store-inventory-page__sync-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-}
-
-.store-inventory-page__sync-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--color-badge-icon-success-fg);
-}
-
 .store-inventory-page__subtab {
   padding: var(--space-sm) var(--space-md);
   border: none;
@@ -145,6 +127,19 @@
   .store-inventory-page__title-row {
     flex-wrap: wrap;
   }
+
+  /* Add Item moves below the stat cards on mobile (see isMobile branch in
+     StoreInventory.tsx), so header-actions holds only the Export button
+     here and sits right next to the title on one line. An auto left
+     margin (rather than the title-row's own space-between, which has
+     nothing to distribute once header-actions is the sole item on its
+     line) keeps it pinned to the right edge even on the rare viewport
+     narrow enough to wrap it onto its own line -- otherwise it falls back
+     flush left and the Export dropdown (anchored right:0 to its own small
+     wrapper) runs off the left edge of the screen. */
+  .store-inventory-page__header-actions {
+    margin-left: auto;
+  }
 }
 
 .store-inventory-page__error {
@@ -159,6 +154,17 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
+}
+
+/* Mobile-only placement of Add Item below the stat cards (desktop/tablet
+   keep it next to Export in header-actions) -- see isMobile branch in
+   StoreInventory.tsx, which renders the button in exactly one of the two
+   spots rather than both. Sized to its own label, not stretched full
+   width, and pinned to the right edge. */
+.store-inventory-page__add-item-mobile {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-md);
 }
 
 .store-inventory-page__header-actions {
@@ -213,4 +219,16 @@
 
 .store-inventory-page__actions-header {
   text-align: center;
+}
+
+@media (--tablet-down) {
+  /* filters.css puts Category and Sort at a rigid 50/50 split on tablet and
+     below, sized for exactly two selects per row -- there's no room left for
+     the Clear button once it appears, so it wraps onto a third row by
+     itself. Letting the two selects share the row's remaining space instead
+     (rather than a fixed half each) keeps Clear sitting right next to Sort
+     on the same row. */
+  .store-inventory-page__filter-bar .filter:not(.filter--search) {
+    flex: 1 1 0;
+  }
 }

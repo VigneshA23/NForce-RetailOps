@@ -11,6 +11,7 @@ import {
   ListPlus,
   MailX,
   Megaphone,
+  PackagePlus,
   PenLine,
   Store,
   TriangleAlert,
@@ -57,6 +58,7 @@ export const CATEGORY_META: Record<string, CategoryMeta> = {
   TASK_ADDED: { icon: ClipboardList, ...INFO, displayCategory: 'Checklist Updates' },
   TASK_MAKEUP_FULFILLED: { icon: ClipboardCheck, ...SUCCESS, displayCategory: 'Checklist Updates' },
   CATEGORY_ADDED: { icon: ListPlus, ...INFO, displayCategory: 'Checklist Updates' },
+  STOCK_ITEM_ADDED: { icon: PackagePlus, ...INFO, displayCategory: 'Checklist Updates' },
 
   STORE_DEACTIVATED: { icon: Store, ...WARNING, displayCategory: 'Store Management' },
   STORE_REACTIVATED: { icon: Store, ...SUCCESS, displayCategory: 'Store Management' },

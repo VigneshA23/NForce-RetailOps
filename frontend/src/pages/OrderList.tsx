@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { createOrderListEntry, getOrderList, updateOrderListEntry } from '../api/orderList';
@@ -21,7 +20,7 @@ import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
 import FilterClearButton from '../components/FilterClearButton';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
+import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import './OrderList.css';
 
 type StatusFilter = 'OPEN' | OrderStatus;
@@ -268,8 +267,8 @@ function OrderList({ storeName, seed }: OrderListProps) {
     const stock = stockByItemId.get(entry.storeInventoryItemId);
     const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
     const meta = STATUS_META[entry.status];
-    const categoryLabel = INVENTORY_ITEM_CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? '—';
-    const categoryVisual = category ? CATEGORY_VISUAL[category] : FALLBACK_CATEGORY_VISUAL;
+    const categoryLabel = categoryLabelOf(category) || '—';
+    const categoryVisual = category ? (CATEGORY_VISUAL[category] ?? FALLBACK_CATEGORY_VISUAL) : FALLBACK_CATEGORY_VISUAL;
     const raisedBy = entry.raisedByName ?? (entry.adHoc ? 'Manual' : 'Auto-detected');
     return {
       entry,
@@ -412,6 +411,17 @@ function OrderList({ storeName, seed }: OrderListProps) {
     : [];
   const bulkSkippedCount = pendingBulkStatusChange ? pendingBulkStatusChange.ids.length - bulkEligibleItems.length : 0;
 
+  // Ordered column: the full quantity placed with the supplier (need plus any
+  // surplus the admin added), shown once the entry has moved past NEEDS_ORDERING.
+  function orderedCell(entry: OrderListEntry) {
+    if (entry.status === 'NEEDS_ORDERING') return <span className="order-list__manual-empty">—</span>;
+    return (
+      <>
+        {entry.quantityNeeded + entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+      </>
+    );
+  }
+
   // Mobile's card diverges too far from desktop's table now (a nested
   // stats box, category/status as colored pills instead of plain cells) for
   // one shared <td>-per-column markup to serve both via CSS reflow alone --
@@ -421,7 +431,11 @@ function OrderList({ storeName, seed }: OrderListProps) {
   function renderMobileCard(row: ReturnType<typeof decorate>) {
     const { entry } = row;
     return (
-      <tr key={entry.id} className="order-list__row" style={{ background: row.checked ? '#fff5f6' : undefined }}>
+      <tr
+        key={entry.id}
+        className="order-list__row"
+        style={row.checked ? { background: '#fff5f6', borderColor: '#f6b9c2' } : undefined}
+      >
         <td className="order-list__mobile-card-td">
           <div className="order-list__mobile-card-header">
             <CheckboxButton checked={row.checked} ariaLabel={`Select ${entry.itemName}`} onClick={() => toggleSelected(entry.id)} />
@@ -445,20 +459,14 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Need</span>
               <span className="order-list__cell-value" style={{ color: row.needFg, fontWeight: 800 }}>
-                {entry.quantityNeeded} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+                {entry.quantityNeeded}
+                {entry.manualAddition > 0 && <span className="order-list__manual-value"> +{entry.manualAddition}</span>}{' '}
+                <span className="order-list__unit">{entry.unitOfMeasurement}</span>
               </span>
             </div>
             <div className="order-list__mobile-stat">
-              <span className="order-list__mobile-stat-label">Manual</span>
-              <span className="order-list__cell-value">
-                {entry.manualAddition > 0 ? (
-                  <span className="order-list__manual-value">
-                    +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
-                  </span>
-                ) : (
-                  <span className="order-list__manual-empty">—</span>
-                )}
-              </span>
+              <span className="order-list__mobile-stat-label">Ordered</span>
+              <span className="order-list__cell-value">{orderedCell(entry)}</span>
             </div>
           </div>
           <div className="order-list__mobile-footer">
@@ -510,19 +518,13 @@ function OrderList({ storeName, seed }: OrderListProps) {
         </td>
         <td className="order-list__num-cell order-list__need-cell" data-label="Need" style={{ color: row.needFg, fontWeight: 800 }}>
           <span className="order-list__cell-value">
-            {entry.quantityNeeded} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+            {entry.quantityNeeded}
+            {entry.manualAddition > 0 && <span className="order-list__manual-value"> +{entry.manualAddition}</span>}{' '}
+            <span className="order-list__unit">{entry.unitOfMeasurement}</span>
           </span>
         </td>
-        <td className="order-list__num-cell order-list__manual-cell" data-label="Manual">
-          <span className="order-list__cell-value">
-            {entry.manualAddition > 0 ? (
-              <span className="order-list__manual-value">
-                +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
-              </span>
-            ) : (
-              <span className="order-list__manual-empty">—</span>
-            )}
-          </span>
+        <td className="order-list__num-cell order-list__ordered-cell" data-label="Ordered">
+          <span className="order-list__cell-value">{orderedCell(entry)}</span>
         </td>
         {isFlat && (
           <>
@@ -571,7 +573,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
         <div className="order-list__filter-card">
           <SearchInput value={search} onChange={setSearch} placeholder="Search items" variant="surface" />
           <div className="order-list__filter-fields">
-            <Select className="order-list__filter-select order-list__filter-select--category" options={[{ value: 'all', label: 'All categories' }, ...INVENTORY_ITEM_CATEGORY_OPTIONS]} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Category" />
+            <Select className="order-list__filter-select order-list__filter-select--category" options={[{ value: 'all', label: 'All categories' }, ...buildCategoryOptions([...categoryByItemId.values()], [categoryFilter === 'all' ? null : categoryFilter])]} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Category" />
             <Select className="order-list__filter-select order-list__filter-select--status" options={STATUS_FILTER_OPTIONS} value={statusFilter} onChange={(v) => setStatusFilter(v as StatusFilter)} ariaLabel="Status" />
             <Select className="order-list__filter-select order-list__filter-select--supplier" options={supplierFilterOptions} value={supplierFilter} onChange={setSupplierFilter} ariaLabel="Supplier" />
             {/* Mobile-only (display:none elsewhere): a zero-height, full-width
@@ -637,50 +639,38 @@ function OrderList({ storeName, seed }: OrderListProps) {
         </div>
       )}
 
-      {/* Mobile has no equivalent of the desktop action bar's own checkbox --
-          per-row and per-group checkboxes exist, but nothing to select every
-          visible order in one tap. This is that control, always shown (not
-          just once something's selected) since tapping it from a clean slate
-          is the whole point. */}
+      {/* Mobile has no equivalent of the desktop action bar's own checkbox
+          and bulk actions -- per-row and per-group checkboxes exist, but
+          nothing to select every visible order in one tap or act on a
+          selection without a separate floating bar. This single sticky row
+          is both: the checkbox/count/clear are always shown (tapping it from
+          a clean slate is the whole point), and the bulk actions appear
+          alongside once something's selected. */}
       {isMobile && !isLoading && decorated.length > 0 && (
         <div className="order-list__mobile-select-all">
-          <CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} />
-          <span className="order-list__select-label">
-            {someChecked ? `${selectedIds.size} selected` : `Select all ${decorated.length} ${decorated.length === 1 ? 'order' : 'orders'}`}
-          </span>
+          <div className="order-list__mobile-select-all-info">
+            <CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} />
+            <span className="order-list__select-label">
+              {someChecked ? `${selectedIds.size} selected` : `Select all ${decorated.length} ${decorated.length === 1 ? 'order' : 'orders'}`}
+            </span>
+            {someChecked && <FilterClearButton onClick={() => setSelectedIds(new Set())} ariaLabel="Clear selection" />}
+          </div>
           {someChecked && (
-            <button type="button" className="order-list__clear-selection" onClick={() => setSelectedIds(new Set())}>
-              Clear
-            </button>
+            <div className="order-list__mobile-select-all-actions">
+              <button type="button" className="order-list__action-btn order-list__action-btn--sm" onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>
+                <Truck size={14} />
+                Ordered
+              </button>
+              <button type="button" className="order-list__action-btn order-list__action-btn--sm" onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>
+                <CircleCheck size={14} />
+                Received
+              </button>
+              <button type="button" className="order-list__action-btn order-list__action-btn--sm" aria-label="Copy selected items" onClick={handleCopySelected}>
+                <Clipboard size={14} />
+              </button>
+            </div>
           )}
         </div>
-      )}
-
-      {isMobile && someChecked && createPortal(
-        // Portaled straight to <body> -- AppShell's page-transition wrapper sets
-        // `will-change: transform`, which (per spec) makes IT the containing
-        // block for any position:fixed descendant instead of the real
-        // viewport. Left un-portaled, "fixed to the bottom of the screen"
-        // actually meant "fixed to the bottom of that scrollable wrapper",
-        // so the bar scrolled away with the list instead of floating.
-        // StatusDotMenu's dropdown panel works around the same issue the
-        // same way.
-        <div className="order-list__mobile-selection-bar">
-          <span className="order-list__mobile-selection-count">{selectedIds.size} selected</span>
-          <div className="order-list__mobile-selection-actions">
-            <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>Ordered</button>
-            <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>Received</button>
-            <button
-              type="button"
-              className="order-list__mobile-selection-copy"
-              aria-label="Copy selected items"
-              onClick={handleCopySelected}
-            >
-              <Clipboard size={16} />
-            </button>
-          </div>
-        </div>,
-        document.body,
       )}
 
       {!isLoading && decorated.length === 0 && (
@@ -767,7 +757,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                           <th className="order-list__category-cell">Category</th>
                           <th className="order-list__num-header">Stock</th>
                           <th className="order-list__num-header">Need</th>
-                          <th className="order-list__num-header">Manual</th>
+                          <th className="order-list__num-header">Ordered</th>
                           <th>Status</th>
                         </tr>
                       </thead>
@@ -806,7 +796,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                   <th>Item</th>
                   <th className="order-list__num-header">Stock</th>
                   <th className="order-list__num-header">Need</th>
-                  <th className="order-list__num-header">Manual</th>
+                  <th className="order-list__num-header">Ordered</th>
                   <th>Supplier</th>
                   <th>Category</th>
                   <th className="order-list__status-header">Status</th>

@@ -1,24 +1,29 @@
 package com.nforce.retailops.dto;
 
-import com.nforce.retailops.entity.InventoryItemCategory;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
-// storeId is only read on the Super Admin create endpoint (StoreInventoryItemService
-// validates it's present there) -- the Owner/Admin endpoints derive the store from
-// the caller and ignore this field entirely.
+import java.util.List;
+
+// storeId / storeIds are only read on the Super Admin create endpoint
+// (StoreInventoryItemService validates that at least one store is given there);
+// storeIds wins when present and creates one linked copy per store. The
+// Owner/Admin endpoints derive the store from the caller and ignore both.
 public record StoreInventoryItemRequest(
     Long storeId,
+
+    List<Long> storeIds,
 
     @NotBlank(message = "Name is required")
     @Size(max = 200, message = "Name must be at most 200 characters")
     String name,
 
-    @NotNull(message = "Category is required")
-    InventoryItemCategory category,
+    @NotBlank(message = "Category is required")
+    @Size(max = 40, message = "Category must be at most 40 characters")
+    String category,
 
     @NotBlank(message = "Unit is required")
     @Size(max = 50, message = "Unit must be at most 50 characters")

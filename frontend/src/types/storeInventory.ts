@@ -1,4 +1,6 @@
-export type InventoryItemCategory = 'INGREDIENTS' | 'DAIRY' | 'FRUITS' | 'PACKAGING' | 'SUPPLIES' | 'CLEANING';
+// The built-in categories are stored as their upper-case keys; categories added
+// from the item form are stored as the name the user typed.
+export type InventoryItemCategory = string;
 
 export const INVENTORY_ITEM_CATEGORY_OPTIONS: { value: InventoryItemCategory; label: string }[] = [
   { value: 'INGREDIENTS', label: 'Ingredients' },
@@ -8,6 +10,38 @@ export const INVENTORY_ITEM_CATEGORY_OPTIONS: { value: InventoryItemCategory; la
   { value: 'SUPPLIES', label: 'Supplies' },
   { value: 'CLEANING', label: 'Cleaning' },
 ];
+
+export function categoryLabel(category: InventoryItemCategory | null | undefined): string {
+  if (!category) return '';
+  return INVENTORY_ITEM_CATEGORY_OPTIONS.find((o) => o.value === category)?.label ?? category;
+}
+
+// Maps a typed name onto a built-in category when it matches one (so typing
+// "dairy" selects Dairy rather than creating a duplicate), else keeps the name.
+export function normalizeCategoryName(name: string): InventoryItemCategory {
+  const trimmed = name.trim();
+  const lower = trimmed.toLowerCase();
+  const builtIn = INVENTORY_ITEM_CATEGORY_OPTIONS.find((o) => o.value.toLowerCase() === lower || o.label.toLowerCase() === lower);
+  return builtIn ? builtIn.value : trimmed;
+}
+
+// Built-in categories plus any custom ones already used by existing items
+// (de-duplicated case-insensitively), so a category added once is offered again.
+export function buildCategoryOptions(
+  used: (InventoryItemCategory | null | undefined)[],
+  extra: (InventoryItemCategory | null | undefined)[] = [],
+): { value: InventoryItemCategory; label: string }[] {
+  const options = [...INVENTORY_ITEM_CATEGORY_OPTIONS];
+  const seen = new Set(options.map((o) => o.value.toLowerCase()));
+  for (const raw of [...used, ...extra]) {
+    if (!raw) continue;
+    const key = raw.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    options.push({ value: raw, label: raw });
+  }
+  return options;
+}
 
 export interface StoreInventoryItem {
   id: number;
@@ -39,6 +73,9 @@ export interface StoreInventoryItem {
 // numericMin/numericMax.
 export interface StoreInventoryItemFormValues {
   storeId: number | null;
+  // Super Admin's create form only: every store the item is added to (one
+  // linked copy each). Takes precedence over storeId when non-empty.
+  storeIds?: number[];
   name: string;
   category: InventoryItemCategory;
   unitOfMeasurement: string;

@@ -11,7 +11,7 @@ import {
 // dump the user back on the Notifications page -- extend these lists (and the
 // route maps) together.
 const BACKEND_LINK_PATHS = {
-  employee: ['/checklist', '/audit', '/issues'],
+  employee: ['/checklist', '/audit', '/issues', '/stock-check'],
   owner: ['/issues', '/home', '/profile', '/employees', '/inventory'],
   superAdmin: ['/checklist', '/owners', '/issues'],
 };

@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Zap } from 'lucide-react';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS, type InventoryItemCategory, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import { buildCategoryOptions, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
+import CategoryCombobox from './CategoryCombobox';
 import SupplierCombobox from './SupplierCombobox';
 import CounterStepper from './CounterStepper';
 import Toggle from './Toggle';
@@ -12,7 +13,6 @@ import ItemIcon from './ItemIcon';
 import InventoryImagePicker from './InventoryImagePicker';
 import ButtonDots from './ButtonDots';
 import { inventoryUnitOptionsFor } from '../utils/inventoryUnits';
-import type { StoreOption } from './StoreInventoryItemFormModal';
 import './StoreInventoryItemEditPanel.css';
 
 interface StoreInventoryItemEditPanelProps {
@@ -20,11 +20,9 @@ interface StoreInventoryItemEditPanelProps {
   item: StoreInventoryItem;
   suppliers: Supplier[];
   onCreateSupplier: (name: string) => Promise<Supplier>;
-  onDeleteSupplier?: (supplier: Supplier) => Promise<void>;
-  // Only Super Admin's page passes stores + true here -- Owner/Admin's own
-  // store is derived server-side and shown as plain read-only text instead.
-  stores?: StoreOption[];
-  showStoreField?: boolean;
+  // Categories already used by existing items, offered alongside the built-in
+  // ones so a category added once can be picked again.
+  existingCategories?: (string | null)[];
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -33,7 +31,7 @@ interface StoreInventoryItemEditPanelProps {
 
 function toFormValues(item: StoreInventoryItem): StoreInventoryItemFormValues {
   return {
-    storeId: item.storeId,
+    storeId: null,
     name: item.name,
     category: item.category ?? 'INGREDIENTS',
     unitOfMeasurement: item.unitOfMeasurement,
@@ -54,9 +52,7 @@ function StoreInventoryItemEditPanel({
   item,
   suppliers,
   onCreateSupplier,
-  onDeleteSupplier,
-  stores = [],
-  showStoreField = false,
+  existingCategories = [],
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -79,7 +75,6 @@ function StoreInventoryItemEditPanel({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const nextErrors: typeof errors = {};
-    if (showStoreField && !values.storeId) nextErrors.storeId = 'Store is required';
     if (!values.name.trim()) nextErrors.name = 'Name is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
     if (values.minWeekday.trim() === '' || Number(values.minWeekday) < 0) {
@@ -103,8 +98,8 @@ function StoreInventoryItemEditPanel({
     });
   }
 
+  const categoryOptions = buildCategoryOptions(existingCategories, [item.category, values.category]);
   const unitOptions = inventoryUnitOptionsFor(item.unitOfMeasurement);
-  const storeOptions = stores.map((s) => ({ value: String(s.id), label: s.name }));
 
   return (
     <Modal
@@ -146,14 +141,13 @@ function StoreInventoryItemEditPanel({
 
         <div className="item-edit-panel__row">
           <FormField label="Category" htmlFor="edit-item-category">
-            <Select
-              id="edit-item-category"
-              options={INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
-              value={values.category}
-              onChange={(value) => setValues((current) => ({ ...current, category: value as InventoryItemCategory }))}
-              ariaLabel="Category"
-              indicator="radio"
-            />
+            <CategoryCombobox
+            id="edit-item-category"
+            options={categoryOptions}
+            value={values.category}
+            onChange={(category) => setValues((current) => ({ ...current, category }))}
+            ariaLabel="Category"
+          />
           </FormField>
           <FormField label="Unit of Measurement" htmlFor="edit-item-unit" error={errors.unitOfMeasurement}>
             <Select
@@ -163,30 +157,16 @@ function StoreInventoryItemEditPanel({
               onChange={(value) => setValues((current) => ({ ...current, unitOfMeasurement: value }))}
               ariaLabel="Unit"
               placeholder="Select unit..."
-              indicator="radio"
             />
           </FormField>
         </div>
 
         <div className="item-edit-panel__section">
           <h3 className="item-edit-panel__section-title">Store Parity &amp; Minimum Quantities</h3>
-          {showStoreField ? (
-            <FormField label="Store" htmlFor="edit-item-store" error={errors.storeId}>
-              <Select
-                id="edit-item-store"
-                options={storeOptions}
-                value={values.storeId ? String(values.storeId) : ''}
-                onChange={(value) => setValues((current) => ({ ...current, storeId: Number(value) }))}
-                ariaLabel="Store"
-                placeholder="Select a store"
-              />
-            </FormField>
-          ) : (
-            <div className="item-edit-panel__store-row">
-              <span className="item-edit-panel__store-dot" aria-hidden="true" />
-              <span className="item-edit-panel__store-name">{item.storeName}</span>
-            </div>
-          )}
+          <div className="item-edit-panel__store-row">
+            <span className="item-edit-panel__store-dot" aria-hidden="true" />
+            <span className="item-edit-panel__store-name">{item.storeName}</span>
+          </div>
           <div className="item-edit-panel__quantities">
             <div className="item-edit-panel__quantity">
               <label className="item-edit-panel__quantity-label" htmlFor="edit-item-min-weekday">
@@ -220,7 +200,6 @@ function StoreInventoryItemEditPanel({
             value={values.preferredSupplierId}
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
             onCreate={onCreateSupplier}
-            onDelete={onDeleteSupplier}
             ariaLabel="Preferred supplier"
           />
         </FormField>
