@@ -45,6 +45,7 @@ public class NotificationService {
         PRIORITY_BY_CATEGORY.put("TASK_MAKEUP_FULFILLED",         "LOW");
         PRIORITY_BY_CATEGORY.put("CATEGORY_ADDED",                "LOW");
         PRIORITY_BY_CATEGORY.put("STOCK_ITEM_ADDED",              "MEDIUM");
+        PRIORITY_BY_CATEGORY.put("STOCK_ITEM_REACTIVATED",        "MEDIUM");
         PRIORITY_BY_CATEGORY.put("EMPLOYEE_ASSIGNED",             "LOW");
         PRIORITY_BY_CATEGORY.put("NEW_EMPLOYEE_JOINED",           "LOW");
         // Super Admin categories
