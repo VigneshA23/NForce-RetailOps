@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Boxes, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
+import { AlertTriangle, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createStoreInventoryItem,
@@ -24,6 +24,7 @@ import StatCard from '../components/StatCard';
 import Select from '../components/Select';
 import FilterClearButton from '../components/FilterClearButton';
 import useDismissablePanel from '../hooks/useDismissablePanel';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
 import './StoreInventory.css';
@@ -56,6 +57,7 @@ interface StoreInventoryProps {
 }
 
 function StoreInventory({ historySeed }: StoreInventoryProps) {
+  const isMobile = useIsMobile();
   const [subTab, setSubTab] = useState<SubTab>('items');
   const [historyTotal, setHistoryTotal] = useState(0);
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
@@ -254,6 +256,10 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     [items],
   );
 
+  // Mirrors exactly what the Clear button's onClick resets, so clicking it
+  // when visible always leaves no active filter behind.
+  const hasActiveFilters = search !== '' || categoryFilter !== '' || sort !== 'name';
+
   const filteredItems = items.filter((item) => {
     const term = search.trim().toLowerCase();
     const matchesSearch =
@@ -280,6 +286,29 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
 
   const storeName = items[0]?.storeName ?? null;
 
+  // Shared between its desktop position (next to Export) and its mobile one
+  // (below the stat cards) -- rendered in exactly one of the two per isMobile
+  // rather than both, since each instance spins up its own WebGL shine effect.
+  const addItemButton = (
+    <SpecularButton
+      size="sm"
+      radius={999}
+      tint="var(--color-badge-solid-bg)"
+      tintOpacity={1}
+      textColor="var(--color-badge-solid-text)"
+      lineColor="#e11d33"
+      baseColor="#e4e4e7"
+      followMouse
+      proximity={180}
+      onClick={() => { setItemFormError(null); setIsCreateModalOpen(true); }}
+    >
+      <span className="store-inventory-page__add-label">
+        <Plus size={16} />
+        Add Item
+      </span>
+    </SpecularButton>
+  );
+
   return (
     <div className="store-inventory-page">
       <div className="store-inventory-page__subtabs">
@@ -301,10 +330,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
             );
           })}
         </div>
-        <span className="store-inventory-page__sync-indicator" title="Items and history refresh automatically every 60 seconds">
-          <span className="store-inventory-page__sync-dot" aria-hidden="true" />
-          Auto-Synced
-        </span>
       </div>
 
       {subTab === 'items' && (
@@ -347,34 +372,20 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                     </div>
                   )}
                 </div>
-                <SpecularButton
-                  size="sm"
-                  radius={999}
-                  tint="var(--color-badge-solid-bg)"
-                  tintOpacity={1}
-                  textColor="var(--color-badge-solid-text)"
-                  lineColor="#e11d33"
-                  baseColor="#e4e4e7"
-                  followMouse
-                  proximity={180}
-                  onClick={() => { setItemFormError(null); setIsCreateModalOpen(true); }}
-                >
-                  <span className="store-inventory-page__add-label">
-                    <Plus size={16} />
-                    Add Item
-                  </span>
-                </SpecularButton>
+                {!isMobile && addItemButton}
               </div>
             </div>
 
             <div className="stat-card-row">
-              <StatCard icon={Boxes} label="Total Items" value={items.length} unit="items" tone="primary" caption={storeName ?? undefined} />
+              <StatCard icon={Package} label="Total Items" value={items.length} unit="items" tone="primary" caption={storeName ?? undefined} />
               <StatCard icon={CircleCheck} label="Active Items" value={activeCount} unit="items" tone="success" caption="In Stock & Ready" />
               <StatCard icon={AlertTriangle} label="Low Stock" value={lowStockCount} unit="items" tone="warning" caption="Below Minimum Threshold" />
               <StatCard icon={PackageX} label="Out of Stock" value={outOfStockCount} unit="items" tone="info" caption="Reorder Immediately" />
             </div>
 
-            <div className="filter-bar">
+            {isMobile && <div className="store-inventory-page__add-item-mobile">{addItemButton}</div>}
+
+            <div className="filter-bar store-inventory-page__filter-bar">
               <div className="filter filter--search">
                 <SearchInput value={search} onChange={setSearch} placeholder="Search items by name, category, or supplier" variant="filter" />
               </div>
@@ -395,10 +406,12 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 onChange={(value) => setSort(value as SortOption)}
                 ariaLabel="Sort items"
               />
-              <FilterClearButton
-                ariaLabel="Clear inventory filters"
-                onClick={() => { setSearch(''); setCategoryFilter(''); setSort('name'); }}
-              />
+              {hasActiveFilters && (
+                <FilterClearButton
+                  ariaLabel="Clear inventory filters"
+                  onClick={() => { setSearch(''); setCategoryFilter(''); setSort('name'); }}
+                />
+              )}
             </div>
 
             <p className="store-inventory-page__catalog-line">

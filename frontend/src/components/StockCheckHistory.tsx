@@ -176,9 +176,9 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange, page]);
 
-  // 60-second silent refresh of the current page, same pattern (and backing
-  // the same real "Auto-Synced" indicator) as the Items tab's own poll. A
-  // failed poll keeps the last list rather than surfacing an error.
+  // 60-second silent refresh of the current page, same pattern as the Items
+  // tab's own poll. A failed poll keeps the last list rather than surfacing
+  // an error.
   useEffect(() => {
     const id = window.setInterval(() => {
       const resolved = resolveDateRange(dateRange) ?? widestAllowedRange();
