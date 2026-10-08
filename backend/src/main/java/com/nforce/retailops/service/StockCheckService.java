@@ -585,11 +585,10 @@ public class StockCheckService {
     //
     // Exactly one of userActor/superAdminActor is non-null. StockCheck's own
     // checked-by/entered-by columns (User-only) only ever receive userActor --
-    // a Super Admin correction (RTS-306) passes null there, which is safe
-    // because recordSnapshot only writes those columns on a genuine first
-    // entry, never on a correction, and a row can't exist to correct without
-    // one already having happened. superAdminActor only ever reaches the
-    // StockCheckCorrection audit row.
+    // a Super Admin correction (RTS-306) passes null there, and recordSnapshot
+    // then leaves the existing checked-by values untouched (checked_by_user_id
+    // is NOT NULL, so it can't be cleared). superAdminActor only ever reaches
+    // the StockCheckCorrection audit row.
     private StockCheck applySnapshot(
         StockCheck check, StockCheckSnapshot snapshot, int available, int deadStock,
         User userActor, SuperAdmin superAdminActor, String reason, boolean isCorrection

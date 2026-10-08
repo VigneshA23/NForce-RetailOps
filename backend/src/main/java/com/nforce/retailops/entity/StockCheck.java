@@ -170,6 +170,11 @@ public class StockCheck {
     // possible: a correction leaves enteredAt untouched even when it's the
     // first non-null write, so a later genuine employee entry still gets
     // credited correctly.
+    //
+    // `by` is null for a Super Admin correction (RTS-306): a Super Admin has no
+    // users row, and checked_by_user_id is NOT NULL (V48), so the User-only
+    // checked-by columns keep their previous value instead of being nulled.
+    // The Super Admin is recorded on the StockCheckCorrection audit row.
     public void recordSnapshot(StockCheckSnapshot snapshot, int available, int deadStock, User by, OffsetDateTime at, boolean isCorrection) {
         if (snapshot == StockCheckSnapshot.START_OF_DAY) {
             if (startOfDayEnteredAt == null && !isCorrection) {
@@ -178,7 +183,9 @@ public class StockCheck {
             }
             startOfDayAvailable = available;
             startOfDayDeadStock = deadStock;
-            startOfDayCheckedBy = by;
+            if (by != null) {
+                startOfDayCheckedBy = by;
+            }
             startOfDayCheckedAt = at;
         } else {
             if (endOfDayEnteredAt == null && !isCorrection) {
@@ -187,10 +194,14 @@ public class StockCheck {
             }
             endOfDayAvailable = available;
             endOfDayDeadStock = deadStock;
-            endOfDayCheckedBy = by;
+            if (by != null) {
+                endOfDayCheckedBy = by;
+            }
             endOfDayCheckedAt = at;
         }
-        checkedBy = by;
+        if (by != null) {
+            checkedBy = by;
+        }
         Integer latestUsable = usableFor(StockCheckSnapshot.END_OF_DAY);
         currentCount = latestUsable != null ? latestUsable : usableFor(StockCheckSnapshot.START_OF_DAY);
     }
