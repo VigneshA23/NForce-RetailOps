@@ -105,6 +105,15 @@
    pill tabs, OrderDashboard.css) reads better at phone width than underline
    tabs. Desktop keeps the underline tabs untouched. */
 @media (--mobile) {
+  /* Lets Super Admin's store-select slot (SuperAdminInventory.tsx -- the one
+     thing this shared sub-tabs row carries that Owner/Admin's own
+     StoreInventory.tsx doesn't) wrap onto its own row below the full-width
+     tab list instead of squeezing beside it, same reasoning as
+     .order-dashboard-page__subtabs in OrderDashboard.css. */
+  .store-inventory-page__subtabs {
+    flex-wrap: wrap;
+  }
+
   .store-inventory-page__subtab-list {
     /* Stretches the pill to the full row width (it otherwise only sizes to
        its buttons' content, via its own default flex:0 1 auto, leaving a
@@ -121,6 +130,12 @@
 
   .store-inventory-page__subtab {
     flex: 1;
+    /* Without this, flex-shrink can't actually shrink a tab below its
+       label's natural content width (the default min-width:auto on a flex
+       item), so several short tabs sharing the row evenly would overflow
+       the pill instead of compressing. Irrelevant once
+       --scroll below takes over (flex:0 0 auto there), but harmless. */
+    min-width: 0;
     justify-content: center;
     border-bottom: none;
     margin-bottom: 0;
@@ -128,6 +143,36 @@
     padding: 9px 8px;
     color: #71717a;
     font-weight: 700;
+  }
+
+  .store-inventory-page__subtab-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  /* Super Admin's own Inventory page has five tabs (RTS-304's three plus
+     Stock Comparison and Purchasing Report, which have no Owner/Admin
+     equivalent to match -- see SuperAdminInventory.tsx) where Owner/Admin's
+     own bar only ever has three. Five sharing the row evenly (the default
+     above) squeezes each label down to a couple of ellipsized characters,
+     unreadable. Scrolling instead keeps every label fully legible at its
+     natural width; swiping/scrolling to reach the last two is an acceptable
+     trade-off a 3-4 tab bar doesn't have to make. */
+  .store-inventory-page__subtab-list--scroll {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+
+  .store-inventory-page__subtab-list--scroll .store-inventory-page__subtab {
+    flex: 0 0 auto;
+    padding: 9px 14px;
+  }
+
+  .store-inventory-page__subtab-list--scroll .store-inventory-page__subtab-label {
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .store-inventory-page__subtab--active {

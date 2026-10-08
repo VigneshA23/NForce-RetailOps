@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Boxes, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
+import { AlertTriangle, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createInventoryItem,
@@ -12,6 +12,7 @@ import {
 import { createSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
 import { getAllStores } from '../api/superAdminStores';
 import useDismissablePanel from '../hooks/useDismissablePanel';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
 import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
@@ -52,6 +53,7 @@ const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
 
 function SuperAdminInventory() {
+  const isMobile = useIsMobile();
   const [subTab, setSubTab] = useState<SubTab>('inventory');
   const [historyTotal, setHistoryTotal] = useState(0);
 
@@ -241,7 +243,6 @@ function SuperAdminInventory() {
   }, [storeItems, itemSearch, categoryFilter, sort]);
 
   const storeOptions = useMemo(() => stores.map((s) => ({ value: String(s.id), label: s.name })), [stores]);
-  const selectedStoreName = stores.find((s) => s.id === selectedStoreId)?.name;
 
   // Memoised because the form modal resets its fields whenever this reference
   // changes -- an inline object would wipe in-progress input on every re-render
@@ -308,6 +309,33 @@ function SuperAdminInventory() {
 
   const activeSupplierCount = useMemo(() => suppliers.filter((s) => s.active).length, [suppliers]);
 
+  // Mirrors exactly what the Clear button's onClick resets, same convention
+  // as StoreInventory.tsx's own hasActiveFilters.
+  const hasActiveFilters = itemSearch !== '' || categoryFilter !== '' || sort !== 'name';
+
+  // Shared between its desktop position (next to Export) and its mobile one
+  // (below the stat cards) -- rendered in exactly one of the two per
+  // isMobile, same pattern as StoreInventory.tsx's own addItemButton.
+  const addItemButton = (
+    <SpecularButton
+      size="sm"
+      radius={999}
+      tint="var(--color-badge-solid-bg)"
+      tintOpacity={1}
+      textColor="var(--color-badge-solid-text)"
+      lineColor="#e11d33"
+      baseColor="#e4e4e7"
+      followMouse
+      proximity={180}
+      onClick={() => { setItemFormError(null); setIsCreateModalOpen(true); }}
+    >
+      <span className="store-inventory-page__add-label">
+        <Plus size={16} />
+        Add Item
+      </span>
+    </SpecularButton>
+  );
+
   if (loadError) {
     return (
       <div className="store-inventory-page super-admin-inventory-page">
@@ -324,7 +352,7 @@ function SuperAdminInventory() {
   return (
     <div className="store-inventory-page super-admin-inventory-page">
       <div className="store-inventory-page__subtabs">
-        <div className="store-inventory-page__subtab-list">
+        <div className="store-inventory-page__subtab-list store-inventory-page__subtab-list--scroll">
         {SUB_TABS.map((tab) => {
           const Icon = tab.icon;
           const badgeCount =
@@ -340,7 +368,7 @@ function SuperAdminInventory() {
               onClick={() => setSubTab(tab.key)}
             >
               {Icon && <Icon size={14} />}
-              {tab.label}
+              <span className="store-inventory-page__subtab-label">{tab.label}</span>
               {badgeCount !== null && <span className="store-inventory-page__subtab-badge">{badgeCount}</span>}
             </button>
           );
@@ -400,34 +428,20 @@ function SuperAdminInventory() {
                       </div>
                     )}
                   </div>
-                  <SpecularButton
-                    size="sm"
-                    radius={999}
-                    tint="var(--color-badge-solid-bg)"
-                    tintOpacity={1}
-                    textColor="var(--color-badge-solid-text)"
-                    lineColor="#e11d33"
-                    baseColor="#e4e4e7"
-                    followMouse
-                    proximity={180}
-                    onClick={() => { setItemFormError(null); setIsCreateModalOpen(true); }}
-                  >
-                    <span className="store-inventory-page__add-label">
-                      <Plus size={16} />
-                      Add Item
-                    </span>
-                  </SpecularButton>
+                  {!isMobile && addItemButton}
                 </div>
               </div>
 
               <div className="stat-card-row">
-                <StatCard icon={Boxes} label="Total Items" value={storeItems.length} unit="items" tone="primary" caption={selectedStoreName} />
-                <StatCard icon={CircleCheck} label="Active Items" value={activeItemCount} unit="items" tone="success" caption="In Stock & Ready" />
-                <StatCard icon={AlertTriangle} label="Low Stock" value={lowStockCount} unit="items" tone="warning" caption="Below Minimum Threshold" />
-                <StatCard icon={PackageX} label="Out of Stock" value={outOfStockCount} unit="items" tone="info" caption="Reorder Immediately" />
+                <StatCard icon={Package} label="Total Items" value={storeItems.length} unit="items" tone="primary" />
+                <StatCard icon={CircleCheck} label="Active Items" value={activeItemCount} unit="items" tone="success" />
+                <StatCard icon={AlertTriangle} label="Low Stock" value={lowStockCount} unit="items" tone="warning" />
+                <StatCard icon={PackageX} label="Out of Stock" value={outOfStockCount} unit="items" tone="info" />
               </div>
 
-              <div className="filter-bar">
+              {isMobile && <div className="store-inventory-page__add-item-mobile">{addItemButton}</div>}
+
+              <div className="filter-bar store-inventory-page__filter-bar">
                 <div className="filter filter--search">
                   <SearchInput value={itemSearch} onChange={setItemSearch} placeholder="Search items by name, category, or supplier" variant="filter" />
                 </div>
@@ -448,10 +462,12 @@ function SuperAdminInventory() {
                   onChange={(value) => setSort(value as SortOption)}
                   ariaLabel="Sort items"
                 />
-                <FilterClearButton
-                  ariaLabel="Clear inventory filters"
-                  onClick={() => { setItemSearch(''); setCategoryFilter(''); setSort('name'); }}
-                />
+                {hasActiveFilters && (
+                  <FilterClearButton
+                    ariaLabel="Clear inventory filters"
+                    onClick={() => { setItemSearch(''); setCategoryFilter(''); setSort('name'); }}
+                  />
+                )}
               </div>
 
               <p className="store-inventory-page__catalog-line">

@@ -8,7 +8,6 @@ import * as saOpsApi from '../api/superAdminOperations';
 import * as inventoryItemsApi from '../api/inventoryItems';
 import * as suppliersApi from '../api/suppliers';
 import type { SuperAdminStore } from '../types/superAdminStore';
-import type { OutstandingOrdersOverview } from '../api/superAdminOperations';
 import type { OrderListEntry } from '../types/orderList';
 import type { StoreInventoryItem } from '../types/storeInventory';
 
@@ -16,10 +15,14 @@ vi.mock('../api/superAdminStores', () => ({
   getAllStores: vi.fn(),
 }));
 vi.mock('../api/superAdminOperations', () => ({
-  getOutstandingOrders: vi.fn(),
   getOrderListForStore: vi.fn(),
   updateSuperAdminOrderStatus: vi.fn(),
   createSuperAdminOrderListEntry: vi.fn(),
+  getSuperAdminInventoryCounts: vi.fn(),
+  getSuperAdminInventoryCountHistory: vi.fn(),
+  correctSuperAdminStockCheck: vi.fn(),
+  getSuperAdminEodSupplierReport: vi.fn(),
+  getSupplierPurchaseMetrics: vi.fn(),
 }));
 vi.mock('../api/inventoryItems', () => ({
   getAllInventoryItems: vi.fn(),
@@ -53,10 +56,12 @@ vi.mock('../components/SearchableSelect', () => ({
 }));
 
 const mockGetAllStores = vi.mocked(superAdminStoresApi.getAllStores);
-const mockGetOutstandingOrders = vi.mocked(saOpsApi.getOutstandingOrders);
 const mockGetOrderListForStore = vi.mocked(saOpsApi.getOrderListForStore);
 const mockUpdateSuperAdminOrderStatus = vi.mocked(saOpsApi.updateSuperAdminOrderStatus);
 const mockCreateSuperAdminOrderListEntry = vi.mocked(saOpsApi.createSuperAdminOrderListEntry);
+const mockGetSuperAdminInventoryCounts = vi.mocked(saOpsApi.getSuperAdminInventoryCounts);
+const mockGetSuperAdminEodSupplierReport = vi.mocked(saOpsApi.getSuperAdminEodSupplierReport);
+const mockGetSupplierPurchaseMetrics = vi.mocked(saOpsApi.getSupplierPurchaseMetrics);
 const mockGetAllInventoryItems = vi.mocked(inventoryItemsApi.getAllInventoryItems);
 const mockGetSuppliers = vi.mocked(suppliersApi.getSuppliers);
 
@@ -75,16 +80,6 @@ function store(overrides: Partial<SuperAdminStore> = {}): SuperAdminStore {
     ownerAccessActive: true,
     employeeCount: 2,
     taskCount: 5,
-    ...overrides,
-  };
-}
-
-function overview(overrides: Partial<OutstandingOrdersOverview> = {}): OutstandingOrdersOverview {
-  return {
-    platformOutstandingCount: 0,
-    storesWithOutstanding: 0,
-    truncated: false,
-    stores: [],
     ...overrides,
   };
 }
@@ -134,10 +129,16 @@ function inventoryItem(overrides: Partial<StoreInventoryItem> = {}): StoreInvent
 
 beforeEach(() => {
   mockGetAllStores.mockReset().mockResolvedValue([store()]);
-  mockGetOutstandingOrders.mockReset().mockResolvedValue(overview());
   mockGetOrderListForStore.mockReset();
   mockUpdateSuperAdminOrderStatus.mockReset();
   mockCreateSuperAdminOrderListEntry.mockReset();
+  mockGetSuperAdminInventoryCounts.mockReset().mockResolvedValue({
+    rows: [], page: 1, size: 10, totalPages: 1, totalElements: 0, allCount: 0, outCount: 0, lowCount: 0, staleCount: 0,
+  });
+  mockGetSuperAdminEodSupplierReport.mockReset().mockResolvedValue({
+    date: '2026-09-30', itemsNeedingOrder: 0, itemsPendingEndOfDay: 0, groups: [],
+  });
+  mockGetSupplierPurchaseMetrics.mockReset().mockResolvedValue([]);
   mockGetAllInventoryItems.mockReset().mockResolvedValue([]);
   mockGetSuppliers.mockReset().mockResolvedValue([]);
 });
@@ -148,20 +149,11 @@ async function selectDowntown() {
 }
 
 describe('SuperAdminOrders', () => {
-  it('shows the cross-store outstanding summary and selecting a store row loads its full order list', async () => {
-    mockGetOutstandingOrders.mockResolvedValue(overview({
-      platformOutstandingCount: 3,
-      storesWithOutstanding: 1,
-      stores: [{ storeId: STORE_ID, storeCode: 10001, storeName: 'Downtown', ownerName: 'Sam Owner', outstandingCount: 3, oldestOutstandingAt: '2026-09-20T09:00:00Z' }],
-    }));
+  it('selecting a store loads its full order list', async () => {
     mockGetOrderListForStore.mockResolvedValue([entry({ itemName: 'Milk' }), entry({ id: 2, itemName: 'Bread', status: 'RECEIVED' })]);
 
     render(<SuperAdminOrders />);
-
-    expect(await screen.findByText('3 items across 1 store')).toBeInTheDocument();
-    // The overview row is a button -- disambiguates from the store picker's
-    // <option value="10">Downtown</option>, which has the same text.
-    await userEvent.click(screen.getByRole('button', { name: /Downtown/ }));
+    await selectDowntown();
 
     expect(mockGetOrderListForStore).toHaveBeenCalledWith(STORE_ID);
     expect(await screen.findByText('Milk')).toBeInTheDocument();
@@ -239,7 +231,6 @@ describe('SuperAdminOrders', () => {
 
   it('lets a store with nothing outstanding still be selected to view its history', async () => {
     mockGetAllStores.mockResolvedValue([store({ storeId: 20, storeName: 'Uptown' })]);
-    mockGetOutstandingOrders.mockResolvedValue(overview());
     mockGetOrderListForStore.mockResolvedValue([entry({ itemName: 'Eggs', status: 'RECEIVED' })]);
 
     render(<SuperAdminOrders />);
@@ -446,5 +437,47 @@ describe('SuperAdminOrders Add to order', () => {
     await waitFor(() => expect(screen.queryByText('Add to order')).not.toBeInTheDocument());
     expect(mockCreateSuperAdminOrderListEntry).toHaveBeenCalledWith(STORE_ID, expect.objectContaining({ storeInventoryItemId: 200 }));
     expect(screen.getByText('Napkins')).toBeInTheDocument();
+  });
+});
+
+// RTS-304 parity: the same four dashboard sub-tabs Owner/Admin's
+// OrderDashboard.tsx has (see that file's own shell tests), plus the store
+// picker these tabs are all scoped to.
+describe('SuperAdminOrders dashboard sub-tabs', () => {
+  beforeEach(() => {
+    mockGetOrderListForStore.mockReset().mockResolvedValue([entry({ itemName: 'Milk' })]);
+  });
+
+  it('defaults to the Order List sub-tab', async () => {
+    render(<SuperAdminOrders />);
+    await selectDowntown();
+
+    expect(screen.getByRole('button', { name: 'Order List' })).toHaveClass('order-dashboard-page__subtab--active');
+    await screen.findByText('Milk');
+  });
+
+  it('switches to Inventory Counts, End of Day Report and Purchasing Summary without losing the selected store', async () => {
+    const user = userEvent.setup();
+    render(<SuperAdminOrders />);
+    await selectDowntown();
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByRole('button', { name: 'Inventory Counts' }));
+    expect(await screen.findByPlaceholderText('Search inventory')).toBeInTheDocument();
+    expect(mockGetSuperAdminInventoryCounts).toHaveBeenCalledWith(STORE_ID, expect.anything());
+
+    await user.click(screen.getByRole('button', { name: 'End of Day Report' }));
+    expect(await screen.findByText('No inventory items to report for this day.')).toBeInTheDocument();
+    expect(mockGetSuperAdminEodSupplierReport).toHaveBeenCalledWith(STORE_ID, expect.any(String));
+
+    await user.click(screen.getByRole('button', { name: 'Supplier Purchasing Summary' }));
+    expect(await screen.findByText('No purchasing activity found for the selected date range.')).toBeInTheDocument();
+  });
+
+  it('shows nothing on any tab until a store is picked', async () => {
+    render(<SuperAdminOrders />);
+
+    expect(screen.getByText('Select a store above to view and manage its order list.')).toBeInTheDocument();
+    expect(mockGetSuperAdminInventoryCounts).not.toHaveBeenCalled();
   });
 });

@@ -429,12 +429,26 @@ public class StockCheckService {
     // tomorrow's requirement from the item's current thresholds.
     @Transactional(readOnly = true)
     public EodSupplierReportResponse getEodSupplierReport(Long ownerId, LocalDate date) {
+        Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
+        return eodSupplierReportForStore(storeId, date);
+    }
+
+    // Super Admin's cross-store mirror (RTS-304 Orders dashboard parity):
+    // storeId is taken directly rather than resolved from an owner link, same
+    // precedent as correctCheckForSuperAdmin/listHistoricalChecksForSuperAdmin
+    // above -- no active-owner requirement, since a Super Admin can view a
+    // vacant store's report too.
+    @Transactional(readOnly = true)
+    public EodSupplierReportResponse getEodSupplierReportForSuperAdmin(Long storeId, LocalDate date) {
+        return eodSupplierReportForStore(storeId, date);
+    }
+
+    private EodSupplierReportResponse eodSupplierReportForStore(Long storeId, LocalDate date) {
         LocalDate reportDate = date != null ? date : LocalDate.now();
         if (reportDate.isAfter(LocalDate.now())) {
             throw new InvalidStockCheckException("The report date cannot be in the future");
         }
 
-        Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
         Map<Long, StockCheck> checksByItemId = checksByItemId(storeId, reportDate);
         List<StoreInventoryItem> items = storeInventoryItemRepository.findByStoreIdOrderById(storeId).stream()
             .filter(item -> item.isActive() || checksByItemId.containsKey(item.getId()))
@@ -483,6 +497,21 @@ public class StockCheckService {
         Long ownerId, String search, String category, String level, Integer page, Integer size
     ) {
         Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
+        return inventoryCountsForStore(storeId, search, category, level, page, size);
+    }
+
+    // Super Admin's cross-store mirror -- same storeId-direct pattern as
+    // getEodSupplierReportForSuperAdmin above.
+    @Transactional(readOnly = true)
+    public InventoryCountsPageResponse listInventoryCountsForSuperAdmin(
+        Long storeId, String search, String category, String level, Integer page, Integer size
+    ) {
+        return inventoryCountsForStore(storeId, search, category, level, page, size);
+    }
+
+    private InventoryCountsPageResponse inventoryCountsForStore(
+        Long storeId, String search, String category, String level, Integer page, Integer size
+    ) {
         LocalDate today = LocalDate.now();
 
         List<StoreInventoryItem> items = storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(storeId);
@@ -569,6 +598,17 @@ public class StockCheckService {
     @Transactional(readOnly = true)
     public List<InventoryCountHistoryEntryResponse> getCountHistory(Long ownerId, Long itemId) {
         Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
+        return countHistoryForStore(storeId, itemId);
+    }
+
+    // Super Admin's cross-store mirror -- same storeId-direct pattern as the
+    // other ForSuperAdmin methods above.
+    @Transactional(readOnly = true)
+    public List<InventoryCountHistoryEntryResponse> getCountHistoryForSuperAdmin(Long storeId, Long itemId) {
+        return countHistoryForStore(storeId, itemId);
+    }
+
+    private List<InventoryCountHistoryEntryResponse> countHistoryForStore(Long storeId, Long itemId) {
         StoreInventoryItem item = storeInventoryItemRepository.findByIdAndStoreId(itemId, storeId)
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
 

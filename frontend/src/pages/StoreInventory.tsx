@@ -309,7 +309,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 onClick={() => setSubTab(tab.key)}
               >
                 <Icon size={14} />
-                {tab.label}
+                <span className="store-inventory-page__subtab-label">{tab.label}</span>
               </button>
             );
           })}

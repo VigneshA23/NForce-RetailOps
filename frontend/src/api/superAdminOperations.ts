@@ -1,6 +1,7 @@
 import { apiRequest } from './client';
 import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
-import type { StockCheckSnapshotKey, StockCheckResponse, SuperAdminStockCheckHistoryPage } from '../types/stockCheck';
+import type { StockCheckSnapshotKey, StockCheckResponse, SuperAdminStockCheckHistoryPage, EodSupplierReport } from '../types/stockCheck';
+import type { InventoryCountHistoryEntry, InventoryCountsPage, InventoryItemCategory } from '../types/storeInventory';
 
 export interface StoreOperationsSummary {
   storeId: number;
@@ -156,4 +157,42 @@ export async function correctSuperAdminStockCheck(
     method: 'PATCH',
     body: { snapshot, available, deadStock, reason },
   });
+}
+
+// Super Admin's cross-store mirrors of the Orders dashboard's Inventory
+// Counts and End of Day Report tabs (RTS-304 parity) -- same storeId-explicit
+// convention as correctSuperAdminStockCheck/getSuperAdminStockCheckHistory
+// above, scoped to whichever store is currently selected rather than
+// resolved from the caller's own store link.
+export interface SuperAdminInventoryCountsParams {
+  search?: string;
+  category?: InventoryItemCategory;
+  level?: string;
+  page?: number;
+  size?: number;
+}
+
+export async function getSuperAdminInventoryCounts(
+  storeId: number,
+  params: SuperAdminInventoryCountsParams = {},
+): Promise<InventoryCountsPage> {
+  const query = new URLSearchParams();
+  if (params.search) query.set('search', params.search);
+  if (params.category) query.set('category', params.category);
+  if (params.level) query.set('level', params.level);
+  if (params.page) query.set('page', String(params.page));
+  if (params.size) query.set('size', String(params.size));
+  const qs = query.toString();
+  return apiRequest<InventoryCountsPage>(`/super-admin/stores/${storeId}/inventory/counts${qs ? `?${qs}` : ''}`);
+}
+
+export async function getSuperAdminInventoryCountHistory(
+  storeId: number,
+  itemId: number,
+): Promise<InventoryCountHistoryEntry[]> {
+  return apiRequest<InventoryCountHistoryEntry[]>(`/super-admin/stores/${storeId}/inventory/counts/${itemId}/history`);
+}
+
+export async function getSuperAdminEodSupplierReport(storeId: number, date: string): Promise<EodSupplierReport> {
+  return apiRequest<EodSupplierReport>(`/super-admin/stores/${storeId}/inventory/eod-report?date=${encodeURIComponent(date)}`);
 }

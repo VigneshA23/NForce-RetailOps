@@ -1,5 +1,8 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.EodSupplierReportResponse;
+import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
+import com.nforce.retailops.dto.InventoryCountsPageResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.SuperAdminStockCheckHistoryPageResponse;
@@ -18,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.util.List;
 
 // Super Admin's cross-store stock-check history and correction (RTS-305,
 // RTS-306) -- the same StockCheckService methods/audit trail Owner/Admin's
@@ -61,5 +65,39 @@ public class SuperAdminStockCheckController {
         return ResponseEntity.ok(
             stockCheckService.correctCheckForSuperAdmin(storeId, id, principal.getSuperAdmin(), request)
         );
+    }
+
+    // Inventory Counts and End of Day Report tabs on Super Admin's Orders
+    // dashboard (RTS-304 parity) -- same storeId-explicit StockCheckService
+    // methods Owner/Admin's StoreInventoryController uses, just addressed by
+    // path variable rather than resolved from the caller's own store link.
+    @GetMapping("/stores/{storeId}/inventory/counts")
+    public ResponseEntity<InventoryCountsPageResponse> inventoryCounts(
+        @PathVariable Long storeId,
+        @RequestParam(required = false) String search,
+        @RequestParam(required = false) String category,
+        @RequestParam(required = false) String level,
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size
+    ) {
+        return ResponseEntity.ok(
+            stockCheckService.listInventoryCountsForSuperAdmin(storeId, search, category, level, page, size)
+        );
+    }
+
+    @GetMapping("/stores/{storeId}/inventory/counts/{itemId}/history")
+    public ResponseEntity<List<InventoryCountHistoryEntryResponse>> countHistory(
+        @PathVariable Long storeId,
+        @PathVariable Long itemId
+    ) {
+        return ResponseEntity.ok(stockCheckService.getCountHistoryForSuperAdmin(storeId, itemId));
+    }
+
+    @GetMapping("/stores/{storeId}/inventory/eod-report")
+    public ResponseEntity<EodSupplierReportResponse> eodReport(
+        @PathVariable Long storeId,
+        @RequestParam(required = false) LocalDate date
+    ) {
+        return ResponseEntity.ok(stockCheckService.getEodSupplierReportForSuperAdmin(storeId, date));
     }
 }

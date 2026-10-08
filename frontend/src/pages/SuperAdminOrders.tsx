@@ -8,10 +8,8 @@ import { getSuppliers } from '../api/suppliers';
 import {
   createSuperAdminOrderListEntry,
   getOrderListForStore,
-  getOutstandingOrders,
   updateSuperAdminOrderStatus,
 } from '../api/superAdminOperations';
-import type { OutstandingOrdersOverview } from '../api/superAdminOperations';
 import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
 import type { InventoryItemCategory } from '../types/storeInventory';
@@ -20,6 +18,9 @@ import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
 import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
+import SuperAdminInventoryCounts from '../components/SuperAdminInventoryCounts';
+import SuperAdminEodSupplierReport from '../components/SuperAdminEodSupplierReport';
+import SuperAdminOrdersPurchaseReport from '../components/SuperAdminOrdersPurchaseReport';
 import StatCard from '../components/StatCard';
 import CategoryIcon, { CATEGORY_VISUAL, FALLBACK_CATEGORY_VISUAL } from '../components/CategoryIcon';
 import CheckboxButton from '../components/CheckboxButton';
@@ -33,6 +34,7 @@ import FilterClearButton from '../components/FilterClearButton';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { nfToast } from '../utils/toast';
 import '../pages/OrderList.css';
+import '../pages/OrderDashboard.css';
 import './SuperAdminOrders.css';
 
 type StatusFilter = 'OPEN' | OrderStatus;
@@ -44,16 +46,22 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'RECEIVED', label: 'Received' },
 ];
 
+type SubTab = 'orders' | 'counts' | 'eod-report' | 'purchasing-report';
+
+// Mirrors Owner/Admin's OrderDashboard.tsx sub-tab set and labels exactly
+// (RTS-304 parity) -- shortLabel is what mobile shows, same reasoning as
+// that file's own comment on why these full labels don't fit a 4-way pill at
+// phone width.
+const SUB_TABS: { key: SubTab; label: string; shortLabel: string }[] = [
+  { key: 'orders', label: 'Order List', shortLabel: 'Orders' },
+  { key: 'counts', label: 'Inventory Counts', shortLabel: 'Inventory' },
+  { key: 'eod-report', label: 'End of Day Report', shortLabel: 'Report' },
+  { key: 'purchasing-report', label: 'Supplier Purchasing Summary', shortLabel: 'Purchases' },
+];
+
 const GROUP_ROW_LIMIT = 5;
 const MOBILE_GROUP_ROW_LIMIT = 3;
 const UNASSIGNED_GROUP_LABEL = 'Unassigned Supplier';
-
-// Same short absolute-date formatting as SuperAdminHome's own Outstanding
-// Orders card -- these entries can be weeks old, so a relative string would
-// be less useful than an absolute one.
-function formatOldest(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 export interface OrderStoreFocus {
   storeId: number;
@@ -72,19 +80,19 @@ interface SuperAdminOrdersProps {
 // Super Admin's cross-store Orders page (RTS-307, aligned to Owner/Admin's
 // layout per RTS-304). Same grouped/flat ordering workbench as OrderList.tsx
 // -- supplier grouping, bulk status changes, Add to order, clipboard export --
-// scoped to whichever store is currently selected, plus the two things only
-// Super Admin needs: the store picker and the cross-store Outstanding Orders
-// overview above it.
+// scoped to whichever store is currently selected, plus the dashboard-style
+// sub-tabs (Order List/Inventory Counts/End of Day Report/Purchasing
+// Summary) and the store picker only Super Admin needs.
 function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const [stores, setStores] = useState<{ id: number; label: string }[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
-  const [overview, setOverview] = useState<OutstandingOrdersOverview | null>(null);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [allInventoryItems, setAllInventoryItems] = useState<{
     id: number; storeId: number; name: string; unitOfMeasurement: string; preferredSupplierId: number | null;
     category: InventoryItemCategory | null; currentAvailable: number | null; requiredToday: number | null;
   }[]>([]);
 
+  const [subTab, setSubTab] = useState<SubTab>('orders');
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
   const [selectedStoreName, setSelectedStoreName] = useState<string | null>(null);
   const [entries, setEntries] = useState<OrderListEntry[]>([]);
@@ -122,7 +130,6 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
       .then((all) => setStores(all.map((s) => ({ id: s.storeId, label: s.storeName, sublabel: `#${s.storeCode}` }))))
       .catch(() => {})
       .finally(() => setStoresLoading(false));
-    getOutstandingOrders().then(setOverview).catch(() => {});
     getSuppliers().then(setSuppliers).catch(() => {});
     getAllInventoryItems()
       .then((items) => setAllInventoryItems(items.filter((i) => i.active)))
@@ -148,6 +155,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     if (!focusStore || focusStore.ts === appliedFocusTs.current) return;
     appliedFocusTs.current = focusStore.ts;
     selectStore(focusStore.storeId, focusStore.storeName);
+    setSubTab('orders');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusStore]);
 
@@ -607,67 +615,54 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
 
   return (
     <div className="super-admin-orders">
-      {overview !== null && overview.platformOutstandingCount > 0 && (
-        <div className="super-admin-orders__overview">
-          <div className="super-admin-orders__overview-head">
-            <span className="super-admin-orders__eyebrow">Outstanding Across Stores</span>
-            <span className="super-admin-orders__overview-total">
-              {overview.platformOutstandingCount} item{overview.platformOutstandingCount === 1 ? '' : 's'} across{' '}
-              {overview.storesWithOutstanding} store{overview.storesWithOutstanding === 1 ? '' : 's'}
-            </span>
-          </div>
-          <div className="super-admin-orders__overview-list">
-            {overview.stores.map((store) => (
-              <button
-                key={store.storeId}
-                type="button"
-                className="super-admin-orders__overview-item"
-                onClick={() => selectStore(store.storeId, store.storeName)}
-              >
-                <span className="super-admin-orders__overview-store">
-                  <span className="super-admin-orders__overview-name">{store.storeName}</span>
-                  <span className="super-admin-orders__overview-meta">#{store.storeCode} · {store.ownerName}</span>
-                </span>
-                <span className="super-admin-orders__overview-figures">
-                  <span className="super-admin-orders__overview-count">{store.outstandingCount}</span>
-                  <span className="super-admin-orders__overview-meta">oldest {formatOldest(store.oldestOutstandingAt)}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-          {overview.truncated && (
-            <p className="super-admin-orders__overview-truncated">
-              Showing the {overview.stores.length} stores with the most outstanding items, of {overview.storesWithOutstanding}.
-            </p>
-          )}
-        </div>
-      )}
 
-      <div className="super-admin-orders__picker">
-        <SearchableSelect
-          id="super-admin-orders-store"
-          options={stores}
-          selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
-          onChange={(ids) => {
-            const id = ids[0] ?? null;
-            if (id === null) {
-              setSelectedStoreId(null);
-              setSelectedStoreName(null);
-              return;
-            }
-            const match = stores.find((s) => s.id === id);
-            if (match) selectStore(id, match.label);
-          }}
-          placeholder="Select a store…"
-          isLoading={storesLoading}
-          emptyMessage="No stores found"
-        />
+      <div className="order-dashboard-page__subtabs">
+        <div className="order-dashboard-page__subtab-list">
+          {SUB_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`order-dashboard-page__subtab${subTab === tab.key ? ' order-dashboard-page__subtab--active' : ''}`}
+              onClick={() => setSubTab(tab.key)}
+              aria-label={tab.label}
+            >
+              <span className="order-dashboard-page__subtab-label-full" aria-hidden="true">{tab.label}</span>
+              <span className="order-dashboard-page__subtab-label-short" aria-hidden="true">{tab.shortLabel}</span>
+            </button>
+          ))}
+        </div>
+        <div className="super-admin-orders__store-select">
+          <SearchableSelect
+            id="super-admin-orders-store"
+            options={stores}
+            selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
+            onChange={(ids) => {
+              const id = ids[0] ?? null;
+              if (id === null) {
+                setSelectedStoreId(null);
+                setSelectedStoreName(null);
+                return;
+              }
+              const match = stores.find((s) => s.id === id);
+              if (match) selectStore(id, match.label);
+            }}
+            placeholder="Select a store…"
+            isLoading={storesLoading}
+            emptyMessage="No stores found"
+          />
+        </div>
       </div>
 
       {selectedStoreId !== null && (
         <div className="super-admin-orders__store">
           <span className="super-admin-orders__eyebrow">{selectedStoreName}</span>
 
+          {subTab === 'counts' && <SuperAdminInventoryCounts storeId={selectedStoreId} />}
+          {subTab === 'eod-report' && <SuperAdminEodSupplierReport storeId={selectedStoreId} storeName={selectedStoreName} />}
+          {subTab === 'purchasing-report' && <SuperAdminOrdersPurchaseReport storeId={selectedStoreId} />}
+
+          {subTab === 'orders' && (
+          <>
           <div className="stat-card-row">
             <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
             <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" active={statusFilter === 'NEEDS_ORDERING'} onClick={() => pickStatusTile('NEEDS_ORDERING')} />
@@ -930,6 +925,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             onClose={() => setIsAddOpen(false)}
             onSubmit={handleAddSubmit}
           />
+          </>
+          )}
         </div>
       )}
 

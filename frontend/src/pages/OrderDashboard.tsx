@@ -40,21 +40,23 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
   return (
     <div className="order-dashboard-page">
       <div className="order-dashboard-page__subtabs">
-        {SUB_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            className={`order-dashboard-page__subtab${subTab === tab.key ? ' order-dashboard-page__subtab--active' : ''}`}
-            onClick={() => setSubTab(tab.key)}
-            aria-label={tab.label}
-          >
-            {/* Which span is visible is CSS-only (mobile swaps to shortLabel) --
-                aria-label above keeps the accessible name (and so this button's
-                test/screen-reader identity) at the full label regardless. */}
-            <span className="order-dashboard-page__subtab-label-full" aria-hidden="true">{tab.label}</span>
-            <span className="order-dashboard-page__subtab-label-short" aria-hidden="true">{tab.shortLabel}</span>
-          </button>
-        ))}
+        <div className="order-dashboard-page__subtab-list">
+          {SUB_TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              className={`order-dashboard-page__subtab${subTab === tab.key ? ' order-dashboard-page__subtab--active' : ''}`}
+              onClick={() => setSubTab(tab.key)}
+              aria-label={tab.label}
+            >
+              {/* Which span is visible is CSS-only (mobile swaps to shortLabel) --
+                  aria-label above keeps the accessible name (and so this button's
+                  test/screen-reader identity) at the full label regardless. */}
+              <span className="order-dashboard-page__subtab-label-full" aria-hidden="true">{tab.label}</span>
+              <span className="order-dashboard-page__subtab-label-short" aria-hidden="true">{tab.shortLabel}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {subTab === 'orders' && <OrderList storeName={storeName} seed={seed} />}

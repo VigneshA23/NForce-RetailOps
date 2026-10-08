@@ -4,11 +4,23 @@
   padding: var(--space-lg);
 }
 
+/* Outer row: the tab list plus, for Super Admin's own Orders dashboard only
+   (SuperAdminOrders.tsx reuses this file), a store-select slot pushed to the
+   right via justify-content -- same two-slot pattern as
+   .store-inventory-page__subtabs in StoreInventory.css. Owner/Admin's
+   OrderDashboard never has a second child here, so this is a no-op for it. */
 .order-dashboard-page__subtabs {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: var(--space-sm);
   margin-bottom: var(--space-lg);
   border-bottom: 1px solid var(--color-border);
+}
+
+.order-dashboard-page__subtab-list {
+  display: flex;
+  gap: var(--space-sm);
   overflow-x: auto;
   /* overflow-y must be set explicitly too -- leaving it at its "visible"
      default while overflow-x isn't "visible" makes it compute to "auto"
@@ -16,6 +28,7 @@
      scrollbar here (RTS-311). Same fix as .store-inventory-page__subtab-list
      in StoreInventory.css -- keep both in sync if this changes again. */
   overflow-y: hidden;
+  min-width: 0;
 }
 
 .order-dashboard-page__subtab {
@@ -51,6 +64,19 @@
 
   .order-dashboard-page__subtabs {
     border-bottom: none;
+    /* Lets a store-select slot (Super Admin only) wrap onto its own row
+       below the full-width tab list instead of squeezing beside it -- see
+       .order-dashboard-page__subtab-list's own width:100% below, which is
+       what forces that wrap. */
+    flex-wrap: wrap;
+  }
+
+  .order-dashboard-page__subtab-list {
+    /* Stretches the pill to the full row width -- it otherwise only sizes to
+       its buttons' content (flex:0 1 auto), same reasoning as
+       .store-inventory-page__subtab-list in StoreInventory.css. */
+    flex: 1 1 auto;
+    width: 100%;
     background: #ececef;
     border-radius: 12px;
     padding: 4px;
