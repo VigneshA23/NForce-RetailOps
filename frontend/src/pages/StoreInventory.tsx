@@ -48,7 +48,6 @@ interface StoreInventoryProps {
 function StoreInventory({ historySeed }: StoreInventoryProps) {
   const isMobile = useIsMobile();
   const [subTab, setSubTab] = useState<SubTab>('items');
-  const [historyTotal, setHistoryTotal] = useState(0);
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -273,8 +272,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     }
   });
 
-  const storeName = items[0]?.storeName ?? null;
-
   // Shared between its desktop position (next to Export) and its mobile one
   // (below the stat cards) -- rendered in exactly one of the two per isMobile
   // rather than both, since each instance spins up its own WebGL shine effect.
@@ -304,7 +301,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
         <div className="store-inventory-page__subtab-list">
           {SUB_TABS.map((tab) => {
             const Icon = tab.icon;
-            const badgeCount = tab.key === 'items' ? items.length : tab.key === 'suppliers' ? suppliers.length : historyTotal;
             return (
               <button
                 key={tab.key}
@@ -314,7 +310,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               >
                 <Icon size={14} />
                 {tab.label}
-                <span className="store-inventory-page__subtab-badge">{badgeCount}</span>
               </button>
             );
           })}
@@ -366,10 +361,10 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
             </div>
 
             <div className="stat-card-row">
-              <StatCard icon={Package} label="Total Items" value={items.length} unit="items" tone="primary" caption={storeName ?? undefined} />
-              <StatCard icon={CircleCheck} label="Active Items" value={activeCount} unit="items" tone="success" caption="In Stock & Ready" />
-              <StatCard icon={AlertTriangle} label="Low Stock" value={lowStockCount} unit="items" tone="warning" caption="Below Minimum Threshold" />
-              <StatCard icon={PackageX} label="Out of Stock" value={outOfStockCount} unit="items" tone="info" caption="Reorder Immediately" />
+              <StatCard icon={Package} label="Total Items" value={items.length} unit="items" tone="primary" />
+              <StatCard icon={CircleCheck} label="Active Items" value={activeCount} unit="items" tone="success" />
+              <StatCard icon={AlertTriangle} label="Low Stock" value={lowStockCount} unit="items" tone="warning" />
+              <StatCard icon={PackageX} label="Out of Stock" value={outOfStockCount} unit="items" tone="info" />
             </div>
 
             {isMobile && <div className="store-inventory-page__add-item-mobile">{addItemButton}</div>}
@@ -533,7 +528,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
         )
       )}
 
-      {subTab === 'history' && <StockCheckHistory onTotalChange={setHistoryTotal} />}
+      {subTab === 'history' && <StockCheckHistory />}
     </div>
   );
 }

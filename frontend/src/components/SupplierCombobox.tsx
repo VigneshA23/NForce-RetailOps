@@ -53,11 +53,11 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
     const exactMatch = term !== '' && active.some((supplier) => supplier.name.trim().toLowerCase() === term);
 
     const next: ComboOption[] = [];
+    // With nothing typed there is no typed-name create row, so offer an explicit way in.
+    if (!term) next.push({ kind: 'new' });
     if (!term) next.push({ kind: 'none' });
     next.push(...matches.map((supplier) => ({ kind: 'supplier' as const, supplier })));
     if (term && !exactMatch) next.push({ kind: 'create', name: query.trim() });
-    // With nothing typed there is no typed-name create row, so offer an explicit way in.
-    if (!term) next.push({ kind: 'new' });
     return next;
   }, [suppliers, query]);
 
