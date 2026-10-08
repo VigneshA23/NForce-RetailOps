@@ -718,23 +718,34 @@
     white-space: nowrap;
   }
 
-  /* The table and tbody are blockified so each grid row's width: 100% is
-     measured against the full card. Left as table boxes, they shrink to
-     their content and a selected row's highlight stops short of the right
-     edge. */
-  .order-list__group-table,
-  .order-list__group-table tbody {
-    display: block;
+  /* Every item becomes its own card in both views now -- a flex column with
+     a gap, rather than rows packed into one continuous sheet. */
+  .order-list__flat-table,
+  .order-list__flat-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
     width: 100%;
     min-width: 0;
   }
 
-  /* List (flat/ungrouped) view has no per-supplier card to group rows into,
-     so each item becomes its own card instead -- a flex column with a gap,
-     rather than the single continuous sheet .order-list__flat-card gives
-     every other view. */
-  .order-list__flat-table,
-  .order-list__flat-table tbody {
+  /* Grouped view's supplier header gets its own white card treatment
+     separately, below -- the table itself becomes a light grey tray that
+     holds that supplier's item cards, instead of those cards sitting
+     straight on the page background the way list view's do. */
+  /* Inset from .order-list__group's own edges (margin, not width: 100%, so
+     it sits flush with the header's 16px padding above rather than reaching
+     the outer card's actual edge) -- plain continuation of that same white
+     card, not a distinct tray of its own; the item cards below carry their
+     own borders against it. */
+  .order-list__group-table {
+    display: block;
+    width: auto;
+    margin: 0 16px;
+    min-width: 0;
+  }
+
+  .order-list__group-table tbody {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -765,11 +776,15 @@
     box-sizing: border-box;
   }
 
-  /* The sheet that gives .order-list__flat-table its own white
-     background/border/shadow is exactly what the rows now carry
-     individually, so it's turned transparent here rather than removed --
-     the table still needs it present (and the spacing below it) just not
-     visible. */
+  /* List (flat/ungrouped) view has no per-supplier card to group rows into,
+     so the sheet that would otherwise give .order-list__flat-card its own
+     white background/border/shadow is exactly what the rows now carry
+     individually -- turned transparent here rather than removed, since the
+     wrapper still needs to be present (and the spacing below it) just not
+     visible. Grouped view keeps .order-list__group's own card (the base,
+     non-mobile rule, untouched) -- the whole supplier section, header and
+     items together, stays one card; see the grey tray below for how the
+     items nest inside it. */
   .order-list__flat-card {
     background: transparent;
     border: none;
@@ -777,14 +792,35 @@
     overflow: visible;
   }
 
+  .order-list__group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: 16px;
+  }
+
   /* Overrides the base .order-list__row's border-top (a plain divider line,
      for rows packed into one continuous sheet) with a full border on all
-     four sides now that each row is its own card. */
+     four sides now that each row is its own card -- same treatment in both
+     the flat list and each supplier group. */
+  .order-list__group-table .order-list__row,
   .order-list__flat-table .order-list__row {
     background: #ffffff;
     border: 1px solid #e4e4e7;
     border-radius: 14px;
     box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+
+  /* "Show all N items" sits inside the grey tray's margin gap now, not
+     flush against the outer card's bottom edge, so it gets the same fully
+     rounded treatment as everything else instead of the base rule's
+     bottom-corners-only (which assumed it was the last thing touching a
+     card's bottom edge). */
+  .order-list__more-btn {
+    margin: 0 16px;
+    width: auto;
+    border: 1px solid #e4e4e7;
+    border-radius: 14px;
   }
 
   /* Explicit display on the cell instead of leaning on the browser's own
@@ -994,78 +1030,60 @@
     margin-left: auto;
   }
 
-  /* Mobile's stand-in for the desktop action bar's own select-all checkbox --
-     same white-card treatment as .order-list__filter-card above it, just a
-     single row instead of a stack. */
+  /* Mobile's stand-in for the desktop action bar's own select-all checkbox
+     AND its bulk-action buttons -- one sticky card instead of splitting them
+     across this row plus a separate floating bar at the bottom. Sticky the
+     same way (top: 0) as .order-list__action-bar, so it stays visible while
+     scrolling through a long list instead of scrolling out of reach. Wraps
+     the actions onto their own line below the info row when both don't fit
+     one phone-width line, rather than needing a second fixed element. */
   .order-list__mobile-select-all {
+    position: sticky;
+    top: 0;
+    z-index: 12;
     display: flex;
     align-items: center;
-    gap: 12px;
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    gap: 8px;
     background: var(--color-surface-card);
     border: 1px solid var(--color-border);
     border-radius: 10px;
-    padding: 12px 14px;
+    padding: 10px 12px;
   }
 
-  /* Dark floating bar, fixed to the bottom of the screen while any row is
-     selected -- replaces the desktop toolbar (hidden outright on mobile via
-     the isMobile check in OrderList.tsx, not just visually here) since there
-     isn't room for its 4 buttons plus a selection count on one phone-width
-     line. */
-  /* BottomNav.css: the pill nav sits calc(16px + safe-area) off the viewport
-     bottom and is 64px tall, so its top edge is 80px + safe-area up from the
-     bottom. This bar's own bottom needs to clear that (plus a visible gap of
-     its own), or it sits flush against / under the nav instead of floating
-     above it. */
-  .order-list__mobile-selection-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    position: fixed;
-    left: 14px;
-    right: 14px;
-    bottom: calc(80px + 14px + env(safe-area-inset-bottom, 0px));
-    z-index: 20;
-    background: #18181b;
-    color: #ffffff;
-    border-radius: 16px;
-    padding: 10px 10px 10px 16px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
-  }
-
-  .order-list__mobile-selection-count {
-    font-size: 14px;
-    font-weight: 700;
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-
-  .order-list__mobile-selection-actions {
+  .order-list__mobile-select-all-info {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-left: auto;
+    min-width: 0;
+    flex-shrink: 1;
   }
 
-  .order-list__mobile-selection-actions button {
-    height: 36px;
-    border: none;
-    border-radius: 10px;
-    background: #27272a;
-    color: #ffffff;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 0 14px;
-    cursor: pointer;
+  /* "N selected" is the one piece of text here with no fixed length --
+     truncates instead of being what forces the actions off onto a second
+     line on a narrow phone. */
+  .order-list__mobile-select-all-info .order-list__select-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
   }
 
-  .order-list__mobile-selection-copy {
-    width: 36px;
-    padding: 0 !important;
-    background: #e11d33 !important;
+  .order-list__mobile-select-all-actions {
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  /* Tighter than the desktop action bar's own --sm buttons this reuses --
+     three of them plus the checkbox/count/clear need to share one
+     phone-width row instead of a whole desktop toolbar's worth of space. */
+  .order-list__mobile-select-all-actions .order-list__action-btn {
+    height: 30px;
+    padding: 0 8px;
+    gap: 4px;
+    font-size: 12px;
   }
 }

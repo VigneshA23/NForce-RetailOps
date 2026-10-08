@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { createOrderListEntry, getOrderList, updateOrderListEntry } from '../api/orderList';
@@ -421,7 +420,11 @@ function OrderList({ storeName, seed }: OrderListProps) {
   function renderMobileCard(row: ReturnType<typeof decorate>) {
     const { entry } = row;
     return (
-      <tr key={entry.id} className="order-list__row" style={{ background: row.checked ? '#fff5f6' : undefined }}>
+      <tr
+        key={entry.id}
+        className="order-list__row"
+        style={row.checked ? { background: '#fff5f6', borderColor: '#f6b9c2' } : undefined}
+      >
         <td className="order-list__mobile-card-td">
           <div className="order-list__mobile-card-header">
             <CheckboxButton checked={row.checked} ariaLabel={`Select ${entry.itemName}`} onClick={() => toggleSelected(entry.id)} />
@@ -637,50 +640,38 @@ function OrderList({ storeName, seed }: OrderListProps) {
         </div>
       )}
 
-      {/* Mobile has no equivalent of the desktop action bar's own checkbox --
-          per-row and per-group checkboxes exist, but nothing to select every
-          visible order in one tap. This is that control, always shown (not
-          just once something's selected) since tapping it from a clean slate
-          is the whole point. */}
+      {/* Mobile has no equivalent of the desktop action bar's own checkbox
+          and bulk actions -- per-row and per-group checkboxes exist, but
+          nothing to select every visible order in one tap or act on a
+          selection without a separate floating bar. This single sticky row
+          is both: the checkbox/count/clear are always shown (tapping it from
+          a clean slate is the whole point), and the bulk actions appear
+          alongside once something's selected. */}
       {isMobile && !isLoading && decorated.length > 0 && (
         <div className="order-list__mobile-select-all">
-          <CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} />
-          <span className="order-list__select-label">
-            {someChecked ? `${selectedIds.size} selected` : `Select all ${decorated.length} ${decorated.length === 1 ? 'order' : 'orders'}`}
-          </span>
+          <div className="order-list__mobile-select-all-info">
+            <CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} />
+            <span className="order-list__select-label">
+              {someChecked ? `${selectedIds.size} selected` : `Select all ${decorated.length} ${decorated.length === 1 ? 'order' : 'orders'}`}
+            </span>
+            {someChecked && <FilterClearButton onClick={() => setSelectedIds(new Set())} ariaLabel="Clear selection" />}
+          </div>
           {someChecked && (
-            <button type="button" className="order-list__clear-selection" onClick={() => setSelectedIds(new Set())}>
-              Clear
-            </button>
+            <div className="order-list__mobile-select-all-actions">
+              <button type="button" className="order-list__action-btn order-list__action-btn--sm" onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>
+                <Truck size={14} />
+                Ordered
+              </button>
+              <button type="button" className="order-list__action-btn order-list__action-btn--sm" onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>
+                <CircleCheck size={14} />
+                Received
+              </button>
+              <button type="button" className="order-list__action-btn order-list__action-btn--sm" aria-label="Copy selected items" onClick={handleCopySelected}>
+                <Clipboard size={14} />
+              </button>
+            </div>
           )}
         </div>
-      )}
-
-      {isMobile && someChecked && createPortal(
-        // Portaled straight to <body> -- AppShell's page-transition wrapper sets
-        // `will-change: transform`, which (per spec) makes IT the containing
-        // block for any position:fixed descendant instead of the real
-        // viewport. Left un-portaled, "fixed to the bottom of the screen"
-        // actually meant "fixed to the bottom of that scrollable wrapper",
-        // so the bar scrolled away with the list instead of floating.
-        // StatusDotMenu's dropdown panel works around the same issue the
-        // same way.
-        <div className="order-list__mobile-selection-bar">
-          <span className="order-list__mobile-selection-count">{selectedIds.size} selected</span>
-          <div className="order-list__mobile-selection-actions">
-            <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>Ordered</button>
-            <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>Received</button>
-            <button
-              type="button"
-              className="order-list__mobile-selection-copy"
-              aria-label="Copy selected items"
-              onClick={handleCopySelected}
-            >
-              <Clipboard size={16} />
-            </button>
-          </div>
-        </div>,
-        document.body,
       )}
 
       {!isLoading && decorated.length === 0 && (
