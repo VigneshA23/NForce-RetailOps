@@ -45,7 +45,7 @@ const EMPTY_VALUES: StoreInventoryItemFormValues = {
   storeId: null,
   storeIds: [],
   name: '',
-  category: 'INGREDIENTS',
+  category: '',
   unitOfMeasurement: '',
   minWeekday: '',
   minWeekend: '',

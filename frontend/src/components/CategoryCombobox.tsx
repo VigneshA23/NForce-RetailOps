@@ -43,9 +43,10 @@ function CategoryCombobox({ id, options: categories, value, onChange, ariaLabel 
     const matches = term ? categories.filter((c) => c.label.toLowerCase().includes(term)) : categories;
     const exactMatch = term !== '' && categories.some((c) => c.label.toLowerCase() === term || c.value.toLowerCase() === term);
 
-    const next: ComboOption[] = matches.map((c) => ({ kind: 'category' as const, value: c.value, label: c.label }));
-    if (term && !exactMatch) next.push({ kind: 'create', name: query.trim() });
+    const next: ComboOption[] = [];
     if (!term) next.push({ kind: 'new' });
+    next.push(...matches.map((c) => ({ kind: 'category' as const, value: c.value, label: c.label })));
+    if (term && !exactMatch) next.push({ kind: 'create', name: query.trim() });
     return next;
   }, [categories, query]);
 
