@@ -138,6 +138,7 @@ public class StockCheckService {
                     requiredTomorrow(item, check, today),
                     StockSnapshotResponse.from(check, StockCheckSnapshot.START_OF_DAY),
                     StockSnapshotResponse.from(check, StockCheckSnapshot.END_OF_DAY),
+                    check != null ? check.getQuantityReceived() : BigDecimal.ZERO,
                     check != null ? check.stockUsed() : null,
                     quantityToOrder(check),
                     item.getImageId()

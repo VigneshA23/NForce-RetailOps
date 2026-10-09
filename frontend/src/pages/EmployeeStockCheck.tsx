@@ -110,6 +110,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                 ...i,
                 startOfDay: saved.startOfDay,
                 endOfDay: saved.endOfDay,
+                quantityReceived: saved.quantityReceived ?? i.quantityReceived,
                 stockUsed: saved.stockUsed,
                 requiredTomorrow: saved.requiredTomorrow ?? i.requiredTomorrow,
                 quantityToOrder: saved.quantityToOrder,
@@ -433,7 +434,8 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                       </span>
                     ) : (
                       <span>
-                        Reconciliation: Stock used today: <strong>{item.stockUsed ?? '—'}</strong> {item.unitOfMeasurement} · Tomorrow
+                        Reconciliation: Stock used today: <strong>{item.stockUsed ?? '—'}</strong> {item.unitOfMeasurement}
+                        {item.quantityReceived ? <> (excl. {item.quantityReceived} received)</> : null} · Tomorrow
                         opening need: <strong>{item.requiredTomorrow ?? '—'}</strong> {item.unitOfMeasurement}
                       </span>
                     )}

@@ -49,6 +49,8 @@ export interface StockCheckResponse {
   requiredPar: number | null;
   startOfDay: StockSnapshot | null;
   endOfDay: StockSnapshot | null;
+  // Delivered today; already excluded from stockUsed.
+  quantityReceived?: number;
   stockUsed: number | null;
   requiredTomorrow: number | null;
   // Null until End of Day has been counted.
@@ -103,6 +105,7 @@ export interface DailyStockCheckItem {
   requiredTomorrow: number | null;
   startOfDay: StockSnapshot | null;
   endOfDay: StockSnapshot | null;
+  quantityReceived?: number;
   stockUsed: number | null;
   quantityToOrder: number | null;
   imageId: number | null;

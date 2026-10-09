@@ -8,12 +8,15 @@ import com.nforce.retailops.dto.StoreOperationsSummaryResponse;
 import com.nforce.retailops.dto.StoreSupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.TrendDataPoint;
 import com.nforce.retailops.dto.UpdateOrderStatusRequest;
+import com.nforce.retailops.entity.SuperAdmin;
+import com.nforce.retailops.security.SuperAdminUserDetails;
 import com.nforce.retailops.service.SuperAdminOperationsService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -73,11 +76,14 @@ public class SuperAdminOperationsController {
 
     @PatchMapping("/stores/{storeId}/order-list/{entryId}/status")
     public OrderListEntryResponse updateOrderStatus(
+        @AuthenticationPrincipal Object principal,
         @PathVariable Long storeId,
         @PathVariable Long entryId,
         @Valid @RequestBody UpdateOrderStatusRequest request
     ) {
-        return service.updateOrderStatus(storeId, entryId, request.status(), request.expectedStatus());
+        SuperAdmin superAdmin = principal instanceof SuperAdminUserDetails details ? details.getSuperAdmin() : null;
+        return service.updateOrderStatus(
+            storeId, entryId, request.status(), request.expectedStatus(), request.quantityReceived(), superAdmin);
     }
 
     // Super Admin's "Add to order" for a specific store, counterpart to

@@ -10,6 +10,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
@@ -96,6 +97,7 @@ public class OrderListService {
     private final SupplierRepository supplierRepository;
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final UserRepository userRepository;
+    private final StockReceiptService stockReceiptService;
 
     public OrderListService(
         OrderListEntryRepository orderListEntryRepository,
@@ -103,7 +105,8 @@ public class OrderListService {
         StoreRepository storeRepository,
         SupplierRepository supplierRepository,
         StoreInventoryItemRepository storeInventoryItemRepository,
-        UserRepository userRepository
+        UserRepository userRepository,
+        StockReceiptService stockReceiptService
     ) {
         this.orderListEntryRepository = orderListEntryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -111,6 +114,7 @@ public class OrderListService {
         this.supplierRepository = supplierRepository;
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.userRepository = userRepository;
+        this.stockReceiptService = stockReceiptService;
     }
 
     // Picks the caller's active store the same multi-store-safe way
@@ -173,8 +177,45 @@ public class OrderListService {
             entry.setSupplier(supplier);
         }
 
+        boolean receivedNow = currentStatus == OrderStatus.ORDERED && targetStatus == OrderStatus.RECEIVED;
+        if (receivedNow) {
+            entry.setQuantityReceived(request.quantityReceived() != null
+                ? request.quantityReceived()
+                : entry.totalQuantityOrdered());
+        }
+
         entry = orderListEntryRepository.save(entry);
+        if (receivedNow) {
+            User owner = userRepository.getReferenceById(ownerId);
+            return OrderListEntryResponse.from(entry, applyReceivedStock(entry, owner, null));
+        }
         return OrderListEntryResponse.from(entry);
+    }
+
+    // The stock side of Ordered -> Received: adds what arrived to the item's
+    // current stock, compares the result with today's minimum, and -- when
+    // the delivery still leaves the item short and its Auto PO toggle is on
+    // -- raises a fresh Needs Ordering entry for the remainder. The entry
+    // being received has already been saved as RECEIVED, which is what frees
+    // the one-active-entry-per-item unique index for that new row.
+    private OrderListEntryResponse.ReceiptOutcome applyReceivedStock(OrderListEntry entry, User user, SuperAdmin superAdmin) {
+        StoreInventoryItem item = entry.getStoreInventoryItem();
+        StockReceiptService.Result result = stockReceiptService.applyReceipt(item, entry.getQuantityReceived(), user, superAdmin);
+        if (!result.stockUpdated()) {
+            return new OrderListEntryResponse.ReceiptOutcome(false, null, result.requiredToday(), null);
+        }
+
+        if (result.reorderQuantity().signum() > 0 && item.isAutoPoEnabled()) {
+            upsertShortage(
+                entry.getStore(), item, result.reorderQuantity(),
+                "Still below the minimum after a delivery of " + entry.getQuantityReceived().stripTrailingZeros().toPlainString(),
+                false, user, entry.getSupplier());
+        }
+
+        BigDecimal shortfall = result.requiredToday() == null
+            ? BigDecimal.ZERO
+            : result.requiredToday().subtract(result.currentStock()).max(BigDecimal.ZERO);
+        return new OrderListEntryResponse.ReceiptOutcome(true, result.currentStock(), result.requiredToday(), shortfall);
     }
 
     // Super Admin's cross-store order-list drill-down (SuperAdminOperationsService).
@@ -199,6 +240,16 @@ public class OrderListService {
 
     @Transactional
     public OrderListEntryResponse updateStatusForSuperAdmin(Long storeId, Long entryId, OrderStatus targetStatus, OrderStatus expectedStatus) {
+        return updateStatusForSuperAdmin(storeId, entryId, targetStatus, expectedStatus, null, null);
+    }
+
+    // superAdmin is who to attribute the stock change to when this marks the
+    // order received; null (older callers) leaves stock untouched.
+    @Transactional
+    public OrderListEntryResponse updateStatusForSuperAdmin(
+        Long storeId, Long entryId, OrderStatus targetStatus, OrderStatus expectedStatus,
+        BigDecimal quantityReceived, SuperAdmin superAdmin
+    ) {
         OrderListEntry entry = orderListEntryRepository.findByIdAndStoreId(entryId, storeId)
             .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
 
@@ -214,7 +265,14 @@ public class OrderListService {
             entry.setStatusChangedByRole(ROLE_SUPER_ADMIN);
         }
         entry.setStatus(targetStatus);
+        boolean receivedNow = currentStatus == OrderStatus.ORDERED && targetStatus == OrderStatus.RECEIVED;
+        if (receivedNow) {
+            entry.setQuantityReceived(quantityReceived != null ? quantityReceived : entry.totalQuantityOrdered());
+        }
         entry = orderListEntryRepository.save(entry);
+        if (receivedNow) {
+            return OrderListEntryResponse.from(entry, applyReceivedStock(entry, null, superAdmin));
+        }
         return OrderListEntryResponse.from(entry);
     }
 

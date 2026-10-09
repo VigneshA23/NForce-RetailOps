@@ -54,6 +54,7 @@ export async function updateOrderListEntry(id: number, values: UpdateOrderListEn
       note: values.note.trim() === '' ? null : values.note.trim(),
       status: values.status,
       expectedStatus: values.expectedStatus,
+      quantityReceived: values.quantityReceived,
     },
   });
 }

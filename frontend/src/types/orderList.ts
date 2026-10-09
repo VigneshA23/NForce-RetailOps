@@ -18,6 +18,20 @@ export interface OrderListEntry {
   createdAt: string;
   updatedAt: string;
   imageId: number | null;
+  // What actually arrived when the order was marked Received; null otherwise.
+  quantityReceived?: number | null;
+  // Only present on the response to the Ordered -> Received change itself.
+  receipt?: ReceiptOutcome | null;
+}
+
+// What marking an order received did to the store's stock. stockUpdated is
+// false when there was no stock count for today to add the delivery to.
+export interface ReceiptOutcome {
+  stockUpdated: boolean;
+  currentStock: number | null;
+  requiredToday: number | null;
+  // requiredToday - currentStock, floored at 0; > 0 = still under the minimum.
+  shortfall: number | null;
 }
 
 export interface UpdateOrderListEntryValues {
@@ -28,6 +42,8 @@ export interface UpdateOrderListEntryValues {
   // The status the user was looking at; the server rejects the edit with a 409
   // if the entry has since been moved by someone else.
   expectedStatus?: OrderStatus;
+  // Ordered -> Received only: what arrived. Omitted = everything ordered.
+  quantityReceived?: number;
 }
 
 // "Add to order": either an existing catalog item (storeInventoryItemId set)

@@ -12,7 +12,7 @@ import ButtonDots from './ButtonDots';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { getAllStores } from '../api/superAdminStores';
 import { getSuperAdminStockCheckHistory, correctSuperAdminStockCheck } from '../api/superAdminOperations';
-import { INVENTORY_ITEM_CATEGORY_OPTIONS } from '../types/storeInventory';
+import { categoryLabel } from '../types/storeInventory';
 import type { SuperAdminStockCheckResponse, StockCheckSnapshotKey } from '../types/stockCheck';
 import {
   toSuperAdminStockCheckHistoryRowView,
@@ -72,8 +72,6 @@ function matchesFilters(
     (statusFilter === 'sufficient' && row.status !== 'shortage');
   return matchesSearch && matchesCategory && matches;
 }
-
-const CATEGORY_LABELS = Object.fromEntries(INVENTORY_ITEM_CATEGORY_OPTIONS.map((o) => [o.value, o.label]));
 
 function QtyNeededBadge({ row }: { row: SuperAdminStockCheckHistoryRowView }) {
   if (row.status === 'shortage') {
@@ -167,7 +165,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
 
   const distinctCategories = useMemo(
     () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
-      CATEGORY_LABELS[a].localeCompare(CATEGORY_LABELS[b]),
+      categoryLabel(a).localeCompare(categoryLabel(b)),
     ),
     [items],
   );
@@ -320,7 +318,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
           className="filter"
           options={[
             { value: '', label: `All Categories (${distinctCategories.length})` },
-            ...distinctCategories.map((c) => ({ value: c, label: CATEGORY_LABELS[c] })),
+            ...distinctCategories.map((c) => ({ value: c, label: categoryLabel(c) })),
           ]}
           value={categoryFilter}
           onChange={setCategoryFilter}
@@ -381,7 +379,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
                         <ItemIcon id={row.storeInventoryItemId} name={row.itemName} size="sm" />
                         <div>
                           <div className="stock-check-history__item-name">{row.itemName}</div>
-                          {row.category && <div className="stock-check-history__item-category">{CATEGORY_LABELS[row.category]}</div>}
+                          {row.category && <div className="stock-check-history__item-category">{categoryLabel(row.category)}</div>}
                         </div>
                       </div>
                     </td>
