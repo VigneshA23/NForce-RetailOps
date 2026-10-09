@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { StockSnapshot } from '../types/stockCheck';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
-import { parseQty } from '../utils/quantity';
+import { parseQty, qtyRuleHint } from '../utils/quantity';
 import ButtonDots from './ButtonDots';
 import CounterStepper from './CounterStepper';
 import './StockSnapshotCard.css';
@@ -24,6 +24,8 @@ interface StockSnapshotCardProps {
   // False once another employee has taken this snapshot: the count is shown
   // read-only because only the first responder may edit it.
   canEdit?: boolean;
+  // The item's unit -- countable units (Nos., box, bottle...) take whole numbers.
+  unit?: string;
 }
 
 // One Start of Day or End of Day count for one item. The count stays
@@ -31,7 +33,7 @@ interface StockSnapshotCardProps {
 // one), so the fields are always shown rather than toggling to a read-only
 // view -- the "Editable Count" / "In Progress" badge is the only thing that
 // changes once it's been saved.
-function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, onSave, footer, savedLabel = 'Editable Count', canEdit = true }: StockSnapshotCardProps) {
+function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, onSave, footer, savedLabel = 'Editable Count', canEdit = true, unit }: StockSnapshotCardProps) {
   const [available, setAvailable] = useState(() => (snapshot ? String(snapshot.available) : ''));
   const [deadStock, setDeadStock] = useState(() => (snapshot ? String(snapshot.deadStock) : '0'));
   const [error, setError] = useState<string | null>(null);
@@ -51,14 +53,14 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!canEdit) return;
-    const availableValue = parseQty(available);
-    const deadValue = parseQty(deadStock);
+    const availableValue = parseQty(available, unit);
+    const deadValue = parseQty(deadStock, unit);
     if (availableValue === null) {
-      setError('Enter available stock as a number (0 or more, up to 2 decimals).');
+      setError(`Enter available stock as ${qtyRuleHint(unit)}.`);
       return;
     }
     if (deadValue === null) {
-      setError('Enter dead stock as a number (0 or more, up to 2 decimals).');
+      setError(`Enter dead stock as ${qtyRuleHint(unit)}.`);
       return;
     }
     if (deadValue > availableValue) {
@@ -108,6 +110,7 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
             <CounterStepper
               id={`${idPrefix}-available`}
               value={available}
+              unit={unit}
               disabled={isSubmitting || !canEdit}
               onChange={setAvailable}
             />
@@ -117,6 +120,7 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
             <CounterStepper
               id={`${idPrefix}-dead`}
               value={deadStock}
+              unit={unit}
               disabled={isSubmitting || !canEdit}
               onChange={setDeadStock}
             />

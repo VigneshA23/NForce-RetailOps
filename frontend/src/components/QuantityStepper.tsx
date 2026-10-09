@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
-import { formatQty, parseQty, roundQty } from '../utils/quantity';
+import { formatQty, isQtyInputAllowed, isWholeNumberUnit, parseQty, roundQty } from '../utils/quantity';
 import './QuantityStepper.css';
 
 interface QuantityStepperProps {
@@ -14,7 +14,7 @@ interface QuantityStepperProps {
 
 // A +/- stepper around a directly-editable number field -- used wherever a
 // count needs both quick nudging and exact entry (Add to order's quantity,
-// Edit count's new count). Accepts up to two decimals (1.25 kg). The field
+// Edit count's new count). Accepts up to 4 digits and 3 decimals (1.125 kg); countable units take whole numbers. The field
 // keeps its own text so a half-typed "1." isn't snapped back mid-keystroke.
 function QuantityStepper({ id, value, unit, min = 0, ariaLabel = 'Quantity', onChange }: QuantityStepperProps) {
   const [text, setText] = useState(() => formatQty(value));
@@ -22,18 +22,21 @@ function QuantityStepper({ id, value, unit, min = 0, ariaLabel = 'Quantity', onC
   // Follow the value when it changes from outside (reset, +/- buttons), but
   // not while the typed text already parses to it.
   useEffect(() => {
-    setText((current) => (parseQty(current) === value ? current : formatQty(value)));
+    setText((current) => (parseQty(current, unit) === value ? current : formatQty(value)));
   }, [value]);
 
   function commit(next: number) {
-    const clamped = roundQty(Math.max(min, Number.isFinite(next) ? next : min));
+    const bounded = Math.max(min, Number.isFinite(next) ? next : min);
+    const clamped = isWholeNumberUnit(unit) ? Math.round(bounded) : roundQty(bounded);
+    if (!isQtyInputAllowed(String(clamped), unit)) return;
     setText(formatQty(clamped));
     onChange(clamped);
   }
 
   function handleType(raw: string) {
+    if (!isQtyInputAllowed(raw, unit)) return;
     setText(raw);
-    const parsed = parseQty(raw);
+    const parsed = parseQty(raw, unit);
     if (parsed !== null) onChange(Math.max(min, parsed));
   }
 
@@ -51,10 +54,8 @@ function QuantityStepper({ id, value, unit, min = 0, ariaLabel = 'Quantity', onC
       <div className="quantity-stepper__field">
         <input
           id={id}
-          type="number"
-          step="any"
-          inputMode="decimal"
-          min={min}
+          type="text"
+          inputMode={isWholeNumberUnit(unit) ? 'numeric' : 'decimal'}
           className="quantity-stepper__input"
           value={text}
           onChange={(event) => handleType(event.target.value)}

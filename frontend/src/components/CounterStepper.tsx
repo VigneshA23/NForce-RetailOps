@@ -1,5 +1,5 @@
 import { Minus, Plus } from 'lucide-react';
-import { roundQty } from '../utils/quantity';
+import { isQtyInputAllowed, isWholeNumberUnit, roundQty } from '../utils/quantity';
 import './CounterStepper.css';
 
 interface CounterStepperProps {
@@ -8,16 +8,20 @@ interface CounterStepperProps {
   onChange: (value: string) => void;
   min?: number;
   disabled?: boolean;
+  // Countable units (Nos., box, bottle...) accept whole numbers only.
+  unit?: string;
 }
 
-function CounterStepper({ id, value, onChange, min = 0, disabled = false }: CounterStepperProps) {
+function CounterStepper({ id, value, onChange, min = 0, disabled = false, unit }: CounterStepperProps) {
   const numeric = Number(value);
   const canDecrement = !disabled && (!Number.isFinite(numeric) || numeric > min);
 
   function step(delta: number) {
     const current = Number.isFinite(numeric) ? numeric : min;
     const next = Math.max(min, current + delta);
-    onChange(String(roundQty(next)));
+    const stepped = isWholeNumberUnit(unit) ? Math.round(next) : roundQty(next);
+    const text = String(stepped);
+    if (isQtyInputAllowed(text, unit)) onChange(text);
   }
 
   return (
@@ -33,14 +37,14 @@ function CounterStepper({ id, value, onChange, min = 0, disabled = false }: Coun
       </button>
       <input
         id={id}
-        type="number"
-        min={min}
-        step="any"
-        inputMode="decimal"
+        type="text"
+        inputMode={isWholeNumberUnit(unit) ? 'numeric' : 'decimal'}
         className="counter-stepper__field"
         value={value}
         disabled={disabled}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          if (isQtyInputAllowed(event.target.value, unit)) onChange(event.target.value);
+        }}
       />
       <button
         type="button"
