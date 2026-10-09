@@ -442,6 +442,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onCategoriesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('categories'); } : undefined}
       onIssuesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('issues'); } : undefined}
       onInventoryClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('inventory'); } : undefined}
+      onOrdersClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('orders'); } : undefined}
       onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowActivity(false); setShowHelp(true); }}
       onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowActivity(false); setShowNotifications(true); }}
       onNotificationNavigate={handleNotificationNavigate}
