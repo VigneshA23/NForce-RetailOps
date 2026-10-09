@@ -23,10 +23,14 @@
   cursor: not-allowed;
 }
 
+/* box-shadow, not outline -- Safari/WebKit draws `outline` as a plain
+   rectangle regardless of border-radius, so on this rounded trigger it
+   visibly pokes out past the curved corners. box-shadow follows
+   border-radius in every browser. */
 .searchable-select__trigger--open,
 .searchable-select__trigger:focus {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 1px;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-focus-ring);
 }
 
 .searchable-select__trigger svg {

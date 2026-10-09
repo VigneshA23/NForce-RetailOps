@@ -672,19 +672,19 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             </button>
           ))}
         </div>
-        {/* Mobile keeps this slot only until a store is picked -- once one
-            is, the picker moves below (replacing the eyebrow label) so it
-            isn't shown twice. */}
-        {(!isMobile || selectedStoreId === null) && (
-          <div className="super-admin-orders__store-select">{storeSelect}</div>
-        )}
+        {/* Always stays in this one slot, mobile included -- it used to move
+            down to replace the eyebrow label once a store was picked, but
+            that shifted the picker's position after selection, which is
+            exactly what should not happen. The --mobile modifier (full
+            width) keeps it sized the same whether or not a store is picked. */}
+        <div className={`super-admin-orders__store-select${isMobile ? ' super-admin-orders__store-select--mobile' : ''}`}>
+          {storeSelect}
+        </div>
       </div>
 
       {selectedStoreId !== null && (
         <div className="super-admin-orders__store">
-          {isMobile ? (
-            <div className="super-admin-orders__store-select super-admin-orders__store-select--mobile">{storeSelect}</div>
-          ) : (
+          {!isMobile && (
             <span className="super-admin-orders__eyebrow">{selectedStoreName}</span>
           )}
 

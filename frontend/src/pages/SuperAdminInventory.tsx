@@ -25,6 +25,7 @@ import SupplierFormModal from '../components/SupplierFormModal';
 import SuperAdminSupplierPurchaseReport from '../components/SuperAdminSupplierPurchaseReport';
 import Toggle from '../components/Toggle';
 import Select from '../components/Select';
+import SearchableSelect from '../components/SearchableSelect';
 import SearchInput from '../components/SearchInput';
 import FilterClearButton from '../components/FilterClearButton';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -59,6 +60,10 @@ function SuperAdminInventory() {
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
+  // Same shape as SuperAdminOrders.tsx's own store list, so the store-select
+  // widget there (SearchableSelect, with search + store code) can be reused
+  // here as-is instead of the plain Select this page used to render.
+  const [storeSelectOptions, setStoreSelectOptions] = useState<{ id: number; label: string; sublabel: string }[]>([]);
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -69,7 +74,9 @@ function SuperAdminInventory() {
     Promise.all([getSuppliers(), getAllStores(), getAllInventoryItems()])
       .then(([sups, sts, its]) => {
         setSuppliers(sups);
-        setStores(sts.filter((s) => s.storeActive).map((s) => ({ id: s.storeId, name: s.storeName })));
+        const activeStores = sts.filter((s) => s.storeActive);
+        setStores(activeStores.map((s) => ({ id: s.storeId, name: s.storeName })));
+        setStoreSelectOptions(activeStores.map((s) => ({ id: s.storeId, label: s.storeName, sublabel: `#${s.storeCode}` })));
         setItems(its);
       })
       .catch((error: Error) => setLoadError(error.message))
@@ -242,8 +249,6 @@ function SuperAdminInventory() {
     });
   }, [storeItems, itemSearch, categoryFilter, sort]);
 
-  const storeOptions = useMemo(() => stores.map((s) => ({ value: String(s.id), label: s.name })), [stores]);
-
   // Memoised because the form modal resets its fields whenever this reference
   // changes -- an inline object would wipe in-progress input on every re-render
   // (e.g. the 60s poll).
@@ -375,16 +380,17 @@ function SuperAdminInventory() {
         })}
         </div>
         {subTab === 'inventory' && (
-          <Select
-            id="sa-inventory-store-select"
-            className={`super-admin-inventory-page__store-select${selectedStoreId === null ? ' super-admin-inventory-page__store-select--unselected' : ''}`}
-            options={storeOptions}
-            value={selectedStoreId !== null ? String(selectedStoreId) : ''}
-            onChange={(value) => setSelectedStoreId(value ? Number(value) : null)}
-            placeholder={isLoading ? 'Loading stores…' : 'Select a store…'}
-            ariaLabel="Select a store"
-            disabled={isLoading}
-          />
+          <div className="super-admin-inventory-page__store-select">
+            <SearchableSelect
+              id="sa-inventory-store-select"
+              options={storeSelectOptions}
+              selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
+              onChange={(ids) => setSelectedStoreId(ids[0] ?? null)}
+              placeholder="Select a store…"
+              isLoading={isLoading}
+              emptyMessage="No stores found"
+            />
+          </div>
         )}
       </div>
 

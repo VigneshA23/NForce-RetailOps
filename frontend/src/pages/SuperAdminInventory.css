@@ -6,20 +6,14 @@
    directly rather than a parallel copy. Only genuinely Super-Admin-only
    pieces (store picker, Suppliers table chrome) live here. */
 
+/* Same widget and sizing as SuperAdminOrders.tsx's own store-select
+   (SearchableSelect, search box + store code) -- pushed to the right end of
+   the sub-tab bar on desktop. */
 .super-admin-inventory-page__store-select {
-  /* Pushed to the right end of the sub-tab bar. */
   margin-left: auto;
   flex-shrink: 0;
-  width: auto;
-  min-width: 180px;
-  max-width: 260px;
-}
-
-/* Amber accent while no store is picked -- matches the Checklist tab's selector. */
-.super-admin-inventory-page__store-select--unselected .select {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
-  color: #b45309;
+  width: 280px;
+  max-width: 320px;
 }
 
 .super-admin-inventory-page__no-store-msg {
@@ -73,12 +67,12 @@
 @media (--mobile) {
   /* Wraps onto its own row (store-inventory-page__subtabs now has
      flex-wrap:wrap -- see StoreInventory.css) below the full-width tab
-     pill, right-aligned via the base rule's own margin-left:auto, rather
-     than stretching to fill the row. */
+     pill. Full width there instead of right-aligned/shrunk, same as
+     SuperAdminOrders.tsx's own store-select on mobile. */
   .super-admin-inventory-page__store-select {
-    width: auto;
-    min-width: 160px;
-    max-width: 70%;
+    margin-left: 0;
+    width: 100%;
+    max-width: none;
   }
 
   .super-admin-inventory-page__header {
