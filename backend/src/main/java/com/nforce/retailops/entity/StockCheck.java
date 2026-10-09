@@ -16,7 +16,8 @@ import java.time.OffsetDateTime;
 // currentCount / quantityNeeded / checkedBy predate the split (V48) and are
 // kept in sync rather than dropped, since other branches share the dev DB:
 // currentCount = usable stock now: EOD usable when counted (a physical count,
-// so it already includes deliveries), else SOD usable + received today,
+// so it already includes deliveries), else the latest baseline (SOD usable, or
+// the last mid-day shortage report) + received since,
 // quantityNeeded = quantity to order (computed on EOD save, 0 before),
 // checkedBy = whoever last saved either snapshot.
 @Entity
@@ -103,6 +104,19 @@ public class StockCheck {
     @Column(name = "quantity_received", nullable = false)
     private BigDecimal quantityReceived = BigDecimal.ZERO;
 
+    // Mid-day shortage reports. midDayUsage is usage already banked up to the
+    // latest report; checkpointUsable / checkpointReceived are the usable stock
+    // and received total at that report, the baseline later usage is measured
+    // from. Null checkpoint = no report today, so the baseline is Start of Day.
+    @Column(name = "mid_day_usage", nullable = false)
+    private BigDecimal midDayUsage = BigDecimal.ZERO;
+
+    @Column(name = "checkpoint_usable")
+    private BigDecimal checkpointUsable;
+
+    @Column(name = "checkpoint_received")
+    private BigDecimal checkpointReceived;
+
     // ---- Legacy-compatible derived columns (see class comment) ----
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "checked_by_user_id", nullable = false)
@@ -163,12 +177,42 @@ public class StockCheck {
         return available.subtract(dead == null ? BigDecimal.ZERO : dead);
     }
 
-    // Start usable + received today - end usable; null until both snapshots
-    // exist. Deliveries are added back so they don't show up as negative usage.
+    // Usage banked at mid-day reports + (latest baseline + received since it -
+    // end usable); null until both snapshots exist. With no mid-day report this
+    // is Start usable + received today - end usable. Deliveries are added back
+    // so they don't show up as negative usage.
     public BigDecimal stockUsed() {
-        BigDecimal start = usableFor(StockCheckSnapshot.START_OF_DAY);
         BigDecimal end = usableFor(StockCheckSnapshot.END_OF_DAY);
-        return start == null || end == null ? null : start.add(quantityReceived()).subtract(end);
+        BigDecimal expected = expectedUsableNow();
+        return expected == null || end == null ? null : midDayUsage().add(expected).subtract(end);
+    }
+
+    // What should be on hand right now if nothing more were used since the
+    // latest baseline (Start of Day, or the last mid-day report).
+    private BigDecimal expectedUsableNow() {
+        BigDecimal base = checkpointUsable != null ? checkpointUsable : usableFor(StockCheckSnapshot.START_OF_DAY);
+        if (base == null) {
+            return null;
+        }
+        BigDecimal receivedAtBase = checkpointReceived == null ? BigDecimal.ZERO : checkpointReceived;
+        return base.add(quantityReceived().subtract(receivedAtBase));
+    }
+
+    public BigDecimal midDayUsage() {
+        return midDayUsage == null ? BigDecimal.ZERO : midDayUsage;
+    }
+
+    // A mid-day shortage report: banks the usage since the last baseline and
+    // makes the reported usable stock the new baseline. Needs Start of Day.
+    public void recordMidDayCount(BigDecimal currentUsable, User by) {
+        BigDecimal expected = expectedUsableNow();
+        midDayUsage = midDayUsage().add(expected.subtract(currentUsable));
+        checkpointUsable = currentUsable;
+        checkpointReceived = quantityReceived();
+        if (by != null) {
+            checkedBy = by;
+        }
+        refreshCurrentCount();
     }
 
     public BigDecimal quantityReceived() {
@@ -192,8 +236,8 @@ public class StockCheck {
             currentCount = end;
             return;
         }
-        BigDecimal start = usableFor(StockCheckSnapshot.START_OF_DAY);
-        currentCount = start == null ? currentCount : start.add(quantityReceived());
+        BigDecimal expected = expectedUsableNow();
+        currentCount = expected == null ? currentCount : expected;
     }
 
     // Writes one snapshot's values and who/when, keeping the original enterer

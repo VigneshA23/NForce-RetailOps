@@ -14,6 +14,7 @@ import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidStockCheckException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.repository.StockCheckCorrectionRepository;
+import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -57,6 +58,7 @@ class StockCheckServiceSuperAdminCorrectionTest {
     @Mock private StoreInventoryItemRepository storeInventoryItemRepository;
     @Mock private StockCheckRepository stockCheckRepository;
     @Mock private StockCheckCorrectionRepository stockCheckCorrectionRepository;
+    @Mock private StockCheckReceiptRepository stockCheckReceiptRepository;
     @Mock private UserRepository userRepository;
     @Mock private StoreOwnerRepository storeOwnerRepository;
     @Mock private StoreRepository storeRepository;

@@ -34,12 +34,13 @@ interface StockCheckViewItem extends DailyStockCheckItem {
   status: ItemStatus;
 }
 
-// "Available" is the latest known snapshot (End of Day once saved, else Start
-// of Day), so a live shortage/optimal indicator can show before End of Day is
+// "Available" is the latest known count (End of Day once saved, else the
+// running current stock: Start of Day plus deliveries, or the last mid-day
+// shortage report), so a live shortage/optimal indicator can show before End of Day is
 // saved. This is a display-only estimate -- it never feeds quantityToOrder,
 // which the backend only finalizes once End of Day is saved.
 function toViewItem(item: DailyStockCheckItem): StockCheckViewItem {
-  const available = item.endOfDay?.usable ?? item.startOfDay?.usable ?? null;
+  const available = item.endOfDay?.usable ?? item.currentStock ?? item.startOfDay?.usable ?? null;
   const needed = item.minTarget != null && available != null ? Math.max(0, item.minTarget - available) : null;
   const status: ItemStatus = needed != null && needed > 0 ? 'shortage' : available != null ? 'optimal' : 'pending';
   return { ...item, available, needed, status };
@@ -138,9 +139,17 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
     setAdHocError(null);
     setIsAdHocSubmitting(true);
     try {
-      await reportAdHocShortage(store.id, values.storeInventoryItemId, Number(values.quantity), values.note);
+      await reportAdHocShortage(
+        store.id,
+        values.storeInventoryItemId,
+        Number(values.currentStock),
+        Number(values.quantity),
+        values.note,
+      );
       nfToast.success('Shortage reported to your owner.');
       setIsAdHocOpen(false);
+      // Current stock and usage changed server-side; pick them up quietly.
+      getTodayStockCheck(store.id).then(setItems).catch(() => {});
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to report shortage';
       setAdHocError(msg);
@@ -154,16 +163,18 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
   const endCount = useMemo(() => items.filter((i) => i.endOfDay != null).length, [items]);
 
   // Report Shortage is only open once today's Start of Day count has been
-  // given, and only for the items that have one.
+  // given, and only for the items that have one. Once End of Day is saved the
+  // day is settled, so those items drop out.
   const adHocItemOptions = useMemo(
     () =>
       items
-        .filter((i) => i.startOfDay != null)
+        .filter((i) => i.startOfDay != null && i.endOfDay == null)
         .map((i) => ({
           storeInventoryItemId: i.storeInventoryItemId,
           itemName: i.itemName,
           unitOfMeasurement: i.unitOfMeasurement,
           active: true,
+          currentStock: i.currentStock,
         })),
     [items],
   );

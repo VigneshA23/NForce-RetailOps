@@ -414,6 +414,20 @@ public class OrderListService {
         orderListEntryRepository.save(entry);
     }
 
+    // Start of Day's half of ordering: today's count already below today's
+    // minimum puts the item on the list. Only ever adds -- an item that already
+    // has an active entry (maybe ordered, maybe topped up by hand) is left
+    // alone, and a good count never closes one out; End of Day does both.
+    @Transactional
+    public void raiseShortageIfNoneActive(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, User raisedBy, Supplier defaultSupplier) {
+        boolean alreadyActive = orderListEntryRepository
+            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
+            .isPresent();
+        if (!alreadyActive) {
+            upsertShortage(store, item, quantityNeeded, null, false, raisedBy, defaultSupplier);
+        }
+    }
+
     // The other half of the shortage lifecycle: called whenever a fresh count
     // shows the item back at or above its minimum (quantityNeeded == 0). Never
     // creates a row -- only closes out an already-active one, the same way
