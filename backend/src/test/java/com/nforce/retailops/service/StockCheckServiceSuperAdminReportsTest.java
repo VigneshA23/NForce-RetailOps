@@ -31,6 +31,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -94,14 +95,14 @@ class StockCheckServiceSuperAdminReportsTest {
 
     @Test
     void eodReportForSuperAdminUsesTheGivenStoreIdDirectlyWithNoOwnerLookup() {
-        milk.setMinWeekday(40);
-        milk.setMinWeekend(40);
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
         LocalDate day = LocalDate.of(2026, 6, 15);
         StockCheck check = existingCheck(day);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, null, OffsetDateTime.now(), false);
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 35, 1, null, OffsetDateTime.now(), false);
-        check.setRequiredTomorrow(40);
-        check.setQuantityNeeded(6);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), null, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(35), bd(1), null, OffsetDateTime.now(), false);
+        check.setRequiredTomorrow(bd(40));
+        check.setQuantityNeeded(bd(6));
 
         when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk));
         when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(check));
@@ -109,7 +110,7 @@ class StockCheckServiceSuperAdminReportsTest {
         EodSupplierReportResponse report = stockCheckService.getEodSupplierReportForSuperAdmin(STORE_ID, day);
 
         assertThat(report.groups()).hasSize(1);
-        assertThat(report.groups().get(0).items().get(0).quantityToOrder()).isEqualTo(6);
+        assertThat(report.groups().get(0).items().get(0).quantityToOrder()).isEqualByComparingTo(bd(6));
         verifyNoInteractions(storeOwnerRepository);
     }
 
@@ -133,7 +134,7 @@ class StockCheckServiceSuperAdminReportsTest {
         ReflectionTestUtils.setField(employee, "id", 2L);
         employee.setFullName("Sarah");
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 12, 0, employee, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(12), bd(0), employee, OffsetDateTime.now(), false);
         when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
         when(stockCheckRepository.findRecentForItem(eq(ITEM_ID), any(Pageable.class)))
             .thenReturn(List.of(check));
@@ -142,7 +143,7 @@ class StockCheckServiceSuperAdminReportsTest {
             stockCheckService.getCountHistoryForSuperAdmin(STORE_ID, ITEM_ID);
 
         assertThat(history).hasSize(1);
-        assertThat(history.get(0).count()).isEqualTo(12);
+        assertThat(history.get(0).count()).isEqualByComparingTo(bd(12));
         verifyNoInteractions(storeOwnerRepository);
     }
 
