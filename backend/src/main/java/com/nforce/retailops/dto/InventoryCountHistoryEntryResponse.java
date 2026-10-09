@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
@@ -8,8 +9,8 @@ import java.time.OffsetDateTime;
 // window).
 public record InventoryCountHistoryEntryResponse(
     LocalDate checkDate,
-    int count,
-    Integer delta,
+    BigDecimal count,
+    BigDecimal delta,
     String updatedByName,
     OffsetDateTime updatedAt
 ) {

@@ -28,6 +28,7 @@ import com.nforce.retailops.util.InventoryCountStatusCalculator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -308,7 +309,7 @@ public class StoreInventoryItemService {
         if (item == null) {
             return new StockLevelComparisonRowResponse(store.getId(), store.getName(), false, null, null, null, null);
         }
-        Integer minimum = item.requiredMinimumOn(today);
+        BigDecimal minimum = item.requiredMinimumOn(today);
         StockCheck latest = latestByItemId.get(item.getId());
         return new StockLevelComparisonRowResponse(
             store.getId(), store.getName(), true, minimum,
@@ -327,7 +328,7 @@ public class StoreInventoryItemService {
     // StockCheck keeps in currentCount. One query for the whole list.
     private List<StoreInventoryItemResponse> toResponses(List<StoreInventoryItem> items) {
         LocalDate today = LocalDate.now();
-        Map<Long, Integer> todaysCounts = stockCheckRepository
+        Map<Long, BigDecimal> todaysCounts = stockCheckRepository
             .findByStoreInventoryItemIdInAndCheckDate(items.stream().map(StoreInventoryItem::getId).toList(), today)
             .stream()
             .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), StockCheck::getCurrentCount));
@@ -338,7 +339,7 @@ public class StoreInventoryItemService {
 
     private StoreInventoryItemResponse toResponse(StoreInventoryItem item) {
         LocalDate today = LocalDate.now();
-        Integer currentAvailable = item.getId() == null
+        BigDecimal currentAvailable = item.getId() == null
             ? null
             : stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
                 .map(StockCheck::getCurrentCount)

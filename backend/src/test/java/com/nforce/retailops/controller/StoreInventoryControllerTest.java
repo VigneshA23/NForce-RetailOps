@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.StockCheck;
@@ -227,9 +228,9 @@ class StoreInventoryControllerTest {
             .andExpect(jsonPath("$.itemsPendingEndOfDay").value(2));
 
         StockCheck saved = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(milk.getId(), today).orElseThrow();
-        saved.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 35, 1, owner, OffsetDateTime.now(), false);
-        saved.setRequiredTomorrow(40);
-        saved.setQuantityNeeded(6);
+        saved.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(35), bd(1), owner, OffsetDateTime.now(), false);
+        saved.setRequiredTomorrow(bd(40));
+        saved.setQuantityNeeded(bd(6));
         stockCheckRepository.save(saved);
 
         mockMvc.perform(get("/api/stores/inventory/eod-report")
@@ -330,9 +331,9 @@ class StoreInventoryControllerTest {
         check.setStore(item.getStore());
         check.setStoreInventoryItem(item);
         check.setCheckDate(date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, sodAvailable, sodDead, by, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(sodAvailable), bd(sodDead), by, OffsetDateTime.now(), false);
         if (eodAvailable != null) {
-            check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, eodAvailable, eodDead, by, OffsetDateTime.now(), false);
+            check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(eodAvailable), bd(eodDead), by, OffsetDateTime.now(), false);
         }
         stockCheckRepository.save(check);
     }
@@ -342,8 +343,8 @@ class StoreInventoryControllerTest {
         item.setStore(store);
         item.setName(name);
         item.setUnitOfMeasurement("L");
-        item.setMinWeekday(minWeekday);
-        item.setMinWeekend(minWeekend);
+        item.setMinWeekday(bd(minWeekday));
+        item.setMinWeekend(bd(minWeekend));
         item.setActive(true);
         return storeInventoryItemRepository.save(item);
     }

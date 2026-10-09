@@ -1,8 +1,11 @@
 package com.nforce.retailops.dto;
 
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+
+import java.math.BigDecimal;
 
 // Owner/Admin manually adding to the order list ("Add to order"), outside
 // the automatic shortage detection in StockCheckService. Exactly one of two
@@ -28,15 +31,18 @@ public record CreateOrderListEntryRequest(
 
     boolean saveToInventory,
 
-    @Min(value = 0, message = "Weekday min cannot be negative")
-    Integer minWeekday,
+    @DecimalMin(value = "0", message = "Weekday min cannot be negative")
+    @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
+    BigDecimal minWeekday,
 
-    @Min(value = 0, message = "Weekend min cannot be negative")
-    Integer minWeekend,
+    @DecimalMin(value = "0", message = "Weekend min cannot be negative")
+    @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
+    BigDecimal minWeekend,
 
     @NotNull(message = "Quantity is required")
-    @Min(value = 1, message = "Quantity must be at least 1")
-    Integer quantityNeeded,
+    @DecimalMin(value = "0.01", message = "Quantity must be greater than 0")
+    @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
+    BigDecimal quantityNeeded,
 
     Long supplierId,
 

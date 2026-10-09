@@ -1,5 +1,6 @@
 package com.nforce.retailops.entity;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -16,29 +17,29 @@ class StoreInventoryItemTest {
 
     private static StoreInventoryItem item(Integer minWeekday, Integer minWeekend) {
         StoreInventoryItem item = new StoreInventoryItem();
-        item.setMinWeekday(minWeekday);
-        item.setMinWeekend(minWeekend);
+        item.setMinWeekday(bd(minWeekday));
+        item.setMinWeekend(bd(minWeekend));
         return item;
     }
 
     @Test
     void weekdaysRequireTheWeekdayMinimum() {
         StoreInventoryItem item = item(8, 12);
-        assertThat(item.requiredMinimumOn(MONDAY)).isEqualTo(8);
-        assertThat(item.requiredMinimumOn(FRIDAY)).isEqualTo(8);
+        assertThat(item.requiredMinimumOn(MONDAY)).isEqualByComparingTo(bd(8));
+        assertThat(item.requiredMinimumOn(FRIDAY)).isEqualByComparingTo(bd(8));
     }
 
     @Test
     void saturdayAndSundayRequireTheWeekendMinimum() {
         StoreInventoryItem item = item(8, 12);
-        assertThat(item.requiredMinimumOn(SATURDAY)).isEqualTo(12);
-        assertThat(item.requiredMinimumOn(SUNDAY)).isEqualTo(12);
+        assertThat(item.requiredMinimumOn(SATURDAY)).isEqualByComparingTo(bd(12));
+        assertThat(item.requiredMinimumOn(SUNDAY)).isEqualByComparingTo(bd(12));
     }
 
     @Test
     void weekendFallsBackToTheWeekdayMinimumWhenNoneIsSet() {
         StoreInventoryItem item = item(8, null);
-        assertThat(item.requiredMinimumOn(SATURDAY)).isEqualTo(8);
+        assertThat(item.requiredMinimumOn(SATURDAY)).isEqualByComparingTo(bd(8));
     }
 
     @Test

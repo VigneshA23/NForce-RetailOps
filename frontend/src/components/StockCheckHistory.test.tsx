@@ -308,10 +308,11 @@ describe('StockCheckHistory', () => {
     await user.click(within(tableRow).getByRole('button', { name: 'Correct count for Paper Towels' }));
     await screen.findByText('Correct Start of Day count: Paper Towels');
 
+    await user.click(screen.getAllByLabelText('Increase')[0]);
     await user.click(screen.getByRole('button', { name: 'Save correction' }));
 
     await waitFor(() => expect(mockCorrectStockCheck).toHaveBeenCalledWith(
-      original.id, 'START_OF_DAY', 48, 2, 'Recount (count was wrong)',
+      original.id, 'START_OF_DAY', 49, 2, 'Recount (count was wrong)',
     ));
     await waitFor(() => expect(screen.queryByText('Correct Start of Day count: Paper Towels')).not.toBeInTheDocument());
     // mockGetStockCheckHistory is only ever called once more if the component
@@ -346,6 +347,7 @@ describe('StockCheckHistory', () => {
     await user.click(within(tableRow).getByRole('button', { name: 'Correct count for Paper Towels' }));
     await screen.findByText('Correct Start of Day count: Paper Towels');
 
+    await user.click(screen.getAllByLabelText('Increase')[0]);
     await user.click(screen.getByRole('button', { name: 'Save correction' }));
 
     expect(await screen.findByText('This check belongs to another store')).toBeInTheDocument();

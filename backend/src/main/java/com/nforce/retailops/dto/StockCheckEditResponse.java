@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
 import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 
@@ -14,10 +15,10 @@ import java.time.OffsetDateTime;
 // this needs that finer split.
 public record StockCheckEditResponse(
     StockCheckSnapshot snapshot,
-    Integer previousAvailable,
-    Integer previousDeadStock,
-    int newAvailable,
-    Integer newDeadStock,
+    BigDecimal previousAvailable,
+    BigDecimal previousDeadStock,
+    BigDecimal newAvailable,
+    BigDecimal newDeadStock,
     String editedByName,
     String editedByRole,
     OffsetDateTime editedAt,

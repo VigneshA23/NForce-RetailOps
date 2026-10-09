@@ -3,6 +3,7 @@ package com.nforce.retailops.util;
 import com.nforce.retailops.dto.InventoryCountStatus;
 import com.nforce.retailops.entity.StockCheck;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 // Shared status tiering for every view that shows a live stock-check status
@@ -15,15 +16,15 @@ public final class InventoryCountStatusCalculator {
     private InventoryCountStatusCalculator() {
     }
 
-    public static InventoryCountStatus calculate(StockCheck latest, LocalDate today, Integer minimum) {
+    public static InventoryCountStatus calculate(StockCheck latest, LocalDate today, BigDecimal minimum) {
         if (latest == null || !latest.getCheckDate().isEqual(today)) {
             return InventoryCountStatus.STALE;
         }
-        int currentStock = latest.getCurrentCount();
-        if (currentStock <= 0) {
+        BigDecimal currentStock = latest.getCurrentCount();
+        if (currentStock.signum() <= 0) {
             return InventoryCountStatus.OUT_OF_STOCK;
         }
-        if (minimum != null && currentStock < minimum) {
+        if (minimum != null && currentStock.compareTo(minimum) < 0) {
             return InventoryCountStatus.LOW;
         }
         return InventoryCountStatus.HEALTHY;

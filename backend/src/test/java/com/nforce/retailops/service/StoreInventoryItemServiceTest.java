@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.nforce.retailops.dto.InventoryCountStatus;
 import com.nforce.retailops.dto.CreateStoreInventoryItemsResponse;
 import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
@@ -79,8 +80,8 @@ class StoreInventoryItemServiceTest {
         ReflectionTestUtils.setField(item, "id", id);
         item.setStore(store);
         item.setName("Napkins");
-        item.setMinWeekday(minWeekday);
-        item.setMinWeekend(minWeekday);
+        item.setMinWeekday(bd(minWeekday));
+        item.setMinWeekend(bd(minWeekday));
         item.setActive(true);
         return item;
     }
@@ -96,7 +97,7 @@ class StoreInventoryItemServiceTest {
         StockCheck check = new StockCheck();
         check.setStoreInventoryItem(item);
         check.setCheckDate(date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, 0, null, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(available), bd(0), null, OffsetDateTime.now(), false);
         return check;
     }
 
@@ -106,14 +107,14 @@ class StoreInventoryItemServiceTest {
 
     private StoreInventoryItemRequest requestForStore(Long storeId, String name, Long preferredSupplierId) {
         return new StoreInventoryItemRequest(
-            storeId, null, name, "INGREDIENTS", "Nos.", 5, 0,
+            storeId, null, name, "INGREDIENTS", "Nos.", bd(5), bd(0),
             preferredSupplierId, null, false, null, null, null
         );
     }
 
     private StoreInventoryItemRequest requestForStores(List<Long> storeIds, String name, Long preferredSupplierId) {
         return new StoreInventoryItemRequest(
-            null, storeIds, name, "INGREDIENTS", "Nos.", 5, 0,
+            null, storeIds, name, "INGREDIENTS", "Nos.", bd(5), bd(0),
             preferredSupplierId, null, false, null, null, null
         );
     }
@@ -153,7 +154,7 @@ class StoreInventoryItemServiceTest {
         StockLevelComparisonRowResponse row = service.compareAcrossStores("Napkins").get(0);
 
         assertThat(row.assigned()).isTrue();
-        assertThat(row.requiredToday()).isEqualTo(10);
+        assertThat(row.requiredToday()).isEqualByComparingTo(bd(10));
         assertThat(row.currentAvailable()).isNull();
         assertThat(row.status()).isEqualTo(InventoryCountStatus.STALE);
     }
@@ -192,7 +193,7 @@ class StoreInventoryItemServiceTest {
 
         StockLevelComparisonRowResponse row = service.compareAcrossStores("Napkins").get(0);
 
-        assertThat(row.requiredToday()).isEqualTo(10);
+        assertThat(row.requiredToday()).isEqualByComparingTo(bd(10));
     }
 
     // --- RTS-301: duplicate item names within a store ---------------------

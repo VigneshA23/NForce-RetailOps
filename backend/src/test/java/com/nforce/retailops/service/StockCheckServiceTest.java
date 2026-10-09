@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import static com.nforce.retailops.TestDecimals.bd;
 import com.nforce.retailops.dto.EodSupplierReportResponse;
 import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
 import com.nforce.retailops.dto.InventoryCountRowResponse;
@@ -123,19 +124,19 @@ class StockCheckServiceTest {
     }
 
     private StockCheckSubmitRequest submit(StockCheckSnapshot snapshot, int available, int dead) {
-        return new StockCheckSubmitRequest(STORE_ID, ITEM_ID, snapshot, available, dead);
+        return new StockCheckSubmitRequest(STORE_ID, ITEM_ID, snapshot, bd(available), bd(dead));
     }
 
     @Test
     void anotherEmployeeCannotOverwriteAnAlreadySubmittedSnapshot() {
         StockCheck check = existingCheck(LocalDate.now());
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 10, 0, user(99L, "Alex"), OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), user(99L, "Alex"), OffsetDateTime.now(), false);
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.of(check));
 
         assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 50, 2)))
             .isInstanceOf(com.nforce.retailops.exception.StockCheckLockedException.class);
-        assertThat(check.availableFor(StockCheckSnapshot.START_OF_DAY)).isEqualTo(10);
+        assertThat(check.availableFor(StockCheckSnapshot.START_OF_DAY)).isEqualByComparingTo(bd(10));
         verify(stockCheckRepository, never()).save(any(StockCheck.class));
     }
 
@@ -154,9 +155,9 @@ class StockCheckServiceTest {
         assertThat(saved.getStartOfDayEnteredBy()).isEqualTo(employee);
         assertThat(saved.getEndOfDayAvailable()).isNull();
 
-        assertThat(response.startOfDay().available()).isEqualTo(50);
-        assertThat(response.startOfDay().deadStock()).isEqualTo(2);
-        assertThat(response.startOfDay().usable()).isEqualTo(48);
+        assertThat(response.startOfDay().available()).isEqualByComparingTo(bd(50));
+        assertThat(response.startOfDay().deadStock()).isEqualByComparingTo(bd(2));
+        assertThat(response.startOfDay().usable()).isEqualByComparingTo(bd(48));
         assertThat(response.startOfDay().edited()).isFalse();
         assertThat(response.endOfDay()).isNull();
         assertThat(response.stockUsed()).isNull();
@@ -170,7 +171,7 @@ class StockCheckServiceTest {
     void originalEntererResavingStartOfDayUpdatesTheSameRecordAndAuditsThePreviousValue() {
         StockCheck check = existingCheck(LocalDate.now());
         User john = employee;
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, john, OffsetDateTime.now().minusHours(3), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), john, OffsetDateTime.now().minusHours(3), false);
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.of(check));
 
@@ -179,7 +180,7 @@ class StockCheckServiceTest {
         // Same row, updated in place -- not a second SOD record.
         verify(stockCheckRepository).save(check);
         assertThat(response.id()).isEqualTo(CHECK_ID);
-        assertThat(check.getStartOfDayAvailable()).isEqualTo(48);
+        assertThat(check.getStartOfDayAvailable()).isEqualByComparingTo(bd(48));
         assertThat(check.getStartOfDayEnteredBy()).isEqualTo(john);
         assertThat(check.getStartOfDayCheckedBy()).isEqualTo(employee);
         assertThat(response.startOfDay().enteredByName()).isEqualTo("Sarah");
@@ -190,29 +191,29 @@ class StockCheckServiceTest {
         verify(stockCheckCorrectionRepository).save(captor.capture());
         StockCheckCorrection audit = captor.getValue();
         assertThat(audit.getSnapshot()).isEqualTo(StockCheckSnapshot.START_OF_DAY);
-        assertThat(audit.getOriginalCount()).isEqualTo(50);
-        assertThat(audit.getOriginalDeadStock()).isEqualTo(2);
-        assertThat(audit.getCorrectedCount()).isEqualTo(48);
+        assertThat(audit.getOriginalCount()).isEqualByComparingTo(bd(50));
+        assertThat(audit.getOriginalDeadStock()).isEqualByComparingTo(bd(2));
+        assertThat(audit.getCorrectedCount()).isEqualByComparingTo(bd(48));
         assertThat(audit.getCorrectedByUser()).isEqualTo(employee);
     }
 
     @Test
     void endOfDayComputesUsageAndOrdersAgainstTomorrowsMinimum() {
-        milk.setMinWeekday(40);
-        milk.setMinWeekend(40);
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
         StockCheck check = existingCheck(LocalDate.now());
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, employee, OffsetDateTime.now().minusHours(9), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), employee, OffsetDateTime.now().minusHours(9), false);
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.of(check));
 
         StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 35, 1));
 
         // Start usable 48, end usable 34.
-        assertThat(response.stockUsed()).isEqualTo(14);
-        assertThat(response.requiredTomorrow()).isEqualTo(40);
-        assertThat(response.quantityToOrder()).isEqualTo(6);
-        assertThat(check.getCurrentCount()).isEqualTo(34);
-        verify(orderListService).upsertShortage(eq(store), eq(milk), eq(6), isNull(), eq(false), eq(employee), isNull());
+        assertThat(response.stockUsed()).isEqualByComparingTo(bd(14));
+        assertThat(response.requiredTomorrow()).isEqualByComparingTo(bd(40));
+        assertThat(response.quantityToOrder()).isEqualByComparingTo(bd(6));
+        assertThat(check.getCurrentCount()).isEqualByComparingTo(bd(34));
+        verify(orderListService).upsertShortage(eq(store), eq(milk), eq(bd(6)), isNull(), eq(false), eq(employee), isNull());
         // SOD was untouched and EOD was a first entry -- nothing to audit.
         verify(stockCheckCorrectionRepository, never()).save(any());
     }
@@ -263,21 +264,21 @@ class StockCheckServiceTest {
 
     @Test
     void correctingAPastEndOfDayAuditsItAndLeavesTheOrderListAlone() {
-        milk.setMinWeekday(40);
-        milk.setMinWeekend(40);
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, OffsetDateTime.now().minusDays(3), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusDays(3), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
-            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 6, 1, "Recount after delivery"));
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, bd(6), bd(1), "Recount after delivery"));
 
         ArgumentCaptor<StockCheckCorrection> captor = ArgumentCaptor.forClass(StockCheckCorrection.class);
         verify(stockCheckCorrectionRepository).save(captor.capture());
         StockCheckCorrection saved = captor.getValue();
-        assertThat(saved.getOriginalCount()).isEqualTo(10);
-        assertThat(saved.getCorrectedCount()).isEqualTo(6);
-        assertThat(saved.getCorrectedDeadStock()).isEqualTo(1);
+        assertThat(saved.getOriginalCount()).isEqualByComparingTo(bd(10));
+        assertThat(saved.getCorrectedCount()).isEqualByComparingTo(bd(6));
+        assertThat(saved.getCorrectedDeadStock()).isEqualByComparingTo(bd(1));
         assertThat(saved.getCorrectedByUser()).isEqualTo(owner);
         assertThat(saved.getReason()).isEqualTo("Recount after delivery");
 
@@ -288,13 +289,36 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void eodReportKeepsSupplierRecordedOnTheDayAfterPreferredSupplierChanges() {
+        Supplier oldSupplier = new Supplier();
+        ReflectionTestUtils.setField(oldSupplier, "id", 5L);
+        ReflectionTestUtils.setField(oldSupplier, "name", "Old Co");
+        Supplier newSupplier = new Supplier();
+        ReflectionTestUtils.setField(newSupplier, "id", 6L);
+        ReflectionTestUtils.setField(newSupplier, "name", "New Co");
+
+        LocalDate day = LocalDate.of(2026, 6, 15);
+        StockCheck milkCheck = existingCheck(day);
+        milkCheck.setSupplier(oldSupplier);
+        milk.setPreferredSupplier(newSupplier);
+
+        when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(milkCheck));
+
+        EodSupplierReportResponse report = stockCheckService.getEodSupplierReport(OWNER_ID, day);
+
+        assertThat(report.groups()).extracting(EodSupplierReportResponse.Group::supplierName)
+            .containsExactly("Old Co");
+    }
+
+    @Test
     void eodReportGroupsBySupplierWithNoSupplierLastAndResolvesEachStatus() {
         Supplier dairy = new Supplier();
         ReflectionTestUtils.setField(dairy, "id", 5L);
         ReflectionTestUtils.setField(dairy, "name", "Dairy Co");
 
-        milk.setMinWeekday(40);
-        milk.setMinWeekend(40);
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
         milk.setPreferredSupplier(dairy);
 
         StoreInventoryItem bread = new StoreInventoryItem();
@@ -302,8 +326,8 @@ class StockCheckServiceTest {
         bread.setStore(store);
         bread.setName("Bread");
         bread.setActive(true);
-        bread.setMinWeekday(10);
-        bread.setMinWeekend(10);
+        bread.setMinWeekday(bd(10));
+        bread.setMinWeekend(bd(10));
 
         StoreInventoryItem retired = new StoreInventoryItem();
         ReflectionTestUtils.setField(retired, "id", 22L);
@@ -313,10 +337,11 @@ class StockCheckServiceTest {
 
         LocalDate day = LocalDate.of(2026, 6, 15);
         StockCheck milkCheck = existingCheck(day);
-        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, 50, 2, employee, OffsetDateTime.now(), false);
-        milkCheck.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 35, 1, employee, OffsetDateTime.now(), false);
-        milkCheck.setRequiredTomorrow(40);
-        milkCheck.setQuantityNeeded(6);
+        milkCheck.setSupplier(dairy);
+        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), employee, OffsetDateTime.now(), false);
+        milkCheck.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(35), bd(1), employee, OffsetDateTime.now(), false);
+        milkCheck.setRequiredTomorrow(bd(40));
+        milkCheck.setQuantityNeeded(bd(6));
 
         when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk, bread, retired));
         when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(milkCheck));
@@ -326,18 +351,18 @@ class StockCheckServiceTest {
         assertThat(report.groups()).extracting(EodSupplierReportResponse.Group::supplierName)
             .containsExactly("Dairy Co", "No Supplier");
         EodSupplierReportResponse.Row milkRow = report.groups().get(0).items().get(0);
-        assertThat(milkRow.startOfDayAvailable()).isEqualTo(50);
-        assertThat(milkRow.endOfDayAvailable()).isEqualTo(35);
-        assertThat(milkRow.stockUsed()).isEqualTo(14);
-        assertThat(milkRow.endOfDayDeadStock()).isEqualTo(1);
-        assertThat(milkRow.quantityToOrder()).isEqualTo(6);
+        assertThat(milkRow.startOfDayAvailable()).isEqualByComparingTo(bd(50));
+        assertThat(milkRow.endOfDayAvailable()).isEqualByComparingTo(bd(35));
+        assertThat(milkRow.stockUsed()).isEqualByComparingTo(bd(14));
+        assertThat(milkRow.endOfDayDeadStock()).isEqualByComparingTo(bd(1));
+        assertThat(milkRow.quantityToOrder()).isEqualByComparingTo(bd(6));
         assertThat(milkRow.status()).isEqualTo(EodSupplierReportResponse.Status.NEEDS_TO_ORDER);
 
         // Bread is active but uncounted; the inactive, uncounted item is left out.
         List<EodSupplierReportResponse.Row> noSupplier = report.groups().get(1).items();
         assertThat(noSupplier).extracting(EodSupplierReportResponse.Row::itemName).containsExactly("Bread");
         assertThat(noSupplier.get(0).status()).isEqualTo(EodSupplierReportResponse.Status.END_OF_DAY_PENDING);
-        assertThat(noSupplier.get(0).requiredTomorrow()).isEqualTo(10);
+        assertThat(noSupplier.get(0).requiredTomorrow()).isEqualByComparingTo(bd(10));
 
         assertThat(report.itemsNeedingOrder()).isEqualTo(1);
         assertThat(report.itemsPendingEndOfDay()).isEqualTo(1);
@@ -351,22 +376,22 @@ class StockCheckServiceTest {
 
     @Test
     void endOfDayAtOrAboveTomorrowsMinimumResolvesAnyOutstandingOrder() {
-        milk.setMinWeekday(20);
-        milk.setMinWeekend(20);
+        milk.setMinWeekday(bd(20));
+        milk.setMinWeekend(bd(20));
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.empty());
 
         StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 25, 0));
 
-        assertThat(response.quantityToOrder()).isEqualTo(0);
-        verify(orderListService, never()).upsertShortage(any(), any(), anyInt(), any(), anyBoolean(), any(), any());
+        assertThat(response.quantityToOrder()).isEqualByComparingTo(bd(0));
+        verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), any(), any());
         verify(orderListService).resolveShortageIfPresent(store, milk);
     }
 
     @Test
     void startOfDayNeverTouchesTheOrderList() {
-        milk.setMinWeekday(20);
-        milk.setMinWeekend(20);
+        milk.setMinWeekday(bd(20));
+        milk.setMinWeekend(bd(20));
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.empty());
 
@@ -377,40 +402,40 @@ class StockCheckServiceTest {
 
     @Test
     void correctingTodaysEndOfDayToMeetTheMinimumResolvesAnyOutstandingOrder() {
-        milk.setMinWeekday(20);
-        milk.setMinWeekend(20);
+        milk.setMinWeekday(bd(20));
+        milk.setMinWeekend(bd(20));
         StockCheck check = existingCheck(LocalDate.now());
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 15, 0, employee, OffsetDateTime.now().minusHours(1), false);
-        check.setQuantityNeeded(5);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(15), bd(0), employee, OffsetDateTime.now().minusHours(1), false);
+        check.setQuantityNeeded(bd(5));
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
-            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 20, 0, "Recounted"));
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), "Recounted"));
 
         verify(orderListService).resolveShortageIfPresent(store, milk);
-        verify(orderListService, never()).upsertShortage(any(), any(), anyInt(), any(), anyBoolean(), any(), any());
+        verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), any(), any());
     }
 
     @Test
     void correctingTheSameCheckTwiceProducesTwoSeparateAuditRows() {
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, OffsetDateTime.now().minusDays(3), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusDays(3), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
-            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 6, 1, "First correction"));
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, bd(6), bd(1), "First correction"));
         stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
-            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 8, 0, "Second correction"));
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, bd(8), bd(0), "Second correction"));
 
         ArgumentCaptor<StockCheckCorrection> captor = ArgumentCaptor.forClass(StockCheckCorrection.class);
         verify(stockCheckCorrectionRepository, times(2)).save(captor.capture());
         List<StockCheckCorrection> saved = captor.getAllValues();
         assertThat(saved).hasSize(2);
-        assertThat(saved.get(0).getOriginalCount()).isEqualTo(10);
-        assertThat(saved.get(0).getCorrectedCount()).isEqualTo(6);
+        assertThat(saved.get(0).getOriginalCount()).isEqualByComparingTo(bd(10));
+        assertThat(saved.get(0).getCorrectedCount()).isEqualByComparingTo(bd(6));
         assertThat(saved.get(0).getReason()).isEqualTo("First correction");
-        assertThat(saved.get(1).getOriginalCount()).isEqualTo(6);
-        assertThat(saved.get(1).getCorrectedCount()).isEqualTo(8);
+        assertThat(saved.get(1).getOriginalCount()).isEqualByComparingTo(bd(6));
+        assertThat(saved.get(1).getCorrectedCount()).isEqualByComparingTo(bd(8));
         assertThat(saved.get(1).getReason()).isEqualTo("Second correction");
     }
 
@@ -419,7 +444,7 @@ class StockCheckServiceTest {
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
-            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 6, 1, "Recount")))
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, bd(6), bd(1), "Recount")))
             .isInstanceOf(StoreInventoryItemNotFoundException.class);
     }
 
@@ -431,20 +456,20 @@ class StockCheckServiceTest {
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
-            new StockCheckCorrectionRequest(StockCheckSnapshot.START_OF_DAY, 12, 0, "Backfilled missed count"));
+            new StockCheckCorrectionRequest(StockCheckSnapshot.START_OF_DAY, bd(12), bd(0), "Backfilled missed count"));
 
         ArgumentCaptor<StockCheckCorrection> captor = ArgumentCaptor.forClass(StockCheckCorrection.class);
         verify(stockCheckCorrectionRepository).save(captor.capture());
         StockCheckCorrection saved = captor.getValue();
         assertThat(saved.getOriginalCount()).isNull();
-        assertThat(saved.getCorrectedCount()).isEqualTo(12);
+        assertThat(saved.getCorrectedCount()).isEqualByComparingTo(bd(12));
         assertThat(saved.getCorrectedByUser()).isEqualTo(owner);
 
         // A correction never claims credit for the original entry -- there
         // wasn't one.
         assertThat(check.getStartOfDayEnteredBy()).isNull();
         assertThat(check.getStartOfDayEnteredAt()).isNull();
-        assertThat(check.getStartOfDayAvailable()).isEqualTo(12);
+        assertThat(check.getStartOfDayAvailable()).isEqualByComparingTo(bd(12));
     }
 
     @Test
@@ -452,47 +477,47 @@ class StockCheckServiceTest {
         StockCheck check = existingCheck(LocalDate.now());
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
         stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
-            new StockCheckCorrectionRequest(StockCheckSnapshot.START_OF_DAY, 12, 0, "Backfilled missed count"));
+            new StockCheckCorrectionRequest(StockCheckSnapshot.START_OF_DAY, bd(12), bd(0), "Backfilled missed count"));
 
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.of(check));
 
         stockCheckService.submitCheck(EMPLOYEE_ID,
-            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, 15, 1));
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd(15), bd(1)));
 
         assertThat(check.getStartOfDayEnteredBy()).isEqualTo(employee);
         assertThat(check.getStartOfDayEnteredAt()).isNotNull();
-        assertThat(check.getStartOfDayAvailable()).isEqualTo(15);
+        assertThat(check.getStartOfDayAvailable()).isEqualByComparingTo(bd(15));
 
         ArgumentCaptor<StockCheckCorrection> captor = ArgumentCaptor.forClass(StockCheckCorrection.class);
         verify(stockCheckCorrectionRepository, times(2)).save(captor.capture());
         StockCheckCorrection employeeEntry = captor.getAllValues().get(1);
-        assertThat(employeeEntry.getOriginalCount()).isEqualTo(12);
-        assertThat(employeeEntry.getCorrectedCount()).isEqualTo(15);
+        assertThat(employeeEntry.getOriginalCount()).isEqualByComparingTo(bd(12));
+        assertThat(employeeEntry.getCorrectedCount()).isEqualByComparingTo(bd(15));
         assertThat(employeeEntry.getCorrectedByUser()).isEqualTo(employee);
     }
 
     @Test
     void correctCheckReturnsItsOwnUpdatedEditsWithoutARefetch() {
         StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, 10, 0, employee, OffsetDateTime.now().minusDays(3), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusDays(3), false);
         when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
 
         StockCheckCorrection correction = new StockCheckCorrection();
         correction.setStockCheck(check);
         correction.setSnapshot(StockCheckSnapshot.END_OF_DAY);
-        correction.setOriginalCount(10);
-        correction.setCorrectedCount(6);
+        correction.setOriginalCount(bd(10));
+        correction.setCorrectedCount(bd(6));
         correction.setCorrectedByUser(owner);
         correction.setCorrectedAt(OffsetDateTime.now());
         when(stockCheckCorrectionRepository.findWithEditorByStockCheckIds(List.of(CHECK_ID)))
             .thenReturn(List.of(correction));
 
         StockCheckResponse response = stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
-            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, 6, 1, "Recount"));
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, bd(6), bd(1), "Recount"));
 
         assertThat(response.edits()).hasSize(1);
-        assertThat(response.edits().get(0).newAvailable()).isEqualTo(6);
+        assertThat(response.edits().get(0).newAvailable()).isEqualByComparingTo(bd(6));
     }
 
     // ---- Inventory Counts (live per-item status) ---------------------------
@@ -502,38 +527,38 @@ class StockCheckServiceTest {
         check.setStore(store);
         check.setStoreInventoryItem(item);
         check.setCheckDate(date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, available, dead, employee, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(available), bd(dead), employee, OffsetDateTime.now(), false);
         return check;
     }
 
     @Test
     void inventoryCountsClassifiesEachRowByFreshnessThenStockLevel() {
-        milk.setMinWeekday(10);
-        milk.setMinWeekend(10);
+        milk.setMinWeekday(bd(10));
+        milk.setMinWeekend(bd(10));
         StockCheck staleButWouldBeOutOfStock = checkWithCount(milk, LocalDate.now().minusDays(1), 0, 0);
 
         StoreInventoryItem eggs = new StoreInventoryItem();
         ReflectionTestUtils.setField(eggs, "id", 23L);
         eggs.setStore(store);
         eggs.setName("Eggs");
-        eggs.setMinWeekday(10);
-        eggs.setMinWeekend(10);
+        eggs.setMinWeekday(bd(10));
+        eggs.setMinWeekend(bd(10));
         StockCheck outToday = checkWithCount(eggs, LocalDate.now(), 0, 0);
 
         StoreInventoryItem bread = new StoreInventoryItem();
         ReflectionTestUtils.setField(bread, "id", 24L);
         bread.setStore(store);
         bread.setName("Bread");
-        bread.setMinWeekday(10);
-        bread.setMinWeekend(10);
+        bread.setMinWeekday(bd(10));
+        bread.setMinWeekend(bd(10));
         StockCheck lowToday = checkWithCount(bread, LocalDate.now(), 5, 0);
 
         StoreInventoryItem butter = new StoreInventoryItem();
         ReflectionTestUtils.setField(butter, "id", 25L);
         butter.setStore(store);
         butter.setName("Butter");
-        butter.setMinWeekday(10);
-        butter.setMinWeekend(10);
+        butter.setMinWeekday(bd(10));
+        butter.setMinWeekend(bd(10));
         StockCheck healthyToday = checkWithCount(butter, LocalDate.now(), 20, 0);
 
         when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID))
@@ -583,7 +608,7 @@ class StockCheckServiceTest {
         InventoryCountRowResponse row = stockCheckService.listInventoryCounts(OWNER_ID, null, null, null, null, null)
             .rows().get(0);
 
-        assertThat(row.change()).isEqualTo(6);
+        assertThat(row.change()).isEqualByComparingTo(bd(6));
         assertThat(row.changeFromDate()).isEqualTo(LocalDate.now().minusDays(1));
     }
 
@@ -648,9 +673,9 @@ class StockCheckServiceTest {
         List<InventoryCountHistoryEntryResponse> history = stockCheckService.getCountHistory(OWNER_ID, ITEM_ID);
 
         assertThat(history).hasSize(3);
-        assertThat(history.get(0).count()).isEqualTo(30);
-        assertThat(history.get(0).delta()).isEqualTo(6);
-        assertThat(history.get(1).delta()).isEqualTo(4);
+        assertThat(history.get(0).count()).isEqualByComparingTo(bd(30));
+        assertThat(history.get(0).delta()).isEqualByComparingTo(bd(6));
+        assertThat(history.get(1).delta()).isEqualByComparingTo(bd(4));
         assertThat(history.get(2).delta()).isNull();
     }
 
@@ -660,5 +685,63 @@ class StockCheckServiceTest {
 
         assertThatThrownBy(() -> stockCheckService.getCountHistory(OWNER_ID, ITEM_ID))
             .isInstanceOf(StoreInventoryItemNotFoundException.class);
+    }
+
+    @Test
+    void decimalQuantitiesRoundTripThroughSubmitAndDriveTheOrderQuantity() {
+        milk.setMinWeekday(bd("3.00"));
+        milk.setMinWeekend(bd("3.00"));
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd("5.00"), bd("0.50"), employee,
+            OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd("1.50"), bd("0.25")));
+
+        assertThat(response.endOfDay().available()).isEqualByComparingTo("1.50");
+        assertThat(response.endOfDay().deadStock()).isEqualByComparingTo("0.25");
+        assertThat(response.endOfDay().usable()).isEqualByComparingTo("1.25");
+        // SOD usable 4.50 - EOD usable 1.25
+        assertThat(response.stockUsed()).isEqualByComparingTo("3.25");
+        assertThat(response.requiredTomorrow()).isEqualByComparingTo("3.00");
+        assertThat(response.quantityToOrder()).isEqualByComparingTo("1.75");
+        verify(orderListService).upsertShortage(eq(store), eq(milk),
+            org.mockito.ArgumentMatchers.argThat(q -> q != null && q.compareTo(bd("1.75")) == 0),
+            isNull(), eq(false), eq(employee), isNull());
+    }
+
+    @Test
+    void resavingIdenticalValuesIsRejectedAndWritesNoAuditRow() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd("10.00"), bd("1.00"), employee,
+            OffsetDateTime.now().minusHours(3), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        // Different scale, same value -- compareTo-equal must count as unchanged.
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd("10"), bd("1"))))
+            .isInstanceOf(InvalidStockCheckException.class)
+            .hasMessage("No changes to save - the values are the same as the current ones");
+
+        verify(stockCheckCorrectionRepository, never()).save(any());
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
+    }
+
+    @Test
+    void correctingWithIdenticalValuesIsRejectedAndWritesNoAuditRow() {
+        StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd("10.00"), bd("0.00"), employee,
+            OffsetDateTime.now().minusDays(3), false);
+        when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
+
+        // Omitted dead stock on a previously-zero snapshot is unchanged too.
+        assertThatThrownBy(() -> stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
+            new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, bd("10.00"), bd("0"), "Same")))
+            .isInstanceOf(InvalidStockCheckException.class);
+
+        verify(stockCheckCorrectionRepository, never()).save(any());
     }
 }

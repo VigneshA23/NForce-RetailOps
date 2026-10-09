@@ -156,9 +156,10 @@ describe('InventoryCounts', () => {
     await user.click(screen.getByLabelText(/edit count for milk/i));
     expect(await screen.findByText('Edit count: Milk')).toBeInTheDocument();
 
+    await user.click(screen.getByLabelText('Increase'));
     await user.click(screen.getByRole('button', { name: 'Save count' }));
 
-    await waitFor(() => expect(mockCorrectStockCheck).toHaveBeenCalledWith(42, 'END_OF_DAY', 30, 0, 'Recount (count was wrong)'));
+    await waitFor(() => expect(mockCorrectStockCheck).toHaveBeenCalledWith(42, 'END_OF_DAY', 31, 0, 'Recount (count was wrong)'));
     await waitFor(() => expect(mockGetInventoryCounts).toHaveBeenCalled());
   });
 });

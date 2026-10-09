@@ -1,5 +1,6 @@
 package com.nforce.retailops.dto;
 
+import java.math.BigDecimal;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 
 import java.time.LocalDate;
@@ -18,19 +19,19 @@ public record InventoryCountRowResponse(
     String name,
     String category,
     String unitOfMeasurement,
-    Integer currentStock,
-    Integer minimum,
+    BigDecimal currentStock,
+    BigDecimal minimum,
     InventoryCountStatus status,
     OffsetDateTime lastUpdatedAt,
     String lastUpdatedByName,
     // Change vs. the previous count on record; null when there's no earlier
     // count to compare against.
-    Integer change,
+    BigDecimal change,
     LocalDate changeFromDate,
     Long latestCheckId,
     StockCheckSnapshot latestSnapshot,
-    Integer latestAvailable,
-    Integer latestDeadStock,
+    BigDecimal latestAvailable,
+    BigDecimal latestDeadStock,
     Long imageId
 ) {
 }

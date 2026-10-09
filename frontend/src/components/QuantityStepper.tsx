@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
+import { formatQty, parseQty, roundQty } from '../utils/quantity';
 import './QuantityStepper.css';
 
 interface QuantityStepperProps {
@@ -12,10 +14,27 @@ interface QuantityStepperProps {
 
 // A +/- stepper around a directly-editable number field -- used wherever a
 // count needs both quick nudging and exact entry (Add to order's quantity,
-// Edit count's new count).
+// Edit count's new count). Accepts up to two decimals (1.25 kg). The field
+// keeps its own text so a half-typed "1." isn't snapped back mid-keystroke.
 function QuantityStepper({ id, value, unit, min = 0, ariaLabel = 'Quantity', onChange }: QuantityStepperProps) {
+  const [text, setText] = useState(() => formatQty(value));
+
+  // Follow the value when it changes from outside (reset, +/- buttons), but
+  // not while the typed text already parses to it.
+  useEffect(() => {
+    setText((current) => (parseQty(current) === value ? current : formatQty(value)));
+  }, [value]);
+
   function commit(next: number) {
-    onChange(Math.max(min, Number.isFinite(next) ? next : min));
+    const clamped = roundQty(Math.max(min, Number.isFinite(next) ? next : min));
+    setText(formatQty(clamped));
+    onChange(clamped);
+  }
+
+  function handleType(raw: string) {
+    setText(raw);
+    const parsed = parseQty(raw);
+    if (parsed !== null) onChange(Math.max(min, parsed));
   }
 
   return (
@@ -33,11 +52,13 @@ function QuantityStepper({ id, value, unit, min = 0, ariaLabel = 'Quantity', onC
         <input
           id={id}
           type="number"
-          inputMode="numeric"
+          step="any"
+          inputMode="decimal"
           min={min}
           className="quantity-stepper__input"
-          value={value}
-          onChange={(event) => commit(Number(event.target.value))}
+          value={text}
+          onChange={(event) => handleType(event.target.value)}
+          onBlur={() => setText(formatQty(value))}
         />
         {unit && <span className="quantity-stepper__unit">{unit}</span>}
       </div>

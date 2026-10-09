@@ -1,14 +1,18 @@
 package com.nforce.retailops.dto;
 
 import com.nforce.retailops.entity.OrderStatus;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
+
 public record UpdateOrderListEntryRequest(
     @NotNull(message = "Quantity is required")
-    @Min(value = 1, message = "Quantity must be at least 1")
-    Integer quantityNeeded,
+    @DecimalMin(value = "0.01", message = "Quantity must be greater than 0")
+    @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
+    BigDecimal quantityNeeded,
 
     Long supplierId,
 
@@ -24,7 +28,7 @@ public record UpdateOrderListEntryRequest(
     // so older clients keep working unchecked.
     OrderStatus expectedStatus
 ) {
-    public UpdateOrderListEntryRequest(Integer quantityNeeded, Long supplierId, String note, OrderStatus status) {
+    public UpdateOrderListEntryRequest(BigDecimal quantityNeeded, Long supplierId, String note, OrderStatus status) {
         this(quantityNeeded, supplierId, note, status, null);
     }
 }

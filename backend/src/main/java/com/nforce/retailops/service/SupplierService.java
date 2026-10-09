@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.SupplierDeleteResponse;
 import com.nforce.retailops.dto.SupplierRequest;
 import com.nforce.retailops.dto.SupplierResponse;
 import com.nforce.retailops.entity.Supplier;
+import com.nforce.retailops.exception.SupplierNameExistsException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
@@ -39,8 +40,12 @@ public class SupplierService {
 
     @Transactional
     public SupplierResponse createSupplier(SupplierRequest request) {
+        String name = request.name().trim();
+        if (supplierRepository.existsByNameIgnoreCase(name)) {
+            throw new SupplierNameExistsException("A supplier with this name already exists.");
+        }
         Supplier supplier = new Supplier();
-        supplier.setName(request.name().trim());
+        supplier.setName(name);
         supplier = supplierRepository.save(supplier);
         return SupplierResponse.from(supplier);
     }
@@ -72,7 +77,11 @@ public class SupplierService {
     public SupplierResponse updateSupplier(Long supplierId, SupplierRequest request) {
         Supplier supplier = supplierRepository.findById(supplierId)
             .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
-        supplier.setName(request.name().trim());
+        String name = request.name().trim();
+        if (supplierRepository.existsByNameIgnoreCaseAndIdNot(name, supplierId)) {
+            throw new SupplierNameExistsException("A supplier with this name already exists.");
+        }
+        supplier.setName(name);
         supplier = supplierRepository.save(supplier);
         return SupplierResponse.from(supplier);
     }
