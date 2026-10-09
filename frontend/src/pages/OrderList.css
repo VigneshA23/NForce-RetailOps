@@ -845,13 +845,14 @@
     display: block;
   }
 
-  /* The nested grey box grouping Stock/Need/Manual, replacing the old
-     per-column grid cells -- one real wrapper element now that mobile has
-     its own markup, instead of faking a shared background across three
-     separately-positioned grid items. */
+  /* The nested grey box grouping Stock/Need/Manual/Ordered, replacing the
+     old per-column grid cells -- one real wrapper element now that mobile
+     has its own markup, instead of faking a shared background across
+     separately-positioned grid items. Grid (not flex) so all four stay
+     evenly spaced regardless of how wide each value's content is. */
   .order-list__mobile-stats {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
     gap: 8px;
     background: #f4f4f5;
     border-radius: 10px;

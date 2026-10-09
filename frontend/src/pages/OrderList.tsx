@@ -436,6 +436,17 @@ function OrderList({ storeName, seed }: OrderListProps) {
     );
   }
 
+  // Manual column: the surplus an admin added on top of the calculated need,
+  // broken out of the Need cell into its own column.
+  function manualCell(entry: OrderListEntry) {
+    if (entry.manualAddition <= 0) return <span className="order-list__manual-empty">—</span>;
+    return (
+      <span className="order-list__manual-value">
+        +{entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+      </span>
+    );
+  }
+
   // Mobile's card diverges too far from desktop's table now (a nested
   // stats box, category/status as colored pills instead of plain cells) for
   // one shared <td>-per-column markup to serve both via CSS reflow alone --
@@ -472,10 +483,12 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Need</span>
               <span className="order-list__cell-value" style={{ color: row.needFg, fontWeight: 800 }}>
-                {entry.quantityNeeded}
-                {entry.manualAddition > 0 && <span className="order-list__manual-value"> +{entry.manualAddition}</span>}{' '}
-                <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+                {entry.quantityNeeded} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
               </span>
+            </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Manual</span>
+              <span className="order-list__cell-value">{manualCell(entry)}</span>
             </div>
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Ordered</span>
@@ -530,10 +543,11 @@ function OrderList({ storeName, seed }: OrderListProps) {
         </td>
         <td className="order-list__num-cell order-list__need-cell" data-label="Need" style={{ color: row.needFg, fontWeight: 800 }}>
           <span className="order-list__cell-value">
-            {entry.quantityNeeded}
-            {entry.manualAddition > 0 && <span className="order-list__manual-value"> +{entry.manualAddition}</span>}{' '}
-            <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+            {entry.quantityNeeded} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
           </span>
+        </td>
+        <td className="order-list__num-cell order-list__manual-cell" data-label="Manual">
+          <span className="order-list__cell-value">{manualCell(entry)}</span>
         </td>
         <td className="order-list__num-cell order-list__ordered-cell" data-label="Ordered">
           <span className="order-list__cell-value">{orderedCell(entry)}</span>
@@ -760,6 +774,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                         <col className="order-list__col--num" />
                         <col className="order-list__col--num" />
                         <col className="order-list__col--num" />
+                        <col className="order-list__col--num" />
                         <col className="order-list__col--status" />
                       </colgroup>
                       <thead>
@@ -769,6 +784,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                           <th className="order-list__category-cell">Category</th>
                           <th className="order-list__num-header">Stock</th>
                           <th className="order-list__num-header">Need</th>
+                          <th className="order-list__num-header">Manual</th>
                           <th className="order-list__num-header">Ordered</th>
                           <th>Status</th>
                         </tr>
@@ -794,11 +810,12 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <table className="order-list__flat-table">
               <colgroup>
                 <col style={{ width: '3%' }} />
-                <col style={{ width: '32%' }} />
+                <col style={{ width: '27%' }} />
+                <col style={{ width: '7%' }} />
+                <col style={{ width: '7%' }} />
                 <col style={{ width: '7%' }} />
                 <col style={{ width: '8%' }} />
-                <col style={{ width: '8%' }} />
-                <col style={{ width: '13%' }} />
+                <col style={{ width: '12%' }} />
                 <col style={{ width: '11%' }} />
                 <col style={{ width: '18%' }} />
               </colgroup>
@@ -808,6 +825,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                   <th>Item</th>
                   <th className="order-list__num-header">Stock</th>
                   <th className="order-list__num-header">Need</th>
+                  <th className="order-list__num-header">Manual</th>
                   <th className="order-list__num-header">Ordered</th>
                   <th>Supplier</th>
                   <th>Category</th>
