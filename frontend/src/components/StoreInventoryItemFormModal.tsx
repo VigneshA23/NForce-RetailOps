@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { buildCategoryOptions, categoryLabel, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
-import { parseQty } from '../utils/quantity';
+import { isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint } from '../utils/quantity';
 import FormField from './FormField';
 import Select from './Select';
 import CategoryCombobox from './CategoryCombobox';
@@ -124,11 +124,11 @@ function StoreInventoryItemFormModal({
     if (!values.category.trim()) nextErrors.category = 'Category is required';
     if (!values.name.trim()) nextErrors.name = 'Name is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
-    if (values.minWeekday.trim() === '' || (parseQty(values.minWeekday) === null)) {
-      nextErrors.minWeekday = 'Enter a minimum weekday quantity (0 or more, up to 2 decimals)';
+    if (values.minWeekday.trim() === '' || (parseQty(values.minWeekday, values.unitOfMeasurement) === null)) {
+      nextErrors.minWeekday = `Enter a minimum weekday quantity: ${qtyRuleHint(values.unitOfMeasurement)}`;
     }
-    if (values.minWeekend.trim() !== '' && (parseQty(values.minWeekend) === null)) {
-      nextErrors.minWeekend = 'Enter a valid weekend quantity (0 or more, up to 2 decimals)';
+    if (values.minWeekend.trim() !== '' && (parseQty(values.minWeekend, values.unitOfMeasurement) === null)) {
+      nextErrors.minWeekend = `Enter a weekend quantity: ${qtyRuleHint(values.unitOfMeasurement)}`;
     }
     if (!values.preferredSupplierId) {
       nextErrors.preferredSupplierId = 'Preferred supplier is required';
@@ -232,26 +232,26 @@ function StoreInventoryItemFormModal({
           <FormField label="Min Par Level (Weekday)" htmlFor="inventory-item-min-weekday" error={errors.minWeekday}>
             <input
               id="inventory-item-min-weekday"
-              type="number"
-              min={0}
-              step="any"
-              inputMode="decimal"
+              type="text"
+              inputMode={isWholeNumberUnit(values.unitOfMeasurement) ? 'numeric' : 'decimal'}
               className="input"
               value={values.minWeekday}
-              onChange={(event) => setValues((current) => ({ ...current, minWeekday: event.target.value }))}
+              onChange={(event) => {
+                if (isQtyInputAllowed(event.target.value, values.unitOfMeasurement)) setValues((current) => ({ ...current, minWeekday: event.target.value }));
+              }}
               placeholder="e.g. 5"
             />
           </FormField>
           <FormField label="Weekend Par Cushion" htmlFor="inventory-item-min-weekend" error={errors.minWeekend}>
             <input
               id="inventory-item-min-weekend"
-              type="number"
-              min={0}
-              step="any"
-              inputMode="decimal"
+              type="text"
+              inputMode={isWholeNumberUnit(values.unitOfMeasurement) ? 'numeric' : 'decimal'}
               className="input"
               value={values.minWeekend}
-              onChange={(event) => setValues((current) => ({ ...current, minWeekend: event.target.value }))}
+              onChange={(event) => {
+                if (isQtyInputAllowed(event.target.value, values.unitOfMeasurement)) setValues((current) => ({ ...current, minWeekend: event.target.value }));
+              }}
               placeholder="e.g. 8"
             />
           </FormField>

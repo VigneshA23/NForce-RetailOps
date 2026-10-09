@@ -5,7 +5,7 @@ import ButtonDots from './ButtonDots';
 import CategoryIcon from './CategoryIcon';
 import FormField from './FormField';
 import { STATUS_META } from '../utils/orderListStatus';
-import { formatQty, parseQty } from '../utils/quantity';
+import { formatQty, isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint } from '../utils/quantity';
 import type { OrderStatus } from '../types/orderList';
 import type { InventoryItemCategory } from '../types/storeInventory';
 import './ChangeOrderStatusModal.css';
@@ -80,9 +80,9 @@ function ChangeOrderStatusModal({
   async function handleConfirm() {
     let quantityReceived: number | undefined;
     if (isReceiving) {
-      const qty = parseQty(receivedText);
+      const qty = parseQty(receivedText, unitOfMeasurement);
       if (qty === null || qty <= 0) {
-        setReceivedError('Enter a quantity greater than 0 (up to 2 decimals)');
+        setReceivedError(`Enter ${qtyRuleHint(unitOfMeasurement)} greater than 0`);
         return;
       }
       quantityReceived = qty;
@@ -143,11 +143,12 @@ function ChangeOrderStatusModal({
             <input
               id="order-quantity-received"
               type="text"
-              inputMode="decimal"
+              inputMode={isWholeNumberUnit(unitOfMeasurement) ? 'numeric' : 'decimal'}
               className="input"
               value={receivedText}
               disabled={isConfirming}
               onChange={(event) => {
+                if (!isQtyInputAllowed(event.target.value, unitOfMeasurement)) return;
                 setReceivedText(event.target.value);
                 setReceivedError(null);
               }}

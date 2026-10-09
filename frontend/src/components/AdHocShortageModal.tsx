@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { StoreInventoryItemOption } from '../types/stockCheck';
 import Modal from './Modal';
-import { parseQty } from '../utils/quantity';
+import { isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint } from '../utils/quantity';
 import FormField from './FormField';
 import Select from './Select';
 import ButtonDots from './ButtonDots';
@@ -34,12 +34,14 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
     }
   }, [isOpen]);
 
+  const selectedUnit = items.find((item) => item.storeInventoryItemId === values.storeInventoryItemId)?.unitOfMeasurement;
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const nextErrors: typeof errors = {};
     if (!values.storeInventoryItemId) nextErrors.storeInventoryItemId = 'Item is required';
-    const qty = parseQty(values.quantity);
-    if (qty === null || qty <= 0) nextErrors.quantity = 'Enter a quantity greater than 0 (up to 2 decimals)';
+    const qty = parseQty(values.quantity, selectedUnit);
+    if (qty === null || qty <= 0) nextErrors.quantity = `Enter ${qtyRuleHint(selectedUnit)} greater than 0`;
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -84,10 +86,14 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
           <input
             id="ad-hoc-quantity"
             type="text"
-            inputMode="decimal"
+            inputMode={isWholeNumberUnit(selectedUnit) ? 'numeric' : 'decimal'}
             className="input"
             value={values.quantity}
-            onChange={(event) => setValues((current) => ({ ...current, quantity: event.target.value }))}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (!isQtyInputAllowed(next, selectedUnit)) return;
+              setValues((current) => ({ ...current, quantity: next }));
+            }}
           />
         </FormField>
         <FormField label="Note (optional)" htmlFor="ad-hoc-note">

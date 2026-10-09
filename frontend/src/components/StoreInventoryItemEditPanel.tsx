@@ -8,7 +8,7 @@ import Select from './Select';
 import CategoryCombobox from './CategoryCombobox';
 import SupplierCombobox from './SupplierCombobox';
 import CounterStepper from './CounterStepper';
-import { parseQty } from '../utils/quantity';
+import { parseQty, qtyRuleHint } from '../utils/quantity';
 import Toggle from './Toggle';
 import ItemIcon from './ItemIcon';
 import InventoryImagePicker from './InventoryImagePicker';
@@ -78,11 +78,11 @@ function StoreInventoryItemEditPanel({
     const nextErrors: typeof errors = {};
     if (!values.name.trim()) nextErrors.name = 'Name is required';
     if (!values.unitOfMeasurement.trim()) nextErrors.unitOfMeasurement = 'Unit is required';
-    if (values.minWeekday.trim() === '' || parseQty(values.minWeekday) === null) {
-      nextErrors.minWeekday = 'Weekday min is required and cannot be negative';
+    if (values.minWeekday.trim() === '' || parseQty(values.minWeekday, values.unitOfMeasurement) === null) {
+      nextErrors.minWeekday = `Weekday min is required: enter ${qtyRuleHint(values.unitOfMeasurement)}`;
     }
-    if (values.minWeekend.trim() !== '' && parseQty(values.minWeekend) === null) {
-      nextErrors.minWeekend = 'Weekend min cannot be negative';
+    if (values.minWeekend.trim() !== '' && parseQty(values.minWeekend, values.unitOfMeasurement) === null) {
+      nextErrors.minWeekend = `Weekend min must be ${qtyRuleHint(values.unitOfMeasurement)}`;
     }
     if (!values.preferredSupplierId) {
       nextErrors.preferredSupplierId = 'Preferred supplier is required';
@@ -176,6 +176,7 @@ function StoreInventoryItemEditPanel({
               <CounterStepper
                 id="edit-item-min-weekday"
                 value={values.minWeekday}
+                unit={values.unitOfMeasurement}
                 onChange={(value) => setValues((current) => ({ ...current, minWeekday: value }))}
               />
               {errors.minWeekday && <span className="form-field__error">{errors.minWeekday}</span>}
@@ -187,6 +188,7 @@ function StoreInventoryItemEditPanel({
               <CounterStepper
                 id="edit-item-min-weekend"
                 value={values.minWeekend}
+                unit={values.unitOfMeasurement}
                 onChange={(value) => setValues((current) => ({ ...current, minWeekend: value }))}
               />
               {errors.minWeekend && <span className="form-field__error">{errors.minWeekend}</span>}

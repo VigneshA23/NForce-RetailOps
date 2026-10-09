@@ -394,6 +394,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                           return !saved || saved.enteredById == null || myUserId == null || saved.enteredById === myUserId;
                         })()}
                         title={SNAPSHOT_LABELS[snapshot]}
+                        unit={item.unitOfMeasurement}
                         idPrefix={`${idPrefix}-${snapshot === 'START_OF_DAY' ? 'sod' : 'eod'}`}
                         snapshot={snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay}
                         isSubmitting={pendingKey === `${item.storeInventoryItemId}:${snapshot}`}
