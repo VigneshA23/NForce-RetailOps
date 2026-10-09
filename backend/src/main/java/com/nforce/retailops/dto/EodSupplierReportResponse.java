@@ -30,7 +30,13 @@ public record EodSupplierReportResponse(
         BigDecimal stockUsed,
         BigDecimal requiredTomorrow,
         BigDecimal quantityToOrder,
-        Status status
+        Status status,
+        // The quantity actually placed with the supplier via the Order List
+        // page's own ORDERED (not yet RECEIVED) entry for this item, if one
+        // exists -- null otherwise. Separate from quantityToOrder, which is
+        // this report's own stock-check-derived figure; the two can disagree
+        // (e.g. an order already placed for more or less than EOD computes).
+        BigDecimal orderedQuantity
     ) {
     }
 

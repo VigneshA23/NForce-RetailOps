@@ -127,6 +127,9 @@ export interface EodReportRow {
   requiredTomorrow: number | null;
   quantityToOrder: number | null;
   status: EodReportStatus;
+  // Quantity already placed with the supplier via an active (ORDERED, not
+  // yet RECEIVED) Order List entry for this item, if one exists.
+  orderedQuantity: number | null;
 }
 
 // GET /api/stores/inventory/eod-report?date= -- grouped by preferred

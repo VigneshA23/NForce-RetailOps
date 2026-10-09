@@ -57,6 +57,10 @@ interface DecoratedRow {
   categoryLabel: string;
   startUsable: number | null;
   endUsable: number | null;
+  // Start and End of Day dead stock merged into one figure: the End of Day
+  // count supersedes Start of Day's once it's been taken (same day, later
+  // and more current), rather than showing both as separate columns.
+  deadStock: number | null;
   statusLabel: string;
   statusTone: string;
 }
@@ -121,6 +125,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
       categoryLabel: categoryLabelOf(item.category) || '—',
       startUsable: usableStock(item.startOfDayAvailable, item.startOfDayDeadStock),
       endUsable: usableStock(item.endOfDayAvailable, item.endOfDayDeadStock),
+      deadStock: item.endOfDayDeadStock ?? item.startOfDayDeadStock,
       statusLabel: status.label,
       statusTone: status.tone,
     };
@@ -241,17 +246,15 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
           <div className="order-list__mobile-stats">
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Start</span>
-              <span className="order-list__cell-value">
-                {value(row.startUsable)}
-                {item.startOfDayDeadStock ? <span className="eod-report__dead"> ({item.startOfDayDeadStock} dead)</span> : null}
-              </span>
+              <span className="order-list__cell-value">{value(row.startUsable)}</span>
             </div>
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">End</span>
-              <span className="order-list__cell-value">
-                {value(row.endUsable)}
-                {item.endOfDayDeadStock ? <span className="eod-report__dead"> ({item.endOfDayDeadStock} dead)</span> : null}
-              </span>
+              <span className="order-list__cell-value">{value(row.endUsable)}</span>
+            </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Dead</span>
+              <span className={row.deadStock ? 'eod-report__dead' : 'order-list__cell-value'}>{value(row.deadStock)}</span>
             </div>
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Used</span>
@@ -266,6 +269,16 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
               <span className="order-list__cell-value">
                 <strong className={item.quantityToOrder ? 'eod-report__order-qty' : undefined}>{value(item.quantityToOrder)}</strong>
                 <span className="eod-report__unit">{item.unitOfMeasurement}</span>
+              </span>
+            </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Ordered</span>
+              <span className="order-list__cell-value">
+                {item.orderedQuantity != null ? (
+                  <strong className="eod-report__order-qty">{item.orderedQuantity}</strong>
+                ) : (
+                  value(null)
+                )}
               </span>
             </div>
           </div>
@@ -301,14 +314,11 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
         <td className="order-list__num-cell" data-label="Start Usable">
           <span className="order-list__cell-value">{value(row.startUsable)}</span>
         </td>
-        <td className="order-list__num-cell" data-label="Start Dead">
-          <span className={item.startOfDayDeadStock ? 'eod-report__dead' : undefined}>{value(item.startOfDayDeadStock)}</span>
+        <td className="order-list__num-cell" data-label="Dead">
+          <span className={row.deadStock ? 'eod-report__dead' : undefined}>{value(row.deadStock)}</span>
         </td>
         <td className="order-list__num-cell" data-label="End Usable">
           <span className="order-list__cell-value">{value(row.endUsable)}</span>
-        </td>
-        <td className="order-list__num-cell" data-label="End Dead">
-          <span className={item.endOfDayDeadStock ? 'eod-report__dead' : undefined}>{value(item.endOfDayDeadStock)}</span>
         </td>
         <td className="order-list__num-cell" data-label="Used">
           <span className="order-list__cell-value">{value(item.stockUsed)}</span>
@@ -318,6 +328,9 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
         </td>
         <td className="order-list__num-cell" data-label="Order Qty">
           <strong className={item.quantityToOrder ? 'eod-report__order-qty' : undefined}>{value(item.quantityToOrder)}</strong>
+        </td>
+        <td className="order-list__num-cell" data-label="Ordered">
+          <strong className={item.orderedQuantity != null ? 'eod-report__order-qty' : undefined}>{value(item.orderedQuantity)}</strong>
         </td>
         {isFlat && <td className="order-list__mobile-hide">{row.supplierName}</td>}
         <td className="order-list__status-cell">{renderStatusBadge(row)}</td>
@@ -465,14 +478,14 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
                               this table has 7, which at 10% apiece would squeeze
                               Item/Category down to nothing. */}
                           <colgroup>
-                            <col style={{ width: '18%' }} />
-                            <col style={{ width: '10%' }} />
+                            <col style={{ width: '20%' }} />
+                            <col style={{ width: '9%' }} />
                             <col style={{ width: '8%' }} />
-                            <col style={{ width: '8%' }} />
-                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '7%' }} />
                             <col style={{ width: '8%' }} />
                             <col style={{ width: '7%' }} />
                             <col style={{ width: '10%' }} />
+                            <col style={{ width: '8%' }} />
                             <col style={{ width: '9%' }} />
                             <col style={{ width: '14%' }} />
                           </colgroup>
@@ -481,12 +494,12 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
                               <th>Item</th>
                               <th className="order-list__category-cell">Category</th>
                               <th className="order-list__num-header">Start Usable</th>
-                              <th className="order-list__num-header">Start Dead</th>
+                              <th className="order-list__num-header">Dead</th>
                               <th className="order-list__num-header">End Usable</th>
-                              <th className="order-list__num-header">End Dead</th>
                               <th className="order-list__num-header">Used</th>
                               <th className="order-list__num-header">Required Tomorrow</th>
                               <th className="order-list__num-header">Order Qty</th>
+                              <th className="order-list__num-header">Ordered</th>
                               <th>Status</th>
                             </tr>
                           </thead>
@@ -511,26 +524,26 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
                 <table className="order-list__flat-table">
                   <colgroup>
                     <col style={{ width: '20%' }} />
-                    <col style={{ width: '9%' }} />
-                    <col style={{ width: '9%' }} />
-                    <col style={{ width: '9%' }} />
-                    <col style={{ width: '9%' }} />
                     <col style={{ width: '7%' }} />
-                    <col style={{ width: '11%' }} />
-                    <col style={{ width: '9%' }} />
-                    <col style={{ width: '12%' }} />
-                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '6%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '6%' }} />
+                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '14%' }} />
+                    <col style={{ width: '15%' }} />
                   </colgroup>
                   <thead>
                     <tr>
                       <th>Item</th>
                       <th className="order-list__num-header">Start Usable</th>
-                      <th className="order-list__num-header">Start Dead</th>
+                      <th className="order-list__num-header">Dead</th>
                       <th className="order-list__num-header">End Usable</th>
-                      <th className="order-list__num-header">End Dead</th>
                       <th className="order-list__num-header">Used</th>
                       <th className="order-list__num-header">Required Tomorrow</th>
                       <th className="order-list__num-header">Order Qty</th>
+                      <th className="order-list__num-header">Ordered</th>
                       <th>Supplier</th>
                       <th className="order-list__status-header">Status</th>
                     </tr>

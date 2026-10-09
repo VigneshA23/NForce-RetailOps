@@ -6,6 +6,7 @@ import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
 import com.nforce.retailops.dto.InventoryCountRowResponse;
 import com.nforce.retailops.dto.InventoryCountStatus;
 import com.nforce.retailops.dto.InventoryCountsPageResponse;
+import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
@@ -366,6 +367,63 @@ class StockCheckServiceTest {
 
         assertThat(report.itemsNeedingOrder()).isEqualTo(1);
         assertThat(report.itemsPendingEndOfDay()).isEqualTo(1);
+    }
+
+    @Test
+    void eodReportShowsTheQuantityAlreadyOrderedViaOrderListAlongsideItsOwnComputedStatus() {
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
+
+        LocalDate day = LocalDate.of(2026, 6, 15);
+        StockCheck milkCheck = existingCheck(day);
+        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), employee, OffsetDateTime.now(), false);
+        milkCheck.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(35), bd(1), employee, OffsetDateTime.now(), false);
+        milkCheck.setRequiredTomorrow(bd(40));
+        milkCheck.setQuantityNeeded(bd(6));
+
+        when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(milkCheck));
+        // Ordered 6 + a 2-unit manual top-up = 8, placed via Order List.
+        when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
+            new OrderListEntryResponse(
+                99L, ITEM_ID, "Milk", "L", bd(6), bd(2), null, null, null, "ORDERED",
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null
+            )
+        ));
+
+        EodSupplierReportResponse report = stockCheckService.getEodSupplierReport(OWNER_ID, day);
+
+        EodSupplierReportResponse.Row milkRow = report.groups().get(0).items().get(0);
+        // Status is untouched -- still computed from the stock-check figures alone.
+        assertThat(milkRow.status()).isEqualTo(EodSupplierReportResponse.Status.NEEDS_TO_ORDER);
+        assertThat(milkRow.orderedQuantity()).isEqualByComparingTo(bd(8));
+    }
+
+    @Test
+    void eodReportLeavesOrderedQuantityNullWhenNoActiveOrderListEntryExists() {
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
+
+        LocalDate day = LocalDate.of(2026, 6, 15);
+        StockCheck milkCheck = existingCheck(day);
+        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), employee, OffsetDateTime.now(), false);
+        milkCheck.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(35), bd(1), employee, OffsetDateTime.now(), false);
+        milkCheck.setRequiredTomorrow(bd(40));
+        milkCheck.setQuantityNeeded(bd(6));
+
+        when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(milkCheck));
+        when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
+            new OrderListEntryResponse(
+                99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null
+            )
+        ));
+
+        EodSupplierReportResponse report = stockCheckService.getEodSupplierReport(OWNER_ID, day);
+
+        EodSupplierReportResponse.Row milkRow = report.groups().get(0).items().get(0);
+        assertThat(milkRow.orderedQuantity()).isNull();
     }
 
     @Test

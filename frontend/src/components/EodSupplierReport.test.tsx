@@ -36,6 +36,7 @@ const report: EodSupplierReportData = {
         requiredTomorrow: 40,
         quantityToOrder: 6,
         status: 'NEEDS_TO_ORDER',
+        orderedQuantity: null,
       }],
     },
     {
@@ -55,6 +56,7 @@ const report: EodSupplierReportData = {
         requiredTomorrow: 10,
         quantityToOrder: null,
         status: 'END_OF_DAY_PENDING',
+        orderedQuantity: null,
       }],
     },
   ],
@@ -74,7 +76,9 @@ describe('EodSupplierReport', () => {
     const milkRow = (await screen.findByText('Milk')).closest('tr')!;
     expect(within(milkRow).getByText('48')).toBeInTheDocument();
     expect(within(milkRow).getByText('34')).toBeInTheDocument();
-    expect(within(milkRow).getByText('2')).toHaveClass('eod-report__dead');
+    // Dead stock merges Start/End of Day into one column -- End of Day's
+    // figure (1) supersedes Start of Day's (2) once it's been taken.
+    expect(within(milkRow).getByText('1', { selector: '.eod-report__dead' })).toBeInTheDocument();
     expect(within(milkRow).getByText('14')).toBeInTheDocument();
     expect(within(milkRow).getByText('6')).toBeInTheDocument();
     expect(within(milkRow).getByText('Needs to Order')).toBeInTheDocument();
@@ -135,6 +139,21 @@ describe('EodSupplierReport', () => {
 
     expect(screen.queryByText('Milk')).not.toBeInTheDocument();
     expect(screen.getByText('Bread')).toBeInTheDocument();
+  });
+
+  it('shows the quantity already ordered via Order List in its own column, alongside the row\'s own computed status', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue({
+      ...report,
+      groups: [{ ...report.groups[0], items: [{ ...report.groups[0].items[0], orderedQuantity: 8 }] }],
+    });
+
+    render(<EodSupplierReport />);
+    await user.click(await screen.findByRole('button', { name: 'List' }));
+
+    const milkRow = screen.getByText('Milk').closest('tr')!;
+    expect(within(milkRow).getByText('8')).toBeInTheDocument();
+    expect(within(milkRow).getByText('Needs to Order')).toBeInTheDocument();
   });
 
   it('filters rows by supplier, built from the report\'s own groups', async () => {

@@ -7,6 +7,7 @@ import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
 import com.nforce.retailops.dto.InventoryCountRowResponse;
 import com.nforce.retailops.dto.InventoryCountStatus;
 import com.nforce.retailops.dto.InventoryCountsPageResponse;
+import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckEditResponse;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
@@ -458,6 +459,18 @@ public class StockCheckService {
             .sorted(Comparator.comparing(StoreInventoryItem::getName, String.CASE_INSENSITIVE_ORDER))
             .toList();
 
+        // Quantity actually placed with the supplier via an ORDERED (not yet
+        // RECEIVED) Order List entry, per item -- shown alongside this
+        // report's own computed quantityToOrder so it's visible here too
+        // without a trip to the Orders page.
+        Map<Long, BigDecimal> orderedQuantityByItemId = orderListService.listForStore(storeId).stream()
+            .filter(entry -> "ORDERED".equals(entry.status()))
+            .collect(Collectors.toMap(
+                OrderListEntryResponse::storeInventoryItemId,
+                entry -> entry.quantityNeeded().add(entry.manualAddition()),
+                (a, b) -> a
+            ));
+
         Map<Long, List<EodSupplierReportResponse.Row>> rowsBySupplierId = new LinkedHashMap<>();
         Map<Long, Supplier> suppliersById = new LinkedHashMap<>();
         List<EodSupplierReportResponse.Row> noSupplierRows = new ArrayList<>();
@@ -466,7 +479,7 @@ public class StockCheckService {
 
         for (StoreInventoryItem item : items) {
             StockCheck check = checksByItemId.get(item.getId());
-            EodSupplierReportResponse.Row row = toReportRow(item, check, reportDate);
+            EodSupplierReportResponse.Row row = toReportRow(item, check, reportDate, orderedQuantityByItemId.get(item.getId()));
             if (row.status() == EodSupplierReportResponse.Status.NEEDS_TO_ORDER) needingOrder++;
             if (row.status() == EodSupplierReportResponse.Status.END_OF_DAY_PENDING) pendingEod++;
 
@@ -744,7 +757,7 @@ public class StockCheckService {
         return check != null && check.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? check.getQuantityNeeded() : null;
     }
 
-    private static EodSupplierReportResponse.Row toReportRow(StoreInventoryItem item, StockCheck check, LocalDate date) {
+    private static EodSupplierReportResponse.Row toReportRow(StoreInventoryItem item, StockCheck check, LocalDate date, BigDecimal orderedQuantity) {
         BigDecimal required = requiredTomorrow(item, check, date);
         BigDecimal toOrder = quantityToOrder(check);
 
@@ -772,7 +785,8 @@ public class StockCheckService {
             check != null ? check.stockUsed() : null,
             required,
             toOrder,
-            status
+            status,
+            orderedQuantity
         );
     }
 }
