@@ -117,6 +117,8 @@ export interface EodReportRow {
   storeInventoryItemId: number;
   itemName: string;
   unitOfMeasurement: string;
+  category: InventoryItemCategory | null;
+  imageId: number | null;
   startOfDayAvailable: number | null;
   startOfDayDeadStock: number | null;
   endOfDayAvailable: number | null;

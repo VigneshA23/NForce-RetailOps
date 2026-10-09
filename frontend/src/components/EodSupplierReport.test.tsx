@@ -26,6 +26,8 @@ const report: EodSupplierReportData = {
         storeInventoryItemId: 1,
         itemName: 'Milk',
         unitOfMeasurement: 'L',
+        category: 'DAIRY',
+        imageId: null,
         startOfDayAvailable: 50,
         startOfDayDeadStock: 2,
         endOfDayAvailable: 35,
@@ -43,6 +45,8 @@ const report: EodSupplierReportData = {
         storeInventoryItemId: 2,
         itemName: 'Bread',
         unitOfMeasurement: 'EA',
+        category: 'PACKAGING',
+        imageId: null,
         startOfDayAvailable: 20,
         startOfDayDeadStock: 0,
         endOfDayAvailable: null,
@@ -61,7 +65,8 @@ beforeEach(() => {
 });
 
 describe('EodSupplierReport', () => {
-  it('groups rows by supplier with usage, order quantity and status', async () => {
+  it('groups rows by supplier into cards, same as Order List, with usage, order quantity and status', async () => {
+    const user = userEvent.setup();
     mockGetEodSupplierReport.mockResolvedValue(report);
 
     render(<EodSupplierReport />);
@@ -74,12 +79,78 @@ describe('EodSupplierReport', () => {
     expect(within(milkRow).getByText('6')).toBeInTheDocument();
     expect(within(milkRow).getByText('Needs to Order')).toBeInTheDocument();
 
+    expect(screen.getByText('Supplier A')).toBeInTheDocument();
+    expect(screen.getByText('1 item · 1 to order')).toBeInTheDocument();
+    expect(screen.getByText('No Supplier')).toBeInTheDocument();
+    expect(screen.getByText('1 item · nothing to order')).toBeInTheDocument();
+    expect(screen.getByText('1 to order · 1 awaiting End of Day count')).toBeInTheDocument();
+
+    // "No Supplier" has nothing needing an order, so (same as Order List)
+    // it starts collapsed -- expand it to see Bread's own row.
+    await user.click(screen.getByText('No Supplier'));
+    const breadRow = screen.getByText('Bread').closest('tr')!;
+    expect(within(breadRow).getByText('EOD Pending')).toBeInTheDocument();
+  });
+
+  it('switches to the flat List view, showing each row\'s supplier as its own column', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue(report);
+
+    render(<EodSupplierReport />);
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByRole('button', { name: 'List' }));
+
+    const milkRow = screen.getByText('Milk').closest('tr')!;
+    expect(within(milkRow).getByText('Supplier A')).toBeInTheDocument();
     const breadRow = screen.getByText('Bread').closest('tr')!;
     expect(within(breadRow).getByText('No Supplier')).toBeInTheDocument();
-    expect(within(breadRow).getByText('EOD Pending')).toBeInTheDocument();
+  });
 
-    expect(screen.getByText(/Supplier A/, { selector: 'th' })).toHaveTextContent('Supplier A1 item');
-    expect(screen.getByText('1 to order · 1 awaiting End of Day count')).toBeInTheDocument();
+  it('filters rows by search text', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue(report);
+
+    render(<EodSupplierReport />);
+    await screen.findByText('Milk');
+    // List view has no per-group collapse state to fight with the filter.
+    await user.click(screen.getByRole('button', { name: 'List' }));
+
+    await user.type(screen.getByPlaceholderText('Search items'), 'bread');
+
+    expect(screen.queryByText('Milk')).not.toBeInTheDocument();
+    expect(screen.getByText('Bread')).toBeInTheDocument();
+  });
+
+  it('filters rows by status', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue(report);
+
+    render(<EodSupplierReport />);
+    await screen.findByText('Milk');
+    await user.click(screen.getByRole('button', { name: 'List' }));
+
+    await user.click(screen.getByRole('button', { name: 'Status' }));
+    await user.click(await screen.findByRole('option', { name: 'EOD Pending' }));
+
+    expect(screen.queryByText('Milk')).not.toBeInTheDocument();
+    expect(screen.getByText('Bread')).toBeInTheDocument();
+  });
+
+  it('filters rows by supplier, built from the report\'s own groups', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue(report);
+
+    render(<EodSupplierReport />);
+    await screen.findByText('Milk');
+    await user.click(screen.getByRole('button', { name: 'List' }));
+
+    await user.click(screen.getByRole('button', { name: 'Supplier' }));
+    expect(await screen.findByRole('option', { name: 'Supplier A' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'No Supplier' }));
+
+    expect(screen.queryByText('Milk')).not.toBeInTheDocument();
+    expect(screen.getByText('Bread')).toBeInTheDocument();
   });
 
   it('copies the report, grouped by supplier and dated by the report day, to the clipboard', async () => {
@@ -109,7 +180,7 @@ describe('EodSupplierReport', () => {
 
     render(<EodSupplierReport />);
 
-    expect(await screen.findByText('No inventory items to report for this day.')).toBeInTheDocument();
+    await screen.findByText('No items match these filters');
     expect(screen.getByRole('button', { name: /copy report/i })).toBeDisabled();
   });
 });

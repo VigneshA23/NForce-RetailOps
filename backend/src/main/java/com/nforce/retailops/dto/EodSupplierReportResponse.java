@@ -21,6 +21,8 @@ public record EodSupplierReportResponse(
         Long storeInventoryItemId,
         String itemName,
         String unitOfMeasurement,
+        String category,
+        Long imageId,
         BigDecimal startOfDayAvailable,
         BigDecimal startOfDayDeadStock,
         BigDecimal endOfDayAvailable,
