@@ -26,9 +26,19 @@ public record UpdateOrderListEntryRequest(
     // entry has since moved on (e.g. Super Admin already marked it Ordered),
     // the update is rejected with a conflict instead of overwriting. Optional
     // so older clients keep working unchecked.
-    OrderStatus expectedStatus
+    OrderStatus expectedStatus,
+
+    // Only read when moving Ordered -> Received: what actually arrived.
+    // Omitted means "everything that was ordered".
+    @DecimalMin(value = "0.01", message = "Quantity received must be greater than 0")
+    @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
+    BigDecimal quantityReceived
 ) {
+    public UpdateOrderListEntryRequest(BigDecimal quantityNeeded, Long supplierId, String note, OrderStatus status, OrderStatus expectedStatus) {
+        this(quantityNeeded, supplierId, note, status, expectedStatus, null);
+    }
+
     public UpdateOrderListEntryRequest(BigDecimal quantityNeeded, Long supplierId, String note, OrderStatus status) {
-        this(quantityNeeded, supplierId, note, status, null);
+        this(quantityNeeded, supplierId, note, status, null, null);
     }
 }

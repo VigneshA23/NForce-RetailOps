@@ -25,6 +25,8 @@ import CategoryIcon, { CATEGORY_VISUAL, FALLBACK_CATEGORY_VISUAL } from '../comp
 import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
 import ChangeOrderStatusModal from '../components/ChangeOrderStatusModal';
+import { roundQty } from '../utils/quantity';
+import { describeReceipt } from '../utils/orderReceipt';
 import BulkChangeOrderStatusModal, { type BulkStatusChangeItem } from '../components/BulkChangeOrderStatusModal';
 import SearchableSelect from '../components/SearchableSelect';
 import Select from '../components/Select';
@@ -201,28 +203,43 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     }
   }
 
-  async function changeStatus(entry: OrderListEntry, nextStatus: OrderStatus) {
-    if (selectedStoreId === null) return false;
+  // Returns the saved entry, or null when the change did not go through.
+  async function changeStatus(entry: OrderListEntry, nextStatus: OrderStatus, quantityReceived?: number) {
+    if (selectedStoreId === null) return null;
     try {
-      const updated = await updateSuperAdminOrderStatus(selectedStoreId, entry.id, nextStatus, entry.status);
+      const updated = await updateSuperAdminOrderStatus(selectedStoreId, entry.id, nextStatus, entry.status, quantityReceived);
       applyUpdatedEntry(updated);
-      return true;
+      return updated;
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
         // The Owner/Admin already moved this entry -- tell the user and pull
         // the fresh list rather than leaving a stale row on screen.
         setConflictMessage(error.message);
         getOrderListForStore(selectedStoreId).then(setEntries).catch(() => {});
-        return false;
+        return null;
       }
       nfToast.error(error instanceof Error ? error.message : 'Failed to update order status');
-      return false;
+      return null;
     }
   }
 
-  async function handleStatusChange(entry: OrderListEntry, nextStatus: OrderStatus) {
-    const ok = await changeStatus(entry, nextStatus);
-    if (ok) nfToast.success(`"${entry.itemName}" marked as ${STATUS_META[nextStatus].label.toLowerCase()}.`);
+  // Receiving a delivery may raise a new order for what is still missing, so
+  // the store's list is re-read afterwards.
+  function refreshAfterReceipt() {
+    if (selectedStoreId === null) return;
+    getOrderListForStore(selectedStoreId).then(setEntries).catch(() => {});
+  }
+
+  async function handleStatusChange(entry: OrderListEntry, nextStatus: OrderStatus, quantityReceived?: number) {
+    const updated = await changeStatus(entry, nextStatus, quantityReceived);
+    if (!updated) return;
+    if (updated.receipt) {
+      const { tone, message } = describeReceipt(entry.itemName, updated.quantityReceived ?? null, entry.unitOfMeasurement, updated.receipt);
+      nfToast[tone](message);
+      refreshAfterReceipt();
+      return;
+    }
+    nfToast.success(`"${entry.itemName}" marked as ${STATUS_META[nextStatus].label.toLowerCase()}.`);
   }
 
   function requestStatusChange(entry: OrderListEntry, nextStatus: OrderStatus) {
@@ -230,9 +247,9 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     setPendingStatusChange({ entry, nextStatus });
   }
 
-  async function confirmPendingStatusChange() {
+  async function confirmPendingStatusChange(quantityReceived?: number) {
     if (!pendingStatusChange) return;
-    await handleStatusChange(pendingStatusChange.entry, pendingStatusChange.nextStatus);
+    await handleStatusChange(pendingStatusChange.entry, pendingStatusChange.nextStatus, quantityReceived);
     setPendingStatusChange(null);
   }
 
@@ -241,6 +258,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     if (targets.length === 0) return;
     const results = await Promise.allSettled(targets.map((entry) => changeStatus(entry, nextStatus)));
     const successCount = results.filter((r) => r.status === 'fulfilled' && r.value).length;
+    if (nextStatus === 'RECEIVED' && successCount > 0) refreshAfterReceipt();
     if (successCount > 0) {
       nfToast.success(`${successCount} item${successCount === 1 ? '' : 's'} marked as ${STATUS_META[nextStatus].label.toLowerCase()}.`);
     }
@@ -972,6 +990,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
           imageId={pendingStatusChange.entry.imageId}
           fromStatus={pendingStatusChange.entry.status}
           toStatus={pendingStatusChange.nextStatus}
+          orderedQuantity={roundQty(pendingStatusChange.entry.quantityNeeded + pendingStatusChange.entry.manualAddition)}
+          unitOfMeasurement={pendingStatusChange.entry.unitOfMeasurement}
           onConfirm={confirmPendingStatusChange}
           onCancel={() => setPendingStatusChange(null)}
         />

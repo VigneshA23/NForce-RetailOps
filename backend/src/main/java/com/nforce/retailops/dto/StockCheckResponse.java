@@ -24,6 +24,8 @@ public record StockCheckResponse(
     BigDecimal requiredPar,
     StockSnapshotResponse startOfDay,
     StockSnapshotResponse endOfDay,
+    // Delivered today; already excluded from stockUsed.
+    BigDecimal quantityReceived,
     BigDecimal stockUsed,
     BigDecimal requiredTomorrow,
     // Null until End of Day has been counted.
@@ -45,6 +47,7 @@ public record StockCheckResponse(
             check.getStoreInventoryItem().requiredMinimumOn(check.getCheckDate()),
             StockSnapshotResponse.from(check, StockCheckSnapshot.START_OF_DAY),
             StockSnapshotResponse.from(check, StockCheckSnapshot.END_OF_DAY),
+            check.getQuantityReceived(),
             check.stockUsed(),
             check.getRequiredTomorrow(),
             check.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? check.getQuantityNeeded() : null,

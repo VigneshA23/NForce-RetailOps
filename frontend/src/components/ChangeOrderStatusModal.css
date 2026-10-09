@@ -56,3 +56,13 @@
   color: var(--color-text-secondary);
   margin: 0;
 }
+
+.change-order-status-modal__received {
+  margin-top: var(--space-md);
+}
+
+.change-order-status-modal__hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}

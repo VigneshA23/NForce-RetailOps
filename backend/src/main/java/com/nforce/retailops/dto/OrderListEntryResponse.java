@@ -20,9 +20,30 @@ public record OrderListEntryResponse(
     String raisedByName,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt,
-    Long imageId
+    Long imageId,
+    BigDecimal quantityReceived,
+    // Only set on the response to the Ordered -> Received change itself;
+    // null on every list read.
+    ReceiptOutcome receipt
 ) {
+    // What marking an order received did to the store's stock. stockUpdated is
+    // false when there was no stock count for today to add the delivery to
+    // (currentStock / shortfall are then null too).
+    public record ReceiptOutcome(
+        boolean stockUpdated,
+        BigDecimal currentStock,
+        BigDecimal requiredToday,
+        // requiredToday minus currentStock, floored at 0; > 0 means the
+        // delivery still leaves the item under today's minimum.
+        BigDecimal shortfall
+    ) {
+    }
+
     public static OrderListEntryResponse from(OrderListEntry entry) {
+        return from(entry, null);
+    }
+
+    public static OrderListEntryResponse from(OrderListEntry entry, ReceiptOutcome receipt) {
         return new OrderListEntryResponse(
             entry.getId(),
             entry.getStoreInventoryItem().getId(),
@@ -38,7 +59,9 @@ public record OrderListEntryResponse(
             entry.getRaisedBy() != null ? entry.getRaisedBy().getFullName() : null,
             entry.getCreatedAt(),
             entry.getUpdatedAt(),
-            entry.getStoreInventoryItem().getImageId()
+            entry.getStoreInventoryItem().getImageId(),
+            entry.getQuantityReceived(),
+            receipt
         );
     }
 }
