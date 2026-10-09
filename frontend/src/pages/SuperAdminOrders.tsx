@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Plus, Truck } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { getAllStores } from '../api/superAdminStores';
@@ -489,10 +488,26 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     : [];
   const bulkSkippedCount = pendingBulkStatusChange ? pendingBulkStatusChange.ids.length - bulkEligibleItems.length : 0;
 
+  // Ordered column: the full quantity placed with the supplier (need plus any
+  // surplus the admin added), shown once the entry has moved past NEEDS_ORDERING.
+  // Matches Owner/Admin's OrderList.tsx exactly, which this page otherwise mirrors.
+  function orderedCell(entry: OrderListEntry) {
+    if (entry.status === 'NEEDS_ORDERING') return <span className="order-list__manual-empty">—</span>;
+    return (
+      <>
+        {entry.quantityNeeded + entry.manualAddition} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+      </>
+    );
+  }
+
   function renderMobileCard(row: ReturnType<typeof decorate>) {
     const { entry } = row;
     return (
-      <tr key={entry.id} className="order-list__row" style={{ background: row.checked ? '#fff5f6' : undefined }}>
+      <tr
+        key={entry.id}
+        className="order-list__row"
+        style={row.checked ? { background: '#fff5f6', borderColor: '#f6b9c2' } : undefined}
+      >
         <td className="order-list__mobile-card-td">
           <div className="order-list__mobile-card-header">
             <CheckboxButton checked={row.checked} ariaLabel={`Select ${entry.itemName}`} onClick={() => toggleSelected(entry.id)} />
@@ -529,6 +544,10 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                   <span className="order-list__manual-empty">—</span>
                 )}
               </span>
+            </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Ordered</span>
+              <span className="order-list__cell-value">{orderedCell(entry)}</span>
             </div>
           </div>
           <div className="order-list__mobile-footer">
@@ -593,6 +612,9 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             )}
           </span>
         </td>
+        <td className="order-list__num-cell order-list__ordered-cell" data-label="Ordered">
+          <span className="order-list__cell-value">{orderedCell(entry)}</span>
+        </td>
         {isFlat && (
           <>
             <td className="order-list__mobile-hide">{entry.supplierName ?? '—'}</td>
@@ -610,6 +632,27 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
       </tr>
     );
   }
+
+  const storeSelect = (
+    <SearchableSelect
+      id="super-admin-orders-store"
+      options={stores}
+      selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
+      onChange={(ids) => {
+        const id = ids[0] ?? null;
+        if (id === null) {
+          setSelectedStoreId(null);
+          setSelectedStoreName(null);
+          return;
+        }
+        const match = stores.find((s) => s.id === id);
+        if (match) selectStore(id, match.label);
+      }}
+      placeholder="Select a store…"
+      isLoading={storesLoading}
+      emptyMessage="No stores found"
+    />
+  );
 
   return (
     <div className="super-admin-orders">
@@ -629,31 +672,21 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             </button>
           ))}
         </div>
-        <div className="super-admin-orders__store-select">
-          <SearchableSelect
-            id="super-admin-orders-store"
-            options={stores}
-            selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
-            onChange={(ids) => {
-              const id = ids[0] ?? null;
-              if (id === null) {
-                setSelectedStoreId(null);
-                setSelectedStoreName(null);
-                return;
-              }
-              const match = stores.find((s) => s.id === id);
-              if (match) selectStore(id, match.label);
-            }}
-            placeholder="Select a store…"
-            isLoading={storesLoading}
-            emptyMessage="No stores found"
-          />
-        </div>
+        {/* Mobile keeps this slot only until a store is picked -- once one
+            is, the picker moves below (replacing the eyebrow label) so it
+            isn't shown twice. */}
+        {(!isMobile || selectedStoreId === null) && (
+          <div className="super-admin-orders__store-select">{storeSelect}</div>
+        )}
       </div>
 
       {selectedStoreId !== null && (
         <div className="super-admin-orders__store">
-          <span className="super-admin-orders__eyebrow">{selectedStoreName}</span>
+          {isMobile ? (
+            <div className="super-admin-orders__store-select super-admin-orders__store-select--mobile">{storeSelect}</div>
+          ) : (
+            <span className="super-admin-orders__eyebrow">{selectedStoreName}</span>
+          )}
 
           {subTab === 'counts' && <SuperAdminInventoryCounts storeId={selectedStoreId} />}
           {subTab === 'eod-report' && <SuperAdminEodSupplierReport storeId={selectedStoreId} storeName={selectedStoreName} />}
@@ -733,40 +766,35 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             </div>
           )}
 
+          {/* Single sticky row, same as OrderList.tsx's own mobile selection
+              bar (RTS-304 parity) -- the checkbox/count/clear are always
+              shown, and the bulk actions appear alongside once something's
+              selected, instead of a separate floating bar. */}
           {isMobile && !entriesLoading && decorated.length > 0 && (
             <div className="order-list__mobile-select-all">
-              <CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} />
-              <span className="order-list__select-label">
-                {someChecked ? `${selectedIds.size} selected` : `Select all ${decorated.length} ${decorated.length === 1 ? 'order' : 'orders'}`}
-              </span>
+              <div className="order-list__mobile-select-all-info">
+                <CheckboxButton checked={allChecked} indeterminate={someChecked && !allChecked} ariaLabel="Select all visible orders" onClick={toggleSelectAll} />
+                <span className="order-list__select-label">
+                  {someChecked ? `${selectedIds.size} selected` : `Select all ${decorated.length} ${decorated.length === 1 ? 'order' : 'orders'}`}
+                </span>
+                {someChecked && <FilterClearButton onClick={() => setSelectedIds(new Set())} ariaLabel="Clear selection" />}
+              </div>
               {someChecked && (
-                <button type="button" className="order-list__clear-selection" onClick={() => setSelectedIds(new Set())}>
-                  Clear
-                </button>
+                <div className="order-list__mobile-select-all-actions">
+                  <button type="button" className="order-list__action-btn order-list__action-btn--sm" onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>
+                    <Truck size={14} />
+                    Ordered
+                  </button>
+                  <button type="button" className="order-list__action-btn order-list__action-btn--sm" onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>
+                    <CircleCheck size={14} />
+                    Received
+                  </button>
+                  <button type="button" className="order-list__action-btn order-list__action-btn--sm" aria-label="Copy selected items" onClick={handleCopySelected}>
+                    <Clipboard size={14} />
+                  </button>
+                </div>
               )}
             </div>
-          )}
-
-          {isMobile && someChecked && createPortal(
-            // Portaled straight to <body>, same reason as OrderList.tsx's own
-            // mobile floating bar -- see that file's comment on
-            // AppShell's page-transition wrapper and `will-change: transform`.
-            <div className="order-list__mobile-selection-bar">
-              <span className="order-list__mobile-selection-count">{selectedIds.size} selected</span>
-              <div className="order-list__mobile-selection-actions">
-                <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'ORDERED')}>Ordered</button>
-                <button type="button" onClick={() => requestBulkStatusChange([...selectedIds], 'RECEIVED')}>Received</button>
-                <button
-                  type="button"
-                  className="order-list__mobile-selection-copy"
-                  aria-label="Copy selected items"
-                  onClick={handleCopySelected}
-                >
-                  <Clipboard size={16} />
-                </button>
-              </div>
-            </div>,
-            document.body,
           )}
 
           {entriesError && (
@@ -853,6 +881,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                             <col className="order-list__col--num" />
                             <col className="order-list__col--num" />
                             <col className="order-list__col--num" />
+                            <col className="order-list__col--num" />
                             <col className="order-list__col--status" />
                           </colgroup>
                           <thead>
@@ -863,6 +892,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                               <th className="order-list__num-header">Stock</th>
                               <th className="order-list__num-header">Need</th>
                               <th className="order-list__num-header">Manual</th>
+                              <th className="order-list__num-header">Ordered</th>
                               <th>Status</th>
                             </tr>
                           </thead>
@@ -887,11 +917,12 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                 <table className="order-list__flat-table">
                   <colgroup>
                     <col style={{ width: '3%' }} />
-                    <col style={{ width: '32%' }} />
+                    <col style={{ width: '27%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '7%' }} />
                     <col style={{ width: '7%' }} />
                     <col style={{ width: '8%' }} />
-                    <col style={{ width: '8%' }} />
-                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '12%' }} />
                     <col style={{ width: '11%' }} />
                     <col style={{ width: '18%' }} />
                   </colgroup>
@@ -902,6 +933,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                       <th className="order-list__num-header">Stock</th>
                       <th className="order-list__num-header">Need</th>
                       <th className="order-list__num-header">Manual</th>
+                      <th className="order-list__num-header">Ordered</th>
                       <th>Supplier</th>
                       <th>Category</th>
                       <th className="order-list__status-header">Status</th>

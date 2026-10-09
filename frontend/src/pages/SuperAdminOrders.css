@@ -8,16 +8,19 @@
 /* Non-heading section label for the selected store's name, since this page
    has no in-page <h1>/<h2> of its own (the shell already renders the
    "Orders" title, same as Owner/Admin's OrderList.tsx, which has no in-page
-   header either). */
+   header either). Desktop only -- mobile has no tab-bar store-select to
+   label, so it renders the picker itself here instead (see
+   SuperAdminOrders.tsx). */
 .super-admin-orders__eyebrow {
   display: block;
   font-size: 15px;
   font-weight: 700;
 }
 
-/* Store picker, moved into the sub-tabs row (order-dashboard-page__subtabs,
-   reused from OrderDashboard.css) so it sits in the same top-right corner as
-   SuperAdminInventory.tsx's own store select. */
+/* Store picker. Desktop: sits in the sub-tabs row (order-dashboard-page__subtabs,
+   reused from OrderDashboard.css), same top-right corner as
+   SuperAdminInventory.tsx's own store select. Mobile: hidden there instead
+   and rendered once below the tabs, in place of the eyebrow label. */
 .super-admin-orders__store-select {
   margin-left: auto;
   flex-shrink: 0;
@@ -31,6 +34,15 @@
     min-width: 160px;
     max-width: 70%;
   }
+}
+
+/* Mobile has no tab-bar store-select (hidden there, see SuperAdminOrders.tsx) --
+   this is the only picker on mobile, rendered where the plain store-name
+   label used to sit, full width instead of squeezed into the tab row. */
+.super-admin-orders__store-select--mobile {
+  margin-left: 0;
+  width: 100%;
+  max-width: none;
 }
 
 .super-admin-orders__store {
