@@ -61,6 +61,7 @@ class OrderListServiceTest {
     @Mock private SupplierRepository supplierRepository;
     @Mock private StoreInventoryItemRepository storeInventoryItemRepository;
     @Mock private UserRepository userRepository;
+    @Mock private StockReceiptService stockReceiptService;
 
     @InjectMocks
     private OrderListService orderListService;
@@ -227,6 +228,97 @@ class OrderListServiceTest {
         orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.ORDERED));
 
         assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+    }
+
+    @Test
+    void markingReceivedDefaultsTheReceivedQuantityToEverythingOrdered() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        entry.setManualAddition(bd(2));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(stockReceiptService.applyReceipt(any(), any(), any(), any()))
+            .thenReturn(new StockReceiptService.Result(true, bd(10), bd(8), bd(0)));
+
+        OrderListEntryResponse response = orderListService.updateEntry(
+            OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED));
+
+        assertThat(entry.getQuantityReceived()).isEqualByComparingTo(bd(7));
+        verify(stockReceiptService).applyReceipt(any(), eq(bd(7)), any(User.class), eq(null));
+        assertThat(response.receipt().stockUpdated()).isTrue();
+        assertThat(response.receipt().shortfall()).isEqualByComparingTo(bd(0));
+        verify(orderListEntryRepository, times(1)).save(any(OrderListEntry.class));
+    }
+
+    @Test
+    void markingReceivedWithALowerQuantityRaisesANewOrderForTheRemainingShortfall() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
+            .thenReturn(Optional.empty());
+        when(stockReceiptService.applyReceipt(any(), any(), any(), any()))
+            .thenReturn(new StockReceiptService.Result(true, bd(6), bd(10), bd(4)));
+
+        OrderListEntryResponse response = orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED, null, bd(3)));
+
+        assertThat(entry.getQuantityReceived()).isEqualByComparingTo(bd(3));
+        assertThat(response.receipt().shortfall()).isEqualByComparingTo(bd(4));
+        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
+        verify(orderListEntryRepository, times(2)).save(captor.capture());
+        OrderListEntry reraised = captor.getAllValues().get(1);
+        assertThat(reraised).isNotSameAs(entry);
+        assertThat(reraised.getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+        assertThat(reraised.getQuantityNeeded()).isEqualByComparingTo(bd(4));
+    }
+
+    @Test
+    void markingReceivedDoesNotRaiseANewOrderWhenAutoPoIsOff() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        entry.getStoreInventoryItem().setAutoPoEnabled(false);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(stockReceiptService.applyReceipt(any(), any(), any(), any()))
+            .thenReturn(new StockReceiptService.Result(true, bd(6), bd(10), bd(4)));
+
+        OrderListEntryResponse response = orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED, null, bd(3)));
+
+        assertThat(response.receipt().shortfall()).isEqualByComparingTo(bd(4));
+        verify(orderListEntryRepository, times(1)).save(any(OrderListEntry.class));
+    }
+
+    @Test
+    void markingReceivedWithNoStockCountTodayReportsStockNotUpdated() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(stockReceiptService.applyReceipt(any(), any(), any(), any()))
+            .thenReturn(new StockReceiptService.Result(false, null, bd(10), null));
+
+        OrderListEntryResponse response = orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED));
+
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.RECEIVED);
+        assertThat(response.receipt().stockUpdated()).isFalse();
+        verify(orderListEntryRepository, times(1)).save(any(OrderListEntry.class));
+    }
+
+    @Test
+    void movingToOrderedNeverTouchesStock() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.ORDERED));
+
+        verify(stockReceiptService, never()).applyReceipt(any(), any(), any(), any());
     }
 
     @Test

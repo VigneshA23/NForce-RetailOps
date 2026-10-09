@@ -104,6 +104,14 @@ public class SuperAdminOperationsService {
     }
 
     @Transactional
+    public OrderListEntryResponse updateOrderStatus(
+        Long storeId, Long entryId, OrderStatus status, OrderStatus expectedStatus,
+        java.math.BigDecimal quantityReceived, com.nforce.retailops.entity.SuperAdmin superAdmin
+    ) {
+        return orderListService.updateStatusForSuperAdmin(storeId, entryId, status, expectedStatus, quantityReceived, superAdmin);
+    }
+
+    @Transactional
     public OrderListEntryResponse createOrderListEntry(Long storeId, CreateOrderListEntryRequest request) {
         return orderListService.createEntryForSuperAdmin(storeId, request);
     }

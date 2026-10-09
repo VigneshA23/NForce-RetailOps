@@ -102,6 +102,41 @@ beforeEach(() => {
   ]);
 });
 
+describe('OrderList mark received', () => {
+  it('confirms the quantity received, sends it, and refreshes the list and stock', async () => {
+    const user = userEvent.setup();
+    mockGetOrderList.mockResolvedValue([entry({ id: 7, itemName: 'Milk', status: 'ORDERED', quantityNeeded: 4, manualAddition: 1 })]);
+    mockUpdateOrderListEntry.mockResolvedValue(
+      entry({
+        id: 7,
+        status: 'RECEIVED',
+        quantityReceived: 3,
+        receipt: { stockUpdated: true, currentStock: 6, requiredToday: 10, shortfall: 4 },
+      }),
+    );
+    render(<OrderList storeName="Downtown" />);
+    await screen.findByRole('button', { name: 'List' });
+    await user.click(screen.getByRole('button', { name: 'List' }));
+    await screen.findByText('Milk');
+
+    await user.click(screen.getByLabelText('Change status for Milk'));
+    await user.click(screen.getByRole('option', { name: 'Received' }));
+
+    const input = await screen.findByLabelText('Quantity received (L)');
+    expect(input).toHaveValue('5');
+    await user.clear(input);
+    await user.type(input, '3');
+    await user.click(screen.getByRole('button', { name: 'Confirm received' }));
+
+    await waitFor(() =>
+      expect(mockUpdateOrderListEntry).toHaveBeenCalledWith(7, expect.objectContaining({ status: 'RECEIVED', quantityReceived: 3 })),
+    );
+    // Initial load + the refresh after receiving.
+    await waitFor(() => expect(mockGetOrderList).toHaveBeenCalledTimes(2));
+    expect(mockGetInventoryCounts).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe('OrderList status filter', () => {
   it('defaults to "All open", hiding already-received entries', async () => {
     render(<OrderList storeName="Downtown" />);

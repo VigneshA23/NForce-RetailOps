@@ -15,7 +15,8 @@ import java.time.OffsetDateTime;
 //
 // currentCount / quantityNeeded / checkedBy predate the split (V48) and are
 // kept in sync rather than dropped, since other branches share the dev DB:
-// currentCount = usable stock of the latest snapshot (EOD when present),
+// currentCount = usable stock now: EOD usable when counted (a physical count,
+// so it already includes deliveries), else SOD usable + received today,
 // quantityNeeded = quantity to order (computed on EOD save, 0 before),
 // checkedBy = whoever last saved either snapshot.
 @Entity
@@ -96,6 +97,12 @@ public class StockCheck {
     @Column(name = "required_tomorrow")
     private BigDecimal requiredTomorrow;
 
+    // Stock delivered today (orders marked Received). Not part of either
+    // snapshot: it is added back when working out stock used, and to Start of
+    // Day usable for the current count until End of Day is counted.
+    @Column(name = "quantity_received", nullable = false)
+    private BigDecimal quantityReceived = BigDecimal.ZERO;
+
     // ---- Legacy-compatible derived columns (see class comment) ----
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "checked_by_user_id", nullable = false)
@@ -156,12 +163,37 @@ public class StockCheck {
         return available.subtract(dead == null ? BigDecimal.ZERO : dead);
     }
 
-    // Start usable minus end usable; null until both snapshots exist. Can be
-    // negative when a delivery arrived during the day.
+    // Start usable + received today - end usable; null until both snapshots
+    // exist. Deliveries are added back so they don't show up as negative usage.
     public BigDecimal stockUsed() {
         BigDecimal start = usableFor(StockCheckSnapshot.START_OF_DAY);
         BigDecimal end = usableFor(StockCheckSnapshot.END_OF_DAY);
-        return start == null || end == null ? null : start.subtract(end);
+        return start == null || end == null ? null : start.add(quantityReceived()).subtract(end);
+    }
+
+    public BigDecimal quantityReceived() {
+        return quantityReceived == null ? BigDecimal.ZERO : quantityReceived;
+    }
+
+    // Records a delivery. Before End of Day it only raises the received total
+    // (the current count follows). After End of Day the closing count is also
+    // raised, since it was taken without this delivery; usage is unchanged.
+    public void addReceived(BigDecimal quantity) {
+        quantityReceived = quantityReceived().add(quantity);
+        if (hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
+            endOfDayAvailable = endOfDayAvailable.add(quantity);
+        }
+        refreshCurrentCount();
+    }
+
+    private void refreshCurrentCount() {
+        BigDecimal end = usableFor(StockCheckSnapshot.END_OF_DAY);
+        if (end != null) {
+            currentCount = end;
+            return;
+        }
+        BigDecimal start = usableFor(StockCheckSnapshot.START_OF_DAY);
+        currentCount = start == null ? currentCount : start.add(quantityReceived());
     }
 
     // Writes one snapshot's values and who/when, keeping the original enterer
@@ -209,8 +241,7 @@ public class StockCheck {
         if (by != null) {
             checkedBy = by;
         }
-        BigDecimal latestUsable = usableFor(StockCheckSnapshot.END_OF_DAY);
-        currentCount = latestUsable != null ? latestUsable : usableFor(StockCheckSnapshot.START_OF_DAY);
+        refreshCurrentCount();
     }
 
     public Long getId() {
@@ -262,6 +293,10 @@ public class StockCheck {
     public OffsetDateTime getEndOfDayEnteredAt() { return endOfDayEnteredAt; }
     public User getEndOfDayCheckedBy() { return endOfDayCheckedBy; }
     public OffsetDateTime getEndOfDayCheckedAt() { return endOfDayCheckedAt; }
+
+    public BigDecimal getQuantityReceived() {
+        return quantityReceived();
+    }
 
     public BigDecimal getRequiredTomorrow() {
         return requiredTomorrow;

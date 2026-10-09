@@ -39,6 +39,12 @@ public class OrderListEntry {
     @Column(name = "manual_addition", nullable = false)
     private BigDecimal manualAddition = BigDecimal.ZERO;
 
+    // What was actually delivered, entered when the order is marked Received
+    // (defaults to quantityNeeded + manualAddition). Null until then, and for
+    // entries auto-resolved by a stock count rather than received by hand.
+    @Column(name = "quantity_received")
+    private BigDecimal quantityReceived;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "supplier_id")
     private Supplier supplier;
@@ -117,6 +123,18 @@ public class OrderListEntry {
 
     public void setManualAddition(BigDecimal manualAddition) {
         this.manualAddition = manualAddition;
+    }
+
+    public BigDecimal getQuantityReceived() {
+        return quantityReceived;
+    }
+
+    public void setQuantityReceived(BigDecimal quantityReceived) {
+        this.quantityReceived = quantityReceived;
+    }
+
+    public BigDecimal totalQuantityOrdered() {
+        return quantityNeeded.add(manualAddition);
     }
 
     public Supplier getSupplier() {

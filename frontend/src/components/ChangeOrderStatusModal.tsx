@@ -3,7 +3,9 @@ import { ArrowRight } from 'lucide-react';
 import Modal from './Modal';
 import ButtonDots from './ButtonDots';
 import CategoryIcon from './CategoryIcon';
+import FormField from './FormField';
 import { STATUS_META } from '../utils/orderListStatus';
+import { formatQty, parseQty } from '../utils/quantity';
 import type { OrderStatus } from '../types/orderList';
 import type { InventoryItemCategory } from '../types/storeInventory';
 import './ChangeOrderStatusModal.css';
@@ -15,9 +17,14 @@ interface ChangeOrderStatusModalProps {
   imageId: number | null;
   fromStatus: OrderStatus;
   toStatus: OrderStatus;
+  // Total ordered (quantity needed + manual top-up) and its unit: the default
+  // for the "quantity received" box shown on Ordered -> Received.
+  orderedQuantity: number;
+  unitOfMeasurement: string;
   // May return a Promise -- same loading-dots/disable-while-pending contract
-  // as ConfirmDialog's onConfirm.
-  onConfirm: () => void | Promise<void>;
+  // as ConfirmDialog's onConfirm. quantityReceived is only set when moving to
+  // Received.
+  onConfirm: (quantityReceived?: number) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -60,13 +67,27 @@ function ChangeOrderStatusModal({
   imageId,
   fromStatus,
   toStatus,
+  orderedQuantity,
+  unitOfMeasurement,
   onConfirm,
   onCancel,
 }: ChangeOrderStatusModalProps) {
   const [isConfirming, setIsConfirming] = useState(false);
+  const isReceiving = fromStatus === 'ORDERED' && toStatus === 'RECEIVED';
+  const [receivedText, setReceivedText] = useState(formatQty(orderedQuantity));
+  const [receivedError, setReceivedError] = useState<string | null>(null);
 
   async function handleConfirm() {
-    const result = onConfirm();
+    let quantityReceived: number | undefined;
+    if (isReceiving) {
+      const qty = parseQty(receivedText);
+      if (qty === null || qty <= 0) {
+        setReceivedError('Enter a quantity greater than 0 (up to 2 decimals)');
+        return;
+      }
+      quantityReceived = qty;
+    }
+    const result = onConfirm(quantityReceived);
     if (result instanceof Promise) {
       setIsConfirming(true);
       try {
@@ -81,7 +102,7 @@ function ChangeOrderStatusModal({
     <Modal
       isOpen
       onClose={isConfirming ? () => {} : onCancel}
-      title="Change status?"
+      title={isReceiving ? 'Confirm stock received' : 'Change status?'}
       centered
       footer={
         <>
@@ -94,7 +115,7 @@ function ChangeOrderStatusModal({
             disabled={isConfirming}
             onClick={handleConfirm}
           >
-            {isConfirming ? <ButtonDots label="Changing" /> : 'Yes, change'}
+            {isConfirming ? <ButtonDots label={isReceiving ? 'Receiving' : 'Changing'} /> : isReceiving ? 'Confirm received' : 'Yes, change'}
           </button>
         </>
       }
@@ -112,6 +133,32 @@ function ChangeOrderStatusModal({
         <StatusPill status={toStatus} />
       </div>
       <p className="change-order-status-modal__description">{describeTransition(fromStatus, toStatus, supplierName)}</p>
+      {isReceiving && (
+        <div className="change-order-status-modal__received">
+          <FormField
+            label={`Quantity received (${unitOfMeasurement})`}
+            htmlFor="order-quantity-received"
+            error={receivedError ?? undefined}
+          >
+            <input
+              id="order-quantity-received"
+              type="text"
+              inputMode="decimal"
+              className="input"
+              value={receivedText}
+              disabled={isConfirming}
+              onChange={(event) => {
+                setReceivedText(event.target.value);
+                setReceivedError(null);
+              }}
+            />
+          </FormField>
+          <p className="change-order-status-modal__hint">
+            Ordered: {formatQty(orderedQuantity)} {unitOfMeasurement}. Change this if less (or more) arrived. It is added to
+            the store&apos;s current stock and checked against today&apos;s minimum.
+          </p>
+        </div>
+      )}
     </Modal>
   );
 }

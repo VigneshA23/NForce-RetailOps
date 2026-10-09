@@ -76,10 +76,11 @@ export async function updateSuperAdminOrderStatus(
   entryId: number,
   status: OrderStatus,
   expectedStatus?: OrderStatus,
+  quantityReceived?: number,
 ): Promise<OrderListEntry> {
   return apiRequest<OrderListEntry>(`/super-admin/stores/${storeId}/order-list/${entryId}/status`, {
     method: 'PATCH',
-    body: { status, expectedStatus },
+    body: { status, expectedStatus, quantityReceived },
   });
 }
 

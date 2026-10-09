@@ -195,7 +195,7 @@ describe('SuperAdminOrders', () => {
     await userEvent.click(screen.getByRole('option', { name: 'Ordered' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Yes, change' }));
 
-    await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(10, 1, 'ORDERED', 'NEEDS_ORDERING'));
+    await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(10, 1, 'ORDERED', 'NEEDS_ORDERING', undefined));
   });
 
   it('shows an "already updated" popup and refreshes the list when the Owner/Admin got there first', async () => {
@@ -267,7 +267,7 @@ describe('SuperAdminOrders inline status change', () => {
 
     await user.click(screen.getByRole('button', { name: 'Yes, change' }));
 
-    await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 1, 'ORDERED', 'NEEDS_ORDERING'));
+    await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 1, 'ORDERED', 'NEEDS_ORDERING', undefined));
     await waitFor(() => expect(screen.queryByText('Change status?')).not.toBeInTheDocument());
   });
 
@@ -320,8 +320,8 @@ describe('SuperAdminOrders bulk selection', () => {
     await user.click(screen.getByRole('button', { name: 'Yes, mark 2 ordered' }));
 
     await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledTimes(2));
-    expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 1, 'ORDERED', 'NEEDS_ORDERING');
-    expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 2, 'ORDERED', 'NEEDS_ORDERING');
+    expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 1, 'ORDERED', 'NEEDS_ORDERING', undefined);
+    expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(STORE_ID, 2, 'ORDERED', 'NEEDS_ORDERING', undefined);
   });
 
   it('skips items that are already past the target status and says so', async () => {

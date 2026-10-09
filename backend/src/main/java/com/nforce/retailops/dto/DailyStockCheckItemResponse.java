@@ -14,6 +14,7 @@ public record DailyStockCheckItemResponse(
     BigDecimal requiredTomorrow,
     StockSnapshotResponse startOfDay,
     StockSnapshotResponse endOfDay,
+    BigDecimal quantityReceived,
     BigDecimal stockUsed,
     BigDecimal quantityToOrder,
     Long imageId
