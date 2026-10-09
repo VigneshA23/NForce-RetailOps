@@ -27,13 +27,10 @@
      a smooth, deliberate separation from the scrolling content rather than
      an abrupt cutoff. */
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-  /* Two short tabs never actually overflow; hidden (not auto) means no
-     scrollbar ever renders here even transiently during layout. Setting
-     overflow-y too matters: per spec, leaving one axis at its default
-     'visible' while the other is 'hidden' computes that default to 'auto'
-     instead -- which is what was spawning a vertical scrollbar here. */
-  overflow-x: hidden;
-  overflow-y: hidden;
+  /* No overflow:hidden here -- the inner .subtab-list below already owns
+     scroll clipping for the tab buttons. Hiding overflow on this outer row
+     too clips the store-select's focus-ring box-shadow, since that widget
+     sits flush against this row's own edges. */
   /* Stays put while the rest of the page scrolls underneath it, inside
      .app-shell__page (the nearest scrolling ancestor). isolate + a solid,
      fully opaque background guarantee it fully occludes anything scrolling
