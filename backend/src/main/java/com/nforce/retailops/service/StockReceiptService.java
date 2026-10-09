@@ -2,17 +2,21 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
+import com.nforce.retailops.entity.StockCheckReceipt;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.repository.StockCheckCorrectionRepository;
+import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 // Records a delivery when an order is marked Received. Kept apart from
@@ -28,8 +32,12 @@ import java.util.Optional;
 // closing count is raised too (and audited in stock_check_corrections); usage
 // is unchanged since both sides move together.
 //
-// With no row for today there is nothing to record against -- stock only
-// exists as counts -- so nothing is changed and the caller is told.
+// With no row for today the delivery is still recorded, on top of the item's
+// latest count (see StockCheckReceipt); an item that has never been counted has
+// nothing to add to, so nothing is changed and the caller is told.
+//
+// Every delivery also writes a StockCheckReceipt row, which is what the count
+// history shows as "Stock received" along with who received it.
 @Service
 public class StockReceiptService {
 
@@ -37,13 +45,16 @@ public class StockReceiptService {
 
     private final StockCheckRepository stockCheckRepository;
     private final StockCheckCorrectionRepository stockCheckCorrectionRepository;
+    private final StockCheckReceiptRepository stockCheckReceiptRepository;
 
     public StockReceiptService(
         StockCheckRepository stockCheckRepository,
-        StockCheckCorrectionRepository stockCheckCorrectionRepository
+        StockCheckCorrectionRepository stockCheckCorrectionRepository,
+        StockCheckReceiptRepository stockCheckReceiptRepository
     ) {
         this.stockCheckRepository = stockCheckRepository;
         this.stockCheckCorrectionRepository = stockCheckCorrectionRepository;
+        this.stockCheckReceiptRepository = stockCheckReceiptRepository;
     }
 
     // currentStock is usable stock after the delivery (null when not updated).
@@ -60,11 +71,12 @@ public class StockReceiptService {
         LocalDate today = LocalDate.now();
         BigDecimal requiredToday = item.requiredMinimumOn(today);
 
-        Optional<StockCheck> todaysCheck = user == null && superAdmin == null
-            ? Optional.empty()
-            : stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today);
-        if (todaysCheck.isEmpty()) {
+        if (user == null && superAdmin == null) {
             return new Result(false, null, requiredToday, null);
+        }
+        Optional<StockCheck> todaysCheck = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today);
+        if (todaysCheck.isEmpty()) {
+            return applyWithoutTodaysRow(item, received, user, superAdmin, requiredToday);
         }
 
         StockCheck check = todaysCheck.get();
@@ -99,6 +111,33 @@ public class StockReceiptService {
             stockCheckCorrectionRepository.save(correction);
         }
 
+        recordReceipt(item, saved, received, saved.getCurrentCount(), user, superAdmin);
         return new Result(true, saved.getCurrentCount(), requiredToday, reorderQuantity);
+    }
+
+    // No row today: the delivery goes on top of the latest count (plus earlier
+    // deliveries since) until the next count is taken.
+    private Result applyWithoutTodaysRow(StoreInventoryItem item, BigDecimal received, User user, SuperAdmin superAdmin, BigDecimal requiredToday) {
+        List<StockCheck> latest = stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, 1));
+        if (latest.isEmpty()) {
+            return new Result(false, null, requiredToday, null);
+        }
+        StockCheck last = latest.get(0);
+        BigDecimal pending = StockCheckReceipt.pendingTotal(stockCheckReceiptRepository.findUnappliedForItem(item.getId()), last);
+        BigDecimal countAfter = last.getCurrentCount().add(pending).add(received);
+        recordReceipt(item, null, received, countAfter, user, superAdmin);
+        return new Result(true, countAfter, requiredToday, StockCheckService.orderQuantity(requiredToday, countAfter));
+    }
+
+    private void recordReceipt(StoreInventoryItem item, StockCheck check, BigDecimal received, BigDecimal countAfter, User user, SuperAdmin superAdmin) {
+        StockCheckReceipt receipt = new StockCheckReceipt();
+        receipt.setStore(item.getStore());
+        receipt.setStoreInventoryItem(item);
+        receipt.setStockCheck(check);
+        receipt.setQuantity(received);
+        receipt.setCountAfter(countAfter);
+        receipt.setReceivedByUser(user);
+        receipt.setReceivedBySuperAdmin(superAdmin);
+        stockCheckReceiptRepository.save(receipt);
     }
 }

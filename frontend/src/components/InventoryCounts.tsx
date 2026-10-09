@@ -10,6 +10,7 @@ import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types
 import { INVENTORY_COUNT_STATUS_META } from '../utils/inventoryCountStatusMeta';
 import { nfToast } from '../utils/toast';
 import { formatDateLabel, formatTimeLabel } from '../utils/checklistHistoryOptions';
+import { countSourceLabel } from '../utils/inventoryCountSource';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import StatCard from './StatCard';
 import CategoryIcon from './CategoryIcon';
@@ -174,14 +175,15 @@ function InventoryCounts() {
         <tbody>
           {history.map((entry, index) => (
             <tr key={`${entry.checkDate}-${index}`}>
-              <td>{formatDateLabel(entry.checkDate)}</td>
+              <td>{formatDateLabel(entry.checkDate)} <span className="inventory-counts__muted">{formatTimeLabel(entry.updatedAt)}</span></td>
               <td>
                 {entry.count} {row.unitOfMeasurement}
               </td>
               <td>{entry.delta != null ? (entry.delta > 0 ? `+${entry.delta}` : entry.delta) : '—'}</td>
               <td>
-                <span className="inventory-counts__avatar">{entry.updatedByName.slice(0, 2).toUpperCase()}</span>
-                {entry.updatedByName}
+                <span className="inventory-counts__avatar">{(entry.updatedByName ?? "?").slice(0, 2).toUpperCase()}</span>
+                {entry.updatedByName ?? "—"}
+                <span className="inventory-counts__muted"> · {countSourceLabel(entry.source)}</span>
               </td>
             </tr>
           ))}
@@ -275,7 +277,7 @@ function InventoryCounts() {
             {row.lastUpdatedAt ? (
               <>
                 <span style={{ color: row.status === 'STALE' ? '#a3620a' : '#18181b', fontWeight: 600 }}>{formatCardTimestamp(row.lastUpdatedAt)}</span>
-                <span className="inventory-counts__muted"> · by {row.lastUpdatedByName}</span>
+                <span className="inventory-counts__muted"> · {row.lastUpdatedByName}{countSourceLabel(row.lastUpdatedSource) && ` · ${countSourceLabel(row.lastUpdatedSource)}`}</span>
               </>
             ) : (
               'Never counted'
@@ -410,7 +412,7 @@ function InventoryCounts() {
                         {row.lastUpdatedAt ? (
                           <>
                             <span style={{ color: row.status === 'STALE' ? '#a3620a' : '#18181b', fontWeight: 600 }}>{formatTimeLabel(row.lastUpdatedAt)}</span>
-                            <span className="inventory-counts__muted"> by {row.lastUpdatedByName}</span>
+                            <span className="inventory-counts__muted"> {row.lastUpdatedByName}{countSourceLabel(row.lastUpdatedSource) && ` · ${countSourceLabel(row.lastUpdatedSource)}`}</span>
                           </>
                         ) : (
                           'Never counted'

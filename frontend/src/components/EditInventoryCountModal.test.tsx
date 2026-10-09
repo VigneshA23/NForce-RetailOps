@@ -14,6 +14,7 @@ const ROW: InventoryCountRow = {
   status: 'HEALTHY',
   lastUpdatedAt: '2026-09-24T15:30:00Z',
   lastUpdatedByName: 'Sarah',
+  lastUpdatedSource: 'END_OF_DAY',
   change: 6,
   changeFromDate: '2026-09-23',
   latestCheckId: 42,

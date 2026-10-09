@@ -8,6 +8,7 @@ import ButtonDots from './ButtonDots';
 
 export interface AdHocShortageValues {
   storeInventoryItemId: number;
+  currentStock: string;
   quantity: string;
   note: string;
 }
@@ -21,7 +22,7 @@ interface AdHocShortageModalProps {
   onSubmit: (values: AdHocShortageValues) => void;
 }
 
-const EMPTY_VALUES: AdHocShortageValues = { storeInventoryItemId: 0, quantity: '', note: '' };
+const EMPTY_VALUES: AdHocShortageValues = { storeInventoryItemId: 0, currentStock: '', quantity: '', note: '' };
 
 function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false, onClose, onSubmit }: AdHocShortageModalProps) {
   const [values, setValues] = useState<AdHocShortageValues>(EMPTY_VALUES);
@@ -34,12 +35,15 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
     }
   }, [isOpen]);
 
-  const selectedUnit = items.find((item) => item.storeInventoryItemId === values.storeInventoryItemId)?.unitOfMeasurement;
+  const selectedItem = items.find((item) => item.storeInventoryItemId === values.storeInventoryItemId);
+  const selectedUnit = selectedItem?.unitOfMeasurement;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const nextErrors: typeof errors = {};
     if (!values.storeInventoryItemId) nextErrors.storeInventoryItemId = 'Item is required';
+    const current = parseQty(values.currentStock, selectedUnit);
+    if (current === null || current < 0) nextErrors.currentStock = `Enter ${qtyRuleHint(selectedUnit)} (0 or more)`;
     const qty = parseQty(values.quantity, selectedUnit);
     if (qty === null || qty <= 0) nextErrors.quantity = `Enter ${qtyRuleHint(selectedUnit)} greater than 0`;
     if (Object.keys(nextErrors).length > 0) {
@@ -60,7 +64,7 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
       onClose={onClose}
       centered
       title="Report a Shortage"
-      subtitle="Add an item to the order list outside your scheduled stock check."
+      subtitle="Running low mid-day? Enter what is left now and what you need. Usage so far is recorded and the item goes to the order list."
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
@@ -80,6 +84,24 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
             value={values.storeInventoryItemId ? String(values.storeInventoryItemId) : ''}
             onChange={(value) => setValues((current) => ({ ...current, storeInventoryItemId: Number(value) }))}
             ariaLabel="Item"
+          />
+        </FormField>
+        <FormField
+          label={selectedItem?.currentStock != null ? `Current Stock (expected ${selectedItem.currentStock} ${selectedUnit})` : 'Current Stock'}
+          htmlFor="ad-hoc-current"
+          error={errors.currentStock}
+        >
+          <input
+            id="ad-hoc-current"
+            type="text"
+            inputMode={isWholeNumberUnit(selectedUnit) ? 'numeric' : 'decimal'}
+            className="input"
+            value={values.currentStock}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (!isQtyInputAllowed(next, selectedUnit)) return;
+              setValues((current) => ({ ...current, currentStock: next }));
+            }}
           />
         </FormField>
         <FormField label="Quantity Needed" htmlFor="ad-hoc-quantity" error={errors.quantity}>

@@ -4,10 +4,12 @@ import static com.nforce.retailops.TestDecimals.bd;
 
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
+import com.nforce.retailops.entity.StockCheckReceipt;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.repository.StockCheckCorrectionRepository;
+import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,10 +19,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,6 +41,7 @@ class StockReceiptServiceTest {
 
     @Mock private StockCheckRepository stockCheckRepository;
     @Mock private StockCheckCorrectionRepository stockCheckCorrectionRepository;
+    @Mock private StockCheckReceiptRepository stockCheckReceiptRepository;
 
     @InjectMocks
     private StockReceiptService stockReceiptService;
@@ -163,6 +168,47 @@ class StockReceiptServiceTest {
         assertThat(result.requiredToday()).isEqualByComparingTo(bd(10));
         verify(stockCheckRepository, never()).save(any());
         verify(stockCheckCorrectionRepository, never()).save(any());
+    }
+
+    @Test
+    void addsTheDeliveryOnTopOfTheLatestCountWhenThereIsNoRowForToday() {
+        StoreInventoryItem item = item("10");
+        User user = new User();
+        StockCheck yesterday = check(item, user);
+        yesterday.setCheckDate(LocalDate.now().minusDays(1));
+        yesterday.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(4), bd(0), user, OffsetDateTime.now(), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now())).thenReturn(Optional.empty());
+        when(stockCheckRepository.findRecentForItem(any(), any(Pageable.class))).thenReturn(List.of(yesterday));
+
+        StockReceiptService.Result result = stockReceiptService.applyReceipt(item, bd(6), user, null);
+
+        assertThat(result.stockUpdated()).isTrue();
+        assertThat(result.currentStock()).isEqualByComparingTo(bd(10));
+        assertThat(result.reorderQuantity()).isEqualByComparingTo(bd(0));
+        ArgumentCaptor<StockCheckReceipt> captor = ArgumentCaptor.forClass(StockCheckReceipt.class);
+        verify(stockCheckReceiptRepository).save(captor.capture());
+        assertThat(captor.getValue().getStockCheck()).isNull();
+        assertThat(captor.getValue().getQuantity()).isEqualByComparingTo(bd(6));
+        assertThat(captor.getValue().getCountAfter()).isEqualByComparingTo(bd(10));
+        verify(stockCheckRepository, never()).save(any());
+    }
+
+    @Test
+    void recordsWhoReceivedTheDeliveryAgainstTodaysRow() {
+        StoreInventoryItem item = item("10");
+        User user = new User();
+        StockCheck check = check(item, user);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(8), bd(0), user, OffsetDateTime.now(), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now())).thenReturn(Optional.of(check));
+        when(stockCheckRepository.save(any(StockCheck.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        stockReceiptService.applyReceipt(item, bd(6), user, null);
+
+        ArgumentCaptor<StockCheckReceipt> captor = ArgumentCaptor.forClass(StockCheckReceipt.class);
+        verify(stockCheckReceiptRepository).save(captor.capture());
+        assertThat(captor.getValue().getStockCheck()).isSameAs(check);
+        assertThat(captor.getValue().getCountAfter()).isEqualByComparingTo(bd(14));
+        assertThat(captor.getValue().getReceivedByUser()).isSameAs(user);
     }
 
     @Test

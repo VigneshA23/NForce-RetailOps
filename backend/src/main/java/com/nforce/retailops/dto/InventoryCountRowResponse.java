@@ -24,6 +24,8 @@ public record InventoryCountRowResponse(
     InventoryCountStatus status,
     OffsetDateTime lastUpdatedAt,
     String lastUpdatedByName,
+    // How the last update was made (count or delivery); null when never counted.
+    InventoryCountSource lastUpdatedSource,
     // Change vs. the previous count on record; null when there's no earlier
     // count to compare against.
     BigDecimal change,

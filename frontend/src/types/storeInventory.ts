@@ -111,6 +111,7 @@ export interface InventoryCountRow {
   status: InventoryCountStatus;
   lastUpdatedAt: string | null;
   lastUpdatedByName: string | null;
+  lastUpdatedSource: InventoryCountSource | null;
   change: number | null;
   changeFromDate: string | null;
   latestCheckId: number | null;
@@ -135,10 +136,15 @@ export interface InventoryCountsPage {
   staleCount: number;
 }
 
+// How an entry was made: a Start of Day or End of Day count, or a delivery.
+export type InventoryCountSource = 'START_OF_DAY' | 'END_OF_DAY' | 'STOCK_RECEIVED';
+
+// One entry in the history timeline; count is the usable stock after it.
 export interface InventoryCountHistoryEntry {
   checkDate: string;
   count: number;
   delta: number | null;
-  updatedByName: string;
+  updatedByName: string | null;
   updatedAt: string;
+  source: InventoryCountSource;
 }

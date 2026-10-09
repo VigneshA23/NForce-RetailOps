@@ -6,22 +6,26 @@ import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
 import com.nforce.retailops.dto.InventoryCountRowResponse;
 import com.nforce.retailops.dto.InventoryCountStatus;
 import com.nforce.retailops.dto.InventoryCountsPageResponse;
+import com.nforce.retailops.dto.InventoryCountSource;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
+import com.nforce.retailops.entity.StockCheckReceipt;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.dto.AdHocShortageRequest;
 import com.nforce.retailops.exception.InvalidStockCheckException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StockCheckCorrectionRepository;
+import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -70,6 +74,7 @@ class StockCheckServiceTest {
     @Mock private StoreInventoryItemRepository storeInventoryItemRepository;
     @Mock private StockCheckRepository stockCheckRepository;
     @Mock private StockCheckCorrectionRepository stockCheckCorrectionRepository;
+    @Mock private StockCheckReceiptRepository stockCheckReceiptRepository;
     @Mock private UserRepository userRepository;
     @Mock private StoreOwnerRepository storeOwnerRepository;
     @Mock private OrderListService orderListService;
@@ -196,6 +201,71 @@ class StockCheckServiceTest {
         assertThat(audit.getOriginalDeadStock()).isEqualByComparingTo(bd(2));
         assertThat(audit.getCorrectedCount()).isEqualByComparingTo(bd(48));
         assertThat(audit.getCorrectedByUser()).isEqualTo(employee);
+    }
+
+    private StockCheck checkWithStartOfDay(int available, int dead) {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(available), bd(dead), employee, OffsetDateTime.now().minusHours(6), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        return check;
+    }
+
+    @Test
+    void midDayShortageBanksUsageSoFarAndRaisesTheOrder() {
+        StockCheck check = checkWithStartOfDay(50, 2);
+
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), bd(15), "rush"));
+
+        // Start usable 48, 20 left now -> 28 used so far; the count follows.
+        assertThat(check.midDayUsage()).isEqualByComparingTo(bd(28));
+        assertThat(check.getCurrentCount()).isEqualByComparingTo(bd(20));
+        verify(orderListService).upsertShortage(eq(store), eq(milk), eq(bd(15)), eq("rush"), eq(true), eq(employee), any());
+    }
+
+    @Test
+    void endOfDayAddsUsageSinceTheMidDayReportToTheBankedUsage() {
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
+        StockCheck check = checkWithStartOfDay(50, 2);
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), bd(15), null));
+
+        // 15 of the 20 were sold after the report, none delivered.
+        StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 5, 0));
+
+        assertThat(response.stockUsed()).isEqualByComparingTo(bd(43));
+    }
+
+    @Test
+    void deliveryAfterTheMidDayReportIsExcludedFromUsageOnce() {
+        StockCheck check = checkWithStartOfDay(50, 0);
+        check.addReceived(bd(10));
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(30), bd(5), null));
+        // Expected 60 at the report, 30 left -> 30 used so far.
+        assertThat(check.midDayUsage()).isEqualByComparingTo(bd(30));
+
+        check.addReceived(bd(12));
+        assertThat(check.getCurrentCount()).isEqualByComparingTo(bd(42));
+
+        StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 40, 0));
+
+        // 30 banked + (30 + 12 delivered - 40) = 32 in total, same as 50 + 22 - 40.
+        assertThat(response.stockUsed()).isEqualByComparingTo(bd(32));
+    }
+
+    @Test
+    void midDayShortageNeedsStartOfDayAndIsClosedOnceEndOfDayIsSaved() {
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now())).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> stockCheckService.reportAdHocShortage(
+            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), bd(5), null)))
+            .isInstanceOf(com.nforce.retailops.exception.InventoryItemNotAssignedException.class);
+
+        StockCheck check = checkWithStartOfDay(50, 0);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now(), false);
+        assertThatThrownBy(() -> stockCheckService.reportAdHocShortage(
+            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), bd(5), null)))
+            .isInstanceOf(InvalidStockCheckException.class);
+        verify(orderListService, never()).upsertShortage(any(), any(), any(), any(), anyBoolean(), any(), any());
     }
 
     @Test
@@ -447,13 +517,53 @@ class StockCheckServiceTest {
     }
 
     @Test
-    void startOfDayNeverTouchesTheOrderList() {
-        milk.setMinWeekday(bd(20));
-        milk.setMinWeekend(bd(20));
+    void startOfDayBelowTodaysMinimumAddsTheItemToTheOrderList() {
+        milk.setMinWeekday(bd(8));
+        milk.setMinWeekend(bd(8));
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.empty());
 
-        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 5, 0));
+        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 7, 0));
+
+        verify(orderListService).raiseShortageIfNoneActive(eq(store), eq(milk), eq(bd(1)), eq(employee), isNull());
+        verify(orderListService, never()).resolveShortageIfPresent(any(), any());
+    }
+
+    @Test
+    void startOfDayAtOrAboveTodaysMinimumLeavesTheOrderListAlone() {
+        milk.setMinWeekday(bd(8));
+        milk.setMinWeekend(bd(8));
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.empty());
+
+        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 8, 0));
+
+        verifyNoInteractions(orderListService);
+    }
+
+    @Test
+    void startOfDayDoesNotRaiseAnOrderWhenAutoPoIsOff() {
+        milk.setMinWeekday(bd(8));
+        milk.setMinWeekend(bd(8));
+        milk.setAutoPoEnabled(false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.empty());
+
+        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 2, 0));
+
+        verifyNoInteractions(orderListService);
+    }
+
+    @Test
+    void correctingAPastStartOfDayDoesNotRaiseAnOrder() {
+        milk.setMinWeekday(bd(20));
+        milk.setMinWeekend(bd(20));
+        StockCheck check = existingCheck(LocalDate.now().minusDays(3));
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(25), bd(0), employee, OffsetDateTime.now().minusDays(3), false);
+        when(stockCheckRepository.findByIdAndStoreId(CHECK_ID, STORE_ID)).thenReturn(Optional.of(check));
+
+        stockCheckService.correctCheck(OWNER_ID, CHECK_ID,
+            new StockCheckCorrectionRequest(StockCheckSnapshot.START_OF_DAY, bd(5), bd(0), "Recounted"));
 
         verifyNoInteractions(orderListService);
     }
@@ -735,6 +845,66 @@ class StockCheckServiceTest {
         assertThat(history.get(0).delta()).isEqualByComparingTo(bd(6));
         assertThat(history.get(1).delta()).isEqualByComparingTo(bd(4));
         assertThat(history.get(2).delta()).isNull();
+    }
+
+    @Test
+    void countHistoryShowsDeliveriesAndHowEachEntryWasMade() {
+        OffsetDateTime morning = OffsetDateTime.now().minusHours(10);
+        StockCheck check = checkWithCount(milk, LocalDate.now(), 20, 0);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(20), bd(0), employee, morning, false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), employee, morning.plusHours(9), false);
+
+        User owner = user(OWNER_ID, "Olivia");
+        StockCheckReceipt receipt = new StockCheckReceipt();
+        receipt.setStoreInventoryItem(milk);
+        receipt.setQuantity(bd(6));
+        receipt.setCountAfter(bd(26));
+        receipt.setReceivedByUser(owner);
+        receipt.setReceivedAt(morning.plusHours(3));
+
+        when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
+        when(stockCheckRepository.findRecentForItem(eq(ITEM_ID), any(Pageable.class))).thenReturn(List.of(check));
+        when(stockCheckReceiptRepository.findRecentForItem(eq(ITEM_ID), any(Pageable.class))).thenReturn(List.of(receipt));
+
+        List<InventoryCountHistoryEntryResponse> history = stockCheckService.getCountHistory(OWNER_ID, ITEM_ID);
+
+        assertThat(history).extracting(InventoryCountHistoryEntryResponse::source)
+            .containsExactly(InventoryCountSource.END_OF_DAY, InventoryCountSource.STOCK_RECEIVED, InventoryCountSource.START_OF_DAY);
+        assertThat(history).extracting(InventoryCountHistoryEntryResponse::updatedByName)
+            .containsExactly("Sarah", "Olivia", "Sarah");
+        // 26 after the delivery, down to 10 at close: 16 used; +6 from the delivery.
+        assertThat(history.get(0).delta()).isEqualByComparingTo(bd(-16));
+        assertThat(history.get(1).delta()).isEqualByComparingTo(bd(6));
+        assertThat(history.get(2).delta()).isNull();
+    }
+
+    @Test
+    void inventoryCountsAddsDeliveriesThatWereNotAppliedToAnyRowAndNamesTheReceiver() {
+        milk.setMinWeekday(bd(10));
+        milk.setMinWeekend(bd(10));
+        StockCheck yesterday = checkWithCount(milk, LocalDate.now().minusDays(1), 4, 0);
+        ReflectionTestUtils.setField(yesterday, "createdAt", OffsetDateTime.now().minusDays(1));
+        yesterday.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(4), bd(0), employee, OffsetDateTime.now().minusDays(1), false);
+
+        User owner = user(OWNER_ID, "Olivia");
+        StockCheckReceipt receipt = new StockCheckReceipt();
+        receipt.setStoreInventoryItem(milk);
+        receipt.setQuantity(bd(6));
+        receipt.setCountAfter(bd(10));
+        receipt.setReceivedByUser(owner);
+        receipt.setReceivedAt(OffsetDateTime.now().minusHours(1));
+
+        when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of(yesterday));
+        when(stockCheckRepository.findRecentForItem(any(), any(Pageable.class))).thenReturn(List.of(yesterday));
+        when(stockCheckReceiptRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of(receipt));
+        when(stockCheckReceiptRepository.findUnappliedForStore(STORE_ID)).thenReturn(List.of(receipt));
+
+        InventoryCountRowResponse row = stockCheckService.listInventoryCounts(OWNER_ID, null, null, null, null, null).rows().get(0);
+
+        assertThat(row.currentStock()).isEqualByComparingTo(bd(10));
+        assertThat(row.lastUpdatedByName()).isEqualTo("Olivia");
+        assertThat(row.lastUpdatedSource()).isEqualTo(InventoryCountSource.STOCK_RECEIVED);
     }
 
     @Test

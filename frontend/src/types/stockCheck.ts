@@ -94,6 +94,9 @@ export interface StoreInventoryItemOption {
   itemName: string;
   unitOfMeasurement: string;
   active: boolean;
+  // Employee Report Shortage picker only: the usable stock the app currently
+  // expects, shown as a hint beside the current-stock field.
+  currentStock?: number | null;
 }
 
 // One item on the employee's daily Stock Check screen.
@@ -106,6 +109,8 @@ export interface DailyStockCheckItem {
   startOfDay: StockSnapshot | null;
   endOfDay: StockSnapshot | null;
   quantityReceived?: number;
+  // Usable stock now (latest count + deliveries since); null before Start of Day.
+  currentStock?: number | null;
   stockUsed: number | null;
   quantityToOrder: number | null;
   imageId: number | null;

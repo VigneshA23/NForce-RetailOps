@@ -15,6 +15,9 @@ public record DailyStockCheckItemResponse(
     StockSnapshotResponse startOfDay,
     StockSnapshotResponse endOfDay,
     BigDecimal quantityReceived,
+    // Usable stock now: the latest count (End of Day, else the last mid-day
+    // report, else Start of Day) plus deliveries since; null before Start of Day.
+    BigDecimal currentStock,
     BigDecimal stockUsed,
     BigDecimal quantityToOrder,
     Long imageId

@@ -5,6 +5,7 @@ import com.nforce.retailops.dto.DailyStockCheckItemResponse;
 import com.nforce.retailops.dto.EodSupplierReportResponse;
 import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
 import com.nforce.retailops.dto.InventoryCountRowResponse;
+import com.nforce.retailops.dto.InventoryCountSource;
 import com.nforce.retailops.dto.InventoryCountStatus;
 import com.nforce.retailops.dto.InventoryCountsPageResponse;
 import com.nforce.retailops.dto.OrderListEntryResponse;
@@ -17,6 +18,7 @@ import com.nforce.retailops.dto.StockSnapshotResponse;
 import com.nforce.retailops.dto.StoreInventoryItemOptionResponse;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
+import com.nforce.retailops.entity.StockCheckReceipt;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
@@ -32,6 +34,7 @@ import com.nforce.retailops.exception.InventoryItemNotAssignedException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StockCheckCorrectionRepository;
+import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -47,6 +50,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -82,8 +86,8 @@ public class StockCheckService {
     private static final int MAX_DATE_RANGE_DAYS_ALL_STORES = 31;
 
     // Inventory Counts row's expandable count-history timeline: how many of
-    // an item's most recent StockCheck rows to show.
-    private static final int MAX_HISTORY_ENTRIES = 15;
+    // an item's most recent counts and deliveries to show.
+    private static final int MAX_HISTORY_ENTRIES = 30;
 
     static final String NO_SUPPLIER = "No Supplier";
 
@@ -96,6 +100,7 @@ public class StockCheckService {
     private final OrderListService orderListService;
     private final UserProfileService userProfileService;
     private final NotificationService notificationService;
+    private final StockCheckReceiptRepository stockCheckReceiptRepository;
 
     public StockCheckService(
         StoreInventoryItemRepository storeInventoryItemRepository,
@@ -106,7 +111,8 @@ public class StockCheckService {
         StoreRepository storeRepository,
         OrderListService orderListService,
         UserProfileService userProfileService,
-        NotificationService notificationService
+        NotificationService notificationService,
+        StockCheckReceiptRepository stockCheckReceiptRepository
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.stockCheckRepository = stockCheckRepository;
@@ -117,6 +123,7 @@ public class StockCheckService {
         this.orderListService = orderListService;
         this.userProfileService = userProfileService;
         this.notificationService = notificationService;
+        this.stockCheckReceiptRepository = stockCheckReceiptRepository;
     }
 
     // ---- Employee: today's checklist --------------------------------------
@@ -140,6 +147,7 @@ public class StockCheckService {
                     StockSnapshotResponse.from(check, StockCheckSnapshot.START_OF_DAY),
                     StockSnapshotResponse.from(check, StockCheckSnapshot.END_OF_DAY),
                     check != null ? check.getQuantityReceived() : BigDecimal.ZERO,
+                    check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY) ? check.getCurrentCount() : null,
                     check != null ? check.stockUsed() : null,
                     quantityToOrder(check),
                     item.getImageId()
@@ -226,15 +234,25 @@ public class StockCheckService {
 
         // A shortage can only be reported against an item whose Start of Day
         // count has been saved today.
-        boolean startOfDayDone = stockCheckRepository
+        StockCheck check = stockCheckRepository
             .findByStoreInventoryItemIdAndCheckDate(storeItem.getId(), LocalDate.now())
-            .map(check -> check.getStartOfDayAvailable() != null)
-            .orElse(false);
-        if (!startOfDayDone) {
-            throw new InventoryItemNotAssignedException("Submit today's Start of Day stock check for this item before reporting a shortage");
+            .filter(c -> c.getStartOfDayAvailable() != null)
+            .orElseThrow(() -> new InventoryItemNotAssignedException(
+                "Submit today's Start of Day stock check for this item before reporting a shortage"));
+
+        // End of Day is the final count and already settles usage and the
+        // order, so a mid-day figure after it would only muddle both.
+        if (check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
+            throw new InvalidStockCheckException(
+                "End of Day is already saved for this item. Edit the End of Day count instead");
         }
 
         User employee = userRepository.getReferenceById(employeeUserId);
+
+        // Bank the usage so far; the current count follows the figure given.
+        check.recordMidDayCount(request.currentStock(), employee);
+        stockCheckRepository.save(check);
+
         orderListService.upsertShortage(
             storeItem.getStore(), storeItem, request.quantity(),
             request.note(), true, employee, storeItem.getPreferredSupplier()
@@ -536,8 +554,15 @@ public class StockCheckService {
         Map<Long, StockCheck> latestByItemId = stockCheckRepository.findLatestPerItemForStore(storeId).stream()
             .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), Function.identity()));
 
+        Map<Long, StockCheckReceipt> latestReceiptByItemId = stockCheckReceiptRepository.findLatestPerItemForStore(storeId).stream()
+            .collect(Collectors.toMap(r -> r.getStoreInventoryItem().getId(), Function.identity(), (a, b) -> a));
+        Map<Long, List<StockCheckReceipt>> unappliedByItemId = stockCheckReceiptRepository.findUnappliedForStore(storeId).stream()
+            .collect(Collectors.groupingBy(r -> r.getStoreInventoryItem().getId()));
+
         List<InventoryCountRowResponse> allRows = items.stream()
-            .map(item -> toCountRow(item, latestByItemId.get(item.getId()), today))
+            .map(item -> toCountRow(
+                item, latestByItemId.get(item.getId()), latestReceiptByItemId.get(item.getId()),
+                unappliedByItemId.getOrDefault(item.getId(), List.of()), today))
             .toList();
 
         long allCount = allRows.size();
@@ -576,13 +601,16 @@ public class StockCheckService {
         };
     }
 
-    private InventoryCountRowResponse toCountRow(StoreInventoryItem item, StockCheck latest, LocalDate today) {
+    private InventoryCountRowResponse toCountRow(
+        StoreInventoryItem item, StockCheck latest, StockCheckReceipt latestReceipt,
+        List<StockCheckReceipt> unappliedReceipts, LocalDate today
+    ) {
         BigDecimal minimum = item.requiredMinimumOn(today);
 
         if (latest == null) {
             return new InventoryCountRowResponse(
                 item.getId(), item.getName(), item.getCategory(), item.getUnitOfMeasurement(),
-                null, minimum, InventoryCountStatus.STALE, null, null, null, null, null, null, null, null,
+                null, minimum, InventoryCountStatus.STALE, null, null, null, null, null, null, null, null, null,
                 item.getImageId()
             );
         }
@@ -590,7 +618,9 @@ public class StockCheckService {
         StockCheckSnapshot latestSnapshot = latest.hasSnapshot(StockCheckSnapshot.END_OF_DAY)
             ? StockCheckSnapshot.END_OF_DAY
             : StockCheckSnapshot.START_OF_DAY;
-        BigDecimal currentStock = latest.getCurrentCount();
+        // The latest count, plus deliveries that arrived after it and were not
+        // added to any row (no row existed that day).
+        BigDecimal currentStock = latest.getCurrentCount().add(StockCheckReceipt.pendingTotal(unappliedReceipts, latest));
 
         InventoryCountStatus status = InventoryCountStatusCalculator.calculate(latest, today, minimum);
 
@@ -603,9 +633,18 @@ public class StockCheckService {
             changeFromDate = previous.getCheckDate();
         }
 
+        // Last update: the most recent count, unless a delivery came after it.
+        CountEvent lastUpdate = countEvents(latest).stream().max(EVENT_ORDER).orElse(null);
+        if (latestReceipt != null && (lastUpdate == null || latestReceipt.getReceivedAt().isAfter(lastUpdate.at()))) {
+            lastUpdate = receiptEvent(latestReceipt);
+        }
+        OffsetDateTime lastUpdatedAt = lastUpdate != null ? lastUpdate.at() : latest.getUpdatedAt();
+        String lastUpdatedBy = lastUpdate != null && lastUpdate.by() != null ? lastUpdate.by() : latest.getCheckedBy().getFullName();
+        InventoryCountSource lastUpdatedSource = lastUpdate != null ? lastUpdate.source() : InventoryCountSource.valueOf(latestSnapshot.name());
+
         return new InventoryCountRowResponse(
             item.getId(), item.getName(), item.getCategory(), item.getUnitOfMeasurement(),
-            currentStock, minimum, status, latest.getUpdatedAt(), latest.getCheckedBy().getFullName(),
+            currentStock, minimum, status, lastUpdatedAt, lastUpdatedBy, lastUpdatedSource,
             change, changeFromDate,
             latest.getId(), latestSnapshot, latest.availableFor(latestSnapshot), latest.deadStockFor(latestSnapshot),
             item.getImageId()
@@ -626,20 +665,72 @@ public class StockCheckService {
         return countHistoryForStore(storeId, itemId);
     }
 
+    // One entry per Start of Day count, End of Day count and delivery, merged
+    // by time. Each shows who made it and how (source); the change is against
+    // the entry before it.
     private List<InventoryCountHistoryEntryResponse> countHistoryForStore(Long storeId, Long itemId) {
         StoreInventoryItem item = storeInventoryItemRepository.findByIdAndStoreId(itemId, storeId)
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
 
-        List<StockCheck> recent = stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, MAX_HISTORY_ENTRIES));
+        List<CountEvent> events = new ArrayList<>();
+        for (StockCheck check : stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, MAX_HISTORY_ENTRIES))) {
+            events.addAll(countEvents(check));
+        }
+        for (StockCheckReceipt receipt : stockCheckReceiptRepository.findRecentForItem(item.getId(), PageRequest.of(0, MAX_HISTORY_ENTRIES))) {
+            events.add(receiptEvent(receipt));
+        }
+        events.sort(EVENT_ORDER.reversed());
+
         List<InventoryCountHistoryEntryResponse> entries = new ArrayList<>();
-        for (int i = 0; i < recent.size(); i++) {
-            StockCheck check = recent.get(i);
-            BigDecimal delta = i + 1 < recent.size() ? check.getCurrentCount().subtract(recent.get(i + 1).getCurrentCount()) : null;
+        for (int i = 0; i < events.size() && entries.size() < MAX_HISTORY_ENTRIES; i++) {
+            CountEvent event = events.get(i);
+            BigDecimal delta = i + 1 < events.size() ? event.count().subtract(events.get(i + 1).count()) : null;
             entries.add(new InventoryCountHistoryEntryResponse(
-                check.getCheckDate(), check.getCurrentCount(), delta, check.getCheckedBy().getFullName(), check.getUpdatedAt()
+                event.date(), event.count(), delta, event.by(), event.at(), event.source()
             ));
         }
         return entries;
+    }
+
+    private record CountEvent(LocalDate date, BigDecimal count, String by, OffsetDateTime at, InventoryCountSource source) {
+    }
+
+    // Oldest first; entries made at the same instant keep the enum order
+    // (Start of Day, End of Day, then delivery).
+    private static final Comparator<CountEvent> EVENT_ORDER = Comparator
+        .comparing(CountEvent::at)
+        .thenComparing(CountEvent::source);
+
+    // The Start of Day and End of Day counts a row holds, each credited to whoever
+    // last saved it (falling back to who first entered it, then the row's last
+    // saver) and timed at that save.
+    private static List<CountEvent> countEvents(StockCheck check) {
+        List<CountEvent> events = new ArrayList<>(2);
+        if (check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)) {
+            events.add(snapshotEvent(check, InventoryCountSource.START_OF_DAY, check.usableFor(StockCheckSnapshot.START_OF_DAY),
+                check.getStartOfDayCheckedBy(), check.getStartOfDayEnteredBy(), check.getStartOfDayCheckedAt()));
+        }
+        if (check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
+            events.add(snapshotEvent(check, InventoryCountSource.END_OF_DAY, check.usableFor(StockCheckSnapshot.END_OF_DAY),
+                check.getEndOfDayCheckedBy(), check.getEndOfDayEnteredBy(), check.getEndOfDayCheckedAt()));
+        }
+        return events;
+    }
+
+    private static CountEvent snapshotEvent(
+        StockCheck check, InventoryCountSource source, BigDecimal usable, User checkedBy, User enteredBy, OffsetDateTime checkedAt
+    ) {
+        User by = checkedBy != null ? checkedBy : enteredBy != null ? enteredBy : check.getCheckedBy();
+        OffsetDateTime at = checkedAt != null ? checkedAt
+            : check.getUpdatedAt() != null ? check.getUpdatedAt()
+            : check.getCheckDate().atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
+        return new CountEvent(check.getCheckDate(), usable, by == null ? null : by.getFullName(), at, source);
+    }
+
+    private static CountEvent receiptEvent(StockCheckReceipt receipt) {
+        return new CountEvent(
+            receipt.getReceivedAt().atZoneSameInstant(ZoneId.systemDefault()).toLocalDate(),
+            receipt.getCountAfter(), receipt.receivedByName(), receipt.getReceivedAt(), InventoryCountSource.STOCK_RECEIVED);
     }
 
     // ---- Shared helpers ------------------------------------------------------
@@ -714,18 +805,21 @@ public class StockCheckService {
         return saved;
     }
 
-    // Only End of Day drives ordering: a shortage against tomorrow's minimum
-    // is pushed to the order list (upserted, so re-saving EOD updates it), and
-    // an EOD that clears the shortage resolves any outstanding order.
+    // End of Day: a shortage against tomorrow's minimum is pushed to the order
+    // list (upserted, so re-saving EOD updates it), and an EOD that clears the
+    // shortage resolves any outstanding order. Start of Day: a count below
+    // today's minimum adds the item if it isn't already on the list (see
+    // syncStartOfDayShortage); it never updates or resolves an entry.
     private void syncOrderList(StockCheck check, StockCheckSnapshot snapshot, User raisedBy) {
-        if (snapshot != StockCheckSnapshot.END_OF_DAY) {
-            return;
-        }
         StoreInventoryItem item = check.getStoreInventoryItem();
         // The item's own "Auto PO Generator" toggle -- off means the owner
-        // reorders this item manually, so an End of Day shortfall never
-        // raises or updates an order list entry for it.
+        // reorders this item manually, so a count never raises or updates an
+        // order list entry for it.
         if (!item.isAutoPoEnabled()) {
+            return;
+        }
+        if (snapshot == StockCheckSnapshot.START_OF_DAY) {
+            syncStartOfDayShortage(check, item, raisedBy);
             return;
         }
         if (check.getQuantityNeeded().signum() <= 0) {
@@ -736,6 +830,19 @@ public class StockCheckService {
             item.getStore(), item, check.getQuantityNeeded(),
             null, false, raisedBy, item.getPreferredSupplier()
         );
+    }
+
+    // Only for today's row and before End of Day: once EOD is saved it settles
+    // the order against tomorrow's minimum, and a past day's count (an Owner
+    // correcting history) must not raise an order now.
+    private void syncStartOfDayShortage(StockCheck check, StoreInventoryItem item, User raisedBy) {
+        if (!check.getCheckDate().equals(LocalDate.now()) || check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
+            return;
+        }
+        BigDecimal shortage = orderQuantity(item.requiredMinimumOn(check.getCheckDate()), check.getCurrentCount());
+        if (shortage.signum() > 0) {
+            orderListService.raiseShortageIfNoneActive(item.getStore(), item, shortage, raisedBy, item.getPreferredSupplier());
+        }
     }
 
     static BigDecimal orderQuantity(BigDecimal requiredTomorrow, BigDecimal endUsable) {

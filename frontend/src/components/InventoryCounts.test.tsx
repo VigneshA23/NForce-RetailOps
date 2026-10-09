@@ -29,6 +29,7 @@ function row(overrides: Partial<InventoryCountRow>): InventoryCountRow {
     status: 'HEALTHY',
     lastUpdatedAt: '2026-09-24T15:30:00Z',
     lastUpdatedByName: 'Sarah',
+    lastUpdatedSource: 'END_OF_DAY',
     change: 6,
     changeFromDate: '2026-09-23',
     latestCheckId: 42,
@@ -127,8 +128,8 @@ describe('InventoryCounts', () => {
   it('lazily loads and shows the count-history timeline when a row is expanded', async () => {
     const user = userEvent.setup();
     mockGetInventoryCountHistory.mockResolvedValue([
-      { checkDate: '2026-09-24', count: 30, delta: 6, updatedByName: 'Sarah', updatedAt: '2026-09-24T20:00:00Z' },
-      { checkDate: '2026-09-23', count: 24, delta: null, updatedByName: 'Sarah', updatedAt: '2026-09-23T20:00:00Z' },
+      { checkDate: '2026-09-24', count: 30, delta: 6, updatedByName: 'Sarah', updatedAt: '2026-09-24T20:00:00Z', source: 'STOCK_RECEIVED' },
+      { checkDate: '2026-09-23', count: 24, delta: null, updatedByName: 'Sarah', updatedAt: '2026-09-23T08:00:00Z', source: 'START_OF_DAY' },
     ]);
     render(<InventoryCounts />);
     await screen.findByText('Milk');
@@ -138,6 +139,8 @@ describe('InventoryCounts', () => {
 
     const historyTable = await screen.findByText('Updated by');
     expect(within(historyTable.closest('table')!).getByText('+6')).toBeInTheDocument();
+    expect(within(historyTable.closest('table')!).getByText(/Stock received/)).toBeInTheDocument();
+    expect(within(historyTable.closest('table')!).getByText(/Start of day/)).toBeInTheDocument();
     expect(mockGetInventoryCountHistory).toHaveBeenCalledWith(1);
 
     // Collapsing and re-expanding doesn't re-fetch -- it's cached.
