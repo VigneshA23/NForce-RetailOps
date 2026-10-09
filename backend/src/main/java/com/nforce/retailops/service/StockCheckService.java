@@ -762,6 +762,8 @@ public class StockCheckService {
             item.getId(),
             item.getName(),
             item.getUnitOfMeasurement(),
+            item.getCategory(),
+            item.getImageId(),
             check != null ? check.getStartOfDayAvailable() : null,
             check != null ? check.getStartOfDayDeadStock() : null,
             check != null ? check.getEndOfDayAvailable() : null,
