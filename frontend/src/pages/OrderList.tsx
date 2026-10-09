@@ -457,7 +457,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <div className="order-list__item-text">
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
-                {entry.adHoc && <span className="order-list__manual-badge">Manual</span>}
               </div>
               <div className="order-list__item-mobile-meta">{row.mobileMeta}</div>
             </div>
@@ -517,7 +516,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <div className="order-list__item-text">
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
-                {entry.adHoc && <span className="order-list__manual-badge">Manual</span>}
               </div>
               <div className="order-list__item-meta">{row.meta}</div>
             </div>
