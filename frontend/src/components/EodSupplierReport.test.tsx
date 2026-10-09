@@ -137,6 +137,22 @@ describe('EodSupplierReport', () => {
     expect(screen.getByText('Bread')).toBeInTheDocument();
   });
 
+  it('filters rows by supplier, built from the report\'s own groups', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue(report);
+
+    render(<EodSupplierReport />);
+    await screen.findByText('Milk');
+    await user.click(screen.getByRole('button', { name: 'List' }));
+
+    await user.click(screen.getByRole('button', { name: 'Supplier' }));
+    expect(await screen.findByRole('option', { name: 'Supplier A' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'No Supplier' }));
+
+    expect(screen.queryByText('Milk')).not.toBeInTheDocument();
+    expect(screen.getByText('Bread')).toBeInTheDocument();
+  });
+
   it('copies the report, grouped by supplier and dated by the report day, to the clipboard', async () => {
     const user = userEvent.setup();
     mockGetEodSupplierReport.mockResolvedValue(report);

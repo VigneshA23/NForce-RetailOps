@@ -79,6 +79,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [supplierFilter, setSupplierFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | EodReportStatus>('all');
   const [grouped, setGrouped] = useState(true);
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
@@ -135,20 +136,39 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
     [allRows],
   );
 
+  // Built from the report's own groups (already fetched), not a separate
+  // suppliers API call -- same set of suppliers the grouped view's own cards
+  // use, so the two can't drift apart.
+  const supplierFilterOptions = useMemo(() => {
+    const named = (report?.groups ?? [])
+      .filter((g) => g.supplierId != null)
+      .map((g) => ({ value: String(g.supplierId), label: g.supplierName }))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+    const hasUnassigned = (report?.groups ?? []).some((g) => g.supplierId == null);
+    return [
+      { value: 'all', label: 'All suppliers' },
+      ...named,
+      ...(hasUnassigned ? [{ value: 'UNASSIGNED', label: 'No Supplier' }] : []),
+    ];
+  }, [report]);
+
   const filteredRows = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
     return allRows.filter((row) => {
       if (normalizedSearch && !row.item.itemName.toLowerCase().includes(normalizedSearch)) return false;
       if (categoryFilter !== 'all' && row.item.category !== categoryFilter) return false;
+      if (supplierFilter === 'UNASSIGNED' && row.supplierId != null) return false;
+      if (supplierFilter !== 'all' && supplierFilter !== 'UNASSIGNED' && String(row.supplierId) !== supplierFilter) return false;
       if (statusFilter !== 'all' && row.item.status !== statusFilter) return false;
       return true;
     });
-  }, [allRows, search, categoryFilter, statusFilter]);
+  }, [allRows, search, categoryFilter, supplierFilter, statusFilter]);
 
-  const hasActiveFilters = search !== '' || categoryFilter !== 'all' || statusFilter !== 'all';
+  const hasActiveFilters = search !== '' || categoryFilter !== 'all' || supplierFilter !== 'all' || statusFilter !== 'all';
   function clearFilters() {
     setSearch('');
     setCategoryFilter('all');
+    setSupplierFilter('all');
     setStatusFilter('all');
   }
 
@@ -362,6 +382,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
               <div className="order-list__filter-fields">
                 <Select className="order-list__filter-select order-list__filter-select--category" options={categoryFilterOptions} value={categoryFilter} onChange={setCategoryFilter} ariaLabel="Category" />
                 <Select className="order-list__filter-select order-list__filter-select--status" options={STATUS_FILTER_OPTIONS} value={statusFilter} onChange={(v) => setStatusFilter(v as 'all' | EodReportStatus)} ariaLabel="Status" />
+                <Select className="order-list__filter-select order-list__filter-select--supplier" options={supplierFilterOptions} value={supplierFilter} onChange={setSupplierFilter} ariaLabel="Supplier" />
                 <span className="order-list__row-break" aria-hidden="true" />
                 <div
                   className={`order-list__clear-slot${hasActiveFilters ? '' : ' order-list__clear-slot--empty'}`}
