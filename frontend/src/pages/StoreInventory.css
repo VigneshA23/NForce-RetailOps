@@ -97,6 +97,22 @@
   color: var(--color-text-secondary);
 }
 
+/* Mobile-only duplicate of the location line above (desktop keeps it as a
+   subtitle under the name instead) -- lets it sit in its own grid row below
+   Items Count on the stacked card without disturbing desktop's plain table,
+   which has no header for a standalone Location column. */
+.supplier-table__cell-location-mobile {
+  display: none;
+}
+
+/* Items Count cell: desktop shows the bare number; mobile swaps to an
+   icon + "N Items" label instead (shared by Owner/Admin and Super Admin's
+   own Suppliers tables -- Super Admin additionally shows a "Show/Hide
+   Details" toggle next to it, see SuperAdminInventory.css). */
+.supplier-table__items-label {
+  display: none;
+}
+
 /* Mobile only: a rounded segmented control (matching Order Dashboard's own
    pill tabs, OrderDashboard.css) reads better at phone width than underline
    tabs. Desktop keeps the underline tabs untouched. */
@@ -311,5 +327,121 @@
      on the same row. */
   .store-inventory-page__filter-bar .filter:not(.filter--search) {
     flex: 1 1 0;
+  }
+}
+
+/* Suppliers table, mobile: rounded cards matching Super Admin Category's own
+   mobile cards (CategoryTable.css) -- name+status up top, count below,
+   actions bottom-right. Super Admin's own Suppliers table (which has an
+   extra Assigned Store row) extends this grid in SuperAdminInventory.css. */
+@media (--mobile) {
+  /* table.css's generic .table-card mobile rules (stacked card, every cell
+     captioned with its data-label) are equal specificity to a plain
+     .supplier-table-card selector and can win the cascade tie depending on
+     import order -- doubling up the card's own two classes on every
+     override below (.table-card.supplier-table-card, not just
+     .supplier-table-card) guarantees these rules always win instead. */
+  .table-card.supplier-table-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .table-card.supplier-table-card .data-table {
+    background: transparent;
+  }
+
+  .table-card.supplier-table-card .data-table thead {
+    display: none;
+  }
+
+  .table-card.supplier-table-card .data-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'name   status  actions'
+      'count  count   count'
+      'store  store   store';
+    row-gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 14px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .table-card.supplier-table-card .data-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .table-card.supplier-table-card .data-table tbody td {
+    display: block;
+    padding: 0;
+    border-bottom: none;
+  }
+
+  /* No field-name captions on these cards -- icon/value only, matching the
+     reference design exactly (table.css's generic attr(data-label) caption
+     is what the plain .supplier-table-card selector failed to suppress). */
+  .table-card.supplier-table-card .data-table tbody td::before {
+    content: none;
+  }
+
+  /* These need to match (and beat) the blanket "every td becomes a flex row"
+     rule just above on specificity, so each gets the same tbody/td element
+     weight added (.data-table tbody td.supplier-table__cell-X) rather than
+     a bare class selector, which a blanket rule declared earlier would
+     otherwise outrank despite looking more specific by eye. */
+  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-name {
+    grid-area: name;
+  }
+
+  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-count {
+    grid-area: count;
+    display: flex;
+    align-items: center;
+  }
+
+  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-location-mobile {
+    grid-area: store;
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+  }
+
+  .supplier-table__count-value {
+    display: none;
+  }
+
+  .supplier-table__items-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    color: var(--color-badge-icon-success-fg);
+  }
+  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-status {
+    grid-area: status;
+    display: flex;
+    justify-self: end;
+  }
+
+  .table-card.supplier-table-card .data-table tbody td.table-actions-cell {
+    grid-area: actions;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-name {
+    display: flex;
+  }
+
+  /* Square-rounded avatar instead of the circle, matching the Suppliers
+     mobile card reference. */
+  .supplier-table__cell-name .user-avatar {
+    border-radius: 12px;
   }
 }

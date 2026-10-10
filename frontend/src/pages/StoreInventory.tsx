@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Pencil, Plus, Trash2, Truck } from 'lucide-react';
+import { AlertTriangle, CircleCheck, ClipboardCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Pencil, Plus, Trash2, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createStoreInventoryItem,
@@ -197,6 +197,17 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
 
   const activeSupplierCount = useMemo(() => suppliers.filter((s) => s.active).length, [suppliers]);
 
+  // Items Count column: single-store scope here, so just a total per
+  // supplier (no per-store breakdown needed, unlike Super Admin's own).
+  const itemCountBySupplier = useMemo(() => {
+    const counts = new Map<number, number>();
+    for (const item of items) {
+      if (item.preferredSupplierId == null) continue;
+      counts.set(item.preferredSupplierId, (counts.get(item.preferredSupplierId) ?? 0) + 1);
+    }
+    return counts;
+  }, [items]);
+
   // Mirrors Super Admin's own Suppliers filter-bar exactly (RTS-304 parity).
   const [supplierSearch, setSupplierSearch] = useState('');
   const [supplierStatusFilter, setSupplierStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
@@ -286,9 +297,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     [items],
   );
 
-  // Mirrors exactly what the Clear button's onClick resets, so clicking it
-  // when visible always leaves no active filter behind.
-  const hasActiveFilters = search !== '' || categoryFilter !== '' || sort !== 'name';
 
   const filteredItems = items.filter((item) => {
     const term = search.trim().toLowerCase();
@@ -432,12 +440,10 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 onChange={(value) => setSort(value as SortOption)}
                 ariaLabel="Sort items"
               />
-              {hasActiveFilters && (
-                <FilterClearButton
-                  ariaLabel="Clear inventory filters"
-                  onClick={() => { setSearch(''); setCategoryFilter(''); setSort('name'); }}
-                />
-              )}
+              <FilterClearButton
+                ariaLabel="Clear inventory filters"
+                onClick={() => { setSearch(''); setCategoryFilter(''); setSort('name'); }}
+              />
             </div>
 
             <p className="store-inventory-page__catalog-line">
@@ -528,12 +534,13 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               <FilterClearButton onClick={() => { setSupplierSearch(''); setSupplierStatusFilter('ALL'); }} />
             </div>
 
-            <div className="table-card">
+            <div className="table-card supplier-table-card">
               <div className="table-scroll">
                 <table className="data-table">
                   <thead>
                     <tr>
                       <th scope="col">Supplier Name</th>
+                      <th scope="col">Items Count</th>
                       <th scope="col">Status</th>
                       <th scope="col">Actions</th>
                     </tr>
@@ -541,7 +548,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                   <tbody>
                     {visibleSuppliers.map((supplier) => (
                       <tr key={supplier.id}>
-                        <td data-label="Supplier Name">
+                        <td className="supplier-table__cell-name" data-label="Supplier Name">
                           <div className="store-inventory-page__supplier-name-cell">
                             <UserAvatar initials={supplier.name.charAt(0).toUpperCase()} size={28} />
                             <div>
@@ -552,7 +559,17 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                             </div>
                           </div>
                         </td>
-                        <td data-label="Status">
+                        <td className="supplier-table__cell-count" data-label="Items Count">
+                          <span className="supplier-table__count-value">{itemCountBySupplier.get(supplier.id) ?? 0}</span>
+                          <span className="supplier-table__items-label">
+                            <ClipboardCheck size={14} />
+                            {itemCountBySupplier.get(supplier.id) ?? 0} Items
+                          </span>
+                        </td>
+                        {supplier.location && (
+                          <td className="supplier-table__cell-location-mobile">{supplier.location}</td>
+                        )}
+                        <td className="supplier-table__cell-status" data-label="Status">
                           <Toggle
                             checked={supplier.active}
                             onChange={(checked) => handleToggleSupplier(supplier, checked)}

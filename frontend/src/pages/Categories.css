@@ -47,37 +47,9 @@
     margin-left: auto;
   }
 
+  /* Mobile filter-bar treatment (stacked, recessed controls) is now the
+     shared default for every .filter-bar -- see styles/filters.css. */
   .categories-page--super-admin .categories-page__header {
     flex-wrap: nowrap;
-  }
-
-  .categories-page--super-admin .filter-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    padding: 0;
-    background: transparent;
-    border: none;
-    border-radius: 0;
-    box-shadow: none;
-  }
-
-  .categories-page--super-admin .search-input--filter,
-  .categories-page--super-admin .filter-bar .select {
-    min-height: 40px;
-    padding: 8px 12px;
-    border-radius: 10px;
-    background: var(--color-surface-card);
-  }
-
-  .categories-page--super-admin .search-input--filter__field {
-    font-size: 13px;
-  }
-
-  .categories-page--super-admin .filter-bar .filter,
-  .categories-page--super-admin .filter-bar .filter--search,
-  .categories-page--super-admin .filter-bar .filter--narrow {
-    flex: 1 1 auto;
-    width: 100%;
   }
 }

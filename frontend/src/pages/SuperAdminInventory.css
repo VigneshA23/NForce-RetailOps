@@ -156,6 +156,15 @@
   padding: 0;
 }
 
+/* Mobile-card-only pieces, hidden by default -- shown inside @media
+   (--mobile) below. Desktop-only pieces are the mirror image: shown by
+   default, hidden there. */
+.supplier-table__mobile-store,
+.supplier-table__details-toggle,
+.supplier-table__mobile-only {
+  display: none;
+}
+
 @media (--mobile) {
   /* Wraps onto its own row (store-inventory-page__subtabs now has
      flex-wrap:wrap -- see StoreInventory.css) below the full-width tab
@@ -173,5 +182,113 @@
 
   .super-admin-inventory-page__assign-row {
     flex-wrap: wrap;
+  }
+
+  /* Card layout matching the Super Admin Category mobile card reference:
+     name top-left, toggle + actions top-right, Items Count/"Show Details"
+     as its own full-width row below, then the Assigned Store row (reusing
+     the same desktop "Assigned Store" cell rather than a separate mobile
+     copy of its text) last. Boosted specificity (both the card's own
+     classes, not just one) so this reliably wins over both table.css's
+     generic stacked-card fallback and the plain Owner/Admin version of
+     this same rule in StoreInventory.css. */
+  .table-card.supplier-table-card .data-table tbody tr {
+    grid-template-columns: 1fr auto auto;
+    grid-template-areas:
+      'name   status  actions'
+      'count  count   count'
+      'store  store   store';
+  }
+
+  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-store {
+    grid-area: store;
+    display: block;
+    margin-top: 4px;
+  }
+
+  /* Desktop's click-to-expand chevron isn't needed once "Show/Hide Details"
+     exists as its own explicit control. */
+  .super-admin-inventory-page__supplier-chevron {
+    display: none;
+  }
+
+  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-count {
+    justify-content: space-between;
+  }
+
+  .supplier-table__details-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    background: transparent;
+    color: var(--color-accent);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .supplier-table__details-chevron--up {
+    transform: rotate(180deg);
+  }
+
+  /* Desktop's own aligned table columns for the breakdown aren't used here --
+     the mobile-only "Store Distribution" panel below replaces them. Boosted
+     specificity (.table-card.supplier-table-card, not just the bare class)
+     so these beat table.css's generic tbody tr/td rules. */
+  .table-card.supplier-table-card .data-table tbody tr.supplier-table__desktop-only {
+    display: none;
+  }
+
+  .table-card.supplier-table-card .data-table tbody tr.supplier-table__mobile-only {
+    display: table-row;
+  }
+
+  .table-card.supplier-table-card .data-table tbody tr.supplier-table__mobile-only td {
+    display: table-cell;
+  }
+
+  .supplier-table__breakdown-panel {
+    background: var(--color-bg-page);
+    border-radius: 12px;
+    padding: 12px;
+  }
+
+  .supplier-table__breakdown-heading {
+    margin: 0 0 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+  }
+
+  .supplier-table__breakdown-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    background: var(--color-surface-card);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+
+  .supplier-table__breakdown-card:last-child {
+    margin-bottom: 0;
+  }
+
+  .supplier-table__breakdown-card-name {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .supplier-table__breakdown-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 }

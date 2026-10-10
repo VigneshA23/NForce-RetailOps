@@ -46,18 +46,19 @@
   font-size: 13px;
 }
 
-@media (--tablet-down) {
-  .filter,
-  .filter--search,
-  .filter--narrow {
-    flex: 1 1 calc(50% - var(--space-sm));
+/* Same single bordered container as desktop/tablet -- on phones the
+   controls just stack full-width inside it instead of sitting in a row,
+   everywhere a .filter-bar is used (not container-per-control). */
+@media (--mobile) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .filter--search {
-    flex-basis: 100%;
+  .filter-bar .filter,
+  .filter-bar .filter--search,
+  .filter-bar .filter--narrow {
+    flex: 1 1 auto;
+    width: 100%;
   }
 }
-
-/* On phones, selects stay at ~50% (two per row) matching the Notifications
-   toolbar pattern. A lone last select stretches to fill its row via flex-grow,
-   which is acceptable and matches the reference design. */

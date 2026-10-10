@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Pencil, Plus, Trash2, Truck } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, CircleCheck, ClipboardCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Pencil, Plus, Trash2, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createInventoryItem,
@@ -61,6 +61,10 @@ const SUPPLIER_STATUS_FILTER_OPTIONS = [
   { value: 'ACTIVE', label: 'Active' },
   { value: 'INACTIVE', label: 'Inactive' },
 ];
+
+// Mobile "Store Distribution" card dots -- purely decorative, cycles by
+// position in the breakdown list.
+const SUPPLIER_BREAKDOWN_DOT_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed'];
 
 type SupplierStatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
@@ -617,7 +621,7 @@ function SuperAdminInventory() {
             <FilterClearButton onClick={() => { setSupplierSearch(''); setSupplierStatusFilter('ALL'); }} />
           </div>
 
-          <div className="table-card">
+          <div className="table-card supplier-table-card">
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
@@ -646,7 +650,7 @@ function SuperAdminInventory() {
                           aria-expanded={isExpanded}
                           onClick={() => toggleSupplierExpanded(supplier.id)}
                         >
-                          <td data-label="Supplier Name">
+                          <td className="supplier-table__cell-name" data-label="Supplier Name">
                             <div className="super-admin-inventory-page__supplier-name-cell">
                               <ChevronDown
                                 size={16}
@@ -661,8 +665,25 @@ function SuperAdminInventory() {
                               </div>
                             </div>
                           </td>
-                          <td data-label="Items Count" className="super-admin-inventory-page__count-cell">{totalItems}</td>
-                          <td data-label="Assigned Store">
+                          <td data-label="Items Count" className="super-admin-inventory-page__count-cell supplier-table__cell-count">
+                            <span className="supplier-table__count-value">{totalItems}</span>
+                            <span className="supplier-table__items-label">
+                              <ClipboardCheck size={14} />
+                              {totalItems} Items
+                            </span>
+                            <button
+                              type="button"
+                              className="supplier-table__details-toggle"
+                              onClick={(event) => { event.stopPropagation(); toggleSupplierExpanded(supplier.id); }}
+                            >
+                              {isExpanded ? 'Hide Details' : 'Show Details'}
+                              <ChevronDown
+                                size={14}
+                                className={isExpanded ? 'supplier-table__details-chevron--up' : undefined}
+                              />
+                            </button>
+                          </td>
+                          <td className="supplier-table__cell-store" data-label="Assigned Store">
                             {supplier.appliesToAllStores ? (
                               <span className="employee-table__store-badge">All Stores</span>
                             ) : (supplier.stores ?? []).length === 0 ? (
@@ -675,7 +696,7 @@ function SuperAdminInventory() {
                               </div>
                             )}
                           </td>
-                          <td data-label="Status" onClick={(event) => event.stopPropagation()}>
+                          <td className="supplier-table__cell-status" data-label="Status" onClick={(event) => event.stopPropagation()}>
                             <Toggle
                               checked={supplier.active}
                               onChange={(checked) => handleToggleSupplier(supplier, checked)}
@@ -713,29 +734,67 @@ function SuperAdminInventory() {
                               </td>
                             </tr>
                           ) : (
-                            storeBreakdown.map((s) => (
-                              <tr key={s.storeId} className="super-admin-inventory-page__breakdown-row">
-                                <td data-label="Store">
-                                  <div className="super-admin-inventory-page__breakdown-store">
-                                    <Package size={14} />
-                                    {s.storeName}
+                            <>
+                              {/* Desktop: real table columns, for exact alignment under the
+                                  Items Count header -- see supplier-table-card CSS for the
+                                  mobile-only card version below. */}
+                              <tr className="supplier-table__breakdown-heading-row supplier-table__desktop-only">
+                                <td colSpan={5}>Store Distribution</td>
+                              </tr>
+                              {storeBreakdown.map((s, i) => (
+                                <tr key={s.storeId} className="super-admin-inventory-page__breakdown-row supplier-table__desktop-only">
+                                  <td data-label="Store">
+                                    <div className="super-admin-inventory-page__breakdown-store">
+                                      <span
+                                        className="supplier-table__breakdown-dot"
+                                        style={{ background: SUPPLIER_BREAKDOWN_DOT_COLORS[i % SUPPLIER_BREAKDOWN_DOT_COLORS.length] }}
+                                      />
+                                      <Package size={14} />
+                                      {s.storeName}
+                                    </div>
+                                  </td>
+                                  <td data-label="Items Count" className="super-admin-inventory-page__count-cell">{s.count}</td>
+                                  <td />
+                                  <td />
+                                  <td className="table-actions-cell">
+                                    <button
+                                      type="button"
+                                      className="super-admin-inventory-page__view-items"
+                                      onClick={() => handleViewStoreItems(s.storeId, supplier.name)}
+                                    >
+                                      View Items
+                                      <ChevronRight size={14} />
+                                    </button>
+                                  </td>
+                                </tr>
+                              ))}
+                              {/* Mobile: one wrapping cell holding a "Store Distribution"
+                                  card panel instead of extra table columns. */}
+                              <tr className="supplier-table__mobile-only">
+                                <td colSpan={5}>
+                                  <div className="supplier-table__breakdown-panel">
+                                    <div className="supplier-table__breakdown-heading">Store Distribution</div>
+                                    {storeBreakdown.map((s, i) => (
+                                      <div key={s.storeId} className="supplier-table__breakdown-card">
+                                        <span
+                                          className="supplier-table__breakdown-dot"
+                                          style={{ background: SUPPLIER_BREAKDOWN_DOT_COLORS[i % SUPPLIER_BREAKDOWN_DOT_COLORS.length] }}
+                                        />
+                                        <span className="supplier-table__breakdown-card-name">{s.storeName}</span>
+                                        <button
+                                          type="button"
+                                          className="super-admin-inventory-page__view-items"
+                                          onClick={() => handleViewStoreItems(s.storeId, supplier.name)}
+                                        >
+                                          View Items
+                                          <ChevronRight size={14} />
+                                        </button>
+                                      </div>
+                                    ))}
                                   </div>
                                 </td>
-                                <td data-label="Items Count" className="super-admin-inventory-page__count-cell">{s.count}</td>
-                                <td />
-                                <td />
-                                <td className="table-actions-cell">
-                                  <button
-                                    type="button"
-                                    className="super-admin-inventory-page__view-items"
-                                    onClick={() => handleViewStoreItems(s.storeId, supplier.name)}
-                                  >
-                                    View Items
-                                    <ChevronRight size={14} />
-                                  </button>
-                                </td>
                               </tr>
-                            ))
+                            </>
                           )
                         )}
                       </Fragment>
