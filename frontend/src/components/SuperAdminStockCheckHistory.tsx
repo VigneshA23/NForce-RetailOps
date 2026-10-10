@@ -301,7 +301,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
       {loadError && <div className="stock-check-history__error">{loadError}</div>}
 
       <div className="filter-bar">
-        <div className="filter filter--narrow">
+        <div className="filter">
           <SearchableSelect
             id="super-admin-stock-check-store"
             options={stores}

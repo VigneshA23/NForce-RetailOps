@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
+import { AlertTriangle, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Pencil, Plus, Trash2, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createStoreInventoryItem,
@@ -8,7 +8,7 @@ import {
   setStoreInventoryItemActive,
   updateStoreInventoryItem,
 } from '../api/storeInventory';
-import { findOrCreateSupplier, getOwnerSuppliers, setOwnerSupplierActive, updateOwnerSupplier } from '../api/suppliers';
+import { findOrCreateSupplier, getOwnerSuppliers, hideOwnerSupplier, setOwnerSupplierActive, updateOwnerSupplier } from '../api/suppliers';
 import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
@@ -21,6 +21,7 @@ import Toggle from '../components/Toggle';
 import SearchInput from '../components/SearchInput';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
+import UserAvatar from '../components/UserAvatar';
 import Select from '../components/Select';
 import FilterClearButton from '../components/FilterClearButton';
 import useDismissablePanel from '../hooks/useDismissablePanel';
@@ -36,6 +37,13 @@ const SUB_TABS: { key: SubTab; label: string; icon: typeof Package }[] = [
   { key: 'items', label: 'Items', icon: Package },
   { key: 'suppliers', label: 'Suppliers', icon: Truck },
   { key: 'history', label: 'History', icon: Clock },
+];
+
+// Mirrors Super Admin Inventory's own Suppliers status-filter options exactly.
+const SUPPLIER_STATUS_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Status' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
 ];
 
 interface StoreInventoryProps {
@@ -167,7 +175,41 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     }
   }
 
+  const [supplierHideTarget, setSupplierHideTarget] = useState<Supplier | null>(null);
+  const [supplierHideError, setSupplierHideError] = useState<string | null>(null);
+
+  async function handleConfirmSupplierHide() {
+    if (!supplierHideTarget) return;
+    setSupplierHideError(null);
+    const target = supplierHideTarget;
+    try {
+      await hideOwnerSupplier(target.id);
+      setSuppliers((current) => current.filter((s) => s.id !== target.id));
+      setSupplierHideTarget(null);
+      nfToast.success(`"${target.name}" removed from this store's suppliers.`);
+    } catch (error) {
+      setSupplierHideTarget(null);
+      const msg = error instanceof Error ? error.message : 'Failed to remove supplier';
+      setSupplierHideError(msg);
+      nfToast.error(msg);
+    }
+  }
+
   const activeSupplierCount = useMemo(() => suppliers.filter((s) => s.active).length, [suppliers]);
+
+  // Mirrors Super Admin's own Suppliers filter-bar exactly (RTS-304 parity).
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [supplierStatusFilter, setSupplierStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+
+  const visibleSuppliers = useMemo(() => {
+    const normalizedSearch = supplierSearch.trim().toLowerCase();
+    return suppliers.filter((supplier) => {
+      if (normalizedSearch && !supplier.name.toLowerCase().includes(normalizedSearch)) return false;
+      if (supplierStatusFilter === 'ACTIVE' && !supplier.active) return false;
+      if (supplierStatusFilter === 'INACTIVE' && supplier.active) return false;
+      return true;
+    });
+  }, [suppliers, supplierSearch, supplierStatusFilter]);
 
   async function handleCreateSubmit(values: StoreInventoryItemFormValues) {
     setItemFormError(null);
@@ -471,6 +513,21 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
             <p className="store-inventory-page__catalog-line">
               {isLoading ? 'Loading...' : `${activeSupplierCount} active of ${suppliers.length} total. New suppliers are added from the item form.`}
             </p>
+
+            <div className="filter-bar">
+              <div className="filter filter--search">
+                <SearchInput value={supplierSearch} onChange={setSupplierSearch} placeholder="Search suppliers" variant="filter" />
+              </div>
+              <Select
+                className="filter filter--narrow"
+                options={SUPPLIER_STATUS_FILTER_OPTIONS}
+                value={supplierStatusFilter}
+                onChange={(value) => setSupplierStatusFilter(value as 'ALL' | 'ACTIVE' | 'INACTIVE')}
+                ariaLabel="Filter by status"
+              />
+              <FilterClearButton onClick={() => { setSupplierSearch(''); setSupplierStatusFilter('ALL'); }} />
+            </div>
+
             <div className="table-card">
               <div className="table-scroll">
                 <table className="data-table">
@@ -482,9 +539,19 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {suppliers.map((supplier) => (
+                    {visibleSuppliers.map((supplier) => (
                       <tr key={supplier.id}>
-                        <td data-label="Supplier Name">{supplier.name}</td>
+                        <td data-label="Supplier Name">
+                          <div className="store-inventory-page__supplier-name-cell">
+                            <UserAvatar initials={supplier.name.charAt(0).toUpperCase()} size={28} />
+                            <div>
+                              <div className="store-inventory-page__supplier-name">{supplier.name}</div>
+                              {supplier.location && (
+                                <div className="store-inventory-page__supplier-location">{supplier.location}</div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
                         <td data-label="Status">
                           <Toggle
                             checked={supplier.active}
@@ -501,7 +568,16 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                               title="Edit"
                               onClick={() => { setSupplierFormError(null); setSupplierEditTarget(supplier); }}
                             >
-                              Edit
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              className="table-icon-btn table-icon-btn--danger"
+                              aria-label={`Remove ${supplier.name} from this store`}
+                              title="Remove from this store"
+                              onClick={() => { setSupplierHideError(null); setSupplierHideTarget(supplier); }}
+                            >
+                              <Trash2 size={16} />
                             </button>
                           </div>
                         </td>
@@ -510,8 +586,10 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                   </tbody>
                 </table>
               </div>
-              {!isLoading && suppliers.length === 0 && (
-                <div className="table-card__empty">No suppliers yet.</div>
+              {!isLoading && visibleSuppliers.length === 0 && (
+                <div className="table-card__empty">
+                  {suppliers.length === 0 ? 'No suppliers yet.' : 'No suppliers match these filters.'}
+                </div>
               )}
             </div>
 
@@ -524,6 +602,19 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               onClose={() => setSupplierEditTarget(null)}
               onSubmit={handleSupplierSubmit}
             />
+
+            <ConfirmDialog
+              isOpen={supplierHideTarget !== null}
+              title="Remove Supplier"
+              message={
+                supplierHideTarget
+                  ? `Remove "${supplierHideTarget.name}" from this store's suppliers and item dropdown? It stays available to every other store and to Super Admin's own supplier directory.`
+                  : ''
+              }
+              onConfirm={handleConfirmSupplierHide}
+              onCancel={() => setSupplierHideTarget(null)}
+            />
+            {supplierHideError && <div className="store-inventory-page__error">{supplierHideError}</div>}
           </>
         )
       )}

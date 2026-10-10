@@ -40,11 +40,13 @@ public class StoreController {
         return ResponseEntity.ok(storeService.listStores(principal.getUser().getId()));
     }
 
-    // Read-only global supplier directory, so an owner can pick a preferred/order
-    // supplier without needing Super Admin's supplier-management access.
+    // Read-only supplier directory, so an owner can pick a preferred/order
+    // supplier without needing Super Admin's supplier-management access --
+    // excludes whatever this owner's own store has hidden (see hideSupplier
+    // below), but otherwise the same global list Super Admin manages.
     @GetMapping("/suppliers")
-    public ResponseEntity<List<SupplierResponse>> listSuppliers() {
-        return ResponseEntity.ok(supplierService.listSuppliers());
+    public ResponseEntity<List<SupplierResponse>> listSuppliers(@AuthenticationPrincipal AppUserDetails principal) {
+        return ResponseEntity.ok(supplierService.listSuppliersForStore(principal.getUser().getId()));
     }
 
     // Inline "Add New Supplier" from the inventory item form, for both roles
@@ -75,6 +77,16 @@ public class StoreController {
     @PatchMapping("/suppliers/{id}/status")
     public ResponseEntity<SupplierResponse> setSupplierStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {
         return ResponseEntity.ok(supplierService.setSupplierActive(id, request.active()));
+    }
+
+    // "Remove from my store" -- hides the supplier from this owner's own
+    // Suppliers tab and preferred-supplier dropdown only. Distinct from
+    // deleteSupplier above, which is global/platform-wide; this never
+    // touches the supplier row or any other store's view of it.
+    @DeleteMapping("/suppliers/{id}/hide")
+    public ResponseEntity<Void> hideSupplier(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
+        supplierService.hideSupplierForStore(principal.getUser().getId(), id);
+        return ResponseEntity.noContent().build();
     }
 
     // Read-only, cross-owner directory for the Super Admin's Stores page.

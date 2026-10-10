@@ -1,7 +1,8 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.StatusRequest;
-import com.nforce.retailops.dto.SupplierRequest;
+import com.nforce.retailops.dto.SupplierDeleteResponse;
+import com.nforce.retailops.dto.SupplierDetailsRequest;
 import com.nforce.retailops.dto.SupplierResponse;
 import com.nforce.retailops.service.SupplierService;
 import jakarta.validation.Valid;
@@ -29,17 +30,22 @@ public class SupplierController {
     }
 
     @PostMapping
-    public ResponseEntity<SupplierResponse> create(@Valid @RequestBody SupplierRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(supplierService.createSupplier(request));
+    public ResponseEntity<SupplierResponse> create(@Valid @RequestBody SupplierDetailsRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(supplierService.createSupplierWithDetails(request));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<SupplierResponse> update(@PathVariable Long id, @Valid @RequestBody SupplierRequest request) {
-        return ResponseEntity.ok(supplierService.updateSupplier(id, request));
+    public ResponseEntity<SupplierResponse> update(@PathVariable Long id, @Valid @RequestBody SupplierDetailsRequest request) {
+        return ResponseEntity.ok(supplierService.updateSupplierWithDetails(id, request));
     }
 
     @PatchMapping("/{id}/status")
     public ResponseEntity<SupplierResponse> setStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {
         return ResponseEntity.ok(supplierService.setSupplierActive(id, request.active()));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<SupplierDeleteResponse> delete(@PathVariable Long id) {
+        return ResponseEntity.ok(supplierService.deleteSupplier(id));
     }
 }

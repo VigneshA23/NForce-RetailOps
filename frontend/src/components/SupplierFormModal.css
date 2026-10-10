@@ -1,0 +1,131 @@
+@import '../styles/breakpoints.css';
+
+/* Add / Edit Supplier form, extended mode only (Super Admin, RTS-304
+   follow-up) -- mirrors CategoryFormModal.css's own rules verbatim so the
+   two forms look alike, scoped to .supplier-form-modal/.supplier-form so
+   Owner/Admin's plain rename-only usage of this modal (no `extended`,
+   neither class applied) keeps its original plain layout. */
+
+.supplier-form-modal .modal__header {
+  padding-top: var(--space-lg);
+  border-bottom: none;
+}
+
+.supplier-form-modal .modal__title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.supplier-form-modal .modal__subtitle {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-muted);
+}
+
+.supplier-form-modal .modal__body {
+  padding-top: var(--space-sm);
+}
+
+.supplier-form .form-field__label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.supplier-form .form-field__required {
+  color: var(--color-accent);
+}
+
+.supplier-form .form-field {
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+/* Leading icon inside the name/location inputs and the stores trigger. */
+.supplier-form__input-wrap {
+  position: relative;
+}
+
+.supplier-form__input-icon {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.supplier-form__input-wrap .input,
+.supplier-form__input-wrap .searchable-select__trigger {
+  min-height: 44px;
+  padding-left: 38px;
+  border-radius: 12px;
+  background: var(--color-bg-page);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.supplier-form__phone-row {
+  display: flex;
+  gap: var(--space-xs);
+}
+
+.supplier-form__country-code {
+  flex: 0 0 40%;
+  max-width: 40%;
+}
+
+.supplier-form__phone-row .input {
+  flex: 1;
+  min-height: 44px;
+  border-radius: 12px;
+  background: var(--color-bg-page);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.supplier-form-modal .modal__footer {
+  gap: 12px;
+}
+
+.supplier-form-modal .supplier-form__cancel,
+.supplier-form-modal .supplier-form__submit {
+  min-height: 46px;
+  border-radius: 14px;
+}
+
+.supplier-form-modal .supplier-form__cancel {
+  min-width: 96px;
+}
+
+.supplier-form-modal .supplier-form__submit {
+  min-width: 180px;
+}
+
+/* Mobile bottom sheet: grab handle above the header, full-width footer --
+   same as CategoryFormModal's own. */
+@media (--mobile) {
+  .supplier-form-modal::before {
+    content: '';
+    align-self: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 4px;
+    margin-top: 10px;
+    border-radius: 999px;
+    background: var(--color-border);
+  }
+
+  .supplier-form-modal .modal__header {
+    padding-top: var(--space-sm);
+  }
+
+  .supplier-form-modal .supplier-form__submit {
+    flex: 1;
+    min-width: 0;
+  }
+}

@@ -5,6 +5,16 @@
   gap: var(--space-lg);
 }
 
+/* .order-dashboard-page__subtabs (OrderDashboard.css, shared with Owner/
+   Admin's own OrderList.tsx) has no padding of its own, so its height is
+   whatever its tallest child needs. Scoped to .super-admin-orders only --
+   matches Super Admin Inventory's own sub-tab bar height exactly (same
+   var(--space-sm) top/bottom padding there). */
+.super-admin-orders .order-dashboard-page__subtabs {
+  padding-top: var(--space-sm);
+  padding-bottom: var(--space-sm);
+}
+
 /* Non-heading section label for the selected store's name, since this page
    has no in-page <h1>/<h2> of its own (the shell already renders the
    "Orders" title, same as Owner/Admin's OrderList.tsx, which has no in-page

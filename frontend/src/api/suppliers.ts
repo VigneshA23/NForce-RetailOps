@@ -1,5 +1,5 @@
 import { apiRequest } from './client';
-import type { Supplier, SupplierFormValues } from '../types/supplier';
+import type { Supplier, SupplierDeleteResponse, SupplierFormValues } from '../types/supplier';
 
 export async function getSuppliers(): Promise<Supplier[]> {
   return apiRequest<Supplier[]>('/super-admin/suppliers');
@@ -30,6 +30,10 @@ export async function setSupplierActive(id: number, active: boolean): Promise<Su
   return apiRequest<Supplier>(`/super-admin/suppliers/${id}/status`, { method: 'PATCH', body: { active } });
 }
 
+export async function deleteSupplier(id: number): Promise<SupplierDeleteResponse> {
+  return apiRequest<SupplierDeleteResponse>(`/super-admin/suppliers/${id}`, { method: 'DELETE' });
+}
+
 // Owner/Admin's Suppliers tab: rename and activate/deactivate through the
 // owner-scoped endpoints (the Super Admin ones above are role-gated).
 export async function updateOwnerSupplier(id: number, values: SupplierFormValues): Promise<Supplier> {
@@ -38,4 +42,11 @@ export async function updateOwnerSupplier(id: number, values: SupplierFormValues
 
 export async function setOwnerSupplierActive(id: number, active: boolean): Promise<Supplier> {
   return apiRequest<Supplier>(`/stores/suppliers/${id}/status`, { method: 'PATCH', body: { active } });
+}
+
+// "Remove from my store" -- hides the supplier from this owner's own
+// Suppliers tab and preferred-supplier dropdown only, without touching the
+// supplier row itself or any other store's view of it.
+export async function hideOwnerSupplier(id: number): Promise<void> {
+  await apiRequest<void>(`/stores/suppliers/${id}/hide`, { method: 'DELETE' });
 }

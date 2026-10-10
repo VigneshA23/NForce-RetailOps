@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, ChevronDown, ChevronRight, CircleCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Pencil, Plus, Trash2, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createInventoryItem,
@@ -9,7 +9,7 @@ import {
   setInventoryItemActive,
   updateInventoryItem,
 } from '../api/inventoryItems';
-import { createSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
+import { createSupplier, deleteSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
 import { getAllStores } from '../api/superAdminStores';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -31,6 +31,7 @@ import FilterClearButton from '../components/FilterClearButton';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
+import UserAvatar from '../components/UserAvatar';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
 import { SORT_OPTIONS, STATUS_SORT_ORDER, type SortOption } from '../utils/storeInventorySort';
@@ -53,10 +54,19 @@ const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
 
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
 
+// Mirrors Super Admin Categories' own status-filter options exactly (RTS-304
+// follow-up) -- same values/labels, just filtering suppliers instead.
+const SUPPLIER_STATUS_FILTER_OPTIONS = [
+  { value: 'ALL', label: 'All Status' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'INACTIVE', label: 'Inactive' },
+];
+
+type SupplierStatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
+
 function SuperAdminInventory() {
   const isMobile = useIsMobile();
   const [subTab, setSubTab] = useState<SubTab>('inventory');
-  const [historyTotal, setHistoryTotal] = useState(0);
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
@@ -312,11 +322,88 @@ function SuperAdminInventory() {
     }
   }
 
+  const [supplierDeleteTarget, setSupplierDeleteTarget] = useState<Supplier | null>(null);
+  const [supplierDeleteError, setSupplierDeleteError] = useState<string | null>(null);
+
+  async function handleConfirmSupplierDelete() {
+    if (!supplierDeleteTarget) return;
+    setSupplierDeleteError(null);
+    const target = supplierDeleteTarget;
+    try {
+      const result = await deleteSupplier(target.id);
+      if (result.deleted) {
+        setSuppliers((current) => current.filter((s) => s.id !== target.id));
+        nfToast.success(`"${target.name}" supplier deleted.`);
+      } else {
+        setSuppliers((current) => current.map((s) => (s.id === target.id ? { ...s, active: false } : s)));
+        nfToast.success(`"${target.name}" has order history, so it was deactivated instead of deleted.`);
+      }
+      setSupplierDeleteTarget(null);
+    } catch (error) {
+      setSupplierDeleteTarget(null);
+      const msg = error instanceof Error ? error.message : 'Failed to delete supplier';
+      setSupplierDeleteError(msg);
+      nfToast.error(msg);
+    }
+  }
+
   const activeSupplierCount = useMemo(() => suppliers.filter((s) => s.active).length, [suppliers]);
 
-  // Mirrors exactly what the Clear button's onClick resets, same convention
-  // as StoreInventory.tsx's own hasActiveFilters.
-  const hasActiveFilters = itemSearch !== '' || categoryFilter !== '' || sort !== 'name';
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [supplierStatusFilter, setSupplierStatusFilter] = useState<SupplierStatusFilter>('ALL');
+
+  const visibleSuppliers = useMemo(() => {
+    const normalizedSearch = supplierSearch.trim().toLowerCase();
+    return suppliers.filter((supplier) => {
+      if (normalizedSearch && !supplier.name.toLowerCase().includes(normalizedSearch)) return false;
+      if (supplierStatusFilter === 'ACTIVE' && !supplier.active) return false;
+      if (supplierStatusFilter === 'INACTIVE' && supplier.active) return false;
+      return true;
+    });
+  }, [suppliers, supplierSearch, supplierStatusFilter]);
+
+  // Items Count column: total items per supplier, plus a per-store breakdown
+  // for the expand row -- computed client-side from the already-loaded items
+  // list, no extra fetch needed.
+  const itemsBySupplier = useMemo(() => {
+    const bySupplier = new Map<number, Map<number, { storeName: string; count: number }>>();
+    for (const item of items) {
+      if (item.preferredSupplierId == null) continue;
+      let byStore = bySupplier.get(item.preferredSupplierId);
+      if (!byStore) {
+        byStore = new Map();
+        bySupplier.set(item.preferredSupplierId, byStore);
+      }
+      const existing = byStore.get(item.storeId);
+      if (existing) {
+        existing.count += 1;
+      } else {
+        byStore.set(item.storeId, { storeName: item.storeName, count: 1 });
+      }
+    }
+    return bySupplier;
+  }, [items]);
+
+  const [expandedSupplierIds, setExpandedSupplierIds] = useState<Set<number>>(new Set());
+
+  function toggleSupplierExpanded(supplierId: number) {
+    setExpandedSupplierIds((current) => {
+      const next = new Set(current);
+      if (next.has(supplierId)) next.delete(supplierId);
+      else next.add(supplierId);
+      return next;
+    });
+  }
+
+  // "View Items" on a supplier's per-store breakdown row -- jumps to the
+  // Inventory sub-tab with that store selected and the search box prefilled
+  // with the supplier's name (itemSearch already matches preferredSupplierName,
+  // so this reuses the existing item list/search instead of a new view).
+  function handleViewStoreItems(storeId: number, supplierName: string) {
+    setSelectedStoreId(storeId);
+    setItemSearch(supplierName);
+    setSubTab('inventory');
+  }
 
   // Shared between its desktop position (next to Export) and its mobile one
   // (below the stat cards) -- rendered in exactly one of the two per
@@ -360,11 +447,6 @@ function SuperAdminInventory() {
         <div className="store-inventory-page__subtab-list store-inventory-page__subtab-list--scroll">
         {SUB_TABS.map((tab) => {
           const Icon = tab.icon;
-          const badgeCount =
-            tab.key === 'inventory' ? (selectedStoreId === null ? 0 : storeItems.length)
-              : tab.key === 'suppliers' ? suppliers.length
-                : tab.key === 'stock-check-history' ? historyTotal
-                  : null;
           return (
             <button
               key={tab.key}
@@ -374,7 +456,6 @@ function SuperAdminInventory() {
             >
               {Icon && <Icon size={14} />}
               <span className="store-inventory-page__subtab-label">{tab.label}</span>
-              {badgeCount !== null && <span className="store-inventory-page__subtab-badge">{badgeCount}</span>}
             </button>
           );
         })}
@@ -468,12 +549,10 @@ function SuperAdminInventory() {
                   onChange={(value) => setSort(value as SortOption)}
                   ariaLabel="Sort items"
                 />
-                {hasActiveFilters && (
-                  <FilterClearButton
-                    ariaLabel="Clear inventory filters"
-                    onClick={() => { setItemSearch(''); setCategoryFilter(''); setSort('name'); }}
-                  />
-                )}
+                <FilterClearButton
+                  ariaLabel="Clear inventory filters"
+                  onClick={() => { setItemSearch(''); setCategoryFilter(''); setSort('name'); }}
+                />
               </div>
 
               <p className="store-inventory-page__catalog-line">
@@ -523,47 +602,152 @@ function SuperAdminInventory() {
               </span>
             </SpecularButton>
           </div>
+
+          <div className="filter-bar">
+            <div className="filter filter--search">
+              <SearchInput value={supplierSearch} onChange={setSupplierSearch} placeholder="Search suppliers" variant="filter" />
+            </div>
+            <Select
+              className="filter filter--narrow"
+              options={SUPPLIER_STATUS_FILTER_OPTIONS}
+              value={supplierStatusFilter}
+              onChange={(value) => setSupplierStatusFilter(value as SupplierStatusFilter)}
+              ariaLabel="Filter by status"
+            />
+            <FilterClearButton onClick={() => { setSupplierSearch(''); setSupplierStatusFilter('ALL'); }} />
+          </div>
+
           <div className="table-card">
             <div className="table-scroll">
               <table className="data-table">
                 <thead>
                   <tr>
                     <th scope="col">Supplier Name</th>
+                    <th scope="col">Items Count</th>
+                    <th scope="col">Assigned Store</th>
                     <th scope="col">Status</th>
                     <th scope="col" className="super-admin-inventory-page__actions-header">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {suppliers.map((supplier) => (
-                    <tr key={supplier.id}>
-                      <td data-label="Supplier Name">{supplier.name}</td>
-                      <td data-label="Status">
-                        <Toggle
-                          checked={supplier.active}
-                          onChange={(checked) => handleToggleSupplier(supplier, checked)}
-                          label={`${supplier.active ? 'Deactivate' : 'Activate'} ${supplier.name}`}
-                        />
-                      </td>
-                      <td className="table-actions-cell" data-label="Actions">
-                        <div className="table-row-actions">
-                          <button
-                            type="button"
-                            className="table-icon-btn"
-                            aria-label={`Edit ${supplier.name}`}
-                            title="Edit"
-                            onClick={() => { setSupplierFormError(null); setSupplierModal({ mode: 'edit', supplier }); }}
-                          >
-                            Edit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {visibleSuppliers.map((supplier) => {
+                    const byStore = itemsBySupplier.get(supplier.id);
+                    const storeBreakdown = byStore
+                      ? [...byStore.entries()]
+                          .map(([storeId, s]) => ({ storeId, storeName: s.storeName, count: s.count }))
+                          .sort((a, b) => a.storeName.localeCompare(b.storeName))
+                      : [];
+                    const totalItems = storeBreakdown.reduce((sum, s) => sum + s.count, 0);
+                    const isExpanded = expandedSupplierIds.has(supplier.id);
+                    return (
+                      <Fragment key={supplier.id}>
+                        <tr
+                          className="super-admin-inventory-page__supplier-row"
+                          aria-expanded={isExpanded}
+                          onClick={() => toggleSupplierExpanded(supplier.id)}
+                        >
+                          <td data-label="Supplier Name">
+                            <div className="super-admin-inventory-page__supplier-name-cell">
+                              <ChevronDown
+                                size={16}
+                                className={`super-admin-inventory-page__supplier-chevron${isExpanded ? '' : ' super-admin-inventory-page__supplier-chevron--collapsed'}`}
+                              />
+                              <UserAvatar initials={supplier.name.charAt(0).toUpperCase()} size={28} />
+                              <div>
+                                <div className="super-admin-inventory-page__supplier-name">{supplier.name}</div>
+                                {supplier.location && (
+                                  <div className="super-admin-inventory-page__supplier-location">{supplier.location}</div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td data-label="Items Count" className="super-admin-inventory-page__count-cell">{totalItems}</td>
+                          <td data-label="Assigned Store">
+                            {supplier.appliesToAllStores ? (
+                              <span className="employee-table__store-badge">All Stores</span>
+                            ) : (supplier.stores ?? []).length === 0 ? (
+                              <span className="employee-table__no-stores">—</span>
+                            ) : (
+                              <div className="employee-table__store-badges">
+                                {(supplier.stores ?? []).map((store) => (
+                                  <span key={store.id} className="employee-table__store-badge">{store.name}</span>
+                                ))}
+                              </div>
+                            )}
+                          </td>
+                          <td data-label="Status" onClick={(event) => event.stopPropagation()}>
+                            <Toggle
+                              checked={supplier.active}
+                              onChange={(checked) => handleToggleSupplier(supplier, checked)}
+                              label={`${supplier.active ? 'Deactivate' : 'Activate'} ${supplier.name}`}
+                            />
+                          </td>
+                          <td className="table-actions-cell" data-label="Actions" onClick={(event) => event.stopPropagation()}>
+                            <div className="table-row-actions">
+                              <button
+                                type="button"
+                                className="table-icon-btn"
+                                aria-label={`Edit ${supplier.name}`}
+                                title="Edit"
+                                onClick={() => { setSupplierFormError(null); setSupplierModal({ mode: 'edit', supplier }); }}
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                className="table-icon-btn table-icon-btn--danger"
+                                aria-label={`Delete ${supplier.name}`}
+                                title="Delete"
+                                onClick={() => { setSupplierDeleteError(null); setSupplierDeleteTarget(supplier); }}
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          storeBreakdown.length === 0 ? (
+                            <tr className="super-admin-inventory-page__breakdown-row">
+                              <td colSpan={5}>
+                                <span className="super-admin-inventory-page__breakdown-empty">Not used by any store yet.</span>
+                              </td>
+                            </tr>
+                          ) : (
+                            storeBreakdown.map((s) => (
+                              <tr key={s.storeId} className="super-admin-inventory-page__breakdown-row">
+                                <td data-label="Store">
+                                  <div className="super-admin-inventory-page__breakdown-store">
+                                    <Package size={14} />
+                                    {s.storeName}
+                                  </div>
+                                </td>
+                                <td data-label="Items Count" className="super-admin-inventory-page__count-cell">{s.count}</td>
+                                <td />
+                                <td />
+                                <td className="table-actions-cell">
+                                  <button
+                                    type="button"
+                                    className="super-admin-inventory-page__view-items"
+                                    onClick={() => handleViewStoreItems(s.storeId, supplier.name)}
+                                  >
+                                    View Items
+                                    <ChevronRight size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
-            {!isLoading && suppliers.length === 0 && (
-              <div className="super-admin-inventory-page__empty">No suppliers yet.</div>
+            {!isLoading && visibleSuppliers.length === 0 && (
+              <div className="super-admin-inventory-page__empty">
+                {suppliers.length === 0 ? 'No suppliers yet.' : 'No suppliers match these filters.'}
+              </div>
             )}
           </div>
         </>
@@ -571,7 +755,7 @@ function SuperAdminInventory() {
 
       {subTab === 'comparison' && <StockLevelComparison items={items} />}
       {subTab === 'purchasing-report' && <SuperAdminSupplierPurchaseReport />}
-      {subTab === 'stock-check-history' && <SuperAdminStockCheckHistory onTotalChange={setHistoryTotal} />}
+      {subTab === 'stock-check-history' && <SuperAdminStockCheckHistory />}
 
       <StoreInventoryItemFormModal
         isOpen={isCreateModalOpen}
@@ -615,10 +799,35 @@ function SuperAdminInventory() {
       />
       {itemDeleteError && <div className="owners-page__error">{itemDeleteError}</div>}
 
+      <ConfirmDialog
+        isOpen={supplierDeleteTarget !== null}
+        title="Delete Supplier"
+        message={
+          supplierDeleteTarget
+            ? `Are you sure you want to delete "${supplierDeleteTarget.name}"? If it has order history, it will be deactivated instead. This cannot be undone.`
+            : ''
+        }
+        onConfirm={handleConfirmSupplierDelete}
+        onCancel={() => setSupplierDeleteTarget(null)}
+      />
+      {supplierDeleteError && <div className="owners-page__error">{supplierDeleteError}</div>}
+
       <SupplierFormModal
         isOpen={supplierModal !== null}
         mode={supplierModal?.mode ?? 'create'}
-        initialValues={supplierModal?.mode === 'edit' ? { name: supplierModal.supplier.name } : undefined}
+        extended
+        availableStores={stores}
+        initialValues={
+          supplierModal?.mode === 'edit'
+            ? {
+                name: supplierModal.supplier.name,
+                contact: supplierModal.supplier.contact ?? '',
+                location: supplierModal.supplier.location ?? '',
+                appliesToAllStores: supplierModal.supplier.appliesToAllStores ?? false,
+                storeIds: (supplierModal.supplier.stores ?? []).map((s) => s.id),
+              }
+            : undefined
+        }
         errorMessage={supplierFormError}
         isSubmitting={isSupplierSubmitting}
         onClose={() => setSupplierModal(null)}

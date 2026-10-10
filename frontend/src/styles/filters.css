@@ -33,8 +33,13 @@
   flex-basis: 12%;
 }
 
-/* Selects inside filter-bar sit recessed against the card surface */
-.filter-bar .select {
+/* Selects inside filter-bar sit recessed against the card surface -- also
+   matches a SearchableSelect's trigger (e.g. Super Admin Stock Check
+   History's store filter) to the same plain look, since its own default
+   styling (white card, larger padding) otherwise stands out next to the
+   other filters here. */
+.filter-bar .select,
+.filter-bar .searchable-select__trigger {
   background: var(--color-bg-page);
   border-radius: 6px;
   padding: 7px 10px;

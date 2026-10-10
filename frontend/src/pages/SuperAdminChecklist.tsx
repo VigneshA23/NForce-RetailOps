@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, Clock, Percent } from 'lucide-react';
 import SearchInput from '../components/SearchInput';
 import Select, { type SelectOption } from '../components/Select';
+import SearchableSelect from '../components/SearchableSelect';
 import FilterClearButton from '../components/FilterClearButton';
 import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
@@ -449,8 +450,11 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     return result;
   }, [outstandingRows, outstandingCategoryFilter, outstandingSearch]);
 
-  const storeOptions = useMemo<SelectOption[]>(
-    () => stores.map((s) => ({ value: String(s.storeId), label: s.storeName })),
+  // Same option shape as Super Admin Orders' own store-select (SearchableSelect,
+  // search box + store code) -- matches its UI exactly, swapped in here in
+  // place of the plain Select this page used to render.
+  const storeSelectOptions = useMemo(
+    () => stores.map((s) => ({ id: s.storeId, label: s.storeName, sublabel: `#${s.storeCode}` })),
     [stores],
   );
 
@@ -502,17 +506,18 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             )}
             {/* Spacer pushes store selector to the right */}
             <div className="sa-checklist__top-row-spacer" style={{ flex: 1 }} />
-            {/* Store selector — RIGHT, amber accent when no store selected */}
-            <Select
-              id="sa-store-select"
-              className={`sa-checklist__store-select${selectedStoreId === null ? ' sa-checklist__store-select--unselected' : ''}`}
-              options={storeOptions}
-              value={selectedStoreId !== null ? String(selectedStoreId) : ''}
-              onChange={(val) => setSelectedStoreId(val ? Number(val) : null)}
-              placeholder={storesLoading ? 'Loading stores…' : 'Select a store…'}
-              ariaLabel="Select a store"
-              disabled={storesLoading}
-            />
+            {/* Store selector — RIGHT, same plain/blue-focus look as Super Admin Orders' own */}
+            <div className="sa-checklist__store-select">
+              <SearchableSelect
+                id="sa-store-select"
+                options={storeSelectOptions}
+                selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
+                onChange={(ids) => setSelectedStoreId(ids[0] ?? null)}
+                placeholder="Select a store…"
+                isLoading={storesLoading}
+                emptyMessage="No stores found"
+              />
+            </div>
             {selectedStoreId !== null && <ExportMenu storeId={selectedStoreId} date={date} rangeOverride={weekRange ?? undefined} />}
           </div>
             <CalendarPopover

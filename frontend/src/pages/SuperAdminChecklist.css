@@ -13,18 +13,10 @@
 
 .sa-checklist__store-select,
 .sa-checklist__top-row .sa-checklist__store-select {
-  width: auto;
-  min-width: 180px;
-  max-width: 260px;
+  /* Same sizing as Super Admin Orders' own store-select. */
+  width: 280px;
+  max-width: 320px;
   flex-shrink: 0;
-}
-
-/* Amber accent until a store is chosen — signals required action without alarm-red.
-   The modifier class lives on the Select wrapper; .select is the inner trigger button. */
-.sa-checklist__store-select--unselected .select {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.18);
-  color: #b45309;
 }
 
 .sa-checklist__no-store-msg {

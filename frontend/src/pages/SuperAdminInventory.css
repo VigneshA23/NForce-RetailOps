@@ -16,6 +16,19 @@
   max-width: 320px;
 }
 
+/* The shared .store-inventory-page__subtabs row (StoreInventory.css) only
+   has padding-top, no padding-bottom -- fine for Owner/Admin, whose version
+   of this row never carries a second child, but on Super Admin's own
+   Inventory/Orders/Daily Checklist pages it left the store-select (and the
+   tab labels themselves) sitting low with a tall, uneven gap above them.
+   Scoped to .super-admin-inventory-page so Owner/Admin's StoreInventory.tsx
+   (no such class on its root) is untouched; smaller, equal padding both
+   centers everything properly and trims the bar's overall height. */
+.super-admin-inventory-page .store-inventory-page__subtabs {
+  padding-top: var(--space-sm);
+  padding-bottom: var(--space-sm);
+}
+
 .super-admin-inventory-page__no-store-msg {
   padding: var(--space-xl) var(--space-md);
   font-size: 0.875rem;
@@ -62,6 +75,85 @@
   padding: var(--space-xl);
   text-align: center;
   color: var(--color-text-secondary);
+}
+
+/* Suppliers table: name cell carries the expand chevron + avatar + location
+   sub-line; each breakdown row below is a plain row sharing the exact same
+   5 columns as the main record (Assigned Store/Status/Actions cells left
+   empty there), so the Items Count column lines up vertically between a
+   supplier's own row and its per-store rows without any manual width math. */
+.super-admin-inventory-page__supplier-name-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.super-admin-inventory-page__supplier-name {
+  font-weight: 600;
+}
+
+.super-admin-inventory-page__supplier-location {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.super-admin-inventory-page__supplier-chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.super-admin-inventory-page__supplier-chevron--collapsed {
+  transform: rotate(-90deg);
+}
+
+/* The whole row toggles the breakdown rows below it (like Super Admin
+   Orders' own group-header click-to-expand) -- Status/Actions cells stop
+   the click from bubbling so the toggle and Edit/Delete buttons stay their
+   own separate actions. */
+.super-admin-inventory-page__supplier-row {
+  cursor: pointer;
+}
+
+.super-admin-inventory-page__supplier-row:hover {
+  background: var(--color-bg-page);
+}
+
+.super-admin-inventory-page__count-cell {
+  text-align: center;
+}
+
+.super-admin-inventory-page__breakdown-row td {
+  background: var(--color-bg-page);
+  padding: var(--space-sm) var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.super-admin-inventory-page__breakdown-empty {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.super-admin-inventory-page__breakdown-store {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding-left: calc(16px + var(--space-sm) + 28px + var(--space-sm));
+  font-size: 13px;
+  color: var(--color-text-primary);
+}
+
+.super-admin-inventory-page__view-items {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
 }
 
 @media (--mobile) {
