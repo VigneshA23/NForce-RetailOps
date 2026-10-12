@@ -50,7 +50,7 @@ beforeEach(() => {
 });
 
 describe('SuperAdminEmployees stat cards', () => {
-  it('excludes inactive employees from Total, Full Time and Part Time from the start', async () => {
+  it('counts Total as raw headcount while Full Time/Part Time exclude inactive employees', async () => {
     mockGetAllEmployees.mockResolvedValue([
       employee({ id: 1, name: 'Ananya Reddyy', employeeType: 'Full Time', active: true }),
       employee({ id: 2, name: 'Priya Ramachandran', employeeType: 'Full Time', active: false }),
@@ -61,13 +61,13 @@ describe('SuperAdminEmployees stat cards', () => {
     await screen.findByText('Ananya Reddyy');
 
     const stats = screen.getByText('Total Employees').closest('.stat-card')!.parentElement!;
-    expect(within(stats).getByText('Total Employees').closest('.stat-card')).toHaveTextContent('2');
+    expect(within(stats).getByText('Total Employees').closest('.stat-card')).toHaveTextContent('3');
     expect(within(stats).getByText('Full Time').closest('.stat-card')).toHaveTextContent('1');
     expect(within(stats).getByText('Part Time').closest('.stat-card')).toHaveTextContent('1');
     expect(within(stats).getByText('Inactive').closest('.stat-card')).toHaveTextContent('1');
   });
 
-  it('updates Full Time and Total (not Part Time) when a Full Time employee is deactivated', async () => {
+  it('updates Full Time on deactivation but leaves Total Employees unchanged (only Delete should reduce it)', async () => {
     const user = userEvent.setup();
     const ananya = employee({ id: 1, name: 'Ananya Reddyy', employeeType: 'Full Time', active: true });
     mockGetAllEmployees.mockResolvedValue([
@@ -87,9 +87,9 @@ describe('SuperAdminEmployees stat cards', () => {
     await user.click(screen.getByRole('button', { name: 'Deactivate' }));
 
     await waitFor(() => {
-      expect(within(statsRow).getByText('Total Employees').closest('.stat-card')).toHaveTextContent('1');
+      expect(within(statsRow).getByText('Full Time').closest('.stat-card')).toHaveTextContent('0');
     });
-    expect(within(statsRow).getByText('Full Time').closest('.stat-card')).toHaveTextContent('0');
+    expect(within(statsRow).getByText('Total Employees').closest('.stat-card')).toHaveTextContent('2');
     expect(within(statsRow).getByText('Part Time').closest('.stat-card')).toHaveTextContent('1');
     expect(within(statsRow).getByText('Inactive').closest('.stat-card')).toHaveTextContent('1');
   });
