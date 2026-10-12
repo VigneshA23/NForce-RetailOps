@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CircleCheck, ClipboardCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Pencil, Plus, Trash2, Truck } from 'lucide-react';
+import { AlertTriangle, CircleCheck, ClipboardCheck, Clock, FileSpreadsheet, FileText, MapPin, Package, PackageX, Pencil, Plus, Store as StoreIcon, Trash2, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createStoreInventoryItem,
@@ -29,6 +29,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
 import { SORT_OPTIONS, STATUS_SORT_ORDER, type SortOption } from '../utils/storeInventorySort';
+import { supplierStoreSummaryLabel } from '../utils/supplierStoreSummary';
 import './StoreInventory.css';
 
 type SubTab = 'items' | 'suppliers' | 'history';
@@ -36,7 +37,7 @@ type SubTab = 'items' | 'suppliers' | 'history';
 const SUB_TABS: { key: SubTab; label: string; icon: typeof Package }[] = [
   { key: 'items', label: 'Items', icon: Package },
   { key: 'suppliers', label: 'Suppliers', icon: Truck },
-  { key: 'history', label: 'History', icon: Clock },
+  { key: 'history', label: 'Stock Check History', icon: Clock },
 ];
 
 // Mirrors Super Admin Inventory's own Suppliers status-filter options exactly.
@@ -534,13 +535,26 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               <FilterClearButton onClick={() => { setSupplierSearch(''); setSupplierStatusFilter('ALL'); }} />
             </div>
 
+            {!isMobile && (
             <div className="table-card supplier-table-card">
               <div className="table-scroll">
                 <table className="data-table">
+                  {/* Fixed layout (see StoreInventory.css) so the Supplier
+                      Name column always keeps enough room for its avatar +
+                      name/location -- auto layout let the other columns
+                      crowd it down to whatever space they didn't need. */}
+                  <colgroup>
+                    <col className="supplier-table__col-name" />
+                    <col className="supplier-table__col-store" />
+                    <col className="supplier-table__col-count" />
+                    <col className="supplier-table__col-status" />
+                    <col className="supplier-table__col-actions" />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th scope="col">Supplier Name</th>
-                      <th scope="col">Items Count</th>
+                      <th scope="col">Assigned Store</th>
+                      <th scope="col" className="supplier-table__cell-count">Items Count</th>
                       <th scope="col">Status</th>
                       <th scope="col">Actions</th>
                     </tr>
@@ -559,16 +573,22 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                             </div>
                           </div>
                         </td>
-                        <td className="supplier-table__cell-count" data-label="Items Count">
-                          <span className="supplier-table__count-value">{itemCountBySupplier.get(supplier.id) ?? 0}</span>
-                          <span className="supplier-table__items-label">
-                            <ClipboardCheck size={14} />
-                            {itemCountBySupplier.get(supplier.id) ?? 0} Items
-                          </span>
+                        <td className="supplier-table__cell-store" data-label="Assigned Store">
+                          {supplier.appliesToAllStores ? (
+                            <span className="employee-table__store-badge">All Stores</span>
+                          ) : (supplier.stores ?? []).length === 0 ? (
+                            <span className="employee-table__no-stores">—</span>
+                          ) : (
+                            <div className="employee-table__store-badges">
+                              {(supplier.stores ?? []).map((store) => (
+                                <span key={store.id} className="employee-table__store-badge">{store.name}</span>
+                              ))}
+                            </div>
+                          )}
                         </td>
-                        {supplier.location && (
-                          <td className="supplier-table__cell-location-mobile">{supplier.location}</td>
-                        )}
+                        <td className="supplier-table__cell-count" data-label="Items Count">
+                          {itemCountBySupplier.get(supplier.id) ?? 0}
+                        </td>
                         <td className="supplier-table__cell-status" data-label="Status">
                           <Toggle
                             checked={supplier.active}
@@ -609,6 +629,77 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 </div>
               )}
             </div>
+            )}
+
+            {/* Mobile: its own dedicated card markup, no <table> -- see
+                SuperAdminInventory.tsx's own copy of this pattern for why
+                (no table/grid semantics to fight with per breakpoint). No
+                expand/breakdown here -- a single store has nothing to
+                expand into. */}
+            {isMobile && (
+              <div className="supplier-mobile-list">
+                {visibleSuppliers.map((supplier) => (
+                  <div className="supplier-mobile-card" key={supplier.id}>
+                    <div className="supplier-mobile-card__top">
+                      <UserAvatar initials={supplier.name.charAt(0).toUpperCase()} size={44} />
+                      <div className="supplier-mobile-card__main">
+                        <div className="supplier-mobile-card__name">{supplier.name}</div>
+                        <div className="supplier-mobile-card__count">
+                          <ClipboardCheck size={14} />
+                          {itemCountBySupplier.get(supplier.id) ?? 0} Items
+                        </div>
+                      </div>
+                      <div className="supplier-mobile-card__side">
+                        <Toggle
+                          checked={supplier.active}
+                          onChange={(checked) => handleToggleSupplier(supplier, checked)}
+                          label={`${supplier.active ? 'Deactivate' : 'Activate'} ${supplier.name}`}
+                        />
+                        <div className="supplier-mobile-card__actions">
+                          <button
+                            type="button"
+                            className="table-icon-btn"
+                            aria-label={`Edit ${supplier.name}`}
+                            title="Edit"
+                            onClick={() => { setSupplierFormError(null); setSupplierEditTarget(supplier); }}
+                          >
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            className="table-icon-btn table-icon-btn--danger"
+                            aria-label={`Remove ${supplier.name} from this store`}
+                            title="Remove from this store"
+                            onClick={() => { setSupplierHideError(null); setSupplierHideTarget(supplier); }}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {supplier.location && (
+                      <div className="supplier-mobile-card__location">
+                        <MapPin size={12} />
+                        {supplier.location}
+                      </div>
+                    )}
+
+                    <div className="supplier-mobile-card__footer">
+                      <span className="supplier-mobile-card__store-value">
+                        <StoreIcon size={12} />
+                        {supplierStoreSummaryLabel(supplier)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {!isLoading && visibleSuppliers.length === 0 && (
+                  <div className="table-card__empty">
+                    {suppliers.length === 0 ? 'No suppliers yet.' : 'No suppliers match these filters.'}
+                  </div>
+                )}
+              </div>
+            )}
 
             <SupplierFormModal
               isOpen={supplierEditTarget !== null}

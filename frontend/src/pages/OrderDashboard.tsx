@@ -14,7 +14,7 @@ const SUB_TABS: { key: SubTab; label: string; shortLabel: string }[] = [
   { key: 'orders', label: 'Order List', shortLabel: 'Orders' },
   { key: 'counts', label: 'Inventory Counts', shortLabel: 'Inventory' },
   { key: 'eod-report', label: 'End of Day Report', shortLabel: 'Report' },
-  { key: 'supplier-report', label: 'Supplier Purchasing Summary', shortLabel: 'Purchases' },
+  { key: 'supplier-report', label: 'Purchasing Report', shortLabel: 'Purchases' },
 ];
 
 interface OrderDashboardProps {
@@ -26,6 +26,7 @@ interface OrderDashboardProps {
 
 function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
   const [subTab, setSubTab] = useState<SubTab>('orders');
+  const [purchaseSeed, setPurchaseSeed] = useState<{ supplierName: string; id: number } | null>(null);
 
   // Arriving from the Home low-stock tile should land on Order List even if
   // another sub-tab was last active -- same nonce-guard pattern as the seed
@@ -36,6 +37,17 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
     appliedSeedId.current = seed.id;
     setSubTab('orders');
   }, [seed]);
+
+  // Purchasing Report's "View Details" link -- fully local to this page
+  // (Order List and Purchasing Report are both its own sub-tabs), unlike
+  // Super Admin's equivalent which has to bubble up to a separate
+  // top-level page. The date range from SupplierPurchaseReport's own
+  // onViewDetails callback is intentionally dropped here: Order List has no
+  // date-filtering concept to apply it to.
+  function handleViewPurchaseDetails(supplierName: string) {
+    setPurchaseSeed({ supplierName, id: Date.now() });
+    setSubTab('orders');
+  }
 
   return (
     <div className="order-dashboard-page">
@@ -59,10 +71,12 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
         </div>
       </div>
 
-      {subTab === 'orders' && <OrderList storeName={storeName} seed={seed} />}
+      {subTab === 'orders' && <OrderList storeName={storeName} seed={seed} purchaseSeed={purchaseSeed ?? undefined} />}
       {subTab === 'counts' && <InventoryCounts />}
       {subTab === 'eod-report' && <EodSupplierReport storeName={storeName} />}
-      {subTab === 'supplier-report' && <SupplierPurchaseReport />}
+      {subTab === 'supplier-report' && (
+        <SupplierPurchaseReport storeName={storeName} onViewDetails={(supplierName) => handleViewPurchaseDetails(supplierName)} />
+      )}
     </div>
   );
 }

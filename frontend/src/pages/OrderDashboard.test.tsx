@@ -57,7 +57,7 @@ describe('OrderDashboard shell', () => {
     await user.click(screen.getByRole('button', { name: 'End of Day Report' }));
     expect(await screen.findByText('No items match these filters')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Supplier Purchasing Summary' }));
+    await user.click(screen.getByRole('button', { name: 'Purchasing Report' }));
     expect(await screen.findByText('No purchasing activity found for the selected date range.')).toBeInTheDocument();
   });
 

@@ -1,0 +1,132 @@
+.supplier-purchase-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.supplier-purchase-table thead th {
+  padding: 10px var(--space-md);
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.supplier-purchase-table tbody td {
+  padding: 10px var(--space-md);
+  border-top: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.supplier-purchase-table tbody tr:first-child td {
+  border-top: none;
+}
+
+.supplier-purchase-table__identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.supplier-purchase-table__name {
+  font-weight: 600;
+}
+
+.supplier-purchase-table__row--unassigned {
+  background: var(--color-badge-icon-primary-bg);
+}
+
+.supplier-purchase-table__row--unassigned .supplier-purchase-table__name {
+  color: var(--color-accent);
+  font-weight: 700;
+}
+
+.supplier-purchase-table__view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: none;
+  background: transparent;
+  color: var(--color-accent);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.supplier-purchase-table__view-btn-full {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Desktop/tablet: text + chevron, no bare icon. Mobile swaps this (see
+   below). */
+.supplier-purchase-table__view-btn-icon {
+  display: none;
+}
+
+@media (--mobile) {
+  .supplier-purchase-table thead {
+    display: none;
+  }
+
+  .supplier-purchase-table tbody tr {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      'avatar name    view'
+      'avatar entries view'
+      'avatar qty     view';
+    column-gap: var(--space-sm);
+    row-gap: 2px;
+    align-items: center;
+    padding: 10px var(--space-md);
+  }
+
+  .supplier-purchase-table tbody td {
+    padding: 0;
+    border-top: none;
+  }
+
+  .supplier-purchase-table__identity {
+    display: contents;
+  }
+
+  .supplier-purchase-table__avatar-slot {
+    grid-area: avatar;
+    align-self: start;
+  }
+
+  .supplier-purchase-table__name {
+    grid-area: name;
+  }
+
+  .supplier-purchase-table td[data-label='Ordered'] {
+    grid-area: entries;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+  }
+
+  .supplier-purchase-table td[data-label='Total'] {
+    grid-area: qty;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+  }
+
+  .supplier-purchase-table td[data-label='Actions'] {
+    grid-area: view;
+    align-self: center;
+  }
+
+  /* Mobile: icon only, no text -- the button's own aria-label (set in the
+     component) keeps it accessible either way. */
+  .supplier-purchase-table__view-btn-full {
+    display: none;
+  }
+
+  .supplier-purchase-table__view-btn-icon {
+    display: inline-flex;
+  }
+}

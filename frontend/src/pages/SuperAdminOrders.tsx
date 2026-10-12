@@ -9,7 +9,7 @@ import {
   getOrderListForStore,
   updateSuperAdminOrderStatus,
 } from '../api/superAdminOperations';
-import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus } from '../types/orderList';
+import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
 import type { InventoryItemCategory } from '../types/storeInventory';
 import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
@@ -19,7 +19,7 @@ import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddT
 import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
 import SuperAdminInventoryCounts from '../components/SuperAdminInventoryCounts';
 import SuperAdminEodSupplierReport from '../components/SuperAdminEodSupplierReport';
-import SuperAdminOrdersPurchaseReport from '../components/SuperAdminOrdersPurchaseReport';
+import SuperAdminSupplierPurchaseReport from '../components/SuperAdminSupplierPurchaseReport';
 import StatCard from '../components/StatCard';
 import CategoryIcon, { CATEGORY_VISUAL, FALLBACK_CATEGORY_VISUAL } from '../components/CategoryIcon';
 import CheckboxButton from '../components/CheckboxButton';
@@ -57,7 +57,7 @@ const SUB_TABS: { key: SubTab; label: string; shortLabel: string }[] = [
   { key: 'orders', label: 'Order List', shortLabel: 'Orders' },
   { key: 'counts', label: 'Inventory Counts', shortLabel: 'Inventory' },
   { key: 'eod-report', label: 'End of Day Report', shortLabel: 'Report' },
-  { key: 'purchasing-report', label: 'Supplier Purchasing Summary', shortLabel: 'Purchases' },
+  { key: 'purchasing-report', label: 'Purchasing Report', shortLabel: 'Purchases' },
 ];
 
 const GROUP_ROW_LIMIT = 5;
@@ -82,8 +82,9 @@ interface SuperAdminOrdersProps {
 // layout per RTS-304). Same grouped/flat ordering workbench as OrderList.tsx
 // -- supplier grouping, bulk status changes, Add to order, clipboard export --
 // scoped to whichever store is currently selected, plus the dashboard-style
-// sub-tabs (Order List/Inventory Counts/End of Day Report/Purchasing
-// Summary) and the store picker only Super Admin needs.
+// sub-tabs (Order List/Inventory Counts/End of Day Report) and the store
+// picker only Super Admin needs. Purchasing Report is cross-store (not
+// scoped to the selected store at all -- see its own render branch below).
 function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const [stores, setStores] = useState<{ id: number; label: string }[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
@@ -700,6 +701,27 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
         </div>
       </div>
 
+      {/* Cross-store -- unlike every other sub-tab here, doesn't need (and
+          must not require) a store to be selected first. Follows this same
+          page's own global store picker (selectedStoreId) rather than
+          keeping a filter of its own -- null shows every store, a picked
+          store narrows down to just that one. */}
+      {subTab === 'purchasing-report' && (
+        <SuperAdminSupplierPurchaseReport
+          selectedStoreId={selectedStoreId}
+          onViewDetails={(row: StoreSupplierPurchaseMetric) => {
+            selectStore(row.storeId, row.storeName);
+            if (row.supplierName === 'No Supplier') {
+              setSupplierFilter('UNASSIGNED');
+            } else {
+              const match = suppliers.find((s) => s.name.toLowerCase() === row.supplierName.toLowerCase());
+              setSupplierFilter(match ? String(match.id) : 'all');
+            }
+            setSubTab('orders');
+          }}
+        />
+      )}
+
       {selectedStoreId !== null && (
         <div className="super-admin-orders__store">
           {!isMobile && (
@@ -708,7 +730,6 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
 
           {subTab === 'counts' && <SuperAdminInventoryCounts storeId={selectedStoreId} />}
           {subTab === 'eod-report' && <SuperAdminEodSupplierReport storeId={selectedStoreId} storeName={selectedStoreName} />}
-          {subTab === 'purchasing-report' && <SuperAdminOrdersPurchaseReport storeId={selectedStoreId} />}
 
           {subTab === 'orders' && (
           <>
@@ -978,7 +999,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
         </div>
       )}
 
-      {selectedStoreId === null && (
+      {selectedStoreId === null && subTab !== 'purchasing-report' && (
         <p className="super-admin-orders__hint">Select a store above to view and manage its order list.</p>
       )}
 

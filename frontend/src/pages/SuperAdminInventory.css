@@ -71,25 +71,47 @@
   text-align: center;
 }
 
+/* Fixed layout, scoped to this one table only (desktop/tablet -- mobile
+   renders its own dedicated card markup instead of this <table> at all, see
+   @media (--mobile) at the bottom of this file). Auto layout (the default)
+   recomputes every column's width from the widest cell's min-content size
+   across ALL rows, so any row whose markup differs even slightly (e.g. the
+   expanded per-store breakdown rows below, which carry extra icons/indent
+   the collapsed row doesn't) can silently force the whole table wider the
+   instant it mounts. Fixed widths, driven by the <colgroup> in
+   SuperAdminInventory.tsx, make the table's width genuinely independent of
+   what any row's content looks like, collapsed or expanded. */
+.supplier-table-card .data-table {
+  table-layout: fixed;
+}
+
+.supplier-table__col-name { width: 32%; }
+.supplier-table__col-store { width: 28%; }
+.supplier-table__col-count { width: 14%; }
+.supplier-table__col-status { width: 12%; }
+.supplier-table__col-actions { width: 14%; }
+
 .super-admin-inventory-page__empty {
   padding: var(--space-xl);
   text-align: center;
   color: var(--color-text-secondary);
 }
 
-/* Suppliers table: name cell carries the expand chevron + avatar + location
-   sub-line; each breakdown row below is a plain row sharing the exact same
-   5 columns as the main record (Assigned Store/Status/Actions cells left
-   empty there), so the Items Count column lines up vertically between a
-   supplier's own row and its per-store rows without any manual width math. */
+/* Suppliers table (desktop/tablet): name cell carries the expand chevron +
+   avatar + location sub-line; each breakdown row below is a plain row
+   sharing the same 5 columns as the main record (colSpan-2 on its own Store
+   cell so it lines up under Name + Assigned Store), so Items Count/Actions
+   line up vertically between a supplier's own row and its per-store rows
+   without any manual width math. */
 .super-admin-inventory-page__supplier-name-cell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-sm);
 }
 
 .super-admin-inventory-page__supplier-name {
   font-weight: 600;
+  overflow-wrap: anywhere;
 }
 
 .super-admin-inventory-page__supplier-location {
@@ -101,6 +123,7 @@
   flex-shrink: 0;
   color: var(--color-text-secondary);
   transition: transform 0.15s ease;
+  margin-top: 2px;
 }
 
 .super-admin-inventory-page__supplier-chevron--collapsed {
@@ -124,9 +147,8 @@
 }
 
 .super-admin-inventory-page__breakdown-row td {
-  background: var(--color-bg-page);
+  background: var(--color-surface-card);
   padding: var(--space-sm) var(--space-md);
-  border-top: 1px solid var(--color-border);
 }
 
 .super-admin-inventory-page__breakdown-empty {
@@ -138,9 +160,32 @@
   display: flex;
   align-items: center;
   gap: var(--space-xs);
-  padding-left: calc(16px + var(--space-sm) + 28px + var(--space-sm));
+  padding-left: 44px;
   font-size: 13px;
   color: var(--color-text-primary);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.supplier-table__breakdown-connector {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+/* Small rounded tile around the store icon on each breakdown row -- same
+   Store icon Super Admin's own Stores page/table uses, just reused here at
+   a smaller size inside an icon tile (CategoryFormModal.css has the same
+   tile treatment for category icons). */
+.supplier-table__store-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--color-badge-icon-slate-bg);
+  color: var(--color-badge-icon-slate-fg);
 }
 
 .super-admin-inventory-page__view-items {
@@ -154,15 +199,6 @@
   font-weight: 600;
   cursor: pointer;
   padding: 0;
-}
-
-/* Mobile-card-only pieces, hidden by default -- shown inside @media
-   (--mobile) below. Desktop-only pieces are the mirror image: shown by
-   default, hidden there. */
-.supplier-table__mobile-store,
-.supplier-table__details-toggle,
-.supplier-table__mobile-only {
-  display: none;
 }
 
 @media (--mobile) {
@@ -184,39 +220,13 @@
     flex-wrap: wrap;
   }
 
-  /* Card layout matching the Super Admin Category mobile card reference:
-     name top-left, toggle + actions top-right, Items Count/"Show Details"
-     as its own full-width row below, then the Assigned Store row (reusing
-     the same desktop "Assigned Store" cell rather than a separate mobile
-     copy of its text) last. Boosted specificity (both the card's own
-     classes, not just one) so this reliably wins over both table.css's
-     generic stacked-card fallback and the plain Owner/Admin version of
-     this same rule in StoreInventory.css. */
-  .table-card.supplier-table-card .data-table tbody tr {
-    grid-template-columns: 1fr auto auto;
-    grid-template-areas:
-      'name   status  actions'
-      'count  count   count'
-      'store  store   store';
-  }
-
-  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-store {
-    grid-area: store;
-    display: block;
-    margin-top: 4px;
-  }
-
-  /* Desktop's click-to-expand chevron isn't needed once "Show/Hide Details"
-     exists as its own explicit control. */
-  .super-admin-inventory-page__supplier-chevron {
-    display: none;
-  }
-
-  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-count {
-    justify-content: space-between;
-  }
-
-  .supplier-table__details-toggle {
+  /* Base .supplier-mobile-card* rules (background/avatar/name/count/
+     actions/location/footer/store-value) are shared with Owner/Admin's own
+     card and live once in StoreInventory.css, loaded by this page too (see
+     its own import list) -- only Super Admin's extra pieces (the
+     details-toggle button and the per-store breakdown list, neither of
+     which Owner/Admin's single-store card needs) are declared here. */
+  .supplier-mobile-card__details-toggle {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -227,68 +237,42 @@
     font-weight: 700;
     cursor: pointer;
     padding: 0;
+    flex-shrink: 0;
   }
 
-  .supplier-table__details-chevron--up {
+  .supplier-mobile-card__chevron--up {
     transform: rotate(180deg);
   }
 
-  /* Desktop's own aligned table columns for the breakdown aren't used here --
-     the mobile-only "Store Distribution" panel below replaces them. Boosted
-     specificity (.table-card.supplier-table-card, not just the bare class)
-     so these beat table.css's generic tbody tr/td rules. */
-  .table-card.supplier-table-card .data-table tbody tr.supplier-table__desktop-only {
-    display: none;
+  .supplier-mobile-card__breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
   }
 
-  .table-card.supplier-table-card .data-table tbody tr.supplier-table__mobile-only {
-    display: table-row;
-  }
-
-  .table-card.supplier-table-card .data-table tbody tr.supplier-table__mobile-only td {
-    display: table-cell;
-  }
-
-  .supplier-table__breakdown-panel {
-    background: var(--color-bg-page);
-    border-radius: 12px;
-    padding: 12px;
-  }
-
-  .supplier-table__breakdown-heading {
-    margin: 0 0 8px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--color-text-secondary);
-  }
-
-  .supplier-table__breakdown-card {
+  .supplier-mobile-card__breakdown-row {
     display: flex;
     align-items: center;
     gap: var(--space-xs);
-    background: var(--color-surface-card);
+    background: var(--color-bg-page);
     border-radius: 10px;
     padding: 10px 12px;
-    margin-bottom: 8px;
   }
 
-  .supplier-table__breakdown-card:last-child {
-    margin-bottom: 0;
-  }
-
-  .supplier-table__breakdown-card-name {
-    flex: 1;
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .supplier-table__breakdown-dot {
+  .supplier-mobile-card__dot {
     display: inline-block;
     width: 8px;
     height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
+  }
+
+  .supplier-mobile-card__breakdown-name {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    font-weight: 600;
   }
 }

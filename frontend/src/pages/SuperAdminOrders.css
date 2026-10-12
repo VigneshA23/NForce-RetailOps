@@ -57,10 +57,12 @@
 
 /* Table/filter-row/action-bar/group chrome on the Order List tab is shared
    with Owner/Admin's own OrderList.css (RTS-304) via the `order-list__*`
-   classes directly, rather than a parallel copy -- same for the other three
-   tabs, which reuse InventoryCounts.css, EodSupplierReport.css and
-   SupplierPurchaseReport.css through SuperAdminInventoryCounts.tsx,
-   SuperAdminEodSupplierReport.tsx and SuperAdminOrdersPurchaseReport.tsx. */
+   classes directly, rather than a parallel copy -- same for the Inventory
+   Counts and End of Day Report tabs, which reuse InventoryCounts.css and
+   EodSupplierReport.css through SuperAdminInventoryCounts.tsx and
+   SuperAdminEodSupplierReport.tsx. Purchasing Report is cross-store and
+   reuses SuperAdminSupplierPurchaseReport.tsx (and its own CSS) directly,
+   outside this page's per-store store/hint rules below. */
 
 .super-admin-orders__hint {
   font-size: 14px;

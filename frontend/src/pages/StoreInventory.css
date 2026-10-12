@@ -84,7 +84,7 @@
    own Suppliers table look (SuperAdminInventory.css, RTS-304 parity). */
 .store-inventory-page__supplier-name-cell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--space-sm);
 }
 
@@ -97,20 +97,27 @@
   color: var(--color-text-secondary);
 }
 
-/* Mobile-only duplicate of the location line above (desktop keeps it as a
-   subtitle under the name instead) -- lets it sit in its own grid row below
-   Items Count on the stacked card without disturbing desktop's plain table,
-   which has no header for a standalone Location column. */
-.supplier-table__cell-location-mobile {
-  display: none;
+/* Fixed layout, scoped to this one table only -- auto layout (the default)
+   sized every column purely from its own content, so Supplier Name (avatar +
+   name + location) got crowded down to whatever the other, narrower columns
+   didn't need. Column widths come from the <colgroup> in StoreInventory.tsx
+   (Owner/Admin) and SuperAdminInventory.tsx (Super Admin, which has its own
+   copy of these column-width rules, winning the cascade there since it's
+   imported after this file). Applies at every breakpoint -- mobile matches
+   desktop/tablet exactly, see this file's own @media (--mobile) rules for
+   this table further down. */
+.supplier-table-card .data-table {
+  table-layout: fixed;
 }
 
-/* Items Count cell: desktop shows the bare number; mobile swaps to an
-   icon + "N Items" label instead (shared by Owner/Admin and Super Admin's
-   own Suppliers tables -- Super Admin additionally shows a "Show/Hide
-   Details" toggle next to it, see SuperAdminInventory.css). */
-.supplier-table__items-label {
-  display: none;
+.supplier-table__col-name { width: 36%; }
+.supplier-table__col-store { width: 28%; }
+.supplier-table__col-count { width: 14%; }
+.supplier-table__col-status { width: 10%; }
+.supplier-table__col-actions { width: 12%; }
+
+.supplier-table__cell-count {
+  text-align: center;
 }
 
 /* Mobile only: a rounded segmented control (matching Order Dashboard's own
@@ -330,118 +337,99 @@
   }
 }
 
-/* Suppliers table, mobile: rounded cards matching Super Admin Category's own
-   mobile cards (CategoryTable.css) -- name+status up top, count below,
-   actions bottom-right. Super Admin's own Suppliers table (which has an
-   extra Assigned Store row) extends this grid in SuperAdminInventory.css. */
+/* Suppliers table, mobile: its own dedicated card markup (rendered only
+   when isMobile -- see StoreInventory.tsx/SuperAdminInventory.tsx, both of
+   which render this same set of classes), not the <table> at all. Plain
+   stacked divs, no table/grid semantics to fight with -- an earlier, more
+   elaborate per-breakpoint reshaping of the same table markup kept breaking
+   in new ways release after release. Super Admin's own Suppliers card
+   (which has per-store sub-records to expand) extends this with its own
+   `supplier-mobile-card__footer` details-toggle button and
+   `__breakdown*` rules in SuperAdminInventory.css; Owner/Admin's card
+   (single store, nothing to expand) uses just what's here. */
 @media (--mobile) {
-  /* table.css's generic .table-card mobile rules (stacked card, every cell
-     captioned with its data-label) are equal specificity to a plain
-     .supplier-table-card selector and can win the cascade tie depending on
-     import order -- doubling up the card's own two classes on every
-     override below (.table-card.supplier-table-card, not just
-     .supplier-table-card) guarantees these rules always win instead. */
-  .table-card.supplier-table-card {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-  }
-
-  .table-card.supplier-table-card .data-table {
-    background: transparent;
-  }
-
-  .table-card.supplier-table-card .data-table thead {
-    display: none;
-  }
-
-  .table-card.supplier-table-card .data-table tbody tr {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
-    grid-template-areas:
-      'name   status  actions'
-      'count  count   count'
-      'store  store   store';
-    row-gap: 8px;
-    align-items: center;
-    margin-bottom: 12px;
-    padding: 14px;
+  .supplier-mobile-card {
     background: var(--color-surface-card);
     border: 1px solid var(--color-border);
     border-radius: 14px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    padding: 14px;
+    margin-bottom: 12px;
   }
 
-  .table-card.supplier-table-card .data-table tbody tr:last-child {
+  .supplier-mobile-card:last-child {
     margin-bottom: 0;
   }
 
-  .table-card.supplier-table-card .data-table tbody td {
-    display: block;
-    padding: 0;
-    border-bottom: none;
+  .supplier-mobile-card__top {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
   }
 
-  /* No field-name captions on these cards -- icon/value only, matching the
-     reference design exactly (table.css's generic attr(data-label) caption
-     is what the plain .supplier-table-card selector failed to suppress). */
-  .table-card.supplier-table-card .data-table tbody td::before {
-    content: none;
+  /* Square-rounded avatar on mobile, matching the Suppliers mobile card
+     reference. */
+  .supplier-mobile-card__top .user-avatar {
+    border-radius: 12px;
+    flex-shrink: 0;
   }
 
-  /* These need to match (and beat) the blanket "every td becomes a flex row"
-     rule just above on specificity, so each gets the same tbody/td element
-     weight added (.data-table tbody td.supplier-table__cell-X) rather than
-     a bare class selector, which a blanket rule declared earlier would
-     otherwise outrank despite looking more specific by eye. */
-  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-name {
-    grid-area: name;
+  .supplier-mobile-card__main {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
-  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-count {
-    grid-area: count;
+  .supplier-mobile-card__name {
+    font-weight: 700;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+  }
+
+  .supplier-mobile-card__count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-badge-icon-success-fg);
+  }
+
+  .supplier-mobile-card__side {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+
+  .supplier-mobile-card__actions {
+    display: flex;
+    gap: 6px;
+  }
+
+  .supplier-mobile-card__location {
     display: flex;
     align-items: center;
-  }
-
-  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-location-mobile {
-    grid-area: store;
-    display: block;
-    margin-top: 4px;
+    gap: 4px;
+    margin-top: 10px;
     font-size: 12px;
     color: var(--color-text-secondary);
   }
 
-  .supplier-table__count-value {
-    display: none;
+  .supplier-mobile-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    margin-top: 10px;
   }
 
-  .supplier-table__items-label {
+  .supplier-mobile-card__store-value {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    font-weight: 700;
-    color: var(--color-badge-icon-success-fg);
-  }
-  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-status {
-    grid-area: status;
-    display: flex;
-    justify-self: end;
-  }
-
-  .table-card.supplier-table-card .data-table tbody td.table-actions-cell {
-    grid-area: actions;
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-name {
-    display: flex;
-  }
-
-  /* Square-rounded avatar instead of the circle, matching the Suppliers
-     mobile card reference. */
-  .supplier-table__cell-name .user-avatar {
-    border-radius: 12px;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--color-text-secondary);
   }
 }

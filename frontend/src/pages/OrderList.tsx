@@ -45,9 +45,13 @@ interface OrderListProps {
   // Set by the shell when arriving from the Home low-stock tile, to open this
   // tab already filtered. `id` is a nonce, not data -- see the effect below.
   seed?: { status: string; id: number };
+  // Set by OrderDashboard when a Purchasing Report "View Details" link is
+  // clicked -- a separate, independent nonce from `seed` above (not merged
+  // into one shape) so the two unrelated producers can never race each other.
+  purchaseSeed?: { supplierName: string; id: number };
 }
 
-function OrderList({ storeName, seed }: OrderListProps) {
+function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
   const [entries, setEntries] = useState<OrderListEntry[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [inventoryItems, setInventoryItems] = useState<OrderableInventoryItem[]>([]);
@@ -123,6 +127,22 @@ function OrderList({ storeName, seed }: OrderListProps) {
     appliedSeedId.current = seed.id;
     setStatusFilter(seed.status as StatusFilter);
   }, [seed]);
+
+  // Independent of the effect above (own nonce ref, own trigger) -- waits
+  // (without consuming the nonce) for `suppliers` to finish loading if this
+  // fires first.
+  const appliedPurchaseSeedId = useRef<number | null>(null);
+  useEffect(() => {
+    if (!purchaseSeed || purchaseSeed.id === appliedPurchaseSeedId.current) return;
+    if (suppliers.length === 0) return;
+    appliedPurchaseSeedId.current = purchaseSeed.id;
+    if (purchaseSeed.supplierName === 'No Supplier') {
+      setSupplierFilter('UNASSIGNED');
+    } else {
+      const match = suppliers.find((s) => s.name.toLowerCase() === purchaseSeed.supplierName.toLowerCase());
+      setSupplierFilter(match ? String(match.id) : 'all');
+    }
+  }, [purchaseSeed, suppliers]);
 
   function applyUpdatedEntry(updated: OrderListEntry) {
     setEntries((current) => {

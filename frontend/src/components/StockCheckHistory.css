@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .stock-check-history__header {
   display: flex;
   align-items: center;
@@ -176,4 +178,90 @@
 .stock-check-history__icon-btn:hover {
   border-color: var(--color-accent);
   color: var(--color-accent);
+}
+
+/* Mobile: deliberate card redesign (named grid areas per cell), same house
+   convention as the Suppliers table (SuperAdminInventory.css) rather than
+   the generic data-label-stacking fallback -- that fallback reads fine for
+   a couple of fields but gets noisy at 6 columns including an item icon and
+   an avatar. Boosted specificity (.table-card.stock-check-history-table-card)
+   so these win over table.css's generic rules. */
+@media (--mobile) {
+  .table-card.stock-check-history-table-card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
+  .table-card.stock-check-history-table-card .data-table {
+    background: transparent;
+  }
+
+  .table-card.stock-check-history-table-card .data-table thead {
+    display: none;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody tr {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'item    actions'
+      'date    date'
+      'count   qty'
+      'by      by';
+    row-gap: 8px;
+    column-gap: 12px;
+    align-items: start;
+    margin-bottom: 12px;
+    padding: 14px;
+    background: var(--color-surface-card);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td {
+    display: block;
+    padding: 0;
+    border-bottom: none;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td::before {
+    content: none;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Item & Category'] {
+    grid-area: item;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Date & Timestamp'] {
+    grid-area: date;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Count Entered'] {
+    grid-area: count;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Qty Needed (Par Reconciled)'] {
+    grid-area: qty;
+    justify-self: end;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Recorded By'] {
+    grid-area: by;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td.table-actions-cell {
+    grid-area: actions;
+    display: flex;
+    justify-content: flex-end;
+  }
 }
