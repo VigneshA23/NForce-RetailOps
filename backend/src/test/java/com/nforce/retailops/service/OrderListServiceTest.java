@@ -35,6 +35,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -228,6 +229,94 @@ class OrderListServiceTest {
         orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.ORDERED));
 
         assertThat(entry.getStatus()).isEqualTo(OrderStatus.ORDERED);
+        assertThat(entry.getOrderedAt()).isNotNull();
+    }
+
+    @Test
+    void markOrderedMovesNeedsOrderingToOrderedAndRecordsWhenWithoutTouchingTheRest() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        entry.setNote("urgent");
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        OrderListEntryResponse response = orderListService.markOrdered(OWNER_ID, ENTRY_ID);
+
+        assertThat(response.status()).isEqualTo("ORDERED");
+        assertThat(entry.getOrderedAt()).isNotNull();
+        assertThat(entry.getQuantityNeeded()).isEqualByComparingTo(bd(5));
+        assertThat(entry.getNote()).isEqualTo("urgent");
+    }
+
+    @Test
+    void markOrderedRejectsAnEntryThatIsAlreadyOrdered() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+
+        assertThatThrownBy(() -> orderListService.markOrdered(OWNER_ID, ENTRY_ID))
+            .isInstanceOf(OrderEntryAlreadyUpdatedException.class);
+    }
+
+    @Test
+    void receivingAnOrderKeepsWhenItWasOrdered() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        OffsetDateTime orderedAt = OffsetDateTime.now().minusDays(1);
+        entry.setOrderedAt(orderedAt);
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(stockReceiptService.applyReceipt(any(), any(), any(), any()))
+            .thenReturn(new StockReceiptService.Result(false, null, null, bd(0)));
+
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID, new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED));
+
+        assertThat(entry.getOrderedAt()).isEqualTo(orderedAt);
+    }
+
+    @Test
+    void orderedInfoForYesterdayLooksThroughTodayAndPicksTheEarliestOrder() {
+        java.time.LocalDate yesterday = java.time.LocalDate.now().minusDays(1);
+        OrderListEntry early = entryWithStatus(OrderStatus.ORDERED);
+        early.setOrderedAt(OrderListService.rangeStart(yesterday).plusHours(9));
+        OrderListEntry late = entryWithStatus(OrderStatus.ORDERED);
+        late.setOrderedAt(OrderListService.rangeStart(java.time.LocalDate.now()).plusHours(9));
+        when(orderListEntryRepository.findByStoreIdAndOrderedAtGreaterThanEqualAndOrderedAtLessThan(
+            STORE_ID, OrderListService.rangeStart(yesterday), OrderListService.rangeEndExclusive(java.time.LocalDate.now())))
+            .thenReturn(List.of(late, early));
+
+        var info = orderListService.orderedInfoByItemFor(STORE_ID, yesterday);
+
+        assertThat(info).hasSize(1);
+        assertThat(info.values().iterator().next().orderedOn()).isEqualTo(yesterday);
+    }
+
+    @Test
+    void orderedInfoForTodayAlsoIncludesEarlierOrdersStillAwaitingDelivery() {
+        java.time.LocalDate today = java.time.LocalDate.now();
+        OrderListEntry outstanding = entryWithStatus(OrderStatus.ORDERED);
+        outstanding.setOrderedAt(OrderListService.rangeStart(today).minusDays(1).plusHours(9));
+        when(orderListEntryRepository.findByStoreIdAndOrderedAtGreaterThanEqualAndOrderedAtLessThan(
+            STORE_ID, OrderListService.rangeStart(today), OrderListService.rangeEndExclusive(today)))
+            .thenReturn(List.of());
+        when(orderListEntryRepository.findByStoreIdAndStatusNotOrderByCreatedAtDesc(STORE_ID, OrderStatus.RECEIVED))
+            .thenReturn(List.of(outstanding));
+
+        var info = orderListService.orderedInfoByItemFor(STORE_ID, today);
+
+        assertThat(info).hasSize(1);
+        assertThat(info.values().iterator().next().orderedOn()).isEqualTo(today.minusDays(1));
+    }
+
+    @Test
+    void orderedInfoForAnOlderDayOnlyLooksAtThatDay() {
+        java.time.LocalDate older = java.time.LocalDate.now().minusDays(3);
+
+        orderListService.orderedInfoByItemFor(STORE_ID, older);
+
+        verify(orderListEntryRepository).findByStoreIdAndOrderedAtGreaterThanEqualAndOrderedAtLessThan(
+            STORE_ID, OrderListService.rangeStart(older), OrderListService.rangeEndExclusive(older));
     }
 
     @Test

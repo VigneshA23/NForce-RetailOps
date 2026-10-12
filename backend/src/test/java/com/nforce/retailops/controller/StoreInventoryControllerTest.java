@@ -224,8 +224,9 @@ class StoreInventoryControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.groups[0].supplierName").value("No Supplier"))
             .andExpect(jsonPath("$.groups[0].items[1].itemName").value("Milk"))
+            .andExpect(jsonPath("$.groups[0].items[0].status").value("START_OF_DAY_PENDING"))
             .andExpect(jsonPath("$.groups[0].items[1].status").value("END_OF_DAY_PENDING"))
-            .andExpect(jsonPath("$.itemsPendingEndOfDay").value(2));
+            .andExpect(jsonPath("$.itemsPendingEndOfDay").value(1));
 
         StockCheck saved = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(milk.getId(), today).orElseThrow();
         saved.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(35), bd(1), owner, OffsetDateTime.now(), false);

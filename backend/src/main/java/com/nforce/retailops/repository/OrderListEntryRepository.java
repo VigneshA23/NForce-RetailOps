@@ -14,6 +14,9 @@ public interface OrderListEntryRepository extends JpaRepository<OrderListEntry, 
 
     List<OrderListEntry> findByStoreIdOrderByCreatedAtDesc(Long storeId);
 
+    // Entries marked Ordered within [from, to), whatever status they've reached since.
+    List<OrderListEntry> findByStoreIdAndOrderedAtGreaterThanEqualAndOrderedAtLessThan(Long storeId, OffsetDateTime from, OffsetDateTime to);
+
     List<OrderListEntry> findByStoreIdAndStatusNotOrderByCreatedAtDesc(Long storeId, OrderStatus status);
 
     Optional<OrderListEntry> findByIdAndStoreId(Long id, Long storeId);

@@ -165,6 +165,7 @@ public class OrderListService {
         if (currentStatus != targetStatus) {
             entry.setStatusChangedByRole(ROLE_OWNER_ADMIN);
         }
+        stampOrderedAt(entry, currentStatus, targetStatus);
         entry.setQuantityNeeded(request.quantityNeeded());
         entry.setNote(request.note());
         entry.setStatus(targetStatus);
@@ -190,6 +191,64 @@ public class OrderListService {
             return OrderListEntryResponse.from(entry, applyReceivedStock(entry, owner, null));
         }
         return OrderListEntryResponse.from(entry);
+    }
+
+    // The permanent record of "ordered on this day", written by every path
+    // that moves an entry to Ordered (Order List page, EOD report, Super Admin).
+    private static void stampOrderedAt(OrderListEntry entry, OrderStatus from, OrderStatus to) {
+        if (to == OrderStatus.ORDERED && from != OrderStatus.ORDERED) {
+            entry.setOrderedAt(OffsetDateTime.now());
+        }
+    }
+
+    // What was ordered for an item, and when. quantity is needed + manual top-up.
+    public record OrderedInfo(BigDecimal quantity, OffsetDateTime orderedAt) {
+        public LocalDate orderedOn() {
+            return orderedAt.atZoneSameInstant(ZoneId.systemDefault()).toLocalDate();
+        }
+    }
+
+    // The EOD report's order history for one day, per item, including orders
+    // since received. Normally the orders placed on that day itself. Two
+    // widenings, because a shortage can be ordered after the day it's counted:
+    //  - yesterday's window runs through today, so an item ordered this
+    //    morning for yesterday's shortage shows as ordered (dated today);
+    //  - today also includes anything still sitting at Ordered from earlier,
+    //    since it's outstanding and hasn't been received yet.
+    // Where an item has several, the earliest order wins.
+    @Transactional(readOnly = true)
+    public Map<Long, OrderedInfo> orderedInfoByItemFor(Long storeId, LocalDate date) {
+        LocalDate today = LocalDate.now();
+        LocalDate lastDay = date.equals(today.minusDays(1)) ? today : date;
+        List<OrderListEntry> entries = new java.util.ArrayList<>(orderListEntryRepository
+            .findByStoreIdAndOrderedAtGreaterThanEqualAndOrderedAtLessThan(storeId, rangeStart(date), rangeEndExclusive(lastDay)));
+        if (date.equals(today)) {
+            orderListEntryRepository.findByStoreIdAndStatusNotOrderByCreatedAtDesc(storeId, OrderStatus.RECEIVED).stream()
+                .filter(e -> e.getStatus() == OrderStatus.ORDERED && e.getOrderedAt() != null && e.getOrderedAt().isBefore(rangeStart(date)))
+                .forEach(entries::add);
+        }
+        return entries.stream().collect(java.util.stream.Collectors.toMap(
+            e -> e.getStoreInventoryItem().getId(),
+            e -> new OrderedInfo(e.totalQuantityOrdered(), e.getOrderedAt()),
+            (a, b) -> a.orderedAt().isBefore(b.orderedAt()) ? a : b
+        ));
+    }
+
+    // Needs Ordering -> Ordered with nothing else changed, for the EOD report's
+    // one editable status. Goes through updateEntry so the stale-view check,
+    // transition rule and status-changed-by attribution are the same ones the
+    // Order List page applies.
+    @Transactional
+    public OrderListEntryResponse markOrdered(Long ownerId, Long entryId) {
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
+        OrderListEntry entry = orderListEntryRepository.findByIdAndStoreId(entryId, storeOwner.getStore().getId())
+            .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
+        return updateEntry(ownerId, entryId, new UpdateOrderListEntryRequest(
+            entry.getQuantityNeeded(),
+            entry.getSupplier() != null ? entry.getSupplier().getId() : null,
+            entry.getNote(),
+            OrderStatus.ORDERED,
+            OrderStatus.NEEDS_ORDERING));
     }
 
     // The stock side of Ordered -> Received: adds what arrived to the item's
@@ -264,6 +323,7 @@ public class OrderListService {
         if (currentStatus != targetStatus) {
             entry.setStatusChangedByRole(ROLE_SUPER_ADMIN);
         }
+        stampOrderedAt(entry, currentStatus, targetStatus);
         entry.setStatus(targetStatus);
         boolean receivedNow = currentStatus == OrderStatus.ORDERED && targetStatus == OrderStatus.RECEIVED;
         if (receivedNow) {

@@ -61,6 +61,11 @@ public class OrderListEntry {
     @Column(name = "status_changed_by_role", length = 20)
     private String statusChangedByRole;
 
+    // Set when the entry moves to ORDERED, by whichever path; survives the move
+    // on to RECEIVED so a day's EOD report can still show what was ordered.
+    @Column(name = "ordered_at")
+    private OffsetDateTime orderedAt;
+
     @Column(name = "ad_hoc", nullable = false)
     private boolean adHoc;
 
@@ -167,6 +172,14 @@ public class OrderListEntry {
 
     public void setStatusChangedByRole(String statusChangedByRole) {
         this.statusChangedByRole = statusChangedByRole;
+    }
+
+    public OffsetDateTime getOrderedAt() {
+        return orderedAt;
+    }
+
+    public void setOrderedAt(OffsetDateTime orderedAt) {
+        this.orderedAt = orderedAt;
     }
 
     public boolean isAdHoc() {

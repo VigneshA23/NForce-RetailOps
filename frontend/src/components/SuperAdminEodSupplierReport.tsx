@@ -9,16 +9,19 @@ import { getSuperAdminEodSupplierReport } from '../api/superAdminOperations';
 import type { EodReportRow, EodReportStatus, EodSupplierReport as EodSupplierReportData } from '../types/stockCheck';
 import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
+import { formatDateLabel, formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
 import { buildEodReportText, usableStock } from '../utils/orderListExport';
 import { nfToast } from '../utils/toast';
 import '../pages/OrderList.css';
 import './EodSupplierReport.css';
 
 const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
-  NEEDS_TO_ORDER: { label: 'Needs to Order', tone: 'danger' },
-  SUFFICIENT: { label: 'Sufficient', tone: 'success' },
+  START_OF_DAY_PENDING: { label: 'Not Updated Today', tone: 'outline' },
   END_OF_DAY_PENDING: { label: 'EOD Pending', tone: 'warning' },
+  NEEDS_TO_ORDER: { label: 'Needs to Order', tone: 'danger' },
+  ORDERED: { label: 'Ordered', tone: 'purple' },
+  NOT_ORDERED: { label: 'Not Ordered', tone: 'outline' },
+  SUFFICIENT: { label: 'Sufficient', tone: 'success' },
   NO_MINIMUM_SET: { label: 'No Minimum Set', tone: 'info' },
 };
 
@@ -242,7 +245,18 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
   }
 
   function renderStatusBadge(row: DecoratedRow) {
-    return <span className={`badge badge--${row.statusTone}`}>{row.statusLabel}</span>;
+    const badge = <span className={`badge badge--${row.statusTone}`}>{row.statusLabel}</span>;
+    // The order date can differ from the report's own date (yesterday's
+    // shortage ordered today), so it's always spelled out.
+    if (row.item.status === 'ORDERED' && row.item.orderedOn) {
+      return (
+        <div className="eod-report__status-stack">
+          {badge}
+          <span className="eod-report__ordered-on">Ordered on {formatDateLabel(row.item.orderedOn)}</span>
+        </div>
+      );
+    }
+    return badge;
   }
 
   function renderMobileCard(row: DecoratedRow) {

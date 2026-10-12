@@ -505,17 +505,20 @@ public class StockCheckService {
             .sorted(Comparator.comparing(StoreInventoryItem::getName, String.CASE_INSENSITIVE_ORDER))
             .toList();
 
-        // Quantity actually placed with the supplier via an ORDERED (not yet
-        // RECEIVED) Order List entry, per item -- shown alongside this
-        // report's own computed quantityToOrder so it's visible here too
-        // without a trip to the Orders page.
-        Map<Long, BigDecimal> orderedQuantityByItemId = orderListService.listForStore(storeId).stream()
-            .filter(entry -> "ORDERED".equals(entry.status()))
+        // Each item's one active (not yet RECEIVED) Order List entry -- drives
+        // the Ordered status/quantity and the "mark ordered" action, so this
+        // report reflects the Orders page without a trip there.
+        Map<Long, OrderListEntryResponse> activeOrderByItemId = orderListService.listForStore(storeId).stream()
+            .filter(entry -> !"RECEIVED".equals(entry.status()))
             .collect(Collectors.toMap(
                 OrderListEntryResponse::storeInventoryItemId,
-                entry -> entry.quantityNeeded().add(entry.manualAddition()),
+                entry -> entry,
                 (a, b) -> a
             ));
+
+        // Permanent record of orders (kept after Received), so a past day's
+        // report still shows what was ordered and when.
+        Map<Long, OrderListService.OrderedInfo> orderedByItemId = orderListService.orderedInfoByItemFor(storeId, reportDate);
 
         Map<Long, List<EodSupplierReportResponse.Row>> rowsBySupplierId = new LinkedHashMap<>();
         Map<Long, Supplier> suppliersById = new LinkedHashMap<>();
@@ -525,7 +528,8 @@ public class StockCheckService {
 
         for (StoreInventoryItem item : items) {
             StockCheck check = checksByItemId.get(item.getId());
-            EodSupplierReportResponse.Row row = toReportRow(item, check, reportDate, orderedQuantityByItemId.get(item.getId()));
+            EodSupplierReportResponse.Row row = toReportRow(
+                item, check, reportDate, activeOrderByItemId.get(item.getId()), orderedByItemId.get(item.getId()));
             if (row.status() == EodSupplierReportResponse.Status.NEEDS_TO_ORDER) needingOrder++;
             if (row.status() == EodSupplierReportResponse.Status.END_OF_DAY_PENDING) pendingEod++;
 
@@ -892,15 +896,44 @@ public class StockCheckService {
         return check != null && check.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? check.getQuantityNeeded() : null;
     }
 
-    private static EodSupplierReportResponse.Row toReportRow(StoreInventoryItem item, StockCheck check, LocalDate date, BigDecimal orderedQuantity) {
+    private static EodSupplierReportResponse.Row toReportRow(
+        StoreInventoryItem item, StockCheck check, LocalDate date, OrderListEntryResponse activeOrder, OrderListService.OrderedInfo ordered
+    ) {
         BigDecimal required = requiredTomorrow(item, check, date);
         BigDecimal toOrder = quantityToOrder(check);
+        boolean shortOnThisDay = toOrder != null && toOrder.signum() > 0;
+
+        // Today's shortage stays pending until ordered, and yesterday's can
+        // still be ordered this morning; anything older is closed to changes.
+        LocalDate today = LocalDate.now();
+        boolean canStillOrder = date.equals(today) || date.equals(today.minusDays(1));
+        boolean orderPending = canStillOrder && activeOrder != null && "NEEDS_ORDERING".equals(activeOrder.status());
+
+        // An order counts for this day when it was placed on it, or -- for a
+        // shortage -- placed afterwards within the window the order service
+        // allows (see orderedInfoByItemFor). Without a shortage, only an order
+        // placed on the day itself is shown. On today's report a fresh Needs
+        // Ordering entry (e.g. raised again after a delivery) outranks an
+        // earlier order: there's something new to act on.
+        boolean orderCounts = ordered != null
+            && (shortOnThisDay || ordered.orderedOn().equals(date))
+            && !(date.equals(today) && orderPending);
+        BigDecimal orderedQuantity = orderCounts ? ordered.quantity() : null;
+        LocalDate orderedOn = orderCounts ? ordered.orderedOn() : null;
+        Long orderEntryId = orderPending && !orderCounts ? activeOrder.id() : null;
 
         EodSupplierReportResponse.Status status;
         if (toOrder == null) {
-            status = EodSupplierReportResponse.Status.END_OF_DAY_PENDING;
-        } else if (toOrder.signum() > 0) {
-            status = EodSupplierReportResponse.Status.NEEDS_TO_ORDER;
+            boolean startCounted = check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY);
+            status = startCounted
+                ? EodSupplierReportResponse.Status.END_OF_DAY_PENDING
+                : EodSupplierReportResponse.Status.START_OF_DAY_PENDING;
+        } else if (shortOnThisDay) {
+            status = orderCounts
+                ? EodSupplierReportResponse.Status.ORDERED
+                : canStillOrder
+                    ? EodSupplierReportResponse.Status.NEEDS_TO_ORDER
+                    : EodSupplierReportResponse.Status.NOT_ORDERED;
         } else if (required == null) {
             status = EodSupplierReportResponse.Status.NO_MINIMUM_SET;
         } else {
@@ -921,7 +954,9 @@ public class StockCheckService {
             required,
             toOrder,
             status,
-            orderedQuantity
+            orderedQuantity,
+            orderEntryId,
+            orderedOn
         );
     }
 }
