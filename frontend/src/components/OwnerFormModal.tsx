@@ -138,6 +138,7 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
       subtitle="Fill in the details below to create a new owner."
       titleIcon={<UserPlus size={18} />}
       className="owner-form-modal"
+      size="lg"
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
@@ -166,19 +167,6 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
               </div>
             </FormField>
 
-            <FormField label="Email" htmlFor="owner-email" required error={errors.ownerEmail}>
-              <div className="owner-form__input-icon-wrap">
-                <Mail className="owner-form__input-icon" size={15} aria-hidden="true" />
-                <input
-                  id="owner-email"
-                  type="email"
-                  className="input"
-                  value={values.ownerEmail}
-                  onChange={(event) => updateField('ownerEmail', event.target.value)}
-                />
-              </div>
-            </FormField>
-
             <FormField label="Contact" htmlFor="owner-phone" required error={errors.ownerPhone}>
               <div className="owner-form__phone-row">
                 <Select
@@ -202,9 +190,23 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
               </div>
             </FormField>
 
+            <FormField label="Email" htmlFor="owner-email" required error={errors.ownerEmail}>
+              <div className="owner-form__input-icon-wrap">
+                <Mail className="owner-form__input-icon" size={15} aria-hidden="true" />
+                <input
+                  id="owner-email"
+                  type="email"
+                  className="input"
+                  value={values.ownerEmail}
+                  onChange={(event) => updateField('ownerEmail', event.target.value)}
+                />
+              </div>
+            </FormField>
+
             <FormField label="Gender" htmlFor="owner-gender" required error={errors.ownerGender}>
               <Select
                 id="owner-gender"
+                className="owner-form__gender"
                 value={values.ownerGender}
                 onChange={(value) => updateField('ownerGender', value as OwnerGender)}
                 options={[{ value: '', label: 'Select gender' }, ...GENDER_OPTIONS]}

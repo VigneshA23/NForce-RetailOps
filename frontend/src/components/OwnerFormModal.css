@@ -74,13 +74,22 @@
 }
 
 .owner-form__country-code {
-  flex: 0 0 40%;
-  max-width: 40%;
+  flex: 0 0 auto;
+  width: 170px;
+  max-width: 170px;
 }
 
 .owner-form__phone-row .input {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: 150px;
+}
+
+/* Fills its column exactly (same width Contact's own content naturally
+   fills above it) rather than a separate fixed width narrower than the
+   column -- that left a dead gap between the dropdown and the column's own
+   right edge. */
+.owner-form__gender {
+  width: 100%;
 }
 
 .owner-form__hint {
@@ -96,5 +105,21 @@
 @media (--mobile) {
   .owner-form__grid {
     grid-template-columns: 1fr;
+  }
+
+  /* Desktop's fixed 170px/150px keep Contact matched to Gender's column
+     width next to it (see above) -- on mobile there's no such neighbor
+     (single column), so those same fixed widths left Contact stopping well
+     short of every other field's full-width right edge. Stretches both to
+     fill the row instead, same proportions as before. */
+  .owner-form__country-code {
+    flex: 0 0 44%;
+    width: auto;
+    max-width: 44%;
+  }
+
+  .owner-form__phone-row .input {
+    flex: 1 1 auto;
+    width: auto;
   }
 }
