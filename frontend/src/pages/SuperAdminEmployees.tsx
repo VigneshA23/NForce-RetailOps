@@ -169,15 +169,18 @@ function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
   const currentPage = Math.min(page, pageCount);
   const pagedEmployees = filteredEmployees.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const fullTimeCount = useMemo(
-    () => employees.filter((employee) => employee.employeeType === 'Full Time').length,
-    [employees],
-  );
   const inactiveCount = useMemo(() => employees.filter((employee) => !employee.active).length, [employees]);
   // "Total Employees" reflects active headcount -- matches the Stores page's
   // per-store/platform employee counts, which already only count active
-  // employees; a deactivated employee shouldn't inflate either figure.
+  // employees; a deactivated employee shouldn't inflate either figure. Full
+  // Time/Part Time are a breakdown of that same active headcount, so they
+  // need the same filter -- otherwise deactivating someone never changed
+  // either count, since both silently included inactive employees too.
   const activeCount = employees.length - inactiveCount;
+  const fullTimeCount = useMemo(
+    () => employees.filter((employee) => employee.active && employee.employeeType === 'Full Time').length,
+    [employees],
+  );
 
   const emptyMessage =
     employees.length === 0 ? 'No employees yet.' : 'No employees match your filters.';
@@ -187,7 +190,7 @@ function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
       <div className="stat-card-row">
         <StatCard icon={Users} label="Total Employees" value={activeCount} tone="primary" />
         <StatCard icon={UserCheck} label="Full Time" value={fullTimeCount} tone="success" />
-        <StatCard icon={UserCog} label="Part Time" value={employees.length - fullTimeCount} tone="info" />
+        <StatCard icon={UserCog} label="Part Time" value={activeCount - fullTimeCount} tone="info" />
         <StatCard icon={UserX} label="Inactive" value={inactiveCount} tone="warning" />
       </div>
 
