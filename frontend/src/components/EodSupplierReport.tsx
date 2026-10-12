@@ -3,31 +3,41 @@ import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Clipboard, List } fro
 import CalendarPopover from './CalendarPopover';
 import CategoryIcon from './CategoryIcon';
 import Select from './Select';
+import StatusDotMenu from './StatusDotMenu';
+import { STATUS_META as ORDER_STATUS_META } from '../utils/orderListStatus';
 import SearchInput from './SearchInput';
 import FilterClearButton from './FilterClearButton';
+import { ApiError } from '../api/client';
+import { markOrderListEntryOrdered } from '../api/orderList';
 import { getEodSupplierReport } from '../api/storeInventory';
 import type { EodReportRow, EodReportStatus, EodSupplierReport as EodSupplierReportData } from '../types/stockCheck';
 import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import { formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
+import { formatDateLabel, formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
 import { buildEodReportText, usableStock } from '../utils/orderListExport';
 import { nfToast } from '../utils/toast';
 import '../pages/OrderList.css';
 import './EodSupplierReport.css';
 
 const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
-  NEEDS_TO_ORDER: { label: 'Needs to Order', tone: 'danger' },
-  SUFFICIENT: { label: 'Sufficient', tone: 'success' },
+  START_OF_DAY_PENDING: { label: 'Not Updated Today', tone: 'outline' },
   END_OF_DAY_PENDING: { label: 'EOD Pending', tone: 'warning' },
+  NEEDS_TO_ORDER: { label: 'Needs to Order', tone: 'danger' },
+  ORDERED: { label: 'Ordered', tone: 'purple' },
+  NOT_ORDERED: { label: 'Not Ordered', tone: 'outline' },
+  SUFFICIENT: { label: 'Sufficient', tone: 'success' },
   NO_MINIMUM_SET: { label: 'No Minimum Set', tone: 'info' },
 };
 
 const STATUS_FILTER_OPTIONS: { value: 'all' | EodReportStatus; label: string }[] = [
   { value: 'all', label: 'All statuses' },
-  { value: 'NEEDS_TO_ORDER', label: 'Needs to Order' },
-  { value: 'SUFFICIENT', label: 'Sufficient' },
-  { value: 'END_OF_DAY_PENDING', label: 'EOD Pending' },
-  { value: 'NO_MINIMUM_SET', label: 'No Minimum Set' },
+  ...(Object.keys(STATUS_META) as EodReportStatus[]).map((value) => ({ value, label: STATUS_META[value].label })),
+];
+
+// The one status Owner/Admin changes from this report; every other is derived.
+const ORDER_STATUS_OPTIONS = [
+  { value: 'NEEDS_TO_ORDER', label: STATUS_META.NEEDS_TO_ORDER.label, dot: ORDER_STATUS_META.NEEDS_ORDERING.fg },
+  { value: 'ORDERED', label: STATUS_META.ORDERED.label, dot: ORDER_STATUS_META.ORDERED.fg },
 ];
 
 const GROUP_ROW_LIMIT = 5;
@@ -79,6 +89,8 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [markingEntryId, setMarkingEntryId] = useState<number | null>(null);
   const dateTriggerRef = useRef<HTMLButtonElement>(null);
 
   const [search, setSearch] = useState('');
@@ -106,10 +118,39 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
     return () => {
       cancelled = true;
     };
-  }, [date]);
+  }, [date, reloadKey]);
 
   const isToday = date >= todayDate();
   const hasItems = (report?.groups.length ?? 0) > 0;
+
+  async function markOrdered(item: EodReportRow) {
+    if (item.orderEntryId == null) return;
+    setMarkingEntryId(item.orderEntryId);
+    try {
+      const entry = await markOrderListEntryOrdered(item.orderEntryId);
+      setReport((current) =>
+        current && {
+          ...current,
+          itemsNeedingOrder: Math.max(0, current.itemsNeedingOrder - 1),
+          groups: current.groups.map((g) => ({
+            ...g,
+            items: g.items.map((r) =>
+              r.storeInventoryItemId === item.storeInventoryItemId
+                ? { ...r, status: 'ORDERED', orderEntryId: null, orderedQuantity: entry.quantityNeeded + entry.manualAddition, orderedOn: todayDate() }
+                : r,
+            ),
+          })),
+        },
+      );
+      nfToast.success(`"${item.itemName}" marked as ordered.`);
+    } catch (error) {
+      nfToast.error(error instanceof Error ? error.message : 'Failed to update status');
+      // Someone else already moved it -- pull the current state.
+      if (error instanceof ApiError && error.status === 409) setReloadKey((k) => k + 1);
+    } finally {
+      setMarkingEntryId(null);
+    }
+  }
 
   async function handleCopy() {
     if (!report) return;
@@ -226,7 +267,32 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
   }
 
   function renderStatusBadge(row: DecoratedRow) {
-    return <span className={`badge badge--${row.statusTone}`}>{row.statusLabel}</span>;
+    // Needs to Order is the only editable status, and only while it has an
+    // Order List entry to move (today's report).
+    if (row.item.status === 'NEEDS_TO_ORDER' && row.item.orderEntryId != null) {
+      return (
+        <StatusDotMenu
+          options={ORDER_STATUS_OPTIONS}
+          value="NEEDS_TO_ORDER"
+          onChange={(next) => {
+            if (next === 'ORDERED' && markingEntryId == null) void markOrdered(row.item);
+          }}
+          ariaLabel={`Change status for ${row.item.itemName}`}
+        />
+      );
+    }
+    const badge = <span className={`badge badge--${row.statusTone}`}>{row.statusLabel}</span>;
+    // The order date can differ from the report's own date (yesterday's
+    // shortage ordered today), so it's always spelled out.
+    if (row.item.status === 'ORDERED' && row.item.orderedOn) {
+      return (
+        <div className="eod-report__status-stack">
+          {badge}
+          <span className="eod-report__ordered-on">Ordered on {formatDateLabel(row.item.orderedOn)}</span>
+        </div>
+      );
+    }
+    return badge;
   }
 
   function renderMobileCard(row: DecoratedRow) {

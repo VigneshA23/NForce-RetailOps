@@ -3,15 +3,18 @@ import { Calendar, ChevronLeft, ChevronRight, Clipboard } from 'lucide-react';
 import CalendarPopover from './CalendarPopover';
 import { getSuperAdminEodSupplierReport } from '../api/superAdminOperations';
 import type { EodReportRow, EodReportStatus, EodSupplierReport as EodSupplierReportData } from '../types/stockCheck';
-import { formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
+import { formatDateLabel, formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
 import { buildEodReportText, usableStock } from '../utils/orderListExport';
 import { nfToast } from '../utils/toast';
 import './EodSupplierReport.css';
 
 const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
-  NEEDS_TO_ORDER: { label: 'Needs to Order', tone: 'danger' },
-  SUFFICIENT: { label: 'Sufficient', tone: 'success' },
+  START_OF_DAY_PENDING: { label: 'Not Updated Today', tone: 'outline' },
   END_OF_DAY_PENDING: { label: 'EOD Pending', tone: 'warning' },
+  NEEDS_TO_ORDER: { label: 'Needs to Order', tone: 'danger' },
+  ORDERED: { label: 'Ordered', tone: 'purple' },
+  NOT_ORDERED: { label: 'Not Ordered', tone: 'outline' },
+  SUFFICIENT: { label: 'Sufficient', tone: 'success' },
   NO_MINIMUM_SET: { label: 'No Minimum Set', tone: 'info' },
 };
 
@@ -47,6 +50,9 @@ function ReportRow({ row, supplierName }: { row: EodReportRow; supplierName: str
       </td>
       <td data-label="Status">
         <span className={`badge badge--${status.tone}`}>{status.label}</span>
+        {row.status === 'ORDERED' && row.orderedOn && (
+          <span className="eod-report__ordered-on">Ordered on {formatDateLabel(row.orderedOn)}</span>
+        )}
       </td>
     </tr>
   );
