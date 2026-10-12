@@ -195,28 +195,23 @@
     gap: 6px;
   }
 
-  .employee-cards .employee-table__store-badge {
+  .employee-cards .employee-table__store-pill {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
     max-width: 100%;
-    padding: 6px 10px;
-    border: 1px solid color-mix(in srgb, var(--color-badge-icon-info-fg) 20%, transparent);
-    border-radius: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
     background: var(--color-badge-icon-info-bg);
     color: var(--color-badge-icon-info-fg);
-    font-size: 12px;
+    font-size: 13px;
+    font-weight: 500;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
-  .employee-cards .employee-table__store-badge::before {
-    content: '';
+  .employee-cards .employee-table__store-pill svg {
     flex-shrink: 0;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: currentColor;
   }
 
   /* Actions: small rounded buttons beside the stores block */

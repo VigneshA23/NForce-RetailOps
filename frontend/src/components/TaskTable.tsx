@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { CalendarDays, CircleCheck, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
 import type { AdminTask } from '../types/adminTask';
 import { completionTypeLabel, responseTypeBadgeClass, responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions';
 import './TaskTable.css';
@@ -141,9 +141,7 @@ function TaskTable({ tasks, isLoading = false, showStoreColumn = false, onRowCli
               onClick={() => onRowClick(task)}
             >
               <div className="task-mobile-card__top">
-                <div className="task-mobile-card__identity">
-                  <span className="task-mobile-card__name">{task.name}</span>
-                </div>
+                <span className="badge badge--outline task-mobile-card__category">{task.categoryName}</span>
                 <label
                   className="status-toggle task-mobile-card__status"
                   title={
@@ -168,44 +166,49 @@ function TaskTable({ tasks, isLoading = false, showStoreColumn = false, onRowCli
                 </label>
               </div>
 
-              <div className="task-mobile-card__row">
-                <span className="task-mobile-card__label">Category</span>
-                <span className="task-mobile-card__value">{task.categoryName}</span>
-              </div>
+              <span className="task-mobile-card__name">{task.name}</span>
 
-              {showStoreColumn && (
-                <div className="task-mobile-card__row">
-                  <span className="task-mobile-card__label">Store</span>
-                  <span className="task-mobile-card__value">{taskStoresLabel(task)}</span>
+              <div className="task-mobile-card__details">
+                {showStoreColumn && (
+                  <div className="task-mobile-card__store-pill">
+                    <StoreIcon size={14} aria-hidden="true" />
+                    <span>{taskStoresLabel(task)}</span>
+                  </div>
+                )}
+
+                <div className="task-mobile-card__metrics">
+                  <div className="task-mobile-card__metric">
+                    <CalendarDays size={16} aria-hidden="true" />
+                    <div>
+                      <span className="task-mobile-card__label">Schedule</span>
+                      <span className="task-mobile-card__value">
+                        {scheduleSummary(task.scheduleType, task.selectedDays, task.startDate, task.endDate)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="task-mobile-card__metric">
+                    <CircleCheck size={16} aria-hidden="true" />
+                    <div>
+                      <span className="task-mobile-card__label">Completion</span>
+                      <span className="task-mobile-card__value">{completionTypeLabel(task.completionType)}</span>
+                    </div>
+                  </div>
                 </div>
-              )}
-
-              <div className="task-mobile-card__row">
-                <span className="task-mobile-card__label">Schedule</span>
-                <span className="task-mobile-card__value">
-                  {scheduleSummary(task.scheduleType, task.selectedDays, task.startDate, task.endDate)}
-                </span>
-              </div>
-
-              <div className="task-mobile-card__row">
-                <span className="task-mobile-card__label">Response</span>
-                <span className={`badge ${responseTypeBadgeClass(task.responseType)}`}>
-                  {responseTypeLabel(task.responseType)}
-                </span>
-              </div>
-
-              <div className="task-mobile-card__row">
-                <span className="task-mobile-card__label">Completion</span>
-                <span className="task-mobile-card__value">{completionTypeLabel(task.completionType)}</span>
               </div>
 
               <div className="task-mobile-card__footer">
-                <span className="task-mobile-card__label">Actions</span>
+                <div className="task-mobile-card__response">
+                  <span className="task-mobile-card__label">Response:</span>
+                  <span className={`badge ${responseTypeBadgeClass(task.responseType)}`}>
+                    {responseTypeLabel(task.responseType)}
+                  </span>
+                </div>
                 <div className="task-mobile-card__actions">
                   {onEdit && (
                     <button
                       type="button"
-                      className="task-mobile-card__icon-btn"
+                      className="table-icon-btn"
                       aria-label={`Edit ${task.name}`}
                       title="Edit"
                       onClick={(event) => {
@@ -218,7 +221,7 @@ function TaskTable({ tasks, isLoading = false, showStoreColumn = false, onRowCli
                   )}
                   <button
                     type="button"
-                    className="task-mobile-card__icon-btn task-mobile-card__icon-btn--danger"
+                    className="table-icon-btn table-icon-btn--danger"
                     aria-label={`Delete ${task.name}`}
                     title="Delete"
                     onClick={(event) => {

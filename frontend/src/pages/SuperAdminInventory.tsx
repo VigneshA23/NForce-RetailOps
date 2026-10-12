@@ -33,7 +33,6 @@ import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
-import { SORT_OPTIONS, STATUS_SORT_ORDER, type SortOption } from '../utils/storeInventorySort';
 import { supplierStoreSummaryLabel } from '../utils/supplierStoreSummary';
 import './StoreInventory.css';
 import './SuperAdminInventory.css';
@@ -120,7 +119,7 @@ function SuperAdminInventory() {
   const [itemDeleteError, setItemDeleteError] = useState<string | null>(null);
   const [itemSearch, setItemSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [sort, setSort] = useState<SortOption>('name');
+  const [supplierFilter, setSupplierFilter] = useState('all');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   useDismissablePanel({ isOpen: isExportMenuOpen, onClose: () => setIsExportMenuOpen(false), refs: [exportMenuRef] });
@@ -133,6 +132,7 @@ function SuperAdminInventory() {
   useEffect(() => {
     setItemSearch('');
     setCategoryFilter('');
+    setSupplierFilter('all');
     setEditTarget(null);
     setIsCreateModalOpen(false);
   }, [selectedStoreId]);
@@ -238,29 +238,31 @@ function SuperAdminInventory() {
     [storeItems],
   );
 
-  const sortedItems = useMemo(() => {
+  const supplierFilterOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All suppliers' },
+      ...[...suppliers]
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        .map((supplier) => ({ value: String(supplier.id), label: supplier.name })),
+      { value: 'UNASSIGNED', label: 'Unassigned Supplier' },
+    ],
+    [suppliers],
+  );
+
+  const filteredItems = useMemo(() => {
     const term = itemSearch.trim().toLowerCase();
-    const filtered = storeItems.filter((item) => {
+    return storeItems.filter((item) => {
       const matchesSearch =
         !term ||
         item.name.toLowerCase().includes(term) ||
         (item.category ? categoryLabel(item.category).toLowerCase().includes(term) : false) ||
         (item.preferredSupplierName?.toLowerCase().includes(term) ?? false);
-      return matchesSearch && (!categoryFilter || item.category === categoryFilter);
+      if (!matchesSearch || (categoryFilter && item.category !== categoryFilter)) return false;
+      if (supplierFilter === 'UNASSIGNED') return item.preferredSupplierId == null;
+      if (supplierFilter !== 'all') return String(item.preferredSupplierId) === supplierFilter;
+      return true;
     });
-    return filtered.sort((a, b) => {
-      switch (sort) {
-        case 'status':
-          return STATUS_SORT_ORDER[getStockStatus(a)] - STATUS_SORT_ORDER[getStockStatus(b)] || a.name.localeCompare(b.name);
-        case 'supplier':
-          return (a.preferredSupplierName ?? '').localeCompare(b.preferredSupplierName ?? '') || a.name.localeCompare(b.name);
-        case 'category':
-        case 'name':
-        default:
-          return (a.category ? categoryLabel(a.category) : '').localeCompare(b.category ? categoryLabel(b.category) : '') || a.name.localeCompare(b.name);
-      }
-    });
-  }, [storeItems, itemSearch, categoryFilter, sort]);
+  }, [storeItems, itemSearch, categoryFilter, supplierFilter]);
 
   // Memoised because the form modal resets its fields whenever this reference
   // changes -- an inline object would wipe in-progress input on every re-render
@@ -494,7 +496,7 @@ function SuperAdminInventory() {
                   <div className="store-inventory-page__export" ref={exportMenuRef}>
                     <button
                       type="button"
-                      className="btn btn--secondary"
+                      className="btn btn--danger"
                       onClick={() => setIsExportMenuOpen((open) => !open)}
                     >
                       <FileText size={14} /> Export
@@ -504,14 +506,14 @@ function SuperAdminInventory() {
                         <button
                           type="button"
                           className="store-inventory-page__export-item"
-                          onClick={() => { exportInventoryCatalogCsv(sortedItems); setIsExportMenuOpen(false); }}
+                          onClick={() => { exportInventoryCatalogCsv(filteredItems); setIsExportMenuOpen(false); }}
                         >
                           <FileSpreadsheet size={14} /> Export as CSV
                         </button>
                         <button
                           type="button"
                           className="store-inventory-page__export-item"
-                          onClick={() => { exportInventoryCatalogPdf(sortedItems); setIsExportMenuOpen(false); }}
+                          onClick={() => { exportInventoryCatalogPdf(filteredItems); setIsExportMenuOpen(false); }}
                         >
                           <FileText size={14} /> Export as PDF
                         </button>
@@ -547,25 +549,25 @@ function SuperAdminInventory() {
                 />
                 <Select
                   className="filter"
-                  options={SORT_OPTIONS}
-                  value={sort}
-                  onChange={(value) => setSort(value as SortOption)}
-                  ariaLabel="Sort items"
+                  options={supplierFilterOptions}
+                  value={supplierFilter}
+                  onChange={setSupplierFilter}
+                  ariaLabel="Filter by supplier"
                 />
                 <FilterClearButton
                   ariaLabel="Clear inventory filters"
-                  onClick={() => { setItemSearch(''); setCategoryFilter(''); setSort('name'); }}
+                  onClick={() => { setItemSearch(''); setCategoryFilter(''); setSupplierFilter('all'); }}
                 />
               </div>
 
               <p className="store-inventory-page__catalog-line">
                 <strong>Catalog Directory</strong>
                 <span aria-hidden="true"> · </span>
-                {isLoading ? 'Loading...' : `Showing ${sortedItems.length} Items Across ${distinctCategories.length} Categories`}
+                {isLoading ? 'Loading...' : `Showing ${filteredItems.length} Items Across ${distinctCategories.length} Categories`}
               </p>
 
               <StoreInventoryCardGrid
-                items={sortedItems}
+                items={filteredItems}
                 isLoading={isLoading}
                 selectedId={editTarget?.id ?? null}
                 onEdit={(item) => { setItemFormError(null); setEditTarget(item); }}
@@ -838,7 +840,7 @@ function SuperAdminInventory() {
                     )}
 
                     <div className="supplier-mobile-card__footer">
-                      <span className="supplier-mobile-card__store-value">
+                      <span className="supplier-mobile-card__store-value super-admin-inventory-page__supplier-store-summary">
                         <StoreIcon size={12} />
                         {supplierStoreSummaryLabel(supplier)}
                       </span>

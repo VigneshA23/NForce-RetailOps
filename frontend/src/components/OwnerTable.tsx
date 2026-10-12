@@ -259,7 +259,7 @@ function OwnerTable({
                     <div className="owner-mobile-card__icon-actions">
                       <button
                         type="button"
-                        className="owner-mobile-card__icon-btn"
+                        className="table-icon-btn"
                         aria-label={`View details for ${owner.ownerName}`}
                         title="View details"
                         onClick={() => onView(owner)}
@@ -268,7 +268,7 @@ function OwnerTable({
                       </button>
                       <button
                         type="button"
-                        className="owner-mobile-card__icon-btn"
+                        className="table-icon-btn"
                         aria-label={`Edit ${owner.ownerName}`}
                         title="Edit owner"
                         onClick={() => onEdit(owner)}
@@ -277,7 +277,7 @@ function OwnerTable({
                       </button>
                       <button
                         type="button"
-                        className="owner-mobile-card__icon-btn owner-mobile-card__icon-btn--danger"
+                        className="table-icon-btn table-icon-btn--danger"
                         aria-label={`Delete ${owner.ownerName}`}
                         title="Delete owner permanently"
                         onClick={() => onDelete(owner)}
@@ -287,7 +287,7 @@ function OwnerTable({
                       {owner.ownerActive && !owner.activeStore && (
                         <button
                           type="button"
-                          className="owner-mobile-card__icon-btn"
+                          className="table-icon-btn"
                           aria-label={`Add store for ${owner.ownerName}`}
                           title="Add store"
                           onClick={() => onAddStore(owner)}

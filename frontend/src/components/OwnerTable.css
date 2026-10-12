@@ -267,31 +267,4 @@
     flex-shrink: 0;
   }
 
-  .owner-mobile-card__icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    border: none;
-    background: none;
-    padding: 0;
-    color: var(--color-text-muted);
-    cursor: pointer;
-    transition: color 0.15s ease, opacity 0.15s ease;
-  }
-
-  .owner-mobile-card__icon-btn:hover {
-    color: var(--color-text-secondary);
-    opacity: 0.8;
-  }
-
-  .owner-mobile-card__icon-btn--danger {
-    color: var(--color-accent);
-  }
-
-  .owner-mobile-card__icon-btn--danger:hover {
-    color: var(--color-accent);
-    opacity: 0.8;
-  }
 }

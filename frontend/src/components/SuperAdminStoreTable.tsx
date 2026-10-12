@@ -1,4 +1,4 @@
-import { Eye, Pencil, Trash2, User, UserRoundCog, Users } from 'lucide-react';
+import { Eye, Pencil, Store as StoreIcon, Trash2, User, UserRoundCog, Users } from 'lucide-react';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
@@ -140,8 +140,13 @@ function SuperAdminStoreTable({
                   className="sa-store-mobile-card__name-link"
                   onClick={() => onViewDetails(store)}
                 >
-                  <span className="sa-store-mobile-card__name">{store.storeName}</span>
-                  <span className="sa-store-mobile-card__code">#{store.storeCode}</span>
+                  <span className="sa-store-mobile-card__store-icon" aria-hidden="true">
+                    <StoreIcon size={13} />
+                  </span>
+                  <span className="sa-store-mobile-card__name-content">
+                    <span className="sa-store-mobile-card__name">{store.storeName}</span>
+                    <span className="sa-store-mobile-card__code">#{store.storeCode}</span>
+                  </span>
                 </button>
                 <label
                   className="status-toggle sa-store-mobile-card__status"

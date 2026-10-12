@@ -723,7 +723,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
         />
       )}
 
-      {selectedStoreId !== null && (
+      {selectedStoreId !== null && subTab !== 'purchasing-report' && (
         <div className="super-admin-orders__store">
           {!isMobile && (
             <span className="super-admin-orders__eyebrow">{selectedStoreName}</span>

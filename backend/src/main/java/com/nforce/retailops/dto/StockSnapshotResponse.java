@@ -17,6 +17,7 @@ public record StockSnapshotResponse(
     String enteredByName,
     OffsetDateTime enteredAt,
     String lastUpdatedByName,
+    String lastUpdatedByAvatarUrl,
     OffsetDateTime lastUpdatedAt,
     boolean edited
 ) {
@@ -39,6 +40,7 @@ public record StockSnapshotResponse(
             enteredBy != null ? enteredBy.getFullName() : null,
             enteredAt,
             checkedBy != null ? checkedBy.getFullName() : null,
+            checkedBy != null ? checkedBy.getAvatarUrl() : null,
             checkedAt,
             enteredAt != null && checkedAt != null && !enteredAt.isEqual(checkedAt)
         );

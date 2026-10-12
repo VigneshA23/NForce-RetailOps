@@ -3,9 +3,9 @@ import {
   Trash2,
   GripVertical,
   ClipboardList,
-  MapPin,
   Tag,
   PlusCircle,
+  Store as StoreIcon,
 } from 'lucide-react';
 import {
   DndContext,
@@ -87,19 +87,24 @@ function CategoryRowCells({ category, canManage, onEdit, onDelete, onToggleStatu
           <span className="category-table__stores-text">{storesLabel(category)}</span>
           {/* Mobile-only: heading + one chip per store (hidden on desktop via CSS). */}
           <span className="category-table__stores-heading">
-            <MapPin size={12} aria-hidden="true" />
             {category.appliesToAllStores
               ? 'Assigned Stores'
               : `Assigned Stores (${category.stores.length})`}
           </span>
           <ul className="category-table__store-chips">
             {category.appliesToAllStores ? (
-              <li className="category-table__store-chip">All Stores</li>
+              <li className="category-table__store-chip">
+                <StoreIcon size={12} aria-hidden="true" />
+                All Stores
+              </li>
             ) : category.stores.length === 0 ? (
               <li className="category-table__store-chip category-table__store-chip--empty">No stores assigned</li>
             ) : (
               category.stores.map((store) => (
-                <li key={store.id} className="category-table__store-chip">{store.name}</li>
+                <li key={store.id} className="category-table__store-chip">
+                  <StoreIcon size={12} aria-hidden="true" />
+                  {store.name}
+                </li>
               ))
             )}
           </ul>

@@ -598,7 +598,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
         )
       )}
 
-      {subTab === 'history' && <StockCheckHistory />}
+      {subTab === 'history' && <StockCheckHistory storeName={items[0]?.storeName} />}
     </div>
   );
 }

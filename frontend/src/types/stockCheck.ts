@@ -12,6 +12,7 @@ export interface StockSnapshot {
   enteredByName: string | null;
   enteredAt: string | null;
   lastUpdatedByName: string | null;
+  lastUpdatedByAvatarUrl: string | null;
   lastUpdatedAt: string | null;
   edited: boolean;
 }
@@ -38,6 +39,7 @@ export interface StockCheckResponse {
   id: number;
   storeInventoryItemId: number;
   itemName: string;
+  imageId?: number | null;
   // Null for items created before category support (V77) that haven't been
   // edited since.
   category: InventoryItemCategory | null;

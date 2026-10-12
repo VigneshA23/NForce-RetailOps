@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Download, FileSpreadsheet, FileText, Pencil } from 'lucide-react';
+import { ChevronDown, Clock3, Download, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
@@ -7,6 +7,7 @@ import SearchInput from './SearchInput';
 import Select from './Select';
 import FilterClearButton from './FilterClearButton';
 import ItemIcon from './ItemIcon';
+import UserAvatar from './UserAvatar';
 import ButtonDots from './ButtonDots';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { correctStockCheck, getStockCheckHistory } from '../api/storeInventory';
@@ -72,30 +73,11 @@ function matchesFilters(row: StockCheckHistoryRowView, search: string, categoryF
   return matchesSearch && matchesCategory && matches;
 }
 
-// Deterministic initials-circle color, same 6-variant palette ItemIcon picks
-// from, so avatars read as "part of the same system" without duplicating
-// UserAvatar (which deliberately uses one fixed color everywhere else).
-const AVATAR_VARIANTS = ['primary', 'success', 'warning', 'info', 'purple', 'slate'] as const;
-
-function avatarVariantFor(name: string): (typeof AVATAR_VARIANTS)[number] {
-  let hash = 0;
-  for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  return AVATAR_VARIANTS[Math.abs(hash) % AVATAR_VARIANTS.length];
-}
-
 function initialsFor(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-function RecordedByAvatar({ name }: { name: string }) {
-  return (
-    <span className="stock-check-history__avatar" data-variant={avatarVariantFor(name)} aria-hidden="true">
-      {initialsFor(name)}
-    </span>
-  );
 }
 
 function QtyNeededBadge({ row }: { row: StockCheckHistoryRowView }) {
@@ -112,6 +94,7 @@ function QtyNeededBadge({ row }: { row: StockCheckHistoryRowView }) {
 }
 
 interface StockCheckHistoryProps {
+  storeName?: string | null;
   // Lets the parent show this tab's total record count on its own sub-tab
   // label, the same way the Items sub-tab shows its own item count.
   onTotalChange?: (total: number) => void;
@@ -121,7 +104,7 @@ interface StockCheckHistoryProps {
 // compares to that day's par, and who recorded it, with a per-row action to
 // correct either snapshot. Lives as a sub-view of the Inventory tab,
 // alongside the Items card grid.
-function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
+function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps) {
   const [dateRange, setDateRange] = useState<DateRangeSelection>(DEFAULT_DATE_RANGE);
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<StockCheckHistoryRowView[]>([]);
@@ -365,7 +348,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
         </button>
       </div>
 
-      <div className="table-card stock-check-history-table-card">
+      <div className={`table-card stock-check-history-table-card${storeName ? ' stock-check-history-table-card--with-store' : ''}`}>
         <div className="table-scroll">
           <table className="data-table">
             <thead>
@@ -396,30 +379,58 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
                 const canCorrect = row.startOfDay != null || row.endOfDay != null;
                 return (
                   <tr key={row.id}>
+                    {storeName && (
+                      <td className="stock-check-history__store-cell--mobile-only" data-label="Store">
+                        <span className="stock-check-history__store-icon" aria-hidden="true">
+                          <StoreIcon size={13} />
+                        </span>
+                        {storeName}
+                      </td>
+                    )}
                     <td data-label="Item & Category">
                       <div className="stock-check-history__item-cell">
-                        <ItemIcon id={row.storeInventoryItemId} name={row.itemName} size="sm" />
+                        <ItemIcon id={row.storeInventoryItemId} name={row.itemName} size="md" imageId={row.imageId} />
                         <div>
                           <div className="stock-check-history__item-name">{row.itemName}</div>
-                          {row.category && <div className="stock-check-history__item-category">{categoryLabel(row.category)}</div>}
+                          {row.category && (
+                            <div className="stock-check-history__item-category">{categoryLabel(row.category)}</div>
+                          )}
                         </div>
                       </div>
                     </td>
                     <td data-label="Date & Timestamp">
-                      <div>{formatDateLabel(row.checkDate)}</div>
-                      {recordedAt && <div className="stock-check-history__muted">{formatTimeLabel(recordedAt)}</div>}
+                      <div className="stock-check-history__timestamp">
+                        <Clock3 size={14} aria-hidden="true" />
+                        <span>{formatDateLabel(row.checkDate)}</span>
+                        {recordedAt && (
+                          <>
+                            <span className="stock-check-history__timestamp-separator" aria-hidden="true">·</span>
+                            <span className="stock-check-history__timestamp-time">{formatTimeLabel(recordedAt)}</span>
+                          </>
+                        )}
+                      </div>
                     </td>
                     <td data-label="Count Entered">
-                      {countEntered != null ? `${countEntered} ${row.unitOfMeasurement}` : '—'}
+                      <div className="stock-check-history__metric">
+                        <span className="stock-check-history__metric-label">Count Entered</span>
+                        <span>{countEntered != null ? `${countEntered} ${row.unitOfMeasurement}` : '—'}</span>
+                      </div>
                     </td>
                     <td data-label="Qty Needed (Par Reconciled)">
-                      <QtyNeededBadge row={row} />
+                      <div className="stock-check-history__metric">
+                        <span className="stock-check-history__metric-label">Qty Needed (Par)</span>
+                        <QtyNeededBadge row={row} />
+                      </div>
                     </td>
                     <td data-label="Recorded By">
                       {recordedBy ? (
                         <div className="stock-check-history__recorded-by">
-                          <RecordedByAvatar name={recordedBy} />
-                          {recordedBy}
+                          <UserAvatar
+                            initials={initialsFor(recordedBy)}
+                            src={row.endOfDay?.lastUpdatedByAvatarUrl ?? row.startOfDay?.lastUpdatedByAvatarUrl}
+                            size={36}
+                          />
+                          <span className="stock-check-history__recorder-name">{recordedBy}</span>
                         </div>
                       ) : '—'}
                     </td>

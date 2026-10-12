@@ -108,6 +108,7 @@ describe('SuperAdminStoreTable', () => {
     renderTable([baseStore({ employeeCount: 4 })]);
 
     expect(mobileScope().getByText('4 Staff Members')).toBeInTheDocument();
+    expect(mobileScope().getByText('Downtown Store').closest('button')?.querySelector('.sa-store-mobile-card__store-icon')).toBeInTheDocument();
   });
 
   it('shows the owner placeholder icon and "Unassigned" on the mobile card when there is no owner', () => {

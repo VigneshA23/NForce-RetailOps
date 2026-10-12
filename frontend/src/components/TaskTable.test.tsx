@@ -58,6 +58,10 @@ function desktopScope() {
   return within(document.querySelector('.task-table__desktop') as HTMLElement);
 }
 
+function mobileScope() {
+  return within(document.querySelector('.task-table__mobile-cards') as HTMLElement);
+}
+
 describe('TaskTable row click', () => {
   it('opens Task Details when a normal cell (task name) is clicked', async () => {
     const onRowClick = vi.fn();
@@ -176,5 +180,23 @@ describe('TaskTable response type badges', () => {
     expect(desktopScope().getByText('Number')).toHaveClass('badge--info');
     expect(desktopScope().getByText('Yes / No')).toHaveClass('badge--warning');
     expect(desktopScope().getByText('Short Text')).toHaveClass('badge--purple');
+  });
+});
+
+describe('TaskTable mobile cards', () => {
+  it('shows a neutral category pill and square action buttons with the redesigned card details', () => {
+    renderTable([baseTask({
+      categoryName: 'Opening Checks',
+      stores: [{ id: 1, name: 'Keds Ice Cream - Frisco' }],
+    })], { showStoreColumn: true });
+
+    const mobile = mobileScope();
+    expect(mobile.getByText('Opening Checks')).toHaveClass('badge--outline');
+    expect(mobile.getByText('Keds Ice Cream - Frisco')).toBeInTheDocument();
+    expect(mobile.getByText('Schedule')).toBeInTheDocument();
+    expect(mobile.getByText('Completion')).toBeInTheDocument();
+    expect(mobile.getByText('Response:')).toBeInTheDocument();
+    expect(mobile.getByRole('button', { name: /edit wipe counters/i })).toHaveClass('table-icon-btn');
+    expect(mobile.getByRole('button', { name: /delete wipe counters/i })).toHaveClass('table-icon-btn--danger');
   });
 });

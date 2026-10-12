@@ -20,6 +20,7 @@ const ROW: StockCheckResponse = {
     enteredByName: 'John',
     enteredAt: '2026-09-20T09:00:00Z',
     lastUpdatedByName: 'John',
+    lastUpdatedByAvatarUrl: null,
     lastUpdatedAt: '2026-09-20T09:00:00Z',
     edited: false,
   },

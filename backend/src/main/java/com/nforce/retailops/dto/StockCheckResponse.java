@@ -13,6 +13,7 @@ public record StockCheckResponse(
     Long id,
     Long storeInventoryItemId,
     String itemName,
+    Long imageId,
     // Null for items created before category support (V77) that haven't
     // been edited since.
     String category,
@@ -41,6 +42,7 @@ public record StockCheckResponse(
             check.getId(),
             check.getStoreInventoryItem().getId(),
             check.getStoreInventoryItem().getName(),
+            check.getStoreInventoryItem().getImageId(),
             check.getStoreInventoryItem().getCategory(),
             check.getStoreInventoryItem().getUnitOfMeasurement(),
             check.getCheckDate(),

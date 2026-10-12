@@ -11,6 +11,10 @@ vi.mock('../api/storeInventory', () => ({
   correctStockCheck: vi.fn(),
 }));
 
+vi.mock('../api/inventoryImages', () => ({
+  getInventoryImageUrl: vi.fn().mockResolvedValue('blob:inventory-image'),
+}));
+
 vi.mock('../utils/toast', () => ({
   nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
@@ -37,6 +41,7 @@ function snapshot(overrides: Partial<StockSnapshot>): StockSnapshot {
     enteredByName: 'Jane Doe',
     enteredAt: '2026-09-20T09:00:00Z',
     lastUpdatedByName: 'Jane Doe',
+    lastUpdatedByAvatarUrl: null,
     lastUpdatedAt: '2026-09-20T09:00:00Z',
     edited: false,
     ...overrides,
@@ -91,19 +96,30 @@ describe('StockCheckHistory', () => {
   it('shows the counted amount, a Shortage badge, and who recorded it', async () => {
     mockGetStockCheckHistory.mockResolvedValue(page({
       items: [row({
+        imageId: 41,
         requiredPar: 20,
-        endOfDay: snapshot({ available: 16, usable: 16, lastUpdatedByName: 'Owner Olivia' }),
+        endOfDay: snapshot({
+          available: 16,
+          usable: 16,
+          lastUpdatedByName: 'Owner Olivia',
+          lastUpdatedByAvatarUrl: 'data:image/png;base64,avatar',
+        }),
       })],
       totalItems: 1,
     }));
 
-    render(<StockCheckHistory />);
+    render(<StockCheckHistory storeName="Keds Ice Cream - Frisco" />);
 
     const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
     expect(within(tableRow).getByText('16 EA')).toBeInTheDocument();
     expect(within(tableRow).getByText('+4 EA needed')).toBeInTheDocument();
     expect(within(tableRow).getByText('Owner Olivia')).toBeInTheDocument();
+    expect(tableRow.querySelector('.user-avatar--img')).toHaveAttribute('src', 'data:image/png;base64,avatar');
+    await waitFor(() => expect(tableRow.querySelector('.item-icon--image')).toHaveAttribute('src', 'blob:inventory-image'));
     expect(within(tableRow).getByText('Supplies')).toBeInTheDocument();
+    expect(within(tableRow).getByText('Keds Ice Cream - Frisco')).toBeInTheDocument();
+    expect(tableRow.querySelector('.stock-check-history__store-icon')).toBeInTheDocument();
+    expect(tableRow.querySelector('.stock-check-history__timestamp svg')).toBeInTheDocument();
   });
 
   it('badges an exact-par count as Sufficient', async () => {
@@ -255,6 +271,7 @@ describe('StockCheckHistory', () => {
           enteredByName: 'John',
           enteredAt: '2026-09-20T09:00:00Z',
           lastUpdatedByName: 'John',
+          lastUpdatedByAvatarUrl: null,
           lastUpdatedAt: '2026-09-20T09:00:00Z',
           edited: false,
         },
@@ -282,6 +299,7 @@ describe('StockCheckHistory', () => {
         enteredByName: 'John',
         enteredAt: '2026-09-20T09:00:00Z',
         lastUpdatedByName: 'John',
+        lastUpdatedByAvatarUrl: null,
         lastUpdatedAt: '2026-09-20T09:00:00Z',
         edited: false,
       },
@@ -334,6 +352,7 @@ describe('StockCheckHistory', () => {
           enteredByName: 'John',
           enteredAt: '2026-09-20T09:00:00Z',
           lastUpdatedByName: 'John',
+          lastUpdatedByAvatarUrl: null,
           lastUpdatedAt: '2026-09-20T09:00:00Z',
           edited: false,
         },

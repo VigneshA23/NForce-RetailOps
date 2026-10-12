@@ -12,6 +12,7 @@ const saved: StockSnapshot = {
   enteredByName: 'John',
   enteredAt: '2026-09-30T09:05:00Z',
   lastUpdatedByName: 'John',
+  lastUpdatedByAvatarUrl: null,
   lastUpdatedAt: '2026-09-30T09:05:00Z',
   edited: false,
 };

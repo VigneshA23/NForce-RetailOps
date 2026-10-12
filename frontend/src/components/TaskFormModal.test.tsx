@@ -205,6 +205,26 @@ describe('TaskFormModal Short Text response', () => {
     expect(screen.getByText('25 / 25')).toBeInTheDocument();
   });
 
+  describe('TaskFormModal completion type', () => {
+    it('uses radio options and updates the selected completion type', async () => {
+      const user = userEvent.setup();
+      renderModal();
+
+      const single = screen.getByRole('radio', { name: 'Single Completion' });
+      const multiple = screen.getByRole('radio', { name: 'Multiple Completions' });
+      expect(single).not.toBeChecked();
+      expect(multiple).not.toBeChecked();
+
+      await user.click(single);
+      expect(single).toBeChecked();
+
+      await user.click(multiple);
+
+      expect(multiple).toBeChecked();
+      expect(single).not.toBeChecked();
+    });
+  });
+
   it('truncates a pasted value longer than 25 characters to the first 25 characters', async () => {
     const user = userEvent.setup();
     renderModal();
