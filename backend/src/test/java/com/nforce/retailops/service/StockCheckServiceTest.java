@@ -46,6 +46,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -269,6 +270,59 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void endOfDayAboveStartOfDayWithReceivedStockRecordsTheDeliveryAndCountsUsageAgainstIt() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), bd(15)));
+
+        // 10 opening + 15 received - 20 closing.
+        assertThat(response.quantityReceived()).isEqualByComparingTo(bd(15));
+        assertThat(response.stockUsed()).isEqualByComparingTo(bd(5));
+        ArgumentCaptor<StockCheckReceipt> receipt = ArgumentCaptor.forClass(StockCheckReceipt.class);
+        verify(stockCheckReceiptRepository).save(receipt.capture());
+        assertThat(receipt.getValue().getQuantity()).isEqualByComparingTo(bd(15));
+        assertThat(receipt.getValue().getCountAfter()).isEqualByComparingTo(bd(20));
+        assertThat(receipt.getValue().getReceivedByUser()).isEqualTo(employee);
+        // The closing count is exactly what was typed -- not topped up again.
+        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(20));
+    }
+
+    @Test
+    void endOfDayAboveStartOfDayPlusReceivedStockIsRejected() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        // No stock received at all.
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 20, 0)))
+            .isInstanceOf(com.nforce.retailops.exception.InvalidStockCheckException.class);
+        // 10 + 5 received is still short of 20.
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), bd(5))))
+            .isInstanceOf(com.nforce.retailops.exception.InvalidStockCheckException.class);
+        verify(stockCheckReceiptRepository, never()).save(any());
+    }
+
+    @Test
+    void receivedStockIsRejectedOnStartOfDayAndWithoutAStartOfDayCount() {
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(existingCheck(LocalDate.now())));
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), bd(5))))
+            .isInstanceOf(com.nforce.retailops.exception.InvalidStockCheckException.class);
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), bd(5))))
+            .isInstanceOf(com.nforce.retailops.exception.InvalidStockCheckException.class);
+        verify(stockCheckReceiptRepository, never()).save(any());
+    }
+
+    @Test
     void endOfDayComputesUsageAndOrdersAgainstTomorrowsMinimum() {
         milk.setMinWeekday(bd(40));
         milk.setMinWeekend(bd(40));
@@ -427,20 +481,66 @@ class StockCheckServiceTest {
         assertThat(milkRow.stockUsed()).isEqualByComparingTo(bd(14));
         assertThat(milkRow.endOfDayDeadStock()).isEqualByComparingTo(bd(1));
         assertThat(milkRow.quantityToOrder()).isEqualByComparingTo(bd(6));
-        assertThat(milkRow.status()).isEqualTo(EodSupplierReportResponse.Status.NEEDS_TO_ORDER);
+        // An old day's unordered shortage is closed to changes: Not Ordered.
+        assertThat(milkRow.status()).isEqualTo(EodSupplierReportResponse.Status.NOT_ORDERED);
 
         // Bread is active but uncounted; the inactive, uncounted item is left out.
         List<EodSupplierReportResponse.Row> noSupplier = report.groups().get(1).items();
         assertThat(noSupplier).extracting(EodSupplierReportResponse.Row::itemName).containsExactly("Bread");
-        assertThat(noSupplier.get(0).status()).isEqualTo(EodSupplierReportResponse.Status.END_OF_DAY_PENDING);
+        assertThat(noSupplier.get(0).status()).isEqualTo(EodSupplierReportResponse.Status.START_OF_DAY_PENDING);
         assertThat(noSupplier.get(0).requiredTomorrow()).isEqualByComparingTo(bd(10));
 
-        assertThat(report.itemsNeedingOrder()).isEqualTo(1);
+        assertThat(report.itemsNeedingOrder()).isEqualTo(0);
+        assertThat(report.itemsPendingEndOfDay()).isEqualTo(0);
+    }
+
+    @Test
+    void eodReportShowsEndOfDayPendingOnlyOnceStartOfDayHasBeenCounted() {
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
+
+        LocalDate day = LocalDate.of(2026, 6, 15);
+        StockCheck milkCheck = existingCheck(day);
+        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), employee, OffsetDateTime.now(), false);
+
+        when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(milkCheck));
+
+        EodSupplierReportResponse report = stockCheckService.getEodSupplierReport(OWNER_ID, day);
+
+        assertThat(report.groups().get(0).items().get(0).status()).isEqualTo(EodSupplierReportResponse.Status.END_OF_DAY_PENDING);
         assertThat(report.itemsPendingEndOfDay()).isEqualTo(1);
     }
 
     @Test
-    void eodReportShowsTheQuantityAlreadyOrderedViaOrderListAlongsideItsOwnComputedStatus() {
+    void eodReportOffersTheNeedsOrderingEntryToMarkOrderedOnTodaysReport() {
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
+
+        LocalDate day = LocalDate.now();
+        StockCheck milkCheck = existingCheck(day);
+        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), employee, OffsetDateTime.now(), false);
+        milkCheck.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(35), bd(1), employee, OffsetDateTime.now(), false);
+        milkCheck.setRequiredTomorrow(bd(40));
+        milkCheck.setQuantityNeeded(bd(6));
+
+        when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(milkCheck));
+        when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
+            new OrderListEntryResponse(
+                99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null
+            )
+        ));
+
+        EodSupplierReportResponse.Row row = stockCheckService.getEodSupplierReport(OWNER_ID, day).groups().get(0).items().get(0);
+
+        assertThat(row.status()).isEqualTo(EodSupplierReportResponse.Status.NEEDS_TO_ORDER);
+        assertThat(row.orderEntryId()).isEqualTo(99L);
+    }
+
+    @Test
+    void eodReportKeepsShowingAPastDaysOrderAsOrderedEvenAfterItWasReceived() {
         milk.setMinWeekday(bd(40));
         milk.setMinWeekend(bd(40));
 
@@ -453,20 +553,41 @@ class StockCheckServiceTest {
 
         when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk));
         when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(milkCheck));
+        // Ordered that day; the entry has since moved on, so it isn't in the live list.
+        when(orderListService.orderedInfoByItemFor(STORE_ID, day)).thenReturn(Map.of(ITEM_ID, orderedInfo(6, day)));
+
+        EodSupplierReportResponse.Row row = stockCheckService.getEodSupplierReport(OWNER_ID, day).groups().get(0).items().get(0);
+
+        assertThat(row.status()).isEqualTo(EodSupplierReportResponse.Status.ORDERED);
+        assertThat(row.orderedQuantity()).isEqualByComparingTo(bd(6));
+        assertThat(row.orderedOn()).isEqualTo(day);
+        assertThat(row.orderEntryId()).isNull();
+    }
+
+    @Test
+    void eodReportShowsOrderedStatusAndQuantityOnceTheOrderListEntryIsOrdered() {
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
+
+        LocalDate day = LocalDate.now();
+        StockCheck milkCheck = existingCheck(day);
+        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), employee, OffsetDateTime.now(), false);
+        milkCheck.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(35), bd(1), employee, OffsetDateTime.now(), false);
+        milkCheck.setRequiredTomorrow(bd(40));
+        milkCheck.setQuantityNeeded(bd(6));
+
+        when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(milkCheck));
         // Ordered 6 + a 2-unit manual top-up = 8, placed via Order List.
-        when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
-            new OrderListEntryResponse(
-                99L, ITEM_ID, "Milk", "L", bd(6), bd(2), null, null, null, "ORDERED",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null
-            )
-        ));
+        when(orderListService.orderedInfoByItemFor(STORE_ID, day)).thenReturn(Map.of(ITEM_ID, orderedInfo(8, day)));
 
         EodSupplierReportResponse report = stockCheckService.getEodSupplierReport(OWNER_ID, day);
 
         EodSupplierReportResponse.Row milkRow = report.groups().get(0).items().get(0);
-        // Status is untouched -- still computed from the stock-check figures alone.
-        assertThat(milkRow.status()).isEqualTo(EodSupplierReportResponse.Status.NEEDS_TO_ORDER);
+        assertThat(milkRow.status()).isEqualTo(EodSupplierReportResponse.Status.ORDERED);
         assertThat(milkRow.orderedQuantity()).isEqualByComparingTo(bd(8));
+        assertThat(milkRow.orderedOn()).isEqualTo(day);
+        assertThat(milkRow.orderEntryId()).isNull();
     }
 
     @Test
@@ -494,6 +615,76 @@ class StockCheckServiceTest {
 
         EodSupplierReportResponse.Row milkRow = report.groups().get(0).items().get(0);
         assertThat(milkRow.orderedQuantity()).isNull();
+    }
+
+    private static OrderListService.OrderedInfo orderedInfo(int quantity, LocalDate on) {
+        return new OrderListService.OrderedInfo(bd(quantity), on.atTime(10, 0).atZone(java.time.ZoneId.systemDefault()).toOffsetDateTime());
+    }
+
+    private void shortfallRowOn(LocalDate day) {
+        milk.setMinWeekday(bd(40));
+        milk.setMinWeekend(bd(40));
+        StockCheck milkCheck = existingCheck(day);
+        milkCheck.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(50), bd(2), employee, OffsetDateTime.now(), false);
+        milkCheck.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(35), bd(1), employee, OffsetDateTime.now(), false);
+        milkCheck.setRequiredTomorrow(bd(40));
+        milkCheck.setQuantityNeeded(bd(6));
+        when(storeInventoryItemRepository.findByStoreIdOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findForStoreOnDate(STORE_ID, day)).thenReturn(List.of(milkCheck));
+        when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
+            new OrderListEntryResponse(
+                99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null
+            )
+        ));
+    }
+
+    @Test
+    void eodReportLetsYesterdaysPendingShortageStillBeOrdered() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        shortfallRowOn(yesterday);
+
+        EodSupplierReportResponse.Row row = stockCheckService.getEodSupplierReport(OWNER_ID, yesterday).groups().get(0).items().get(0);
+
+        assertThat(row.status()).isEqualTo(EodSupplierReportResponse.Status.NEEDS_TO_ORDER);
+        assertThat(row.orderEntryId()).isEqualTo(99L);
+    }
+
+    @Test
+    void eodReportShowsYesterdaysShortageOrderedTodayAsOrderedOnTodaysDate() {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        shortfallRowOn(yesterday);
+        when(orderListService.orderedInfoByItemFor(STORE_ID, yesterday)).thenReturn(Map.of(ITEM_ID, orderedInfo(6, LocalDate.now())));
+
+        EodSupplierReportResponse.Row row = stockCheckService.getEodSupplierReport(OWNER_ID, yesterday).groups().get(0).items().get(0);
+
+        assertThat(row.status()).isEqualTo(EodSupplierReportResponse.Status.ORDERED);
+        assertThat(row.orderedOn()).isEqualTo(LocalDate.now());
+        assertThat(row.orderEntryId()).isNull();
+    }
+
+    @Test
+    void eodReportMarksAnUnorderedShortageFromTheDayBeforeYesterdayAsNotOrderedAndNotEditable() {
+        LocalDate older = LocalDate.now().minusDays(2);
+        shortfallRowOn(older);
+
+        EodSupplierReportResponse.Row row = stockCheckService.getEodSupplierReport(OWNER_ID, older).groups().get(0).items().get(0);
+
+        assertThat(row.status()).isEqualTo(EodSupplierReportResponse.Status.NOT_ORDERED);
+        assertThat(row.orderEntryId()).isNull();
+        assertThat(row.orderedOn()).isNull();
+    }
+
+    @Test
+    void eodReportIgnoresAnOrderPlacedLongAfterAnOlderDayAndKeepsItNotOrdered() {
+        LocalDate older = LocalDate.now().minusDays(3);
+        shortfallRowOn(older);
+        // The order service only ever returns orders in that day's own window,
+        // so nothing comes back for it.
+        when(orderListService.orderedInfoByItemFor(STORE_ID, older)).thenReturn(Map.of());
+
+        assertThat(stockCheckService.getEodSupplierReport(OWNER_ID, older).groups().get(0).items().get(0).status())
+            .isEqualTo(EodSupplierReportResponse.Status.NOT_ORDERED);
     }
 
     @Test

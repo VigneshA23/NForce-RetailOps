@@ -327,6 +327,7 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
     const categoryLabel = categoryLabelOf(category) || '—';
     const categoryVisual = category ? (CATEGORY_VISUAL[category] ?? FALLBACK_CATEGORY_VISUAL) : FALLBACK_CATEGORY_VISUAL;
     const raisedBy = entry.raisedByName ?? (entry.adHoc ? 'Manual' : 'Auto-detected');
+    const raisedAt = new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
     return {
       entry,
       category,
@@ -335,12 +336,11 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
       onHand: stock?.current ?? null,
       par: stock?.minimum ?? null,
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
-      meta: entry.note ? `${raisedBy} · ${entry.note}` : raisedBy,
+      meta: entry.note ? `${raisedBy} · ${raisedAt} · ${entry.note}` : `${raisedBy} · ${raisedAt}`,
       // Mobile's card shows category as its own pill below the stats box now,
-      // so its sub-line is just who/when -- unlike desktop's row, which still
-      // folds category into `meta`'s neighbor, `mobileMeta`, only when there's
-      // no note.
-      mobileMeta: `${raisedBy} · ${new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+      // so its sub-line is just who/when, with no room left for a note --
+      // unlike desktop's row, which still fits one in after the time.
+      mobileMeta: `${raisedBy} · ${raisedAt}`,
       statusLabel: meta.label,
       statusDot: meta.fg,
       statusFg: meta.fg,

@@ -45,6 +45,11 @@ export async function getSupplierPurchaseMetrics(fromDate: string, toDate: strin
   return apiRequest<SupplierPurchaseMetric[]>(`/stores/order-list/supplier-metrics?${params}`);
 }
 
+// Needs Ordering -> Ordered, nothing else touched. Used by the EOD report.
+export async function markOrderListEntryOrdered(id: number): Promise<OrderListEntry> {
+  return apiRequest<OrderListEntry>(`/stores/order-list/${id}/mark-ordered`, { method: 'POST' });
+}
+
 export async function updateOrderListEntry(id: number, values: UpdateOrderListEntryValues): Promise<OrderListEntry> {
   return apiRequest<OrderListEntry>(`/stores/order-list/${id}`, {
     method: 'PATCH',

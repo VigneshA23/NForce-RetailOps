@@ -429,10 +429,11 @@ public class StoreInventoryItemService {
         item.setNote(request.note() != null ? request.note().trim() : null);
         item.setAutoPoEnabled(request.autoPoEnabled());
 
-        // preferredSupplierId is @NotNull on the request DTO, so this always
-        // resolves to a real supplier by the time validation lets it through.
-        Supplier supplier = supplierRepository.findById(request.preferredSupplierId())
-            .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+        // The preferred supplier is optional; null clears it.
+        Supplier supplier = request.preferredSupplierId() == null
+            ? null
+            : supplierRepository.findById(request.preferredSupplierId())
+                .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
         item.setPreferredSupplier(supplier);
 
         if (withImage) {

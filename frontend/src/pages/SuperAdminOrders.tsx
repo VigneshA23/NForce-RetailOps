@@ -374,6 +374,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     const categoryLabel = categoryLabelOf(category) || '—';
     const categoryVisual = category ? (CATEGORY_VISUAL[category] ?? FALLBACK_CATEGORY_VISUAL) : FALLBACK_CATEGORY_VISUAL;
     const raisedBy = entry.raisedByName ?? (entry.adHoc ? 'Manual' : 'Auto-detected');
+    const raisedAt = new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
     return {
       entry,
       category,
@@ -382,8 +383,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
       onHand: stock?.current ?? null,
       par: stock?.minimum ?? null,
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
-      meta: entry.note ? `${raisedBy} · ${entry.note}` : raisedBy,
-      mobileMeta: `${raisedBy} · ${new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })}`,
+      meta: entry.note ? `${raisedBy} · ${raisedAt} · ${entry.note}` : `${raisedBy} · ${raisedAt}`,
+      mobileMeta: `${raisedBy} · ${raisedAt}`,
       statusLabel: meta.label,
       statusDot: meta.fg,
       statusFg: meta.fg,

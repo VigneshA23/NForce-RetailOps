@@ -116,7 +116,14 @@ export interface DailyStockCheckItem {
   imageId: number | null;
 }
 
-export type EodReportStatus = 'NEEDS_TO_ORDER' | 'SUFFICIENT' | 'END_OF_DAY_PENDING' | 'NO_MINIMUM_SET';
+export type EodReportStatus =
+  | 'START_OF_DAY_PENDING'
+  | 'END_OF_DAY_PENDING'
+  | 'NEEDS_TO_ORDER'
+  | 'ORDERED'
+  | 'NOT_ORDERED'
+  | 'SUFFICIENT'
+  | 'NO_MINIMUM_SET';
 
 export interface EodReportRow {
   storeInventoryItemId: number;
@@ -135,6 +142,13 @@ export interface EodReportRow {
   // Quantity already placed with the supplier via an active (ORDERED, not
   // yet RECEIVED) Order List entry for this item, if one exists.
   orderedQuantity: number | null;
+  // The item's Needs Ordering Order List entry -- what "mark ordered" acts on.
+  // Only set for today's and yesterday's report; null when there's nothing to
+  // act on (older days are view-only).
+  orderEntryId: number | null;
+  // The day the order was actually placed (YYYY-MM-DD) -- can be later than
+  // the report's own date, e.g. yesterday's shortage ordered today.
+  orderedOn: string | null;
 }
 
 // GET /api/stores/inventory/eod-report?date= -- grouped by preferred

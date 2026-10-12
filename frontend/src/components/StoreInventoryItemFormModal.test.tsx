@@ -122,7 +122,7 @@ describe('StoreInventoryItemFormModal', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ unitOfMeasurement: 'box' }));
   });
 
-  it('requires a preferred supplier', async () => {
+  it('allows saving without a preferred supplier', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<Harness onSubmit={onSubmit} />);
@@ -132,8 +132,8 @@ describe('StoreInventoryItemFormModal', () => {
     await user.click(screen.getByRole('option', { name: 'ml — Milliliters' }));
     await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
 
-    expect(screen.getByText('Preferred supplier is required')).toBeInTheDocument();
-    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.queryByText('Preferred supplier is required')).not.toBeInTheDocument();
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ preferredSupplierId: null }));
   });
 
   it('filters active suppliers as the user types and selects a match', async () => {

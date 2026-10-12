@@ -91,3 +91,19 @@
     align-items: flex-start;
   }
 }
+
+/* Status badge with the actual order date underneath -- the date can differ
+   from the report's own date (yesterday's shortage ordered today). */
+.eod-report__status-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.eod-report__ordered-on {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-secondary, #52525b);
+  white-space: nowrap;
+}

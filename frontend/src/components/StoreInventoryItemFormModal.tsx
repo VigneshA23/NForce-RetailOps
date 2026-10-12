@@ -130,9 +130,6 @@ function StoreInventoryItemFormModal({
     if (values.minWeekend.trim() !== '' && (parseQty(values.minWeekend, values.unitOfMeasurement) === null)) {
       nextErrors.minWeekend = `Enter a weekend quantity: ${qtyRuleHint(values.unitOfMeasurement)}`;
     }
-    if (!values.preferredSupplierId) {
-      nextErrors.preferredSupplierId = 'Preferred supplier is required';
-    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;

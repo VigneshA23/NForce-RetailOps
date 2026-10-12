@@ -97,24 +97,23 @@
   color: var(--color-text-secondary);
 }
 
-/* Fixed layout, scoped to this one table only -- auto layout (the default)
-   sized every column purely from its own content, so Supplier Name (avatar +
-   name + location) got crowded down to whatever the other, narrower columns
-   didn't need. Column widths come from the <colgroup> in StoreInventory.tsx
-   (Owner/Admin) and SuperAdminInventory.tsx (Super Admin, which has its own
-   copy of these column-width rules, winning the cascade there since it's
-   imported after this file). Applies at every breakpoint -- mobile matches
-   desktop/tablet exactly, see this file's own @media (--mobile) rules for
-   this table further down. */
+/* Fixed layout, scoped to this one table only (desktop/tablet -- mobile
+   renders its own dedicated card markup instead, see @media (--mobile)
+   further down). Auto layout (the default) sized every column purely from
+   its own content, so Supplier Name (avatar + name + location) got crowded
+   down to whatever the other, narrower columns didn't need. Column widths
+   come from the <colgroup> in StoreInventory.tsx (Owner/Admin -- read-only,
+   no Actions column) and SuperAdminInventory.tsx (Super Admin, which still
+   has Edit/Delete and so its own copy of these rules, with a 5th Actions
+   column, winning the cascade there since it's imported after this file). */
 .supplier-table-card .data-table {
   table-layout: fixed;
 }
 
-.supplier-table__col-name { width: 36%; }
-.supplier-table__col-store { width: 28%; }
+.supplier-table__col-name { width: 42%; }
+.supplier-table__col-store { width: 32%; }
 .supplier-table__col-count { width: 14%; }
-.supplier-table__col-status { width: 10%; }
-.supplier-table__col-actions { width: 12%; }
+.supplier-table__col-status { width: 12%; }
 
 .supplier-table__cell-count {
   text-align: center;

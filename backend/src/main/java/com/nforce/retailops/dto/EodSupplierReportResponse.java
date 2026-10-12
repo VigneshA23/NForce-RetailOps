@@ -36,14 +36,30 @@ public record EodSupplierReportResponse(
         // exists -- null otherwise. Separate from quantityToOrder, which is
         // this report's own stock-check-derived figure; the two can disagree
         // (e.g. an order already placed for more or less than EOD computes).
-        BigDecimal orderedQuantity
+        BigDecimal orderedQuantity,
+        // The item's NEEDS_ORDERING Order List entry (today's report only), so
+        // the Owner/Admin can mark it Ordered straight from this report --
+        // null whenever there's nothing to act on.
+        Long orderEntryId,
+        // The day the order was actually placed -- which can be later than
+        // this report's own date (yesterday's shortage ordered today).
+        LocalDate orderedOn
     ) {
     }
 
+    // Lifecycle of a row: START_OF_DAY_PENDING (nothing counted) ->
+    // END_OF_DAY_PENDING (Start of Day only) -> once End of Day is in, judged
+    // against tomorrow's requirement: SUFFICIENT / NO_MINIMUM_SET, or
+    // NEEDS_TO_ORDER -> ORDERED (the only transition made from this report,
+    // and only for today and yesterday). A shortage nobody ordered by the time
+    // its day is more than a day old is NOT_ORDERED, and stays so.
     public enum Status {
-        NEEDS_TO_ORDER,
-        SUFFICIENT,
+        START_OF_DAY_PENDING,
         END_OF_DAY_PENDING,
+        NEEDS_TO_ORDER,
+        ORDERED,
+        NOT_ORDERED,
+        SUFFICIENT,
         NO_MINIMUM_SET
     }
 }

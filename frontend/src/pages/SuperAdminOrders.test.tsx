@@ -467,7 +467,7 @@ describe('SuperAdminOrders dashboard sub-tabs', () => {
     expect(mockGetSuperAdminInventoryCounts).toHaveBeenCalledWith(STORE_ID, expect.anything());
 
     await user.click(screen.getByRole('button', { name: 'End of Day Report' }));
-    expect(await screen.findByText('No inventory items to report for this day.')).toBeInTheDocument();
+    expect(await screen.findByText('No items match these filters')).toBeInTheDocument();
     expect(mockGetSuperAdminEodSupplierReport).toHaveBeenCalledWith(STORE_ID, expect.any(String));
 
     // Purchasing Report is cross-store (not scoped to the selected store at
