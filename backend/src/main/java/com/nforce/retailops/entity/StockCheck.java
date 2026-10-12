@@ -230,6 +230,14 @@ public class StockCheck {
         refreshCurrentCount();
     }
 
+    // A delivery confirmed together with the End of Day count itself: raises
+    // the received total only, since the closing count being saved already
+    // includes it (unlike addReceived, which tops up a count taken without it).
+    public void recordDelivery(BigDecimal quantity) {
+        quantityReceived = quantityReceived().add(quantity);
+        refreshCurrentCount();
+    }
+
     private void refreshCurrentCount() {
         BigDecimal end = usableFor(StockCheckSnapshot.END_OF_DAY);
         if (end != null) {
