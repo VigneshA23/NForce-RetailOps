@@ -506,9 +506,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                             {itemCountBySupplier.get(supplier.id) ?? 0} Items
                           </span>
                         </td>
-                        {supplier.location && (
-                          <td className="supplier-table__cell-location-mobile">{supplier.location}</td>
-                        )}
                         <td className="supplier-table__cell-status" data-label="Status">
                           <span className={`badge ${supplier.active ? 'badge--success' : 'badge--outline'}`}>
                             {supplier.active ? 'Active' : 'Inactive'}

@@ -97,14 +97,6 @@
   color: var(--color-text-secondary);
 }
 
-/* Mobile-only duplicate of the location line above (desktop keeps it as a
-   subtitle under the name instead) -- lets it sit in its own grid row below
-   Items Count on the stacked card without disturbing desktop's plain table,
-   which has no header for a standalone Location column. */
-.supplier-table__cell-location-mobile {
-  display: none;
-}
-
 /* Items Count cell: desktop shows the bare number; mobile swaps to an
    icon + "N Items" label instead (shared by Owner/Admin and Super Admin's
    own Suppliers tables -- Super Admin additionally shows a "Show/Hide
@@ -360,8 +352,7 @@
     grid-template-columns: minmax(0, 1fr) auto auto;
     grid-template-areas:
       'name   status  actions'
-      'count  count   count'
-      'store  store   store';
+      'count  count   count';
     row-gap: 8px;
     align-items: center;
     margin-bottom: 12px;
@@ -402,14 +393,6 @@
     grid-area: count;
     display: flex;
     align-items: center;
-  }
-
-  .table-card.supplier-table-card .data-table tbody td.supplier-table__cell-location-mobile {
-    grid-area: store;
-    display: block;
-    margin-top: 4px;
-    font-size: 12px;
-    color: var(--color-text-secondary);
   }
 
   .supplier-table__count-value {
