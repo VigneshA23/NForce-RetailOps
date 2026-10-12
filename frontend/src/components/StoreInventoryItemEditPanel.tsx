@@ -84,9 +84,6 @@ function StoreInventoryItemEditPanel({
     if (values.minWeekend.trim() !== '' && parseQty(values.minWeekend, values.unitOfMeasurement) === null) {
       nextErrors.minWeekend = `Weekend min must be ${qtyRuleHint(values.unitOfMeasurement)}`;
     }
-    if (!values.preferredSupplierId) {
-      nextErrors.preferredSupplierId = 'Preferred supplier is required';
-    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
