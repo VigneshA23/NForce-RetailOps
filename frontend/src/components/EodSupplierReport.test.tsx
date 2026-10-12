@@ -3,16 +3,23 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import EodSupplierReport from './EodSupplierReport';
 import * as storeInventoryApi from '../api/storeInventory';
+import * as orderListApi from '../api/orderList';
+import { formatDateLabel, todayDate } from '../utils/checklistHistoryOptions';
+import type { OrderListEntry } from '../types/orderList';
 import type { EodSupplierReport as EodSupplierReportData } from '../types/stockCheck';
 
 vi.mock('../api/storeInventory', () => ({
   getEodSupplierReport: vi.fn(),
+}));
+vi.mock('../api/orderList', () => ({
+  markOrderListEntryOrdered: vi.fn(),
 }));
 vi.mock('../utils/toast', () => ({
   nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const mockGetEodSupplierReport = vi.mocked(storeInventoryApi.getEodSupplierReport);
+const mockMarkOrdered = vi.mocked(orderListApi.markOrderListEntryOrdered);
 
 const report: EodSupplierReportData = {
   date: '2026-09-30',
@@ -37,6 +44,8 @@ const report: EodSupplierReportData = {
         quantityToOrder: 6,
         status: 'NEEDS_TO_ORDER',
         orderedQuantity: null,
+        orderEntryId: null,
+        orderedOn: null,
       }],
     },
     {
@@ -57,6 +66,8 @@ const report: EodSupplierReportData = {
         quantityToOrder: null,
         status: 'END_OF_DAY_PENDING',
         orderedQuantity: null,
+        orderEntryId: null,
+        orderedOn: null,
       }],
     },
   ],
@@ -141,11 +152,11 @@ describe('EodSupplierReport', () => {
     expect(screen.getByText('Bread')).toBeInTheDocument();
   });
 
-  it('shows the quantity already ordered via Order List in its own column, alongside the row\'s own computed status', async () => {
+  it('shows the quantity already ordered, with the Ordered status, as static text', async () => {
     const user = userEvent.setup();
     mockGetEodSupplierReport.mockResolvedValue({
       ...report,
-      groups: [{ ...report.groups[0], items: [{ ...report.groups[0].items[0], orderedQuantity: 8 }] }],
+      groups: [{ ...report.groups[0], items: [{ ...report.groups[0].items[0], status: 'ORDERED', orderedQuantity: 8, orderedOn: '2026-10-01' }] }],
     });
 
     render(<EodSupplierReport />);
@@ -153,7 +164,79 @@ describe('EodSupplierReport', () => {
 
     const milkRow = screen.getByText('Milk').closest('tr')!;
     expect(within(milkRow).getByText('8')).toBeInTheDocument();
-    expect(within(milkRow).getByText('Needs to Order')).toBeInTheDocument();
+    expect(within(milkRow).getByText('Ordered')).toBeInTheDocument();
+    // The actual order date is spelled out, since it can differ from the report's own day.
+    expect(within(milkRow).getByText(`Ordered on ${formatDateLabel('2026-10-01')}`)).toBeInTheDocument();
+    expect(within(milkRow).queryByRole('button', { name: /change status/i })).not.toBeInTheDocument();
+  });
+
+  it('shows an unordered shortage from an older day as Not Ordered, with no way to change it', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue({
+      ...report,
+      groups: [{ ...report.groups[0], items: [{ ...report.groups[0].items[0], status: 'NOT_ORDERED', orderEntryId: null }] }],
+    });
+
+    render(<EodSupplierReport />);
+    await user.click(await screen.findByRole('button', { name: 'List' }));
+
+    const milkRow = screen.getByText('Milk').closest('tr')!;
+    expect(within(milkRow).getByText('Not Ordered')).toBeInTheDocument();
+    expect(within(milkRow).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('dates an item ordered from the report as today', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue({
+      ...report,
+      groups: [{ ...report.groups[0], items: [{ ...report.groups[0].items[0], orderEntryId: 99 }] }, report.groups[1]],
+    });
+    mockMarkOrdered.mockResolvedValue({ quantityNeeded: 6, manualAddition: 0 } as OrderListEntry);
+
+    render(<EodSupplierReport />);
+    await user.click(await screen.findByRole('button', { name: 'List' }));
+    await user.click(screen.getByRole('button', { name: 'Change status for Milk' }));
+    await user.click(await screen.findByRole('option', { name: 'Ordered' }));
+
+    const milkRow = screen.getByText('Milk').closest('tr')!;
+    expect(await within(milkRow).findByText(`Ordered on ${formatDateLabel(todayDate())}`)).toBeInTheDocument();
+  });
+
+  it('labels an item with no Start of Day count as Not Updated Today', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue({
+      ...report,
+      groups: [{ ...report.groups[1], items: [{ ...report.groups[1].items[0], status: 'START_OF_DAY_PENDING', startOfDayAvailable: null, startOfDayDeadStock: null }] }],
+    });
+
+    render(<EodSupplierReport />);
+    await user.click(await screen.findByRole('button', { name: 'List' }));
+
+    expect(within(screen.getByText('Bread').closest('tr')!).getByText('Not Updated Today')).toBeInTheDocument();
+  });
+
+  it('lets Needs to Order be changed to Ordered, and nothing else be edited', async () => {
+    const user = userEvent.setup();
+    mockGetEodSupplierReport.mockResolvedValue({
+      ...report,
+      groups: [{ ...report.groups[0], items: [{ ...report.groups[0].items[0], orderEntryId: 99 }] }, report.groups[1]],
+    });
+    mockMarkOrdered.mockResolvedValue({ quantityNeeded: 6, manualAddition: 2 } as OrderListEntry);
+
+    render(<EodSupplierReport />);
+    await user.click(await screen.findByRole('button', { name: 'List' }));
+
+    // Bread (EOD Pending) is a plain badge, not a control.
+    expect(within(screen.getByText('Bread').closest('tr')!).queryByRole('button')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Change status for Milk' }));
+    await user.click(await screen.findByRole('option', { name: 'Ordered' }));
+
+    expect(mockMarkOrdered).toHaveBeenCalledWith(99);
+    const milkRow = screen.getByText('Milk').closest('tr')!;
+    expect(await within(milkRow).findByText('Ordered')).toBeInTheDocument();
+    expect(within(milkRow).getByText('8')).toBeInTheDocument();
+    expect(within(milkRow).queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('filters rows by supplier, built from the report\'s own groups', async () => {

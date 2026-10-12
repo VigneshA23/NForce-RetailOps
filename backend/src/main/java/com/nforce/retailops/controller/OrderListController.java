@@ -65,6 +65,16 @@ public class OrderListController {
             .body(orderListService.createEntry(principal.getUser().getId(), request));
     }
 
+    // The EOD report's "Needs to Order -> Ordered" action: no body, since only
+    // the status changes.
+    @PostMapping("/{id}/mark-ordered")
+    public ResponseEntity<OrderListEntryResponse> markOrdered(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(orderListService.markOrdered(principal.getUser().getId(), id));
+    }
+
     @PatchMapping("/{id}")
     public ResponseEntity<OrderListEntryResponse> update(
         @AuthenticationPrincipal AppUserDetails principal,

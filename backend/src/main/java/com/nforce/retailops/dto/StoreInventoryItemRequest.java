@@ -40,7 +40,7 @@ public record StoreInventoryItemRequest(
     @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
     BigDecimal minWeekend,
 
-    @NotNull(message = "Preferred supplier is required")
+    // Optional: null creates/updates the item with no preferred supplier.
     Long preferredSupplierId,
 
     @Size(max = 500, message = "Note must be at most 500 characters")
