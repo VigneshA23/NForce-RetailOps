@@ -503,9 +503,10 @@
   text-overflow: ellipsis;
 }
 
-/* Mobile's sub-line is "Category · Person · Time" instead of desktop's
-   "Person [· note]" -- shown/hidden opposite .order-list__item-meta inside
-   the @media (--mobile) block below. */
+/* Mobile's sub-line is "Person · Time" (category is its own pill below the
+   stats box instead) -- desktop's is "Person · Time [· note]", one line up
+   in .order-list__item-meta. Shown/hidden opposite it inside the
+   @media (--mobile) block below. */
 .order-list__item-mobile-meta {
   display: none;
   font-size: 12px;

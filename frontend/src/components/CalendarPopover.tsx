@@ -61,7 +61,17 @@ function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef
     }
     top = Math.max(VIEWPORT_MARGIN, top)
 
-    let left = anchorRect.right - panelRect.width
+    // Left-align with the trigger by default (the panel grows rightward,
+    // same as a typical dropdown) -- only right-align instead (grow
+    // leftward) when that would push it past the right edge. Right-aligning
+    // unconditionally used to push a wide panel's left edge past its own
+    // trigger's left edge for any trigger near the screen's left side (e.g.
+    // Daily Checklist's date nav, right next to the sidebar), overlapping
+    // whatever sits there.
+    let left = anchorRect.left
+    if (left + panelRect.width > window.innerWidth - VIEWPORT_MARGIN) {
+      left = anchorRect.right - panelRect.width
+    }
     left = Math.min(left, window.innerWidth - panelRect.width - VIEWPORT_MARGIN)
     left = Math.max(VIEWPORT_MARGIN, left)
 
