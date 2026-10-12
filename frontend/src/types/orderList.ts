@@ -64,7 +64,7 @@ export interface CreateOrderListEntryValues {
   note: string;
 }
 
-// Owner/Admin's Supplier Purchasing Summary -- already aggregated server-side
+// Owner/Admin's Purchasing Report -- already aggregated server-side
 // (COUNT/SUM), scoped to the caller's own store.
 export interface SupplierPurchaseMetric {
   supplierName: string;

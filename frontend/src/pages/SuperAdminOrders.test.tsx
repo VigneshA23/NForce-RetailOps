@@ -456,7 +456,7 @@ describe('SuperAdminOrders dashboard sub-tabs', () => {
     await screen.findByText('Milk');
   });
 
-  it('switches to Inventory Counts, End of Day Report and Purchasing Summary without losing the selected store', async () => {
+  it('switches to Inventory Counts, End of Day Report and Purchasing Report without losing the selected store', async () => {
     const user = userEvent.setup();
     render(<SuperAdminOrders />);
     await selectDowntown();
@@ -470,7 +470,9 @@ describe('SuperAdminOrders dashboard sub-tabs', () => {
     expect(await screen.findByText('No items match these filters')).toBeInTheDocument();
     expect(mockGetSuperAdminEodSupplierReport).toHaveBeenCalledWith(STORE_ID, expect.any(String));
 
-    await user.click(screen.getByRole('button', { name: 'Supplier Purchasing Summary' }));
+    // Purchasing Report is cross-store (not scoped to the selected store at
+    // all), unlike the other two tabs above.
+    await user.click(screen.getByRole('button', { name: 'Purchasing Report' }));
     expect(await screen.findByText('No purchasing activity found for the selected date range.')).toBeInTheDocument();
   });
 

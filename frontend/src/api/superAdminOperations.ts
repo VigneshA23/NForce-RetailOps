@@ -106,7 +106,7 @@ export async function createSuperAdminOrderListEntry(storeId: number, values: Cr
   });
 }
 
-// Platform-wide Supplier Purchasing Summary, broken down by store. A genuinely
+// Platform-wide Purchasing Report, broken down by store. A genuinely
 // new access path -- separate from getOutstandingOrders above, which is a
 // different (NEEDS_ORDERING-only) report and is untouched by this one.
 export async function getSupplierPurchaseMetrics(fromDate: string, toDate: string): Promise<StoreSupplierPurchaseMetric[]> {

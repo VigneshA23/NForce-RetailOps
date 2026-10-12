@@ -39,15 +39,17 @@ describe('SupplierPurchaseReport', () => {
       metric({ supplierName: 'Supplier B', orderEntryCount: 3, totalQuantity: 17 }),
     ]);
 
+    // The store accordion starts expanded (no page title anymore, so its own
+    // header is the first thing visible) -- no click needed to see rows.
     render(<SupplierPurchaseReport />);
 
     const rowA = (await screen.findByText('Supplier A')).closest('tr')!;
-    expect(within(rowA).getByText('8')).toBeInTheDocument();
-    expect(within(rowA).getByText('42')).toBeInTheDocument();
+    expect(within(rowA).getByText(/8 entries/)).toBeInTheDocument();
+    expect(within(rowA).getByText(/42 units/)).toBeInTheDocument();
 
     const rowB = screen.getByText('Supplier B').closest('tr')!;
-    expect(within(rowB).getByText('3')).toBeInTheDocument();
-    expect(within(rowB).getByText('17')).toBeInTheDocument();
+    expect(within(rowB).getByText(/3 entries/)).toBeInTheDocument();
+    expect(within(rowB).getByText(/17 units/)).toBeInTheDocument();
   });
 
   it('shows the API error message rather than pretending the report loaded', async () => {

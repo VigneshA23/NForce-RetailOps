@@ -38,8 +38,8 @@ export async function createOrderListEntry(values: CreateOrderListEntryValues): 
   });
 }
 
-// Supplier Purchasing Summary, scoped server-side to the owner's own store --
-// there is no storeId to pass here.
+// Purchasing Report, scoped server-side to the owner's own store -- there is
+// no storeId to pass here.
 export async function getSupplierPurchaseMetrics(fromDate: string, toDate: string): Promise<SupplierPurchaseMetric[]> {
   const params = new URLSearchParams({ fromDate, toDate });
   return apiRequest<SupplierPurchaseMetric[]>(`/stores/order-list/supplier-metrics?${params}`);

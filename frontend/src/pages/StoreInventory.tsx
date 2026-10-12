@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CircleCheck, ClipboardCheck, Clock, FileSpreadsheet, FileText, Package, PackageX, Plus, Truck } from 'lucide-react';
+import { AlertTriangle, CircleCheck, ClipboardCheck, Clock, FileSpreadsheet, FileText, MapPin, Package, PackageX, Plus, Store as StoreIcon, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createStoreInventoryItem,
@@ -27,6 +27,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
 import { SORT_OPTIONS, STATUS_SORT_ORDER, type SortOption } from '../utils/storeInventorySort';
+import { supplierStoreSummaryLabel } from '../utils/supplierStoreSummary';
 import './StoreInventory.css';
 
 type SubTab = 'items' | 'suppliers' | 'history';
@@ -34,7 +35,7 @@ type SubTab = 'items' | 'suppliers' | 'history';
 const SUB_TABS: { key: SubTab; label: string; icon: typeof Package }[] = [
   { key: 'items', label: 'Items', icon: Package },
   { key: 'suppliers', label: 'Suppliers', icon: Truck },
-  { key: 'history', label: 'History', icon: Clock },
+  { key: 'history', label: 'Stock Check History', icon: Clock },
 ];
 
 // Mirrors Super Admin Inventory's own Suppliers status-filter options exactly.
@@ -475,13 +476,25 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               <FilterClearButton onClick={() => { setSupplierSearch(''); setSupplierStatusFilter('ALL'); }} />
             </div>
 
+            {!isMobile && (
             <div className="table-card supplier-table-card">
               <div className="table-scroll">
                 <table className="data-table">
+                  {/* Fixed layout (see StoreInventory.css) so the Supplier
+                      Name column always keeps enough room for its avatar +
+                      name/location -- auto layout let the other columns
+                      crowd it down to whatever space they didn't need. */}
+                  <colgroup>
+                    <col className="supplier-table__col-name" />
+                    <col className="supplier-table__col-store" />
+                    <col className="supplier-table__col-count" />
+                    <col className="supplier-table__col-status" />
+                  </colgroup>
                   <thead>
                     <tr>
                       <th scope="col">Supplier Name</th>
-                      <th scope="col">Items Count</th>
+                      <th scope="col">Assigned Store</th>
+                      <th scope="col" className="supplier-table__cell-count">Items Count</th>
                       <th scope="col">Status</th>
                     </tr>
                   </thead>
@@ -499,12 +512,21 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                             </div>
                           </div>
                         </td>
+                        <td className="supplier-table__cell-store" data-label="Assigned Store">
+                          {supplier.appliesToAllStores ? (
+                            <span className="employee-table__store-badge">All Stores</span>
+                          ) : (supplier.stores ?? []).length === 0 ? (
+                            <span className="employee-table__no-stores">—</span>
+                          ) : (
+                            <div className="employee-table__store-badges">
+                              {(supplier.stores ?? []).map((store) => (
+                                <span key={store.id} className="employee-table__store-badge">{store.name}</span>
+                              ))}
+                            </div>
+                          )}
+                        </td>
                         <td className="supplier-table__cell-count" data-label="Items Count">
-                          <span className="supplier-table__count-value">{itemCountBySupplier.get(supplier.id) ?? 0}</span>
-                          <span className="supplier-table__items-label">
-                            <ClipboardCheck size={14} />
-                            {itemCountBySupplier.get(supplier.id) ?? 0} Items
-                          </span>
+                          {itemCountBySupplier.get(supplier.id) ?? 0}
                         </td>
                         <td className="supplier-table__cell-status" data-label="Status">
                           <span className={`badge ${supplier.active ? 'badge--success' : 'badge--outline'}`}>
@@ -522,6 +544,56 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 </div>
               )}
             </div>
+            )}
+
+            {/* Mobile: its own dedicated card markup, no <table> -- see
+                SuperAdminInventory.tsx's own copy of this pattern for why
+                (no table/grid semantics to fight with per breakpoint). No
+                expand/breakdown here -- a single store has nothing to
+                expand into. Read-only, same as the desktop table: no
+                Edit/Delete/Toggle -- renaming, activating/deactivating and
+                removing a supplier are Super Admin-only actions now
+                (SuperAdminInventory.tsx). */}
+            {isMobile && (
+              <div className="supplier-mobile-list">
+                {visibleSuppliers.map((supplier) => (
+                  <div className="supplier-mobile-card" key={supplier.id}>
+                    <div className="supplier-mobile-card__top">
+                      <UserAvatar initials={supplier.name.charAt(0).toUpperCase()} size={44} />
+                      <div className="supplier-mobile-card__main">
+                        <div className="supplier-mobile-card__name">{supplier.name}</div>
+                        <div className="supplier-mobile-card__count">
+                          <ClipboardCheck size={14} />
+                          {itemCountBySupplier.get(supplier.id) ?? 0} Items
+                        </div>
+                      </div>
+                      <span className={`badge ${supplier.active ? 'badge--success' : 'badge--outline'}`}>
+                        {supplier.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    {supplier.location && (
+                      <div className="supplier-mobile-card__location">
+                        <MapPin size={12} />
+                        {supplier.location}
+                      </div>
+                    )}
+
+                    <div className="supplier-mobile-card__footer">
+                      <span className="supplier-mobile-card__store-value">
+                        <StoreIcon size={12} />
+                        {supplierStoreSummaryLabel(supplier)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                {!isLoading && visibleSuppliers.length === 0 && (
+                  <div className="table-card__empty">
+                    {suppliers.length === 0 ? 'No suppliers yet.' : 'No suppliers match these filters.'}
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )
       )}

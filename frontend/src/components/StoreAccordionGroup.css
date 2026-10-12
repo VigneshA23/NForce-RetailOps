@@ -1,0 +1,90 @@
+.store-accordion-group {
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  margin-bottom: var(--space-md);
+  overflow: hidden;
+  background: var(--color-surface-card);
+}
+
+.store-accordion-group:last-child {
+  margin-bottom: 0;
+}
+
+.store-accordion-group__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+/* Same tile treatment as the Suppliers table's own per-store icon badge
+   (SuperAdminInventory.css .supplier-table__store-icon). */
+.store-accordion-group__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: var(--color-badge-icon-slate-bg);
+  color: var(--color-badge-icon-slate-fg);
+}
+
+.store-accordion-group__name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.store-accordion-group__count {
+  flex-shrink: 0;
+}
+
+.store-accordion-group__orders {
+  margin-left: auto;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.store-accordion-group__chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.store-accordion-group__chevron--expanded {
+  transform: rotate(180deg);
+}
+
+.store-accordion-group__body {
+  border-top: 1px solid var(--color-border);
+}
+
+@media (--mobile) {
+  .store-accordion-group__header {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    padding: 12px;
+  }
+
+  .store-accordion-group__name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .store-accordion-group__orders {
+    margin-left: calc(22px + var(--space-sm));
+    flex-basis: calc(100% - 22px - var(--space-sm));
+  }
+}

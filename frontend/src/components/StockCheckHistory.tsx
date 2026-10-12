@@ -365,7 +365,7 @@ function StockCheckHistory({ onTotalChange }: StockCheckHistoryProps) {
         </button>
       </div>
 
-      <div className="table-card">
+      <div className="table-card stock-check-history-table-card">
         <div className="table-scroll">
           <table className="data-table">
             <thead>
