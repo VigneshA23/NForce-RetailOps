@@ -8,6 +8,7 @@ import type { DailyStockCheckItem, StockCheckSnapshotKey } from '../types/stockC
 import type { StoreSummary } from '../types/store';
 import AdHocShortageModal, { type AdHocShortageValues } from '../components/AdHocShortageModal';
 import EmployeeStockCheckHistory from '../components/EmployeeStockCheckHistory';
+import ReceivedStockModal from '../components/ReceivedStockModal';
 import StockSnapshotCard from '../components/StockSnapshotCard';
 import ItemIcon from '../components/ItemIcon';
 import SearchInput from '../components/SearchInput';
@@ -68,6 +69,14 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [collapsedOverrides, setCollapsedOverrides] = useState<Record<number, boolean>>({});
+  const [receivedPrompt, setReceivedPrompt] = useState<{
+    item: DailyStockCheckItem;
+    available: number;
+    deadStock: number;
+    startUsable: number;
+    endUsable: number;
+    resolve: (saved: boolean) => void;
+  } | null>(null);
 
   function load() {
     setIsLoading(true);
@@ -92,18 +101,57 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
     getTodayStockCheck(store.id).then(setItems).catch(() => {});
   }, [refreshSignal]);
 
-  async function handleSave(
+  // An End of Day count above Start of Day (plus anything already logged as
+  // received) can only mean stock arrived, so ask before saving: usage is then
+  // worked out against what was received instead of coming out negative.
+  function handleSave(
     item: DailyStockCheckItem,
     snapshot: StockCheckSnapshotKey,
     available: number,
     deadStock: number,
+  ): Promise<boolean> {
+    if (pendingKey != null) return Promise.resolve(false);
+    if (snapshot === 'END_OF_DAY' && item.startOfDay != null) {
+      const endUsable = available - deadStock;
+      const startUsable = item.startOfDay.usable;
+      if (endUsable > startUsable + (item.quantityReceived ?? 0)) {
+        return new Promise((resolve) => {
+          setReceivedPrompt({ item, available, deadStock, startUsable, endUsable, resolve });
+        });
+      }
+    }
+    return saveCount(item, snapshot, available, deadStock);
+  }
+
+  async function confirmReceived(quantityReceived: number) {
+    if (receivedPrompt == null) return;
+    const { item, available, deadStock, resolve } = receivedPrompt;
+    const saved = await saveCount(item, 'END_OF_DAY', available, deadStock, quantityReceived);
+    // Keep the prompt open on failure so the employee can retry or cancel.
+    if (saved) {
+      setReceivedPrompt(null);
+      resolve(true);
+    }
+  }
+
+  function cancelReceived() {
+    receivedPrompt?.resolve(false);
+    setReceivedPrompt(null);
+  }
+
+  async function saveCount(
+    item: DailyStockCheckItem,
+    snapshot: StockCheckSnapshotKey,
+    available: number,
+    deadStock: number,
+    quantityReceived?: number,
   ): Promise<boolean> {
     if (pendingKey != null) return false;
     const key = `${item.storeInventoryItemId}:${snapshot}`;
     const isUpdate = (snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay) != null;
     setPendingKey(key);
     try {
-      const saved = await submitStockCheck(store.id, item.storeInventoryItemId, snapshot, available, deadStock);
+      const saved = await submitStockCheck(store.id, item.storeInventoryItemId, snapshot, available, deadStock, quantityReceived);
       setItems((current) =>
         current.map((i) =>
           i.storeInventoryItemId === item.storeInventoryItemId
@@ -471,6 +519,18 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
           );
         })}
       </div>
+
+      <ReceivedStockModal
+        isOpen={receivedPrompt != null}
+        itemName={receivedPrompt?.item.itemName ?? ''}
+        unit={receivedPrompt?.item.unitOfMeasurement ?? ''}
+        startUsable={receivedPrompt?.startUsable ?? 0}
+        endUsable={receivedPrompt?.endUsable ?? 0}
+        alreadyReceived={receivedPrompt?.item.quantityReceived ?? 0}
+        isSubmitting={pendingKey != null}
+        onConfirm={confirmReceived}
+        onCancel={cancelReceived}
+      />
 
       <AdHocShortageModal
         isOpen={isAdHocOpen}

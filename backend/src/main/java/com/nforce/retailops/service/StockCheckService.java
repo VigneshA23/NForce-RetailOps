@@ -213,7 +213,35 @@ public class StockCheckService {
             }
         }
 
+        BigDecimal received = request.quantityReceived() == null ? BigDecimal.ZERO : request.quantityReceived();
+        boolean hasDelivery = received.signum() > 0;
+        if (hasDelivery) {
+            if (request.snapshot() != StockCheckSnapshot.END_OF_DAY) {
+                throw new InvalidStockCheckException("Received stock can only be recorded with the End of Day count");
+            }
+            if (!check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)) {
+                throw new InvalidStockCheckException("Submit today's Start of Day stock check before recording received stock");
+            }
+            check.recordDelivery(received);
+        }
+
         check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null, null, false);
+        // A closing count above what the opening count plus deliveries can
+        // explain means stock arrived that wasn't recorded. Rolls the save back.
+        if (request.snapshot() == StockCheckSnapshot.END_OF_DAY && check.stockUsed() != null && check.stockUsed().signum() < 0) {
+            throw new InvalidStockCheckException(
+                "End of Day is higher than Start of Day plus stock received. Enter the stock received today");
+        }
+        if (hasDelivery) {
+            StockCheckReceipt receipt = new StockCheckReceipt();
+            receipt.setStore(item.getStore());
+            receipt.setStoreInventoryItem(item);
+            receipt.setStockCheck(check);
+            receipt.setQuantity(received);
+            receipt.setCountAfter(check.getCurrentCount());
+            receipt.setReceivedByUser(employee);
+            stockCheckReceiptRepository.save(receipt);
+        }
         syncOrderList(check, request.snapshot(), employee);
         return StockCheckResponse.from(check);
     }

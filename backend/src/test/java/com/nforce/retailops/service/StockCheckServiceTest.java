@@ -268,6 +268,59 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void endOfDayAboveStartOfDayWithReceivedStockRecordsTheDeliveryAndCountsUsageAgainstIt() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), bd(15)));
+
+        // 10 opening + 15 received - 20 closing.
+        assertThat(response.quantityReceived()).isEqualByComparingTo(bd(15));
+        assertThat(response.stockUsed()).isEqualByComparingTo(bd(5));
+        ArgumentCaptor<StockCheckReceipt> receipt = ArgumentCaptor.forClass(StockCheckReceipt.class);
+        verify(stockCheckReceiptRepository).save(receipt.capture());
+        assertThat(receipt.getValue().getQuantity()).isEqualByComparingTo(bd(15));
+        assertThat(receipt.getValue().getCountAfter()).isEqualByComparingTo(bd(20));
+        assertThat(receipt.getValue().getReceivedByUser()).isEqualTo(employee);
+        // The closing count is exactly what was typed -- not topped up again.
+        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(20));
+    }
+
+    @Test
+    void endOfDayAboveStartOfDayPlusReceivedStockIsRejected() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        // No stock received at all.
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 20, 0)))
+            .isInstanceOf(com.nforce.retailops.exception.InvalidStockCheckException.class);
+        // 10 + 5 received is still short of 20.
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), bd(5))))
+            .isInstanceOf(com.nforce.retailops.exception.InvalidStockCheckException.class);
+        verify(stockCheckReceiptRepository, never()).save(any());
+    }
+
+    @Test
+    void receivedStockIsRejectedOnStartOfDayAndWithoutAStartOfDayCount() {
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(existingCheck(LocalDate.now())));
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), bd(5))))
+            .isInstanceOf(com.nforce.retailops.exception.InvalidStockCheckException.class);
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), bd(5))))
+            .isInstanceOf(com.nforce.retailops.exception.InvalidStockCheckException.class);
+        verify(stockCheckReceiptRepository, never()).save(any());
+    }
+
+    @Test
     void endOfDayComputesUsageAndOrdersAgainstTomorrowsMinimum() {
         milk.setMinWeekday(bd(40));
         milk.setMinWeekend(bd(40));

@@ -20,17 +20,19 @@ export async function getAllStoreItemsForEmployee(storeId: number): Promise<Stor
 }
 
 // Saves today's Start of Day or End of Day count; saving the same snapshot
-// again updates it in place.
+// again updates it in place. quantityReceived is End of Day only: stock
+// delivered today, added to the day's received total so usage accounts for it.
 export async function submitStockCheck(
   storeId: number,
   storeInventoryItemId: number,
   snapshot: StockCheckSnapshotKey,
   available: number,
   deadStock: number,
+  quantityReceived?: number,
 ): Promise<StockCheckResponse> {
   return apiRequest<StockCheckResponse>('/me/inventory/stock-checks', {
     method: 'POST',
-    body: { storeId, storeInventoryItemId, snapshot, available, deadStock },
+    body: { storeId, storeInventoryItemId, snapshot, available, deadStock, quantityReceived: quantityReceived ?? null },
   });
 }
 
