@@ -20,7 +20,9 @@ interface StoreInventoryItemEditPanelProps {
   isOpen: boolean;
   item: StoreInventoryItem;
   suppliers: Supplier[];
-  onCreateSupplier: (name: string) => Promise<Supplier>;
+  // Omitted for Owner/Admin, which only has read access to suppliers now --
+  // the field then offers no way to create one in place.
+  onCreateSupplier?: (name: string) => Promise<Supplier>;
   // Categories already used by existing items, offered alongside the built-in
   // ones so a category added once can be picked again.
   existingCategories?: (string | null)[];
