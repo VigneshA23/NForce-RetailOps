@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClipboardList, CheckCircle2, CircleDot, Repeat2, Plus } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { createTask, deleteTask, getTasks, setTaskActive, TaskHasHistoryError, updateTask } from '../api/ownerTasks';
-import { getApplicableCategories } from '../api/categories';
 import type { Category } from '../types/category';
 import type { OwnerStore } from '../types/ownerStore';
 import type { AdminTask, AdminTaskFormValues, ScheduleType } from '../types/adminTask';
@@ -50,6 +49,9 @@ interface TasksProps {
 function Tasks({
   onNavigateToCategories,
   categories,
+  categoriesLoading,
+  categoriesError,
+  onRetryCategories,
   stores,
   searchSeed,
 }: TasksProps) {
@@ -73,13 +75,6 @@ function Tasks({
   }, [searchSeed]);
 
   const [formModalState, setFormModalState] = useState<FormModalState>(null);
-  // Store-scope-filtered category list for the form only, refetched whenever
-  // the picked store scope changes -- separate from the `categories` prop
-  // above, which stays the full unfiltered list driving the page's own
-  // category filter dropdown. Mirrors SuperAdminTasks.tsx's identical pattern.
-  const [formCategories, setFormCategories] = useState<Category[]>([]);
-  const [formCategoriesLoading, setFormCategoriesLoading] = useState(false);
-  const [formCategoriesError, setFormCategoriesError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -124,23 +119,24 @@ function Tasks({
     [categories],
   );
 
-  // The task form's own category picker is narrowed to whatever's applicable
-  // to the currently-picked store scope (formCategories, kept in sync via
-  // loadCategoriesForScope below) -- except, while editing, the task's
-  // current category even if it's since been deactivated or fallen outside
-  // that scope, so its existing assignment still displays instead of coming
-  // up blank (the backend allows leaving it as-is, just not switching to
-  // another one that doesn't apply).
+  // An owner has exactly one store, so there is no scope to pick and no
+  // per-scope fetch: `categories` is already the owner's store-scoped list
+  // (GET /categories; /categories/applicable is Super Admin only and 403s
+  // for owners). The form just offers the active ones -- except, while
+  // editing, the task's current category even if it's since been
+  // deactivated, so its existing assignment still displays instead of
+  // coming up blank.
   const categoriesForForm = useMemo(() => {
+    const active = categories.filter((category) => category.active);
     if (formModalState?.mode === 'edit') {
       const currentCategoryId = formModalState.task.categoryId;
-      if (!formCategories.some((category) => category.id === currentCategoryId)) {
+      if (!active.some((category) => category.id === currentCategoryId)) {
         const current = categories.find((category) => category.id === currentCategoryId);
-        if (current) return [...formCategories, current];
+        if (current) return [...active, current];
       }
     }
-    return formCategories;
-  }, [formCategories, categories, formModalState]);
+    return active;
+  }, [categories, formModalState]);
 
   const filteredTasks = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -194,34 +190,10 @@ function Tasks({
     ? 'Loading tasks...'
     : `${activeTaskCount} active task${activeTaskCount === 1 ? '' : 's'} across ${storeCoverageCount} store${storeCoverageCount === 1 ? '' : 's'}`;
 
-  async function loadCategoriesForScope(scope: { appliesToAllStores: boolean; storeIds: number[] }) {
-    if (!scope.appliesToAllStores && scope.storeIds.length === 0) {
-      setFormCategories([]);
-      setFormCategoriesError(null);
-      return;
-    }
-    setFormCategoriesLoading(true);
-    setFormCategoriesError(null);
-    try {
-      setFormCategories(await getApplicableCategories(scope));
-    } catch (error) {
-      setFormCategoriesError(error instanceof Error ? error.message : 'Failed to load categories for the selected stores');
-    } finally {
-      setFormCategoriesLoading(false);
-    }
-  }
-
   function openCreateForm() {
     setFormError(null);
-    setFormCategories([]);
     // Admin tasks are implicitly scoped to the owner's active store; only
     // Super Admin can choose a store scope in the form.
-    const defaultStore = activeStores[0];
-    loadCategoriesForScope({
-      appliesToAllStores: false,
-      storeIds: defaultStore ? [defaultStore.id] : [],
-    });
-    setFormCategoriesError(null);
     setFormModalState({ mode: 'create' });
   }
 
@@ -230,7 +202,6 @@ function Tasks({
   function openEditForm(task: AdminTask) {
     setFormError(null);
     setFormModalState({ mode: 'edit', task });
-    loadCategoriesForScope({ appliesToAllStores: task.appliesToAllStores, storeIds: task.stores.map((store) => store.id) });
   }
 
   async function handleFormSubmit(values: AdminTaskFormValues) {
@@ -415,18 +386,14 @@ function Tasks({
         mode={formModalState?.mode ?? 'create'}
         initialTask={formModalState?.mode === 'edit' ? formModalState.task : undefined}
         categories={categoriesForForm}
-        categoriesLoading={formCategoriesLoading}
-        categoriesError={formCategoriesError}
-        onRetryCategories={() => {}}
+        categoriesLoading={categoriesLoading}
+        categoriesError={categoriesError}
+        onRetryCategories={onRetryCategories}
         onManageCategories={() => onNavigateToCategories?.()}
         stores={activeStores}
         errorMessage={formError}
         isSubmitting={isSubmitting}
-        onClose={() => {
-          setFormModalState(null);
-          setFormCategories([]);
-          setFormCategoriesError(null);
-        }}
+        onClose={() => setFormModalState(null)}
         onSubmit={handleFormSubmit}
       />
 
