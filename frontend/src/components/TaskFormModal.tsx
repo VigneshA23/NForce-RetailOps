@@ -287,9 +287,6 @@ function TaskFormModal({
             </FormField>
           </div>
           <p className="task-form__hint">
-            {!storeScopeSelectable && (
-              <>Store: <strong>{values.appliesToAllStores ? 'All stores' : (stores[0]?.name ?? '—')}</strong>{' · '}</>
-            )}
             Order controls position within the category on the checklist.
           </p>
         </section>
