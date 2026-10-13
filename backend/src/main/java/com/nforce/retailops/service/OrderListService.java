@@ -313,6 +313,44 @@ public class OrderListService {
         return new OrderListEntryResponse.ReceiptOutcome(true, result.currentStock(), result.requiredToday(), shortfall);
     }
 
+    // The Ordered orders an employee may confirm as received, per item. Plain
+    // reads of the order list for an employee-facing screen, so only what the
+    // popup needs leaves the service.
+    @Transactional(readOnly = true)
+    public Map<Long, List<OrderListEntry>> orderedEntriesByItem(Long storeId) {
+        return orderListEntryRepository.findByStoreIdAndStatusNotOrderByCreatedAtDesc(storeId, OrderStatus.RECEIVED).stream()
+            .filter(e -> e.getStatus() == OrderStatus.ORDERED)
+            .collect(java.util.stream.Collectors.groupingBy(e -> e.getStoreInventoryItem().getId()));
+    }
+
+    // An Ordered order of this item in this store, or an error; what an employee
+    // may name when reporting it received.
+    @Transactional(readOnly = true)
+    public OrderListEntry requireOrderedEntry(Long storeId, Long itemId, Long entryId) {
+        OrderListEntry entry = orderListEntryRepository.findByIdAndStoreId(entryId, storeId)
+            .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
+        if (!entry.getStoreInventoryItem().getId().equals(itemId) || entry.getStatus() != OrderStatus.ORDERED) {
+            throw new InvalidOrderEntryTransitionException("Only an Ordered order for this item can be confirmed as received.");
+        }
+        return entry;
+    }
+
+    // The order side of an approved received-stock request: Ordered -> Received
+    // with the quantity the employee reported. Stock itself is applied by the
+    // approval (the employee's End of Day count already includes the delivery),
+    // so this deliberately does not go through applyReceivedStock.
+    @Transactional
+    public void confirmReceivedByApproval(OrderListEntry entry, BigDecimal quantityReceived) {
+        if (entry.getStatus() != OrderStatus.ORDERED) {
+            throw new InvalidOrderEntryTransitionException(
+                "This order is no longer Ordered, so it cannot be confirmed as received. Reject this request instead.");
+        }
+        entry.setStatus(OrderStatus.RECEIVED);
+        entry.setQuantityReceived(quantityReceived);
+        entry.setStatusChangedByRole(ROLE_OWNER_ADMIN);
+        orderListEntryRepository.save(entry);
+    }
+
     // Super Admin's cross-store order-list drill-down (SuperAdminOperationsService).
     // No store-existence check -- a bad/non-existent storeId simply yields an
     // empty list, a reasonable response for a list endpoint rather than a 404.

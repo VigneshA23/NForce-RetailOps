@@ -61,6 +61,12 @@ public class Notification {
     @JoinColumn(name = "store_id")
     private Store store;
 
+    // Set on STOCK_RECEIPT_REQUEST notifications so the Notifications page can
+    // show the request and let the admin approve or reject it in place.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "stock_receipt_request_id")
+    private StockReceiptRequest stockReceiptRequest;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -97,6 +103,9 @@ public class Notification {
 
     public RaisedIssue getRelatedIssue() { return relatedIssue; }
     public void setRelatedIssue(RaisedIssue relatedIssue) { this.relatedIssue = relatedIssue; }
+
+    public StockReceiptRequest getStockReceiptRequest() { return stockReceiptRequest; }
+    public void setStockReceiptRequest(StockReceiptRequest stockReceiptRequest) { this.stockReceiptRequest = stockReceiptRequest; }
 
     public Store getStore() { return store; }
     public void setStore(Store store) { this.store = store; }
