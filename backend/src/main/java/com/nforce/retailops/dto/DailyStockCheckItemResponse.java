@@ -1,6 +1,8 @@
 package com.nforce.retailops.dto;
 
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+import java.util.List;
 
 // One item on the employee's daily Stock Check screen: today's resolved
 // minimum (weekday/weekend already picked server-side), tomorrow's, and
@@ -20,6 +22,13 @@ public record DailyStockCheckItemResponse(
     BigDecimal currentStock,
     BigDecimal stockUsed,
     BigDecimal quantityToOrder,
-    Long imageId
+    Long imageId,
+    // Received stock already reported today and still waiting on the admin.
+    BigDecimal pendingReceivedQuantity,
+    // Ordered orders for the item that the employee can confirm as received
+    // (those with a request already pending are left out).
+    List<OpenOrder> openOrders
 ) {
+    public record OpenOrder(Long id, BigDecimal quantity, String supplierName, OffsetDateTime orderedAt) {
+    }
 }

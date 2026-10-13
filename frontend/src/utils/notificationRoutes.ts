@@ -16,6 +16,8 @@ export interface NotificationNavContext {
   createdAt?: string;
   relatedIssueId?: number | null;
   storeId?: number | null;
+  // The clicked notification, so the Notifications page can open it.
+  notificationId?: number | null;
 }
 
 export type NotificationNavigateHandler = (path: string, context?: NotificationNavContext) => void;

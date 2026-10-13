@@ -51,6 +51,9 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
   const [focusIssueId, setFocusIssueId] = useState<IssueFocusRequest | undefined>(undefined);
   // Notification-click navigation into the Inventory tab's History sub-tab
   // (RTS-306: a Super Admin corrected this store's stock check).
+  // Notification to open on the Notifications page (a received-stock request
+  // the admin clicked in the bell).
+  const [focusNotificationId, setFocusNotificationId] = useState<number | null>(null);
   const [historySeed, setHistorySeed] = useState<{ ts: number } | undefined>(undefined);
   // Lazy-mount: tabs mount on first visit and stay alive — no refetch on tab switch.
   const [mountedTabs, setMountedTabs] = useState<Set<NavTabKey>>(new Set(['home']));
@@ -84,7 +87,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
 
   function handleNotificationNavigate(path: string, context?: NotificationNavContext) {
     const target = resolveNotificationRoute(OWNER_NOTIFICATION_ROUTES, path);
-    if (target === null) { setOverlay('notifications'); return; }
+    if (target === null) {
+      setFocusNotificationId(context?.notificationId ?? null);
+      setOverlay('notifications');
+      return;
+    }
     if (target === 'profile') { setOverlay('profile'); return; }
     if (target === 'issues' && context?.relatedIssueId != null) {
       setFocusIssueId({ issueId: context.relatedIssueId, ts: Date.now() });
@@ -236,6 +243,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
         <Notifications
           onUnreadChange={handleNotificationsCountChange}
           onNavigate={handleNotificationNavigate}
+          focusNotificationId={focusNotificationId}
           onBackToHome={() => { setOverlay(null); setActiveTab('home'); }}
         />
       ) : (

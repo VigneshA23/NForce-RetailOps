@@ -19,7 +19,10 @@ import com.nforce.retailops.dto.StoreInventoryItemOptionResponse;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.StockCheckReceipt;
+import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.StockCheckSnapshot;
+import com.nforce.retailops.entity.StockReceiptRequest;
+import com.nforce.retailops.entity.StockReceiptRequestStatus;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
@@ -36,6 +39,7 @@ import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StockCheckCorrectionRepository;
 import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
+import com.nforce.retailops.repository.StockReceiptRequestRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -101,6 +105,7 @@ public class StockCheckService {
     private final UserProfileService userProfileService;
     private final NotificationService notificationService;
     private final StockCheckReceiptRepository stockCheckReceiptRepository;
+    private final StockReceiptRequestRepository stockReceiptRequestRepository;
 
     public StockCheckService(
         StoreInventoryItemRepository storeInventoryItemRepository,
@@ -112,7 +117,8 @@ public class StockCheckService {
         OrderListService orderListService,
         UserProfileService userProfileService,
         NotificationService notificationService,
-        StockCheckReceiptRepository stockCheckReceiptRepository
+        StockCheckReceiptRepository stockCheckReceiptRepository,
+        StockReceiptRequestRepository stockReceiptRequestRepository
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.stockCheckRepository = stockCheckRepository;
@@ -124,6 +130,7 @@ public class StockCheckService {
         this.userProfileService = userProfileService;
         this.notificationService = notificationService;
         this.stockCheckReceiptRepository = stockCheckReceiptRepository;
+        this.stockReceiptRequestRepository = stockReceiptRequestRepository;
     }
 
     // ---- Employee: today's checklist --------------------------------------
@@ -134,6 +141,16 @@ public class StockCheckService {
         LocalDate today = LocalDate.now();
         List<StoreInventoryItem> items = storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(storeId);
         Map<Long, StockCheck> todaysChecksByItemId = checksByItemId(storeId, today);
+        Map<Long, List<OrderListEntry>> orderedByItemId = orderListService.orderedEntriesByItem(storeId);
+        List<StockReceiptRequest> pendingRequests = stockReceiptRequestRepository
+            .findByStoreIdAndCheckDateAndStatus(storeId, today, StockReceiptRequestStatus.PENDING);
+        Map<Long, BigDecimal> pendingByItemId = pendingRequests.stream().collect(Collectors.groupingBy(
+            r -> r.getStoreInventoryItem().getId(),
+            Collectors.reducing(BigDecimal.ZERO, StockReceiptRequest::getQuantity, BigDecimal::add)));
+        java.util.Set<Long> orderIdsAwaitingApproval = pendingRequests.stream()
+            .filter(r -> r.getOrderListEntry() != null)
+            .map(r -> r.getOrderListEntry().getId())
+            .collect(Collectors.toSet());
 
         return items.stream()
             .map(item -> {
@@ -148,9 +165,19 @@ public class StockCheckService {
                     StockSnapshotResponse.from(check, StockCheckSnapshot.END_OF_DAY),
                     check != null ? check.getQuantityReceived() : BigDecimal.ZERO,
                     check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY) ? check.getCurrentCount() : null,
-                    check != null ? check.stockUsed() : null,
+                    // Hidden while reported received stock awaits approval: until
+                    // then the usage would come out negative.
+                    check != null && pendingByItemId.getOrDefault(item.getId(), BigDecimal.ZERO).signum() == 0
+                        ? check.stockUsed() : null,
                     quantityToOrder(check),
-                    item.getImageId()
+                    item.getImageId(),
+                    pendingByItemId.getOrDefault(item.getId(), BigDecimal.ZERO),
+                    orderedByItemId.getOrDefault(item.getId(), List.of()).stream()
+                        .filter(e -> !orderIdsAwaitingApproval.contains(e.getId()))
+                        .map(e -> new DailyStockCheckItemResponse.OpenOrder(
+                            e.getId(), e.totalQuantityOrdered(),
+                            e.getSupplier() != null ? e.getSupplier().getName() : null, e.getOrderedAt()))
+                        .toList()
                 );
             })
             .toList();
@@ -214,8 +241,40 @@ public class StockCheckService {
             }
         }
 
-        BigDecimal received = request.quantityReceived() == null ? BigDecimal.ZERO : request.quantityReceived();
-        boolean hasDelivery = received.signum() > 0;
+        // Reported stock is only a request here: nothing about quantities or
+        // the order is changed until the admin approves it (see
+        // StockReceiptApprovalService).
+        record Delivery(OrderListEntry order, BigDecimal quantity) {
+        }
+        List<Delivery> deliveries = new ArrayList<>();
+        java.util.Set<Long> seenOrders = new java.util.HashSet<>();
+        boolean seenNewStock = false;
+        for (StockCheckSubmitRequest.ReceivedItem reported : request.deliveries()) {
+            BigDecimal quantity = reported.quantity() == null ? BigDecimal.ZERO : reported.quantity();
+            OrderListEntry order = null;
+            if (reported.orderEntryId() != null) {
+                if (!seenOrders.add(reported.orderEntryId())) {
+                    throw new InvalidStockCheckException("An order can only be reported once");
+                }
+                order = orderListService.requireOrderedEntry(request.storeId(), item.getId(), reported.orderEntryId());
+                if (stockReceiptRequestRepository.existsByOrderListEntryIdAndStatus(order.getId(), StockReceiptRequestStatus.PENDING)) {
+                    throw new InvalidStockCheckException("This order is already waiting for admin approval");
+                }
+                if (quantity.signum() == 0) {
+                    quantity = order.totalQuantityOrdered();
+                }
+            } else {
+                if (seenNewStock) {
+                    throw new InvalidStockCheckException("New stock can only be reported once");
+                }
+                seenNewStock = true;
+            }
+            if (quantity.signum() > 0) {
+                deliveries.add(new Delivery(order, quantity));
+            }
+        }
+        BigDecimal received = deliveries.stream().map(Delivery::quantity).reduce(BigDecimal.ZERO, BigDecimal::add);
+        boolean hasDelivery = !deliveries.isEmpty();
         if (hasDelivery) {
             if (request.snapshot() != StockCheckSnapshot.END_OF_DAY) {
                 throw new InvalidStockCheckException("Received stock can only be recorded with the End of Day count");
@@ -223,28 +282,57 @@ public class StockCheckService {
             if (!check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)) {
                 throw new InvalidStockCheckException("Submit today's Start of Day stock check before recording received stock");
             }
-            check.recordDelivery(received);
         }
 
         check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null, null, false);
         // A closing count above what the opening count plus deliveries can
-        // explain means stock arrived that wasn't recorded. Rolls the save back.
-        if (request.snapshot() == StockCheckSnapshot.END_OF_DAY && check.stockUsed() != null && check.stockUsed().signum() < 0) {
-            throw new InvalidStockCheckException(
-                "End of Day is higher than Start of Day plus stock received. Enter the stock received today");
+        // explain means stock arrived that wasn't recorded. Deliveries still
+        // waiting on approval count towards that, so re-saving the count while
+        // one is pending doesn't ask again. Rolls the save back.
+        if (request.snapshot() == StockCheckSnapshot.END_OF_DAY && check.stockUsed() != null) {
+            BigDecimal alreadyPending = stockReceiptRequestRepository.pendingQuantityFor(item.getId(), today);
+            BigDecimal explained = (alreadyPending == null ? BigDecimal.ZERO : alreadyPending).add(received);
+            if (check.stockUsed().add(explained).signum() < 0) {
+                throw new InvalidStockCheckException(
+                    "End of Day is higher than Start of Day plus stock received. Enter the stock received today");
+            }
         }
-        if (hasDelivery) {
-            StockCheckReceipt receipt = new StockCheckReceipt();
-            receipt.setStore(item.getStore());
-            receipt.setStoreInventoryItem(item);
-            receipt.setStockCheck(check);
-            receipt.setQuantity(received);
-            receipt.setCountAfter(check.getCurrentCount());
-            receipt.setReceivedByUser(employee);
-            stockCheckReceiptRepository.save(receipt);
+        for (Delivery delivery : deliveries) {
+            StockReceiptRequest receiptRequest = new StockReceiptRequest();
+            receiptRequest.setStore(item.getStore());
+            receiptRequest.setStoreInventoryItem(item);
+            receiptRequest.setOrderListEntry(delivery.order());
+            receiptRequest.setCheckDate(today);
+            receiptRequest.setQuantity(delivery.quantity());
+            receiptRequest.setRequestedBy(employee);
+            StockReceiptRequest savedRequest = stockReceiptRequestRepository.save(receiptRequest);
+            storeOwnerRepository.findByStoreIdAndActiveTrue(item.getStore().getId())
+                .map(StoreOwner::getOwner)
+                .ifPresent(owner -> notificationService.notifyOwnerOfStockReceiptRequest(savedRequest, owner));
         }
         syncOrderList(check, request.snapshot(), employee);
         return StockCheckResponse.from(check);
+    }
+
+    // The stock side of an approved received-stock request: the delivery goes
+    // on the day's received total (the closing count already includes it, so
+    // it is not added to the count) and a receipt row records who received it.
+    @Transactional
+    public void applyApprovedDelivery(StockReceiptRequest request) {
+        StoreInventoryItem item = request.getStoreInventoryItem();
+        StockCheck check = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), request.getCheckDate())
+            .orElseThrow(() -> new InvalidStockCheckException("The stock check this delivery was reported on no longer exists"));
+        check.recordDelivery(request.getQuantity());
+        check = stockCheckRepository.save(check);
+
+        StockCheckReceipt receipt = new StockCheckReceipt();
+        receipt.setStore(item.getStore());
+        receipt.setStoreInventoryItem(item);
+        receipt.setStockCheck(check);
+        receipt.setQuantity(request.getQuantity());
+        receipt.setCountAfter(check.getCurrentCount());
+        receipt.setReceivedByUser(request.getRequestedBy());
+        stockCheckReceiptRepository.save(receipt);
     }
 
     // ---- Employee: ad-hoc shortage report ----------------------------------

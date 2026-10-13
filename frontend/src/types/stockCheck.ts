@@ -116,6 +116,17 @@ export interface DailyStockCheckItem {
   stockUsed: number | null;
   quantityToOrder: number | null;
   imageId: number | null;
+  // Received stock reported today that is still waiting on the admin.
+  pendingReceivedQuantity?: number;
+  // Ordered orders the employee can confirm as received.
+  openOrders?: OpenOrder[];
+}
+
+export interface OpenOrder {
+  id: number;
+  quantity: number;
+  supplierName: string | null;
+  orderedAt: string | null;
 }
 
 export type EodReportStatus =
