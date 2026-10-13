@@ -1,7 +1,9 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.SupplierDetailsRequest;
+import com.nforce.retailops.dto.SupplierRequest;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.StoreInactiveException;
@@ -19,6 +21,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -121,6 +124,61 @@ class SupplierServiceStoreAssignmentTest {
 
         SupplierDetailsRequest request = new SupplierDetailsRequest("Walmart", null, null, false, List.of(STORE_ID, OTHER_STORE_ID));
         var response = supplierService.createSupplierWithDetails(request);
+
+        assertThat(response.stores()).extracting("id").containsExactlyInAnyOrder(STORE_ID, OTHER_STORE_ID);
+    }
+
+    @Test
+    void findOrCreateSupplierAssignsTheOwnersOwnStoreWhenCreatedByAnOwner() {
+        Store ownerStore = store(STORE_ID, true);
+        StoreOwner link = new StoreOwner();
+        link.setStore(ownerStore);
+        link.setActive(true);
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(link));
+        when(supplierRepository.findFirstByNameIgnoreCaseOrderByIdAsc("Fresh Farms")).thenReturn(Optional.empty());
+
+        var response = supplierService.findOrCreateSupplier(new SupplierRequest("Fresh Farms", null), 1L, null);
+
+        assertThat(response.stores()).extracting("id").containsExactly(STORE_ID);
+    }
+
+    @Test
+    void findOrCreateSupplierAssignsTheExplicitStoreWhenCreatedBySuperAdmin() {
+        Store targetStore = store(OTHER_STORE_ID, true);
+        when(storeRepository.findById(OTHER_STORE_ID)).thenReturn(Optional.of(targetStore));
+        when(supplierRepository.findFirstByNameIgnoreCaseOrderByIdAsc("Fresh Farms")).thenReturn(Optional.empty());
+
+        var response = supplierService.findOrCreateSupplier(new SupplierRequest("Fresh Farms", OTHER_STORE_ID), null, OTHER_STORE_ID);
+
+        assertThat(response.stores()).extracting("id").containsExactly(OTHER_STORE_ID);
+    }
+
+    @Test
+    void findOrCreateSupplierLeavesAnAlreadyAllStoresSupplierWithNoStoreAssignment() {
+        Store targetStore = store(STORE_ID, true);
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(targetStore));
+        Supplier existing = new Supplier();
+        existing.setName("Global Co");
+        existing.setAppliesToAllStores(true);
+        when(supplierRepository.findFirstByNameIgnoreCaseOrderByIdAsc("Global Co")).thenReturn(Optional.of(existing));
+
+        var response = supplierService.findOrCreateSupplier(new SupplierRequest("Global Co", STORE_ID), null, STORE_ID);
+
+        assertThat(response.appliesToAllStores()).isTrue();
+        assertThat(response.stores()).isEmpty();
+    }
+
+    @Test
+    void findOrCreateSupplierAddsTheNewStoreToAnExistingSuppliersAssignmentsWithoutRemovingOthers() {
+        Store firstStore = store(STORE_ID, true);
+        Store secondStore = store(OTHER_STORE_ID, true);
+        when(storeRepository.findById(OTHER_STORE_ID)).thenReturn(Optional.of(secondStore));
+        Supplier existing = new Supplier();
+        existing.setName("Costco");
+        existing.getStores().add(firstStore);
+        when(supplierRepository.findFirstByNameIgnoreCaseOrderByIdAsc("Costco")).thenReturn(Optional.of(existing));
+
+        var response = supplierService.findOrCreateSupplier(new SupplierRequest("Costco", OTHER_STORE_ID), null, OTHER_STORE_ID);
 
         assertThat(response.stores()).extracting("id").containsExactlyInAnyOrder(STORE_ID, OTHER_STORE_ID);
     }

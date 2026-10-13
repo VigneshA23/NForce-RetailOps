@@ -52,11 +52,20 @@ public class StoreController {
     // Inline "Add New Supplier" from the inventory item form, for both roles
     // (Super Admin's own supplier-management page keeps using
     // /api/super-admin/suppliers). Returns the existing supplier when one
-    // with the same name already exists.
+    // with the same name already exists. Assigns the new/found supplier to
+    // whichever store this came from -- Owner/Admin's own (resolved here
+    // server-side, same as every other owner-scoped endpoint, so a client
+    // can't claim a different store), or Super Admin's explicit storeId,
+    // since Super Admin has no single implicit store of their own.
     @PostMapping("/suppliers")
     @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<SupplierResponse> findOrCreateSupplier(@Valid @RequestBody SupplierRequest request) {
-        return ResponseEntity.ok(supplierService.findOrCreateSupplier(request));
+    public ResponseEntity<SupplierResponse> findOrCreateSupplier(
+        @Valid @RequestBody SupplierRequest request,
+        @AuthenticationPrincipal Object principal
+    ) {
+        Long ownerId = principal instanceof AppUserDetails appUser ? appUser.getUser().getId() : null;
+        Long superAdminStoreId = ownerId == null ? request.storeId() : null;
+        return ResponseEntity.ok(supplierService.findOrCreateSupplier(request, ownerId, superAdminStoreId));
     }
 
     // Permanent-delete: removes the supplier, or only deactivates it when
