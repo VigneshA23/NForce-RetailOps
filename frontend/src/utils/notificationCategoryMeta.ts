@@ -11,7 +11,9 @@ import {
   ListPlus,
   MailX,
   Megaphone,
+  PackageCheck,
   PackagePlus,
+  PackageX,
   PenLine,
   Store,
   TriangleAlert,
@@ -33,6 +35,7 @@ export type DisplayCategory =
   | 'Store Management'
   | 'Account & Access'
   | 'Employee Management'
+  | 'Stock & Orders'
   | 'Platform Alerts';
 
 export interface CategoryMeta {
@@ -73,6 +76,10 @@ export const CATEGORY_META: Record<string, CategoryMeta> = {
   NEW_EMPLOYEE_JOINED: { icon: UserPlus, ...SUCCESS, displayCategory: 'Employee Management' },
   EMPLOYEE_REMOVED: { icon: UserMinus, ...WARNING, displayCategory: 'Employee Management' },
 
+  STOCK_RECEIPT_REQUEST: { icon: PackageCheck, ...WARNING, displayCategory: 'Stock & Orders' },
+  STOCK_RECEIPT_APPROVED: { icon: PackageCheck, ...SUCCESS, displayCategory: 'Stock & Orders' },
+  STOCK_RECEIPT_REJECTED: { icon: PackageX, ...WARNING, displayCategory: 'Stock & Orders' },
+
   STORE_ZERO_ACTIVITY: { icon: TriangleAlert, ...WARNING, displayCategory: 'Platform Alerts' },
   ISSUES_OVERDUE: { icon: AlarmClock, ...WARNING, displayCategory: 'Platform Alerts' },
   OWNER_EMAIL_FAILED: { icon: MailX, ...WARNING, displayCategory: 'Platform Alerts' },
@@ -95,5 +102,6 @@ export const ALL_DISPLAY_CATEGORIES: DisplayCategory[] = [
   'Store Management',
   'Account & Access',
   'Employee Management',
+  'Stock & Orders',
   'Platform Alerts',
 ];

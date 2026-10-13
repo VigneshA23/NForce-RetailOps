@@ -6,6 +6,7 @@ import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
+import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
@@ -18,6 +19,7 @@ import com.nforce.retailops.exception.InvalidOrderListEntryException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
+import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -63,6 +65,7 @@ class OrderListServiceTest {
     @Mock private StoreInventoryItemRepository storeInventoryItemRepository;
     @Mock private UserRepository userRepository;
     @Mock private StockReceiptService stockReceiptService;
+    @Mock private StockCheckRepository stockCheckRepository;
 
     @InjectMocks
     private OrderListService orderListService;
@@ -195,6 +198,65 @@ class OrderListServiceTest {
             .thenReturn(List.of(ordered));
     }
 
+    private OrderListEntry entry(OrderStatus status, int quantity) {
+        OrderListEntry entry = new OrderListEntry();
+        entry.setStatus(status);
+        entry.setQuantityNeeded(bd(quantity));
+        return entry;
+    }
+
+    @Test
+    void reportedShortageTopsUpTheWaitingRowByOnlyWhatIsMissing() {
+        // Minimum 5, nothing left, 1 already waiting: add 4 to the same row.
+        OrderListEntry waiting = entry(OrderStatus.NEEDS_ORDERING, 1);
+        stubWaitingEntry(waiting);
+        stubOnOrder();
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, false);
+
+        verify(orderListEntryRepository, times(1)).save(waiting);
+        assertThat(waiting.totalQuantityOrdered()).isEqualByComparingTo(bd(5));
+    }
+
+    @Test
+    void reportedShortageSubtractsWhatIsAlreadyOrderedAndRaisesTheRemainder() {
+        stubWaitingEntry();
+        stubOnOrder(entry(OrderStatus.ORDERED, 1));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, false);
+
+        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
+        verify(orderListEntryRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(4));
+        assertThat(captor.getValue().getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+    }
+
+    @Test
+    void reportedShortageIgnoresTheOrderedQuantityWhenItIsConfirmedReceived() {
+        stubWaitingEntry();
+        stubOnOrder(entry(OrderStatus.ORDERED, 1));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, true);
+
+        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
+        verify(orderListEntryRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(5));
+    }
+
+    @Test
+    void reportedShortageRaisesNothingWhenExistingRowsAlreadyCoverIt() {
+        stubWaitingEntry(entry(OrderStatus.NEEDS_ORDERING, 2));
+        stubOnOrder(entry(OrderStatus.ORDERED, 3));
+
+        OrderListEntry result = orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, false);
+
+        assertThat(result).isNull();
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
     @Test
     void upsertShortageFromACountIsNetOfStockAlreadyOnOrder() {
         OrderListEntry ordered = new OrderListEntry();
@@ -241,6 +303,91 @@ class OrderListServiceTest {
 
         assertThat(existing.getQuantityNeeded()).isEqualByComparingTo(bd(7));
         assertThat(existing.getManualAddition()).isEqualByComparingTo(bd(2));
+    }
+
+    // ---- Start of Day reconciliation (RTS-369) ----
+
+    @Test
+    void startOfDayRecalculatesYesterdaysWaitingRowInPlaceInsteadOfDuplicatingIt() {
+        OrderListEntry waiting = entry(OrderStatus.NEEDS_ORDERING, 4);
+        stubOnOrder();
+        stubWaitingEntry(waiting);
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.reconcileStartOfDayShortage(store(), item(), bd(7), new User(), null);
+
+        verify(orderListEntryRepository, times(1)).save(waiting);
+        assertThat(waiting.getQuantityNeeded()).isEqualByComparingTo(bd(7));
+        assertThat(waiting.getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+    }
+
+    @Test
+    void startOfDayWithNoShortageWithdrawsTheWaitingSystemRow() {
+        OrderListEntry waiting = entry(OrderStatus.NEEDS_ORDERING, 4);
+        stubOpenSystemEntry(waiting);
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.reconcileStartOfDayShortage(store(), item(), bd(0), new User(), null);
+
+        assertThat(waiting.getStatus()).isEqualTo(OrderStatus.RECEIVED);
+    }
+
+    @Test
+    void startOfDayKeepsAnOrderedRowAndRaisesASeparateRowForTheShortfall() {
+        OrderListEntry ordered = entry(OrderStatus.ORDERED, 3);
+        stubOnOrder(ordered);
+        stubWaitingEntry();
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.reconcileStartOfDayShortage(store(), item(), bd(5), new User(), null);
+
+        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
+        verify(orderListEntryRepository).save(captor.capture());
+        assertThat(captor.getValue()).isNotSameAs(ordered);
+        assertThat(captor.getValue().getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(2));
+        assertThat(ordered.getQuantityNeeded()).isEqualByComparingTo(bd(3));
+        assertThat(ordered.getStatus()).isEqualTo(OrderStatus.ORDERED);
+    }
+
+    @Test
+    void startOfDayRaisesNothingWhenTheOrderedRowAlreadyCoversTheShortage() {
+        stubOnOrder(entry(OrderStatus.ORDERED, 5));
+        stubOpenSystemEntry();
+
+        orderListService.reconcileStartOfDayShortage(store(), item(), bd(5), new User(), null);
+
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void markOrderedIsRejectedOnceTodaysStartOfDayIsInAndEndOfDayIsNot() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        StockCheck check = new StockCheck();
+        ReflectionTestUtils.setField(check, "startOfDayAvailable", bd(3));
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        assertThatThrownBy(() -> orderListService.markOrdered(OWNER_ID, ENTRY_ID))
+            .isInstanceOf(InvalidOrderEntryTransitionException.class);
+        assertThat(entry.getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+    }
+
+    @Test
+    void markOrderedIsAllowedAgainOnceTodaysEndOfDayIsSaved() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        StockCheck check = new StockCheck();
+        ReflectionTestUtils.setField(check, "startOfDayAvailable", bd(3));
+        ReflectionTestUtils.setField(check, "endOfDayAvailable", bd(1));
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        assertThat(orderListService.markOrdered(OWNER_ID, ENTRY_ID).status()).isEqualTo("ORDERED");
     }
 
     @Test

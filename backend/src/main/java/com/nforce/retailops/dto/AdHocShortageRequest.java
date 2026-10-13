@@ -26,6 +26,10 @@ public record AdHocShortageRequest(
     BigDecimal quantity,
 
     @Size(max = 500, message = "Note must be 500 characters or fewer")
-    String note
+    String note,
+
+    // Ticked when an earlier order for this item has already arrived, so it
+    // is not counted against the quantity needed. Null is treated as false.
+    Boolean orderedAlreadyReceived
 ) {
 }
