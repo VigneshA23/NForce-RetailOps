@@ -435,7 +435,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                   <div className="employee-stock-check-page__shift-header">
                     <span className="employee-stock-check-page__shift-label">
                       Shift Stock Reconciliations
-                      <span className={`badge ${item.status === 'optimal' ? 'badge--success' : 'badge--danger'}`}>
+                      <span className={`badge ${shiftsActive === 0 ? 'badge--outline' : item.status === 'optimal' ? 'badge--success' : 'badge--danger'}`}>
                         {shiftsActive} Shifts Active
                       </span>
                     </span>
@@ -481,7 +481,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                   </div>
 
                   <div
-                    className={`employee-stock-check-page__totals${item.status === 'optimal' ? ' employee-stock-check-page__totals--optimal' : ''}`}
+                    className={`employee-stock-check-page__totals${item.status === 'optimal' ? ' employee-stock-check-page__totals--optimal' : ''}${item.status === 'shortage' ? ' employee-stock-check-page__totals--shortage' : ''}`}
                   >
                     {item.status === 'optimal' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                     {item.status === 'optimal' ? (

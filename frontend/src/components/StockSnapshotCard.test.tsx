@@ -23,7 +23,7 @@ describe('StockSnapshotCard', () => {
     const onSave = vi.fn().mockResolvedValue(true);
     render(<StockSnapshotCard title="Start of Day" idPrefix="milk-sod" snapshot={null} onSave={onSave} />);
 
-    expect(screen.getByText('In Progress')).toBeInTheDocument();
+    expect(screen.getByText('In Progress')).toHaveClass('badge--warning');
     await user.type(screen.getByLabelText('Total Stock'), '50');
     await user.clear(screen.getByLabelText('Dead / Spoilage'));
     await user.type(screen.getByLabelText('Dead / Spoilage'), '2');

@@ -33,15 +33,6 @@
   font-weight: 600;
 }
 
-.supplier-purchase-table__row--unassigned {
-  background: var(--color-badge-icon-primary-bg);
-}
-
-.supplier-purchase-table__row--unassigned .supplier-purchase-table__name {
-  color: var(--color-accent);
-  font-weight: 700;
-}
-
 .supplier-purchase-table__view-btn {
   display: inline-flex;
   align-items: center;

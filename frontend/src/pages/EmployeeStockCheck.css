@@ -308,9 +308,9 @@
   align-items: center;
   gap: var(--space-xs) var(--space-md);
   padding: var(--space-sm) var(--space-md);
-  background: var(--color-badge-icon-primary-bg);
-  color: var(--color-badge-icon-primary-fg);
-  border: 1px solid color-mix(in srgb, var(--color-badge-icon-primary-fg) 35%, transparent);
+  background: var(--color-badge-outline-bg);
+  color: var(--color-badge-outline-text);
+  border: 1px solid var(--color-badge-outline-border);
   border-radius: var(--radius-sm);
   font-size: 12px;
 }
@@ -323,6 +323,12 @@
   background: var(--color-badge-icon-success-bg);
   color: var(--color-badge-icon-success-fg);
   border-color: color-mix(in srgb, var(--color-badge-icon-success-fg) 35%, transparent);
+}
+
+.employee-stock-check-page__totals--shortage {
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
+  border-color: color-mix(in srgb, var(--color-badge-icon-primary-fg) 35%, transparent);
 }
 
 .employee-stock-check-page__totals-spacer {

@@ -206,22 +206,14 @@ describe('TaskFormModal Short Text response', () => {
   });
 
   describe('TaskFormModal completion type', () => {
-    it('uses radio options and updates the selected completion type', async () => {
+    it('uses a dropdown to update the selected completion type', async () => {
       const user = userEvent.setup();
       renderModal();
 
-      const single = screen.getByRole('radio', { name: 'Single Completion' });
-      const multiple = screen.getByRole('radio', { name: 'Multiple Completions' });
-      expect(single).not.toBeChecked();
-      expect(multiple).not.toBeChecked();
+      await user.click(document.getElementById('task-completion-type')!);
+      await user.click(await screen.findByRole('button', { name: 'Multiple Completions' }));
 
-      await user.click(single);
-      expect(single).toBeChecked();
-
-      await user.click(multiple);
-
-      expect(multiple).toBeChecked();
-      expect(single).not.toBeChecked();
+      expect(document.getElementById('task-completion-type')).toHaveTextContent('Multiple Completions');
     });
   });
 
