@@ -27,8 +27,6 @@ interface ReceivedStockModalProps {
   onCancel: () => void;
 }
 
-const NEW_STOCK = 'new';
-
 // Shown when an End of Day count is higher than the Start of Day count, which
 // can only mean stock arrived during the day, so a received quantity is
 // required. It must cover the gap (Start of Day + received >= End of Day) so
