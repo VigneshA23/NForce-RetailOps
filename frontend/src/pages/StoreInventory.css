@@ -324,16 +324,22 @@
   text-align: center;
 }
 
-@media (--tablet-down) {
-  /* filters.css puts Category and Supplier at a rigid 50/50 split on tablet and
-     below, sized for exactly two selects per row -- there's no room left for
-     the Clear button once it appears, so it wraps onto a third row by
-     itself. Letting the two selects share the row's remaining space instead
-     (rather than a fixed half each) keeps Clear sitting right next to Supplier
-     on the same row. */
-  .store-inventory-page__filter-bar .filter:not(.filter--search) {
-    flex: 1 1 0;
-  }
+/* filters.css's default .filter (flex: 0 0 15%, no shrink) and
+   .filter--search (flex: 1 1 45%) size purely off the container's
+   percentage width, with no floor -- shrinking the container enough (tablet
+   width, or even some in-between desktop widths) crushes Category/Supplier
+   to an unreadable sliver without ever wrapping, since percentages alone
+   never sum past 100%. A min-width gives each a floor below which it can't
+   be squeezed; once the container can't fit every floor on one line, the
+   filter-bar's own flex-wrap (filters.css) wraps whatever doesn't fit onto
+   the next line instead -- no hardcoded breakpoint needed, Search keeps
+   shrinking down to its own floor first since it's flex-shrink: 1 already. */
+.store-inventory-page__filter-bar .filter--search {
+  min-width: 220px;
+}
+
+.store-inventory-page__filter-bar .filter:not(.filter--search) {
+  min-width: 150px;
 }
 
 /* Suppliers table, mobile: its own dedicated card markup (rendered only
