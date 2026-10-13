@@ -12,7 +12,7 @@ import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
 import StatCard from '../components/StatCard';
-import CategoryIcon, { CATEGORY_VISUAL, FALLBACK_CATEGORY_VISUAL } from '../components/CategoryIcon';
+import CategoryIcon from '../components/CategoryIcon';
 import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
 import ChangeOrderStatusModal from '../components/ChangeOrderStatusModal';
@@ -339,14 +339,12 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
     const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
     const meta = STATUS_META[entry.status];
     const categoryLabel = categoryLabelOf(category) || '—';
-    const categoryVisual = category ? (CATEGORY_VISUAL[category] ?? FALLBACK_CATEGORY_VISUAL) : FALLBACK_CATEGORY_VISUAL;
     const raisedBy = entry.raisedByName ?? (entry.adHoc ? 'Manual' : 'Auto-detected');
     const raisedAt = new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
     return {
       entry,
       category,
       categoryLabel,
-      categoryVisual,
       onHand: stock?.current ?? null,
       par: stock?.minimum ?? null,
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
@@ -553,10 +551,7 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
             </div>
           </div>
           <div className="order-list__mobile-footer">
-            <span className="order-list__mobile-pill" style={{ background: row.categoryVisual.bg, color: row.categoryVisual.fg }}>
-              <span className="order-list__mobile-pill-dot" style={{ background: row.categoryVisual.fg }} />
-              {row.categoryLabel}
-            </span>
+            <span className="badge badge--info order-list__category-badge">{row.categoryLabel}</span>
             <StatusDotMenu
               options={row.statusOptions}
               value={entry.status}

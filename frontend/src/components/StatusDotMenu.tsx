@@ -84,8 +84,8 @@ function StatusDotMenu({ options, value, onChange, ariaLabel, width = 172, backg
       <button
         ref={triggerRef}
         type="button"
-        className="status-dot-menu__trigger"
-        style={background ? { width, background, color, borderColor: background } : { width }}
+        className={`status-dot-menu__trigger${background ? ' status-dot-menu__trigger--filled' : ''}`}
+        style={background ? { width, background, color } : { width }}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-label={ariaLabel}
