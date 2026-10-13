@@ -17,15 +17,6 @@
   cursor: pointer;
 }
 
-/* Order List's mobile card (and Super Admin's own copy of it) passes a
-   solid background/color instead of leaving the plain white/bordered look
-   above -- same height/width/padding, just a borderless, fully-rounded pill
-   instead of a bordered 10px-radius box. */
-.status-dot-menu__trigger--filled {
-  border: none;
-  border-radius: 999px;
-}
-
 .status-dot-menu__dot {
   width: 8px;
   height: 8px;

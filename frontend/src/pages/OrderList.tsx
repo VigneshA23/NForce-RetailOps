@@ -355,8 +355,6 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
       mobileMeta: `${raisedBy} · ${raisedAt}`,
       statusLabel: meta.label,
       statusDot: meta.fg,
-      statusFg: meta.fg,
-      statusBg: meta.bg,
       checked: selectedIds.has(entry.id),
       statusOptions: STATUS_ORDER.map((key) => ({ value: key, label: STATUS_META[key].label, dot: STATUS_META[key].fg })),
     };
@@ -557,8 +555,6 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
               value={entry.status}
               onChange={(value) => requestStatusChange(entry, value as OrderStatus)}
               ariaLabel={`Change status for ${entry.itemName}`}
-              background={row.statusBg}
-              color={row.statusFg}
             />
           </div>
         </td>
