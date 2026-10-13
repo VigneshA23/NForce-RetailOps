@@ -401,7 +401,20 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
               key={item.storeInventoryItemId}
               className={`employee-stock-check-page__item${item.status === 'shortage' ? ' employee-stock-check-page__item--shortage' : ''}${item.status === 'optimal' ? ' employee-stock-check-page__item--optimal' : ''}`}
             >
-              <div className="employee-stock-check-page__item-header">
+              <div
+                className="employee-stock-check-page__item-header"
+                role="button"
+                tabIndex={0}
+                aria-expanded={expanded}
+                aria-label={expanded ? `Collapse ${item.itemName}` : `Expand ${item.itemName}`}
+                onClick={() => toggleExpanded(item)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    toggleExpanded(item);
+                  }
+                }}
+              >
                 <div className="employee-stock-check-page__item-identity">
                   <ItemIcon id={item.storeInventoryItemId} name={item.itemName} imageId={item.imageId} />
                   <div>
@@ -434,15 +447,9 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                       <span className="badge badge--success">Par Met</span>
                     </>
                   )}
-                  <button
-                    type="button"
-                    className="employee-stock-check-page__collapse-toggle"
-                    aria-expanded={expanded}
-                    aria-label={expanded ? `Collapse ${item.itemName}` : `Expand ${item.itemName}`}
-                    onClick={() => toggleExpanded(item)}
-                  >
+                  <span className="employee-stock-check-page__collapse-toggle" aria-hidden="true">
                     {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
+                  </span>
                 </div>
               </div>
 
@@ -451,7 +458,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                   <div className="employee-stock-check-page__shift-header">
                     <span className="employee-stock-check-page__shift-label">
                       Shift Stock Reconciliations
-                      <span className={`badge ${item.status === 'optimal' ? 'badge--success' : 'badge--danger'}`}>
+                      <span className={`badge ${shiftsActive === 0 ? 'badge--outline' : item.status === 'optimal' ? 'badge--success' : 'badge--danger'}`}>
                         {shiftsActive} Shifts Active
                       </span>
                     </span>
@@ -497,7 +504,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                   </div>
 
                   <div
-                    className={`employee-stock-check-page__totals${item.status === 'optimal' ? ' employee-stock-check-page__totals--optimal' : ''}`}
+                    className={`employee-stock-check-page__totals${item.status === 'optimal' ? ' employee-stock-check-page__totals--optimal' : ''}${item.status === 'shortage' ? ' employee-stock-check-page__totals--shortage' : ''}`}
                   >
                     {item.status === 'optimal' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
                     {item.status === 'optimal' ? (

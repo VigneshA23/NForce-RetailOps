@@ -122,7 +122,7 @@ describe('StockCheckHistory', () => {
     expect(tableRow.querySelector('.stock-check-history__timestamp svg')).toBeInTheDocument();
   });
 
-  it('badges an exact-par count as Sufficient', async () => {
+  it('shows Sufficient for an exact-par count in the Qty Needed column', async () => {
     mockGetStockCheckHistory.mockResolvedValue(page({
       items: [row({ requiredPar: 10, endOfDay: snapshot({ available: 10, usable: 10 }) })],
       totalItems: 1,
@@ -130,7 +130,22 @@ describe('StockCheckHistory', () => {
 
     render(<StockCheckHistory />);
 
-    expect(await screen.findByText('0 (Sufficient)')).toBeInTheDocument();
+    const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    expect(within(tableRow).getByText('Sufficient')).toBeInTheDocument();
+  });
+
+  it('rounds a fractional par shortage to two decimal places', async () => {
+    mockGetStockCheckHistory.mockResolvedValue(page({
+      items: [row({
+        requiredPar: 2.99,
+        endOfDay: snapshot({ available: 1.47, usable: 1.47 }),
+      })],
+      totalItems: 1,
+    }));
+
+    render(<StockCheckHistory />);
+
+    expect(await screen.findByText('+1.52 EA needed')).toBeInTheDocument();
   });
 
   it('falls back to the Start of Day count when End of Day was never taken, but still badges it Not Counted', async () => {

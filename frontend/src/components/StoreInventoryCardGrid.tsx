@@ -77,7 +77,7 @@ function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, o
             <span className="store-inventory-card__name">{item.name}</span>
 
             <p className="store-inventory-card__quantities">
-              Wkday: {item.minWeekday ?? '—'} {item.unitOfMeasurement}&nbsp;&nbsp;Wkend: {item.minWeekend ?? item.minWeekday ?? '—'} {item.unitOfMeasurement}
+              Wkday: {item.minWeekday ?? '—'} {item.unitOfMeasurement} · Wkend: {item.minWeekend ?? item.minWeekday ?? '—'} {item.unitOfMeasurement}
             </p>
 
             <div className="store-inventory-card__on-hand">

@@ -18,10 +18,14 @@ function Harness({
   onSubmit,
   onCreate,
   initialValues,
+  allowCreate = true,
 }: {
   onSubmit: (values: StoreInventoryItemFormValues) => void;
   onCreate?: (name: string) => Promise<Supplier>;
   initialValues?: StoreInventoryItemFormValues;
+  // false mirrors Owner/Admin's real usage, which omits onCreateSupplier
+  // entirely now that suppliers are Super Admin-managed only.
+  allowCreate?: boolean;
 }) {
   const [suppliers, setSuppliers] = useState(initialSuppliers);
   async function handleCreate(name: string) {
@@ -35,7 +39,7 @@ function Harness({
         isOpen
         mode={initialValues ? 'edit' : 'create'}
         suppliers={suppliers}
-        onCreateSupplier={handleCreate}
+        onCreateSupplier={allowCreate ? handleCreate : undefined}
         initialValues={initialValues}
         onClose={() => {}}
         onSubmit={onSubmit}
@@ -169,6 +173,46 @@ describe('StoreInventoryItemFormModal', () => {
     await user.type(screen.getByRole('combobox', { name: 'Preferred supplier' }), 'old');
     const listbox = screen.getByRole('listbox');
     expect(within(listbox).queryByRole('option', { name: 'Old Supplier' })).not.toBeInTheDocument();
+  });
+
+  it('offers no way to add a supplier when onCreateSupplier is omitted', async () => {
+    const user = userEvent.setup();
+    render(<Harness onSubmit={vi.fn()} allowCreate={false} />);
+
+    const supplierInput = screen.getByRole('combobox', { name: 'Preferred supplier' });
+    await user.click(supplierInput);
+    expect(screen.queryByRole('option', { name: 'Add new supplier' })).not.toBeInTheDocument();
+
+    await user.type(supplierInput, 'Brand New Co');
+    expect(screen.queryByRole('option', { name: /Add New Supplier/ })).not.toBeInTheDocument();
+  });
+
+  it('starts empty (not "No preferred supplier") until the field is actually touched', () => {
+    render(<Harness onSubmit={vi.fn()} />);
+    expect(screen.getByRole('combobox', { name: 'Preferred supplier' })).toHaveValue('');
+  });
+
+  it('shows "No preferred supplier" as the value once that option is explicitly chosen', async () => {
+    const user = userEvent.setup();
+    render(<Harness onSubmit={vi.fn()} />);
+
+    const supplierInput = screen.getByRole('combobox', { name: 'Preferred supplier' });
+    await user.click(supplierInput);
+    await user.click(screen.getByRole('option', { name: 'No preferred supplier' }));
+
+    expect(supplierInput).toHaveValue('No preferred supplier');
+  });
+
+  it('invites selecting only (no "add") when onCreateSupplier is omitted, selecting otherwise', async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<Harness onSubmit={vi.fn()} allowCreate={false} />);
+    await user.click(screen.getByRole('combobox', { name: 'Preferred supplier' }));
+    expect(screen.getByRole('combobox', { name: 'Preferred supplier' })).toHaveAttribute('placeholder', 'Select supplier');
+    unmount();
+
+    render(<Harness onSubmit={vi.fn()} />);
+    await user.click(screen.getByRole('combobox', { name: 'Preferred supplier' }));
+    expect(screen.getByRole('combobox', { name: 'Preferred supplier' })).toHaveAttribute('placeholder', 'Select or add a supplier');
   });
 
   it('adds a new supplier from the typed name and selects it for the item', async () => {

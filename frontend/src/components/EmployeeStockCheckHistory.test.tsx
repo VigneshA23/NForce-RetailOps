@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import EmployeeStockCheckHistory from './EmployeeStockCheckHistory';
 import * as stockChecksApi from '../api/stockChecks';
@@ -69,15 +70,57 @@ describe('EmployeeStockCheckHistory', () => {
 
     render(<EmployeeStockCheckHistory storeId={1} />);
 
-    expect(await screen.findByText(/Recorded by Jane Doe/)).toBeInTheDocument();
+    const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    expect(tableRow.querySelector('[data-label="Recorded By"]')).toHaveTextContent('Jane Doe');
   });
 
-  it('shows a Corrected indicator when the row has edit history, and omits it otherwise', async () => {
+  it('labels a par deficit as a shortage', async () => {
+    mockGetEmployeeStockCheckHistory.mockResolvedValue(page({
+      items: [row({ endOfDay: snapshot({ available: 16, usable: 16 }) })],
+      totalItems: 1,
+    }));
+
+    render(<EmployeeStockCheckHistory storeId={1} />);
+
+    expect(await screen.findByText('+4 EA needed')).toBeInTheDocument();
+  });
+
+  it('uses the Sufficient filter for all non-shortage records and labels Qty Needed consistently', async () => {
+    const user = userEvent.setup();
+    mockGetEmployeeStockCheckHistory.mockResolvedValue(page({
+      items: [
+        row({ id: 1, itemName: 'Pending Item' }),
+        row({
+          id: 2,
+          itemName: 'Sufficient Item',
+          endOfDay: snapshot({ available: 20, usable: 20 }),
+        }),
+        row({
+          id: 3,
+          itemName: 'Shortage Item',
+          endOfDay: snapshot({ available: 16, usable: 16 }),
+        }),
+      ],
+      totalItems: 3,
+    }));
+
+    render(<EmployeeStockCheckHistory storeId={1} />);
+
+    await user.click(await screen.findByRole('button', { name: /Sufficient/ }));
+
+    expect(screen.getByText('Pending Item')).toBeInTheDocument();
+    expect(screen.getByText('Sufficient Item')).toBeInTheDocument();
+    expect(screen.queryByText('Shortage Item')).not.toBeInTheDocument();
+    expect(screen.getByText('Sufficient')).toBeInTheDocument();
+  });
+
+  it('shows the shared row fields without correction actions for employees', async () => {
     mockGetEmployeeStockCheckHistory.mockResolvedValue(page({
       items: [
         row({
           id: 1,
           itemName: 'Paper Towels',
+          startOfDay: snapshot({ lastUpdatedByName: 'Owner Olivia' }),
           edits: [{
             snapshot: 'START_OF_DAY',
             previousAvailable: 10,
@@ -97,10 +140,10 @@ describe('EmployeeStockCheckHistory', () => {
 
     render(<EmployeeStockCheckHistory storeId={1} />);
 
-    const correctedItem = (await screen.findByText('Paper Towels')).closest('article')!;
-    expect(correctedItem.textContent).toContain('Corrected');
-
-    const uncorrectedItem = screen.getByText('Napkins').closest('article')!;
-    expect(uncorrectedItem.textContent).not.toContain('Corrected');
+    const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
+    expect(tableRow.querySelector('[data-label="Recorded By"]')).toHaveTextContent('Owner Olivia');
+    expect(tableRow.querySelector('[data-label="Actions"]')).not.toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Count Entered' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Qty Needed (Par Reconciled)' })).toBeInTheDocument();
   });
 });

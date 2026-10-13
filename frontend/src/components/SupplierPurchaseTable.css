@@ -33,15 +33,6 @@
   font-weight: 600;
 }
 
-.supplier-purchase-table__row--unassigned {
-  background: var(--color-badge-icon-primary-bg);
-}
-
-.supplier-purchase-table__row--unassigned .supplier-purchase-table__name {
-  color: var(--color-accent);
-  font-weight: 700;
-}
-
 .supplier-purchase-table__view-btn {
   display: inline-flex;
   align-items: center;
@@ -122,6 +113,20 @@
 
   /* Mobile: icon only, no text -- the button's own aria-label (set in the
      component) keeps it accessible either way. */
+  .supplier-purchase-table__view-btn-full {
+    display: none;
+  }
+
+  .supplier-purchase-table__view-btn-icon {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .supplier-purchase-table__quantity-label {
+    display: none;
+  }
+
   .supplier-purchase-table__view-btn-full {
     display: none;
   }

@@ -903,6 +903,16 @@
     flex-shrink: 0;
   }
 
+  /* Order List's own category pill: flat and uniform across every category
+     via the shared .badge.badge--info classes (pills.css), matching Status/
+     Supplier badges elsewhere, instead of .order-list__mobile-pill's bespoke
+     sizing/per-category colour above -- which EOD Report's own mobile card
+     still uses as-is (EodSupplierReport.tsx/SuperAdminEodSupplierReport.tsx),
+     so that block is left untouched. */
+  .order-list__category-badge {
+    flex-shrink: 0;
+  }
+
   /* Status sizes to its own label, same as the category pill beside it --
      "Ordered" reads narrower than "Needs ordering" rather than both
      stretching to fill an equal share of the row (overriding the trigger's

@@ -23,8 +23,10 @@ interface StoreInventoryItemFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
   suppliers: Supplier[];
-  // Backs the supplier field's inline "Add New Supplier" option.
-  onCreateSupplier: (name: string) => Promise<Supplier>;
+  // Backs the supplier field's inline "Add New Supplier" option. Omitted for
+  // Owner/Admin, which only has read access to suppliers now -- the field
+  // then offers no way to create one in place.
+  onCreateSupplier?: (name: string) => Promise<Supplier>;
   // Categories already used by existing items, offered alongside the built-in
   // ones so a category added once can be picked again.
   existingCategories?: (string | null)[];

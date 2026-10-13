@@ -14,8 +14,10 @@ interface SupplierComboboxProps {
   onChange: (supplierId: number | null) => void;
   // Saves a new supplier (or returns the existing one with that name) and
   // resolves with it. The caller is expected to add it to `suppliers` so it
-  // shows up for future items too.
-  onCreate: (name: string) => Promise<Supplier>;
+  // shows up for future items too. Omitted where the caller has read-only
+  // supplier access (Owner/Admin) -- the "Add new supplier" options below
+  // are then left out entirely instead of being shown and failing.
+  onCreate?: (name: string) => Promise<Supplier>;
   ariaLabel?: string;
 }
 
@@ -38,6 +40,11 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
   // name field for the new supplier.
   const [isAdding, setIsAdding] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  // Distinguishes "never touched, still null" (shows the generic select
+  // placeholder) from "explicitly picked No preferred supplier" (shows that
+  // as the field's value) -- both are `value === null`, but only the second
+  // should read as an actual answer.
+  const [explicitlyNone, setExplicitlyNone] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,12 +61,12 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
 
     const next: ComboOption[] = [];
     // With nothing typed there is no typed-name create row, so offer an explicit way in.
-    if (!term) next.push({ kind: 'new' });
+    if (!term && onCreate) next.push({ kind: 'new' });
     if (!term) next.push({ kind: 'none' });
     next.push(...matches.map((supplier) => ({ kind: 'supplier' as const, supplier })));
-    if (term && !exactMatch) next.push({ kind: 'create', name: query.trim() });
+    if (term && !exactMatch && onCreate) next.push({ kind: 'create', name: query.trim() });
     return next;
-  }, [suppliers, query]);
+  }, [suppliers, query, onCreate]);
 
   useEffect(() => {
     setHighlighted(0);
@@ -113,6 +120,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
   async function choose(option: ComboOption) {
     if (option.kind === 'none') {
       onChange(null);
+      setExplicitlyNone(true);
       close();
       return;
     }
@@ -129,6 +137,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
       close();
       return;
     }
+    if (!onCreate) return;
     setIsCreating(true);
     setCreateError(null);
     try {
@@ -182,7 +191,16 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
     }
   }
 
-  const inputValue = isOpen || isAdding ? query : selected?.name ?? '';
+  // Closed after explicitly picking "No preferred supplier" reads as that
+  // answer, not a blank field -- but closed with nothing ever picked (the
+  // default) still shows the generic select placeholder below, not this.
+  const noSupplierLabel = 'No preferred supplier';
+  const selectedLabel = selected ? selected.name : explicitlyNone ? noSupplierLabel : '';
+  const inputValue = isOpen || isAdding ? query : selectedLabel;
+  // Admin's supplier directory is Super Admin-managed now (read-only here),
+  // so this field is select-only -- only offer "add" wording where it's
+  // actually possible, i.e. where `onCreate` was passed in.
+  const searchPlaceholder = onCreate ? 'Select or add a supplier' : 'Select supplier';
 
   return (
     <div className="supplier-combobox" ref={wrapperRef}>
@@ -197,7 +215,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
         aria-autocomplete="list"
         autoComplete="off"
         value={inputValue}
-        placeholder={isAdding ? 'Type the new supplier name' : isOpen && selected ? selected.name : 'Search or add a supplier'}
+        placeholder={isAdding ? 'Type the new supplier name' : selected ? selected.name : searchPlaceholder}
         onFocus={() => !isAdding && open()}
         onClick={() => !isAdding && open()}
         onChange={(event) => {
@@ -242,7 +260,11 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
             role="listbox"
             style={{ top: position.top, left: position.left, width: position.width }}
           >
-            {options.length === 0 && <div className="supplier-combobox__state">No suppliers yet. Type a name to add one.</div>}
+            {options.length === 0 && (
+              <div className="supplier-combobox__state">
+                {onCreate ? 'No suppliers yet. Type a name to add one.' : 'No suppliers match.'}
+              </div>
+            )}
             {options.map((option, index) => {
               const isHighlighted = index === highlighted;
               const className = `supplier-combobox__option${isHighlighted ? ' supplier-combobox__option--highlighted' : ''}`;

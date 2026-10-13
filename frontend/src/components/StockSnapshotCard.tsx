@@ -92,7 +92,7 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
         {isSaved ? (
           <span className="badge badge--success">{savedLabel}</span>
         ) : (
-          <span className="badge badge--danger">In Progress</span>
+          <span className="badge badge--warning">In Progress</span>
         )}
       </div>
 

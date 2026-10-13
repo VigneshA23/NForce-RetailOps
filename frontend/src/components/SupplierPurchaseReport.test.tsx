@@ -44,12 +44,12 @@ describe('SupplierPurchaseReport', () => {
     render(<SupplierPurchaseReport />);
 
     const rowA = (await screen.findByText('Supplier A')).closest('tr')!;
-    expect(within(rowA).getByText(/8 entries/)).toBeInTheDocument();
-    expect(within(rowA).getByText(/42 units/)).toBeInTheDocument();
+    expect(rowA.querySelector('[data-label="Ordered"]')).toHaveTextContent('8 entries');
+    expect(rowA.querySelector('[data-label="Total"]')).toHaveTextContent('42 units');
 
     const rowB = screen.getByText('Supplier B').closest('tr')!;
-    expect(within(rowB).getByText(/3 entries/)).toBeInTheDocument();
-    expect(within(rowB).getByText(/17 units/)).toBeInTheDocument();
+    expect(rowB.querySelector('[data-label="Ordered"]')).toHaveTextContent('3 entries');
+    expect(rowB.querySelector('[data-label="Total"]')).toHaveTextContent('17 units');
   });
 
   it('shows the API error message rather than pretending the report loaded', async () => {

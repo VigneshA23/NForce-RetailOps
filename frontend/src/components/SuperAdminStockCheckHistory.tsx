@@ -83,9 +83,7 @@ function QtyNeededBadge({ row }: { row: SuperAdminStockCheckHistoryRowView }) {
   if (row.status === 'pending') {
     return <span className="badge badge--outline">— (Not Counted)</span>;
   }
-  return row.buffer && row.buffer > 0
-    ? <span className="badge badge--success">— (Optimal)</span>
-    : <span className="badge badge--success">0 (Sufficient)</span>;
+  return <span className="badge badge--success">Sufficient</span>;
 }
 
 // Super Admin's cross-store stock-check audit trail (RTS-305) and correction
@@ -350,7 +348,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
           className={`stock-check-history__status-filter${statusFilter === 'sufficient' ? ' stock-check-history__status-filter--active' : ''}`}
           onClick={() => setStatusFilter('sufficient')}
         >
-          Sufficient (Optimal)
+          Sufficient
         </button>
       </div>
 

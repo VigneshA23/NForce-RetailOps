@@ -68,13 +68,14 @@
 }
 
 .stock-check-history__status-filters {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-sm);
   margin: var(--space-md) 0;
 }
 
 .stock-check-history__status-filter {
+  min-width: 0;
   padding: 8px 16px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border);
@@ -83,6 +84,14 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
+}
+
+@media (--mobile) {
+  .stock-check-history__status-filter {
+    padding: 7px 4px;
+    font-size: 11px;
+  }
 }
 
 .stock-check-history__status-filter--active {
@@ -379,8 +388,7 @@
 
   .table-card.stock-check-history-table-card .data-table tbody td[data-label='Count Entered'] .stock-check-history__metric,
   .table-card.stock-check-history-table-card .data-table tbody td[data-label='Qty Needed (Par Reconciled)'] .stock-check-history__metric {
-    min-height: 76px;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border: 1px solid var(--color-border);
     border-radius: 16px;
     background: var(--color-surface-card);
@@ -443,8 +451,7 @@
 
   .stock-check-history__metric {
     width: 100%;
-    min-height: 76px;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border: 1px solid var(--color-border);
     border-radius: 16px;
     background: var(--color-surface-card);

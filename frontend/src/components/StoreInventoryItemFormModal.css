@@ -42,6 +42,16 @@
   color: var(--color-text-muted);
 }
 
+.store-inventory-item-form .multi-select__trigger {
+  height: auto;
+  min-height: 41px;
+  white-space: normal;
+}
+
+.store-inventory-item-form .multi-select__chips {
+  min-width: 0;
+}
+
 .store-inventory-item-form__row {
   display: grid;
   grid-template-columns: 1fr 1fr;

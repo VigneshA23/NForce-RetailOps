@@ -214,14 +214,19 @@ function Tasks({
   function openCreateForm() {
     setFormError(null);
     setFormCategories([]);
+    // Admin tasks are implicitly scoped to the owner's active store; only
+    // Super Admin can choose a store scope in the form.
+    const defaultStore = activeStores[0];
+    loadCategoriesForScope({
+      appliesToAllStores: false,
+      storeIds: defaultStore ? [defaultStore.id] : [],
+    });
     setFormCategoriesError(null);
     setFormModalState({ mode: 'create' });
   }
 
-  // Pre-populates the category list with the task's own existing store scope
-  // so it isn't empty when the modal first opens; onStoreScopeChange (wired
-  // below) takes over and refetches it if the user then changes the store
-  // selection -- mirrors SuperAdminTasks.tsx's identical openEditForm.
+  // Keep the task's store scope on edit; unlike Super Admin, Admin cannot
+  // change it from the form.
   function openEditForm(task: AdminTask) {
     setFormError(null);
     setFormModalState({ mode: 'edit', task });
@@ -415,8 +420,6 @@ function Tasks({
         onRetryCategories={() => {}}
         onManageCategories={() => onNavigateToCategories?.()}
         stores={activeStores}
-        storeScopeSelectable
-        onStoreScopeChange={loadCategoriesForScope}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => {

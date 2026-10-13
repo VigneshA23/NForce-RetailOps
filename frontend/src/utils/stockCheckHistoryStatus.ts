@@ -9,6 +9,10 @@ export interface StockCheckHistoryRowView extends StockCheckResponse {
   status: StockCheckHistoryRowStatus;
 }
 
+function roundQuantity(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 // "Counted" is the day's End of Day count (what actually got reconciled);
 // "Required Par" (requiredPar) is that day's own par level, set regardless of
 // whether End of Day was ever recorded -- unlike requiredTomorrow (the
@@ -22,9 +26,9 @@ export interface StockCheckHistoryRowView extends StockCheckResponse {
 export function toStockCheckHistoryRowView(row: StockCheckResponse): StockCheckHistoryRowView {
   const counted = row.endOfDay?.usable ?? null;
   const hasData = counted != null && row.requiredPar != null;
-  const deficit = hasData ? Math.max(0, row.requiredPar! - counted!) : null;
+  const deficit = hasData ? roundQuantity(Math.max(0, row.requiredPar! - counted!)) : null;
   const status: StockCheckHistoryRowStatus = deficit != null && deficit > 0 ? 'shortage' : hasData ? 'optimal' : 'pending';
-  const buffer = hasData && status === 'optimal' ? counted! - row.requiredPar! : null;
+  const buffer = hasData && status === 'optimal' ? roundQuantity(counted! - row.requiredPar!) : null;
   return { ...row, counted, deficit, buffer, status };
 }
 

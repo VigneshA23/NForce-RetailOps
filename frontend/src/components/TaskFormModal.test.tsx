@@ -39,6 +39,36 @@ function renderModal() {
   );
 }
 
+describe('TaskFormModal Admin store field', () => {
+  it('does not render the Store field when store scope is fixed by the caller', () => {
+    renderModal();
+
+    expect(screen.queryByLabelText('Store *')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Store:/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the Store field available when store scope is selectable', () => {
+    render(
+      <TaskFormModal
+        isOpen
+        mode="create"
+        categories={categories}
+        categoriesLoading={false}
+        categoriesError={null}
+        onRetryCategories={() => {}}
+        onManageCategories={() => {}}
+        stores={stores}
+        storeScopeSelectable
+        onStoreScopeChange={() => {}}
+        onClose={() => {}}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText('Store *')).toBeInTheDocument();
+  });
+});
+
 async function selectShortTextResponseType(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByLabelText(/Response Type/i));
   await user.click(screen.getByRole('button', { name: 'Short Text' }));
@@ -116,9 +146,9 @@ function EditHarness({ nextCategoriesForNewScope }: { nextCategoriesForNewScope:
 }
 
 // Same async-round-trip shape as EditHarness, but create mode (no
-// initialTask) -- this is the exact configuration Tasks.tsx renders for
-// Owner/Admin, and where RTS-314 reproduced as a full form wipe rather than
-// edit mode's (harmless, since initialTask is stable in production) revert.
+// initialTask) -- this is the configuration SuperAdminTasks.tsx renders,
+// and where RTS-314 reproduced as a full form wipe rather than edit mode's
+// (harmless, since initialTask is stable in production) revert.
 function CreateHarness() {
   const [formCategories, setFormCategories] = useState<Category[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
@@ -206,22 +236,14 @@ describe('TaskFormModal Short Text response', () => {
   });
 
   describe('TaskFormModal completion type', () => {
-    it('uses radio options and updates the selected completion type', async () => {
+    it('uses a dropdown to update the selected completion type', async () => {
       const user = userEvent.setup();
       renderModal();
 
-      const single = screen.getByRole('radio', { name: 'Single Completion' });
-      const multiple = screen.getByRole('radio', { name: 'Multiple Completions' });
-      expect(single).not.toBeChecked();
-      expect(multiple).not.toBeChecked();
+      await user.click(document.getElementById('task-completion-type')!);
+      await user.click(await screen.findByRole('button', { name: 'Multiple Completions' }));
 
-      await user.click(single);
-      expect(single).toBeChecked();
-
-      await user.click(multiple);
-
-      expect(multiple).toBeChecked();
-      expect(single).not.toBeChecked();
+      expect(document.getElementById('task-completion-type')).toHaveTextContent('Multiple Completions');
     });
   });
 

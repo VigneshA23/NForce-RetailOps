@@ -9,7 +9,7 @@ import {
   updateStoreInventoryItem,
 } from '../api/storeInventory';
 import { ApiError } from '../api/client';
-import { findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
+import { getOwnerSuppliers } from '../api/suppliers';
 import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
@@ -27,7 +27,6 @@ import useDismissablePanel from '../hooks/useDismissablePanel';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
-import { SORT_OPTIONS, STATUS_SORT_ORDER, type SortOption } from '../utils/storeInventorySort';
 import { supplierStoreSummaryLabel } from '../utils/supplierStoreSummary';
 import './StoreInventory.css';
 
@@ -62,7 +61,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [sort, setSort] = useState<SortOption>('name');
+  const [supplierFilter, setSupplierFilter] = useState('all');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   useDismissablePanel({ isOpen: isExportMenuOpen, onClose: () => setIsExportMenuOpen(false), refs: [exportMenuRef] });
@@ -121,23 +120,9 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     }
   }, [items, editTarget]);
 
-  // Inline "Add New Supplier" from the item form: persist it, then merge it
-  // into the local directory so it's selectable for every later item too.
-  async function handleCreateSupplier(name: string): Promise<Supplier> {
-    const supplier = await findOrCreateSupplier(name);
-    setSuppliers((current) =>
-      (current.some((s) => s.id === supplier.id)
-        ? current.map((s) => (s.id === supplier.id ? supplier : s))
-        : [...current, supplier]
-      ).sort((a, b) => a.name.localeCompare(b.name)),
-    );
-    nfToast.success(`"${supplier.name}" supplier added.`);
-    return supplier;
-  }
-
-  // Suppliers tab is read-only here -- renaming, activating/deactivating and
-  // removing a supplier are Super Admin-only actions (SuperAdminInventory.tsx).
-  // Adding one stays inline in the item form, via handleCreateSupplier above.
+  // Suppliers tab is read-only here -- renaming, activating/deactivating,
+  // removing and adding a supplier are all Super Admin-only actions now
+  // (SuperAdminInventory.tsx); the item form's supplier field is select-only.
   const activeSupplierCount = useMemo(() => suppliers.filter((s) => s.active).length, [suppliers]);
 
   // Items Count column: single-store scope here, so just a total per
@@ -252,29 +237,31 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
   );
 
 
-  const filteredItems = items.filter((item) => {
-    const term = search.trim().toLowerCase();
-    const matchesSearch =
-      !term ||
-      item.name.toLowerCase().includes(term) ||
-      (item.category ? categoryLabel(item.category).toLowerCase().includes(term) : false) ||
-      (item.preferredSupplierName?.toLowerCase().includes(term) ?? false);
-    const matchesCategory = !categoryFilter || item.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  const supplierFilterOptions = useMemo(
+    () => [
+      { value: 'all', label: 'All suppliers' },
+      ...[...suppliers]
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        .map((supplier) => ({ value: String(supplier.id), label: supplier.name })),
+      { value: 'UNASSIGNED', label: 'Unassigned Supplier' },
+    ],
+    [suppliers],
+  );
 
-  const sortedItems = [...filteredItems].sort((a, b) => {
-    switch (sort) {
-      case 'status':
-        return STATUS_SORT_ORDER[getStockStatus(a)] - STATUS_SORT_ORDER[getStockStatus(b)] || a.name.localeCompare(b.name);
-      case 'supplier':
-        return (a.preferredSupplierName ?? '').localeCompare(b.preferredSupplierName ?? '') || a.name.localeCompare(b.name);
-      case 'category':
-      case 'name':
-      default:
-        return (a.category ? categoryLabel(a.category) : '').localeCompare(b.category ? categoryLabel(b.category) : '') || a.name.localeCompare(b.name);
-    }
-  });
+  const filteredItems = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return items.filter((item) => {
+      const matchesSearch =
+        !term ||
+        item.name.toLowerCase().includes(term) ||
+        (item.category ? categoryLabel(item.category).toLowerCase().includes(term) : false) ||
+        (item.preferredSupplierName?.toLowerCase().includes(term) ?? false);
+      if (!matchesSearch || (categoryFilter && item.category !== categoryFilter)) return false;
+      if (supplierFilter === 'UNASSIGNED') return item.preferredSupplierId == null;
+      if (supplierFilter !== 'all') return String(item.preferredSupplierId) === supplierFilter;
+      return true;
+    });
+  }, [items, search, categoryFilter, supplierFilter]);
 
   // Shared between its desktop position (next to Export) and its mobile one
   // (below the stat cards) -- rendered in exactly one of the two per isMobile
@@ -346,14 +333,14 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                       <button
                         type="button"
                         className="store-inventory-page__export-item"
-                        onClick={() => { exportInventoryCatalogCsv(sortedItems); setIsExportMenuOpen(false); }}
+                        onClick={() => { exportInventoryCatalogCsv(filteredItems); setIsExportMenuOpen(false); }}
                       >
                         <FileSpreadsheet size={14} /> Export as CSV
                       </button>
                       <button
                         type="button"
                         className="store-inventory-page__export-item"
-                        onClick={() => { exportInventoryCatalogPdf(sortedItems); setIsExportMenuOpen(false); }}
+                        onClick={() => { exportInventoryCatalogPdf(filteredItems); setIsExportMenuOpen(false); }}
                       >
                         <FileText size={14} /> Export as PDF
                       </button>
@@ -389,25 +376,25 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               />
               <Select
                 className="filter"
-                options={SORT_OPTIONS}
-                value={sort}
-                onChange={(value) => setSort(value as SortOption)}
-                ariaLabel="Sort items"
+                options={supplierFilterOptions}
+                value={supplierFilter}
+                onChange={setSupplierFilter}
+                ariaLabel="Filter by supplier"
               />
               <FilterClearButton
                 ariaLabel="Clear inventory filters"
-                onClick={() => { setSearch(''); setCategoryFilter(''); setSort('name'); }}
+                onClick={() => { setSearch(''); setCategoryFilter(''); setSupplierFilter('all'); }}
               />
             </div>
 
             <p className="store-inventory-page__catalog-line">
               <strong>Catalog Directory</strong>
               <span aria-hidden="true"> · </span>
-              {isLoading ? 'Loading...' : `Showing ${sortedItems.length} Active Items Across ${distinctCategories.length} Categories`}
+              {isLoading ? 'Loading...' : `Showing ${filteredItems.length} Active Items Across ${distinctCategories.length} Categories`}
             </p>
 
             <StoreInventoryCardGrid
-              items={sortedItems}
+              items={filteredItems}
               isLoading={isLoading}
               selectedId={editTarget?.id ?? null}
               onEdit={(item) => { setItemFormError(null); setEditTarget(item); }}
@@ -420,7 +407,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               isOpen={isCreateModalOpen}
               mode="create"
               suppliers={suppliers}
-              onCreateSupplier={handleCreateSupplier}
               existingCategories={items.map((i) => i.category)}
               errorMessage={itemFormError}
               isSubmitting={isItemSubmitting}
@@ -433,7 +419,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 isOpen
                 item={editTarget}
                 suppliers={suppliers}
-                onCreateSupplier={handleCreateSupplier}
               existingCategories={items.map((i) => i.category)}
                 errorMessage={itemFormError}
                 isSubmitting={isItemSubmitting}

@@ -1101,6 +1101,24 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void countHistoryOmitsEntriesOlderThanSevenDaysButKeepsTheBoundaryEntrysDeltaCorrect() {
+        StockCheck withinWindow = checkWithCount(milk, LocalDate.now().minusDays(6), 30, 0);
+        StockCheck atTheEdge = checkWithCount(milk, LocalDate.now().minusDays(7), 24, 0);
+        StockCheck tooOld = checkWithCount(milk, LocalDate.now().minusDays(8), 20, 0);
+        when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
+        when(stockCheckRepository.findRecentForItem(eq(ITEM_ID), any(Pageable.class)))
+            .thenReturn(List.of(withinWindow, atTheEdge, tooOld));
+
+        List<InventoryCountHistoryEntryResponse> history = stockCheckService.getCountHistory(OWNER_ID, ITEM_ID);
+
+        assertThat(history).hasSize(1);
+        assertThat(history.get(0).checkDate()).isEqualTo(LocalDate.now().minusDays(6));
+        // Delta against the next-older event (24) even though that event itself
+        // falls outside the 7-day window and isn't returned.
+        assertThat(history.get(0).delta()).isEqualByComparingTo(bd(6));
+    }
+
+    @Test
     void countHistoryThrowsWhenTheItemBelongsToAnotherStore() {
         when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.empty());
 
