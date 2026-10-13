@@ -130,3 +130,17 @@
     display: inline-flex;
   }
 }
+
+@media (max-width: 480px) {
+  .supplier-purchase-table__quantity-label {
+    display: none;
+  }
+
+  .supplier-purchase-table__view-btn-full {
+    display: none;
+  }
+
+  .supplier-purchase-table__view-btn-icon {
+    display: inline-flex;
+  }
+}
