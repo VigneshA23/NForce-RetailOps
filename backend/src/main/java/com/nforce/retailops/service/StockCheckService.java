@@ -713,9 +713,14 @@ public class StockCheckService {
         }
         events.sort(EVENT_ORDER.reversed());
 
+        // Delta is computed against the immediately older event before the
+        // 7-day cutoff is applied, so the oldest entry still shown keeps a
+        // correct delta even though its predecessor falls outside the window.
+        LocalDate cutoff = LocalDate.now().minusDays(6);
         List<InventoryCountHistoryEntryResponse> entries = new ArrayList<>();
         for (int i = 0; i < events.size() && entries.size() < MAX_HISTORY_ENTRIES; i++) {
             CountEvent event = events.get(i);
+            if (event.date().isBefore(cutoff)) continue;
             BigDecimal delta = i + 1 < events.size() ? event.count().subtract(events.get(i + 1).count()) : null;
             entries.add(new InventoryCountHistoryEntryResponse(
                 event.date(), event.count(), delta, event.by(), event.at(), event.source()
