@@ -44,6 +44,9 @@ export interface UpdateOrderListEntryValues {
   expectedStatus?: OrderStatus;
   // Ordered -> Received only: what arrived. Omitted = everything ordered.
   quantityReceived?: number;
+  // Ordered -> Received only: other Ordered rows for the same item that arrived
+  // in the same delivery. quantityReceived then covers all of them.
+  alsoReceivedEntryIds?: number[];
 }
 
 // "Add to order": either an existing catalog item (storeInventoryItemId set)

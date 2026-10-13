@@ -80,10 +80,21 @@ class OrderListServiceTest {
         return item;
     }
 
+    private static final OrderStatus NEEDS = OrderStatus.NEEDS_ORDERING;
+
+    private void stubOpenSystemEntry(OrderListEntry... entries) {
+        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusAndAdHocFalse(STORE_ID, ITEM_ID, NEEDS))
+            .thenReturn(List.of(entries));
+    }
+
+    private void stubWaitingEntry(OrderListEntry... entries) {
+        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(STORE_ID, ITEM_ID, NEEDS))
+            .thenReturn(List.of(entries));
+    }
+
     @Test
-    void upsertShortageCreatesANewEntryWhenNoneIsActive() {
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.empty());
+    void upsertShortageCreatesANewEntryWhenNoneIsOpen() {
+        stubWaitingEntry();
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User employee = new User();
@@ -99,14 +110,13 @@ class OrderListServiceTest {
     }
 
     @Test
-    void upsertShortageUpdatesTheExistingActiveEntryInsteadOfCreatingASecondOne() {
+    void upsertShortageUpdatesTheOpenSystemEntryInsteadOfCreatingASecondOne() {
         OrderListEntry existing = new OrderListEntry();
         ReflectionTestUtils.setField(existing, "id", 99L);
         existing.setQuantityNeeded(bd(4));
         existing.setStatus(OrderStatus.NEEDS_ORDERING);
 
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.of(existing));
+        stubWaitingEntry(existing);
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.upsertShortage(store(), item(), bd(6), null, false, new User(), null);
@@ -116,14 +126,29 @@ class OrderListServiceTest {
     }
 
     @Test
+    void upsertShortageLeavesAnOrderedEntryAloneAndRaisesAFreshRowBesideIt() {
+        // No open (Needs Ordering) system row: the only active one is Ordered
+        // and is not returned by the Needs Ordering lookup.
+        stubWaitingEntry();
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertShortage(store(), item(), bd(5), null, false, new User(), null);
+
+        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
+        verify(orderListEntryRepository).save(captor.capture());
+        assertThat(captor.getValue().getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(5));
+    }
+
+    @Test
     void upsertShortageRetriesAsAnUpdateWhenTheInsertLosesAUniquenessRace() {
         OrderListEntry winner = new OrderListEntry();
         ReflectionTestUtils.setField(winner, "id", 77L);
         winner.setStatus(OrderStatus.NEEDS_ORDERING);
 
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.empty())
-            .thenReturn(Optional.of(winner));
+        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(STORE_ID, ITEM_ID, NEEDS))
+            .thenReturn(List.of())
+            .thenReturn(List.of(winner));
         when(orderListEntryRepository.save(any(OrderListEntry.class)))
             .thenThrow(new DataIntegrityViolationException("duplicate key"))
             .thenAnswer(inv -> inv.getArgument(0));
@@ -135,21 +160,15 @@ class OrderListServiceTest {
     }
 
     @Test
-    void upsertShortageAccumulatesIntoManualAdditionWhenAdHocAndAnEntryIsAlreadyActive() {
+    void upsertShortageAdHocTopsUpTheManualColumnOfTheWaitingRow() {
         OrderListEntry existing = new OrderListEntry();
         ReflectionTestUtils.setField(existing, "id", 99L);
         existing.setQuantityNeeded(bd(4));
         existing.setStatus(OrderStatus.NEEDS_ORDERING);
-
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.of(existing));
+        stubWaitingEntry(existing);
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.upsertShortage(store(), item(), bd(2), null, true, new User(), null);
-
-        assertThat(existing.getQuantityNeeded()).isEqualByComparingTo(bd(4));
-        assertThat(existing.getManualAddition()).isEqualByComparingTo(bd(2));
-
         orderListService.upsertShortage(store(), item(), bd(3), null, true, new User(), null);
 
         assertThat(existing.getQuantityNeeded()).isEqualByComparingTo(bd(4));
@@ -157,31 +176,80 @@ class OrderListServiceTest {
     }
 
     @Test
-    void upsertShortageResetsManualAdditionWhenTheSystemRecalculatesQuantityNeeded() {
+    void upsertShortageAdHocCreatesItsOwnRowWhenTheExistingOneIsAlreadyOrdered() {
+        // The Ordered row is not a "waiting" row, so the lookup finds nothing.
+        stubWaitingEntry();
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertShortage(store(), item(), bd(2), null, true, new User(), null);
+
+        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
+        verify(orderListEntryRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(2));
+        assertThat(captor.getValue().isAdHoc()).isTrue();
+        assertThat(captor.getValue().getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
+    }
+
+    private void stubOnOrder(OrderListEntry... ordered) {
+        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(STORE_ID, ITEM_ID, OrderStatus.ORDERED))
+            .thenReturn(List.of(ordered));
+    }
+
+    @Test
+    void upsertShortageFromACountIsNetOfStockAlreadyOnOrder() {
+        OrderListEntry ordered = new OrderListEntry();
+        ordered.setStatus(OrderStatus.ORDERED);
+        ordered.setQuantityNeeded(bd(3));
+        ordered.setManualAddition(bd(1));
+        stubOnOrder(ordered);
+        stubWaitingEntry();
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertShortage(store(), item(), bd(5), null, false, new User(), null);
+
+        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
+        verify(orderListEntryRepository).save(captor.capture());
+        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(1));
+        assertThat(ordered.getQuantityNeeded()).isEqualByComparingTo(bd(3));
+    }
+
+    @Test
+    void upsertShortageFromACountRaisesNothingWhenOrderedStockCoversIt() {
+        OrderListEntry ordered = new OrderListEntry();
+        ordered.setStatus(OrderStatus.ORDERED);
+        ordered.setQuantityNeeded(bd(5));
+        stubOnOrder(ordered);
+        stubOpenSystemEntry();
+
+        OrderListEntry result = orderListService.upsertShortage(store(), item(), bd(5), null, false, new User(), null);
+
+        assertThat(result).isNull();
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void upsertShortageFromACountKeepsTheManualFigureOnTheWaitingRow() {
         OrderListEntry existing = new OrderListEntry();
         ReflectionTestUtils.setField(existing, "id", 99L);
         existing.setQuantityNeeded(bd(4));
         existing.setManualAddition(bd(2));
         existing.setStatus(OrderStatus.NEEDS_ORDERING);
-
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.of(existing));
+        stubWaitingEntry(existing);
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.upsertShortage(store(), item(), bd(7), null, false, new User(), null);
 
         assertThat(existing.getQuantityNeeded()).isEqualByComparingTo(bd(7));
-        assertThat(existing.getManualAddition()).isZero();
+        assertThat(existing.getManualAddition()).isEqualByComparingTo(bd(2));
     }
 
     @Test
-    void resolveShortageIfPresentMarksTheActiveEntryReceivedWithoutCreatingAnything() {
+    void resolveShortageIfPresentClosesOnlyTheOpenSystemRow() {
         OrderListEntry existing = new OrderListEntry();
         ReflectionTestUtils.setField(existing, "id", 55L);
-        existing.setStatus(OrderStatus.ORDERED);
+        existing.setStatus(OrderStatus.NEEDS_ORDERING);
 
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.of(existing));
+        stubOpenSystemEntry(existing);
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.resolveShortageIfPresent(store(), item());
@@ -191,9 +259,8 @@ class OrderListServiceTest {
     }
 
     @Test
-    void resolveShortageIfPresentIsANoOpWhenNothingIsOutstanding() {
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.empty());
+    void resolveShortageIfPresentIsANoOpWhenOnlyOrderedOrManualRowsExist() {
+        stubOpenSystemEntry();
 
         orderListService.resolveShortageIfPresent(store(), item());
 
@@ -341,13 +408,46 @@ class OrderListServiceTest {
     }
 
     @Test
-    void markingReceivedWithALowerQuantityRaisesANewOrderForTheRemainingShortfall() {
+    void receivingBothOrdersClosesTheOtherRowWithoutASecondStockUpdate() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry lead = entryWithStatus(OrderStatus.ORDERED);
+        OrderListEntry other = entryWithStatus(OrderStatus.ORDERED);
+        ReflectionTestUtils.setField(other, "id", 56L);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(lead));
+        when(orderListEntryRepository.findByIdAndStoreId(56L, STORE_ID)).thenReturn(Optional.of(other));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(stockReceiptService.applyReceipt(any(), any(), any(), any()))
+            .thenReturn(new StockReceiptService.Result(true, bd(8), bd(5), bd(0)));
+
+        orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED, null, bd(8), List.of(56L)));
+
+        assertThat(other.getStatus()).isEqualTo(OrderStatus.RECEIVED);
+        verify(stockReceiptService, times(1)).applyReceipt(any(), eq(bd(8)), any(), any());
+    }
+
+    @Test
+    void receivingTogetherRejectsAnOtherRowThatIsNotOrdered() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry lead = entryWithStatus(OrderStatus.ORDERED);
+        OrderListEntry other = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        ReflectionTestUtils.setField(other, "id", 56L);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(lead));
+        when(orderListEntryRepository.findByIdAndStoreId(56L, STORE_ID)).thenReturn(Optional.of(other));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThatThrownBy(() -> orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED, null, bd(8), List.of(56L))))
+            .isInstanceOf(InvalidOrderEntryTransitionException.class);
+        verify(stockReceiptService, never()).applyReceipt(any(), any(), any(), any());
+    }
+
+    @Test
+    void markingReceivedWithALowerQuantityUpdatesStockButRaisesNothingAutomatically() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
         OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.empty());
         when(stockReceiptService.applyReceipt(any(), any(), any(), any()))
             .thenReturn(new StockReceiptService.Result(true, bd(6), bd(10), bd(4)));
 
@@ -355,13 +455,9 @@ class OrderListServiceTest {
             new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED, null, bd(3)));
 
         assertThat(entry.getQuantityReceived()).isEqualByComparingTo(bd(3));
+        verify(stockReceiptService).applyReceipt(any(), eq(bd(3)), any(), any());
         assertThat(response.receipt().shortfall()).isEqualByComparingTo(bd(4));
-        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
-        verify(orderListEntryRepository, times(2)).save(captor.capture());
-        OrderListEntry reraised = captor.getAllValues().get(1);
-        assertThat(reraised).isNotSameAs(entry);
-        assertThat(reraised.getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
-        assertThat(reraised.getQuantityNeeded()).isEqualByComparingTo(bd(4));
+        verify(orderListEntryRepository, times(1)).save(any(OrderListEntry.class));
     }
 
     @Test
@@ -513,9 +609,6 @@ class OrderListServiceTest {
         when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
         OrderListEntry savedEntry = new OrderListEntry();
         savedEntry.setStoreInventoryItem(milk);
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.empty())
-            .thenReturn(Optional.of(savedEntry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, bd(5), null, "Extra for event"));
@@ -539,9 +632,6 @@ class OrderListServiceTest {
         });
         OrderListEntry savedEntry = new OrderListEntry();
         savedEntry.setStoreInventoryItem(item());
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(eq(STORE_ID), eq(99L), eq(OrderStatus.RECEIVED)))
-            .thenReturn(Optional.empty())
-            .thenReturn(Optional.of(savedEntry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
@@ -568,8 +658,6 @@ class OrderListServiceTest {
         });
         OrderListEntry savedEntry = new OrderListEntry();
         savedEntry.setStoreInventoryItem(item());
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(eq(STORE_ID), eq(99L), eq(OrderStatus.RECEIVED)))
-            .thenReturn(Optional.of(savedEntry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntry(OWNER_ID, new CreateOrderListEntryRequest(
@@ -603,9 +691,6 @@ class OrderListServiceTest {
         when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
         OrderListEntry savedEntry = new OrderListEntry();
         savedEntry.setStoreInventoryItem(milk);
-        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusNot(STORE_ID, ITEM_ID, OrderStatus.RECEIVED))
-            .thenReturn(Optional.empty())
-            .thenReturn(Optional.of(savedEntry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
         orderListService.createEntryForSuperAdmin(STORE_ID, new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, bd(5), null, "Extra for event"));
