@@ -187,10 +187,33 @@ public class OrderListService {
 
         entry = orderListEntryRepository.save(entry);
         if (receivedNow) {
+            closeAlsoReceived(entry, request.alsoReceivedEntryIds());
             User owner = userRepository.getReferenceById(ownerId);
             return OrderListEntryResponse.from(entry, applyReceivedStock(entry, owner, null));
         }
         return OrderListEntryResponse.from(entry);
+    }
+
+    // "Both orders received": the lead entry's receipt already covers these, so
+    // they are only closed (stock is not updated again). Each must be an
+    // Ordered row for the same item in the same store.
+    private void closeAlsoReceived(OrderListEntry lead, List<Long> alsoReceivedIds) {
+        if (alsoReceivedIds == null) {
+            return;
+        }
+        for (Long id : alsoReceivedIds.stream().distinct().toList()) {
+            OrderListEntry other = orderListEntryRepository.findByIdAndStoreId(id, lead.getStore().getId())
+                .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
+            if (other.getId().equals(lead.getId())
+                || !other.getStoreInventoryItem().getId().equals(lead.getStoreInventoryItem().getId())
+                || other.getStatus() != OrderStatus.ORDERED) {
+                throw new InvalidOrderEntryTransitionException(
+                    "Only other Ordered orders for the same item can be received together.");
+            }
+            other.setStatus(OrderStatus.RECEIVED);
+            other.setStatusChangedByRole(ROLE_OWNER_ADMIN);
+            orderListEntryRepository.save(other);
+        }
     }
 
     // The permanent record of "ordered on this day", written by every path
@@ -215,7 +238,8 @@ public class OrderListService {
     //    morning for yesterday's shortage shows as ordered (dated today);
     //  - today also includes anything still sitting at Ordered from earlier,
     //    since it's outstanding and hasn't been received yet.
-    // Where an item has several, the earliest order wins.
+    // Where an item has several, quantities are summed and the earliest order
+    // date wins.
     @Transactional(readOnly = true)
     public Map<Long, OrderedInfo> orderedInfoByItemFor(Long storeId, LocalDate date) {
         LocalDate today = LocalDate.now();
@@ -230,7 +254,9 @@ public class OrderListService {
         return entries.stream().collect(java.util.stream.Collectors.toMap(
             e -> e.getStoreInventoryItem().getId(),
             e -> new OrderedInfo(e.totalQuantityOrdered(), e.getOrderedAt()),
-            (a, b) -> a.orderedAt().isBefore(b.orderedAt()) ? a : b
+            (a, b) -> new OrderedInfo(
+                a.quantity().add(b.quantity()),
+                a.orderedAt().isBefore(b.orderedAt()) ? a.orderedAt() : b.orderedAt())
         ));
     }
 
@@ -251,24 +277,16 @@ public class OrderListService {
             OrderStatus.NEEDS_ORDERING));
     }
 
-    // The stock side of Ordered -> Received: adds what arrived to the item's
-    // current stock, compares the result with today's minimum, and -- when
-    // the delivery still leaves the item short and its Auto PO toggle is on
-    // -- raises a fresh Needs Ordering entry for the remainder. The entry
-    // being received has already been saved as RECEIVED, which is what frees
-    // the one-active-entry-per-item unique index for that new row.
+    // The stock side of Ordered -> Received: adds what was actually received
+    // to the item's current stock and reports where that leaves it against
+    // today's minimum. Deliberately raises nothing: other rows for the item
+    // may still be on their way, so a remaining shortfall is for the admin to
+    // act on, not for the system to re-order.
     private OrderListEntryResponse.ReceiptOutcome applyReceivedStock(OrderListEntry entry, User user, SuperAdmin superAdmin) {
         StoreInventoryItem item = entry.getStoreInventoryItem();
         StockReceiptService.Result result = stockReceiptService.applyReceipt(item, entry.getQuantityReceived(), user, superAdmin);
         if (!result.stockUpdated()) {
             return new OrderListEntryResponse.ReceiptOutcome(false, null, result.requiredToday(), null);
-        }
-
-        if (result.reorderQuantity().signum() > 0 && item.isAutoPoEnabled()) {
-            upsertShortage(
-                entry.getStore(), item, result.reorderQuantity(),
-                "Still below the minimum after a delivery of " + entry.getQuantityReceived().stripTrailingZeros().toPlainString(),
-                false, user, entry.getSupplier());
         }
 
         BigDecimal shortfall = result.requiredToday() == null
@@ -375,11 +393,7 @@ public class OrderListService {
 
         StoreInventoryItem item = resolveOrderItem(store, request, supplier);
         Supplier defaultSupplier = supplier != null ? supplier : item.getPreferredSupplier();
-        upsertShortage(store, item, request.quantityNeeded(), request.note(), true, raisedBy, defaultSupplier);
-
-        OrderListEntry entry = orderListEntryRepository
-            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
-            .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
+        OrderListEntry entry = upsertShortage(store, item, request.quantityNeeded(), request.note(), true, raisedBy, defaultSupplier);
         return OrderListEntryResponse.from(entry);
     }
 
@@ -417,94 +431,109 @@ public class OrderListService {
         return storeInventoryItemRepository.save(item);
     }
 
-    // Shared upsert: raises a new shortage or bumps the quantity/note on an
-    // already-active entry for the same store+item, rather than creating a
-    // duplicate row. The V49 partial unique index
-    // (store_id, inventory_item_id) WHERE status <> 'RECEIVED' is the
-    // concurrency backstop -- on the rare race where two upserts for the same
-    // store+item both miss the find step, the losing insert's constraint
-    // violation is caught here and retried as an update against the winner's
-    // row instead of surfacing as a raw 500.
+    // Raises one order requirement. Every requirement is its own row, managed
+    // independently by the admin (Needs Ordering -> Ordered -> Received); the
+    // system never adds to a row's quantity or moves its status.
+    //  - adHoc (manual "Add to order", employee shortage report): added to the
+    //    Manual column of the item's Needs Ordering row; a new row only when
+    //    none is waiting (e.g. the existing one is already Ordered).
+    //  - system (stock count): updates the item's open system-raised Needs
+    //    Ordering row in place so re-saving a count doesn't stack duplicates,
+    //    else creates one. A row already Ordered is never touched -- a later
+    //    count's shortage becomes a fresh row beside it.
+    // The V94 partial unique index (one open system row per item) is the
+    // concurrency backstop: the losing insert of a race is retried as an
+    // update against the winner's row instead of surfacing as a raw 500.
     @Transactional
-    public void upsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+    public OrderListEntry upsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
         try {
-            doUpsertShortage(store, item, quantityNeeded, note, adHoc, raisedBy, defaultSupplier);
+            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, raisedBy, defaultSupplier);
         } catch (DataIntegrityViolationException raceLostInsert) {
-            doUpsertShortage(store, item, quantityNeeded, note, adHoc, raisedBy, defaultSupplier);
+            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, raisedBy, defaultSupplier);
         }
     }
 
-    private void doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+    private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+        // A manual add tops up the Manual column of the item's row that is
+        // still waiting to be ordered; only when every active row is already
+        // Ordered (or there is none) does it become a row of its own.
+        // What a count calls short is net of stock already on order but not yet
+        // received (Ordered rows) -- those units are coming, so only the
+        // remainder needs a new order. Once such an order is received, stock
+        // rises and it stops counting here, so nothing is subtracted twice.
+        // Fully covered: no waiting system row is needed, and none is created.
+        if (!adHoc) {
+            BigDecimal onOrder = orderListEntryRepository
+                .findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(store.getId(), item.getId(), OrderStatus.ORDERED)
+                .stream().map(OrderListEntry::totalQuantityOrdered).reduce(BigDecimal.ZERO, BigDecimal::add);
+            quantityNeeded = quantityNeeded.subtract(onOrder);
+            if (quantityNeeded.signum() <= 0) {
+                resolveShortageIfPresent(store, item);
+                return null;
+            }
+        }
+
+        // A count likewise updates that same waiting row (keeping any Manual
+        // figure) rather than stacking a second one beside it.
         OrderListEntry entry = orderListEntryRepository
-            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
-            .orElseGet(() -> {
-                OrderListEntry created = new OrderListEntry();
-                created.setStore(store);
-                created.setStoreInventoryItem(item);
-                created.setSupplier(defaultSupplier);
-                created.setStatus(OrderStatus.NEEDS_ORDERING);
-                return created;
-            });
+            .findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(store.getId(), item.getId(), OrderStatus.NEEDS_ORDERING)
+            .stream().findFirst().orElse(null);
+        boolean topUp = adHoc && entry != null;
+        if (entry == null) {
+            entry = new OrderListEntry();
+            entry.setStore(store);
+            entry.setStoreInventoryItem(item);
+            entry.setSupplier(defaultSupplier);
+            entry.setStatus(OrderStatus.NEEDS_ORDERING);
+            entry.setAdHoc(adHoc);
+        }
 
-        boolean isNewEntry = entry.getId() == null;
-
-        // A manual "Add to order" (adHoc) on an item that already has an
-        // active entry tops it up rather than replacing it -- quantityNeeded
-        // stays whatever the stock count last calculated, and the typed
-        // amount accumulates in manualAddition instead (Order List shows the
-        // two separately; the real quantity to order is their sum). Every
-        // other case -- a system stock-check recalculation, or a brand-new
-        // entry of either kind -- treats quantityNeeded as the fresh
-        // baseline and clears any manual top-up, since that top-up was for
-        // the figure being replaced, not a running total.
-        if (adHoc && !isNewEntry) {
+        if (topUp) {
             entry.setManualAddition(entry.getManualAddition().add(quantityNeeded));
         } else {
             entry.setQuantityNeeded(quantityNeeded);
-            entry.setManualAddition(BigDecimal.ZERO);
         }
-
-        entry.setAdHoc(isNewEntry ? adHoc : entry.isAdHoc());
         if (note != null) {
             entry.setNote(note);
         }
         if (entry.getRaisedBy() == null) {
             entry.setRaisedBy(raisedBy);
         }
-        orderListEntryRepository.save(entry);
+        return orderListEntryRepository.save(entry);
+    }
+
+    private java.util.Optional<OrderListEntry> openSystemEntry(Store store, StoreInventoryItem item) {
+        return orderListEntryRepository
+            .findByStoreIdAndStoreInventoryItemIdAndStatusAndAdHocFalse(store.getId(), item.getId(), OrderStatus.NEEDS_ORDERING)
+            .stream().findFirst();
     }
 
     // Start of Day's half of ordering: today's count already below today's
     // minimum puts the item on the list. Only ever adds -- an item that already
-    // has an active entry (maybe ordered, maybe topped up by hand) is left
-    // alone, and a good count never closes one out; End of Day does both.
+    // has any active entry (ordered, or raised by hand) is left alone, and a
+    // good count never closes one out; End of Day does both.
     @Transactional
     public void raiseShortageIfNoneActive(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, User raisedBy, Supplier defaultSupplier) {
         boolean alreadyActive = orderListEntryRepository
-            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
-            .isPresent();
+            .existsByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED);
         if (!alreadyActive) {
             upsertShortage(store, item, quantityNeeded, null, false, raisedBy, defaultSupplier);
         }
     }
 
-    // The other half of the shortage lifecycle: called whenever a fresh count
-    // shows the item back at or above its minimum (quantityNeeded == 0). Never
-    // creates a row -- only closes out an already-active one, the same way
-    // Owner/Admin's own "Mark Received" action does, so the order-list side
-    // stays consistent whichever path resolved it. History is untouched: the
-    // row survives, it just leaves the active (non-RECEIVED) set, which is
-    // exactly what frees the V49/V70 partial unique index for the next
-    // shortage on this item.
+    // Called whenever a fresh count shows the item back at or above its
+    // minimum (quantityNeeded == 0): withdraws the system-raised Needs Ordering
+    // row, which was never acted on and is no longer needed. Rows the admin
+    // has moved to Ordered, and manually added rows, are left exactly as they
+    // are -- the system never changes an order's status for them. History is
+    // untouched: the row survives, it just leaves the active (non-RECEIVED) set.
     @Transactional
     public void resolveShortageIfPresent(Store store, StoreInventoryItem item) {
-        orderListEntryRepository
-            .findByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED)
-            .ifPresent(entry -> {
-                entry.setStatus(OrderStatus.RECEIVED);
-                entry.setStatusChangedByRole(null);
-                orderListEntryRepository.save(entry);
-            });
+        openSystemEntry(store, item).ifPresent(entry -> {
+            entry.setStatus(OrderStatus.RECEIVED);
+            entry.setStatusChangedByRole(null);
+            orderListEntryRepository.save(entry);
+        });
     }
 
     // Owner/Admin's Supplier Purchasing Summary: the store always comes from

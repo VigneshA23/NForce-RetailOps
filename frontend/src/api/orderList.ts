@@ -60,6 +60,7 @@ export async function updateOrderListEntry(id: number, values: UpdateOrderListEn
       status: values.status,
       expectedStatus: values.expectedStatus,
       quantityReceived: values.quantityReceived,
+      alsoReceivedEntryIds: values.alsoReceivedEntryIds,
     },
   });
 }

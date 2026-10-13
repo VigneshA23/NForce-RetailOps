@@ -505,15 +505,17 @@ public class StockCheckService {
             .sorted(Comparator.comparing(StoreInventoryItem::getName, String.CASE_INSENSITIVE_ORDER))
             .toList();
 
-        // Each item's one active (not yet RECEIVED) Order List entry -- drives
-        // the Ordered status/quantity and the "mark ordered" action, so this
-        // report reflects the Orders page without a trip there.
+        // Each item's active (not yet RECEIVED) Order List entry -- drives the
+        // Ordered status/quantity and the "mark ordered" action, so this report
+        // reflects the Orders page without a trip there. An item can have
+        // several (each requirement is its own row); the Needs Ordering one is
+        // surfaced so there is always something to act on.
         Map<Long, OrderListEntryResponse> activeOrderByItemId = orderListService.listForStore(storeId).stream()
             .filter(entry -> !"RECEIVED".equals(entry.status()))
             .collect(Collectors.toMap(
                 OrderListEntryResponse::storeInventoryItemId,
                 entry -> entry,
-                (a, b) -> a
+                (a, b) -> "NEEDS_ORDERING".equals(b.status()) && !"NEEDS_ORDERING".equals(a.status()) ? b : a
             ));
 
         // Permanent record of orders (kept after Received), so a past day's
@@ -713,9 +715,14 @@ public class StockCheckService {
         }
         events.sort(EVENT_ORDER.reversed());
 
+        // Delta is computed against the immediately older event before the
+        // 7-day cutoff is applied, so the oldest entry still shown keeps a
+        // correct delta even though its predecessor falls outside the window.
+        LocalDate cutoff = LocalDate.now().minusDays(6);
         List<InventoryCountHistoryEntryResponse> entries = new ArrayList<>();
         for (int i = 0; i < events.size() && entries.size() < MAX_HISTORY_ENTRIES; i++) {
             CountEvent event = events.get(i);
+            if (event.date().isBefore(cutoff)) continue;
             BigDecimal delta = i + 1 < events.size() ? event.count().subtract(events.get(i + 1).count()) : null;
             entries.add(new InventoryCountHistoryEntryResponse(
                 event.date(), event.count(), delta, event.by(), event.at(), event.source()

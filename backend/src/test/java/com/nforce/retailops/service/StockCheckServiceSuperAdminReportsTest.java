@@ -135,7 +135,7 @@ class StockCheckServiceSuperAdminReportsTest {
         User employee = new User();
         ReflectionTestUtils.setField(employee, "id", 2L);
         employee.setFullName("Sarah");
-        StockCheck check = existingCheck(LocalDate.of(2026, 6, 15));
+        StockCheck check = existingCheck(LocalDate.now());
         check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(12), bd(0), employee, OffsetDateTime.now(), false);
         when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
         when(stockCheckRepository.findRecentForItem(eq(ITEM_ID), any(Pageable.class)))

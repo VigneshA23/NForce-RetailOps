@@ -15,6 +15,7 @@ import com.nforce.retailops.exception.StoreInventoryItemHasHistoryException;
 import com.nforce.retailops.exception.StoreInventoryItemNameExistsException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.exception.SupplierInactiveException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
 import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
@@ -434,6 +435,14 @@ public class StoreInventoryItemService {
             ? null
             : supplierRepository.findById(request.preferredSupplierId())
                 .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+        // A deactivated supplier can't be newly assigned, but an item already
+        // linked to one keeps it so editing other fields still works.
+        Supplier current = item.getPreferredSupplier();
+        boolean unchanged = supplier != null && current != null && current.getId().equals(supplier.getId());
+        if (supplier != null && !supplier.isActive() && !unchanged) {
+            throw new SupplierInactiveException(
+                "Supplier \"" + supplier.getName() + "\" has been deactivated. Please choose another supplier.");
+        }
         item.setPreferredSupplier(supplier);
 
         if (withImage) {

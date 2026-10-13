@@ -8,6 +8,7 @@ import {
   setStoreInventoryItemActive,
   updateStoreInventoryItem,
 } from '../api/storeInventory';
+import { ApiError } from '../api/client';
 import { findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
 import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
@@ -164,6 +165,15 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     });
   }, [suppliers, supplierSearch, supplierStatusFilter]);
 
+  // A 409 means the chosen supplier was deactivated after this page loaded
+  // (e.g. by Super Admin in another tab): pull the fresh list so the dropdown
+  // drops it, and keep the form open for the user to pick another.
+  function refreshSuppliersIfStale(error: unknown) {
+    if (error instanceof ApiError && error.status === 409) {
+      getOwnerSuppliers().then(setSuppliers).catch(() => {});
+    }
+  }
+
   async function handleCreateSubmit(values: StoreInventoryItemFormValues) {
     setItemFormError(null);
     setIsItemSubmitting(true);
@@ -174,6 +184,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
       setIsCreateModalOpen(false);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
+      refreshSuppliersIfStale(error);
       setItemFormError(msg);
       nfToast.error(msg);
     } finally {
@@ -192,6 +203,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
       setEditTarget(null);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Something went wrong';
+      refreshSuppliersIfStale(error);
       setItemFormError(msg);
       nfToast.error(msg);
     } finally {
