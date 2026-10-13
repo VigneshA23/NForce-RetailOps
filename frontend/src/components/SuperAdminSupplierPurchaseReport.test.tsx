@@ -64,7 +64,7 @@ describe('SuperAdminSupplierPurchaseReport', () => {
 
     const storeTwoBody = storeTwoHeader.closest('.store-accordion-group') as HTMLElement;
     const storeTwoRow = within(storeTwoBody).getByText('Supplier A').closest('tr')!;
-    expect(within(storeTwoRow).getByText(/31 units/)).toBeInTheDocument();
+    expect(storeTwoRow.querySelector('[data-label="Total"]')).toHaveTextContent('31 units');
 
     // Collapsing one store's group leaves the other one alone.
     await user.click(storeOneHeader);

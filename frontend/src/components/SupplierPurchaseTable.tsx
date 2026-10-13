@@ -52,10 +52,16 @@ function SupplierPurchaseTable<T extends SupplierPurchaseRow>({ rows, onViewDeta
                 </div>
               </td>
               <td data-label="Ordered">
-                {row.orderEntryCount} {row.orderEntryCount === 1 ? 'entry' : 'entries'}
+                {row.orderEntryCount}{' '}
+                <span className="supplier-purchase-table__quantity-label">
+                  {row.orderEntryCount === 1 ? 'entry' : 'entries'}
+                </span>
               </td>
               <td data-label="Total">
-                {row.totalQuantity} {row.totalQuantity === 1 ? 'unit' : 'units'}
+                {row.totalQuantity}{' '}
+                <span className="supplier-purchase-table__quantity-label">
+                  {row.totalQuantity === 1 ? 'unit' : 'units'}
+                </span>
               </td>
               <td data-label="Actions">
                 {onViewDetails && (

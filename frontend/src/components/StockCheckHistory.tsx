@@ -88,9 +88,7 @@ function QtyNeededBadge({ row }: { row: StockCheckHistoryRowView }) {
     return <span className="badge badge--outline">— (Not Counted)</span>;
   }
   // optimal
-  return row.buffer && row.buffer > 0
-    ? <span className="badge badge--success">— (Optimal)</span>
-    : <span className="badge badge--success">0 (Sufficient)</span>;
+  return <span className="badge badge--success">Sufficient</span>;
 }
 
 interface StockCheckHistoryProps {
@@ -344,7 +342,7 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
           className={`stock-check-history__status-filter${statusFilter === 'sufficient' ? ' stock-check-history__status-filter--active' : ''}`}
           onClick={() => setStatusFilter('sufficient')}
         >
-          Sufficient (Optimal)
+          Sufficient
         </button>
       </div>
 

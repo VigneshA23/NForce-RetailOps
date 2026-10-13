@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Download, FileSpreadsheet, FileText, TrendingDown } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
 import SearchInput from './SearchInput';
 import ItemIcon from './ItemIcon';
+import UserAvatar from './UserAvatar';
 import ButtonDots from './ButtonDots';
 import { getEmployeeStockCheckHistory } from '../api/stockChecks';
 import type { StockCheckResponse } from '../types/stockCheck';
-import { toStockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
-import { daysAgo, formatDateLabel, todayDate } from '../utils/checklistHistoryOptions';
+import { toStockCheckHistoryRowView, type StockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
+import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
+import { categoryLabel } from '../types/storeInventory';
+import { getInitials } from '../utils/initials';
 import { buildAndDownloadStockCheckHistoryPdf, buildStockCheckHistoryWorkbook } from '../utils/stockCheckHistoryExport';
 import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import useDismissablePanel from '../hooks/useDismissablePanel';
+import './StockCheckHistory.css';
 import './EmployeeStockCheckHistory.css';
 
 const PAGE_SIZE = 50;
@@ -24,7 +28,17 @@ function widestAllowedRange(): { startDate: string; endDate: string } {
   return { startDate: daysAgo(91), endDate: todayDate() };
 }
 
-type StatusFilter = 'all' | 'shortage' | 'optimal';
+type StatusFilter = 'all' | 'shortage' | 'sufficient';
+
+function QtyNeededBadge({ row }: { row: StockCheckHistoryRowView }) {
+  if (row.status === 'shortage') {
+    return <span className="badge badge--danger">+{row.deficit} {row.unitOfMeasurement} needed</span>;
+  }
+  if (row.status === 'pending') {
+    return <span className="badge badge--outline">— (Not Counted)</span>;
+  }
+  return <span className="badge badge--success">Sufficient</span>;
+}
 
 interface EmployeeStockCheckHistoryProps {
   storeId: number;
@@ -94,12 +108,13 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
   const viewRows = useMemo(() => rows.map(toStockCheckHistoryRowView), [rows]);
 
   const shortageCount = useMemo(() => viewRows.filter((r) => r.status === 'shortage').length, [viewRows]);
-  const optimalCount = useMemo(() => viewRows.filter((r) => r.status === 'optimal').length, [viewRows]);
+  const sufficientCount = useMemo(() => viewRows.filter((r) => r.status !== 'shortage').length, [viewRows]);
 
   const visibleRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return viewRows.filter((row) => {
-      if (statusFilter !== 'all' && row.status !== statusFilter) return false;
+      if (statusFilter === 'shortage' && row.status !== 'shortage') return false;
+      if (statusFilter === 'sufficient' && row.status === 'shortage') return false;
       if (query === '') return true;
       return row.itemName.toLowerCase().includes(query) || row.unitOfMeasurement.toLowerCase().includes(query);
     });
@@ -210,7 +225,7 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
                 className={`employee-stock-check-page__filter-pill${statusFilter === 'all' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
                 onClick={() => setStatusFilter('all')}
               >
-                All Items ({viewRows.length})
+                All Records ({viewRows.length})
               </button>
               <button
                 type="button"
@@ -222,88 +237,95 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
               </button>
               <button
                 type="button"
-                className={`employee-stock-history__filter-pill employee-stock-history__filter-pill--optimal${statusFilter === 'optimal' ? ' employee-stock-history__filter-pill--active' : ''}`}
-                onClick={() => setStatusFilter('optimal')}
+                className={`employee-stock-history__filter-pill employee-stock-history__filter-pill--sufficient${statusFilter === 'sufficient' ? ' employee-stock-history__filter-pill--active' : ''}`}
+                onClick={() => setStatusFilter('sufficient')}
               >
                 <CheckCircle2 size={13} />
-                Optimal ({optimalCount})
+                Sufficient ({sufficientCount})
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {!isLoading && !loadError && visibleRows.length === 0 && (
-        <div className="employee-stock-check-page__empty">
-          {rows.length === 0 ? 'No stock checks recorded for the selected range.' : 'No records match your search or filter.'}
+      <div className="table-card stock-check-history-table-card employee-stock-history__table-card">
+        <div className="table-scroll">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Item &amp; Category</th>
+                <th scope="col">Date &amp; Timestamp</th>
+                <th scope="col">Count Entered</th>
+                <th scope="col">Qty Needed (Par Reconciled)</th>
+                <th scope="col">Recorded By</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleRows.map((row) => {
+                const recordedBy = row.endOfDay?.lastUpdatedByName ?? row.startOfDay?.lastUpdatedByName ?? null;
+                const recordedAt = row.endOfDay?.lastUpdatedAt ?? row.startOfDay?.lastUpdatedAt ?? null;
+                const countEntered = row.endOfDay?.usable ?? row.startOfDay?.usable ?? null;
+                return (
+                  <tr key={row.id}>
+                    <td data-label="Item & Category">
+                      <div className="stock-check-history__item-cell">
+                        <ItemIcon id={row.storeInventoryItemId} name={row.itemName} size="md" imageId={row.imageId} />
+                        <div>
+                          <div className="stock-check-history__item-name">{row.itemName}</div>
+                          {row.category && (
+                            <div className="stock-check-history__item-category">{categoryLabel(row.category)}</div>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td data-label="Date & Timestamp">
+                      <div className="stock-check-history__timestamp">
+                        <Clock3 size={14} aria-hidden="true" />
+                        <span>{formatDateLabel(row.checkDate)}</span>
+                        {recordedAt && (
+                          <>
+                            <span className="stock-check-history__timestamp-separator" aria-hidden="true">·</span>
+                            <span className="stock-check-history__timestamp-time">{formatTimeLabel(recordedAt)}</span>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                    <td data-label="Count Entered">
+                      <div className="stock-check-history__metric">
+                        <span className="stock-check-history__metric-label">Count Entered</span>
+                        <span>{countEntered != null ? `${countEntered} ${row.unitOfMeasurement}` : '—'}</span>
+                      </div>
+                    </td>
+                    <td data-label="Qty Needed (Par Reconciled)">
+                      <div className="stock-check-history__metric">
+                        <span className="stock-check-history__metric-label">Qty Needed (Par)</span>
+                        <QtyNeededBadge row={row} />
+                      </div>
+                    </td>
+                    <td data-label="Recorded By">
+                      {recordedBy ? (
+                        <div className="stock-check-history__recorded-by">
+                          <UserAvatar
+                            initials={getInitials(recordedBy)}
+                            src={row.endOfDay?.lastUpdatedByAvatarUrl ?? row.startOfDay?.lastUpdatedByAvatarUrl}
+                            size={36}
+                          />
+                          <span className="stock-check-history__recorder-name">{recordedBy}</span>
+                        </div>
+                      ) : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
-      {isLoading && <div className="employee-stock-check-page__empty">Loading...</div>}
-
-      <div className="employee-stock-history__list">
-        {visibleRows.map((row) => {
-          // Same "whoever last touched End of Day, else Start of Day"
-          // derivation Owner/Admin's StockCheckHistory uses for its own
-          // "Recorded By" column, so an employee sees the same answer an
-          // Admin would for the same row.
-          const recordedBy = row.endOfDay?.lastUpdatedByName ?? row.startOfDay?.lastUpdatedByName ?? null;
-          return (
-            <article
-              key={row.id}
-              className={`employee-stock-history__item employee-stock-history__item--${row.status}`}
-            >
-              <ItemIcon id={row.storeInventoryItemId} name={row.itemName} />
-              <div className="employee-stock-history__item-main">
-                <h3 className="employee-stock-history__item-name">{row.itemName}</h3>
-                <p className="employee-stock-history__item-meta">
-                  Min Par: {row.requiredPar ?? '—'} {row.unitOfMeasurement} · {formatDateLabel(row.checkDate)}
-                  {recordedBy && ` · Recorded by ${recordedBy}`}
-                </p>
-                {row.status === 'shortage' && (
-                  <span className="badge badge--danger employee-stock-history__status">
-                    <TrendingDown size={12} /> {row.deficit} {row.unitOfMeasurement} Deficit
-                  </span>
-                )}
-                {row.status === 'optimal' && (
-                  <span className="badge badge--success employee-stock-history__status">
-                    <CheckCircle2 size={12} /> Optimal (+{row.buffer} Buffer)
-                  </span>
-                )}
-                {row.status === 'pending' && (
-                  <span className="badge badge--outline employee-stock-history__status">Not Counted</span>
-                )}
-                {row.edits.length > 0 && (
-                  <span
-                    className="badge badge--info employee-stock-history__status"
-                    title="An Owner/Admin corrected this count"
-                  >
-                    Corrected
-                  </span>
-                )}
-              </div>
-              <div className="employee-stock-history__stats">
-                <div className="employee-stock-history__stat">
-                  <span className="employee-stock-history__stat-label">Counted</span>
-                  <strong
-                    className={
-                      row.status === 'shortage'
-                        ? 'employee-stock-history__stat-value--danger'
-                        : row.status === 'optimal'
-                          ? 'employee-stock-history__stat-value--success'
-                          : undefined
-                    }
-                  >
-                    {row.counted ?? '—'} {row.unitOfMeasurement}
-                  </strong>
-                </div>
-                <div className="employee-stock-history__stat">
-                  <span className="employee-stock-history__stat-label">Required Par</span>
-                  <strong>{row.requiredPar ?? '—'} {row.unitOfMeasurement}</strong>
-                </div>
-              </div>
-            </article>
-          );
-        })}
+        {!isLoading && !loadError && visibleRows.length === 0 && (
+          <div className="table-card__empty">
+            {rows.length === 0 ? 'No stock checks recorded for the selected range.' : 'No records match your search or filter.'}
+          </div>
+        )}
+        {isLoading && <div className="table-card__empty">Loading...</div>}
       </div>
 
       <Pagination
