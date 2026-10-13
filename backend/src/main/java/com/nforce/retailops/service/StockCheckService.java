@@ -281,9 +281,10 @@ public class StockCheckService {
         check.recordMidDayCount(request.currentStock(), employee);
         stockCheckRepository.save(check);
 
-        orderListService.upsertShortage(
+        orderListService.upsertReportedShortage(
             storeItem.getStore(), storeItem, request.quantity(),
-            request.note(), true, employee, storeItem.getPreferredSupplier()
+            request.note(), employee, storeItem.getPreferredSupplier(),
+            Boolean.TRUE.equals(request.orderedAlreadyReceived())
         );
     }
 
@@ -528,10 +529,22 @@ public class StockCheckService {
         int needingOrder = 0;
         int pendingEod = 0;
 
+        // Today's Start of Day in, End of Day not: an earlier shortage's order
+        // has been recalculated from the latest stock, so it can't be marked
+        // Ordered from this report any more (RTS-369).
+        LocalDate today = LocalDate.now();
+        Map<Long, StockCheck> todaysChecksByItemId = reportDate.equals(today)
+            ? checksByItemId
+            : reportDate.equals(today.minusDays(1)) ? checksByItemId(storeId, today) : Map.of();
+
         for (StoreInventoryItem item : items) {
             StockCheck check = checksByItemId.get(item.getId());
+            StockCheck todaysCheck = todaysChecksByItemId.get(item.getId());
+            boolean reconciledBySod = todaysCheck != null
+                && todaysCheck.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
+                && !todaysCheck.hasSnapshot(StockCheckSnapshot.END_OF_DAY);
             EodSupplierReportResponse.Row row = toReportRow(
-                item, check, reportDate, activeOrderByItemId.get(item.getId()), orderedByItemId.get(item.getId()));
+                item, check, reportDate, activeOrderByItemId.get(item.getId()), orderedByItemId.get(item.getId()), reconciledBySod);
             if (row.status() == EodSupplierReportResponse.Status.NEEDS_TO_ORDER) needingOrder++;
             if (row.status() == EodSupplierReportResponse.Status.END_OF_DAY_PENDING) pendingEod++;
 
@@ -842,8 +855,8 @@ public class StockCheckService {
     // End of Day: a shortage against tomorrow's minimum is pushed to the order
     // list (upserted, so re-saving EOD updates it), and an EOD that clears the
     // shortage resolves any outstanding order. Start of Day: a count below
-    // today's minimum adds the item if it isn't already on the list (see
-    // syncStartOfDayShortage); it never updates or resolves an entry.
+    // today's minimum reconciles the item's open order rows with the fresh
+    // count (see syncStartOfDayShortage / reconcileStartOfDayShortage).
     private void syncOrderList(StockCheck check, StockCheckSnapshot snapshot, User raisedBy) {
         StoreInventoryItem item = check.getStoreInventoryItem();
         // The item's own "Auto PO Generator" toggle -- off means the owner
@@ -874,9 +887,7 @@ public class StockCheckService {
             return;
         }
         BigDecimal shortage = orderQuantity(item.requiredMinimumOn(check.getCheckDate()), check.getCurrentCount());
-        if (shortage.signum() > 0) {
-            orderListService.raiseShortageIfNoneActive(item.getStore(), item, shortage, raisedBy, item.getPreferredSupplier());
-        }
+        orderListService.reconcileStartOfDayShortage(item.getStore(), item, shortage, raisedBy, item.getPreferredSupplier());
     }
 
     static BigDecimal orderQuantity(BigDecimal requiredTomorrow, BigDecimal endUsable) {
@@ -899,7 +910,8 @@ public class StockCheckService {
     }
 
     private static EodSupplierReportResponse.Row toReportRow(
-        StoreInventoryItem item, StockCheck check, LocalDate date, OrderListEntryResponse activeOrder, OrderListService.OrderedInfo ordered
+        StoreInventoryItem item, StockCheck check, LocalDate date, OrderListEntryResponse activeOrder, OrderListService.OrderedInfo ordered,
+        boolean reconciledBySod
     ) {
         BigDecimal required = requiredTomorrow(item, check, date);
         BigDecimal toOrder = quantityToOrder(check);
@@ -909,7 +921,8 @@ public class StockCheckService {
         // still be ordered this morning; anything older is closed to changes.
         LocalDate today = LocalDate.now();
         boolean canStillOrder = date.equals(today) || date.equals(today.minusDays(1));
-        boolean orderPending = canStillOrder && activeOrder != null && "NEEDS_ORDERING".equals(activeOrder.status());
+        boolean orderPending = canStillOrder && !reconciledBySod
+            && activeOrder != null && "NEEDS_ORDERING".equals(activeOrder.status());
 
         // An order counts for this day when it was placed on it, or -- for a
         // shortage -- placed afterwards within the window the order service

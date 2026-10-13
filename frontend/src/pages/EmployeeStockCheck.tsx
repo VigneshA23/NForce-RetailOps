@@ -104,18 +104,33 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
   // An End of Day count above Start of Day (plus anything already logged as
   // received) can only mean stock arrived, so ask before saving: usage is then
   // worked out against what was received instead of coming out negative.
-  function handleSave(
-    item: DailyStockCheckItem,
+  async function handleSave(
+    staleItem: DailyStockCheckItem,
     snapshot: StockCheckSnapshotKey,
     available: number,
     deadStock: number,
   ): Promise<boolean> {
-    if (pendingKey != null) return Promise.resolve(false);
+    if (pendingKey != null) return false;
+    let item = staleItem;
+    if (snapshot === 'END_OF_DAY') {
+      // The page can be open for hours: an admin may have marked an order
+      // Received since it loaded, which changes what counts as already
+      // received. Re-read the latest figures before deciding to ask. If the
+      // refetch fails, fall back to what is on screen; the server still
+      // validates the count.
+      try {
+        const fresh = await getTodayStockCheck(store.id);
+        setItems(fresh);
+        item = fresh.find((i) => i.storeInventoryItemId === staleItem.storeInventoryItemId) ?? staleItem;
+      } catch {
+        // keep the on-screen item
+      }
+    }
     if (snapshot === 'END_OF_DAY' && item.startOfDay != null) {
       const endUsable = available - deadStock;
       const startUsable = item.startOfDay.usable;
       if (endUsable > startUsable + (item.quantityReceived ?? 0)) {
-        return new Promise((resolve) => {
+        return new Promise<boolean>((resolve) => {
           setReceivedPrompt({ item, available, deadStock, startUsable, endUsable, resolve });
         });
       }
@@ -193,6 +208,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
         Number(values.currentStock),
         Number(values.quantity),
         values.note,
+        values.orderedAlreadyReceived,
       );
       nfToast.success('Shortage reported to your owner.');
       setIsAdHocOpen(false);

@@ -7,6 +7,7 @@ import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
@@ -20,6 +21,7 @@ import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
+import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -98,6 +100,7 @@ public class OrderListService {
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final UserRepository userRepository;
     private final StockReceiptService stockReceiptService;
+    private final StockCheckRepository stockCheckRepository;
 
     public OrderListService(
         OrderListEntryRepository orderListEntryRepository,
@@ -106,8 +109,10 @@ public class OrderListService {
         SupplierRepository supplierRepository,
         StoreInventoryItemRepository storeInventoryItemRepository,
         UserRepository userRepository,
-        StockReceiptService stockReceiptService
+        StockReceiptService stockReceiptService,
+        StockCheckRepository stockCheckRepository
     ) {
+        this.stockCheckRepository = stockCheckRepository;
         this.orderListEntryRepository = orderListEntryRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeRepository = storeRepository;
@@ -269,6 +274,19 @@ public class OrderListService {
         StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
         OrderListEntry entry = orderListEntryRepository.findByIdAndStoreId(entryId, storeOwner.getStore().getId())
             .orElseThrow(() -> new OrderListEntryNotFoundException("Order list entry not found"));
+        // Once today's Start of Day is in (and End of Day isn't), a system row
+        // is being reconciled against the latest stock, so the EOD report's
+        // one-click "Ordered" on the earlier shortage no longer applies. The
+        // reconciled row is ordered from the Order List page instead.
+        boolean startOfDayInEndOfDayNot = !entry.isAdHoc()
+            && stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(entry.getStoreInventoryItem().getId(), LocalDate.now())
+                .filter(c -> c.hasSnapshot(StockCheckSnapshot.START_OF_DAY) && !c.hasSnapshot(StockCheckSnapshot.END_OF_DAY))
+                .isPresent();
+        if (startOfDayInEndOfDayNot) {
+            throw new InvalidOrderEntryTransitionException(
+                "Today's Start of Day count has been submitted, so this order was recalculated from the latest stock. "
+                    + "Review it on the Order List page before marking it Ordered.");
+        }
         return updateEntry(ownerId, entryId, new UpdateOrderListEntryRequest(
             entry.getQuantityNeeded(),
             entry.getSupplier() != null ? entry.getSupplier().getId() : null,
@@ -453,6 +471,31 @@ public class OrderListService {
         }
     }
 
+    // Employee mid-day shortage report (RTS-368). requiredQuantity is the total
+    // the employee says is needed; they cannot see the order list, so what is
+    // already waiting (Needs Ordering) and, unless they confirm it has arrived,
+    // what is already Ordered is netted off and only the remainder is added.
+    // Returns null when the existing rows already cover the requirement.
+    @Transactional
+    public OrderListEntry upsertReportedShortage(Store store, StoreInventoryItem item, BigDecimal requiredQuantity, String note, User raisedBy, Supplier defaultSupplier, boolean orderedAlreadyReceived) {
+        BigDecimal covered = BigDecimal.ZERO;
+        for (OrderListEntry existing : orderListEntryRepository
+            .findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(store.getId(), item.getId(), OrderStatus.NEEDS_ORDERING)) {
+            covered = covered.add(existing.totalQuantityOrdered());
+        }
+        if (!orderedAlreadyReceived) {
+            for (OrderListEntry existing : orderListEntryRepository
+                .findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(store.getId(), item.getId(), OrderStatus.ORDERED)) {
+                covered = covered.add(existing.totalQuantityOrdered());
+            }
+        }
+        BigDecimal remaining = requiredQuantity.subtract(covered);
+        if (remaining.signum() <= 0) {
+            return null;
+        }
+        return upsertShortage(store, item, remaining, note, true, raisedBy, defaultSupplier);
+    }
+
     private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
         // A manual add tops up the Manual column of the item's row that is
         // still waiting to be ordered; only when every active row is already
@@ -508,17 +551,22 @@ public class OrderListService {
             .stream().findFirst();
     }
 
-    // Start of Day's half of ordering: today's count already below today's
-    // minimum puts the item on the list. Only ever adds -- an item that already
-    // has any active entry (ordered, or raised by hand) is left alone, and a
-    // good count never closes one out; End of Day does both.
+    // Start of Day's half of ordering (RTS-369): reconciles the order list with
+    // the fresh count. quantityNeeded is today's minimum less the SOD usable
+    // stock (0 when the count is sufficient).
+    //  - A system Needs Ordering row the admin hasn't acted on (e.g. left over
+    //    from yesterday's EOD) is recalculated in place -- or withdrawn when
+    //    nothing is short any more -- never duplicated.
+    //  - Rows already Ordered are never touched; their quantity is netted off
+    //    and only a remaining shortfall becomes a separate Needs Ordering row.
+    // Re-saving SOD re-runs this and lands on the same result.
     @Transactional
-    public void raiseShortageIfNoneActive(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, User raisedBy, Supplier defaultSupplier) {
-        boolean alreadyActive = orderListEntryRepository
-            .existsByStoreIdAndStoreInventoryItemIdAndStatusNot(store.getId(), item.getId(), OrderStatus.RECEIVED);
-        if (!alreadyActive) {
-            upsertShortage(store, item, quantityNeeded, null, false, raisedBy, defaultSupplier);
+    public void reconcileStartOfDayShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, User raisedBy, Supplier defaultSupplier) {
+        if (quantityNeeded.signum() <= 0) {
+            resolveShortageIfPresent(store, item);
+            return;
         }
+        upsertShortage(store, item, quantityNeeded, null, false, raisedBy, defaultSupplier);
     }
 
     // Called whenever a fresh count shows the item back at or above its
