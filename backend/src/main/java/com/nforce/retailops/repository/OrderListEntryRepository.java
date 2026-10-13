@@ -21,9 +21,16 @@ public interface OrderListEntryRepository extends JpaRepository<OrderListEntry, 
 
     Optional<OrderListEntry> findByIdAndStoreId(Long id, Long storeId);
 
-    // The "find" half of the find-or-create upsert for the active-entry-per-
-    // item rule enforced at the DB level by the V49/V70 partial unique index.
-    Optional<OrderListEntry> findByStoreIdAndStoreInventoryItemIdAndStatusNot(Long storeId, Long storeInventoryItemId, OrderStatus status);
+    // Every requirement is its own row, so an item can have several active
+    // entries. The system-raised Needs Ordering row (ad_hoc = false) is the only
+    // one a stock count may touch; the partial unique index in V94 allows one.
+    List<OrderListEntry> findByStoreIdAndStoreInventoryItemIdAndStatusAndAdHocFalse(Long storeId, Long storeInventoryItemId, OrderStatus status);
+
+    // Any Needs Ordering row for the item, system-raised or manual, oldest
+    // first -- where a manual add tops up (Manual column) instead of stacking.
+    List<OrderListEntry> findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(Long storeId, Long storeInventoryItemId, OrderStatus status);
+
+    boolean existsByStoreIdAndStoreInventoryItemIdAndStatusNot(Long storeId, Long storeInventoryItemId, OrderStatus status);
 
     // Delete guard for StoreInventoryItemService: an item with outstanding or
     // historical order-list entries can't be hard-deleted.

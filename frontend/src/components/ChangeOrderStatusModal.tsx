@@ -5,7 +5,7 @@ import ButtonDots from './ButtonDots';
 import CategoryIcon from './CategoryIcon';
 import FormField from './FormField';
 import { STATUS_META } from '../utils/orderListStatus';
-import { formatQty, isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint } from '../utils/quantity';
+import { formatQty, isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint, roundQty } from '../utils/quantity';
 import type { OrderStatus } from '../types/orderList';
 import type { InventoryItemCategory } from '../types/storeInventory';
 import './ChangeOrderStatusModal.css';
@@ -21,10 +21,14 @@ interface ChangeOrderStatusModalProps {
   // for the "quantity received" box shown on Ordered -> Received.
   orderedQuantity: number;
   unitOfMeasurement: string;
+  // Other Ordered rows for the same item (each requirement is its own row).
+  // When present on Ordered -> Received, a checkbox lets the user receive them
+  // in the same delivery: the quantity box then covers all of them.
+  otherOrdered?: { ids: number[]; quantity: number };
   // May return a Promise -- same loading-dots/disable-while-pending contract
-  // as ConfirmDialog's onConfirm. quantityReceived is only set when moving to
-  // Received.
-  onConfirm: (quantityReceived?: number) => void | Promise<void>;
+  // as ConfirmDialog's onConfirm. quantityReceived and alsoReceivedEntryIds are
+  // only set when moving to Received.
+  onConfirm: (quantityReceived?: number, alsoReceivedEntryIds?: number[]) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -69,6 +73,7 @@ function ChangeOrderStatusModal({
   toStatus,
   orderedQuantity,
   unitOfMeasurement,
+  otherOrdered,
   onConfirm,
   onCancel,
 }: ChangeOrderStatusModalProps) {
@@ -76,6 +81,15 @@ function ChangeOrderStatusModal({
   const isReceiving = fromStatus === 'ORDERED' && toStatus === 'RECEIVED';
   const [receivedText, setReceivedText] = useState(formatQty(orderedQuantity));
   const [receivedError, setReceivedError] = useState<string | null>(null);
+  const [alsoReceiveOthers, setAlsoReceiveOthers] = useState(false);
+  const hasOthers = isReceiving && !!otherOrdered && otherOrdered.ids.length > 0;
+
+  function handleAlsoReceiveChange(checked: boolean) {
+    if (!otherOrdered) return;
+    setAlsoReceiveOthers(checked);
+    setReceivedText(formatQty(checked ? roundQty(orderedQuantity + otherOrdered.quantity) : orderedQuantity));
+    setReceivedError(null);
+  }
 
   async function handleConfirm() {
     let quantityReceived: number | undefined;
@@ -87,7 +101,7 @@ function ChangeOrderStatusModal({
       }
       quantityReceived = qty;
     }
-    const result = onConfirm(quantityReceived);
+    const result = hasOthers && alsoReceiveOthers ? onConfirm(quantityReceived, otherOrdered.ids) : onConfirm(quantityReceived);
     if (result instanceof Promise) {
       setIsConfirming(true);
       try {
@@ -135,6 +149,19 @@ function ChangeOrderStatusModal({
       <p className="change-order-status-modal__description">{describeTransition(fromStatus, toStatus, supplierName)}</p>
       {isReceiving && (
         <div className="change-order-status-modal__received">
+          {hasOthers && (
+            <label className="change-order-status-modal__also">
+              <input
+                type="checkbox"
+                checked={alsoReceiveOthers}
+                disabled={isConfirming}
+                onChange={(event) => handleAlsoReceiveChange(event.target.checked)}
+              />
+              <span>
+                Both orders received (other order: {formatQty(otherOrdered.quantity)} {unitOfMeasurement})
+              </span>
+            </label>
+          )}
           <FormField
             label={`Quantity received (${unitOfMeasurement})`}
             htmlFor="order-quantity-received"

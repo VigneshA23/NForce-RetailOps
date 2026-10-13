@@ -169,7 +169,7 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
   }
 
   // Returns the saved entry, or null when the change did not go through.
-  async function changeStatus(entry: OrderListEntry, nextStatus: OrderStatus, quantityReceived?: number) {
+  async function changeStatus(entry: OrderListEntry, nextStatus: OrderStatus, quantityReceived?: number, alsoReceivedEntryIds?: number[]) {
     try {
       const updated = await updateOrderListEntry(entry.id, {
         quantityNeeded: String(entry.quantityNeeded),
@@ -178,6 +178,7 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
         status: nextStatus,
         expectedStatus: entry.status,
         quantityReceived,
+        alsoReceivedEntryIds,
       });
       applyUpdatedEntry(updated);
       return updated;
@@ -205,8 +206,8 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
       .catch(() => {});
   }
 
-  async function handleStatusChange(entry: OrderListEntry, nextStatus: OrderStatus, quantityReceived?: number) {
-    const updated = await changeStatus(entry, nextStatus, quantityReceived);
+  async function handleStatusChange(entry: OrderListEntry, nextStatus: OrderStatus, quantityReceived?: number, alsoReceivedEntryIds?: number[]) {
+    const updated = await changeStatus(entry, nextStatus, quantityReceived, alsoReceivedEntryIds);
     if (!updated) return;
     if (updated.receipt) {
       const { tone, message } = describeReceipt(entry.itemName, updated.quantityReceived ?? null, entry.unitOfMeasurement, updated.receipt);
@@ -222,9 +223,22 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
     setPendingStatusChange({ entry, nextStatus });
   }
 
-  async function confirmPendingStatusChange(quantityReceived?: number) {
+  // The item's other Ordered rows -- each requirement is its own row, and they
+  // may arrive together or separately.
+  function otherOrderedFor(entry: OrderListEntry) {
+    const others = entries.filter(
+      (e) => e.id !== entry.id && e.storeInventoryItemId === entry.storeInventoryItemId && e.status === 'ORDERED',
+    );
+    if (others.length === 0) return undefined;
+    return {
+      ids: others.map((e) => e.id),
+      quantity: roundQty(others.reduce((sum, e) => sum + e.quantityNeeded + e.manualAddition, 0)),
+    };
+  }
+
+  async function confirmPendingStatusChange(quantityReceived?: number, alsoReceivedEntryIds?: number[]) {
     if (!pendingStatusChange) return;
-    await handleStatusChange(pendingStatusChange.entry, pendingStatusChange.nextStatus, quantityReceived);
+    await handleStatusChange(pendingStatusChange.entry, pendingStatusChange.nextStatus, quantityReceived, alsoReceivedEntryIds);
     setPendingStatusChange(null);
   }
 
@@ -902,6 +916,7 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
           toStatus={pendingStatusChange.nextStatus}
           orderedQuantity={roundQty(pendingStatusChange.entry.quantityNeeded + pendingStatusChange.entry.manualAddition)}
           unitOfMeasurement={pendingStatusChange.entry.unitOfMeasurement}
+          otherOrdered={otherOrderedFor(pendingStatusChange.entry)}
           onConfirm={confirmPendingStatusChange}
           onCancel={() => setPendingStatusChange(null)}
         />

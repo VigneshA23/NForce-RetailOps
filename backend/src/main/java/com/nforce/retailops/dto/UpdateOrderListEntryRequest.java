@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public record UpdateOrderListEntryRequest(
     @NotNull(message = "Quantity is required")
@@ -32,13 +33,23 @@ public record UpdateOrderListEntryRequest(
     // Omitted means "everything that was ordered".
     @DecimalMin(value = "0.01", message = "Quantity received must be greater than 0")
     @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
-    BigDecimal quantityReceived
+    BigDecimal quantityReceived,
+
+    // Only read when moving Ordered -> Received: other Ordered rows for the
+    // same item that arrived in the same delivery. quantityReceived then
+    // covers all of them together -- stock is updated once -- and these rows
+    // are closed as Received without a stock change of their own.
+    List<Long> alsoReceivedEntryIds
 ) {
+    public UpdateOrderListEntryRequest(BigDecimal quantityNeeded, Long supplierId, String note, OrderStatus status, OrderStatus expectedStatus, BigDecimal quantityReceived) {
+        this(quantityNeeded, supplierId, note, status, expectedStatus, quantityReceived, null);
+    }
+
     public UpdateOrderListEntryRequest(BigDecimal quantityNeeded, Long supplierId, String note, OrderStatus status, OrderStatus expectedStatus) {
-        this(quantityNeeded, supplierId, note, status, expectedStatus, null);
+        this(quantityNeeded, supplierId, note, status, expectedStatus, null, null);
     }
 
     public UpdateOrderListEntryRequest(BigDecimal quantityNeeded, Long supplierId, String note, OrderStatus status) {
-        this(quantityNeeded, supplierId, note, status, null, null);
+        this(quantityNeeded, supplierId, note, status, null, null, null);
     }
 }
