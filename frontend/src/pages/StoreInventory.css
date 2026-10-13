@@ -325,11 +325,11 @@
 }
 
 @media (--tablet-down) {
-  /* filters.css puts Category and Sort at a rigid 50/50 split on tablet and
+  /* filters.css puts Category and Supplier at a rigid 50/50 split on tablet and
      below, sized for exactly two selects per row -- there's no room left for
      the Clear button once it appears, so it wraps onto a third row by
      itself. Letting the two selects share the row's remaining space instead
-     (rather than a fixed half each) keeps Clear sitting right next to Sort
+     (rather than a fixed half each) keeps Clear sitting right next to Supplier
      on the same row. */
   .store-inventory-page__filter-bar .filter:not(.filter--search) {
     flex: 1 1 0;

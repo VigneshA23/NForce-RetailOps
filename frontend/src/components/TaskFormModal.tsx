@@ -313,7 +313,7 @@ function TaskFormModal({
                 }}
               />
             </FormField>
-            <FormField label="Completion Type *" htmlFor="task-completion-type-single" error={errors.completionType}>
+            <FormField label="Completion Type *" htmlFor="task-completion-type-mobile" error={errors.completionType}>
               <div className="task-form__completion-options" role="radiogroup" aria-label="Completion Type">
                 {COMPLETION_TYPE_OPTIONS.map((option) => (
                   <label key={option.value} className="task-form__completion-option">
@@ -329,6 +329,22 @@ function TaskFormModal({
                     <span>{option.label}</span>
                   </label>
                 ))}
+              </div>
+              <div className="task-form__completion-dropdown">
+                <SearchableSelect
+                  id="task-completion-type-mobile"
+                  placeholder="Select…"
+                  options={COMPLETION_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+                  selectedIds={
+                    values.completionType
+                      ? [COMPLETION_TYPE_OPTIONS.findIndex((option) => option.value === values.completionType)]
+                      : []
+                  }
+                  onChange={(ids) => {
+                    const option = COMPLETION_TYPE_OPTIONS[ids[0]];
+                    if (option) handleCompletionTypeChange(option.value);
+                  }}
+                />
               </div>
             </FormField>
           </div>

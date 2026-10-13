@@ -118,6 +118,10 @@
   accent-color: var(--color-accent);
 }
 
+.task-form__completion-dropdown {
+  display: none;
+}
+
 
 .task-form__hint {
   margin: var(--space-sm) 0 0;
@@ -136,5 +140,15 @@
   .task-form__grid-3,
   .task-form__grid-category {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (--mobile) {
+  .task-form__completion-options {
+    display: none;
+  }
+
+  .task-form__completion-dropdown {
+    display: block;
   }
 }

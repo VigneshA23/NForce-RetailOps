@@ -223,6 +223,17 @@ describe('TaskFormModal Short Text response', () => {
       expect(multiple).toBeChecked();
       expect(single).not.toBeChecked();
     });
+
+    it('updates the same completion type through the mobile dropdown', async () => {
+      const user = userEvent.setup();
+      renderModal();
+
+      await user.click(document.getElementById('task-completion-type-mobile')!);
+      await user.click(await screen.findByRole('button', { name: 'Multiple Completions' }));
+
+      expect(screen.getByRole('radio', { name: 'Multiple Completions' })).toBeChecked();
+      expect(document.getElementById('task-completion-type-mobile')).toHaveTextContent('Multiple Completions');
+    });
   });
 
   it('truncates a pasted value longer than 25 characters to the first 25 characters', async () => {
