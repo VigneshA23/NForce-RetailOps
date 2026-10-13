@@ -9,7 +9,7 @@ import {
   updateStoreInventoryItem,
 } from '../api/storeInventory';
 import { ApiError } from '../api/client';
-import { findOrCreateSupplier, getOwnerSuppliers } from '../api/suppliers';
+import { getOwnerSuppliers } from '../api/suppliers';
 import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
@@ -121,23 +121,9 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     }
   }, [items, editTarget]);
 
-  // Inline "Add New Supplier" from the item form: persist it, then merge it
-  // into the local directory so it's selectable for every later item too.
-  async function handleCreateSupplier(name: string): Promise<Supplier> {
-    const supplier = await findOrCreateSupplier(name);
-    setSuppliers((current) =>
-      (current.some((s) => s.id === supplier.id)
-        ? current.map((s) => (s.id === supplier.id ? supplier : s))
-        : [...current, supplier]
-      ).sort((a, b) => a.name.localeCompare(b.name)),
-    );
-    nfToast.success(`"${supplier.name}" supplier added.`);
-    return supplier;
-  }
-
-  // Suppliers tab is read-only here -- renaming, activating/deactivating and
-  // removing a supplier are Super Admin-only actions (SuperAdminInventory.tsx).
-  // Adding one stays inline in the item form, via handleCreateSupplier above.
+  // Suppliers tab is read-only here -- renaming, activating/deactivating,
+  // removing and adding a supplier are all Super Admin-only actions now
+  // (SuperAdminInventory.tsx); the item form's supplier field is select-only.
   const activeSupplierCount = useMemo(() => suppliers.filter((s) => s.active).length, [suppliers]);
 
   // Items Count column: single-store scope here, so just a total per
@@ -420,7 +406,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               isOpen={isCreateModalOpen}
               mode="create"
               suppliers={suppliers}
-              onCreateSupplier={handleCreateSupplier}
               existingCategories={items.map((i) => i.category)}
               errorMessage={itemFormError}
               isSubmitting={isItemSubmitting}
@@ -433,7 +418,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 isOpen
                 item={editTarget}
                 suppliers={suppliers}
-                onCreateSupplier={handleCreateSupplier}
               existingCategories={items.map((i) => i.category)}
                 errorMessage={itemFormError}
                 isSubmitting={isItemSubmitting}
