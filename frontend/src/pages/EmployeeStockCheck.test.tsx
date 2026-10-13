@@ -20,7 +20,7 @@ vi.mock('../utils/toast', () => ({
 const mockGetMe = vi.mocked(meApi.getMe);
 const mockGetTodayStockCheck = vi.mocked(stockCheckApi.getTodayStockCheck);
 
-const store: StoreSummary = { id: 1, name: 'Keds Ice Cream - Plano', location: null, status: 'ACTIVE' };
+const store: StoreSummary = { id: 1, name: 'Keds Ice Cream - Plano', location: null, status: 'Open' };
 
 const item: DailyStockCheckItem = {
   storeInventoryItemId: 1,

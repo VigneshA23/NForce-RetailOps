@@ -145,10 +145,14 @@ function SuperAdminInventory() {
     if (fresh && fresh !== editTarget) setEditTarget(fresh);
   }, [items, editTarget]);
 
-  // Inline "Add New Supplier" from the item form: persist it, then merge it
-  // into the local directory so it's selectable for every later item too.
-  async function handleCreateSupplier(name: string): Promise<Supplier> {
-    const supplier = await findOrCreateSupplier(name);
+  // Inline "Add New Supplier" from the item form: persist it (assigned to
+  // whichever store this item form is for -- the create form's currently
+  // filtered store, or the exact store the item being edited belongs to --
+  // otherwise it was left with no store assignment at all despite being used
+  // by that store's item right away), then merge it into the local directory
+  // so it's selectable for every later item too.
+  async function createSupplierForStore(name: string, storeId: number | null): Promise<Supplier> {
+    const supplier = await findOrCreateSupplier(name, storeId ?? undefined);
     setSuppliers((current) =>
       (current.some((s) => s.id === supplier.id)
         ? current.map((s) => (s.id === supplier.id ? supplier : s))
@@ -902,7 +906,7 @@ function SuperAdminInventory() {
         isOpen={isCreateModalOpen}
         mode="create"
         suppliers={suppliers}
-        onCreateSupplier={handleCreateSupplier}
+        onCreateSupplier={(name) => createSupplierForStore(name, selectedStoreId)}
         stores={stores}
         showStoreField
         loadCategories={getCommonCategories}
@@ -918,7 +922,7 @@ function SuperAdminInventory() {
           isOpen
           item={editTarget}
           suppliers={suppliers}
-          onCreateSupplier={handleCreateSupplier}
+          onCreateSupplier={(name) => createSupplierForStore(name, editTarget.storeId)}
               existingCategories={items.map((i) => i.category)}
           errorMessage={itemFormError}
           isSubmitting={isItemSubmitting}

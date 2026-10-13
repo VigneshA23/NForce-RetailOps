@@ -164,24 +164,37 @@ public class SupplierService {
     // Backs the inline "Add New Supplier" option in the inventory item form.
     // suppliers.name has no unique constraint, so reuse an existing supplier
     // with the same name (case-insensitive) rather than creating a duplicate,
-    // reactivating it if it had been deactivated.
+    // reactivating it if it had been deactivated. ownerId resolves Owner/
+    // Admin's own store server-side; superAdminStoreId is Super Admin's
+    // explicit choice instead, since Super Admin has no implicit one. Either
+    // way, the supplier is assigned to that store (unless it already applies
+    // to all stores) so it shows up correctly in the Suppliers page's
+    // Assigned Store column and that store's own preferred-supplier picker --
+    // otherwise a freshly created supplier was left with no assignment at
+    // all despite being used by that store's item right away.
     @Transactional
-    public SupplierResponse findOrCreateSupplier(SupplierRequest request) {
+    public SupplierResponse findOrCreateSupplier(SupplierRequest request, Long ownerId, Long superAdminStoreId) {
         String name = request.name().trim();
         Supplier supplier = supplierRepository.findFirstByNameIgnoreCaseOrderByIdAsc(name)
-            .map(existing -> {
-                if (!existing.isActive()) {
-                    existing.setActive(true);
-                    return supplierRepository.save(existing);
-                }
-                return existing;
-            })
             .orElseGet(() -> {
                 Supplier created = new Supplier();
                 created.setName(name);
-                return supplierRepository.save(created);
+                return created;
             });
+        if (!supplier.isActive()) {
+            supplier.setActive(true);
+        }
+        Store store = ownerId != null ? requireOwnerStore(ownerId) : superAdminStoreId != null ? requireStore(superAdminStoreId) : null;
+        if (store != null && !supplier.isAppliesToAllStores()) {
+            supplier.getStores().add(store);
+        }
+        supplier = supplierRepository.save(supplier);
         return SupplierResponse.from(supplier);
+    }
+
+    private Store requireStore(Long storeId) {
+        return storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
     }
 
     @Transactional
