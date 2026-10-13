@@ -11,6 +11,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.exception.StoreInventoryItemNameExistsException;
+import com.nforce.retailops.exception.SupplierInactiveException;
 import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
@@ -340,5 +341,49 @@ class StoreInventoryItemServiceTest {
         assertThatThrownBy(() -> service.updateForSuperAdmin(10L, request("Milk", 7L)))
             .isInstanceOf(StoreInventoryItemNameExistsException.class);
         verify(storeInventoryItemRepository, never()).save(existing);
+    }
+
+    // --- Deactivated preferred supplier ------------------------------------
+
+    @Test
+    void createRejectsADeactivatedPreferredSupplier() {
+        Supplier inactive = supplier(7L);
+        inactive.setActive(false);
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(inactive));
+
+        assertThatThrownBy(() -> service.createForSuperAdmin(requestForStore(1L, "Milk", 7L)))
+            .isInstanceOf(SupplierInactiveException.class)
+            .hasMessageContaining("Acme Supplies");
+        verify(storeInventoryItemRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void updateRejectsSwitchingToADeactivatedSupplier() {
+        StoreInventoryItem existing = item(10L, storeA, 5);
+        Supplier inactive = supplier(7L);
+        inactive.setActive(false);
+        when(storeInventoryItemRepository.findById(10L)).thenReturn(java.util.Optional.of(existing));
+        when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(inactive));
+
+        assertThatThrownBy(() -> service.updateForSuperAdmin(10L, request("Napkins", 7L)))
+            .isInstanceOf(SupplierInactiveException.class);
+        verify(storeInventoryItemRepository, never()).save(existing);
+    }
+
+    @Test
+    void updateKeepsAnAlreadyLinkedSupplierEvenAfterItWasDeactivated() {
+        StoreInventoryItem existing = item(10L, storeA, 5);
+        Supplier inactive = supplier(7L);
+        inactive.setActive(false);
+        existing.setPreferredSupplier(inactive);
+        when(storeInventoryItemRepository.findById(10L)).thenReturn(java.util.Optional.of(existing));
+        when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(inactive));
+        when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateForSuperAdmin(10L, request("Napkins", 7L));
+
+        verify(storeInventoryItemRepository).save(existing);
     }
 }
