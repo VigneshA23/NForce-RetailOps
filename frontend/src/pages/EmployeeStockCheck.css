@@ -220,6 +220,13 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-sm);
+  cursor: pointer;
+}
+
+.employee-stock-check-page__item-header:focus-visible {
+  outline: 2px solid var(--color-accent, #2563eb);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 .employee-stock-check-page__item-identity {
@@ -236,6 +243,8 @@
   gap: var(--space-xs);
 }
 
+/* Purely a visual indicator now -- the whole header row (above) is the
+   actual toggle, not this box on its own. */
 .employee-stock-check-page__collapse-toggle {
   display: flex;
   align-items: center;
@@ -248,11 +257,6 @@
   border-radius: var(--radius-sm);
   background: var(--color-surface-card);
   color: var(--color-text-secondary);
-  cursor: pointer;
-}
-
-.employee-stock-check-page__collapse-toggle:hover {
-  background: var(--color-bg-page);
 }
 
 .employee-stock-check-page__shift-header {
