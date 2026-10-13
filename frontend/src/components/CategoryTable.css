@@ -389,7 +389,7 @@
   .category-table__card--managed .table-icon-btn {
     width: 28px;
     height: 28px;
-    border-radius: 50%;
+    border-radius: var(--radius-sm);
     color: var(--color-text-secondary);
   }
 
@@ -410,22 +410,25 @@
   }
 
   .category-table__store-chip {
-    gap: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     max-width: 100%;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 12px;
+    padding: 5px 12px;
+    border: none;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 500;
     white-space: normal;
     overflow-wrap: anywhere;
   }
 
-  .category-table__store-chip::before {
-    content: '';
+  .category-table__store-chip svg {
     flex-shrink: 0;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: currentColor;
+  }
+
+  .category-table__store-chip::before {
+    content: none;
   }
 
   .category-table__store-chip--empty::before {

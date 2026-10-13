@@ -4,7 +4,12 @@ import { describe, expect, it, vi } from 'vitest';
 import ChangeOrderStatusModal from './ChangeOrderStatusModal';
 import type { OrderStatus } from '../types/orderList';
 
-function renderModal(fromStatus: OrderStatus, toStatus: OrderStatus, onConfirm = vi.fn()) {
+function renderModal(
+  fromStatus: OrderStatus,
+  toStatus: OrderStatus,
+  onConfirm = vi.fn(),
+  otherOrdered?: { ids: number[]; quantity: number },
+) {
   render(
     <ChangeOrderStatusModal
       itemName="Milk"
@@ -15,6 +20,7 @@ function renderModal(fromStatus: OrderStatus, toStatus: OrderStatus, onConfirm =
       toStatus={toStatus}
       orderedQuantity={7.5}
       unitOfMeasurement="L"
+      otherOrdered={otherOrdered}
       onConfirm={onConfirm}
       onCancel={vi.fn()}
     />,
@@ -36,6 +42,36 @@ describe('ChangeOrderStatusModal', () => {
 
     await user.click(screen.getByRole('button', { name: 'Confirm received' }));
 
+    expect(onConfirm).toHaveBeenCalledWith(7.5);
+  });
+
+  it('offers no both-received checkbox when the item has no other Ordered row', () => {
+    renderModal('ORDERED', 'RECEIVED');
+
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('ticking both-received sums the quantity box and submits the other row ids', async () => {
+    const user = userEvent.setup();
+    const onConfirm = renderModal('ORDERED', 'RECEIVED', vi.fn(), { ids: [9], quantity: 2.5 });
+
+    await user.click(screen.getByRole('checkbox', { name: /both orders received/i }));
+    expect(screen.getByLabelText('Quantity received (L)')).toHaveValue('10');
+
+    await user.click(screen.getByRole('button', { name: 'Confirm received' }));
+    expect(onConfirm).toHaveBeenCalledWith(10, [9]);
+  });
+
+  it('unticking both-received restores this order\'s quantity and leaves the other row out', async () => {
+    const user = userEvent.setup();
+    const onConfirm = renderModal('ORDERED', 'RECEIVED', vi.fn(), { ids: [9], quantity: 2.5 });
+
+    const box = screen.getByRole('checkbox', { name: /both orders received/i });
+    await user.click(box);
+    await user.click(box);
+    expect(screen.getByLabelText('Quantity received (L)')).toHaveValue('7.5');
+
+    await user.click(screen.getByRole('button', { name: 'Confirm received' }));
     expect(onConfirm).toHaveBeenCalledWith(7.5);
   });
 

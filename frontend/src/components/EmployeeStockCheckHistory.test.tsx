@@ -19,6 +19,7 @@ function snapshot(overrides: Partial<StockSnapshot>): StockSnapshot {
     enteredByName: 'Jane Doe',
     enteredAt: '2026-09-20T09:00:00Z',
     lastUpdatedByName: 'Jane Doe',
+    lastUpdatedByAvatarUrl: null,
     lastUpdatedAt: '2026-09-20T09:00:00Z',
     edited: false,
     ...overrides,

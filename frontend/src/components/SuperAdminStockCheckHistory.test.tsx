@@ -69,6 +69,7 @@ function snapshot(overrides: Partial<StockSnapshot> = {}): StockSnapshot {
     enteredByName: 'Jane Doe',
     enteredAt: '2026-09-20T09:00:00Z',
     lastUpdatedByName: 'Jane Doe',
+    lastUpdatedByAvatarUrl: null,
     lastUpdatedAt: '2026-09-20T09:00:00Z',
     edited: false,
     ...overrides,
@@ -118,7 +119,13 @@ beforeEach(() => {
 describe('SuperAdminStockCheckHistory', () => {
   it('renders the all-stores view with a Store column', async () => {
     mockGetHistory.mockResolvedValue(page({
-      items: [entry(1, 'Downtown', { itemName: 'Paper Towels' }), entry(2, 'Uptown', { itemName: 'Whole Milk' })],
+      items: [
+        entry(1, 'Downtown', {
+          itemName: 'Paper Towels',
+          startOfDay: snapshot({ lastUpdatedByAvatarUrl: 'data:image/png;base64,staff' }),
+        }),
+        entry(2, 'Uptown', { itemName: 'Whole Milk' }),
+      ],
       totalItems: 2,
     }));
 
@@ -129,6 +136,9 @@ describe('SuperAdminStockCheckHistory', () => {
     expect(within(downtownRow).getByText('Downtown')).toBeInTheDocument();
     const uptownRow = screen.getByText('Whole Milk').closest('tr')!;
     expect(within(uptownRow).getByText('Uptown')).toBeInTheDocument();
+    expect(downtownRow.querySelector('.stock-check-history__store-icon')).toBeInTheDocument();
+    expect(downtownRow.querySelector('.user-avatar--img')).toHaveAttribute('src', 'data:image/png;base64,staff');
+    expect(downtownRow.querySelector('.stock-check-history__timestamp svg')).toBeInTheDocument();
 
     // storeId omitted entirely for the all-stores query.
     expect(mockGetHistory).toHaveBeenCalledWith(null, expect.any(String), expect.any(String), 1, 10);
@@ -153,6 +163,9 @@ describe('SuperAdminStockCheckHistory', () => {
     await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(1, expect.any(String), expect.any(String), 1, 10));
     expect(await screen.findByText('Paper Towels')).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Store' })).not.toBeInTheDocument();
+    const row = screen.getByText('Paper Towels').closest('tr')!;
+    expect(within(row).getByText('Downtown')).toBeInTheDocument();
+    expect(row.querySelector('.stock-check-history__store-cell--mobile-only')).toBeInTheDocument();
   });
 
   it('clearing the store selection returns to the all-stores view', async () => {
@@ -188,6 +201,7 @@ describe('SuperAdminStockCheckHistory', () => {
         enteredByName: 'John',
         enteredAt: '2026-09-20T09:00:00Z',
         lastUpdatedByName: 'John',
+        lastUpdatedByAvatarUrl: null,
         lastUpdatedAt: '2026-09-20T09:00:00Z',
         edited: false,
       },
@@ -240,6 +254,7 @@ describe('SuperAdminStockCheckHistory', () => {
           enteredByName: 'John',
           enteredAt: '2026-09-20T09:00:00Z',
           lastUpdatedByName: 'John',
+          lastUpdatedByAvatarUrl: null,
           lastUpdatedAt: '2026-09-20T09:00:00Z',
           edited: false,
         },

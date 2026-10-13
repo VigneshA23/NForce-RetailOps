@@ -1,4 +1,4 @@
-import { Eye, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
 import type { SuperAdminEmployee } from '../types/superAdminEmployee';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
@@ -70,7 +70,6 @@ function SuperAdminEmployeeTable({
                 <td className="employee-cards__stores" data-label="Stores">
                   {/* Mobile-only heading (hidden on desktop via CSS). */}
                   <span className="employee-cards__stores-heading">
-                    <MapPin size={12} aria-hidden="true" />
                     {employee.stores.length === 1
                       ? 'Assigned Store'
                       : `Assigned Stores (${employee.stores.length})`}
@@ -80,7 +79,10 @@ function SuperAdminEmployeeTable({
                   ) : (
                     <div className="employee-table__store-badges">
                       {employee.stores.map((store) => (
-                        <span key={store.id} className="employee-table__store-badge">{store.name}</span>
+                        <span key={store.id} className="employee-table__store-pill">
+                          <StoreIcon size={12} aria-hidden="true" />
+                          {store.name}
+                        </span>
                       ))}
                     </div>
                   )}

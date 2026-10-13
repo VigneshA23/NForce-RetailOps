@@ -505,15 +505,17 @@ public class StockCheckService {
             .sorted(Comparator.comparing(StoreInventoryItem::getName, String.CASE_INSENSITIVE_ORDER))
             .toList();
 
-        // Each item's one active (not yet RECEIVED) Order List entry -- drives
-        // the Ordered status/quantity and the "mark ordered" action, so this
-        // report reflects the Orders page without a trip there.
+        // Each item's active (not yet RECEIVED) Order List entry -- drives the
+        // Ordered status/quantity and the "mark ordered" action, so this report
+        // reflects the Orders page without a trip there. An item can have
+        // several (each requirement is its own row); the Needs Ordering one is
+        // surfaced so there is always something to act on.
         Map<Long, OrderListEntryResponse> activeOrderByItemId = orderListService.listForStore(storeId).stream()
             .filter(entry -> !"RECEIVED".equals(entry.status()))
             .collect(Collectors.toMap(
                 OrderListEntryResponse::storeInventoryItemId,
                 entry -> entry,
-                (a, b) -> a
+                (a, b) -> "NEEDS_ORDERING".equals(b.status()) && !"NEEDS_ORDERING".equals(a.status()) ? b : a
             ));
 
         // Permanent record of orders (kept after Received), so a past day's

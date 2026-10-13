@@ -474,6 +474,7 @@ describe('SuperAdminOrders dashboard sub-tabs', () => {
     // all), unlike the other two tabs above.
     await user.click(screen.getByRole('button', { name: 'Purchasing Report' }));
     expect(await screen.findByText('No purchasing activity found for the selected date range.')).toBeInTheDocument();
+    expect(document.querySelector('.super-admin-orders__eyebrow')).not.toBeInTheDocument();
   });
 
   it('shows nothing on any tab until a store is picked', async () => {

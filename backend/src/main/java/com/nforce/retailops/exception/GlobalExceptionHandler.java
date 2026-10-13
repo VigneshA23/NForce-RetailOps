@@ -216,6 +216,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(SupplierInactiveException.class)
+    public ResponseEntity<Map<String, String>> handleSupplierInactive(SupplierInactiveException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(SupplierNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleSupplierNotFound(SupplierNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));

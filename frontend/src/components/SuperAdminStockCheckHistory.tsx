@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Download, FileSpreadsheet, FileText, Pencil } from 'lucide-react';
+import { ChevronDown, Clock3, Download, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
@@ -8,6 +8,7 @@ import Select from './Select';
 import SearchableSelect from './SearchableSelect';
 import FilterClearButton from './FilterClearButton';
 import ItemIcon from './ItemIcon';
+import UserAvatar from './UserAvatar';
 import ButtonDots from './ButtonDots';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { getAllStores } from '../api/superAdminStores';
@@ -23,6 +24,8 @@ import { buildAndDownloadStockCheckHistoryPdf, buildStockCheckHistoryWorkbook } 
 import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import useDismissablePanel from '../hooks/useDismissablePanel';
+import { getInitials } from '../utils/initials';
+import './StockCheckHistory.css';
 
 const PAGE_SIZE = 10;
 
@@ -300,7 +303,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
 
       {loadError && <div className="stock-check-history__error">{loadError}</div>}
 
-      <div className="filter-bar">
+      <div className="filter-bar super-admin-stock-check-history__filter-bar">
         <div className="filter">
           <SearchableSelect
             id="super-admin-stock-check-store"
@@ -351,7 +354,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
         </button>
       </div>
 
-      <div className="table-card">
+      <div className="table-card stock-check-history-table-card stock-check-history-table-card--with-store">
         <div className="table-scroll">
           <table className="data-table">
             <thead>
@@ -372,28 +375,63 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
                 const countEntered = row.endOfDay?.usable ?? row.startOfDay?.usable ?? null;
                 const defaultSnapshot: StockCheckSnapshotKey = row.endOfDay ? 'END_OF_DAY' : 'START_OF_DAY';
                 return (
-                  <tr key={row.id}>
-                    {showStoreColumn && <td data-label="Store">{row.storeName}</td>}
+                  <tr key={`${row.storeId}-${row.id}`}>
+                    <td
+                      className={showStoreColumn ? undefined : 'stock-check-history__store-cell--mobile-only'}
+                      data-label="Store"
+                    >
+                      <span className="stock-check-history__store-icon" aria-hidden="true">
+                        <StoreIcon size={13} />
+                      </span>
+                      {row.storeName}
+                    </td>
                     <td data-label="Item & Category">
                       <div className="stock-check-history__item-cell">
-                        <ItemIcon id={row.storeInventoryItemId} name={row.itemName} size="sm" />
+                        <ItemIcon id={row.storeInventoryItemId} name={row.itemName} size="md" imageId={row.imageId} />
                         <div>
                           <div className="stock-check-history__item-name">{row.itemName}</div>
-                          {row.category && <div className="stock-check-history__item-category">{categoryLabel(row.category)}</div>}
+                          {row.category && (
+                            <div className="stock-check-history__item-category">{categoryLabel(row.category)}</div>
+                          )}
                         </div>
                       </div>
                     </td>
                     <td data-label="Date & Timestamp">
-                      <div>{formatDateLabel(row.checkDate)}</div>
-                      {recordedAt && <div className="stock-check-history__muted">{formatTimeLabel(recordedAt)}</div>}
+                      <div className="stock-check-history__timestamp">
+                        <Clock3 size={14} aria-hidden="true" />
+                        <span>{formatDateLabel(row.checkDate)}</span>
+                        {recordedAt && (
+                          <>
+                            <span className="stock-check-history__timestamp-separator" aria-hidden="true">·</span>
+                            <span className="stock-check-history__timestamp-time">{formatTimeLabel(recordedAt)}</span>
+                          </>
+                        )}
+                      </div>
                     </td>
                     <td data-label="Count Entered">
-                      {countEntered != null ? `${countEntered} ${row.unitOfMeasurement}` : '—'}
+                      <div className="stock-check-history__metric">
+                        <span className="stock-check-history__metric-label">Count Entered</span>
+                        <span>{countEntered != null ? `${countEntered} ${row.unitOfMeasurement}` : '—'}</span>
+                      </div>
                     </td>
                     <td data-label="Qty Needed (Par Reconciled)">
-                      <QtyNeededBadge row={row} />
+                      <div className="stock-check-history__metric">
+                        <span className="stock-check-history__metric-label">Qty Needed (Par)</span>
+                        <QtyNeededBadge row={row} />
+                      </div>
                     </td>
-                    <td data-label="Recorded By">{recordedBy ?? '—'}</td>
+                    <td data-label="Recorded By">
+                      {recordedBy ? (
+                        <div className="stock-check-history__recorded-by">
+                          <UserAvatar
+                            initials={getInitials(recordedBy)}
+                            src={row.endOfDay?.lastUpdatedByAvatarUrl ?? row.startOfDay?.lastUpdatedByAvatarUrl}
+                            size={36}
+                          />
+                          <span className="stock-check-history__recorder-name">{recordedBy}</span>
+                        </div>
+                      ) : '—'}
+                    </td>
                     <td data-label="Actions" className="table-actions-cell">
                       <div className="table-row-actions">
                         <button

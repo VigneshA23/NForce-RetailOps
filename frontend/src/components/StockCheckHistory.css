@@ -118,44 +118,41 @@
   gap: 8px;
 }
 
-.stock-check-history__avatar {
+.stock-check-history__timestamp {
+  display: block;
+}
+
+.stock-check-history__timestamp svg,
+.stock-check-history__timestamp-separator {
+  display: none;
+}
+
+.stock-check-history__timestamp-time {
+  display: block;
+}
+
+.stock-check-history__store-cell--mobile-only {
+  display: none;
+}
+
+.stock-check-history__metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stock-check-history__metric-label {
+  display: none;
+}
+
+.stock-check-history__store-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.stock-check-history__avatar[data-variant='primary'] {
-  background: var(--color-badge-icon-primary-bg);
-  color: var(--color-badge-icon-primary-fg);
-}
-
-.stock-check-history__avatar[data-variant='success'] {
-  background: var(--color-badge-icon-success-bg);
-  color: var(--color-badge-icon-success-fg);
-}
-
-.stock-check-history__avatar[data-variant='warning'] {
-  background: var(--color-badge-icon-warning-bg);
-  color: var(--color-badge-icon-warning-fg);
-}
-
-.stock-check-history__avatar[data-variant='info'] {
-  background: var(--color-badge-icon-info-bg);
-  color: var(--color-badge-icon-info-fg);
-}
-
-.stock-check-history__avatar[data-variant='purple'] {
-  background: var(--color-badge-icon-purple-bg);
-  color: var(--color-badge-icon-purple-fg);
-}
-
-.stock-check-history__avatar[data-variant='slate'] {
+  border-radius: 6px;
   background: var(--color-badge-icon-slate-bg);
   color: var(--color-badge-icon-slate-fg);
 }
@@ -187,6 +184,25 @@
    an avatar. Boosted specificity (.table-card.stock-check-history-table-card)
    so these win over table.css's generic rules. */
 @media (--mobile) {
+  .super-admin-stock-check-history__filter-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-bottom: 4px;
+  }
+
+  .super-admin-stock-check-history__filter-bar > .filter {
+    flex: 0 0 140px;
+  }
+
+  .super-admin-stock-check-history__filter-bar > .filter--search {
+    flex-basis: 210px;
+  }
+
+  .super-admin-stock-check-history__filter-bar > .filter-bar__clear {
+    flex: 0 0 auto;
+  }
+
   .table-card.stock-check-history-table-card {
     background: transparent;
     border: none;
@@ -203,21 +219,32 @@
 
   .table-card.stock-check-history-table-card .data-table tbody tr {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
-      'item    actions'
-      'date    date'
-      'count   qty'
-      'by      by';
-    row-gap: 8px;
-    column-gap: 12px;
+      'item date'
+      'count qty'
+      'by actions';
+    row-gap: 10px;
+    column-gap: 8px;
     align-items: start;
     margin-bottom: 12px;
     padding: 14px;
     background: var(--color-surface-card);
     border: 1px solid var(--color-border);
-    border-radius: 14px;
+    border-radius: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  }
+  .table-card.stock-check-history-table-card--with-store .data-table tbody tr {
+    grid-template-areas:
+      'store store'
+      'item date'
+      'count qty'
+      'by actions';
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Date & Timestamp'] {
+    justify-self: end;
+    min-width: 0;
   }
 
   .table-card.stock-check-history-table-card .data-table tbody tr:last-child {
@@ -236,32 +263,208 @@
 
   .table-card.stock-check-history-table-card .data-table tbody td[data-label='Item & Category'] {
     grid-area: item;
+    min-width: 0;
+    align-self: center;
+  }
+
+  .stock-check-history__item-cell {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .stock-check-history__item-cell .item-icon--md {
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+
+  .stock-check-history__item-cell > div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .stock-check-history__item-name {
+    min-width: 0;
+    font-size: 16px;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+
+  .stock-check-history__item-category {
+    flex: 0 0 auto;
+    padding: 3px 9px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-pill);
+    background: var(--color-badge-outline-bg);
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Store'] {
+    grid-area: store;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    width: 100%;
+    text-align: left;
+    min-width: 0;
+    margin-bottom: 2px;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid var(--color-border) !important;
+    color: var(--color-text-primary);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .stock-check-history__store-cell--mobile-only {
+    display: flex !important;
+  }
+
+  .stock-check-history__store-icon {
+    width: 22px;
+    height: 22px;
   }
 
   .table-card.stock-check-history-table-card .data-table tbody td[data-label='Date & Timestamp'] {
     grid-area: date;
-    font-size: 12px;
+    align-self: center;
+    justify-self: end;
+    min-width: 0;
+  }
+
+  .stock-check-history__timestamp {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    max-width: 100%;
+    padding: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-bg-page);
     color: var(--color-text-secondary);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .stock-check-history__timestamp svg,
+  .stock-check-history__timestamp-separator {
+    display: inline;
+  }
+
+  .stock-check-history__timestamp-time {
+    display: inline;
+  }
+
+  .stock-check-history__timestamp svg {
+    flex: 0 0 auto;
+    color: var(--color-text-muted);
   }
 
   .table-card.stock-check-history-table-card .data-table tbody td[data-label='Count Entered'] {
     grid-area: count;
-    font-size: 13px;
-    font-weight: 600;
   }
 
   .table-card.stock-check-history-table-card .data-table tbody td[data-label='Qty Needed (Par Reconciled)'] {
     grid-area: qty;
-    justify-self: end;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Count Entered'] .stock-check-history__metric,
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Qty Needed (Par Reconciled)'] .stock-check-history__metric {
+    min-height: 76px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    background: var(--color-surface-card);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Qty Needed (Par Reconciled)'] .stock-check-history__metric {
+    align-items: flex-start;
   }
 
   .table-card.stock-check-history-table-card .data-table tbody td[data-label='Recorded By'] {
     grid-area: by;
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    margin-top: 6px;
+    padding-top: 14px !important;
+  }
+
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Recorded By']::after {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: calc(200% + 8px);
+    border-top: 1px solid var(--color-border);
+    content: '';
+  }
+
+  .stock-check-history__recorded-by {
+    min-width: 0;
+    gap: 10px;
+    color: var(--color-text-primary);
+    font-size: 16px;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .stock-check-history__recorded-by .user-avatar {
+    width: 36px !important;
+    height: 36px !important;
+    flex: 0 0 36px;
   }
 
   .table-card.stock-check-history-table-card .data-table tbody td.table-actions-cell {
     grid-area: actions;
     display: flex;
+    align-items: center;
     justify-content: flex-end;
+    margin-top: 6px;
+    padding-top: 14px !important;
   }
+
+  .stock-check-history__icon-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--color-bg-page);
+  }
+
+  .stock-check-history__metric {
+    width: 100%;
+    min-height: 76px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    background: var(--color-surface-card);
+    color: var(--color-text-primary);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .stock-check-history__metric-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    gap: 8px;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.2;
+    text-transform: uppercase;
+  }
+
 }
