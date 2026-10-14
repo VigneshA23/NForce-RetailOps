@@ -96,18 +96,6 @@ public class EmployeeService {
             .toList();
     }
 
-    private void notifyForStores(User recipient, String category, String title, String message, String linkPath, Collection<Store> stores) {
-        Set<Long> notifiedStoreIds = new HashSet<>();
-        for (Store store : stores) {
-            if (notifiedStoreIds.add(store.getId())) {
-                notificationService.sendForStore(recipient, category, title, message, linkPath, store);
-            }
-        }
-        if (notifiedStoreIds.isEmpty()) {
-            notificationService.send(recipient, category, title, message, linkPath);
-        }
-    }
-
     private String ownerName(Long ownerId) {
         return userRepository.findById(ownerId).map(User::getFullName).orElse("Admin");
     }
@@ -440,13 +428,13 @@ public class EmployeeService {
             sessionService.invalidateAllForUser(employee.getEmail());
         }
 
-        notifyForStores(employee,
+        notificationService.send(employee,
             active ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
             active ? "Your account has been reactivated" : "Your account has been deactivated",
             active
                 ? "Your NForce account has been reactivated by your store admin."
                 : "Your NForce account has been deactivated by your store admin.",
-            active ? "/checklist" : null, storeEmployee.getStores());
+            active ? "/checklist" : null);
 
         activityLogService.logForStores(
             active ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
@@ -514,13 +502,13 @@ public class EmployeeService {
             sessionService.invalidateAllForUser(employee.getEmail());
         }
 
-        notifyForStores(employee,
+        notificationService.send(employee,
             request.active() ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
             request.active() ? "Your account has been reactivated" : "Your account has been deactivated",
             request.active()
                 ? "Your NForce account has been reactivated."
                 : "Your NForce account has been deactivated.",
-            request.active() ? "/checklist" : null, ownedStoresAmong(storeEmployee.getStores(), ownerId));
+            request.active() ? "/checklist" : null);
 
         activityLogService.logForStores(
             request.active() ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", ownerName(ownerId), "OWNER_ADMIN",
