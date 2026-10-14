@@ -219,14 +219,11 @@ public class StockCheck {
         return quantityReceived == null ? BigDecimal.ZERO : quantityReceived;
     }
 
-    // Records a delivery. Before End of Day it only raises the received total
-    // (the current count follows). After End of Day the closing count is also
-    // raised, since it was taken without this delivery; usage is unchanged.
+    // Records a delivery before End of Day: raises the received total only (the
+    // current count follows). Never touches a saved snapshot; deliveries after
+    // End of Day are kept as pending receipts instead (StockReceiptService).
     public void addReceived(BigDecimal quantity) {
         quantityReceived = quantityReceived().add(quantity);
-        if (hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
-            endOfDayAvailable = endOfDayAvailable.add(quantity);
-        }
         refreshCurrentCount();
     }
 
