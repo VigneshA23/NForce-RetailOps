@@ -69,6 +69,14 @@ describe('TaskFormModal Admin store field', () => {
   });
 });
 
+describe('TaskFormModal Response Type default', () => {
+  it('starts unselected with a placeholder instead of defaulting to Yes / No', () => {
+    renderModal();
+
+    expect(screen.getByLabelText(/Response Type/i)).toHaveTextContent('Select…');
+  });
+});
+
 async function selectShortTextResponseType(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByLabelText(/Response Type/i));
   await user.click(screen.getByRole('button', { name: 'Short Text' }));
