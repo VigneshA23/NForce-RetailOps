@@ -144,7 +144,17 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     }
     top = Math.max(VIEWPORT_MARGIN, top);
 
-    let left = triggerRect.right - panelRect.width;
+    // Left-anchored by default (same preference as CalendarPopover), only
+    // flipping to right-align against the trigger when left-aligning would
+    // overflow the viewport's right edge. Right-aligning unconditionally (as
+    // this used to) pushed the panel further left than the trigger itself --
+    // fine near the right edge of the screen, but on a toolbar button sitting
+    // just right of the app's sidebar, a panel wider than the trigger would
+    // extend back underneath the sidebar.
+    let left = triggerRect.left;
+    if (left + panelRect.width > window.innerWidth - VIEWPORT_MARGIN) {
+      left = triggerRect.right - panelRect.width;
+    }
     left = Math.min(left, window.innerWidth - panelRect.width - VIEWPORT_MARGIN);
     left = Math.max(VIEWPORT_MARGIN, left);
 

@@ -14,6 +14,13 @@ import java.util.UUID;
 // stores with different configuration. Created/edited/deleted directly by
 // either Super Admin (any store) or that store's Owner/Admin (their own
 // store only) -- see StoreInventoryItemService.
+//
+// store_inventory_items.auto_po_enabled (V79) is a dead column, same
+// convention as stores.open_time/close_time (V32): the "Auto PO Generator"
+// per-item off-switch it backed was removed as unwanted UI complexity --
+// StockCheckService.syncOrderList now always auto-raises a Needs Ordering
+// entry on a shortfall, unconditionally. Column kept rather than dropped
+// since other branches share this dev database.
 @Entity
 @Table(name = "store_inventory_items")
 public class StoreInventoryItem {
@@ -58,9 +65,6 @@ public class StoreInventoryItem {
 
     @Column(nullable = false)
     private boolean active = true;
-
-    @Column(name = "auto_po_enabled", nullable = false)
-    private boolean autoPoEnabled = true;
 
     // Shared by every store's copy of an item Super Admin created for several
     // stores at once; null otherwise. Copies stay independently editable.
@@ -196,14 +200,6 @@ public class StoreInventoryItem {
 
     public void setActive(boolean active) {
         this.active = active;
-    }
-
-    public boolean isAutoPoEnabled() {
-        return autoPoEnabled;
-    }
-
-    public void setAutoPoEnabled(boolean autoPoEnabled) {
-        this.autoPoEnabled = autoPoEnabled;
     }
 
     public OffsetDateTime getCreatedAt() {

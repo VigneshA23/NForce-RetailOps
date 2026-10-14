@@ -1,6 +1,7 @@
 import { apiRequest } from './client';
 import type {
   CreateOrderListEntryValues,
+  OrderHistoryPage,
   OrderListEntry,
   SupplierPurchaseMetric,
   UpdateOrderListEntryValues,
@@ -43,6 +44,23 @@ export async function createOrderListEntry(values: CreateOrderListEntryValues): 
 export async function getSupplierPurchaseMetrics(fromDate: string, toDate: string): Promise<SupplierPurchaseMetric[]> {
   const params = new URLSearchParams({ fromDate, toDate });
   return apiRequest<SupplierPurchaseMetric[]>(`/stores/order-list/supplier-metrics?${params}`);
+}
+
+// Purchasing Report's Detailed view, scoped server-side to the owner's own
+// store. supplierName/page/size are optional -- omitted params are left off
+// the query string entirely so the server's own defaults apply.
+export async function getOrderHistory(
+  fromDate: string,
+  toDate: string,
+  supplierName?: string,
+  page?: number,
+  size?: number,
+): Promise<OrderHistoryPage> {
+  const params = new URLSearchParams({ fromDate, toDate });
+  if (supplierName) params.set('supplierName', supplierName);
+  if (page !== undefined) params.set('page', String(page));
+  if (size !== undefined) params.set('size', String(size));
+  return apiRequest<OrderHistoryPage>(`/stores/order-list/history?${params}`);
 }
 
 // Needs Ordering -> Ordered, nothing else touched. Used by the EOD report.

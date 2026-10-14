@@ -369,11 +369,24 @@ public class StockCheckService {
         check.recordMidDayCount(request.currentStock(), employee);
         stockCheckRepository.save(check);
 
-        orderListService.upsertReportedShortage(
-            storeItem.getStore(), storeItem, request.quantity(),
+        // The employee no longer types a quantity: what is needed is today's
+        // minimum less what is left. upsertReportedShortage then nets off what
+        // is already on the order list.
+        BigDecimal minimum = storeItem.requiredMinimumOn(LocalDate.now());
+        BigDecimal required = minimum == null
+            ? BigDecimal.ZERO
+            : minimum.subtract(request.currentStock()).max(BigDecimal.ZERO);
+
+        OrderListEntry raised = orderListService.upsertReportedShortage(
+            storeItem.getStore(), storeItem, required,
             request.note(), employee, storeItem.getPreferredSupplier(),
             Boolean.TRUE.equals(request.orderedAlreadyReceived())
         );
+
+        storeOwnerRepository.findByStoreIdAndActiveTrue(storeItem.getStore().getId())
+            .map(StoreOwner::getOwner)
+            .ifPresent(owner -> notificationService.notifyOwnerOfReportedShortage(
+                storeItem, employee, request.currentStock(), required, raised != null, request.note(), owner));
     }
 
     // ---- Owner/Admin: history, correction, EOD report -----------------------
@@ -952,12 +965,6 @@ public class StockCheckService {
     // count (see syncStartOfDayShortage / reconcileStartOfDayShortage).
     private void syncOrderList(StockCheck check, StockCheckSnapshot snapshot, User raisedBy) {
         StoreInventoryItem item = check.getStoreInventoryItem();
-        // The item's own "Auto PO Generator" toggle -- off means the owner
-        // reorders this item manually, so a count never raises or updates an
-        // order list entry for it.
-        if (!item.isAutoPoEnabled()) {
-            return;
-        }
         if (snapshot == StockCheckSnapshot.START_OF_DAY) {
             syncStartOfDayShortage(check, item, raisedBy);
             return;

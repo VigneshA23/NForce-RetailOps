@@ -223,14 +223,51 @@ class StockCheckServiceTest {
 
     @Test
     void midDayShortageBanksUsageSoFarAndRaisesTheOrder() {
+        milk.setMinWeekday(bd(35));
+        milk.setMinWeekend(bd(35));
         StockCheck check = checkWithStartOfDay(50, 2);
 
-        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), bd(15), "rush", null));
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), "rush", null));
 
         // Start usable 48, 20 left now -> 28 used so far; the count follows.
         assertThat(check.midDayUsage()).isEqualByComparingTo(bd(28));
         assertThat(check.getCurrentCount()).isEqualByComparingTo(bd(20));
+        // Required comes from today's minimum (35) less the 20 left, not from the employee.
         verify(orderListService).upsertReportedShortage(eq(store), eq(milk), eq(bd(15)), eq("rush"), eq(employee), any(), eq(false));
+    }
+
+    @Test
+    void midDayShortageNotifiesTheStoreOwner() {
+        milk.setMinWeekday(bd(35));
+        milk.setMinWeekend(bd(35));
+        checkWithStartOfDay(50, 2);
+        StoreOwner activeOwner = new StoreOwner();
+        activeOwner.setOwner(owner);
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(activeOwner));
+        when(orderListService.upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean()))
+            .thenReturn(new OrderListEntry());
+
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), "rush", null));
+
+        verify(notificationService).notifyOwnerOfReportedShortage(
+            eq(milk), eq(employee), eq(bd(20)), eq(bd(15)), eq(true), eq("rush"), eq(owner));
+    }
+
+    @Test
+    void midDayShortageStillNotifiesWhenExistingOrdersAlreadyCoverIt() {
+        milk.setMinWeekday(bd(35));
+        milk.setMinWeekend(bd(35));
+        checkWithStartOfDay(50, 2);
+        StoreOwner activeOwner = new StoreOwner();
+        activeOwner.setOwner(owner);
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(activeOwner));
+        when(orderListService.upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean()))
+            .thenReturn(null);
+
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), null, null));
+
+        verify(notificationService).notifyOwnerOfReportedShortage(
+            eq(milk), eq(employee), eq(bd(20)), eq(bd(15)), eq(false), isNull(), eq(owner));
     }
 
     @Test
@@ -238,7 +275,7 @@ class StockCheckServiceTest {
         milk.setMinWeekday(bd(40));
         milk.setMinWeekend(bd(40));
         StockCheck check = checkWithStartOfDay(50, 2);
-        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), bd(15), null, null));
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), null, null));
 
         // 15 of the 20 were sold after the report, none delivered.
         StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 5, 0));
@@ -250,7 +287,7 @@ class StockCheckServiceTest {
     void deliveryAfterTheMidDayReportIsExcludedFromUsageOnce() {
         StockCheck check = checkWithStartOfDay(50, 0);
         check.addReceived(bd(10));
-        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(30), bd(5), null, null));
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(30), null, null));
         // Expected 60 at the report, 30 left -> 30 used so far.
         assertThat(check.midDayUsage()).isEqualByComparingTo(bd(30));
 
@@ -267,13 +304,13 @@ class StockCheckServiceTest {
     void midDayShortageNeedsStartOfDayAndIsClosedOnceEndOfDayIsSaved() {
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now())).thenReturn(Optional.empty());
         assertThatThrownBy(() -> stockCheckService.reportAdHocShortage(
-            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), bd(5), null, null)))
+            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), null, null)))
             .isInstanceOf(com.nforce.retailops.exception.InventoryItemNotAssignedException.class);
 
         StockCheck check = checkWithStartOfDay(50, 0);
         check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now(), false);
         assertThatThrownBy(() -> stockCheckService.reportAdHocShortage(
-            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), bd(5), null, null)))
+            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), null, null)))
             .isInstanceOf(InvalidStockCheckException.class);
         verify(orderListService, never()).upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean());
     }
@@ -329,7 +366,7 @@ class StockCheckServiceTest {
         assertThat(request.getValue().getOrderListEntry()).isSameAs(order);
         assertThat(request.getValue().getQuantity()).isEqualByComparingTo(bd(12));
         assertThat(order.getStatus()).isEqualTo(OrderStatus.ORDERED);
-        verify(orderListService, never()).confirmReceivedByApproval(any(), any());
+        verify(orderListService, never()).confirmReceivedByApproval(any(), any(), any());
     }
 
     @Test
@@ -654,7 +691,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null
             )
         ));
 
@@ -732,7 +769,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null
             )
         ));
 
@@ -759,7 +796,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null
             )
         ));
     }
@@ -854,19 +891,6 @@ class StockCheckServiceTest {
         stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 8, 0));
 
         verify(orderListService).reconcileStartOfDayShortage(eq(store), eq(milk), eq(bd(0)), eq(employee), isNull());
-    }
-
-    @Test
-    void startOfDayDoesNotRaiseAnOrderWhenAutoPoIsOff() {
-        milk.setMinWeekday(bd(8));
-        milk.setMinWeekend(bd(8));
-        milk.setAutoPoEnabled(false);
-        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
-            .thenReturn(Optional.empty());
-
-        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 2, 0));
-
-        verifyNoInteractions(orderListService);
     }
 
     @Test

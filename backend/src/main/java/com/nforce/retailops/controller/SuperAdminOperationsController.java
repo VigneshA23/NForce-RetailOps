@@ -1,6 +1,7 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
+import com.nforce.retailops.dto.OrderHistoryPageResponse;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
@@ -72,6 +73,22 @@ public class SuperAdminOperationsController {
     @GetMapping("/stores/{storeId}/order-list")
     public List<OrderListEntryResponse> getOrderListForStore(@PathVariable Long storeId) {
         return service.getOrderListForStore(storeId);
+    }
+
+    // Purchasing Report's Detailed view, Super Admin's drill-down from either
+    // the platform-wide supplier-metrics below or the Order List page's own
+    // "View Details" -- one store's Ordered/Received lines, optionally
+    // narrowed to one supplier.
+    @GetMapping("/stores/{storeId}/order-list/history")
+    public OrderHistoryPageResponse getOrderHistoryForStore(
+        @PathVariable Long storeId,
+        @RequestParam(required = false) LocalDate fromDate,
+        @RequestParam(required = false) LocalDate toDate,
+        @RequestParam(required = false) String supplierName,
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size
+    ) {
+        return service.getOrderHistoryForStore(storeId, fromDate, toDate, supplierName, page, size);
     }
 
     @PatchMapping("/stores/{storeId}/order-list/{entryId}/status")

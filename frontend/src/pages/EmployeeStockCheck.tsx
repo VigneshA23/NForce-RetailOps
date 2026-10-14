@@ -217,7 +217,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
         store.id,
         values.storeInventoryItemId,
         Number(values.currentStock),
-        Number(values.quantity),
         values.note,
         values.orderedAlreadyReceived,
       );
@@ -250,6 +249,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
           unitOfMeasurement: i.unitOfMeasurement,
           active: true,
           currentStock: i.currentStock,
+          openOrders: i.openOrders,
         })),
     [items],
   );

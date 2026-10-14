@@ -42,8 +42,10 @@ public class StoreController {
 
     // Read-only supplier directory, so an owner can pick a preferred/order
     // supplier without needing Super Admin's supplier-management access --
-    // excludes whatever this owner's own store has hidden (see hideSupplier
-    // below), but otherwise the same global list Super Admin manages.
+    // scoped to suppliers actually assigned to this store (appliesToAllStores,
+    // or this store in Super Admin's per-supplier assignment list), minus
+    // whatever this owner's own store has separately hidden (see hideSupplier
+    // below). Not the full global list Super Admin manages.
     @GetMapping("/suppliers")
     public ResponseEntity<List<SupplierResponse>> listSuppliers(@AuthenticationPrincipal AppUserDetails principal) {
         return ResponseEntity.ok(supplierService.listSuppliersForStore(principal.getUser().getId()));

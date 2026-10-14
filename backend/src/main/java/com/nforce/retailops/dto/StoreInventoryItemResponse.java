@@ -20,7 +20,6 @@ public record StoreInventoryItemResponse(
     String preferredSupplierName,
     String note,
     boolean active,
-    boolean autoPoEnabled,
     // Today's minimum (weekday or weekend, per requiredMinimumOn).
     BigDecimal requiredToday,
     // The count from today's employee stock check; null until one is submitted.
@@ -43,7 +42,6 @@ public record StoreInventoryItemResponse(
             sii.getPreferredSupplier() != null ? sii.getPreferredSupplier().getName() : null,
             sii.getNote(),
             sii.isActive(),
-            sii.isAutoPoEnabled(),
             sii.requiredMinimumOn(today),
             currentAvailable,
             sii.getImageId()

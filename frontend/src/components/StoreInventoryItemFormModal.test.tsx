@@ -112,7 +112,6 @@ describe('StoreInventoryItemFormModal', () => {
           minWeekend: '',
           preferredSupplierId: 1,
           note: '',
-          autoPoEnabled: true,
           imageId: null,
           imagePhotoId: null,
           imagePreviewUrl: null,
@@ -201,6 +200,35 @@ describe('StoreInventoryItemFormModal', () => {
     await user.click(screen.getByRole('option', { name: 'No preferred supplier' }));
 
     expect(supplierInput).toHaveValue('No preferred supplier');
+  });
+
+  // Editing an existing item that already has no supplier is a different
+  // case from a brand-new item's untouched field above: the item's current,
+  // already-saved answer IS "no preferred supplier", so the field should
+  // read as that answer immediately rather than the ambiguous blank/
+  // placeholder state a never-touched field shows.
+  it('shows "No preferred supplier" immediately when editing an existing item that already has none', () => {
+    render(
+      <Harness
+        onSubmit={vi.fn()}
+        initialValues={{
+          storeId: null,
+          name: 'Dev test EOD1',
+          category: 'INGREDIENTS',
+          unitOfMeasurement: 'Nos.',
+          minWeekday: '5',
+          minWeekend: '8',
+          preferredSupplierId: null,
+          note: '',
+          imageId: null,
+          imagePhotoId: null,
+          imagePreviewUrl: null,
+          removeImage: false,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('combobox', { name: 'Preferred supplier' })).toHaveValue('No preferred supplier');
   });
 
   it('invites selecting only (no "add") when onCreateSupplier is omitted, selecting otherwise', async () => {
@@ -301,7 +329,6 @@ const EMPTY: StoreInventoryItemFormValues = {
   minWeekend: '',
   preferredSupplierId: null,
   note: '',
-  autoPoEnabled: true,
   imageId: null,
   imagePhotoId: null,
   imagePreviewUrl: null,

@@ -119,7 +119,6 @@ function inventoryItem(overrides: Partial<StoreInventoryItem> = {}): StoreInvent
     preferredSupplierName: null,
     note: null,
     active: true,
-    autoPoEnabled: true,
     requiredToday: 5,
     currentAvailable: 10,
     imageId: null,
@@ -164,7 +163,7 @@ describe('SuperAdminOrders', () => {
   it('shows Received entries once the Received filter tile is picked -- this is the history view', async () => {
     mockGetOrderListForStore.mockResolvedValue([
       entry({ id: 1, itemName: 'Milk', status: 'NEEDS_ORDERING' }),
-      entry({ id: 2, itemName: 'Bread', status: 'RECEIVED' }),
+      entry({ id: 2, itemName: 'Bread', status: 'RECEIVED', receivedAt: new Date().toISOString() }),
     ]);
 
     render(<SuperAdminOrders />);
@@ -175,7 +174,7 @@ describe('SuperAdminOrders', () => {
     // Switch to the flat list so an empty (and therefore collapsed-by-default)
     // supplier group can't hide the row this test is checking for.
     await userEvent.click(screen.getByRole('button', { name: 'List' }));
-    await userEvent.click(screen.getByText('Received'));
+    await userEvent.click(screen.getByText('Received Today'));
 
     expect(await screen.findByText('Bread')).toBeInTheDocument();
     expect(screen.queryByText('Milk')).not.toBeInTheDocument();
@@ -231,7 +230,7 @@ describe('SuperAdminOrders', () => {
 
   it('lets a store with nothing outstanding still be selected to view its history', async () => {
     mockGetAllStores.mockResolvedValue([store({ storeId: 20, storeName: 'Uptown' })]);
-    mockGetOrderListForStore.mockResolvedValue([entry({ itemName: 'Eggs', status: 'RECEIVED' })]);
+    mockGetOrderListForStore.mockResolvedValue([entry({ itemName: 'Eggs', status: 'RECEIVED', receivedAt: new Date().toISOString() })]);
 
     render(<SuperAdminOrders />);
 
@@ -242,7 +241,7 @@ describe('SuperAdminOrders', () => {
     // Switch to the flat list so an empty (and therefore collapsed-by-default)
     // supplier group can't hide the row this test is checking for.
     await userEvent.click(await screen.findByRole('button', { name: 'List' }));
-    await userEvent.click(screen.getByText('Received'));
+    await userEvent.click(screen.getByText('Received Today'));
     expect(await screen.findByText('Eggs')).toBeInTheDocument();
   });
 });

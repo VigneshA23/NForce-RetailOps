@@ -332,7 +332,8 @@ class OrderListControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].supplierName").value("Supplier Metrics A"))
             .andExpect(jsonPath("$[0].orderEntryCount").value(2))
-            .andExpect(jsonPath("$[0].totalQuantity").value(12));
+            .andExpect(jsonPath("$[0].totalQuantity").value(12))
+            .andExpect(jsonPath("$[0].receivedCount").value(1));
     }
 
     @Test
@@ -403,6 +404,111 @@ class OrderListControllerTest {
         String token = login("ord-spm-emp-f@nforce.test");
 
         mockMvc.perform(get("/api/stores/order-list/supplier-metrics")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isForbidden());
+    }
+
+    // ---- Order History (Purchasing Report's Detailed view) ------------------
+
+    @Test
+    @Transactional
+    void historyReturnsOnlyOrderedAndReceivedEntriesWithTheirOrderedAndReceivedAttribution() throws Exception {
+        User owner = user("ord-hist-owner-a@nforce.test", "OWNER_ADMIN", "Owner History A");
+        Store store = store("Store History A", 8220L);
+        linkOwnerToStore(owner, store);
+        Supplier supplierA = supplier("Supplier History A");
+
+        OrderListEntry needsOrdering = orderEntry(store, OrderStatus.NEEDS_ORDERING, supplierA, 3);
+        orderEntry(store, OrderStatus.ORDERED, supplierA, 5);
+
+        String token = login("ord-hist-owner-a@nforce.test");
+
+        // Moves one entry to Ordered then Received through the real endpoints,
+        // so orderedAt/orderedByName/receivedAt/receivedByName are stamped by
+        // the actual code path under test, not hand-set on the entity.
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                "/api/stores/order-list/" + needsOrdering.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "quantityNeeded", 3, "supplierId", supplierA.getId(), "status", "ORDERED"))))
+            .andExpect(status().isOk());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
+                "/api/stores/order-list/" + needsOrdering.getId())
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "quantityNeeded", 3, "supplierId", supplierA.getId(), "status", "RECEIVED"))))
+            .andExpect(status().isOk());
+
+        String json = mockMvc.perform(get("/api/stores/order-list/history")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements").value(2))
+            .andExpect(jsonPath("$.awaitingReceiptCount").value(1))
+            .andExpect(jsonPath("$.receivedCount").value(1))
+            .andReturn().getResponse().getContentAsString();
+
+        JsonNode receivedRow = null;
+        for (JsonNode row : objectMapper.readTree(json).get("rows")) {
+            if (row.get("status").asText().equals("RECEIVED")) receivedRow = row;
+        }
+        assertThat(receivedRow).isNotNull();
+        assertThat(receivedRow.get("orderedByName").asText()).isEqualTo("Owner History A");
+        assertThat(receivedRow.get("receivedByName").asText()).isEqualTo("Owner History A");
+        assertThat(receivedRow.get("receivedAt").isNull()).isFalse();
+    }
+
+    @Test
+    @Transactional
+    void historyFiltersBySupplierName() throws Exception {
+        User owner = user("ord-hist-owner-b@nforce.test", "OWNER_ADMIN", "Owner History B");
+        Store store = store("Store History B", 8221L);
+        linkOwnerToStore(owner, store);
+        Supplier supplierA = supplier("Supplier History B1");
+        Supplier supplierB = supplier("Supplier History B2");
+
+        orderEntry(store, OrderStatus.ORDERED, supplierA, 4);
+        orderEntry(store, OrderStatus.ORDERED, supplierB, 6);
+
+        String token = login("ord-hist-owner-b@nforce.test");
+
+        mockMvc.perform(get("/api/stores/order-list/history")
+                .param("fromDate", LocalDate.now().minusDays(1).toString())
+                .param("toDate", LocalDate.now().toString())
+                .param("supplierName", "Supplier History B1")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements").value(1))
+            .andExpect(jsonPath("$.rows[0].supplierName").value("Supplier History B1"));
+    }
+
+    @Test
+    @Transactional
+    void historyRejectsAnInvertedDateRange() throws Exception {
+        User owner = user("ord-hist-owner-c@nforce.test", "OWNER_ADMIN", "Owner History C");
+        linkOwnerToStore(owner, store("Store History C", 8222L));
+
+        String token = login("ord-hist-owner-c@nforce.test");
+
+        mockMvc.perform(get("/api/stores/order-list/history")
+                .param("fromDate", LocalDate.now().toString())
+                .param("toDate", LocalDate.now().minusDays(1).toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @Transactional
+    void historyRejectsAnEmployee() throws Exception {
+        user("ord-hist-emp-d@nforce.test", "EMPLOYEE", "Employee History D");
+        String token = login("ord-hist-emp-d@nforce.test");
+
+        mockMvc.perform(get("/api/stores/order-list/history")
                 .param("fromDate", LocalDate.now().minusDays(1).toString())
                 .param("toDate", LocalDate.now().toString())
                 .header("Authorization", "Bearer " + token))

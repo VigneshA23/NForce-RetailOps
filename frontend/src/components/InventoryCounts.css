@@ -17,6 +17,23 @@
   margin-bottom: 0;
 }
 
+/* This filter row has three real controls (search, category, level) -- the
+   shared .filter--search/.filter split (styles/filters.css, tuned for
+   simpler bars with fewer filters) gave search too much of the row at
+   tablet widths, squeezing Category/Level below the width their longest
+   option ("Not updated today") needs and truncating them. Narrowed here
+   instead of in the shared file so other filter bars elsewhere keep their
+   own split. Shared by Owner/Admin and Super Admin (both render this same
+   className, see InventoryCounts.tsx / SuperAdminInventoryCounts.tsx). */
+.inventory-counts__filter-bar .filter--search {
+  flex: 1 1 25%;
+}
+
+.inventory-counts__filter-bar .inventory-counts__filter {
+  flex: 0 1 160px;
+  min-width: 140px;
+}
+
 .inventory-counts__error {
   display: flex;
   align-items: center;

@@ -3,12 +3,10 @@ package com.nforce.retailops.service;
 import static com.nforce.retailops.TestDecimals.bd;
 
 import com.nforce.retailops.entity.StockCheck;
-import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.StockCheckReceipt;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.repository.StockCheckCorrectionRepository;
 import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import org.junit.jupiter.api.Test;
@@ -40,7 +38,6 @@ class StockReceiptServiceTest {
     private static final Long ITEM_ID = 20L;
 
     @Mock private StockCheckRepository stockCheckRepository;
-    @Mock private StockCheckCorrectionRepository stockCheckCorrectionRepository;
     @Mock private StockCheckReceiptRepository stockCheckReceiptRepository;
 
     @InjectMocks
@@ -97,46 +94,23 @@ class StockReceiptServiceTest {
     }
 
     @Test
-    void addsToEndOfDayWhenTakenAndRecomputesTomorrowsOrderQuantity() {
+    void leavesSubmittedEndOfDayUntouchedAndRecordsPendingReceipt() {
         StoreInventoryItem item = item("10");
         User user = new User();
         StockCheck check = check(item, user);
         check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(20), bd(0), user, OffsetDateTime.now(), false);
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(4), bd(0), user, OffsetDateTime.now(), false);
-        check.setQuantityNeeded(bd(6));
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(0), bd(0), user, OffsetDateTime.now(), false);
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now())).thenReturn(Optional.of(check));
-        when(stockCheckRepository.save(any(StockCheck.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        StockReceiptService.Result result = stockReceiptService.applyReceipt(item, bd(4), user, null);
+        StockReceiptService.Result result = stockReceiptService.applyReceipt(item, bd(25), user, null);
 
         assertThat(check.getStartOfDayAvailable()).isEqualByComparingTo(bd(20));
-        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(8));
-        assertThat(check.getQuantityReceived()).isEqualByComparingTo(bd(4));
-        assertThat(check.stockUsed()).isEqualByComparingTo(bd(16));
-        assertThat(check.getQuantityNeeded()).isEqualByComparingTo(bd(2));
-        assertThat(result.reorderQuantity()).isEqualByComparingTo(bd(2));
-    }
-
-    @Test
-    void recordsAnEndOfDayCorrectionWithTheReceivedReason() {
-        StoreInventoryItem item = item("10");
-        User user = new User();
-        StockCheck check = check(item, user);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(8), bd(0), user, OffsetDateTime.now(), false);
-        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(3), bd(0), user, OffsetDateTime.now(), false);
-        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now())).thenReturn(Optional.of(check));
-        when(stockCheckRepository.save(any(StockCheck.class))).thenAnswer(inv -> inv.getArgument(0));
-
-        stockReceiptService.applyReceipt(item, bd(6), user, null);
-
-        ArgumentCaptor<StockCheckCorrection> captor = ArgumentCaptor.forClass(StockCheckCorrection.class);
-        verify(stockCheckCorrectionRepository).save(captor.capture());
-        StockCheckCorrection correction = captor.getValue();
-        assertThat(correction.getSnapshot()).isEqualTo(StockCheckSnapshot.END_OF_DAY);
-        assertThat(correction.getOriginalCount()).isEqualByComparingTo(bd(3));
-        assertThat(correction.getCorrectedCount()).isEqualByComparingTo(bd(9));
-        assertThat(correction.getCorrectedByUser()).isSameAs(user);
-        assertThat(correction.getReason()).isEqualTo(StockReceiptService.CORRECTION_REASON);
+        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(0));
+        assertThat(check.getQuantityReceived()).isEqualByComparingTo(bd(0));
+        assertThat(check.stockUsed()).isEqualByComparingTo(bd(20));
+        verify(stockCheckRepository, never()).save(any());
+        assertThat(result.currentStock()).isEqualByComparingTo(bd(25));
+        assertThat(result.reorderQuantity()).isEqualByComparingTo(bd(0));
     }
 
     @Test
@@ -149,7 +123,6 @@ class StockReceiptServiceTest {
         when(stockCheckRepository.save(any(StockCheck.class))).thenAnswer(inv -> inv.getArgument(0));
 
         stockReceiptService.applyReceipt(item, bd(10), user, null);
-        verify(stockCheckCorrectionRepository, never()).save(any());
         check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(12), bd(0), user, OffsetDateTime.now(), false);
 
         assertThat(check.stockUsed()).isEqualByComparingTo(bd(3));
@@ -167,7 +140,6 @@ class StockReceiptServiceTest {
         assertThat(result.currentStock()).isNull();
         assertThat(result.requiredToday()).isEqualByComparingTo(bd(10));
         verify(stockCheckRepository, never()).save(any());
-        verify(stockCheckCorrectionRepository, never()).save(any());
     }
 
     @Test

@@ -2,6 +2,8 @@ package com.nforce.retailops.service;
 
 import static com.nforce.retailops.TestDecimals.bd;
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
+import com.nforce.retailops.dto.OrderHistoryEntryResponse;
+import com.nforce.retailops.dto.OrderHistoryPageResponse;
 import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
 import com.nforce.retailops.entity.OrderListEntry;
@@ -378,6 +380,7 @@ class OrderListServiceTest {
     @Test
     void markOrderedIsAllowedAgainOnceTodaysEndOfDayIsSaved() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
         OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -436,6 +439,7 @@ class OrderListServiceTest {
     @Test
     void updateEntryAllowsTheSingleLegalForwardStep() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
         OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -449,6 +453,7 @@ class OrderListServiceTest {
     @Test
     void markOrderedMovesNeedsOrderingToOrderedAndRecordsWhenWithoutTouchingTheRest() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
         OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
         entry.setNote("urgent");
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
@@ -557,6 +562,7 @@ class OrderListServiceTest {
     @Test
     void receivingBothOrdersClosesTheOtherRowWithoutASecondStockUpdate() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
         OrderListEntry lead = entryWithStatus(OrderStatus.ORDERED);
         OrderListEntry other = entryWithStatus(OrderStatus.ORDERED);
         ReflectionTestUtils.setField(other, "id", 56L);
@@ -576,6 +582,7 @@ class OrderListServiceTest {
     @Test
     void receivingTogetherRejectsAnOtherRowThatIsNotOrdered() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
         OrderListEntry lead = entryWithStatus(OrderStatus.ORDERED);
         OrderListEntry other = entryWithStatus(OrderStatus.NEEDS_ORDERING);
         ReflectionTestUtils.setField(other, "id", 56L);
@@ -592,6 +599,7 @@ class OrderListServiceTest {
     @Test
     void markingReceivedWithALowerQuantityUpdatesStockButRaisesNothingAutomatically() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
         OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -608,25 +616,9 @@ class OrderListServiceTest {
     }
 
     @Test
-    void markingReceivedDoesNotRaiseANewOrderWhenAutoPoIsOff() {
-        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
-        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
-        entry.getStoreInventoryItem().setAutoPoEnabled(false);
-        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
-        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(stockReceiptService.applyReceipt(any(), any(), any(), any()))
-            .thenReturn(new StockReceiptService.Result(true, bd(6), bd(10), bd(4)));
-
-        OrderListEntryResponse response = orderListService.updateEntry(OWNER_ID, ENTRY_ID,
-            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED, null, bd(3)));
-
-        assertThat(response.receipt().shortfall()).isEqualByComparingTo(bd(4));
-        verify(orderListEntryRepository, times(1)).save(any(OrderListEntry.class));
-    }
-
-    @Test
     void markingReceivedWithNoStockCountTodayReportsStockNotUpdated() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
         OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -644,6 +636,7 @@ class OrderListServiceTest {
     @Test
     void movingToOrderedNeverTouchesStock() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
         OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -714,6 +707,7 @@ class OrderListServiceTest {
     @Test
     void superAdminUpdateIsRejectedWhenOwnerAlreadyMovedTheEntry() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
         OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
         when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -869,7 +863,7 @@ class OrderListServiceTest {
     void getSupplierMetricsForOwnerDerivesTheStoreFromTheCallersOwnStoreOwnerLinkNotAParameter() {
         Store store = store();
         stubActiveStoreOwner(store);
-        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any()))
             .thenReturn(List.of());
 
         orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
@@ -877,16 +871,16 @@ class OrderListServiceTest {
         // The only store ID ever reaches the repository via the owner's own
         // link (stubActiveStoreOwner) -- there is no storeId parameter on the
         // service method for a caller to override.
-        verify(orderListEntryRepository).findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any());
+        verify(orderListEntryRepository).findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any());
     }
 
     @Test
     void getSupplierMetricsForOwnerMapsRowsAndSortsSupplierNamesCaseInsensitively() {
         stubActiveStoreOwner(store());
-        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any()))
             .thenReturn(List.of(
-                new Object[]{2L, "fresh foods", 3L, 17L},
-                new Object[]{1L, "Acme Supplies", 8L, 42L}
+                new Object[]{2L, "fresh foods", 3L, 17L, 1L},
+                new Object[]{1L, "Acme Supplies", 8L, 42L, 5L}
             ));
 
         List<SupplierPurchaseMetricResponse> result = orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
@@ -895,13 +889,15 @@ class OrderListServiceTest {
             .containsExactly("Acme Supplies", "fresh foods");
         assertThat(result.get(0).orderEntryCount()).isEqualTo(8L);
         assertThat(result.get(0).totalQuantity()).isEqualByComparingTo(bd(42));
+        assertThat(result.get(0).receivedCount()).isEqualTo(5L);
+        assertThat(result.get(1).receivedCount()).isEqualTo(1L);
     }
 
     @Test
     void getSupplierMetricsForOwnerLabelsANullSupplierAsNoSupplier() {
         stubActiveStoreOwner(store());
-        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
-            .thenReturn(List.<Object[]>of(new Object[]{null, null, 1L, 9L}));
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any()))
+            .thenReturn(List.<Object[]>of(new Object[]{null, null, 1L, 9L, 0L}));
 
         List<SupplierPurchaseMetricResponse> result = orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
 
@@ -911,7 +907,7 @@ class OrderListServiceTest {
     @Test
     void getSupplierMetricsForOwnerReturnsAnEmptyListWhenNothingQualifies() {
         stubActiveStoreOwner(store());
-        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any()))
             .thenReturn(List.of());
 
         List<SupplierPurchaseMetricResponse> result = orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
@@ -925,7 +921,7 @@ class OrderListServiceTest {
 
         assertThatThrownBy(() -> orderListService.getSupplierMetricsForOwner(OWNER_ID, TO_DATE, FROM_DATE))
             .isInstanceOf(InvalidDateRangeException.class);
-        verify(orderListEntryRepository, never()).findSupplierMetricsForStore(any(), any(), any(), any());
+        verify(orderListEntryRepository, never()).findSupplierMetricsForStore(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -942,6 +938,119 @@ class OrderListServiceTest {
 
         assertThatThrownBy(() -> orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE))
             .isInstanceOf(StoreNotFoundException.class);
+    }
+
+    // ---- getOrderHistoryForOwner (Purchasing Report's Detailed view) --------
+
+    private OrderListEntry historyEntry(OrderStatus status, String supplierName, LocalDate createdOn) {
+        OrderListEntry entry = new OrderListEntry();
+        entry.setStore(store());
+        entry.setStoreInventoryItem(item());
+        entry.setStatus(status);
+        entry.setQuantityNeeded(bd(5));
+        if (supplierName != null) {
+            com.nforce.retailops.entity.Supplier supplier = new com.nforce.retailops.entity.Supplier();
+            ReflectionTestUtils.setField(supplier, "id", 9L);
+            supplier.setName(supplierName);
+            entry.setSupplier(supplier);
+        }
+        entry.setOrderedAt(OrderListService.rangeStart(createdOn));
+        if (status == OrderStatus.RECEIVED) {
+            entry.setQuantityReceived(bd(5));
+            entry.setReceivedAt(OrderListService.rangeStart(createdOn).plusHours(2));
+            entry.setReceivedByName("Olivia");
+        }
+        return entry;
+    }
+
+    @Test
+    void getOrderHistoryForOwnerDerivesTheStoreFromTheCallersOwnStoreOwnerLinkNotAParameter() {
+        stubActiveStoreOwner(store());
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+            eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(List.of());
+
+        orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, null, null, null);
+
+        verify(orderListEntryRepository).findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+            eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any());
+    }
+
+    @Test
+    void getOrderHistoryForOwnerMapsEntriesAndComputesAwaitingAndReceivedCounts() {
+        stubActiveStoreOwner(store());
+        OrderListEntry ordered = historyEntry(OrderStatus.ORDERED, "Metro Wholesale", FROM_DATE);
+        OrderListEntry received = historyEntry(OrderStatus.RECEIVED, "Metro Wholesale", FROM_DATE);
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+            eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(List.of(ordered, received));
+
+        OrderHistoryPageResponse page = orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, null, null, null);
+
+        assertThat(page.totalElements()).isEqualTo(2);
+        assertThat(page.awaitingReceiptCount()).isEqualTo(1);
+        assertThat(page.receivedCount()).isEqualTo(1);
+        assertThat(page.rows()).extracting(OrderHistoryEntryResponse::status)
+            .containsExactlyInAnyOrder("ORDERED", "RECEIVED");
+        OrderHistoryEntryResponse receivedRow = page.rows().stream()
+            .filter(r -> r.status().equals("RECEIVED")).findFirst().orElseThrow();
+        assertThat(receivedRow.receivedByName()).isEqualTo("Olivia");
+        assertThat(receivedRow.receivedAt()).isNotNull();
+        assertThat(receivedRow.quantityReceived()).isEqualByComparingTo(bd(5));
+    }
+
+    @Test
+    void getOrderHistoryForOwnerFiltersBySupplierNameCaseInsensitively() {
+        stubActiveStoreOwner(store());
+        OrderListEntry metro = historyEntry(OrderStatus.ORDERED, "Metro Wholesale", FROM_DATE);
+        OrderListEntry costco = historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE);
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+            eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(List.of(metro, costco));
+
+        OrderHistoryPageResponse page = orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, "metro wholesale", null, null);
+
+        assertThat(page.rows()).hasSize(1);
+        assertThat(page.rows().get(0).supplierName()).isEqualTo("Metro Wholesale");
+    }
+
+    @Test
+    void getOrderHistoryForOwnerFiltersByTheNoSupplierSentinel() {
+        stubActiveStoreOwner(store());
+        OrderListEntry noSupplier = historyEntry(OrderStatus.ORDERED, null, FROM_DATE);
+        OrderListEntry withSupplier = historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE);
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+            eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(List.of(noSupplier, withSupplier));
+
+        OrderHistoryPageResponse page = orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, "No Supplier", null, null);
+
+        assertThat(page.rows()).hasSize(1);
+        assertThat(page.rows().get(0).supplierName()).isEqualTo("No Supplier");
+    }
+
+    @Test
+    void getOrderHistoryForOwnerPaginatesResults() {
+        stubActiveStoreOwner(store());
+        List<OrderListEntry> entries = List.of(
+            historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE),
+            historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE),
+            historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE));
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+            eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(entries);
+
+        OrderHistoryPageResponse page = orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, null, 2, 2);
+
+        assertThat(page.page()).isEqualTo(2);
+        assertThat(page.totalPages()).isEqualTo(2);
+        assertThat(page.totalElements()).isEqualTo(3);
+        assertThat(page.rows()).hasSize(1);
+    }
+
+    @Test
+    void getOrderHistoryForOwnerRejectsAnInvertedDateRange() {
+        stubActiveStoreOwner(store());
+
+        assertThatThrownBy(() -> orderListService.getOrderHistoryForOwner(OWNER_ID, TO_DATE, FROM_DATE, null, null, null))
+            .isInstanceOf(InvalidDateRangeException.class);
+        verify(orderListEntryRepository, never())
+            .findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(any(), any(), any(), any());
     }
 
     // ---- listForStore / updateStatusForSuperAdmin (Super Admin, cross-store) ----

@@ -7,14 +7,16 @@ import { getSuppliers } from '../api/suppliers';
 import {
   createSuperAdminOrderListEntry,
   getOrderListForStore,
+  getSuperAdminInventoryCounts,
   updateSuperAdminOrderStatus,
 } from '../api/superAdminOperations';
-import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
+import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
-import type { InventoryItemCategory } from '../types/storeInventory';
+import type { InventoryCountRow, InventoryItemCategory } from '../types/storeInventory';
 import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
+import { isToday } from '../utils/checklistHistoryOptions';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
 import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
 import SuperAdminInventoryCounts from '../components/SuperAdminInventoryCounts';
@@ -26,6 +28,7 @@ import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
 import ChangeOrderStatusModal from '../components/ChangeOrderStatusModal';
 import { roundQty } from '../utils/quantity';
+import { describeStockUpdate } from '../utils/stockUpdateStatus';
 import { describeReceipt } from '../utils/orderReceipt';
 import BulkChangeOrderStatusModal, { type BulkStatusChangeItem } from '../components/BulkChangeOrderStatusModal';
 import SearchableSelect from '../components/SearchableSelect';
@@ -44,7 +47,7 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'OPEN', label: 'All open' },
   { value: 'NEEDS_ORDERING', label: 'Needs ordering' },
   { value: 'ORDERED', label: 'Ordered' },
-  { value: 'RECEIVED', label: 'Received' },
+  { value: 'RECEIVED', label: 'Received Today' },
 ];
 
 type SubTab = 'orders' | 'counts' | 'eod-report' | 'purchasing-report';
@@ -100,6 +103,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const [entries, setEntries] = useState<OrderListEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [entriesError, setEntriesError] = useState<string | null>(null);
+  const [countsByItemId, setCountsByItemId] = useState<Map<number, InventoryCountRow>>(new Map());
 
   // Set when a status change is rejected because the Owner/Admin already
   // updated the entry (HTTP 409) -- drives OrderAlreadyUpdatedModal.
@@ -161,7 +165,19 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusStore]);
 
+  function loadCounts() {
+    if (selectedStoreId === null) {
+      setCountsByItemId(new Map());
+      return;
+    }
+    const storeId = selectedStoreId;
+    getSuperAdminInventoryCounts(storeId, { size: 500 })
+      .then((page) => setCountsByItemId(new Map(page.rows.map((row) => [row.itemId, row]))))
+      .catch(() => {});
+  }
+
   function loadEntries() {
+    loadCounts();
     if (selectedStoreId === null) {
       setEntries([]);
       return;
@@ -229,6 +245,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   function refreshAfterReceipt() {
     if (selectedStoreId === null) return;
     getOrderListForStore(selectedStoreId).then(setEntries).catch(() => {});
+    loadCounts();
   }
 
   async function handleStatusChange(entry: OrderListEntry, nextStatus: OrderStatus, quantityReceived?: number) {
@@ -342,17 +359,43 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     () => storeInventoryItems.map((i) => ({ id: i.id, name: i.name, unitOfMeasurement: i.unitOfMeasurement, preferredSupplierId: i.preferredSupplierId })),
     [storeInventoryItems],
   );
+  // Same source as Owner/Admin's order list (the Inventory Counts endpoint):
+  // latest known stock even when today has no count yet, plus who last
+  // updated it and when. The catalog's today-only currentAvailable is just a
+  // fallback while this loads.
   const stockByItemId = useMemo(
-    () => new Map(storeInventoryItems.map((i) => [i.id, { current: i.currentAvailable, minimum: i.requiredToday }])),
-    [storeInventoryItems],
+    () =>
+      new Map(
+        storeInventoryItems.map((i) => {
+          const counted = countsByItemId.get(i.id);
+          return [
+            i.id,
+            {
+              current: counted ? counted.currentStock : i.currentAvailable,
+              minimum: counted ? counted.minimum : i.requiredToday,
+              lastUpdatedAt: counted?.lastUpdatedAt ?? null,
+              lastUpdatedByName: counted?.lastUpdatedByName ?? null,
+            },
+          ] as const;
+        }),
+      ),
+    [storeInventoryItems, countsByItemId],
   );
   const categoryByItemId = useMemo(
     () => new Map(storeInventoryItems.map((i) => [i.id, i.category])),
     [storeInventoryItems],
   );
 
-  const matchesStatusFilter = (entry: OrderListEntry) =>
-    statusFilter === 'OPEN' ? entry.status !== 'RECEIVED' : entry.status === statusFilter;
+  // RECEIVED is additionally narrowed to today's receipts -- order list rows
+  // are never deleted, so without this the tile would accumulate every
+  // delivery ever received rather than showing what still needs reviewing
+  // today. receivedAt (not updatedAt) is the signal: updatedAt also changes
+  // on a plain edit, not just on receipt.
+  const matchesStatusFilter = (entry: OrderListEntry) => {
+    if (statusFilter === 'OPEN') return entry.status !== 'RECEIVED';
+    if (statusFilter === 'RECEIVED') return entry.status === 'RECEIVED' && !!entry.receivedAt && isToday(entry.receivedAt);
+    return entry.status === statusFilter;
+  };
 
   const filteredEntries = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -380,6 +423,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
       categoryLabel,
       onHand: stock?.current ?? null,
       par: stock?.minimum ?? null,
+      stockUpdate: describeStockUpdate(stock?.lastUpdatedAt, stock?.lastUpdatedByName),
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
       meta: entry.note ? `${raisedBy} · ${raisedAt} · ${entry.note}` : `${raisedBy} · ${raisedAt}`,
       mobileMeta: `${raisedBy} · ${raisedAt}`,
@@ -480,7 +524,10 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const openCount = useMemo(() => entries.filter((e) => e.status !== 'RECEIVED').length, [entries]);
   const needsCount = useMemo(() => entries.filter((e) => e.status === 'NEEDS_ORDERING').length, [entries]);
   const orderedCount = useMemo(() => entries.filter((e) => e.status === 'ORDERED').length, [entries]);
-  const receivedCount = useMemo(() => entries.filter((e) => e.status === 'RECEIVED').length, [entries]);
+  const receivedCount = useMemo(
+    () => entries.filter((e) => e.status === 'RECEIVED' && !!e.receivedAt && isToday(e.receivedAt)).length,
+    [entries],
+  );
 
   function pickStatusTile(next: StatusFilter) {
     setStatusFilter((current) => (current === next ? 'OPEN' : next));
@@ -532,7 +579,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
               </div>
-              <div className="order-list__item-mobile-meta">{row.mobileMeta}</div>
+              <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              {entry.note && <div className="order-list__item-mobile-meta">{entry.note}</div>}
             </div>
           </div>
           <div className="order-list__mobile-stats">
@@ -596,7 +644,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
               </div>
-              <div className="order-list__item-meta">{row.meta}</div>
+              <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              {entry.note && <div className="order-list__item-meta">{entry.note}</div>}
             </div>
           </div>
         </td>
@@ -699,19 +748,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
           keeping a filter of its own -- null shows every store, a picked
           store narrows down to just that one. */}
       {subTab === 'purchasing-report' && (
-        <SuperAdminSupplierPurchaseReport
-          selectedStoreId={selectedStoreId}
-          onViewDetails={(row: StoreSupplierPurchaseMetric) => {
-            selectStore(row.storeId, row.storeName);
-            if (row.supplierName === 'No Supplier') {
-              setSupplierFilter('UNASSIGNED');
-            } else {
-              const match = suppliers.find((s) => s.name.toLowerCase() === row.supplierName.toLowerCase());
-              setSupplierFilter(match ? String(match.id) : 'all');
-            }
-            setSubTab('orders');
-          }}
-        />
+        <SuperAdminSupplierPurchaseReport selectedStoreId={selectedStoreId} />
       )}
 
       {selectedStoreId !== null && subTab !== 'purchasing-report' && (
@@ -729,7 +766,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
             <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" active={statusFilter === 'NEEDS_ORDERING'} onClick={() => pickStatusTile('NEEDS_ORDERING')} />
             <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" active={statusFilter === 'ORDERED'} onClick={() => pickStatusTile('ORDERED')} />
-            <StatCard icon={PackageCheck} label="Received" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
+            <StatCard icon={PackageCheck} label="Received Today" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
           </div>
 
           <div className="order-list__filter-row">

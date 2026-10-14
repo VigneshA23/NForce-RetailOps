@@ -8,6 +8,7 @@ import com.nforce.retailops.entity.RaisedIssue;
 import com.nforce.retailops.entity.StockReceiptRequest;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.User;
@@ -17,6 +18,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.HashMap;
@@ -219,6 +221,29 @@ public class NotificationService {
             "A Super Admin corrected a stock count at " + check.getStore().getName(),
             check.getStoreInventoryItem().getName() + " on " + check.getCheckDate(),
             "/inventory");
+    }
+
+    // An employee reported a mid-day shortage (RTS-368). Sent whether or not
+    // the order list changed, so the admin always hears about it; the message
+    // says if existing orders already cover the requirement.
+    @Transactional
+    public void notifyOwnerOfReportedShortage(StoreInventoryItem storeItem, User employee, BigDecimal currentStock,
+                                              BigDecimal required, boolean addedToOrderList, String note, User owner) {
+        String store = storeItem.getStore().getName();
+        String item = storeItem.getName();
+        String unit = storeItem.getUnitOfMeasurement();
+        StringBuilder message = new StringBuilder(employee.getFullName())
+            .append(" reported ").append(item).append(" running low: ")
+            .append(currentStock.stripTrailingZeros().toPlainString()).append(' ').append(unit).append(" left. ");
+        if (addedToOrderList) {
+            message.append("Added to the order list to reach today's minimum.");
+        } else {
+            message.append("Existing orders already cover today's minimum.");
+        }
+        if (note != null && !note.isBlank()) {
+            message.append(" Note: ").append(note.trim());
+        }
+        send(owner, "STOCK_SHORTAGE_REPORTED", "Shortage reported at " + store, message.toString(), "/orders");
     }
 
     // An employee reported received stock at End of Day: asks the admin to

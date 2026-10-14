@@ -305,7 +305,7 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
 
       {loadError && <div className="stock-check-history__error">{loadError}</div>}
 
-      <div className="filter-bar">
+      <div className="filter-bar stock-check-history__filter-bar">
         <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search by item name or staff name..." variant="filter" />
         </div>

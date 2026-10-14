@@ -9,7 +9,6 @@ import ButtonDots from './ButtonDots';
 export interface AdHocShortageValues {
   storeInventoryItemId: number;
   currentStock: string;
-  quantity: string;
   note: string;
   orderedAlreadyReceived: boolean;
 }
@@ -23,7 +22,7 @@ interface AdHocShortageModalProps {
   onSubmit: (values: AdHocShortageValues) => void;
 }
 
-const EMPTY_VALUES: AdHocShortageValues = { storeInventoryItemId: 0, currentStock: '', quantity: '', note: '', orderedAlreadyReceived: false };
+const EMPTY_VALUES: AdHocShortageValues = { storeInventoryItemId: 0, currentStock: '', note: '', orderedAlreadyReceived: false };
 
 function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false, onClose, onSubmit }: AdHocShortageModalProps) {
   const [values, setValues] = useState<AdHocShortageValues>(EMPTY_VALUES);
@@ -38,6 +37,7 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
 
   const selectedItem = items.find((item) => item.storeInventoryItemId === values.storeInventoryItemId);
   const selectedUnit = selectedItem?.unitOfMeasurement;
+  const hasOpenOrder = (selectedItem?.openOrders?.length ?? 0) > 0;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -45,13 +45,11 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
     if (!values.storeInventoryItemId) nextErrors.storeInventoryItemId = 'Item is required';
     const current = parseQty(values.currentStock, selectedUnit);
     if (current === null || current < 0) nextErrors.currentStock = `Enter ${qtyRuleHint(selectedUnit)} (0 or more)`;
-    const qty = parseQty(values.quantity, selectedUnit);
-    if (qty === null || qty <= 0) nextErrors.quantity = `Enter ${qtyRuleHint(selectedUnit)} greater than 0`;
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
     }
-    onSubmit(values);
+    onSubmit({ ...values, orderedAlreadyReceived: hasOpenOrder && values.orderedAlreadyReceived });
   }
 
   const itemOptions = items.map((item) => ({
@@ -65,7 +63,7 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
       onClose={onClose}
       centered
       title="Report a Shortage"
-      subtitle="Running low mid-day? Enter what is left now and what you need. Usage so far is recorded and the item goes to the order list."
+      subtitle="Running low mid-day? Enter what is left now. Usage so far is recorded and the item goes to the order list for today's minimum."
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
@@ -105,29 +103,17 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
             }}
           />
         </FormField>
-        <FormField label="Total Quantity Needed" htmlFor="ad-hoc-quantity" error={errors.quantity}>
-          <input
-            id="ad-hoc-quantity"
-            type="text"
-            inputMode={isWholeNumberUnit(selectedUnit) ? 'numeric' : 'decimal'}
-            className="input"
-            value={values.quantity}
-            onChange={(event) => {
-              const next = event.target.value;
-              if (!isQtyInputAllowed(next, selectedUnit)) return;
-              setValues((current) => ({ ...current, quantity: next }));
-            }}
-          />
-        </FormField>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
-          <input
-            id="ad-hoc-received"
-            type="checkbox"
-            checked={values.orderedAlreadyReceived}
-            onChange={(event) => setValues((current) => ({ ...current, orderedAlreadyReceived: event.target.checked }))}
-          />
-          <span>An earlier order for this item has already been received</span>
-        </label>
+        {hasOpenOrder && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
+            <input
+              id="ad-hoc-received"
+              type="checkbox"
+              checked={values.orderedAlreadyReceived}
+              onChange={(event) => setValues((current) => ({ ...current, orderedAlreadyReceived: event.target.checked }))}
+            />
+            <span>An earlier order for this item has already been received</span>
+          </label>
+        )}
         <FormField label="Note (optional)" htmlFor="ad-hoc-note">
           <input
             id="ad-hoc-note"

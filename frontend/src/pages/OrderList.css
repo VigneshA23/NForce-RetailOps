@@ -24,11 +24,42 @@
   color: #71717a;
 }
 
+/* Search + filters + view toggle, inside one bordered card matching
+   styles/filters.css's shared .filter-bar (Suppliers/Inventory Counts/Stock
+   Check History) -- this page can't use that class directly (its own
+   two-line tablet reflow and mobile card below need more control than the
+   shared one offers), so the same background/border/radius/padding is
+   reproduced here instead. Reset back to invisible at --mobile, below,
+   where .order-list__filter-card becomes its own separate real card. */
 .order-list__filter-row {
   display: flex;
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+/* Recessed look against the card surface, matching .filter-bar .select in
+   styles/filters.css -- applies regardless of breakpoint: .order-list__filter-card's
+   own display (contents outside mobile, flex at mobile) doesn't affect
+   descendant selector matching, so one rule covers the row's own card above
+   and .order-list__filter-card's real card at mobile, below, without
+   duplicating it per breakpoint. */
+.order-list__filter-card .select {
+  background: var(--color-bg-page);
+  border-radius: 6px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+
+/* The search box's own "surface" variant is white specifically so it used to
+   read against the plain page background when there was no card -- now that
+   one always wraps it, it needs overriding back to recessed grey to match. */
+.order-list__filter-card .search-input--filter--surface {
+  background: var(--color-bg-page);
 }
 
 .order-list__filter-select {
@@ -112,19 +143,34 @@
     max-width: none;
   }
 
-  /* No flex-basis: 100% here (unlike search above) -- the filters share this
-     second row with the view toggle instead of pushing it onto a third row
-     of its own; the row's own flex-wrap (shared with the toggle) still
-     wraps the select filters onto a further row if they truly don't fit
-     alongside it. */
+  /* Dissolved here (unlike the base rule's real flex box) so Category/
+     Status/Supplier/Clear become direct flex items of .order-list__filter-row
+     itself, as peers of the view toggle rather than sealed inside their own
+     nested flex-wrap box. That nesting was the actual cause of Supplier
+     landing on a lonely, full-width line with the toggle pushed to a row of
+     its own below it: a flex item with no explicit basis sizes to its
+     "all children unwrapped" max-content width, and three selects' combined
+     preferred width is wider than this box ever has room for -- so the
+     filters box always monopolized whichever line it started, leaving zero
+     room for the toggle to ever share it, regardless of how any one select
+     inside was sized. Flattened, every control wraps on its own individual
+     footprint instead, letting Supplier and the toggle land on the same line
+     together whenever both fit. */
   .order-list__filter-fields {
-    margin-left: 0;
-    justify-content: flex-start;
+    display: contents;
   }
 
   .order-list__filter-select {
     flex: 1 1 140px;
     min-width: 120px;
+  }
+
+  /* Unlike Category/Status, never grows to fill a line by itself -- without
+     this, Supplier alone on a line (flex-grow: 1 from the rule above) would
+     still stretch edge-to-edge even after the fix above gives the toggle
+     room to join it. */
+  .order-list__filter-select--supplier {
+    flex: 0 1 140px;
   }
 
   .order-list__view-toggle--spaced {
@@ -497,6 +543,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.order-list__stock-update {
+  font-size: 12px;
+  font-weight: 600;
+  color: #16794a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.order-list__stock-update--stale {
+  color: #b3162a;
 }
 
 .order-list__item-meta {
@@ -930,6 +989,18 @@
     border-radius: 10px;
   }
 
+  /* .order-list__filter-row's own card (base rule above) is reset back to
+     invisible here -- at this width .order-list__filter-card becomes its own
+     separate real card instead (below), and the view toggle/Add item move
+     outside it onto the plain page background, so the row itself no longer
+     needs a box of its own. */
+  .order-list__filter-row {
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+  }
+
   /* The search + category/status/supplier/Clear card -- sized and coloured
      to match styles/filters.css's shared .filter-bar (Tasks/Employees),
      though it isn't that class directly: .filter-bar's own display:flex
@@ -946,22 +1017,6 @@
     border: 1px solid var(--color-border);
     border-radius: 10px;
     padding: 10px 12px;
-  }
-
-  /* Recessed look against the card surface, matching .filter-bar .select in
-     styles/filters.css. */
-  .order-list__filter-card .select {
-    background: var(--color-bg-page);
-    border-radius: 6px;
-    padding: 7px 10px;
-    font-size: 13px;
-  }
-
-  /* The search box's own "surface" variant is white specifically so it reads
-     against the plain page background when there's no card -- same reason
-     it needs overriding back to recessed grey now that it sits inside one. */
-  .order-list__filter-card .search-input--filter--surface {
-    background: var(--color-bg-page);
   }
 
   /* Reorders Category/Supplier onto one row and Status/Clear onto the next
@@ -984,7 +1039,14 @@
      styles/filters.css (Tasks/Employees' own stacked-filters gap) --
      applied to both so they move down in lockstep and stay aligned with
      each other on their shared line. */
+  /* Restores the real flex box @media (--tablet-down) dissolves (display:
+     contents, above) -- --tablet-down's own max-width: 1024px range includes
+     this one, so without this override this box would stay dissolved here
+     too, scattering Category/Status/Supplier/Clear as direct children of
+     the column-direction .order-list__filter-card instead of letting them
+     pair up via the order values below. */
   .order-list__filter-fields {
+    display: flex;
     row-gap: 0;
   }
 

@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Zap } from 'lucide-react';
 import { buildCategoryOptions, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
@@ -9,7 +8,6 @@ import CategoryCombobox from './CategoryCombobox';
 import SupplierCombobox from './SupplierCombobox';
 import CounterStepper from './CounterStepper';
 import { parseQty, qtyRuleHint } from '../utils/quantity';
-import Toggle from './Toggle';
 import ItemIcon from './ItemIcon';
 import InventoryImagePicker from './InventoryImagePicker';
 import ButtonDots from './ButtonDots';
@@ -42,7 +40,6 @@ function toFormValues(item: StoreInventoryItem): StoreInventoryItemFormValues {
     minWeekend: item.minWeekend != null ? String(item.minWeekend) : '',
     preferredSupplierId: item.preferredSupplierId,
     note: item.note ?? '',
-    autoPoEnabled: item.autoPoEnabled,
     imageId: item.imageId,
     imagePhotoId: null,
     imagePreviewUrl: null,
@@ -203,25 +200,9 @@ function StoreInventoryItemEditPanel({
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
             onCreate={onCreateSupplier}
             ariaLabel="Preferred supplier"
+            isEditingExisting
           />
         </FormField>
-
-        <div className="item-edit-panel__auto-po">
-          <div className="item-edit-panel__auto-po-text">
-            <span className="item-edit-panel__auto-po-title">
-              <Zap size={14} aria-hidden="true" /> Auto PO Generator
-              <span className="badge badge--info item-edit-panel__auto-po-badge">Smart Replenish</span>
-            </span>
-            <span className="item-edit-panel__auto-po-hint">
-              Automatically raise a Needs Ordering entry on the Orders tab when an End of Day count breaches this item's minimum.
-            </span>
-          </div>
-          <Toggle
-            checked={values.autoPoEnabled}
-            onChange={(checked) => setValues((current) => ({ ...current, autoPoEnabled: checked }))}
-            label={`${values.autoPoEnabled ? 'Disable' : 'Enable'} automatic reordering for ${item.name}`}
-          />
-        </div>
 
         <FormField label="Notes / Operational Remarks (Optional)" htmlFor="edit-item-note">
           <textarea

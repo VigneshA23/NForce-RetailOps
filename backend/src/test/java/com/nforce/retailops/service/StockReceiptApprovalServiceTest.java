@@ -102,7 +102,7 @@ class StockReceiptApprovalServiceTest {
         StockReceiptRequestResponse response = service.approve(OWNER_ID, REQUEST_ID);
 
         verify(stockCheckService).applyApprovedDelivery(request);
-        verify(orderListService, never()).confirmReceivedByApproval(any(), any());
+        verify(orderListService, never()).confirmReceivedByApproval(any(), any(), any());
         assertThat(request.getStatus()).isEqualTo(StockReceiptRequestStatus.APPROVED);
         assertThat(request.getDecidedAt()).isNotNull();
         assertThat(response.kind()).isEqualTo("NEW_STOCK");
@@ -115,7 +115,7 @@ class StockReceiptApprovalServiceTest {
 
         StockReceiptRequestResponse response = service.approve(OWNER_ID, REQUEST_ID);
 
-        verify(orderListService).confirmReceivedByApproval(order, bd(12));
+        verify(orderListService).confirmReceivedByApproval(order, bd(12), "Olivia");
         verify(stockCheckService).applyApprovedDelivery(request);
         assertThat(response.kind()).isEqualTo("EXISTING_ORDER");
         assertThat(response.orderId()).isEqualTo(77L);
@@ -125,7 +125,7 @@ class StockReceiptApprovalServiceTest {
     void approvalFailsAndChangesNothingWhenTheOrderIsNoLongerOrdered() {
         request.setOrderListEntry(order);
         org.mockito.Mockito.doThrow(new InvalidOrderEntryTransitionException("no longer Ordered"))
-            .when(orderListService).confirmReceivedByApproval(any(), any());
+            .when(orderListService).confirmReceivedByApproval(any(), any(), any());
 
         assertThatThrownBy(() -> service.approve(OWNER_ID, REQUEST_ID))
             .isInstanceOf(InvalidOrderEntryTransitionException.class);
@@ -140,7 +140,7 @@ class StockReceiptApprovalServiceTest {
         service.reject(OWNER_ID, REQUEST_ID);
 
         verify(stockCheckService, never()).applyApprovedDelivery(any());
-        verify(orderListService, never()).confirmReceivedByApproval(any(), any());
+        verify(orderListService, never()).confirmReceivedByApproval(any(), any(), any());
         assertThat(request.getStatus()).isEqualTo(StockReceiptRequestStatus.REJECTED);
         verify(notificationService).notifyEmployeeOfStockReceiptDecision(request, false);
     }

@@ -7,6 +7,7 @@ import java.math.BigDecimal;
 public record SupplierPurchaseMetricResponse(
     String supplierName,
     long orderEntryCount,
-    BigDecimal totalQuantity
+    BigDecimal totalQuantity,
+    long receivedCount
 ) {
 }

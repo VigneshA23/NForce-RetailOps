@@ -66,7 +66,6 @@ function inventoryItem(overrides: Partial<StoreInventoryItem>): StoreInventoryIt
     preferredSupplierName: null,
     note: null,
     active: true,
-    autoPoEnabled: true,
     requiredToday: 5,
     currentAvailable: 10,
     imageId: null,
@@ -98,7 +97,7 @@ beforeEach(() => {
   mockGetOrderList.mockReset().mockResolvedValue([
     entry({ id: 1, itemName: 'Milk', status: 'NEEDS_ORDERING' }),
     entry({ id: 2, itemName: 'Bread', status: 'ORDERED' }),
-    entry({ id: 3, itemName: 'Eggs', status: 'RECEIVED' }),
+    entry({ id: 3, itemName: 'Eggs', status: 'RECEIVED', receivedAt: new Date().toISOString() }),
   ]);
 });
 
@@ -155,7 +154,7 @@ describe('OrderList status filter', () => {
     // supplier group can't hide the row this test is checking for.
     await user.click(screen.getByRole('button', { name: 'List' }));
     await user.click(screen.getByLabelText('Status'));
-    await user.click(screen.getByRole('option', { name: 'Received' }));
+    await user.click(screen.getByRole('option', { name: 'Received Today' }));
 
     expect(screen.getByText('Eggs')).toBeInTheDocument();
     expect(screen.queryByText('Milk')).not.toBeInTheDocument();

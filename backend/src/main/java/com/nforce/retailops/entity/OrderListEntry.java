@@ -66,6 +66,25 @@ public class OrderListEntry {
     @Column(name = "ordered_at")
     private OffsetDateTime orderedAt;
 
+    // Denormalized display name (not a user_id FK -- the acting role can be
+    // Super Admin, which has no row in `users`), same convention as
+    // statusChangedByRole. Stamped alongside orderedAt, so it survives the
+    // move on to RECEIVED too.
+    @Column(name = "ordered_by_name")
+    private String orderedByName;
+
+    // Set once, when the entry is actually marked Received (by a person, on
+    // either role's path, or an approved mid-day receipt) -- never for an
+    // entry auto-resolved back to RECEIVED because a fresh count showed the
+    // shortage gone on its own (see OrderListService.resolveShortageIfPresent),
+    // which leaves both of these null. quantityReceived != null is the
+    // reliable signal for "this row represents an actual delivery".
+    @Column(name = "received_at")
+    private OffsetDateTime receivedAt;
+
+    @Column(name = "received_by_name")
+    private String receivedByName;
+
     @Column(name = "ad_hoc", nullable = false)
     private boolean adHoc;
 
@@ -180,6 +199,30 @@ public class OrderListEntry {
 
     public void setOrderedAt(OffsetDateTime orderedAt) {
         this.orderedAt = orderedAt;
+    }
+
+    public String getOrderedByName() {
+        return orderedByName;
+    }
+
+    public void setOrderedByName(String orderedByName) {
+        this.orderedByName = orderedByName;
+    }
+
+    public OffsetDateTime getReceivedAt() {
+        return receivedAt;
+    }
+
+    public void setReceivedAt(OffsetDateTime receivedAt) {
+        this.receivedAt = receivedAt;
+    }
+
+    public String getReceivedByName() {
+        return receivedByName;
+    }
+
+    public void setReceivedByName(String receivedByName) {
+        this.receivedByName = receivedByName;
     }
 
     public boolean isAdHoc() {

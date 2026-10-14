@@ -32,15 +32,17 @@ function formatLongDate(date: string): string {
 
 // Flattened, one row per store+supplier -- Excel/PDF have no notion of the
 // report's own collapsible store accordion, so the store name is simply
-// repeated down the column instead.
+// repeated down the column instead. Ordered/received item counts, matching
+// the on-screen Summary table's own Ordered/Received columns exactly (not
+// totalQuantity, which the on-screen table dropped in favor of receivedCount).
 export interface SupplierPurchaseExportRow {
   storeName: string;
   supplierName: string;
   orderEntryCount: number;
-  totalQuantity: number;
+  receivedCount: number;
 }
 
-const HEADERS = ['Store', 'Supplier', 'Order Entries', 'Total Quantity'];
+const HEADERS = ['Store', 'Supplier', 'Ordered', 'Received'];
 const COLUMN_WIDTHS = [26, 28, 16, 16];
 
 export async function buildSupplierPurchaseReportWorkbook(
@@ -95,7 +97,7 @@ export async function buildSupplierPurchaseReportWorkbook(
 
   rows.forEach((row, idx) => {
     const excelRow = worksheet.getRow(headerRowNumber + 1 + idx);
-    const values: Array<string | number> = [row.storeName, row.supplierName, row.orderEntryCount, row.totalQuantity];
+    const values: Array<string | number> = [row.storeName, row.supplierName, row.orderEntryCount, row.receivedCount];
     values.forEach((value, i) => {
       const cell = excelRow.getCell(i + 1);
       cell.value = value;
@@ -155,7 +157,7 @@ export async function buildAndDownloadSupplierPurchaseReportPdf(
   doc.line(margin, y, pageW - margin, y);
   y += 7;
 
-  const body = rows.map((row) => [row.storeName, row.supplierName, row.orderEntryCount, row.totalQuantity]);
+  const body = rows.map((row) => [row.storeName, row.supplierName, row.orderEntryCount, row.receivedCount]);
 
   autoTable(doc, {
     startY: y,

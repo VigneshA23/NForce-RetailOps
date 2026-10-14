@@ -109,14 +109,14 @@ class StoreInventoryItemServiceTest {
     private StoreInventoryItemRequest requestForStore(Long storeId, String name, Long preferredSupplierId) {
         return new StoreInventoryItemRequest(
             storeId, null, name, "INGREDIENTS", "Nos.", bd(5), bd(0),
-            preferredSupplierId, null, false, null, null, null
+            preferredSupplierId, null, null, null, null
         );
     }
 
     private StoreInventoryItemRequest requestForStores(List<Long> storeIds, String name, Long preferredSupplierId) {
         return new StoreInventoryItemRequest(
             null, storeIds, name, "INGREDIENTS", "Nos.", bd(5), bd(0),
-            preferredSupplierId, null, false, null, null, null
+            preferredSupplierId, null, null, null, null
         );
     }
 

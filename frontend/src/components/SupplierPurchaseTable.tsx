@@ -6,6 +6,7 @@ export interface SupplierPurchaseRow {
   supplierName: string;
   orderEntryCount: number;
   totalQuantity: number;
+  receivedCount: number;
 }
 
 interface SupplierPurchaseTableProps<T extends SupplierPurchaseRow> {
@@ -31,7 +32,7 @@ function SupplierPurchaseTable<T extends SupplierPurchaseRow>({ rows, onViewDeta
         <tr>
           <th scope="col">Supplier</th>
           <th scope="col">Ordered</th>
-          <th scope="col">Total</th>
+          <th scope="col">Received</th>
           <th scope="col">Actions</th>
         </tr>
       </thead>
@@ -54,13 +55,13 @@ function SupplierPurchaseTable<T extends SupplierPurchaseRow>({ rows, onViewDeta
               <td data-label="Ordered">
                 {row.orderEntryCount}{' '}
                 <span className="supplier-purchase-table__quantity-label">
-                  {row.orderEntryCount === 1 ? 'entry' : 'entries'}
+                  {row.orderEntryCount === 1 ? 'item' : 'items'}
                 </span>
               </td>
-              <td data-label="Total">
-                {row.totalQuantity}{' '}
+              <td data-label="Received">
+                {row.receivedCount}{' '}
                 <span className="supplier-purchase-table__quantity-label">
-                  {row.totalQuantity === 1 ? 'unit' : 'units'}
+                  {row.receivedCount === 1 ? 'item' : 'items'}
                 </span>
               </td>
               <td data-label="Actions">

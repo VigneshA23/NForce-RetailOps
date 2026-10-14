@@ -57,9 +57,6 @@ export interface StoreInventoryItem {
   preferredSupplierName: string | null;
   note: string | null;
   active: boolean;
-  // When true (the default), an End of Day shortfall automatically raises/
-  // updates a "Needs Ordering" entry on the Orders tab for this item.
-  autoPoEnabled: boolean;
   // Today's minimum: the weekend minimum on Sat/Sun when set, otherwise the
   // weekday minimum (decided server-side).
   requiredToday: number | null;
@@ -83,7 +80,6 @@ export interface StoreInventoryItemFormValues {
   minWeekend: string;
   preferredSupplierId: number | null;
   note: string;
-  autoPoEnabled: boolean;
   // Display image: the stored one (edit mode), or a newly picked Unsplash
   // photo the server downloads on save, or a request to remove it.
   imageId: number | null;

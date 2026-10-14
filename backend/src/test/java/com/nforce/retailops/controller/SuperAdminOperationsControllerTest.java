@@ -764,5 +764,59 @@ class SuperAdminOperationsControllerTest {
             .andExpect(status().isNotFound());
     }
 
+    // ---- Super Admin Order History (Purchasing Report's Detailed view) ------
+
+    @Test
+    @Transactional
+    void getOrderHistoryForStoreRequiresSuperAdminRole() throws Exception {
+        User owner = ownerUser("sa-orh-owner-a@nforce.test");
+        Store store = store("Store Order History A", 9280L);
+        linkOwnerToStore(owner, store);
+        String ownerToken = login("sa-orh-owner-a@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/stores/" + store.getId() + "/order-list/history")
+                .param("fromDate", java.time.LocalDate.now().minusDays(1).toString())
+                .param("toDate", java.time.LocalDate.now().toString())
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void getOrderHistoryForStoreReturnsOnlyOrderedAndReceivedEntriesForThatStore() throws Exception {
+        superAdmin("sa-orh-admin-b@nforce.test");
+        Store store = store("Store Order History B", 9281L);
+        Supplier supplierB = supplier("Supplier Order History B");
+        orderEntry(store, inventoryItem(store, "Milk Order History B"), OrderStatus.NEEDS_ORDERING, supplierB, 2);
+        orderEntry(store, inventoryItem(store, "Waffle Order History B"), OrderStatus.ORDERED, supplierB, 6);
+        orderEntry(store, inventoryItem(store, "Cones Order History B"), OrderStatus.RECEIVED, supplierB, 9);
+
+        String token = login("sa-orh-admin-b@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/stores/" + store.getId() + "/order-list/history")
+                .param("fromDate", java.time.LocalDate.now().minusDays(1).toString())
+                .param("toDate", java.time.LocalDate.now().toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.totalElements").value(2))
+            .andExpect(jsonPath("$.awaitingReceiptCount").value(1))
+            .andExpect(jsonPath("$.receivedCount").value(1));
+    }
+
+    @Test
+    @Transactional
+    void getOrderHistoryForStoreRejectsAnInvertedDateRange() throws Exception {
+        superAdmin("sa-orh-admin-c@nforce.test");
+        Store store = store("Store Order History C", 9282L);
+
+        String token = login("sa-orh-admin-c@nforce.test");
+
+        mockMvc.perform(get("/api/super-admin/stores/" + store.getId() + "/order-list/history")
+                .param("fromDate", java.time.LocalDate.now().toString())
+                .param("toDate", java.time.LocalDate.now().minusDays(1).toString())
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isBadRequest());
+    }
+
     record LoginPayload(String email, String password) {}
 }

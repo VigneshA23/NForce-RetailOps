@@ -10,6 +10,7 @@ import type { Supplier } from '../types/supplier';
 import type { InventoryItemCategory } from '../types/storeInventory';
 import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
+import { isToday } from '../utils/checklistHistoryOptions';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
 import StatCard from '../components/StatCard';
 import CategoryIcon from '../components/CategoryIcon';
@@ -17,6 +18,7 @@ import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
 import ChangeOrderStatusModal from '../components/ChangeOrderStatusModal';
 import { roundQty } from '../utils/quantity';
+import { describeStockUpdate } from '../utils/stockUpdateStatus';
 import { describeReceipt } from '../utils/orderReceipt';
 import BulkChangeOrderStatusModal, { type BulkStatusChangeItem } from '../components/BulkChangeOrderStatusModal';
 import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
@@ -33,7 +35,7 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'OPEN', label: 'All open' },
   { value: 'NEEDS_ORDERING', label: 'Needs ordering' },
   { value: 'ORDERED', label: 'Ordered' },
-  { value: 'RECEIVED', label: 'Received' },
+  { value: 'RECEIVED', label: 'Received Today' },
 ];
 
 const GROUP_ROW_LIMIT = 5;
@@ -45,17 +47,13 @@ interface OrderListProps {
   // Set by the shell when arriving from the Home low-stock tile, to open this
   // tab already filtered. `id` is a nonce, not data -- see the effect below.
   seed?: { status: string; id: number };
-  // Set by OrderDashboard when a Purchasing Report "View Details" link is
-  // clicked -- a separate, independent nonce from `seed` above (not merged
-  // into one shape) so the two unrelated producers can never race each other.
-  purchaseSeed?: { supplierName: string; id: number };
 }
 
-function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
+function OrderList({ storeName, seed }: OrderListProps) {
   const [entries, setEntries] = useState<OrderListEntry[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [inventoryItems, setInventoryItems] = useState<OrderableInventoryItem[]>([]);
-  const [stockByItemId, setStockByItemId] = useState<Map<number, { current: number | null; minimum: number | null }>>(new Map());
+  const [stockByItemId, setStockByItemId] = useState<Map<number, { current: number | null; minimum: number | null; lastUpdatedAt: string | null; lastUpdatedByName: string | null }>>(new Map());
   const [categoryByItemId, setCategoryByItemId] = useState<Map<number, InventoryItemCategory | null>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -103,7 +101,7 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
             .filter((item) => item.active)
             .map((item) => ({ id: item.id, name: item.name, unitOfMeasurement: item.unitOfMeasurement, preferredSupplierId: item.preferredSupplierId })),
         );
-        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum }])));
+        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum, lastUpdatedAt: row.lastUpdatedAt, lastUpdatedByName: row.lastUpdatedByName }])));
         setCategoryByItemId(new Map(items.map((item) => [item.id, item.category])));
       })
       .catch((error: Error) => setLoadError(error.message))
@@ -127,22 +125,6 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
     appliedSeedId.current = seed.id;
     setStatusFilter(seed.status as StatusFilter);
   }, [seed]);
-
-  // Independent of the effect above (own nonce ref, own trigger) -- waits
-  // (without consuming the nonce) for `suppliers` to finish loading if this
-  // fires first.
-  const appliedPurchaseSeedId = useRef<number | null>(null);
-  useEffect(() => {
-    if (!purchaseSeed || purchaseSeed.id === appliedPurchaseSeedId.current) return;
-    if (suppliers.length === 0) return;
-    appliedPurchaseSeedId.current = purchaseSeed.id;
-    if (purchaseSeed.supplierName === 'No Supplier') {
-      setSupplierFilter('UNASSIGNED');
-    } else {
-      const match = suppliers.find((s) => s.name.toLowerCase() === purchaseSeed.supplierName.toLowerCase());
-      setSupplierFilter(match ? String(match.id) : 'all');
-    }
-  }, [purchaseSeed, suppliers]);
 
   function applyUpdatedEntry(updated: OrderListEntry) {
     setEntries((current) => {
@@ -201,7 +183,7 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
     Promise.all([getOrderList(), getInventoryCounts({ size: 500 })])
       .then(([list, counts]) => {
         setEntries(list);
-        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum }])));
+        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum, lastUpdatedAt: row.lastUpdatedAt, lastUpdatedByName: row.lastUpdatedByName }])));
       })
       .catch(() => {});
   }
@@ -318,8 +300,16 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
     });
   }
 
-  const matchesStatusFilter = (entry: OrderListEntry) =>
-    statusFilter === 'OPEN' ? entry.status !== 'RECEIVED' : entry.status === statusFilter;
+  // RECEIVED is additionally narrowed to today's receipts -- order list rows
+  // are never deleted, so without this the tile would accumulate every
+  // delivery ever received rather than showing what still needs reviewing
+  // today. receivedAt (not updatedAt) is the signal: updatedAt also changes
+  // on a plain edit, not just on receipt.
+  const matchesStatusFilter = (entry: OrderListEntry) => {
+    if (statusFilter === 'OPEN') return entry.status !== 'RECEIVED';
+    if (statusFilter === 'RECEIVED') return entry.status === 'RECEIVED' && !!entry.receivedAt && isToday(entry.receivedAt);
+    return entry.status === statusFilter;
+  };
 
   const filteredEntries = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -347,6 +337,7 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
       categoryLabel,
       onHand: stock?.current ?? null,
       par: stock?.minimum ?? null,
+      stockUpdate: describeStockUpdate(stock?.lastUpdatedAt, stock?.lastUpdatedByName),
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
       meta: entry.note ? `${raisedBy} · ${raisedAt} · ${entry.note}` : `${raisedBy} · ${raisedAt}`,
       // Mobile's card shows category as its own pill below the stats box now,
@@ -454,7 +445,10 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
   const openCount = useMemo(() => entries.filter((e) => e.status !== 'RECEIVED').length, [entries]);
   const needsCount = useMemo(() => entries.filter((e) => e.status === 'NEEDS_ORDERING').length, [entries]);
   const orderedCount = useMemo(() => entries.filter((e) => e.status === 'ORDERED').length, [entries]);
-  const receivedCount = useMemo(() => entries.filter((e) => e.status === 'RECEIVED').length, [entries]);
+  const receivedCount = useMemo(
+    () => entries.filter((e) => e.status === 'RECEIVED' && !!e.receivedAt && isToday(e.receivedAt)).length,
+    [entries],
+  );
 
   function pickStatusTile(next: StatusFilter) {
     setStatusFilter((current) => (current === next ? 'OPEN' : next));
@@ -522,7 +516,8 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
               </div>
-              <div className="order-list__item-mobile-meta">{row.mobileMeta}</div>
+              <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              {entry.note && <div className="order-list__item-mobile-meta">{entry.note}</div>}
             </div>
           </div>
           <div className="order-list__mobile-stats">
@@ -578,7 +573,8 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
               </div>
-              <div className="order-list__item-meta">{row.meta}</div>
+              <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              {entry.note && <div className="order-list__item-meta">{entry.note}</div>}
             </div>
           </div>
         </td>
@@ -635,7 +631,7 @@ function OrderList({ storeName, seed, purchaseSeed }: OrderListProps) {
         <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
         <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" active={statusFilter === 'NEEDS_ORDERING'} onClick={() => pickStatusTile('NEEDS_ORDERING')} />
         <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" active={statusFilter === 'ORDERED'} onClick={() => pickStatusTile('ORDERED')} />
-        <StatCard icon={PackageCheck} label="Received" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
+        <StatCard icon={PackageCheck} label="Received Today" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
       </div>
 
       <div className="order-list__filter-row">

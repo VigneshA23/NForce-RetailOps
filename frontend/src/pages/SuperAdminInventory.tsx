@@ -282,7 +282,6 @@ function SuperAdminInventory() {
       minWeekend: '',
       preferredSupplierId: null,
       note: '',
-      autoPoEnabled: true,
       imageId: null,
       imagePhotoId: null,
       imagePreviewUrl: null,
@@ -612,7 +611,7 @@ function SuperAdminInventory() {
             </SpecularButton>
           </div>
 
-          <div className="filter-bar">
+          <div className="filter-bar store-inventory-page__supplier-filter-bar">
             <div className="filter filter--search">
               <SearchInput value={supplierSearch} onChange={setSupplierSearch} placeholder="Search suppliers" variant="filter" />
             </div>

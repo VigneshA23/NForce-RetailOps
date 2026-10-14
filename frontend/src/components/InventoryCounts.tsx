@@ -311,19 +311,19 @@ function InventoryCounts() {
         <StatCard icon={Clock} label="Not Updated Today" value={kpis.stale} tone="purple" onClick={() => pickLevel('stale')} active={level === 'stale'} />
       </div>
 
-      <div className="filter-bar">
+      <div className="filter-bar inventory-counts__filter-bar">
         <div className="filter filter--search">
           <SearchInput value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Search inventory" variant="filter" />
         </div>
         <Select
-          className="filter"
+          className="filter inventory-counts__filter"
           options={[{ value: 'ALL', label: 'All categories' }, ...buildCategoryOptions(rows.map((r) => r.category), [category === 'ALL' ? null : category])]}
           value={category}
           onChange={(value) => { setCategory(value); setPage(1); }}
           ariaLabel="Category"
         />
         <Select
-          className="filter"
+          className="filter inventory-counts__filter"
           options={[
             { value: 'all', label: 'All levels' },
             { value: 'out', label: 'Out of stock' },

@@ -19,6 +19,12 @@ interface SupplierComboboxProps {
   // are then left out entirely instead of being shown and failing.
   onCreate?: (name: string) => Promise<Supplier>;
   ariaLabel?: string;
+  // True when this field is seeded from an item that already exists (editing,
+  // not creating) -- a null `value` there is the item's actual, already-saved
+  // "no preferred supplier" answer, not an unanswered field, so it should
+  // read as the explicit answer from the moment the form opens rather than
+  // only after the user re-picks it by hand.
+  isEditingExisting?: boolean;
 }
 
 type ComboOption =
@@ -31,7 +37,7 @@ type ComboOption =
 // supplier directory as the user types and, when nothing matches the typed
 // name exactly, offers "Add New Supplier" to create it in place -- so the
 // user never has to leave the item form to set up a supplier first.
-function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel }: SupplierComboboxProps) {
+function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel, isEditingExisting }: SupplierComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
@@ -44,7 +50,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel 
   // placeholder) from "explicitly picked No preferred supplier" (shows that
   // as the field's value) -- both are `value === null`, but only the second
   // should read as an actual answer.
-  const [explicitlyNone, setExplicitlyNone] = useState(false);
+  const [explicitlyNone, setExplicitlyNone] = useState(() => !!isEditingExisting && value === null);
   const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

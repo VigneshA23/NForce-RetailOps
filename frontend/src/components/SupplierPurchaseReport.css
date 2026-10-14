@@ -44,6 +44,12 @@
   background: var(--color-surface-hover, rgba(0, 0, 0, 0.04));
 }
 
+.supplier-purchase-report__detail-heading {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-md);
+}
+
 .supplier-purchase-report__error {
   font-size: 13px;
   color: var(--color-accent);

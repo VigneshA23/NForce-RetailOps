@@ -1,6 +1,7 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
+import com.nforce.retailops.dto.OrderHistoryPageResponse;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.OutstandingOrdersOverviewResponse;
 import com.nforce.retailops.dto.PlatformStatsResponse;
@@ -98,6 +99,13 @@ public class SuperAdminOperationsService {
         return orderListService.listForStore(storeId);
     }
 
+    @Transactional(readOnly = true)
+    public OrderHistoryPageResponse getOrderHistoryForStore(
+        Long storeId, LocalDate fromDate, LocalDate toDate, String supplierName, Integer page, Integer size
+    ) {
+        return orderListService.getOrderHistoryForStore(storeId, fromDate, toDate, supplierName, page, size);
+    }
+
     @Transactional
     public OrderListEntryResponse updateOrderStatus(Long storeId, Long entryId, OrderStatus status, OrderStatus expectedStatus) {
         return orderListService.updateStatusForSuperAdmin(storeId, entryId, status, expectedStatus);
@@ -168,7 +176,8 @@ public class SuperAdminOperationsService {
         DateRangeValidator.validate(fromDate, toDate, MAX_DATE_RANGE_DAYS);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsGroupedByStore(
-            OrderStatus.PURCHASED_STATUSES, OrderListService.rangeStart(fromDate), OrderListService.rangeEndExclusive(toDate));
+            OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
+            OrderListService.rangeStart(fromDate), OrderListService.rangeEndExclusive(toDate));
 
         return rows.stream()
             .map(row -> new StoreSupplierPurchaseMetricResponse(
@@ -176,7 +185,8 @@ public class SuperAdminOperationsService {
                 (String) row[1],
                 row[3] != null ? (String) row[3] : NO_SUPPLIER,
                 ((Number) row[4]).longValue(),
-                OrderListService.toDecimal(row[5])
+                OrderListService.toDecimal(row[5]),
+                ((Number) row[6]).longValue()
             ))
             .sorted(Comparator.comparing(StoreSupplierPurchaseMetricResponse::storeName, String.CASE_INSENSITIVE_ORDER)
                 .thenComparing(StoreSupplierPurchaseMetricResponse::supplierName, String.CASE_INSENSITIVE_ORDER))
