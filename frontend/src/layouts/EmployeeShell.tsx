@@ -196,6 +196,8 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       onHelpClick={() => setOverlay('help')}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
+      notificationStoreId={store.id}
+      notificationStores={stores}
       notificationUnreadCount={unreadCount}
       onNotificationsCountChange={handleNotificationsCountChange}
       avatarUrl={avatarUrl}
@@ -232,6 +234,8 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         ? <Notifications
             onUnreadChange={handleNotificationsCountChange}
             onNavigate={handleNotificationNavigate}
+            activeStoreId={store.id}
+            assignedStores={stores}
             onBackToHome={() => { setOverlay(null); setActiveTab('today'); }}
           />
         : ALL_EMPLOYEE_TABS.map((tab) =>

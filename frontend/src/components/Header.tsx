@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
-import { Menu, Moon, Sun } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Menu, Moon, Search, Sun } from 'lucide-react';
 import SearchInput from './SearchInput';
 import IconButton from './IconButton';
 import ProfileMenu from './ProfileMenu';
 import NotificationBell from './NotificationBell';
+import type { StoreSummary } from '../types/store';
 import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
 import './Header.css';
 
@@ -27,6 +28,8 @@ interface HeaderProps {
   onNotificationsCountChange?: (count: number) => void;
   onNotificationsClick?: () => void;
   onNotificationNavigate?: NotificationNavigateHandler;
+  notificationStoreId?: number;
+  notificationStores?: StoreSummary[];
   searchValue: string;
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;
@@ -66,6 +69,8 @@ function Header({
   onNotificationsCountChange,
   onNotificationsClick,
   onNotificationNavigate,
+  notificationStoreId,
+  notificationStores,
   searchValue,
   onSearchChange,
   isDarkTheme,
@@ -88,6 +93,19 @@ function Header({
   onMenuClick,
   actions,
 }: HeaderProps) {
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    searchWrapRef.current?.querySelector('input')?.focus();
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setSearchOpen(false);
+    }
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [searchOpen]);
+
   return (
     <header className="header">
       <div className="header__left">
@@ -108,7 +126,23 @@ function Header({
       </div>
       <div className="header__right">
         {actions}
-        {showSearch && <SearchInput value={searchValue} onChange={onSearchChange} />}
+        {showSearch && (
+          <div
+            ref={searchWrapRef}
+            className={`header__search-wrap${searchOpen ? ' header__search-wrap--open' : ''}`}
+          >
+            <SearchInput value={searchValue} onChange={onSearchChange} />
+            <button
+              type="button"
+              className="header__search-icon-trigger"
+              aria-label="Open search"
+              aria-expanded={searchOpen}
+              onClick={() => setSearchOpen((open) => !open)}
+            >
+              <Search size={18} aria-hidden="true" />
+            </button>
+          </div>
+        )}
         <IconButton
           icon={isDarkTheme ? Sun : Moon}
           ariaLabel={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
@@ -120,6 +154,8 @@ function Header({
             onCountChange={onNotificationsCountChange ?? (() => {})}
             onViewAll={onNotificationsClick}
             onNavigate={onNotificationNavigate}
+            activeStoreId={notificationStoreId}
+            assignedStores={notificationStores}
           />
         )}
         <ProfileMenu

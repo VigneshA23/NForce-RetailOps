@@ -111,6 +111,7 @@ class CategoryServiceStoreAssignmentTest {
         Category existingInStoreB = category(200L, null, false, Set.of(storeB));
 
         when(storeRepository.findAllById(List.of(STORE_ID))).thenReturn(List.of(storeA));
+        when(storeRepository.findAllById(Set.of(STORE_ID))).thenReturn(List.of(storeA));
         when(categoryRepository.findByNameIgnoreCase("Cleaning")).thenReturn(List.of(existingInStoreB));
         when(storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(Set.of(STORE_ID)))
             .thenReturn(List.of());

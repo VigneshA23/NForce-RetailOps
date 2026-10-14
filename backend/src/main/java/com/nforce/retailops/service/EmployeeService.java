@@ -96,6 +96,18 @@ public class EmployeeService {
             .toList();
     }
 
+    private void notifyForStores(User recipient, String category, String title, String message, String linkPath, Collection<Store> stores) {
+        Set<Long> notifiedStoreIds = new HashSet<>();
+        for (Store store : stores) {
+            if (notifiedStoreIds.add(store.getId())) {
+                notificationService.sendForStore(recipient, category, title, message, linkPath, store);
+            }
+        }
+        if (notifiedStoreIds.isEmpty()) {
+            notificationService.send(recipient, category, title, message, linkPath);
+        }
+    }
+
     private String ownerName(Long ownerId) {
         return userRepository.findById(ownerId).map(User::getFullName).orElse("Admin");
     }
@@ -298,14 +310,14 @@ public class EmployeeService {
 
         User employee = storeEmployee.getEmployee();
         User owner = userRepository.getReferenceById(ownerId);
-        notificationService.send(employee, "EMPLOYEE_ASSIGNED",
+        notificationService.sendForStore(employee, "EMPLOYEE_ASSIGNED",
             "You've been added to " + myStore.getName(),
             "You now have access to the checklist for " + myStore.getName() + ".",
-            "/checklist");
-        notificationService.send(owner, "NEW_EMPLOYEE_JOINED",
+            "/checklist", myStore);
+        notificationService.sendForStore(owner, "NEW_EMPLOYEE_JOINED",
             employee.getFullName() + " joined your store",
             employee.getFullName() + " has been added to " + myStore.getName() + " and can now access your checklist.",
-            "/employees");
+            "/employees", myStore);
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -319,10 +331,10 @@ public class EmployeeService {
         storeEmployee.getStores().removeIf(store -> store.getId().equals(myStore.getId()));
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
 
-        notificationService.send(storeEmployee.getEmployee(), "EMPLOYEE_REMOVED",
+        notificationService.sendForStore(storeEmployee.getEmployee(), "EMPLOYEE_REMOVED",
             "You've been removed from " + myStore.getName(),
             "Your access to the checklist for " + myStore.getName() + " has been removed.",
-            null);
+            null, myStore);
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -428,13 +440,13 @@ public class EmployeeService {
             sessionService.invalidateAllForUser(employee.getEmail());
         }
 
-        notificationService.send(employee,
+        notifyForStores(employee,
             active ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
             active ? "Your account has been reactivated" : "Your account has been deactivated",
             active
                 ? "Your NForce account has been reactivated by your store admin."
                 : "Your NForce account has been deactivated by your store admin.",
-            active ? "/checklist" : null);
+            active ? "/checklist" : null, storeEmployee.getStores());
 
         activityLogService.logForStores(
             active ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
@@ -502,13 +514,13 @@ public class EmployeeService {
             sessionService.invalidateAllForUser(employee.getEmail());
         }
 
-        notificationService.send(employee,
+        notifyForStores(employee,
             request.active() ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
             request.active() ? "Your account has been reactivated" : "Your account has been deactivated",
             request.active()
                 ? "Your NForce account has been reactivated."
                 : "Your NForce account has been deactivated.",
-            request.active() ? "/checklist" : null);
+            request.active() ? "/checklist" : null, ownedStoresAmong(storeEmployee.getStores(), ownerId));
 
         activityLogService.logForStores(
             request.active() ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", ownerName(ownerId), "OWNER_ADMIN",

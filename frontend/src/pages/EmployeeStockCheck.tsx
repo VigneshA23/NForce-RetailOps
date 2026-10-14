@@ -217,7 +217,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
         store.id,
         values.storeInventoryItemId,
         Number(values.currentStock),
-        Number(values.quantity),
         values.note,
         values.orderedAlreadyReceived,
       );
@@ -368,7 +367,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
             <p className="employee-stock-check-page__formula-hint">
               <Info size={13} />
               <span>
-                <strong>Formula:</strong> Quantity Needed = Minimum Target − Available Count
+                <strong>Formula:</strong> Qty Needed = Min Target − Available
               </span>
             </p>
           </div>
@@ -447,19 +446,23 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                     )}
                   </div>
                   {item.status === 'shortage' && (
-                    <>
-                      <span className="badge badge--dot badge--danger">{item.needed} {item.unitOfMeasurement} Needed</span>
-                      <span className="badge badge--danger">Shortage</span>
-                    </>
+                    <span className="badge badge--danger employee-stock-check-page__status-badge">Shortage</span>
                   )}
                   {item.status === 'optimal' && (
-                    <>
-                      <span className="badge badge--dot badge--success">{item.needed ?? 0} Sufficient</span>
-                      <span className="badge badge--success">Par Met</span>
-                    </>
+                    <span className="badge badge--success employee-stock-check-page__status-badge">Par Met</span>
                   )}
-                  <span className="employee-stock-check-page__collapse-toggle" aria-hidden="true">
-                    {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  <span className="employee-stock-check-page__needed-group">
+                    {item.status === 'shortage' && (
+                      <span className="badge badge--dot badge--danger employee-stock-check-page__needed-badge">
+                        {item.needed} {item.unitOfMeasurement} Needed
+                      </span>
+                    )}
+                    {item.status === 'optimal' && (
+                      <span className="badge badge--dot badge--success">{item.needed ?? 0} Sufficient</span>
+                    )}
+                    <span className="employee-stock-check-page__collapse-toggle" aria-hidden="true">
+                      {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </span>
                   </span>
                 </div>
               </div>

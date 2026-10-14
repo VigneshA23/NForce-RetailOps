@@ -41,9 +41,10 @@ function widestAllowedRange(storeId: number | null): { startDate: string; endDat
   return { startDate: daysAgo(storeId == null ? 30 : 91), endDate: todayDate() };
 }
 
-// Export is store-scoped only (disabled on "All Stores") -- same single-store
-// shape as Owner/Admin's own export, so storeId here is always non-null.
-async function fetchAllSuperAdminStockCheckHistory(storeId: number, startDate: string, endDate: string): Promise<SuperAdminStockCheckResponse[]> {
+// Export can run store-scoped or across "All Stores" (storeId null) --
+// getSuperAdminStockCheckHistory already supports both (see its own
+// storeId != null check), same as the on-screen table's own query.
+async function fetchAllSuperAdminStockCheckHistory(storeId: number | null, startDate: string, endDate: string): Promise<SuperAdminStockCheckResponse[]> {
   const all: SuperAdminStockCheckResponse[] = [];
   let page = 1;
   let pageCount = 1;
@@ -96,8 +97,9 @@ interface SuperAdminStockCheckHistoryProps {
   onTotalChange?: (total: number) => void;
 }
 
-// Export is store-scoped only (disabled on "All Stores") -- it needs one
-// concrete store the same way Owner/Admin's own export always has one.
+// Export works for a single store or for "All Stores" (RTS-375) -- when
+// exporting across all stores the workbook/PDF gain a Store column so rows
+// stay attributable, same as the on-screen table's own showStoreColumn.
 function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHistoryProps) {
   const [stores, setStores] = useState<{ id: number; label: string }[]>([]);
   const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
@@ -180,13 +182,13 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
     setSearch('');
     setCategoryFilter('');
     setStatusFilter('all');
+    handleStoreChange(null);
   }
 
-  // Exports every record matching the current filters for the selected store
-  // across ALL pages, not just the page on screen -- same approach as
-  // Owner/Admin's own StockCheckHistory (RTS-316). Disabled entirely on "All
-  // Stores" (selectedStoreId === null), so this always has a concrete store.
-  async function buildExportRows(storeId: number): Promise<SuperAdminStockCheckHistoryRowView[]> {
+  // Exports every record matching the current filters across ALL pages, not
+  // just the page on screen -- same approach as Owner/Admin's own
+  // StockCheckHistory (RTS-316). storeId null means "All Stores".
+  async function buildExportRows(storeId: number | null): Promise<SuperAdminStockCheckHistoryRowView[]> {
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange(storeId);
     const all = await fetchAllSuperAdminStockCheckHistory(storeId, resolved.startDate, resolved.endDate);
     return all
@@ -195,12 +197,14 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
   }
 
   async function handleExportExcel() {
-    if (selectedStoreId === null) return;
+    if (visibleItems.length === 0) return;
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange(selectedStoreId);
     setIsExcelExporting(true);
     try {
       const rows = await buildExportRows(selectedStoreId);
-      const workbook = await buildStockCheckHistoryWorkbook(rows, resolved.startDate, resolved.endDate);
+      const workbook = await buildStockCheckHistoryWorkbook(
+        rows, resolved.startDate, resolved.endDate, { includeStore: selectedStoreId === null },
+      );
       await downloadWorkbook(`stock-check-history-${resolved.startDate}_to_${resolved.endDate}.xlsx`, workbook);
       setIsExportMenuOpen(false);
     } catch (error) {
@@ -211,7 +215,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
   }
 
   async function handleExportPdf() {
-    if (selectedStoreId === null) return;
+    if (visibleItems.length === 0) return;
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange(selectedStoreId);
     const storeName = stores.find((s) => s.id === selectedStoreId)?.label ?? null;
     setIsPdfExporting(true);
@@ -220,6 +224,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
       await buildAndDownloadStockCheckHistoryPdf(
         rows, resolved.startDate, resolved.endDate, storeName,
         `stock-check-history-${resolved.startDate}_to_${resolved.endDate}.pdf`,
+        { includeStore: selectedStoreId === null },
       );
       setIsExportMenuOpen(false);
     } catch (error) {
@@ -265,8 +270,8 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
             <button
               type="button"
               className="btn btn--danger"
-              disabled={selectedStoreId === null || visibleItems.length === 0}
-              title={selectedStoreId === null ? 'Select a store to export' : undefined}
+              disabled={visibleItems.length === 0}
+              title={visibleItems.length === 0 ? 'No records to export' : undefined}
               onClick={() => setIsExportMenuOpen((open) => !open)}
               aria-expanded={isExportMenuOpen}
               aria-haspopup="menu"
@@ -310,6 +315,11 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
             onChange={(ids) => handleStoreChange(ids[0] ?? null)}
             placeholder="All Stores"
             emptyMessage="No stores found"
+            allOption={{
+              label: 'All Stores',
+              selected: selectedStoreId === null,
+              onToggle: () => handleStoreChange(null),
+            }}
           />
         </div>
         <div className="filter filter--search">

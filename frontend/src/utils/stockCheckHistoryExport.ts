@@ -68,11 +68,13 @@ function countEnteredLabel(row: StockCheckHistoryRowView): string {
   return counted != null ? `${counted} ${row.unitOfMeasurement}` : '—';
 }
 
-// Plain-string port of StockCheckHistory.tsx's QtyNeededBadge JSX branches.
+// Plain-string port of StockCheckHistory.tsx's QtyNeededBadge JSX branches --
+// must stay exactly those three labels (no buffer-based "Optimal" split the
+// on-screen badge never shows), or the export disagrees with what's on screen.
 function qtyNeededLabel(row: StockCheckHistoryRowView): string {
   if (row.status === 'shortage') return `+${row.deficit} ${row.unitOfMeasurement} needed`;
   if (row.status === 'pending') return '— (Not Counted)';
-  return row.buffer && row.buffer > 0 ? '— (Optimal)' : '0 (Sufficient)';
+  return 'Sufficient';
 }
 
 function applyStatusStyle(cell: ExcelJS.Cell, status: StockCheckHistoryRowView['status']): void {
@@ -88,15 +90,28 @@ function applyStatusStyle(cell: ExcelJS.Cell, status: StockCheckHistoryRowView['
 const HEADERS = ['Item & Category', 'Date & Timestamp', 'Count Entered', 'Qty Needed (Par Reconciled)', 'Recorded By'];
 const COLUMN_WIDTHS = [30, 20, 16, 24, 20];
 
+export interface StockCheckHistoryExportOptions {
+  // Adds a leading "Store" column -- Super Admin's "All Stores" export needs
+  // it so rows across stores stay attributable (RTS-375); Owner/Admin's own
+  // export never passes this since it's always scoped to one store already.
+  includeStore?: boolean;
+}
+
 // Mirrors buildOperationsReportWorkbook's banner/header/stripe layout
 // (operationsReportExport.ts), built fresh for this table's own columns
 // rather than trying to force stock-check rows through that function's
 // checklist-specific (Store/Category/Task Detail) section shape.
 export async function buildStockCheckHistoryWorkbook(
-  rows: StockCheckHistoryRowView[],
+  rows: (StockCheckHistoryRowView & { storeName?: string })[],
   startDate: string,
   endDate: string,
+  options: StockCheckHistoryExportOptions = {},
 ): Promise<ExcelJS.Workbook> {
+  const includeStore = options.includeStore ?? false;
+  const headers = includeStore ? ['Store', ...HEADERS] : HEADERS;
+  const columnWidths = includeStore ? [20, ...COLUMN_WIDTHS] : COLUMN_WIDTHS;
+  const statusColumnIndex = includeStore ? 5 : 4;
+
   const { default: ExcelJSLib } = await import('exceljs');
   const workbook = new ExcelJSLib.Workbook();
   workbook.creator = 'NForce RetailOps';
@@ -107,14 +122,14 @@ export async function buildStockCheckHistoryWorkbook(
     pageSetup: { orientation: 'landscape', fitToPage: false, printTitlesRow: '1:4' },
   });
 
-  worksheet.mergeCells(1, 1, 1, HEADERS.length);
+  worksheet.mergeCells(1, 1, 1, headers.length);
   const titleCell = worksheet.getCell(1, 1);
   titleCell.value = 'Stock Check History';
   titleCell.font = { name: 'Calibri', size: 20, bold: true, color: { argb: COLOR_NAVY } };
   titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
   worksheet.getRow(1).height = 28;
 
-  worksheet.mergeCells(2, 1, 2, HEADERS.length);
+  worksheet.mergeCells(2, 1, 2, headers.length);
   const subtitleCell = worksheet.getCell(2, 1);
   subtitleCell.value = startDate === endDate
     ? formatLongDate(startDate)
@@ -123,7 +138,7 @@ export async function buildStockCheckHistoryWorkbook(
   subtitleCell.alignment = { vertical: 'middle', horizontal: 'left' };
   worksheet.getRow(2).height = 18;
 
-  worksheet.mergeCells(3, 1, 3, HEADERS.length);
+  worksheet.mergeCells(3, 1, 3, headers.length);
   const countCell = worksheet.getCell(3, 1);
   countCell.value = `${rows.length} record${rows.length === 1 ? '' : 's'}`;
   countCell.font = { name: 'Calibri', size: 11, color: { argb: COLOR_SUBTITLE_TEXT } };
@@ -132,7 +147,7 @@ export async function buildStockCheckHistoryWorkbook(
 
   const headerRowNumber = 4;
   const headerRow = worksheet.getRow(headerRowNumber);
-  HEADERS.forEach((header, i) => {
+  headers.forEach((header, i) => {
     const cell = headerRow.getCell(i + 1);
     cell.value = header;
     cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: COLOR_NAVY } };
@@ -145,6 +160,7 @@ export async function buildStockCheckHistoryWorkbook(
   rows.forEach((row, idx) => {
     const excelRow = worksheet.getRow(headerRowNumber + 1 + idx);
     const values: Array<string | number> = [
+      ...(includeStore ? [row.storeName ?? '—'] : []),
       itemAndCategoryLabel(row),
       dateAndTimestampLabel(row),
       countEnteredLabel(row),
@@ -158,12 +174,12 @@ export async function buildStockCheckHistoryWorkbook(
       cell.alignment = { vertical: 'middle', horizontal: i === 0 ? 'left' : 'center' };
       if (idx % 2 === 1) cell.fill = STRIPE_FILL;
     });
-    applyStatusStyle(excelRow.getCell(4), row.status);
+    applyStatusStyle(excelRow.getCell(statusColumnIndex), row.status);
     excelRow.height = 16;
   });
 
   const totalRowNumber = headerRowNumber + 1 + rows.length;
-  worksheet.mergeCells(totalRowNumber, 1, totalRowNumber, HEADERS.length);
+  worksheet.mergeCells(totalRowNumber, 1, totalRowNumber, headers.length);
   const totalCell = worksheet.getCell(totalRowNumber, 1);
   totalCell.value = `Total Records: ${rows.length}`;
   totalCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: COLOR_NAVY } };
@@ -171,7 +187,7 @@ export async function buildStockCheckHistoryWorkbook(
   worksheet.getRow(totalRowNumber).height = 18;
 
   worksheet.columns.forEach((column, i) => {
-    column.width = COLUMN_WIDTHS[i];
+    column.width = columnWidths[i];
   });
 
   return workbook;
@@ -189,12 +205,16 @@ const PDF_GRAY: [number, number, number] = [107, 114, 128];
 // autoTable body, generated-at footer) -- same libraries, same visual
 // language, this table's own columns.
 export async function buildAndDownloadStockCheckHistoryPdf(
-  rows: StockCheckHistoryRowView[],
+  rows: (StockCheckHistoryRowView & { storeName?: string })[],
   startDate: string,
   endDate: string,
   storeName: string | null | undefined,
   filename: string,
+  options: StockCheckHistoryExportOptions = {},
 ): Promise<void> {
+  const includeStore = options.includeStore ?? false;
+  const headers = includeStore ? ['Store', ...HEADERS] : HEADERS;
+  const statusColumnIndex = includeStore ? 4 : 3;
   const { jsPDF } = await import('jspdf');
   const { default: autoTable } = await import('jspdf-autotable');
   const doc = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'landscape' });
@@ -223,6 +243,7 @@ export async function buildAndDownloadStockCheckHistoryPdf(
 
   const rowStatuses = rows.map((row) => row.status);
   const body = rows.map((row) => [
+    ...(includeStore ? [row.storeName ?? '—'] : []),
     itemAndCategoryLabel(row),
     dateAndTimestampLabel(row),
     countEnteredLabel(row),
@@ -233,13 +254,13 @@ export async function buildAndDownloadStockCheckHistoryPdf(
   autoTable(doc, {
     startY: y,
     margin: { left: margin, right: margin },
-    head: [HEADERS],
+    head: [headers],
     body,
     theme: 'striped',
     styles: { fontSize: 9, cellPadding: 2 },
     headStyles: { fillColor: PDF_NAVY, textColor: 255, fontStyle: 'bold' },
     didParseCell: (data) => {
-      if (data.section !== 'body' || data.column.index !== 3) return;
+      if (data.section !== 'body' || data.column.index !== statusColumnIndex) return;
       const status = rowStatuses[data.row.index];
       data.cell.styles.textColor = status === 'optimal' ? PDF_GREEN : status === 'pending' ? PDF_GRAY : PDF_RED;
       data.cell.styles.fontStyle = 'bold';

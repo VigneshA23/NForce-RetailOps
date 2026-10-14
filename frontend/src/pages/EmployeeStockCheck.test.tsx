@@ -37,6 +37,32 @@ const item: DailyStockCheckItem = {
 };
 
 describe('EmployeeStockCheck item card expand/collapse', () => {
+  it('groups the expand caret beside quantity needed and exposes shortage status separately', async () => {
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{ ...item, currentStock: 2 }]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await screen.findByText('6 Nos. Needed');
+
+    const itemCard = screen.getByText('Milk').closest('.employee-stock-check-page__item');
+    const neededGroup = itemCard?.querySelector('.employee-stock-check-page__needed-group');
+    expect(neededGroup?.querySelector('.employee-stock-check-page__needed-badge')).toBeInTheDocument();
+    expect(neededGroup?.querySelector('.employee-stock-check-page__collapse-toggle')).toBeInTheDocument();
+    expect(itemCard?.querySelector('.employee-stock-check-page__status-badge')).toHaveTextContent('Shortage');
+  });
+
+  it('marks Par Met as a status badge for the compact card layout', async () => {
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{ ...item, currentStock: 8 }]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await screen.findByText('Par Met');
+
+    const itemCard = screen.getByText('Milk').closest('.employee-stock-check-page__item');
+    expect(itemCard?.querySelector('.employee-stock-check-page__status-badge')).toHaveTextContent('Par Met');
+    expect(itemCard?.querySelector('.employee-stock-check-page__collapse-toggle')).toBeInTheDocument();
+  });
+
   it('expands and collapses when the header row itself is clicked, not just the chevron', async () => {
     const user = userEvent.setup();
     mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
@@ -44,6 +70,10 @@ describe('EmployeeStockCheck item card expand/collapse', () => {
 
     render(<EmployeeStockCheck store={store} />);
     await screen.findByText('Milk');
+    expect(screen.getByText('Qty Needed = Min Target − Available')).toBeInTheDocument();
+    const itemCard = screen.getByText('Milk').closest('.employee-stock-check-page__item');
+    const neededGroup = itemCard?.querySelector('.employee-stock-check-page__needed-group');
+    expect(neededGroup?.contains(itemCard?.querySelector('.employee-stock-check-page__collapse-toggle') ?? null)).toBe(true);
 
     // Pending status (no counts yet) starts collapsed.
     expect(screen.queryByText('Shift Stock Reconciliations')).not.toBeInTheDocument();

@@ -11,6 +11,8 @@
   background: #0b090a;
   color: var(--color-header-text);
   border-bottom: 1px solid var(--color-header-border);
+  container-name: top-bar;
+  container-type: inline-size;
 }
 
 /* Avatar ring gives the profile image definition against the dark header
@@ -74,10 +76,54 @@
 }
 
 .header__right {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-md);
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.header__search-wrap {
+  position: relative;
+  flex: 0 1 220px;
+  min-width: 0;
+}
+
+.header__search-wrap .search-input--header {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+
+.header__search-icon-trigger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-header-text);
+  cursor: pointer;
+}
+
+.header__search-icon-trigger:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.header__search-wrap--open .search-input--header {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 410;
+  display: flex;
+  width: min(320px, calc(100vw - 24px));
+  min-width: 0;
+  background: #1e2128;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 /* An action button (e.g. Employee's "Switch Store") sits on the header's
@@ -123,9 +169,17 @@
     font-size: 11px;
   }
 
-  .search-input {
+  .header__search-wrap:not(.header__search-wrap--open) .search-input {
     min-width: 0;
     display: none;
+  }
+
+  .header__search-icon-trigger {
+    display: inline-flex;
+  }
+
+  .header__search-wrap {
+    flex: 0 0 44px;
   }
 
   /* Icon-only on mobile: keep the button tappable but drop its label and the
@@ -136,6 +190,69 @@
   }
 
   .switch-store-btn__label {
+    display: none;
+  }
+}
+
+/* Collapse the shared searches before the remaining header controls run out
+   of space; employee headers need a wider reserve for the store-switch action. */
+@container top-bar (max-width: 700px) {
+  .header__search-wrap:not(.header__search-wrap--open) .search-input--header {
+    display: none;
+  }
+
+  .header__search-icon-trigger {
+    display: inline-flex;
+  }
+
+  .header__search-wrap {
+    flex: 0 0 44px;
+  }
+
+  .header__right .adrop__input-wrap,
+  .header__right .sacp__input-wrap,
+  .header__right .edrop__input-wrap {
+    display: none;
+  }
+
+  .header__right .adrop__mobile-trigger,
+  .header__right .sacp__mobile-trigger,
+  .header__right .edrop__mobile-trigger {
+    display: flex;
+  }
+
+  .header__right .adrop,
+  .header__right .sacp,
+  .header__right .edrop {
+    flex: 0 0 44px;
+    min-width: 44px;
+    max-width: 44px;
+  }
+}
+
+@container top-bar (min-width: 701px) and (max-width: 820px) {
+  .header__right .edrop__input-wrap {
+    display: none;
+  }
+
+  .header__right .edrop__mobile-trigger {
+    display: flex;
+  }
+
+  .header__right .edrop {
+    flex: 0 0 44px;
+    min-width: 44px;
+    max-width: 44px;
+  }
+}
+
+@container top-bar (max-width: 540px) {
+  .header__right .switch-store-btn {
+    padding: 10px;
+    min-width: 44px;
+  }
+
+  .header__right .switch-store-btn__label {
     display: none;
   }
 }

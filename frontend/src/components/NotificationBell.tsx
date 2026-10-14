@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, Bell, CheckCheck, ChevronRight, RefreshCw } from 'lucide-react';
 import { getNotifications, markAllRead, markNotificationRead } from '../api/notifications';
+import NotificationMessage from './NotificationMessage';
 import type { Notification } from '../types/notification';
+import type { StoreSummary } from '../types/store';
 import { getCategoryMeta } from '../utils/notificationCategoryMeta';
+import { isNotificationVisibleForStore } from '../utils/notificationStore';
 import type { NotificationNavContext, NotificationNavigateHandler } from '../utils/notificationRoutes';
 import './NotificationBell.css';
 
@@ -11,6 +14,8 @@ interface NotificationBellProps {
   onCountChange: (count: number) => void;
   onViewAll: () => void;
   onNavigate?: NotificationNavigateHandler;
+  activeStoreId?: number;
+  assignedStores?: StoreSummary[];
 }
 
 function relativeTime(iso: string): string {
@@ -33,9 +38,10 @@ interface NotifItemProps {
   onRead: (id: number) => void;
   onViewAll: () => void;
   onNavigate?: NotificationNavigateHandler;
+  assignedStores?: StoreSummary[];
 }
 
-function NotifItem({ notification, onRead, onViewAll, onNavigate }: NotifItemProps) {
+function NotifItem({ notification, onRead, onViewAll, onNavigate, assignedStores }: NotifItemProps) {
   const { icon: Icon, bgVar, fgVar } = getCategoryMeta(notification.category);
 
   function handleClick() {
@@ -62,7 +68,7 @@ function NotifItem({ notification, onRead, onViewAll, onNavigate }: NotifItemPro
       </span>
       <div className="nb-item__body">
         <p className="nb-item__title">{notification.title}</p>
-        <p className="nb-item__msg">{notification.message}</p>
+        <p className="nb-item__msg"><NotificationMessage notification={notification} assignedStores={assignedStores} /></p>
         <span className="nb-item__time">{relativeTime(notification.createdAt)}</span>
       </div>
       {!notification.read && <span className="nb-item__dot" aria-hidden="true" />}
@@ -70,21 +76,49 @@ function NotifItem({ notification, onRead, onViewAll, onNavigate }: NotifItemPro
   );
 }
 
-function NotificationBell({ unreadCount, onCountChange, onViewAll, onNavigate }: NotificationBellProps) {
+function NotificationBell({ unreadCount, onCountChange, onViewAll, onNavigate, activeStoreId, assignedStores }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fetchSequence = useRef(0);
 
-  const fetchNotifications = useCallback(() => {
+  const fetchNotifications = useCallback(async () => {
+    const sequence = ++fetchSequence.current;
     setLoading(true);
     setError(false);
-    getNotifications()
-      .then((data) => setNotifications(data.slice(0, 4)))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, []);
+    try {
+      if (!assignedStores || activeStoreId == null) {
+        const data = await getNotifications();
+        if (sequence === fetchSequence.current) setNotifications(data.slice(0, 4));
+        return;
+      }
+
+      const matching: Notification[] = [];
+      const pageSize = 100;
+      let page = 0;
+      while (matching.length < 4) {
+        const data = await getNotifications(page, pageSize);
+        const existingIds = new Set(matching.map((notification) => notification.id));
+        for (const notification of data) {
+          if (
+            existingIds.has(notification.id) ||
+            !isNotificationVisibleForStore(notification, assignedStores, activeStoreId)
+          ) continue;
+          existingIds.add(notification.id);
+          matching.push(notification);
+        }
+        if (data.length < pageSize) break;
+        page += 1;
+      }
+      if (sequence === fetchSequence.current) setNotifications(matching.slice(0, 4));
+    } catch {
+      if (sequence === fetchSequence.current) setError(true);
+    } finally {
+      if (sequence === fetchSequence.current) setLoading(false);
+    }
+  }, [activeStoreId, assignedStores]);
 
   useEffect(() => {
     if (!open) return;
@@ -198,6 +232,7 @@ function NotificationBell({ unreadCount, onCountChange, onViewAll, onNavigate }:
                   onRead={handleItemRead}
                   onViewAll={handleViewAll}
                   onNavigate={n.linkPath ? handleNavigate : undefined}
+                  assignedStores={assignedStores}
                 />
               ))
             )}

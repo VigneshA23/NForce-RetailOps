@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
+import type { StoreSummary } from '../types/store';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
 import BottomNav from '../components/BottomNav';
@@ -40,6 +41,8 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onOrdersClick?: () => void;
   onNotificationsClick?: () => void;
   onNotificationNavigate?: NotificationNavigateHandler;
+  notificationStoreId?: number;
+  notificationStores?: StoreSummary[];
   notificationUnreadCount?: number;
   onNotificationsCountChange?: (count: number) => void;
   avatarUrl?: string | null;
@@ -95,6 +98,8 @@ function AppShell<Key extends string = NavTabKey>({
   onOrdersClick,
   onNotificationsClick,
   onNotificationNavigate,
+  notificationStoreId,
+  notificationStores,
   notificationUnreadCount,
   onNotificationsCountChange,
   avatarUrl,
@@ -200,6 +205,8 @@ function AppShell<Key extends string = NavTabKey>({
             onOrdersClick={onOrdersClick}
             onNotificationsClick={onNotificationsClick}
             onNotificationNavigate={onNotificationNavigate}
+            notificationStoreId={notificationStoreId}
+            notificationStores={notificationStores}
             notificationUnreadCount={notificationUnreadCount}
             onNotificationsCountChange={onNotificationsCountChange}
             onLogout={onLogout}
