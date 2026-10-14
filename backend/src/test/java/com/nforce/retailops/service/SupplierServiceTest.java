@@ -126,16 +126,22 @@ class SupplierServiceTest {
         link.setActive(true);
         when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(link));
 
+        // All three apply to every store -- the hiding behavior under test
+        // here is independent of (and must not be confused with) the
+        // appliesToAllStores/assigned-stores scoping covered separately below.
         Supplier hiddenHere = new Supplier();
         hiddenHere.setName("Hidden Here");
+        hiddenHere.setAppliesToAllStores(true);
         hiddenHere.getHiddenAtStores().add(myStore);
 
         Supplier hiddenElsewhere = new Supplier();
         hiddenElsewhere.setName("Hidden Elsewhere");
+        hiddenElsewhere.setAppliesToAllStores(true);
         hiddenElsewhere.getHiddenAtStores().add(otherStore);
 
         Supplier visible = new Supplier();
         visible.setName("Visible");
+        visible.setAppliesToAllStores(true);
 
         when(supplierRepository.findAllByOrderByNameAsc()).thenReturn(List.of(hiddenHere, hiddenElsewhere, visible));
 
@@ -144,6 +150,40 @@ class SupplierServiceTest {
         assertEquals(2, result.size());
         assertTrue(result.stream().anyMatch(r -> r.name().equals("Hidden Elsewhere")));
         assertTrue(result.stream().anyMatch(r -> r.name().equals("Visible")));
+    }
+
+    @Test
+    void listSuppliersForStoreOnlyIncludesSuppliersThatApplyThere() {
+        com.nforce.retailops.entity.Store myStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(myStore, "id", 10L);
+        com.nforce.retailops.entity.Store otherStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(otherStore, "id", 20L);
+
+        com.nforce.retailops.entity.StoreOwner link = new com.nforce.retailops.entity.StoreOwner();
+        link.setStore(myStore);
+        link.setActive(true);
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(link));
+
+        Supplier global = new Supplier();
+        global.setName("Global Supplier");
+        global.setAppliesToAllStores(true);
+
+        Supplier assignedHere = new Supplier();
+        assignedHere.setName("Assigned Here");
+        assignedHere.getStores().add(myStore);
+
+        Supplier assignedElsewhereOnly = new Supplier();
+        assignedElsewhereOnly.setName("Assigned Elsewhere Only");
+        assignedElsewhereOnly.getStores().add(otherStore);
+
+        when(supplierRepository.findAllByOrderByNameAsc()).thenReturn(List.of(global, assignedHere, assignedElsewhereOnly));
+
+        List<SupplierResponse> result = supplierService.listSuppliersForStore(1L);
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().anyMatch(r -> r.name().equals("Global Supplier")));
+        assertTrue(result.stream().anyMatch(r -> r.name().equals("Assigned Here")));
+        assertFalse(result.stream().anyMatch(r -> r.name().equals("Assigned Elsewhere Only")));
     }
 
     @Test

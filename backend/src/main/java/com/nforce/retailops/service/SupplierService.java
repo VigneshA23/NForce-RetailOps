@@ -55,13 +55,19 @@ public class SupplierService {
     }
 
     // Owner/Admin's own Suppliers tab + the inventory item form's preferred-
-    // supplier dropdown (both consume this one endpoint) -- excludes whatever
-    // this store has chosen to hide, without touching the global list other
+    // supplier dropdown (both consume this one endpoint) -- scoped to
+    // suppliers actually usable at this store (appliesToAllStores, or this
+    // store explicitly in Super Admin's assignment list), same
+    // appliesToAllStores/getStores() idiom TaskService/TaskMakeupLinkService
+    // use for their own store-scoping. Also excludes whatever this store has
+    // separately chosen to hide, without touching the global list other
     // stores or Super Admin see.
     @Transactional(readOnly = true)
     public List<SupplierResponse> listSuppliersForStore(Long ownerId) {
         Store store = requireOwnerStore(ownerId);
         return supplierRepository.findAllByOrderByNameAsc().stream()
+            .filter(supplier -> supplier.isAppliesToAllStores()
+                || supplier.getStores().stream().anyMatch(s -> s.getId().equals(store.getId())))
             .filter(supplier -> supplier.getHiddenAtStores().stream().noneMatch(s -> s.getId().equals(store.getId())))
             .map(SupplierResponse::from)
             .toList();

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CircleCheck, ClipboardCheck, Clock, FileSpreadsheet, FileText, MapPin, Package, PackageX, Plus, Store as StoreIcon, Truck } from 'lucide-react';
+import { AlertTriangle, CircleCheck, ClipboardCheck, Clock, FileSpreadsheet, FileText, MapPin, Package, PackageX, Plus, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createStoreInventoryItem,
@@ -27,7 +27,6 @@ import useDismissablePanel from '../hooks/useDismissablePanel';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
-import { supplierStoreSummaryLabel } from '../utils/supplierStoreSummary';
 import './StoreInventory.css';
 
 type SubTab = 'items' | 'suppliers' | 'history';
@@ -459,7 +458,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               {isLoading ? 'Loading...' : `${activeSupplierCount} active of ${suppliers.length} total. New suppliers are added from the item form.`}
             </p>
 
-            <div className="filter-bar">
+            <div className="filter-bar store-inventory-page__supplier-filter-bar">
               <div className="filter filter--search">
                 <SearchInput value={supplierSearch} onChange={setSupplierSearch} placeholder="Search suppliers" variant="filter" />
               </div>
@@ -483,14 +482,12 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                       crowd it down to whatever space they didn't need. */}
                   <colgroup>
                     <col className="supplier-table__col-name" />
-                    <col className="supplier-table__col-store" />
                     <col className="supplier-table__col-count" />
                     <col className="supplier-table__col-status" />
                   </colgroup>
                   <thead>
                     <tr>
                       <th scope="col">Supplier Name</th>
-                      <th scope="col">Assigned Store</th>
                       <th scope="col" className="supplier-table__cell-count">Items Count</th>
                       <th scope="col">Status</th>
                     </tr>
@@ -508,19 +505,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                               )}
                             </div>
                           </div>
-                        </td>
-                        <td className="supplier-table__cell-store" data-label="Assigned Store">
-                          {supplier.appliesToAllStores ? (
-                            <span className="employee-table__store-badge">All Stores</span>
-                          ) : (supplier.stores ?? []).length === 0 ? (
-                            <span className="employee-table__no-stores">—</span>
-                          ) : (
-                            <div className="employee-table__store-badges">
-                              {(supplier.stores ?? []).map((store) => (
-                                <span key={store.id} className="employee-table__store-badge">{store.name}</span>
-                              ))}
-                            </div>
-                          )}
                         </td>
                         <td className="supplier-table__cell-count" data-label="Items Count">
                           {itemCountBySupplier.get(supplier.id) ?? 0}
@@ -575,13 +559,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                         {supplier.location}
                       </div>
                     )}
-
-                    <div className="supplier-mobile-card__footer">
-                      <span className="supplier-mobile-card__store-value">
-                        <StoreIcon size={12} />
-                        {supplierStoreSummaryLabel(supplier)}
-                      </span>
-                    </div>
                   </div>
                 ))}
                 {!isLoading && visibleSuppliers.length === 0 && (

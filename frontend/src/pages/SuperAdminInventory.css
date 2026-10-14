@@ -71,6 +71,22 @@
   text-align: center;
 }
 
+/* The Suppliers tab's filter row only has two real controls (search, status)
+   -- the shared .filter--search/.filter--narrow split (styles/filters.css,
+   tuned for busier bars with several filters) gave search too much of the
+   row at tablet widths, squeezing the status Select below the width "All
+   Status"/"Inactive" need and truncating it. Narrowed here instead of in the
+   shared file so other, busier filter bars elsewhere keep their own split.
+   Same fix as StoreInventory.css's own copy of this rule. */
+.store-inventory-page__supplier-filter-bar .filter--search {
+  flex: 1 1 35%;
+}
+
+.store-inventory-page__supplier-filter-bar .filter--narrow {
+  flex: 0 1 140px;
+  min-width: 120px;
+}
+
 /* Fixed layout, scoped to this one table only (desktop/tablet -- mobile
    renders its own dedicated card markup instead of this <table> at all, see
    @media (--mobile) at the bottom of this file). Auto layout (the default)
@@ -142,7 +158,12 @@
   background: var(--color-bg-page);
 }
 
-.super-admin-inventory-page__count-cell {
+/* Two classes (not one) so this beats .data-table thead th's own text-align:
+   left (styles/table.css) -- same fix as StoreInventory.css's own
+   .supplier-table__cell-count, which has the identical specificity gap: a
+   single class alone centered the value (no competing th rule applies to
+   td) but lost to the header's own left-align. */
+.supplier-table-card .super-admin-inventory-page__count-cell {
   text-align: center;
 }
 
