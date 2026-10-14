@@ -35,6 +35,8 @@ export const OWNER_NOTIFICATION_ROUTES: Record<string, OwnerNotificationTarget> 
   '/profile': 'profile',
   // RTS-306: a Super Admin correcting the owner's own store's stock check.
   '/inventory': 'inventory',
+  // RTS-368: an employee reported a mid-day shortage.
+  '/orders': 'orders',
 };
 
 export const EMPLOYEE_NOTIFICATION_ROUTES: Record<string, EmployeeNotificationTarget> = {
