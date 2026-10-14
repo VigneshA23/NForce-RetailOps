@@ -99,6 +99,9 @@ export interface StoreInventoryItemOption {
   // Employee Report Shortage picker only: the usable stock the app currently
   // expects, shown as a hint beside the current-stock field.
   currentStock?: number | null;
+  // Employee Report Shortage picker only: orders already placed and not yet
+  // received; the "already received" checkbox only applies when there is one.
+  openOrders?: OpenOrder[];
 }
 
 // One item on the employee's daily Stock Check screen.

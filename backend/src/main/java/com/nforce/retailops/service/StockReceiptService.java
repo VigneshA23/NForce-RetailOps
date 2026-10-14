@@ -1,13 +1,11 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.entity.StockCheck;
-import com.nforce.retailops.entity.StockCheckCorrection;
 import com.nforce.retailops.entity.StockCheckReceipt;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.repository.StockCheckCorrectionRepository;
 import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import org.springframework.data.domain.PageRequest;
@@ -28,9 +26,8 @@ import java.util.Optional;
 // SOD + received - EOD instead of going negative, and the current count is
 // SOD usable + received until End of Day is counted.
 //
-// If End of Day is already saved it was counted without this delivery, so the
-// closing count is raised too (and audited in stock_check_corrections); usage
-// is unchanged since both sides move together.
+// If End of Day is already saved it is left exactly as submitted; the delivery
+// is recorded as a pending receipt on top of it (see StockCheckReceipt).
 //
 // With no row for today the delivery is still recorded, on top of the item's
 // latest count (see StockCheckReceipt); an item that has never been counted has
@@ -41,19 +38,14 @@ import java.util.Optional;
 @Service
 public class StockReceiptService {
 
-    static final String CORRECTION_REASON = "Stock received (order marked received)";
-
     private final StockCheckRepository stockCheckRepository;
-    private final StockCheckCorrectionRepository stockCheckCorrectionRepository;
     private final StockCheckReceiptRepository stockCheckReceiptRepository;
 
     public StockReceiptService(
         StockCheckRepository stockCheckRepository,
-        StockCheckCorrectionRepository stockCheckCorrectionRepository,
         StockCheckReceiptRepository stockCheckReceiptRepository
     ) {
         this.stockCheckRepository = stockCheckRepository;
-        this.stockCheckCorrectionRepository = stockCheckCorrectionRepository;
         this.stockCheckReceiptRepository = stockCheckReceiptRepository;
     }
 
@@ -80,36 +72,20 @@ public class StockReceiptService {
         }
 
         StockCheck check = todaysCheck.get();
-        boolean endOfDayTaken = check.hasSnapshot(StockCheckSnapshot.END_OF_DAY);
-        BigDecimal previousEndAvailable = check.getEndOfDayAvailable();
+        if (check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
+            // The submitted End of Day count is a historical record and must
+            // not change. Record the delivery as a pending receipt on top of it.
+            BigDecimal countAfter = check.getCurrentCount()
+                .add(StockCheckReceipt.pendingTotal(stockCheckReceiptRepository.findUnappliedForItem(item.getId()), check))
+                .add(received);
+            recordReceipt(item, null, received, countAfter, user, superAdmin);
+            BigDecimal requiredTomorrow = item.requiredMinimumOn(check.getCheckDate().plusDays(1));
+            return new Result(true, countAfter, requiredToday, StockCheckService.orderQuantity(requiredTomorrow, countAfter));
+        }
 
         check.addReceived(received);
-
-        BigDecimal reorderQuantity;
-        if (endOfDayTaken) {
-            BigDecimal requiredTomorrow = item.requiredMinimumOn(check.getCheckDate().plusDays(1));
-            check.setRequiredTomorrow(requiredTomorrow);
-            check.setQuantityNeeded(StockCheckService.orderQuantity(requiredTomorrow, check.usableFor(StockCheckSnapshot.END_OF_DAY)));
-            reorderQuantity = check.getQuantityNeeded();
-        } else {
-            reorderQuantity = StockCheckService.orderQuantity(requiredToday, check.getCurrentCount());
-        }
+        BigDecimal reorderQuantity = StockCheckService.orderQuantity(requiredToday, check.getCurrentCount());
         StockCheck saved = stockCheckRepository.save(check);
-
-        if (endOfDayTaken) {
-            BigDecimal deadStock = check.getEndOfDayDeadStock();
-            StockCheckCorrection correction = new StockCheckCorrection();
-            correction.setStockCheck(saved);
-            correction.setSnapshot(StockCheckSnapshot.END_OF_DAY);
-            correction.setOriginalCount(previousEndAvailable);
-            correction.setOriginalDeadStock(deadStock);
-            correction.setCorrectedCount(check.getEndOfDayAvailable());
-            correction.setCorrectedDeadStock(deadStock);
-            correction.setCorrectedByUser(user);
-            correction.setCorrectedBySuperAdmin(superAdmin);
-            correction.setReason(CORRECTION_REASON);
-            stockCheckCorrectionRepository.save(correction);
-        }
 
         recordReceipt(item, saved, received, saved.getCurrentCount(), user, superAdmin);
         return new Result(true, saved.getCurrentCount(), requiredToday, reorderQuantity);

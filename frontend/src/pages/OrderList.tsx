@@ -18,6 +18,7 @@ import CheckboxButton from '../components/CheckboxButton';
 import StatusDotMenu from '../components/StatusDotMenu';
 import ChangeOrderStatusModal from '../components/ChangeOrderStatusModal';
 import { roundQty } from '../utils/quantity';
+import { describeStockUpdate } from '../utils/stockUpdateStatus';
 import { describeReceipt } from '../utils/orderReceipt';
 import BulkChangeOrderStatusModal, { type BulkStatusChangeItem } from '../components/BulkChangeOrderStatusModal';
 import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
@@ -52,7 +53,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
   const [entries, setEntries] = useState<OrderListEntry[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [inventoryItems, setInventoryItems] = useState<OrderableInventoryItem[]>([]);
-  const [stockByItemId, setStockByItemId] = useState<Map<number, { current: number | null; minimum: number | null }>>(new Map());
+  const [stockByItemId, setStockByItemId] = useState<Map<number, { current: number | null; minimum: number | null; lastUpdatedAt: string | null; lastUpdatedByName: string | null }>>(new Map());
   const [categoryByItemId, setCategoryByItemId] = useState<Map<number, InventoryItemCategory | null>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -100,7 +101,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
             .filter((item) => item.active)
             .map((item) => ({ id: item.id, name: item.name, unitOfMeasurement: item.unitOfMeasurement, preferredSupplierId: item.preferredSupplierId })),
         );
-        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum }])));
+        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum, lastUpdatedAt: row.lastUpdatedAt, lastUpdatedByName: row.lastUpdatedByName }])));
         setCategoryByItemId(new Map(items.map((item) => [item.id, item.category])));
       })
       .catch((error: Error) => setLoadError(error.message))
@@ -182,7 +183,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
     Promise.all([getOrderList(), getInventoryCounts({ size: 500 })])
       .then(([list, counts]) => {
         setEntries(list);
-        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum }])));
+        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum, lastUpdatedAt: row.lastUpdatedAt, lastUpdatedByName: row.lastUpdatedByName }])));
       })
       .catch(() => {});
   }
@@ -336,6 +337,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
       categoryLabel,
       onHand: stock?.current ?? null,
       par: stock?.minimum ?? null,
+      stockUpdate: describeStockUpdate(stock?.lastUpdatedAt, stock?.lastUpdatedByName),
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
       meta: entry.note ? `${raisedBy} · ${raisedAt} · ${entry.note}` : `${raisedBy} · ${raisedAt}`,
       // Mobile's card shows category as its own pill below the stats box now,
@@ -514,7 +516,8 @@ function OrderList({ storeName, seed }: OrderListProps) {
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
               </div>
-              <div className="order-list__item-mobile-meta">{row.mobileMeta}</div>
+              <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              {entry.note && <div className="order-list__item-mobile-meta">{entry.note}</div>}
             </div>
           </div>
           <div className="order-list__mobile-stats">
@@ -570,7 +573,8 @@ function OrderList({ storeName, seed }: OrderListProps) {
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
               </div>
-              <div className="order-list__item-meta">{row.meta}</div>
+              <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              {entry.note && <div className="order-list__item-meta">{entry.note}</div>}
             </div>
           </div>
         </td>
