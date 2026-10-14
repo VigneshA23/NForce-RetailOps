@@ -249,6 +249,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
           unitOfMeasurement: i.unitOfMeasurement,
           active: true,
           currentStock: i.currentStock,
+          openOrders: i.openOrders,
         })),
     [items],
   );

@@ -37,6 +37,7 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
 
   const selectedItem = items.find((item) => item.storeInventoryItemId === values.storeInventoryItemId);
   const selectedUnit = selectedItem?.unitOfMeasurement;
+  const hasOpenOrder = (selectedItem?.openOrders?.length ?? 0) > 0;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -48,7 +49,7 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
       setErrors(nextErrors);
       return;
     }
-    onSubmit(values);
+    onSubmit({ ...values, orderedAlreadyReceived: hasOpenOrder && values.orderedAlreadyReceived });
   }
 
   const itemOptions = items.map((item) => ({
@@ -102,15 +103,17 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
             }}
           />
         </FormField>
-        <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
-          <input
-            id="ad-hoc-received"
-            type="checkbox"
-            checked={values.orderedAlreadyReceived}
-            onChange={(event) => setValues((current) => ({ ...current, orderedAlreadyReceived: event.target.checked }))}
-          />
-          <span>An earlier order for this item has already been received</span>
-        </label>
+        {hasOpenOrder && (
+          <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
+            <input
+              id="ad-hoc-received"
+              type="checkbox"
+              checked={values.orderedAlreadyReceived}
+              onChange={(event) => setValues((current) => ({ ...current, orderedAlreadyReceived: event.target.checked }))}
+            />
+            <span>An earlier order for this item has already been received</span>
+          </label>
+        )}
         <FormField label="Note (optional)" htmlFor="ad-hoc-note">
           <input
             id="ad-hoc-note"
