@@ -258,6 +258,8 @@ class NotificationTriggerTest {
             .andExpect(jsonPath("$.length()").value(1))
             .andExpect(jsonPath("$[0].category").value("TASK_ADDED"))
             .andExpect(jsonPath("$[0].linkPath").value("/checklist"))
+            .andExpect(jsonPath("$[0].storeId").value(store.getId()))
+            .andExpect(jsonPath("$[0].relatedStoreName").value(store.getName()))
             .andExpect(jsonPath("$[0].read").value(false));
     }
 
@@ -267,7 +269,10 @@ class NotificationTriggerTest {
         Role empRole = role("EMPLOYEE");
         User employee = user("trig-emp-d@nforce.test", empRole);
         Store store = store();
-        linkEmployee(employee, store);
+        Store secondStore = store();
+        StoreEmployee storeEmployee = linkEmployee(employee, store);
+        storeEmployee.getStores().add(secondStore);
+        storeEmployeeRepository.save(storeEmployee);
 
         // Category creation is Super-Admin-only now -- notifying the store's
         // employees still happens, just from the Super Admin's create path.
@@ -276,17 +281,20 @@ class NotificationTriggerTest {
         mockMvc.perform(post("/api/categories")
                 .header("Authorization", "Bearer " + superAdminToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"New Category Trigger\",\"appliesToAllStores\":false,\"storeIds\":[" + store.getId() + "]}"))
+                .content("{\"name\":\"New Category Trigger\",\"appliesToAllStores\":false,\"storeIds\":["
+                    + store.getId() + "," + secondStore.getId() + "]}"))
             .andExpect(status().isCreated());
 
         String empToken = login("trig-emp-d@nforce.test");
         mockMvc.perform(get("/api/notifications")
                 .header("Authorization", "Bearer " + empToken))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.length()").value(1))
-            .andExpect(jsonPath("$[0].category").value("CATEGORY_ADDED"))
-            .andExpect(jsonPath("$[0].linkPath").value("/checklist"))
-            .andExpect(jsonPath("$[0].read").value(false));
+            .andExpect(jsonPath("$.length()").value(2))
+            .andExpect(jsonPath("$[?(@.storeId == " + store.getId() + ")].relatedStoreName").value(org.hamcrest.Matchers.contains(store.getName())))
+            .andExpect(jsonPath("$[?(@.storeId == " + secondStore.getId() + ")].relatedStoreName").value(org.hamcrest.Matchers.contains(secondStore.getName())))
+            .andExpect(jsonPath("$[*].category").value(org.hamcrest.Matchers.containsInAnyOrder("CATEGORY_ADDED", "CATEGORY_ADDED")))
+            .andExpect(jsonPath("$[*].linkPath").value(org.hamcrest.Matchers.containsInAnyOrder("/checklist", "/checklist")))
+            .andExpect(jsonPath("$[*].read").value(org.hamcrest.Matchers.containsInAnyOrder(false, false)));
     }
 
     @Test
@@ -316,14 +324,18 @@ class NotificationTriggerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1))
             .andExpect(jsonPath("$[0].category").value("EMPLOYEE_ASSIGNED"))
-            .andExpect(jsonPath("$[0].linkPath").value("/checklist"));
+            .andExpect(jsonPath("$[0].linkPath").value("/checklist"))
+            .andExpect(jsonPath("$[0].storeId").value(store.getId()))
+            .andExpect(jsonPath("$[0].relatedStoreName").value(store.getName()));
 
         mockMvc.perform(get("/api/notifications")
                 .header("Authorization", "Bearer " + ownerToken))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.length()").value(1))
             .andExpect(jsonPath("$[0].category").value("NEW_EMPLOYEE_JOINED"))
-            .andExpect(jsonPath("$[0].linkPath").value("/employees"));
+            .andExpect(jsonPath("$[0].linkPath").value("/employees"))
+            .andExpect(jsonPath("$[0].storeId").value(store.getId()))
+            .andExpect(jsonPath("$[0].relatedStoreName").value(store.getName()));
     }
 
     @Test

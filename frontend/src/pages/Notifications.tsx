@@ -6,9 +6,12 @@ import {
   RefreshCw, Search, Trash2,
 } from 'lucide-react';
 import { deleteNotification, getNotifications, getUnreadCount, markAllRead, markNotificationRead } from '../api/notifications';
+import NotificationMessage from '../components/NotificationMessage';
 import type { Notification } from '../types/notification';
+import type { StoreSummary } from '../types/store';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { ALL_DISPLAY_CATEGORIES, getCategoryMeta, type DisplayCategory } from '../utils/notificationCategoryMeta';
+import { formatNotificationMessage, isNotificationVisibleForStore } from '../utils/notificationStore';
 import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
 import './Notifications.css';
 
@@ -228,6 +231,7 @@ function SwipeableRow({ children, onDelete, deleting, onOpen }: SwipeableRowProp
 
 interface NotifRowProps {
   n: Notification;
+  assignedStores?: StoreSummary[];
   selected: boolean;
   onSelect: (n: Notification) => void;
   onMarkRead: (id: number) => void;
@@ -236,7 +240,7 @@ interface NotifRowProps {
   deletingId: number | null;
 }
 
-function NotifRow({ n, selected, onSelect, onMarkRead, onDelete, markingId, deletingId }: NotifRowProps) {
+function NotifRow({ n, assignedStores, selected, onSelect, onMarkRead, onDelete, markingId, deletingId }: NotifRowProps) {
   const meta = getMeta(n.category);
   const pri  = getPriority(n);
   const pm   = PRIORITY_META[pri];
@@ -272,7 +276,9 @@ function NotifRow({ n, selected, onSelect, onMarkRead, onDelete, markingId, dele
           <span className={`nfp-row__title${n.read ? ' nfp-row__title--read' : ''}`}>{n.title}</span>
           <span className="nfp-row__time">{timeAgo(n.createdAt)}</span>
         </div>
-        {n.message && <p className="nfp-row__msg">{n.message}</p>}
+        {(n.message || assignedStores || n.relatedStoreName) && (
+          <p className="nfp-row__msg"><NotificationMessage notification={n} assignedStores={assignedStores} /></p>
+        )}
         <div className="nfp-row__badges">
           <Pill colorVar={meta.fgVar} bgVar={meta.bgVar}>{meta.displayCategory}</Pill>
           <Pill colorVar={pm.colorVar} bgVar={pm.bgVar}>{pm.label}</Pill>
@@ -313,13 +319,14 @@ function NotifRow({ n, selected, onSelect, onMarkRead, onDelete, markingId, dele
 
 interface DetailPaneProps {
   n: Notification | null;
+  assignedStores?: StoreSummary[];
   onNavigate?: NotificationNavigateHandler;
   onBack?: () => void;
   onDelete?: (id: number) => void;
   deletingId?: number | null;
 }
 
-function DetailPane({ n, onNavigate, onBack, onDelete, deletingId }: DetailPaneProps) {
+function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingId }: DetailPaneProps) {
   if (!n) {
     return (
       <div className="nfp-detail nfp-detail--empty">
@@ -370,14 +377,18 @@ function DetailPane({ n, onNavigate, onBack, onDelete, deletingId }: DetailPaneP
       <h2 className="nfp-detail__title">{n.title}</h2>
       <p className="nfp-detail__ts">{new Date(n.createdAt).toLocaleString()}</p>
       <hr className="nfp-detail__divider" />
-      <p className="nfp-detail__body">{n.message || 'No additional details provided.'}</p>
+      <p className="nfp-detail__body">
+        {n.message || assignedStores || n.relatedStoreName
+          ? <NotificationMessage notification={n} assignedStores={assignedStores} />
+          : 'No additional details provided.'}
+      </p>
 
       <div className="nfp-detail__actions">
         {n.linkPath && onNavigate && (
           <button
             type="button"
             className="nfp-detail__open-btn"
-            onClick={() => onNavigate(n.linkPath!, { createdAt: n.createdAt, relatedIssueId: n.relatedIssueId, storeId: n.storeId })}
+            onClick={() => onNavigate(n.linkPath!, { createdAt: n.createdAt, relatedIssueId: n.relatedIssueId, storeId: n.storeId ?? null })}
           >
             Open related page <ArrowUpRight size={14} aria-hidden="true" />
           </button>
@@ -408,13 +419,15 @@ type SortOrder = 'newest' | 'oldest';
 interface NotificationsProps {
   onUnreadChange: (count: number) => void;
   onNavigate?: NotificationNavigateHandler;
+  activeStoreId?: number;
+  assignedStores?: StoreSummary[];
   // Leaves the Notifications page entirely (e.g. back to Home) -- distinct
   // from DetailPane's own onBack, which just returns from the mobile detail
   // view to this page's list.
   onBackToHome?: () => void;
 }
 
-function Notifications({ onUnreadChange, onNavigate, onBackToHome }: NotificationsProps) {
+function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId, assignedStores }: NotificationsProps) {
   const isWide = useMediaQuery('(min-width: 900px)');
   const isDesktopPointer = useMediaQuery('(hover: hover) and (pointer: fine)');
 
@@ -434,6 +447,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
   const [priFilter, setPriFilter] = useState<Priority | 'all'>('all');
   const [statusFilter, setStatus] = useState<StatusFilter>('all');
   const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
+  const [storeFilter, setStoreFilter] = useState<number | 'all'>(activeStoreId ?? 'all');
 
   // Tracked separately from `items` because `items` is capped at the backend's
   // page size (100) -- for an account with more unread notifications than that,
@@ -448,6 +462,10 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
   const [page, setPage]           = useState(0);
   const [hasMore, setHasMore]     = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  useEffect(() => {
+    if (activeStoreId != null) setStoreFilter(activeStoreId);
+  }, [activeStoreId]);
 
   function load(silent = false) {
     if (!silent) { setLoading(true); setError(false); }
@@ -468,7 +486,16 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
     try {
       const nextPage = page + 1;
       const data = await getNotifications(nextPage, PAGE_SIZE);
-      setItems(prev => [...prev, ...data]);
+      setItems(prev => {
+        const existingIds = new Set(prev.map((notification) => notification.id));
+        const nextItems = [...prev];
+        for (const notification of data) {
+          if (existingIds.has(notification.id)) continue;
+          existingIds.add(notification.id);
+          nextItems.push(notification);
+        }
+        return nextItems;
+      });
       setPage(nextPage);
       setHasMore(data.length === PAGE_SIZE);
     } catch {
@@ -529,8 +556,15 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
     if (!isWide) setShowDetail(true);
   }
 
+  const storeScopedItems = useMemo(() => {
+    if (!assignedStores || activeStoreId == null) return items;
+    return items.filter((notification) =>
+      isNotificationVisibleForStore(notification, assignedStores, storeFilter),
+    );
+  }, [items, assignedStores, activeStoreId, storeFilter]);
+
   const visible = useMemo(() => {
-    let list = items;
+    let list = storeScopedItems;
     if (statusFilter === 'unread') list = list.filter(n => !n.read);
     if (statusFilter === 'read')   list = list.filter(n => n.read);
     if (catFilter !== 'all')       list = list.filter(n => getMeta(n.category).displayCategory === catFilter);
@@ -539,19 +573,19 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
       const q = search.trim().toLowerCase();
       list = list.filter(n =>
         n.title.toLowerCase().includes(q) ||
-        (n.message ?? '').toLowerCase().includes(q) ||
+        formatNotificationMessage(n, assignedStores).toLowerCase().includes(q) ||
         getMeta(n.category).displayCategory.toLowerCase().includes(q) ||
         PRIORITY_META[getPriority(n)].label.toLowerCase().includes(q),
       );
     }
     if (sortOrder === 'oldest') list = [...list].reverse();
     return list;
-  }, [items, statusFilter, catFilter, priFilter, search, sortOrder]);
+  }, [storeScopedItems, statusFilter, catFilter, priFilter, search, sortOrder, assignedStores]);
 
   const groups   = groupNotifications(visible);
-  const selected = items.find(n => n.id === selectedId) ?? null;
+  const selected = visible.find(n => n.id === selectedId) ?? null;
   const unread   = unreadTotal;
-  const total    = items.length;
+  const total    = storeScopedItems.length;
 
   // Mobile detail view
   if (!isWide && showDetail) {
@@ -560,6 +594,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
         <div className="nfp-mobile-detail-card">
           <DetailPane
             n={selected}
+            assignedStores={assignedStores}
             onNavigate={(path, createdAt) => { onNavigate?.(path, createdAt); setShowDetail(false); }}
             onBack={() => setShowDetail(false)}
             onDelete={handleDelete}
@@ -589,7 +624,11 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
             )}
           </h1>
           <p className="nfp-header__sub">
-            {total > 0 ? `${total} total notification${total !== 1 ? 's' : ''}` : 'All caught up'}
+            {total > 0
+              ? `${total} total notification${total !== 1 ? 's' : ''}`
+              : assignedStores && storeFilter !== 'all'
+                ? 'No notifications for this store'
+                : 'All caught up'}
           </p>
         </div>
         <div className="nfp-header__actions">
@@ -621,6 +660,22 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
 
       {/* ── Filter toolbar ── */}
       <div className="nfp-toolbar">
+        {assignedStores && activeStoreId != null && assignedStores.length > 1 && (
+          <select
+            value={storeFilter === 'all' ? 'all' : String(storeFilter)}
+            onChange={(event) => setStoreFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))}
+            aria-label="Filter by store"
+            className="nfp-toolbar__select"
+          >
+            <option value={activeStoreId}>
+              {assignedStores.find((store) => store.id === activeStoreId)?.name ?? 'Selected Store'}
+            </option>
+            {assignedStores
+              .filter((store) => store.id !== activeStoreId)
+              .map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
+            <option value="all">All Stores</option>
+          </select>
+        )}
         <div className="nfp-toolbar__search">
           <Search size={13} className="nfp-toolbar__search-icon" aria-hidden="true" />
           <input
@@ -709,6 +764,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
                     <NotifRow
                       key={n.id}
                       n={n}
+                      assignedStores={assignedStores}
                       selected={n.id === selectedId}
                       onSelect={handleSelect}
                       onMarkRead={handleMarkRead}
@@ -725,6 +781,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
                     >
                       <NotifRow
                         n={n}
+                        assignedStores={assignedStores}
                         selected={false}
                         onSelect={handleSelect}
                         onMarkRead={handleMarkRead}
@@ -757,6 +814,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome }: Notificatio
             <div className="nfp-detail-pane">
               <DetailPane
                 n={selected}
+                assignedStores={assignedStores}
                 onNavigate={onNavigate}
                 onDelete={handleDelete}
                 deletingId={deletingId}

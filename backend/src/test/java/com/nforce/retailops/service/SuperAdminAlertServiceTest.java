@@ -230,14 +230,14 @@ class SuperAdminAlertServiceTest {
         List<?> notifications = notificationRepository
             .findByRecipientSuperAdminIdOrderByCreatedAtDesc(sa.getId(), org.springframework.data.domain.PageRequest.of(0, 50));
         assertThat(notifications).isNotEmpty();
-        boolean hasOverdueAlert = notifications.stream()
-            .anyMatch(o -> {
-                var notif = (com.nforce.retailops.entity.Notification) o;
-                return "ISSUES_OVERDUE".equals(notif.getCategory())
-                    && notif.getTitle().contains("Overdue Store 1")
-                    && notif.getMessage().contains("2 issue");
-            });
-        assertThat(hasOverdueAlert).isTrue();
+        var overdueAlert = notifications.stream()
+            .map(o -> (com.nforce.retailops.entity.Notification) o)
+            .filter(notif -> "ISSUES_OVERDUE".equals(notif.getCategory())
+                && notif.getTitle().contains("Overdue Store 1")
+                && notif.getMessage().contains("2 issue"))
+            .findFirst()
+            .orElseThrow();
+        assertThat(overdueAlert.getStore().getId()).isEqualTo(store.getId());
     }
 
     @Test

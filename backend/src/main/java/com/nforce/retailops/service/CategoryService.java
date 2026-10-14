@@ -340,12 +340,14 @@ public class CategoryService {
             return;
         }
         String categoryName = category.getName();
-        storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(storeIds)
-            .forEach(se -> notificationService.send(
-                se.getEmployee(), "CATEGORY_ADDED",
-                "New category: " + categoryName,
-                "A new task category has been added to your store checklist.",
-                "/checklist"));
+        for (Store store : storeRepository.findAllById(storeIds)) {
+            storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(Set.of(store.getId()))
+                .forEach(se -> notificationService.sendForStore(
+                    se.getEmployee(), "CATEGORY_ADDED",
+                    "New category: " + categoryName,
+                    "A new task category has been added to your store checklist.",
+                    "/checklist", store));
+        }
     }
 
     private static List<Long> sentinel(Set<Long> ids) {

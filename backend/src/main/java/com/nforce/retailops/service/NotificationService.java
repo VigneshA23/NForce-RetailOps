@@ -78,6 +78,19 @@ public class NotificationService {
         send(recipient, category, title, message, linkPath, null);
     }
 
+    @Transactional
+    public void sendForStore(User recipient, String category, String title, String message, String linkPath, Store store) {
+        Notification n = new Notification();
+        n.setRecipientUser(recipient);
+        n.setCategory(category);
+        n.setTitle(title);
+        n.setMessage(message);
+        n.setLinkPath(linkPath);
+        n.setStore(store);
+        n.setPriority(PRIORITY_BY_CATEGORY.getOrDefault(category, "MEDIUM"));
+        notificationRepository.save(n);
+    }
+
     // Issue-related form: relatedIssue lets the frontend deep-link straight to
     // the issue, and cascades the notification away if the issue is purged.
     @Transactional
@@ -89,6 +102,9 @@ public class NotificationService {
         n.setMessage(message);
         n.setLinkPath(linkPath);
         n.setRelatedIssue(relatedIssue);
+        if (relatedIssue != null) {
+            n.setStore(relatedIssue.getStore());
+        }
         n.setPriority(PRIORITY_BY_CATEGORY.getOrDefault(category, "MEDIUM"));
         notificationRepository.save(n);
     }
@@ -138,6 +154,7 @@ public class NotificationService {
         n.setTitle(employeeName + " raised an issue at " + storeName);
         n.setMessage(notePreview);
         n.setRelatedIssue(issue);
+        n.setStore(issue.getStore());
         n.setLinkPath("/issues");
         notificationRepository.save(n);
     }

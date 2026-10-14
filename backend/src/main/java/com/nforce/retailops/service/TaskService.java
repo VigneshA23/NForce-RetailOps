@@ -167,13 +167,14 @@ public class TaskService {
 
         final String taskName = task.getName();
         storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId).ifPresent(so -> {
+            Store store = so.getStore();
             storeEmployeeRepository
-                .findDistinctByStoresIdInOrderByIdAscFetchEmployee(List.of(so.getStore().getId()))
-                .forEach(se -> notificationService.send(
+                .findDistinctByStoresIdInOrderByIdAscFetchEmployee(List.of(store.getId()))
+                .forEach(se -> notificationService.sendForStore(
                     se.getEmployee(), "TASK_ADDED",
                     "New task: " + taskName,
                     "A new task has been added to your store checklist.",
-                    "/checklist"));
+                    "/checklist", store));
         });
 
         activityLogService.logForStores(

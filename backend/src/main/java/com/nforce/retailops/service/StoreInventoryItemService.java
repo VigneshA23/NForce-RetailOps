@@ -366,12 +366,12 @@ public class StoreInventoryItemService {
         }
         String itemName = item.getName();
         storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(Set.of(store.getId()))
-            .forEach(se -> notificationService.send(
+            .forEach(se -> notificationService.sendForStore(
                 se.getEmployee(), "STOCK_ITEM_ADDED",
                 "New stock item: " + itemName,
                 "\"" + itemName + "\" has been added to your store's stock check. Please complete its "
                     + "Start of Day check - only one response is allowed per item.",
-                "/stock-check"));
+                "/stock-check", store));
     }
 
     // Only a real inactive -> active flip notifies, so re-sending "activate"
@@ -389,12 +389,12 @@ public class StoreInventoryItemService {
     private void notifyEmployeesOfReactivatedItem(Store store, StoreInventoryItem item) {
         String itemName = item.getName();
         storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(Set.of(store.getId()))
-            .forEach(se -> notificationService.send(
+            .forEach(se -> notificationService.sendForStore(
                 se.getEmployee(), "STOCK_ITEM_REACTIVATED",
                 "Stock item reactivated: " + itemName,
                 "\"" + itemName + "\" is back on your store's stock check. Please complete its "
                     + "Start of Day check - only one response is allowed per item.",
-                "/stock-check"));
+                "/stock-check", store));
     }
 
     private StoreInventoryItem applyUpdate(StoreInventoryItem item, StoreInventoryItemRequest request) {

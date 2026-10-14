@@ -4,6 +4,7 @@ import SearchInput from './SearchInput';
 import IconButton from './IconButton';
 import ProfileMenu from './ProfileMenu';
 import NotificationBell from './NotificationBell';
+import type { StoreSummary } from '../types/store';
 import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
 import './Header.css';
 
@@ -27,6 +28,8 @@ interface HeaderProps {
   onNotificationsCountChange?: (count: number) => void;
   onNotificationsClick?: () => void;
   onNotificationNavigate?: NotificationNavigateHandler;
+  notificationStoreId?: number;
+  notificationStores?: StoreSummary[];
   searchValue: string;
   onSearchChange: (value: string) => void;
   isDarkTheme: boolean;
@@ -66,6 +69,8 @@ function Header({
   onNotificationsCountChange,
   onNotificationsClick,
   onNotificationNavigate,
+  notificationStoreId,
+  notificationStores,
   searchValue,
   onSearchChange,
   isDarkTheme,
@@ -120,6 +125,8 @@ function Header({
             onCountChange={onNotificationsCountChange ?? (() => {})}
             onViewAll={onNotificationsClick}
             onNavigate={onNotificationNavigate}
+            activeStoreId={notificationStoreId}
+            assignedStores={notificationStores}
           />
         )}
         <ProfileMenu

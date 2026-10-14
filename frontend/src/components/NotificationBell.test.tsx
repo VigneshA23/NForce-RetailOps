@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import NotificationBell from './NotificationBell'
 import * as notificationsApi from '../api/notifications'
 import type { Notification } from '../types/notification'
+import type { StoreSummary } from '../types/store'
 
 vi.mock('../api/notifications', () => ({
   getNotifications: vi.fn(),
@@ -13,6 +14,10 @@ vi.mock('../api/notifications', () => ({
 
 const mockGetNotifications = vi.mocked(notificationsApi.getNotifications)
 const mockMarkNotificationRead = vi.mocked(notificationsApi.markNotificationRead)
+const assignedStores: StoreSummary[] = [
+  { id: 1, name: 'Store Alpha', location: null, status: 'Open' },
+  { id: 2, name: 'Store Beta', location: null, status: 'Open' },
+]
 
 function makeNotification(overrides: Partial<Notification>): Notification {
   return {
@@ -117,5 +122,91 @@ describe('NotificationBell — issue deep links', () => {
     await user.click(await screen.findByText('Downtown — no activity today'))
 
     await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/checklist', { createdAt: '2026-09-19T09:00:00Z', relatedIssueId: null, storeId: 7 }))
+  })
+})
+
+describe('NotificationBell — active employee store preview', () => {
+  it('shows active-store and unresolved notifications, excludes other and unassigned stores, and refreshes on store change', async () => {
+    const user = userEvent.setup()
+    mockGetNotifications.mockResolvedValue([
+      makeNotification({ id: 1, title: 'Alpha task', storeId: 1 }),
+      makeNotification({ id: 2, title: 'Beta task', storeId: 2 }),
+      makeNotification({ id: 3, title: 'Unspecified task', storeId: null }),
+      makeNotification({ id: 4, title: 'Unassigned task', storeId: 99 }),
+    ])
+    const props = {
+      unreadCount: 0,
+      onCountChange: vi.fn(),
+      onViewAll: vi.fn(),
+      assignedStores,
+      activeStoreId: 1,
+    }
+    const { rerender } = render(<NotificationBell {...props} />)
+
+    await user.click(screen.getByLabelText('Notifications'))
+    expect(await screen.findByText('Alpha task')).toBeInTheDocument()
+    expect(screen.getByText('Unspecified task')).toBeInTheDocument()
+    expect(screen.queryByText('Beta task')).not.toBeInTheDocument()
+    expect(screen.queryByText('Unassigned task')).not.toBeInTheDocument()
+    expect(Array.from(document.querySelectorAll('.nb-item__msg')).map((element) => element.textContent))
+      .toContain('Store Alpha · Your checklist history has an update.')
+    expect(screen.getByText('Store Alpha', { selector: 'strong' })).toBeInTheDocument()
+    expect(Array.from(document.querySelectorAll('.nb-item__msg')).map((element) => element.textContent))
+      .toContain('Store not specified · Your checklist history has an update.')
+
+    rerender(<NotificationBell {...props} activeStoreId={2} />)
+
+    expect(await screen.findByText('Beta task')).toBeInTheDocument()
+    expect(screen.queryByText('Alpha task')).not.toBeInTheDocument()
+    expect(screen.getByText('Unspecified task')).toBeInTheDocument()
+  })
+
+  it('continues to show the original unfiltered preview outside employee store context', async () => {
+    const user = userEvent.setup()
+    mockGetNotifications.mockResolvedValue([
+      makeNotification({
+        id: 1,
+        title: 'Alpha task',
+        message: 'A task was added at Store Alpha.',
+        relatedStoreName: 'Store Alpha',
+        storeId: 1,
+      }),
+      makeNotification({ id: 2, title: 'Beta task', storeId: 2 }),
+    ])
+
+    render(<NotificationBell unreadCount={0} onCountChange={vi.fn()} onViewAll={vi.fn()} />)
+    await user.click(screen.getByLabelText('Notifications'))
+
+    expect(await screen.findByText('Alpha task')).toBeInTheDocument()
+    expect(screen.getByText('Beta task')).toBeInTheDocument()
+    expect(screen.getByText('Store Alpha', { selector: 'strong' })).toBeInTheDocument()
+  })
+
+  it('paginates until it finds the latest active-store preview after unrelated-store notifications', async () => {
+    const user = userEvent.setup()
+    const otherStorePage = Array.from({ length: 100 }, (_, index) =>
+      makeNotification({ id: index + 1, title: `Beta task ${index + 1}`, storeId: 2 }),
+    )
+    mockGetNotifications
+      .mockResolvedValueOnce(otherStorePage)
+      .mockResolvedValueOnce([
+        makeNotification({ id: 101, title: 'Alpha recent task', storeId: 1 }),
+      ])
+
+    render(
+      <NotificationBell
+        unreadCount={0}
+        onCountChange={vi.fn()}
+        onViewAll={vi.fn()}
+        assignedStores={assignedStores}
+        activeStoreId={1}
+      />,
+    )
+    await user.click(screen.getByLabelText('Notifications'))
+
+    expect(await screen.findByText('Alpha recent task')).toBeInTheDocument()
+    expect(screen.queryByText('Beta task 1')).not.toBeInTheDocument()
+    expect(mockGetNotifications).toHaveBeenNthCalledWith(1, 0, 100)
+    expect(mockGetNotifications).toHaveBeenNthCalledWith(2, 1, 100)
   })
 })

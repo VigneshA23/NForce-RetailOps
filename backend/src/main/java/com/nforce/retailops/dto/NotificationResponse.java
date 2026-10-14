@@ -22,13 +22,19 @@ public record NotificationResponse(
     public static NotificationResponse from(Notification n) {
         Long issueId = null;
         String issueNote = null;
-        String storeName = null;
+        String storeName = n.getStore() != null ? n.getStore().getName() : null;
+        Long storeId = n.getStore() != null ? n.getStore().getId() : null;
         String issueStatus = null;
 
         if (n.getRelatedIssue() != null) {
             issueId = n.getRelatedIssue().getId();
             issueNote = n.getRelatedIssue().getNote();
-            storeName = n.getRelatedIssue().getStore().getName();
+            if (storeName == null) {
+                storeName = n.getRelatedIssue().getStore().getName();
+            }
+            if (storeId == null) {
+                storeId = n.getRelatedIssue().getStore().getId();
+            }
             issueStatus = n.getRelatedIssue().getStatus();
         }
 
@@ -44,7 +50,7 @@ public record NotificationResponse(
             issueNote,
             storeName,
             issueStatus,
-            n.getStore() != null ? n.getStore().getId() : null,
+            storeId,
             n.getCreatedAt()
         );
     }

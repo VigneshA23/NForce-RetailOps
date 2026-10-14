@@ -148,7 +148,7 @@ public class SuperAdminAlertService {
                 String title = store.getName() + " — " + overdueCount + " overdue issue" + (overdueCount == 1 ? "" : "s");
                 String message = store.getName() + " has " + overdueCount + " issue"
                     + (overdueCount == 1 ? "" : "s") + " unresolved for more than 48 hours.";
-                notificationService.sendToSuperAdmin(sa, "ISSUES_OVERDUE", title, message, "/issues", dedupKey);
+                notificationService.sendToSuperAdmin(sa, "ISSUES_OVERDUE", title, message, "/issues", dedupKey, store);
             }
         }
         log.info("Overdue-issues check complete for cutoff={}", cutoff);
