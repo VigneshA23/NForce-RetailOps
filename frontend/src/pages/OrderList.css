@@ -112,8 +112,12 @@
     max-width: none;
   }
 
+  /* No flex-basis: 100% here (unlike search above) -- the filters share this
+     second row with the view toggle instead of pushing it onto a third row
+     of its own; the row's own flex-wrap (shared with the toggle) still
+     wraps the select filters onto a further row if they truly don't fit
+     alongside it. */
   .order-list__filter-fields {
-    flex-basis: 100%;
     margin-left: 0;
     justify-content: flex-start;
   }

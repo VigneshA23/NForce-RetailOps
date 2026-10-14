@@ -17,7 +17,7 @@ export function emptyTaskFormValues(): AdminTaskFormValues {
     displayOrder: '',
     appliesToAllStores: false,
     storeIds: [],
-    responseType: 'YES_NO',
+    responseType: null,
     responseNote: '',
     numericUnit: '',
     numericMin: '',
