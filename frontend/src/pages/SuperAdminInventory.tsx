@@ -282,7 +282,6 @@ function SuperAdminInventory() {
       minWeekend: '',
       preferredSupplierId: null,
       note: '',
-      autoPoEnabled: true,
       imageId: null,
       imagePhotoId: null,
       imagePreviewUrl: null,

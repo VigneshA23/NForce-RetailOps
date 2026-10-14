@@ -18,7 +18,6 @@ function item(overrides: Partial<StoreInventoryItem>): StoreInventoryItem {
     preferredSupplierName: 'Walmart',
     note: null,
     active: true,
-    autoPoEnabled: true,
     requiredToday: 8,
     currentAvailable: 3,
     imageId: null,

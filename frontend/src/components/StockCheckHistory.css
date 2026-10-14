@@ -1,5 +1,27 @@
 @import '../styles/breakpoints.css';
 
+/* This filter row's non-search controls (category, and for Super Admin's
+   own copy, the store picker too) -- the shared .filter--search/.filter
+   split (styles/filters.css, tuned for simpler bars) gave search too much
+   of the row at tablet widths, squeezing a longer "All Categories (N)"
+   option below a readable width. min-width guaranteed here instead of in
+   the shared file so other filter bars elsewhere keep their own split.
+   Guarded to min-width: 481px (one above --mobile's own max-width: 480px)
+   so it never fights Super Admin's own @media (--mobile) block further
+   down, which already gives this same bar a dedicated horizontal-scroll
+   layout at true mobile widths. Shared by Owner/Admin and Super Admin (both
+   render this same className alongside their own). */
+@media (min-width: 481px) {
+  .stock-check-history__filter-bar .filter {
+    flex: 0 1 170px;
+    min-width: 150px;
+  }
+
+  .stock-check-history__filter-bar .filter--search {
+    flex: 1 1 30%;
+  }
+}
+
 .stock-check-history__header {
   display: flex;
   align-items: center;

@@ -965,12 +965,6 @@ public class StockCheckService {
     // count (see syncStartOfDayShortage / reconcileStartOfDayShortage).
     private void syncOrderList(StockCheck check, StockCheckSnapshot snapshot, User raisedBy) {
         StoreInventoryItem item = check.getStoreInventoryItem();
-        // The item's own "Auto PO Generator" toggle -- off means the owner
-        // reorders this item manually, so a count never raises or updates an
-        // order list entry for it.
-        if (!item.isAutoPoEnabled()) {
-            return;
-        }
         if (snapshot == StockCheckSnapshot.START_OF_DAY) {
             syncStartOfDayShortage(check, item, raisedBy);
             return;

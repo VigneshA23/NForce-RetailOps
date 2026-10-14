@@ -54,7 +54,6 @@ const EMPTY_VALUES: StoreInventoryItemFormValues = {
   minWeekend: '',
   preferredSupplierId: null,
   note: '',
-  autoPoEnabled: true,
   imageId: null,
   imagePhotoId: null,
   imagePreviewUrl: null,
@@ -263,6 +262,7 @@ function StoreInventoryItemFormModal({
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
             onCreate={onCreateSupplier}
             ariaLabel="Preferred supplier"
+            isEditingExisting={mode === 'edit'}
           />
         </FormField>
         <FormField label="Additional Notes" htmlFor="inventory-item-note">

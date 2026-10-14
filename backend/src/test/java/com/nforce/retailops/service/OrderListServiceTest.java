@@ -616,24 +616,6 @@ class OrderListServiceTest {
     }
 
     @Test
-    void markingReceivedDoesNotRaiseANewOrderWhenAutoPoIsOff() {
-        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
-        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
-        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
-        entry.getStoreInventoryItem().setAutoPoEnabled(false);
-        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
-        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(stockReceiptService.applyReceipt(any(), any(), any(), any()))
-            .thenReturn(new StockReceiptService.Result(true, bd(6), bd(10), bd(4)));
-
-        OrderListEntryResponse response = orderListService.updateEntry(OWNER_ID, ENTRY_ID,
-            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED, null, bd(3)));
-
-        assertThat(response.receipt().shortfall()).isEqualByComparingTo(bd(4));
-        verify(orderListEntryRepository, times(1)).save(any(OrderListEntry.class));
-    }
-
-    @Test
     void markingReceivedWithNoStockCountTodayReportsStockNotUpdated() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
         when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());

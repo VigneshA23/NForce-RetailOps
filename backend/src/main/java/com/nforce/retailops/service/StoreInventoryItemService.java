@@ -428,7 +428,6 @@ public class StoreInventoryItemService {
         item.setMinWeekday(request.minWeekday());
         item.setMinWeekend(request.minWeekend());
         item.setNote(request.note() != null ? request.note().trim() : null);
-        item.setAutoPoEnabled(request.autoPoEnabled());
 
         // The preferred supplier is optional; null clears it.
         Supplier supplier = request.preferredSupplierId() == null

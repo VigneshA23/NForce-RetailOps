@@ -894,19 +894,6 @@ class StockCheckServiceTest {
     }
 
     @Test
-    void startOfDayDoesNotRaiseAnOrderWhenAutoPoIsOff() {
-        milk.setMinWeekday(bd(8));
-        milk.setMinWeekend(bd(8));
-        milk.setAutoPoEnabled(false);
-        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
-            .thenReturn(Optional.empty());
-
-        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 2, 0));
-
-        verifyNoInteractions(orderListService);
-    }
-
-    @Test
     void correctingAPastStartOfDayDoesNotRaiseAnOrder() {
         milk.setMinWeekday(bd(20));
         milk.setMinWeekend(bd(20));

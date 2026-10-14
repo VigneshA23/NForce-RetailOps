@@ -46,8 +46,6 @@ public record StoreInventoryItemRequest(
     @Size(max = 500, message = "Note must be at most 500 characters")
     String note,
 
-    boolean autoPoEnabled,
-
     // Unsplash id of a newly chosen display image, which the server then
     // downloads and stores. Null leaves the current image as it is.
     @Size(max = 64, message = "Image id is invalid")

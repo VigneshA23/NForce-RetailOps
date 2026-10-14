@@ -66,7 +66,6 @@ function inventoryItem(overrides: Partial<StoreInventoryItem>): StoreInventoryIt
     preferredSupplierName: null,
     note: null,
     active: true,
-    autoPoEnabled: true,
     requiredToday: 5,
     currentAvailable: 10,
     imageId: null,
