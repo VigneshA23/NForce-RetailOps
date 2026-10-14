@@ -67,12 +67,11 @@ export async function reportAdHocShortage(
   storeId: number,
   storeInventoryItemId: number,
   currentStock: number,
-  quantity: number,
   note?: string,
   orderedAlreadyReceived = false,
 ): Promise<void> {
   return apiRequest<void>(`/me/inventory/ad-hoc?storeId=${storeId}`, {
     method: 'POST',
-    body: { storeInventoryItemId, currentStock, quantity, note: note?.trim() || null, orderedAlreadyReceived },
+    body: { storeInventoryItemId, currentStock, note: note?.trim() || null, orderedAlreadyReceived },
   });
 }

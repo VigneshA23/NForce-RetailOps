@@ -12,7 +12,7 @@ import {
 // route maps) together.
 const BACKEND_LINK_PATHS = {
   employee: ['/checklist', '/audit', '/issues', '/stock-check'],
-  owner: ['/issues', '/home', '/profile', '/employees', '/inventory'],
+  owner: ['/issues', '/home', '/profile', '/employees', '/inventory', '/orders'],
   superAdmin: ['/checklist', '/owners', '/issues'],
 };
 
