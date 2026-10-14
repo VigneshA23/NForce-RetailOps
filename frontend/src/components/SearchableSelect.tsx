@@ -136,8 +136,13 @@ function SearchableSelect({
   const allActive = allOption?.selected ?? false;
 
   function toggleOption(optionId: number) {
-    if (allActive) return;
     if (multiple) {
+      // allActive ("applies to all") deliberately blocks individual picks
+      // here -- it must be toggled off via allOption first (CategoryFormModal
+      // and friends). A single-select store/owner filter has no such "applies
+      // to everything" flag to guard: picking a specific option should always
+      // work and simply supersedes "All", same as clicking any other option.
+      if (allActive) return;
       const next = selectedSet.has(optionId)
         ? selectedIds.filter((existing) => existing !== optionId)
         : [...selectedIds, optionId];
@@ -265,13 +270,16 @@ function SearchableSelect({
                     <div className="searchable-select__state">No matches</div>
                   ) : (
                     filteredOptions.map((option) => {
-                      const checked = allActive || selectedSet.has(option.id);
+                      // "Every row ticked" only makes sense for the multi-select
+                      // "applies to all" flag; a single-select All/one filter has
+                      // nothing selected individually while "All" is active.
+                      const checked = (multiple && allActive) || selectedSet.has(option.id);
                       return (
                         <button
                           type="button"
                           key={option.id}
                           className="searchable-select__option"
-                          disabled={allActive}
+                          disabled={multiple && allActive}
                           onClick={() => toggleOption(option.id)}
                         >
                           <span className={`searchable-select__box${checked ? ' searchable-select__box--checked' : ''}${multiple ? '' : ' searchable-select__box--round'}`}>

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SuperAdminStockCheckHistory from './SuperAdminStockCheckHistory';
 import * as superAdminStoresApi from '../api/superAdminStores';
 import * as superAdminOperationsApi from '../api/superAdminOperations';
+import * as stockCheckHistoryExportUtil from '../utils/stockCheckHistoryExport';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import type { SuperAdminStockCheckHistoryPage, SuperAdminStockCheckResponse, StockCheckResponse, StockSnapshot } from '../types/stockCheck';
 
@@ -16,6 +17,13 @@ vi.mock('../api/superAdminOperations', () => ({
 }));
 vi.mock('../utils/toast', () => ({
   nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+vi.mock('../utils/stockCheckHistoryExport', () => ({
+  buildStockCheckHistoryWorkbook: vi.fn().mockResolvedValue({}),
+  buildAndDownloadStockCheckHistoryPdf: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('../utils/xlsx', () => ({
+  downloadWorkbook: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Same stub as StockLevelComparison.test.tsx / SuperAdminOrders.test.tsx --
@@ -42,6 +50,7 @@ vi.mock('../components/SearchableSelect', () => ({
 const mockGetAllStores = vi.mocked(superAdminStoresApi.getAllStores);
 const mockGetHistory = vi.mocked(superAdminOperationsApi.getSuperAdminStockCheckHistory);
 const mockCorrect = vi.mocked(superAdminOperationsApi.correctSuperAdminStockCheck);
+const mockBuildWorkbook = vi.mocked(stockCheckHistoryExportUtil.buildStockCheckHistoryWorkbook);
 
 function store(overrides: Partial<SuperAdminStore> = {}): SuperAdminStore {
   return {
@@ -114,6 +123,7 @@ beforeEach(() => {
   mockGetAllStores.mockReset().mockResolvedValue([store({ storeId: 1, storeName: 'Downtown' }), store({ storeId: 2, storeName: 'Uptown' })]);
   mockGetHistory.mockReset();
   mockCorrect.mockReset();
+  mockBuildWorkbook.mockClear();
 });
 
 describe('SuperAdminStockCheckHistory', () => {
@@ -187,6 +197,52 @@ describe('SuperAdminStockCheckHistory', () => {
 
     await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(null, expect.any(String), expect.any(String), 1, 10));
     expect(await screen.findByRole('columnheader', { name: 'Store' })).toBeInTheDocument();
+  });
+
+  // RTS-375: Export used to be disabled outright on "All Stores" -- it
+  // should work there too, fetching across every store and tagging the
+  // exported rows with a Store column so they stay attributable.
+  it('exporting on the all-stores view is enabled and includes a Store column', async () => {
+    const user = userEvent.setup();
+    mockGetHistory.mockResolvedValue(page({
+      items: [entry(1, 'Downtown', { itemName: 'Paper Towels' }), entry(2, 'Uptown', { itemName: 'Whole Milk' })],
+      totalItems: 2,
+    }));
+
+    render(<SuperAdminStockCheckHistory />);
+    await screen.findByText('Paper Towels');
+
+    const exportButton = screen.getByRole('button', { name: /Export/ });
+    expect(exportButton).toBeEnabled();
+
+    await user.click(exportButton);
+    await user.click(screen.getByRole('menuitem', { name: /Download Excel/ }));
+
+    await waitFor(() => expect(mockBuildWorkbook).toHaveBeenCalled());
+    const [exportedRows, , , options] = mockBuildWorkbook.mock.calls[0];
+    expect(exportedRows.map((row) => row.itemName)).toEqual(['Paper Towels', 'Whole Milk']);
+    expect(options).toEqual({ includeStore: true });
+    // storeId omitted for the all-stores export, same as the on-screen query.
+    expect(mockGetHistory).toHaveBeenCalledWith(null, expect.any(String), expect.any(String), 1, 200);
+  });
+
+  it('exporting a single selected store does not request a Store column', async () => {
+    const user = userEvent.setup();
+    mockGetHistory.mockResolvedValue(page({ items: [entry(1, 'Downtown', { itemName: 'Paper Towels' })], totalItems: 1 }));
+
+    render(<SuperAdminStockCheckHistory />);
+    await screen.findByText('Paper Towels');
+
+    await user.selectOptions(screen.getByLabelText('All Stores'), '1');
+    await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(1, expect.any(String), expect.any(String), 1, 10));
+
+    await user.click(screen.getByRole('button', { name: /Export/ }));
+    await user.click(screen.getByRole('menuitem', { name: /Download Excel/ }));
+
+    await waitFor(() => expect(mockBuildWorkbook).toHaveBeenCalled());
+    const [, , , options] = mockBuildWorkbook.mock.calls[0];
+    expect(options).toEqual({ includeStore: false });
+    expect(mockGetHistory).toHaveBeenCalledWith(1, expect.any(String), expect.any(String), 1, 200);
   });
 
   it('a correction updates the row in place without a full refetch', async () => {
