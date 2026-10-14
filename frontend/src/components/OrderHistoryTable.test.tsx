@@ -1,7 +1,14 @@
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import OrderHistoryTable from './OrderHistoryTable';
 import type { OrderHistoryEntry } from '../types/orderList';
+import * as mediaQuery from '../hooks/useMediaQuery';
+
+vi.mock('../hooks/useMediaQuery', () => ({
+  useIsMobile: vi.fn(() => false),
+}));
+
+const mockUseIsMobile = vi.mocked(mediaQuery.useIsMobile);
 
 function historyEntry(overrides: Partial<OrderHistoryEntry>): OrderHistoryEntry {
   return {
@@ -62,5 +69,28 @@ describe('OrderHistoryTable', () => {
     expect(row.querySelector('[data-label="Received Qty"]')).toHaveTextContent('—');
     expect(row.querySelector('[data-label="Received"]')).toHaveTextContent('—');
     expect(row.querySelector('[data-label="Status"]')).toHaveTextContent('Ordered');
+  });
+
+  describe('below --mobile', () => {
+    beforeEach(() => mockUseIsMobile.mockReturnValue(true));
+    afterEach(() => mockUseIsMobile.mockReturnValue(false));
+
+    it('renders stacked cards instead of a table', () => {
+      render(<OrderHistoryTable rows={[historyEntry({})]} isLoading={false} />);
+
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      const card = screen.getByText('Napkins').closest('.order-history-table__card') as HTMLElement;
+      expect(within(card).getByText('Acme Supplies')).toBeInTheDocument();
+      expect(within(card).getByText('Received', { selector: '.order-history-table__status-pill' })).toBeInTheDocument();
+      // Jane Owner ordered it and also received it -- appears in both timeline rows.
+      expect(within(card).getAllByText('Jane Owner')).toHaveLength(2);
+    });
+
+    it('still shows the empty state without a table', () => {
+      render(<OrderHistoryTable rows={[]} isLoading={false} />);
+
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(screen.getByText('No ordered or received records found for the selected filters.')).toBeInTheDocument();
+    });
   });
 });
