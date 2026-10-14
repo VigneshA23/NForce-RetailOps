@@ -99,6 +99,7 @@
 
 .employee-stock-check-page__toolbar-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-md);
 }
@@ -119,11 +120,17 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-secondary);
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .employee-stock-check-page__formula-hint strong {
   color: var(--color-text-primary);
+}
+
+.employee-stock-check-page__formula-hint span {
+  min-width: 0;
 }
 
 .employee-stock-check-page__filters {
@@ -156,6 +163,9 @@
 }
 
 .employee-stock-check-page__item {
+  position: relative;
+  container-name: stock-check-card;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
@@ -215,6 +225,7 @@
 }
 
 .employee-stock-check-page__item-header {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -243,16 +254,29 @@
   gap: var(--space-xs);
 }
 
+.employee-stock-check-page__needed-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+.employee-stock-check-page__needed-badge,
+.employee-stock-check-page__status-badge {
+  white-space: nowrap;
+}
+
 /* Purely a visual indicator now -- the whole header row (above) is the
    actual toggle, not this box on its own. */
 .employee-stock-check-page__collapse-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 28px;
   width: 28px;
   height: 28px;
   padding: 0;
-  margin-left: var(--space-xs);
+  margin-left: 0;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   background: var(--color-surface-card);
@@ -361,10 +385,6 @@
     flex-basis: 100%;
   }
 
-  .employee-stock-check-page__item-header {
-    flex-direction: column;
-  }
-
   .employee-stock-check-page__shift-header {
     flex-direction: column;
     align-items: flex-start;
@@ -372,5 +392,36 @@
 
   .employee-stock-check-page__snapshots {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container stock-check-card (max-width: 560px) {
+  .employee-stock-check-page__item-header {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .employee-stock-check-page__item-identity {
+    padding-right: 84px;
+  }
+
+  .employee-stock-check-page__item-chips {
+    justify-content: flex-start;
+    width: 100%;
+    padding-right: 0;
+  }
+
+  .employee-stock-check-page__needed-group {
+    margin-left: auto;
+  }
+
+  .employee-stock-check-page__status-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+  }
+
+  .employee-stock-check-page__collapse-toggle {
+    position: static;
   }
 }

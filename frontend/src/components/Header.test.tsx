@@ -57,4 +57,15 @@ describe('Header sign-out', () => {
     await user.click(screen.getByLabelText(/signed in as alex owner/i))
     expect(screen.getByRole('menuitem', { name: /log out/i })).toBeDisabled()
   })
+
+  it('opens the compact search input from the header search icon', async () => {
+    const user = userEvent.setup()
+    renderHeader(vi.fn())
+
+    const searchButton = screen.getByRole('button', { name: 'Open search' })
+    await user.click(searchButton)
+
+    expect(searchButton).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('searchbox', { name: 'Search' })).toHaveFocus()
+  })
 })

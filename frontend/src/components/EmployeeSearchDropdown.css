@@ -6,18 +6,9 @@
 
 .edrop {
   position: relative;
-  flex: 1;
-  min-width: 460px;
+  flex: 1 1 460px;
+  min-width: 0;
   max-width: 640px;
-}
-
-/* Same tablet-width overflow fix as AdminSearchDropdown/SACommandPalette:
-   the 460px floor above pushed the header's bell/avatar off-screen once the
-   sidebar left only tablet-width room to work with. */
-@media (--tablet) {
-  .edrop {
-    min-width: 160px;
-  }
 }
 
 .edrop__input-wrap {
