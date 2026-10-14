@@ -8,6 +8,7 @@ import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
+import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TimeMode;
@@ -16,6 +17,7 @@ import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -54,6 +56,7 @@ class StoreControllerTest {
     @Autowired private TaskRepository taskRepository;
     @Autowired private CategoryRepository categoryRepository;
     @Autowired private SupplierRepository supplierRepository;
+    @Autowired private SuperAdminRepository superAdminRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -430,7 +433,8 @@ class StoreControllerTest {
     void ownerAdminCanAddASupplierInlineAndItIsListedForFutureItems() throws Exception {
         Role ownerRole = role("OWNER_ADMIN");
         User owner = user("supplier-inline-owner@nforce.test", ownerRole);
-        linkOwnerToStore(owner, store("Supplier Inline Store", 8101L));
+        Store ownerStore = store("Supplier Inline Store", 8101L);
+        linkOwnerToStore(owner, ownerStore);
 
         String token = login("supplier-inline-owner@nforce.test");
 
@@ -440,12 +444,33 @@ class StoreControllerTest {
                 .content("{\"name\":\"  Fresh Farms Inline  \"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.name").value("Fresh Farms Inline"))
-            .andExpect(jsonPath("$.active").value(true));
+            .andExpect(jsonPath("$.active").value(true))
+            // Assigned to the owner's own store server-side, so it shows up
+            // correctly in the Suppliers page's Assigned Store column -- not
+            // left unassigned despite being used by that store's item.
+            .andExpect(jsonPath("$.stores[0].id").value(ownerStore.getId()));
 
         mockMvc.perform(get("/api/stores/suppliers")
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[?(@.name == 'Fresh Farms Inline')]").exists());
+    }
+
+    @Test
+    @Transactional
+    void superAdminAddingASupplierInlineAssignsTheStoreItWasAddedFrom() throws Exception {
+        superAdmin("supplier-inline-super-store@nforce.test");
+        Store targetStore = store("Super Inline Target Store", 8104L);
+
+        String token = login("supplier-inline-super-store@nforce.test");
+
+        mockMvc.perform(post("/api/stores/suppliers")
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Super Inline With Store\",\"storeId\":" + targetStore.getId() + "}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("Super Inline With Store"))
+            .andExpect(jsonPath("$.stores[0].id").value(targetStore.getId()));
     }
 
     @Test
@@ -477,7 +502,7 @@ class StoreControllerTest {
     @Test
     @Transactional
     void superAdminCanAlsoAddASupplierInline() throws Exception {
-        user("supplier-inline-super@nforce.test", role("SUPER_ADMIN"));
+        superAdmin("supplier-inline-super@nforce.test");
 
         String token = login("supplier-inline-super@nforce.test");
 
@@ -555,6 +580,18 @@ class StoreControllerTest {
         store.setStoreCode(storeCode);
         store.setActive(true);
         return storeRepository.save(store);
+    }
+
+    // A genuine Super Admin principal (the super_admins table, no FK to
+    // users) -- unlike user(email, role("SUPER_ADMIN")) above, which would
+    // authenticate as AppUserDetails with that role, not the real
+    // SuperAdminUserDetails controllers branch on.
+    private SuperAdmin superAdmin(String email) {
+        SuperAdmin sa = new SuperAdmin();
+        sa.setName("Super Admin");
+        sa.setEmail(email);
+        sa.setPasswordHash(passwordEncoder.encode(PASSWORD));
+        return superAdminRepository.save(sa);
     }
 
     private void linkOwnerToStore(User owner, Store store) {

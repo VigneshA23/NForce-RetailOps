@@ -137,6 +137,16 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(StockReceiptRequestNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleStockReceiptRequestNotFound(StockReceiptRequestNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(StockReceiptRequestAlreadyDecidedException.class)
+    public ResponseEntity<Map<String, String>> handleStockReceiptRequestAlreadyDecided(StockReceiptRequestAlreadyDecidedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InvalidStockCheckException.class)
     public ResponseEntity<Map<String, String>> handleInvalidStockCheck(InvalidStockCheckException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));

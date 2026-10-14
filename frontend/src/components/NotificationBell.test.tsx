@@ -58,7 +58,7 @@ describe('NotificationBell — passing the notification date through navigation'
     const item = await screen.findByText("Today's item")
     await user.click(item)
 
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null, storeId: null }))
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null, storeId: null, notificationId: expect.any(Number) }))
   })
 
   it('passes each distinct notification\'s own createdAt, not a shared/default value', async () => {
@@ -73,11 +73,11 @@ describe('NotificationBell — passing the notification date through navigation'
     await user.click(screen.getByLabelText(/notifications/i))
 
     await user.click(await screen.findByText("Yesterday's item"))
-    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-16T09:00:00Z', relatedIssueId: null, storeId: null }))
+    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-16T09:00:00Z', relatedIssueId: null, storeId: null, notificationId: expect.any(Number) }))
 
     await user.click(screen.getByLabelText(/notifications/i))
     await user.click(await screen.findByText("Today's item"))
-    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null, storeId: null }))
+    await waitFor(() => expect(onNavigate).toHaveBeenLastCalledWith('/audit', { createdAt: '2026-09-17T09:00:00Z', relatedIssueId: null, storeId: null, notificationId: expect.any(Number) }))
   })
 })
 
@@ -100,7 +100,7 @@ describe('NotificationBell — issue deep links', () => {
     await user.click(screen.getByLabelText(/notifications/i))
     await user.click(await screen.findByText('Jane raised an issue at Downtown'))
 
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/issues', { createdAt: '2026-09-18T09:00:00Z', relatedIssueId: 42, storeId: null }))
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/issues', { createdAt: '2026-09-18T09:00:00Z', relatedIssueId: 42, storeId: null, notificationId: expect.any(Number) }))
   })
 
   it('passes the related store id so a Super Admin checklist alert can skip the store picker', async () => {
@@ -121,7 +121,7 @@ describe('NotificationBell — issue deep links', () => {
     await user.click(screen.getByLabelText(/notifications/i))
     await user.click(await screen.findByText('Downtown — no activity today'))
 
-    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/checklist', { createdAt: '2026-09-19T09:00:00Z', relatedIssueId: null, storeId: 7 }))
+    await waitFor(() => expect(onNavigate).toHaveBeenCalledWith('/checklist', { createdAt: '2026-09-19T09:00:00Z', relatedIssueId: null, storeId: 7, notificationId: expect.any(Number) }))
   })
 })
 

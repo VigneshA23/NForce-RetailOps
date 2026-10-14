@@ -8,7 +8,7 @@ import type { DailyStockCheckItem, StockCheckSnapshotKey } from '../types/stockC
 import type { StoreSummary } from '../types/store';
 import AdHocShortageModal, { type AdHocShortageValues } from '../components/AdHocShortageModal';
 import EmployeeStockCheckHistory from '../components/EmployeeStockCheckHistory';
-import ReceivedStockModal from '../components/ReceivedStockModal';
+import ReceivedStockModal, { type ReceivedItemInput } from '../components/ReceivedStockModal';
 import StockSnapshotCard from '../components/StockSnapshotCard';
 import ItemIcon from '../components/ItemIcon';
 import SearchInput from '../components/SearchInput';
@@ -104,18 +104,38 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
   // An End of Day count above Start of Day (plus anything already logged as
   // received) can only mean stock arrived, so ask before saving: usage is then
   // worked out against what was received instead of coming out negative.
-  function handleSave(
-    item: DailyStockCheckItem,
+  async function handleSave(
+    staleItem: DailyStockCheckItem,
     snapshot: StockCheckSnapshotKey,
     available: number,
     deadStock: number,
   ): Promise<boolean> {
-    if (pendingKey != null) return Promise.resolve(false);
+    if (pendingKey != null) return false;
+    let item = staleItem;
+    if (snapshot === 'END_OF_DAY') {
+      // The page can be open for hours: an admin may have marked an order
+      // Received since it loaded, which changes what counts as already
+      // received. Re-read the latest figures before deciding to ask. If the
+      // refetch fails, fall back to what is on screen; the server still
+      // validates the count.
+      // The refetch can take a moment, so show the button's loading state
+      // meanwhile (as Start of Day does) instead of leaving it looking idle.
+      setPendingKey(`${staleItem.storeInventoryItemId}:${snapshot}`);
+      try {
+        const fresh = await getTodayStockCheck(store.id);
+        setItems(fresh);
+        item = fresh.find((i) => i.storeInventoryItemId === staleItem.storeInventoryItemId) ?? staleItem;
+      } catch {
+        // keep the on-screen item
+      } finally {
+        setPendingKey(null);
+      }
+    }
     if (snapshot === 'END_OF_DAY' && item.startOfDay != null) {
       const endUsable = available - deadStock;
       const startUsable = item.startOfDay.usable;
-      if (endUsable > startUsable + (item.quantityReceived ?? 0)) {
-        return new Promise((resolve) => {
+      if (endUsable > startUsable + (item.quantityReceived ?? 0) + (item.pendingReceivedQuantity ?? 0)) {
+        return new Promise<boolean>((resolve) => {
           setReceivedPrompt({ item, available, deadStock, startUsable, endUsable, resolve });
         });
       }
@@ -123,12 +143,15 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
     return saveCount(item, snapshot, available, deadStock);
   }
 
-  async function confirmReceived(quantityReceived: number) {
+  async function confirmReceived(received: ReceivedItemInput[]) {
     if (receivedPrompt == null) return;
     const { item, available, deadStock, resolve } = receivedPrompt;
-    const saved = await saveCount(item, 'END_OF_DAY', available, deadStock, quantityReceived);
+    const saved = await saveCount(item, 'END_OF_DAY', available, deadStock, received.map((r) => ({ orderEntryId: r.orderId, quantity: r.quantity })));
     // Keep the prompt open on failure so the employee can retry or cancel.
     if (saved) {
+      // The report is only a request until the admin approves it; pick up the
+      // pending figure the save response doesn't carry.
+      getTodayStockCheck(store.id).then(setItems).catch(() => {});
       setReceivedPrompt(null);
       resolve(true);
     }
@@ -144,14 +167,14 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
     snapshot: StockCheckSnapshotKey,
     available: number,
     deadStock: number,
-    quantityReceived?: number,
+    receivedItems?: { orderEntryId: number | null; quantity: number }[],
   ): Promise<boolean> {
     if (pendingKey != null) return false;
     const key = `${item.storeInventoryItemId}:${snapshot}`;
     const isUpdate = (snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay) != null;
     setPendingKey(key);
     try {
-      const saved = await submitStockCheck(store.id, item.storeInventoryItemId, snapshot, available, deadStock, quantityReceived);
+      const saved = await submitStockCheck(store.id, item.storeInventoryItemId, snapshot, available, deadStock, receivedItems);
       setItems((current) =>
         current.map((i) =>
           i.storeInventoryItemId === item.storeInventoryItemId
@@ -168,6 +191,9 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
         ),
       );
       nfToast.success(`${item.itemName} ${SNAPSHOT_LABELS[snapshot]} ${isUpdate ? 'updated' : 'saved'}.`);
+      if (receivedItems != null && receivedItems.length > 0) {
+        nfToast.success('Received stock sent to your admin for approval. Stock updates once they approve it.');
+      }
       return true;
     } catch (error) {
       nfToast.error(error instanceof Error ? error.message : 'Failed to save count');
@@ -193,6 +219,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
         Number(values.currentStock),
         Number(values.quantity),
         values.note,
+        values.orderedAlreadyReceived,
       );
       nfToast.success('Shortage reported to your owner.');
       setIsAdHocOpen(false);
@@ -502,7 +529,8 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                     ) : (
                       <span>
                         Reconciliation: Stock used today: <strong>{item.stockUsed ?? '—'}</strong> {item.unitOfMeasurement}
-                        {item.quantityReceived ? <> (excl. {item.quantityReceived} received)</> : null} · Tomorrow
+                        {item.quantityReceived ? <> (excl. {item.quantityReceived} received)</> : null}
+                        {item.pendingReceivedQuantity ? <> ({item.pendingReceivedQuantity} received, awaiting admin approval)</> : null} · Tomorrow
                         opening need: <strong>{item.requiredTomorrow ?? '—'}</strong> {item.unitOfMeasurement}
                       </span>
                     )}
@@ -533,7 +561,8 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
         unit={receivedPrompt?.item.unitOfMeasurement ?? ''}
         startUsable={receivedPrompt?.startUsable ?? 0}
         endUsable={receivedPrompt?.endUsable ?? 0}
-        alreadyReceived={receivedPrompt?.item.quantityReceived ?? 0}
+        alreadyReceived={(receivedPrompt?.item.quantityReceived ?? 0) + (receivedPrompt?.item.pendingReceivedQuantity ?? 0)}
+        orders={receivedPrompt?.item.openOrders ?? []}
         isSubmitting={pendingKey != null}
         onConfirm={confirmReceived}
         onCancel={cancelReceived}

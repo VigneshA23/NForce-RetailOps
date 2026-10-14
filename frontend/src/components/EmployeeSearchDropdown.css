@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 /* Identical visual language to AdminSearchDropdown / SACommandPalette — dark
    glass input on the always-dark header, light card dropdown, colour-coded
    item badges per group type. */
@@ -7,6 +9,15 @@
   flex: 1;
   min-width: 460px;
   max-width: 640px;
+}
+
+/* Same tablet-width overflow fix as AdminSearchDropdown/SACommandPalette:
+   the 460px floor above pushed the header's bell/avatar off-screen once the
+   sidebar left only tablet-width room to work with. */
+@media (--tablet) {
+  .edrop {
+    min-width: 160px;
+  }
 }
 
 .edrop__input-wrap {

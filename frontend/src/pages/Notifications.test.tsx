@@ -1,47 +1,89 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Notifications from './Notifications';
 import * as notificationsApi from '../api/notifications';
-import type { Notification } from '../types/notification';
+import * as receiptApi from '../api/stockReceiptRequests';
+import type { Notification, StockReceiptRequest } from '../types/notification';
 import type { StoreSummary } from '../types/store';
 
 vi.mock('../api/notifications', () => ({
-  deleteNotification: vi.fn(),
-  getNotifications: vi.fn(),
-  getUnreadCount: vi.fn(),
-  markAllRead: vi.fn(),
-  markNotificationRead: vi.fn(),
+ deleteNotification: vi.fn(),
+ getNotifications: vi.fn(),
+ getUnreadCount: vi.fn(),
+ markAllRead: vi.fn(),
+ markNotificationRead: vi.fn(),
+}));
+vi.mock('../api/stockReceiptRequests', () => ({
+ approveStockReceiptRequest: vi.fn(),
+ rejectStockReceiptRequest: vi.fn(),
 }));
 
 const mockGetNotifications = vi.mocked(notificationsApi.getNotifications);
 const mockGetUnreadCount = vi.mocked(notificationsApi.getUnreadCount);
 
 const assignedStores: StoreSummary[] = [
-  { id: 1, name: 'Store Alpha', location: null, status: 'Open' },
-  { id: 2, name: 'Store Beta', location: null, status: 'Open' },
+ { id: 1, name: 'Store Alpha', location: null, status: 'Open' },
+ { id: 2, name: 'Store Beta', location: null, status: 'Open' },
 ];
 
 function makeNotification({
-  id,
-  title,
-  ...overrides
+ id,
+ title,
+ ...overrides
 }: Partial<Notification> & Pick<Notification, 'id' | 'title'>): Notification {
+ return {
+   id,
+   title,
+   message: 'A checklist update is available.',
+   category: 'TASK_ASSIGNED',
+   priority: 'MEDIUM',
+   read: true,
+   linkPath: null,
+   relatedIssueId: null,
+   relatedIssueNote: null,
+   relatedStoreName: null,
+   relatedIssueStatus: null,
+   storeId: null,
+   createdAt: '2026-10-13T12:00:00Z',
+   ...overrides,
+ };
+}
+
+const request: StockReceiptRequest = {
+  id: 9,
+  kind: 'NEW_STOCK',
+  status: 'PENDING',
+  itemName: 'Milk',
+  unit: 'L',
+  quantity: 15,
+  checkDate: '2026-10-13',
+  requestedByName: 'Sarah',
+  storeName: 'Main St',
+  orderId: null,
+  orderedQuantity: null,
+  orderSupplierName: null,
+  orderedAt: null,
+  decidedByName: null,
+  decidedAt: null,
+};
+
+function notification(receiptRequest: StockReceiptRequest): Notification {
   return {
-    id,
-    title,
-    message: 'A checklist update is available.',
-    category: 'TASK_ASSIGNED',
-    priority: 'MEDIUM',
+    id: 1,
+    title: 'Sarah reported received stock at Main St',
+    message: 'Sarah reported receiving 15 L of Milk.',
+    category: 'STOCK_RECEIPT_REQUEST',
+    priority: 'HIGH',
     read: true,
-    linkPath: null,
+    linkPath: '/notifications',
     relatedIssueId: null,
     relatedIssueNote: null,
     relatedStoreName: null,
     relatedIssueStatus: null,
     storeId: null,
-    createdAt: '2026-10-13T12:00:00Z',
-    ...overrides,
+    createdAt: new Date().toISOString(),
+    receiptRequest,
   };
 }
 
@@ -55,9 +97,15 @@ function renderNotifications(props: { stores?: StoreSummary[]; activeStoreId?: n
   );
 }
 
+async function openNotification(receiptRequest: StockReceiptRequest) {
+  mockGetNotifications.mockResolvedValue([notification(receiptRequest)]);
+  mockGetUnreadCount.mockResolvedValue(0);
+  render(<Notifications onUnreadChange={vi.fn()} />);
+  await userEvent.click(await screen.findByText('Sarah reported received stock at Main St'));
+}
+
 beforeEach(() => {
-  mockGetNotifications.mockReset();
-  mockGetUnreadCount.mockReset();
+  vi.resetAllMocks();
   mockGetUnreadCount.mockResolvedValue(0);
 });
 
@@ -161,5 +209,71 @@ describe('Notifications employee store scope', () => {
     expect(Array.from(document.querySelectorAll('.nfp-row__msg')).map((element) => element.textContent))
       .toContain('Store Alpha: task updated.');
     expect(screen.getAllByText('Store Alpha', { selector: 'strong' })).toHaveLength(6);
+  });
+});
+
+describe('Notifications — received stock requests', () => {
+  it('shows newly reported stock as a request for the received quantity, with Approve and Reject', async () => {
+    await openNotification(request);
+
+    expect(screen.getByText('Received stock, not on an existing order')).toBeInTheDocument();
+    expect(screen.getByText(/requesting approval for the received quantity/)).toBeInTheDocument();
+    expect(screen.getByText('15 L')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Approve/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Reject/ })).toBeInTheDocument();
+    // A pending request has to be decided, not dismissed.
+    expect(screen.queryByRole('button', { name: /Delete/ })).not.toBeInTheDocument();
+  });
+
+  it('identifies the specific order when the employee confirms an existing Ordered order', async () => {
+    await openNotification({
+      ...request,
+      kind: 'EXISTING_ORDER',
+      orderId: 77,
+      orderedQuantity: 12,
+      orderSupplierName: 'Dairy Co',
+    });
+
+    expect(screen.getByText('Confirm existing order as received')).toBeInTheDocument();
+    expect(screen.getByText(/confirm Order #77 as received/)).toBeInTheDocument();
+    expect(screen.getByText('Order #77')).toBeInTheDocument();
+    expect(screen.getByText('12 L')).toBeInTheDocument();
+    expect(screen.getByText('Dairy Co')).toBeInTheDocument();
+  });
+
+  it('approving calls the API and then shows the decision instead of the buttons', async () => {
+    vi.mocked(receiptApi.approveStockReceiptRequest).mockResolvedValue({
+      ...request,
+      status: 'APPROVED',
+      decidedByName: 'Olivia',
+      decidedAt: new Date().toISOString(),
+    });
+    await openNotification(request);
+
+    await userEvent.click(screen.getByRole('button', { name: /Approve/ }));
+
+    await waitFor(() => expect(receiptApi.approveStockReceiptRequest).toHaveBeenCalledWith(9));
+    expect(await screen.findByText(/Approved by Olivia/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument();
+  });
+
+  it('rejecting calls the reject endpoint', async () => {
+    vi.mocked(receiptApi.rejectStockReceiptRequest).mockResolvedValue({ ...request, status: 'REJECTED' });
+    await openNotification(request);
+
+    await userEvent.click(screen.getByRole('button', { name: /Reject/ }));
+
+    await waitFor(() => expect(receiptApi.rejectStockReceiptRequest).toHaveBeenCalledWith(9));
+    expect(await screen.findByText(/Rejected/)).toBeInTheDocument();
+  });
+
+  it('keeps the buttons and shows the reason when the decision fails', async () => {
+    vi.mocked(receiptApi.approveStockReceiptRequest).mockRejectedValue(new Error('This order is no longer Ordered.'));
+    await openNotification(request);
+
+    await userEvent.click(screen.getByRole('button', { name: /Approve/ }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('This order is no longer Ordered.');
+    expect(screen.getByRole('button', { name: /Approve/ })).toBeInTheDocument();
   });
 });

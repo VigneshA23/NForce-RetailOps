@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 /* ── Desktop inline search ─────────────────────────────────────────── */
 
 .sacp {
@@ -5,6 +7,20 @@
   flex: 1;
   min-width: 460px;
   max-width: 640px;
+}
+
+/* The 460px floor above only fits comfortably once there's real desktop
+   width to spare. At tablet widths (iPad Mini included) that floor alone
+   already exceeds the space left over from the sidebar + the header's own
+   theme toggle/notification bell/profile menu (none of which shrink), so
+   the whole header overflowed and pushed the bell/avatar off-screen. Below
+   the mobile breakpoint .sacp is replaced by an icon-only trigger instead
+   (see the responsive block further down), so this only needs to hold for
+   the tablet range in between. */
+@media (--tablet) {
+  .sacp {
+    min-width: 160px;
+  }
 }
 
 .sacp__input-wrap {

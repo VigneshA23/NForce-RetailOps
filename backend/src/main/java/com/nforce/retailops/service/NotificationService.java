@@ -3,7 +3,9 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.NotificationResponse;
 import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.Notification;
+import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.RaisedIssue;
+import com.nforce.retailops.entity.StockReceiptRequest;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.SuperAdmin;
@@ -55,6 +57,9 @@ public class NotificationService {
         PRIORITY_BY_CATEGORY.put("ISSUE_NUDGE",                   "HIGH");
         PRIORITY_BY_CATEGORY.put("STORE_OWNER_VACANT",            "HIGH");
         PRIORITY_BY_CATEGORY.put("STOCK_CHECK_CORRECTED",         "MEDIUM");
+        PRIORITY_BY_CATEGORY.put("STOCK_RECEIPT_REQUEST",         "HIGH");
+        PRIORITY_BY_CATEGORY.put("STOCK_RECEIPT_APPROVED",        "MEDIUM");
+        PRIORITY_BY_CATEGORY.put("STOCK_RECEIPT_REJECTED",        "HIGH");
     }
 
     private final NotificationRepository notificationRepository;
@@ -214,6 +219,58 @@ public class NotificationService {
             "A Super Admin corrected a stock count at " + check.getStore().getName(),
             check.getStoreInventoryItem().getName() + " on " + check.getCheckDate(),
             "/inventory");
+    }
+
+    // An employee reported received stock at End of Day: asks the admin to
+    // approve it. linkPath "/notifications" opens the All Notifications page,
+    // where the request itself is shown with Approve / Reject.
+    @Transactional
+    public void notifyOwnerOfStockReceiptRequest(StockReceiptRequest request, User owner) {
+        String employee = request.getRequestedBy().getFullName();
+        String store = request.getStore().getName();
+        String item = request.getStoreInventoryItem().getName();
+        String unit = request.getStoreInventoryItem().getUnitOfMeasurement();
+        OrderListEntry order = request.getOrderListEntry();
+
+        Notification n = new Notification();
+        n.setRecipientUser(owner);
+        n.setCategory("STOCK_RECEIPT_REQUEST");
+        n.setPriority("HIGH");
+        if (order == null) {
+            n.setTitle(employee + " reported received stock at " + store);
+            n.setMessage(employee + " reported receiving " + request.getQuantity() + " " + unit + " of " + item
+                + " that is not on an existing order, and is requesting approval for the received quantity.");
+        } else {
+            n.setTitle(employee + " is requesting approval to confirm an order as received at " + store);
+            n.setMessage(employee + " is requesting approval to confirm Order #" + order.getId() + " for " + item
+                + " (" + order.totalQuantityOrdered() + " " + unit + " ordered) as received: "
+                + request.getQuantity() + " " + unit + " reported.");
+        }
+        n.setLinkPath("/notifications");
+        n.setStockReceiptRequest(request);
+        notificationRepository.save(n);
+    }
+
+    // Tells the employee how the admin decided.
+    @Transactional
+    public void notifyEmployeeOfStockReceiptDecision(StockReceiptRequest request, boolean approved) {
+        String item = request.getStoreInventoryItem().getName();
+        String unit = request.getStoreInventoryItem().getUnitOfMeasurement();
+        String subject = request.getOrderListEntry() == null
+            ? request.getQuantity() + " " + unit + " of " + item
+            : "Order #" + request.getOrderListEntry().getId() + " for " + item;
+        if (approved) {
+            send(request.getRequestedBy(), "STOCK_RECEIPT_APPROVED",
+                "Received stock approved",
+                "Your report of received stock was approved: " + subject + ". Stock has been updated.",
+                "/stock-check");
+        } else {
+            send(request.getRequestedBy(), "STOCK_RECEIPT_REJECTED",
+                "Received stock rejected",
+                "Your report of received stock was rejected: " + subject
+                    + ". Stock was not changed. Please review your End of Day count for " + item + ".",
+                "/stock-check");
+        }
     }
 
     @Transactional

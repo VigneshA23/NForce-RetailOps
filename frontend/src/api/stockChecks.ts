@@ -21,18 +21,26 @@ export async function getAllStoreItemsForEmployee(storeId: number): Promise<Stor
 
 // Saves today's Start of Day or End of Day count; saving the same snapshot
 // again updates it in place. quantityReceived is End of Day only: stock
-// delivered today, added to the day's received total so usage accounts for it.
+// delivered today. It is not applied on save: it becomes a request the admin
+// approves (each item is new stock, or an existing Ordered order it confirms; several can be sent together).
 export async function submitStockCheck(
   storeId: number,
   storeInventoryItemId: number,
   snapshot: StockCheckSnapshotKey,
   available: number,
   deadStock: number,
-  quantityReceived?: number,
+  receivedItems?: { orderEntryId: number | null; quantity: number }[],
 ): Promise<StockCheckResponse> {
   return apiRequest<StockCheckResponse>('/me/inventory/stock-checks', {
     method: 'POST',
-    body: { storeId, storeInventoryItemId, snapshot, available, deadStock, quantityReceived: quantityReceived ?? null },
+    body: {
+      storeId,
+      storeInventoryItemId,
+      snapshot,
+      available,
+      deadStock,
+      receivedItems: receivedItems ?? null,
+    },
   });
 }
 
@@ -61,9 +69,10 @@ export async function reportAdHocShortage(
   currentStock: number,
   quantity: number,
   note?: string,
+  orderedAlreadyReceived = false,
 ): Promise<void> {
   return apiRequest<void>(`/me/inventory/ad-hoc?storeId=${storeId}`, {
     method: 'POST',
-    body: { storeInventoryItemId, currentStock, quantity, note: note?.trim() || null },
+    body: { storeInventoryItemId, currentStock, quantity, note: note?.trim() || null, orderedAlreadyReceived },
   });
 }

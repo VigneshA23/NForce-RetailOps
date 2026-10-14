@@ -27,6 +27,10 @@ import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StockCheckCorrectionRepository;
 import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
+import com.nforce.retailops.repository.StockReceiptRequestRepository;
+import com.nforce.retailops.entity.OrderListEntry;
+import com.nforce.retailops.entity.OrderStatus;
+import com.nforce.retailops.entity.StockReceiptRequest;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -80,6 +84,8 @@ class StockCheckServiceTest {
     @Mock private StoreOwnerRepository storeOwnerRepository;
     @Mock private OrderListService orderListService;
     @Mock private UserProfileService userProfileService;
+    @Mock private StockReceiptRequestRepository stockReceiptRequestRepository;
+    @Mock private NotificationService notificationService;
 
     @InjectMocks
     private StockCheckService stockCheckService;
@@ -171,7 +177,10 @@ class StockCheckServiceTest {
         assertThat(response.quantityToOrder()).isNull();
 
         verify(stockCheckCorrectionRepository, never()).save(any());
-        verifyNoInteractions(orderListService);
+        // Reconciled with no shortage: nothing raised.
+        verify(orderListService).reconcileStartOfDayShortage(
+            eq(store), eq(milk), org.mockito.ArgumentMatchers.argThat(q -> q.signum() == 0), eq(employee), isNull());
+        verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), any(), any());
     }
 
     @Test
@@ -216,12 +225,12 @@ class StockCheckServiceTest {
     void midDayShortageBanksUsageSoFarAndRaisesTheOrder() {
         StockCheck check = checkWithStartOfDay(50, 2);
 
-        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), bd(15), "rush"));
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), bd(15), "rush", null));
 
         // Start usable 48, 20 left now -> 28 used so far; the count follows.
         assertThat(check.midDayUsage()).isEqualByComparingTo(bd(28));
         assertThat(check.getCurrentCount()).isEqualByComparingTo(bd(20));
-        verify(orderListService).upsertShortage(eq(store), eq(milk), eq(bd(15)), eq("rush"), eq(true), eq(employee), any());
+        verify(orderListService).upsertReportedShortage(eq(store), eq(milk), eq(bd(15)), eq("rush"), eq(employee), any(), eq(false));
     }
 
     @Test
@@ -229,7 +238,7 @@ class StockCheckServiceTest {
         milk.setMinWeekday(bd(40));
         milk.setMinWeekend(bd(40));
         StockCheck check = checkWithStartOfDay(50, 2);
-        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), bd(15), null));
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), bd(15), null, null));
 
         // 15 of the 20 were sold after the report, none delivered.
         StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 5, 0));
@@ -241,7 +250,7 @@ class StockCheckServiceTest {
     void deliveryAfterTheMidDayReportIsExcludedFromUsageOnce() {
         StockCheck check = checkWithStartOfDay(50, 0);
         check.addReceived(bd(10));
-        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(30), bd(5), null));
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(30), bd(5), null, null));
         // Expected 60 at the report, 30 left -> 30 used so far.
         assertThat(check.midDayUsage()).isEqualByComparingTo(bd(30));
 
@@ -258,37 +267,153 @@ class StockCheckServiceTest {
     void midDayShortageNeedsStartOfDayAndIsClosedOnceEndOfDayIsSaved() {
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now())).thenReturn(Optional.empty());
         assertThatThrownBy(() -> stockCheckService.reportAdHocShortage(
-            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), bd(5), null)))
+            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), bd(5), null, null)))
             .isInstanceOf(com.nforce.retailops.exception.InventoryItemNotAssignedException.class);
 
         StockCheck check = checkWithStartOfDay(50, 0);
         check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now(), false);
         assertThatThrownBy(() -> stockCheckService.reportAdHocShortage(
-            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), bd(5), null)))
+            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), bd(5), null, null)))
             .isInstanceOf(InvalidStockCheckException.class);
-        verify(orderListService, never()).upsertShortage(any(), any(), any(), any(), anyBoolean(), any(), any());
+        verify(orderListService, never()).upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean());
     }
 
     @Test
-    void endOfDayAboveStartOfDayWithReceivedStockRecordsTheDeliveryAndCountsUsageAgainstIt() {
+    void endOfDayAboveStartOfDayWithReceivedStockOnlyCreatesAPendingRequestAndNotifiesTheOwner() {
         StockCheck check = existingCheck(LocalDate.now());
         check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.of(check));
+        when(stockReceiptRequestRepository.save(any(StockReceiptRequest.class))).thenAnswer(i -> i.getArgument(0));
+        StoreOwner activeOwner = new StoreOwner();
+        activeOwner.setOwner(owner);
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(activeOwner));
 
         StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID,
             new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), bd(15)));
 
-        // 10 opening + 15 received - 20 closing.
-        assertThat(response.quantityReceived()).isEqualByComparingTo(bd(15));
-        assertThat(response.stockUsed()).isEqualByComparingTo(bd(5));
+        // The count is saved but the delivery is not applied: received stays 0
+        // and no receipt row is written until the admin approves.
+        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(20));
+        assertThat(response.quantityReceived()).isEqualByComparingTo(bd(0));
+        verify(stockCheckReceiptRepository, never()).save(any());
+        ArgumentCaptor<StockReceiptRequest> request = ArgumentCaptor.forClass(StockReceiptRequest.class);
+        verify(stockReceiptRequestRepository).save(request.capture());
+        assertThat(request.getValue().getQuantity()).isEqualByComparingTo(bd(15));
+        assertThat(request.getValue().getOrderListEntry()).isNull();
+        assertThat(request.getValue().isPending()).isTrue();
+        assertThat(request.getValue().getRequestedBy()).isEqualTo(employee);
+        verify(notificationService).notifyOwnerOfStockReceiptRequest(request.getValue(), owner);
+    }
+
+    @Test
+    void confirmingAnOrderedOrderAsReceivedCreatesAPendingRequestLinkedToItWithoutTouchingTheOrder() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        OrderListEntry order = new OrderListEntry();
+        ReflectionTestUtils.setField(order, "id", 77L);
+        order.setStoreInventoryItem(milk);
+        order.setStatus(OrderStatus.ORDERED);
+        order.setQuantityNeeded(bd(12));
+        when(orderListService.requireOrderedEntry(STORE_ID, ITEM_ID, 77L)).thenReturn(order);
+        when(stockReceiptRequestRepository.save(any(StockReceiptRequest.class))).thenAnswer(i -> i.getArgument(0));
+
+        // No quantity given: defaults to what was ordered.
+        stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), null, 77L));
+
+        ArgumentCaptor<StockReceiptRequest> request = ArgumentCaptor.forClass(StockReceiptRequest.class);
+        verify(stockReceiptRequestRepository).save(request.capture());
+        assertThat(request.getValue().getOrderListEntry()).isSameAs(order);
+        assertThat(request.getValue().getQuantity()).isEqualByComparingTo(bd(12));
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.ORDERED);
+        verify(orderListService, never()).confirmReceivedByApproval(any(), any());
+    }
+
+    @Test
+    void endOfDayCoveredByTwoSelectedOrdersIsAcceptedAndCreatesOneRequestPerOrder() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(3), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        for (long id : new long[] {70L, 74L}) {
+            OrderListEntry order = new OrderListEntry();
+            ReflectionTestUtils.setField(order, "id", id);
+            order.setStoreInventoryItem(milk);
+            order.setStatus(OrderStatus.ORDERED);
+            order.setQuantityNeeded(bd(id == 70L ? 4 : 1));
+            when(orderListService.requireOrderedEntry(STORE_ID, ITEM_ID, id)).thenReturn(order);
+        }
+        when(stockReceiptRequestRepository.save(any(StockReceiptRequest.class))).thenAnswer(i -> i.getArgument(0));
+
+        // Start of Day 3, End of Day 5: the two orders (4 + 1) cover the gap of 2.
+        stockCheckService.submitCheck(EMPLOYEE_ID, new StockCheckSubmitRequest(
+            STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(5), bd(0), null, null,
+            List.of(new StockCheckSubmitRequest.ReceivedItem(70L, bd(4)), new StockCheckSubmitRequest.ReceivedItem(74L, bd(1)))));
+
+        verify(stockReceiptRequestRepository, times(2)).save(any(StockReceiptRequest.class));
+        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(5));
+    }
+
+    @Test
+    void anOrderAlreadyWaitingOnApprovalCannotBeReportedAgain() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        OrderListEntry order = new OrderListEntry();
+        ReflectionTestUtils.setField(order, "id", 77L);
+        order.setStoreInventoryItem(milk);
+        when(orderListService.requireOrderedEntry(STORE_ID, ITEM_ID, 77L)).thenReturn(order);
+        when(stockReceiptRequestRepository.existsByOrderListEntryIdAndStatus(77L, com.nforce.retailops.entity.StockReceiptRequestStatus.PENDING))
+            .thenReturn(true);
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), null, 77L)))
+            .isInstanceOf(InvalidStockCheckException.class);
+        verify(stockReceiptRequestRepository, never()).save(any());
+    }
+
+    @Test
+    void reSavingEndOfDayWhileAReceiptIsPendingDoesNotAskForReceivedStockAgain() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        when(stockReceiptRequestRepository.pendingQuantityFor(ITEM_ID, LocalDate.now())).thenReturn(bd(15));
+
+        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 20, 0));
+
+        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(20));
+        verify(stockReceiptRequestRepository, never()).save(any());
+    }
+
+    @Test
+    void approvingARequestAppliesTheDeliveryToTheDaysRow() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), employee, OffsetDateTime.now(), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        StockReceiptRequest request = new StockReceiptRequest();
+        request.setStore(store);
+        request.setStoreInventoryItem(milk);
+        request.setCheckDate(LocalDate.now());
+        request.setQuantity(bd(15));
+        request.setRequestedBy(employee);
+
+        stockCheckService.applyApprovedDelivery(request);
+
+        // 10 opening + 15 received - 20 closing; the closing count is not topped up.
+        assertThat(check.getQuantityReceived()).isEqualByComparingTo(bd(15));
+        assertThat(check.stockUsed()).isEqualByComparingTo(bd(5));
+        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(20));
         ArgumentCaptor<StockCheckReceipt> receipt = ArgumentCaptor.forClass(StockCheckReceipt.class);
         verify(stockCheckReceiptRepository).save(receipt.capture());
         assertThat(receipt.getValue().getQuantity()).isEqualByComparingTo(bd(15));
-        assertThat(receipt.getValue().getCountAfter()).isEqualByComparingTo(bd(20));
         assertThat(receipt.getValue().getReceivedByUser()).isEqualTo(employee);
-        // The closing count is exactly what was typed -- not topped up again.
-        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(20));
     }
 
     @Test
@@ -716,12 +841,11 @@ class StockCheckServiceTest {
 
         stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 7, 0));
 
-        verify(orderListService).raiseShortageIfNoneActive(eq(store), eq(milk), eq(bd(1)), eq(employee), isNull());
-        verify(orderListService, never()).resolveShortageIfPresent(any(), any());
+        verify(orderListService).reconcileStartOfDayShortage(eq(store), eq(milk), eq(bd(1)), eq(employee), isNull());
     }
 
     @Test
-    void startOfDayAtOrAboveTodaysMinimumLeavesTheOrderListAlone() {
+    void startOfDayAtOrAboveTodaysMinimumReconcilesWithNoShortage() {
         milk.setMinWeekday(bd(8));
         milk.setMinWeekend(bd(8));
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
@@ -729,7 +853,7 @@ class StockCheckServiceTest {
 
         stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 8, 0));
 
-        verifyNoInteractions(orderListService);
+        verify(orderListService).reconcileStartOfDayShortage(eq(store), eq(milk), eq(bd(0)), eq(employee), isNull());
     }
 
     @Test

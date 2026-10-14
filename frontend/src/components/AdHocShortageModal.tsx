@@ -11,6 +11,7 @@ export interface AdHocShortageValues {
   currentStock: string;
   quantity: string;
   note: string;
+  orderedAlreadyReceived: boolean;
 }
 
 interface AdHocShortageModalProps {
@@ -22,7 +23,7 @@ interface AdHocShortageModalProps {
   onSubmit: (values: AdHocShortageValues) => void;
 }
 
-const EMPTY_VALUES: AdHocShortageValues = { storeInventoryItemId: 0, currentStock: '', quantity: '', note: '' };
+const EMPTY_VALUES: AdHocShortageValues = { storeInventoryItemId: 0, currentStock: '', quantity: '', note: '', orderedAlreadyReceived: false };
 
 function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false, onClose, onSubmit }: AdHocShortageModalProps) {
   const [values, setValues] = useState<AdHocShortageValues>(EMPTY_VALUES);
@@ -104,7 +105,7 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
             }}
           />
         </FormField>
-        <FormField label="Quantity Needed" htmlFor="ad-hoc-quantity" error={errors.quantity}>
+        <FormField label="Total Quantity Needed" htmlFor="ad-hoc-quantity" error={errors.quantity}>
           <input
             id="ad-hoc-quantity"
             type="text"
@@ -118,6 +119,15 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
             }}
           />
         </FormField>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
+          <input
+            id="ad-hoc-received"
+            type="checkbox"
+            checked={values.orderedAlreadyReceived}
+            onChange={(event) => setValues((current) => ({ ...current, orderedAlreadyReceived: event.target.checked }))}
+          />
+          <span>An earlier order for this item has already been received</span>
+        </label>
         <FormField label="Note (optional)" htmlFor="ad-hoc-note">
           <input
             id="ad-hoc-note"

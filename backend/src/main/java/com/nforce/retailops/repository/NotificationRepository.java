@@ -14,7 +14,7 @@ import java.util.Optional;
 public interface NotificationRepository extends JpaRepository<Notification, Long> {
 
     // User (owner / employee) notifications
-    @Query("SELECT n FROM Notification n LEFT JOIN FETCH n.relatedIssue ri LEFT JOIN FETCH ri.store LEFT JOIN FETCH n.store WHERE n.recipientUser.id = :userId ORDER BY n.createdAt DESC")
+    @Query("SELECT n FROM Notification n LEFT JOIN FETCH n.relatedIssue ri LEFT JOIN FETCH ri.store LEFT JOIN FETCH n.store LEFT JOIN FETCH n.stockReceiptRequest WHERE n.recipientUser.id = :userId ORDER BY n.createdAt DESC")
     List<Notification> findByRecipientUserIdOrderByCreatedAtDesc(@Param("userId") Long userId, Pageable pageable);
 
     long countByRecipientUserIdAndReadFalse(Long recipientUserId);

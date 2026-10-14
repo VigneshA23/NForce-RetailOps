@@ -6,8 +6,9 @@ import {
   RefreshCw, Search, Trash2,
 } from 'lucide-react';
 import { deleteNotification, getNotifications, getUnreadCount, markAllRead, markNotificationRead } from '../api/notifications';
+import { approveStockReceiptRequest, rejectStockReceiptRequest } from '../api/stockReceiptRequests';
 import NotificationMessage from '../components/NotificationMessage';
-import type { Notification } from '../types/notification';
+import type { Notification, StockReceiptRequest } from '../types/notification';
 import type { StoreSummary } from '../types/store';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { ALL_DISPLAY_CATEGORIES, getCategoryMeta, type DisplayCategory } from '../utils/notificationCategoryMeta';
@@ -299,6 +300,7 @@ function NotifRow({ n, assignedStores, selected, onSelect, onMarkRead, onDelete,
             : <Check size={10} />}
         </button>
       )}
+      {n.receiptRequest?.status !== 'PENDING' && (
       <button
         type="button"
         className="nfp-row__delete-btn"
@@ -311,7 +313,88 @@ function NotifRow({ n, assignedStores, selected, onSelect, onMarkRead, onDelete,
           ? <Loader2 size={10} className="nfp-spin" />
           : <Trash2 size={10} />}
       </button>
+      )}
     </div>
+  );
+}
+
+// ── Received-stock request (admin approval) ───────────────────────────────────
+
+interface ReceiptRequestPanelProps {
+  request: StockReceiptRequest;
+  deciding: 'approve' | 'reject' | null;
+  error: string | null;
+  onDecide: (action: 'approve' | 'reject') => void;
+}
+
+// Spells out what the employee is asking for, in the two cases the admin has
+// to tell apart, and carries the Approve / Reject buttons while it is pending.
+function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequestPanelProps) {
+  const isOrder = request.kind === 'EXISTING_ORDER';
+  const pending = request.status === 'PENDING';
+  const rows: [string, string][] = [
+    ['Employee', request.requestedByName],
+    ['Store', request.storeName],
+    ['Item', request.itemName],
+    ['Quantity reported received', `${request.quantity} ${request.unit}`],
+  ];
+  if (isOrder) {
+    rows.push(['Order', `Order #${request.orderId}`]);
+    if (request.orderedQuantity != null) rows.push(['Quantity ordered', `${request.orderedQuantity} ${request.unit}`]);
+    if (request.orderSupplierName) rows.push(['Supplier', request.orderSupplierName]);
+    if (request.orderedAt) rows.push(['Ordered on', new Date(request.orderedAt).toLocaleDateString()]);
+  }
+  rows.push(['Reported for', request.checkDate]);
+
+  return (
+    <section className="nfp-receipt" aria-label="Received stock request">
+      <p className="nfp-receipt__kind">
+        {isOrder ? 'Confirm existing order as received' : 'Received stock, not on an existing order'}
+      </p>
+      <p className="nfp-receipt__summary">
+        {isOrder
+          ? `${request.requestedByName} is requesting approval to confirm Order #${request.orderId} as received. If approved, the order moves from Ordered to Received and stock is updated.`
+          : `${request.requestedByName} reported receiving stock that is not on an existing order and is requesting approval for the received quantity. If approved, stock is updated.`}
+      </p>
+      <dl className="nfp-receipt__details">
+        {rows.map(([label, value]) => (
+          <div key={label} className="nfp-receipt__row">
+            <dt>{label}</dt>
+            <dd>{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      {pending ? (
+        <div className="nfp-receipt__actions">
+          <button
+            type="button"
+            className="nfp-receipt__btn nfp-receipt__btn--approve"
+            onClick={() => onDecide('approve')}
+            disabled={deciding !== null}
+          >
+            {deciding === 'approve' ? <Loader2 size={13} className="nfp-spin" /> : <Check size={13} />}
+            Approve
+          </button>
+          <button
+            type="button"
+            className="nfp-receipt__btn nfp-receipt__btn--reject"
+            onClick={() => onDecide('reject')}
+            disabled={deciding !== null}
+          >
+            {deciding === 'reject' ? <Loader2 size={13} className="nfp-spin" /> : null}
+            Reject
+          </button>
+        </div>
+      ) : (
+        <p className={`nfp-receipt__status nfp-receipt__status--${request.status.toLowerCase()}`}>
+          {request.status === 'APPROVED' ? 'Approved' : 'Rejected'}
+          {request.decidedByName ? ` by ${request.decidedByName}` : ''}
+          {request.decidedAt ? ` on ${new Date(request.decidedAt).toLocaleString()}` : ''}
+        </p>
+      )}
+      {error && <p className="nfp-receipt__error" role="alert">{error}</p>}
+    </section>
   );
 }
 
@@ -324,9 +407,12 @@ interface DetailPaneProps {
   onBack?: () => void;
   onDelete?: (id: number) => void;
   deletingId?: number | null;
+  onDecideReceipt?: (n: Notification, action: 'approve' | 'reject') => void;
+  decidingReceipt?: { id: number; action: 'approve' | 'reject' } | null;
+  receiptError?: { id: number; message: string } | null;
 }
 
-function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingId }: DetailPaneProps) {
+function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingId, onDecideReceipt, decidingReceipt, receiptError }: DetailPaneProps) {
   if (!n) {
     return (
       <div className="nfp-detail nfp-detail--empty">
@@ -383,8 +469,17 @@ function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingI
           : 'No additional details provided.'}
       </p>
 
+      {n.receiptRequest && (
+        <ReceiptRequestPanel
+          request={n.receiptRequest}
+          deciding={decidingReceipt?.id === n.id ? decidingReceipt.action : null}
+          error={receiptError?.id === n.id ? receiptError.message : null}
+          onDecide={(action) => onDecideReceipt?.(n, action)}
+        />
+      )}
+
       <div className="nfp-detail__actions">
-        {n.linkPath && onNavigate && (
+        {n.linkPath && n.linkPath !== '/notifications' && onNavigate && (
           <button
             type="button"
             className="nfp-detail__open-btn"
@@ -393,7 +488,7 @@ function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingI
             Open related page <ArrowUpRight size={14} aria-hidden="true" />
           </button>
         )}
-        {onDelete && (
+        {onDelete && n.receiptRequest?.status !== 'PENDING' && (
           <button
             type="button"
             className="nfp-detail__delete-btn"
@@ -425,9 +520,11 @@ interface NotificationsProps {
   // from DetailPane's own onBack, which just returns from the mobile detail
   // view to this page's list.
   onBackToHome?: () => void;
+  // Opens this notification once the list has loaded (clicked in the bell).
+  focusNotificationId?: number | null;
 }
 
-function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId, assignedStores }: NotificationsProps) {
+function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId, assignedStores, focusNotificationId }: NotificationsProps) {
   const isWide = useMediaQuery('(min-width: 900px)');
   const isDesktopPointer = useMediaQuery('(hover: hover) and (pointer: fine)');
 
@@ -441,6 +538,8 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const closeActiveSwipe = useRef<(() => void) | null>(null);
+  const [decidingReceipt, setDecidingReceipt] = useState<{ id: number; action: 'approve' | 'reject' } | null>(null);
+  const [receiptError, setReceiptError] = useState<{ id: number; message: string } | null>(null);
 
   const [search, setSearch]       = useState('');
   const [catFilter, setCatFilter] = useState<DisplayCategory | 'all'>('all');
@@ -516,7 +615,24 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
     setMarking(false);
   }
 
+  async function handleDecideReceipt(n: Notification, action: 'approve' | 'reject') {
+    setDecidingReceipt({ id: n.id, action });
+    setReceiptError(null);
+    try {
+      const updated = action === 'approve'
+        ? await approveStockReceiptRequest(n.receiptRequest!.id)
+        : await rejectStockReceiptRequest(n.receiptRequest!.id);
+      setItems(prev => prev.map(item => item.id === n.id ? { ...item, receiptRequest: updated } : item));
+    } catch (e) {
+      setReceiptError({ id: n.id, message: e instanceof Error ? e.message : 'Could not save your decision. Please try again.' });
+    } finally {
+      setDecidingReceipt(null);
+    }
+  }
+
   async function handleDelete(id: number) {
+    // A pending stock request has to be decided, not dismissed.
+    if (items.find(n => n.id === id)?.receiptRequest?.status === 'PENDING') return;
     setDeletingId(id);
     await deleteNotification(id).catch(() => {});
     const target = items.find(n => n.id === id);
@@ -563,6 +679,16 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
     );
   }, [items, assignedStores, activeStoreId, storeFilter]);
 
+  // Opens the notification the admin clicked in the bell, once it has loaded.
+  const openedFocusId = useRef<number | null>(null);
+  useEffect(() => {
+    if (focusNotificationId == null || openedFocusId.current === focusNotificationId) return;
+    const target = items.find(n => n.id === focusNotificationId);
+    if (!target) return;
+    openedFocusId.current = focusNotificationId;
+    handleSelect(target);
+  }, [focusNotificationId, items]);
+
   const visible = useMemo(() => {
     let list = storeScopedItems;
     if (statusFilter === 'unread') list = list.filter(n => !n.read);
@@ -599,6 +725,9 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
             onBack={() => setShowDetail(false)}
             onDelete={handleDelete}
             deletingId={deletingId}
+            onDecideReceipt={handleDecideReceipt}
+            decidingReceipt={decidingReceipt}
+            receiptError={receiptError}
           />
         </div>
       </div>
@@ -818,6 +947,9 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
                 onNavigate={onNavigate}
                 onDelete={handleDelete}
                 deletingId={deletingId}
+                onDecideReceipt={handleDecideReceipt}
+                decidingReceipt={decidingReceipt}
+                receiptError={receiptError}
               />
             </div>
           )}

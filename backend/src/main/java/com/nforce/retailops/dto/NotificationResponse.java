@@ -17,7 +17,8 @@ public record NotificationResponse(
     String relatedStoreName,
     String relatedIssueStatus,
     Long storeId,
-    OffsetDateTime createdAt
+    OffsetDateTime createdAt,
+    StockReceiptRequestResponse receiptRequest
 ) {
     public static NotificationResponse from(Notification n) {
         Long issueId = null;
@@ -51,7 +52,8 @@ public record NotificationResponse(
             storeName,
             issueStatus,
             storeId,
-            n.getCreatedAt()
+            n.getCreatedAt(),
+            n.getStockReceiptRequest() != null ? StockReceiptRequestResponse.from(n.getStockReceiptRequest()) : null
         );
     }
 }
