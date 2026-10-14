@@ -91,8 +91,14 @@ public interface OrderListEntryRepository extends JpaRepository<OrderListEntry, 
     // database, not in Java.
     //
     // Tuple: [0] supplierId (nullable), [1] supplierName (nullable),
-    //        [2] order entry count, [3] total quantity.
-    @Query("select sup.id, sup.name, count(e), sum(e.quantityNeeded) "
+    //        [2] order entry count, [3] total quantity, [4] received count.
+    // receivedCount uses count(case when ... then e.id end) rather than a
+    // FILTER clause: plain CASE/COUNT is standard JPQL that both PostgreSQL
+    // and H2 (the test profile) execute identically, where FILTER support
+    // varies. The THEN branch must be basic-valued (e.id, not e itself) --
+    // Hibernate 6's CaseSearchedExpression cannot resolve an entity there.
+    @Query("select sup.id, sup.name, count(e), sum(e.quantityNeeded), "
+        + "count(case when e.status = :receivedStatus then e.id end) "
         + "from OrderListEntry e left join e.supplier sup "
         + "where e.store.id = :storeId and e.status in :statuses "
         + "and e.createdAt >= :from and e.createdAt < :to "
@@ -100,23 +106,40 @@ public interface OrderListEntryRepository extends JpaRepository<OrderListEntry, 
     List<Object[]> findSupplierMetricsForStore(
         @Param("storeId") Long storeId,
         @Param("statuses") List<OrderStatus> statuses,
+        @Param("receivedStatus") OrderStatus receivedStatus,
         @Param("from") OffsetDateTime from,
         @Param("to") OffsetDateTime to
     );
+
+    // Order History (Owner/Admin and Super Admin): every entry whose status is
+    // in `statuses` (ORDERED/RECEIVED -- see OrderStatus.PURCHASED_STATUSES, so
+    // NEEDS_ORDERING never appears in this per-line report) and whose
+    // createdAt falls in [from, to), for one store. Entities rather than a
+    // tuple projection -- the per-line report needs the item's category/unit/
+    // image too, which live on StoreInventoryItem, not on this row. The date
+    // range is capped at 92 days (OrderListService.MAX_DATE_RANGE_DAYS), the
+    // same bound the Purchasing Summary already enforces, so filtering and
+    // paging in the service (StockCheckService.listInventoryCounts' own
+    // convention) stays cheap -- no Pageable/COUNT query needed here.
+    List<OrderListEntry> findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+        Long storeId, List<OrderStatus> statuses, OffsetDateTime from, OffsetDateTime to);
 
     // Same as above but platform-wide and additionally grouped by store --
     // Super Admin's cross-store Supplier Purchasing Summary. `join e.store s`
     // is safe as an inner join (store_id is NOT NULL on every entry).
     //
     // Tuple: [0] storeId, [1] storeName, [2] supplierId (nullable),
-    //        [3] supplierName (nullable), [4] order entry count, [5] total quantity.
-    @Query("select s.id, s.name, sup.id, sup.name, count(e), sum(e.quantityNeeded) "
+    //        [3] supplierName (nullable), [4] order entry count, [5] total
+    //        quantity, [6] received count.
+    @Query("select s.id, s.name, sup.id, sup.name, count(e), sum(e.quantityNeeded), "
+        + "count(case when e.status = :receivedStatus then e.id end) "
         + "from OrderListEntry e join e.store s left join e.supplier sup "
         + "where e.status in :statuses "
         + "and e.createdAt >= :from and e.createdAt < :to "
         + "group by s.id, s.name, sup.id, sup.name")
     List<Object[]> findSupplierMetricsGroupedByStore(
         @Param("statuses") List<OrderStatus> statuses,
+        @Param("receivedStatus") OrderStatus receivedStatus,
         @Param("from") OffsetDateTime from,
         @Param("to") OffsetDateTime to
     );

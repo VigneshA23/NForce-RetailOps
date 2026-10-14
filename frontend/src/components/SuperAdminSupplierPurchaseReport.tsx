@@ -1,18 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Download, FileSpreadsheet, FileText, Layers, PackageCheck, Truck } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import ButtonDots from './ButtonDots';
 import StoreAccordionGroup from './StoreAccordionGroup';
 import SupplierPurchaseTable from './SupplierPurchaseTable';
-import { getSupplierPurchaseMetrics } from '../api/superAdminOperations';
-import type { StoreSupplierPurchaseMetric } from '../types/orderList';
+import OrderHistoryTable from './OrderHistoryTable';
+import Pagination from './Pagination';
+import StatCard from './StatCard';
+import { getOrderHistoryForStore, getSupplierPurchaseMetrics } from '../api/superAdminOperations';
+import type { OrderHistoryEntry, StoreSupplierPurchaseMetric } from '../types/orderList';
 import { daysAgo, todayDate } from '../utils/checklistHistoryOptions';
 import { buildAndDownloadSupplierPurchaseReportPdf, buildSupplierPurchaseReportWorkbook } from '../utils/supplierPurchaseReportExport';
 import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import './SuperAdminSupplierPurchaseReport.css';
+
+const DETAIL_PAGE_SIZE = 20;
 
 // Same "no unbounded query" convention as the Owner/Admin version and
 // StockCheckHistory: ALL_TIME resolves to the widest window the 92-day cap
@@ -33,18 +38,19 @@ interface SuperAdminSupplierPurchaseReportProps {
   // group, a specific id narrows down to just that one. No search/filter
   // container of this report's own; it simply follows that global pick.
   selectedStoreId: number | null;
-  // Now a same-page, local-only callback (SuperAdminOrders.tsx's own
-  // handler) -- this used to bubble cross-page through SuperAdminDashboard
-  // when this report lived under Inventory; now that it's a sub-tab of
-  // Orders itself, no date range or cross-page seeding is needed.
-  onViewDetails?: (row: StoreSupplierPurchaseMetric) => void;
+}
+
+interface DetailTarget {
+  storeId: number;
+  storeName: string;
+  supplierName: string;
 }
 
 // Super Admin's cross-store Purchasing Report. The API already returns
 // pre-aggregated, flat rows (one per store+supplier); grouping them by
 // storeId here is a display concern only, not a recalculation -- each row's
 // own orderEntryCount/totalQuantity is used as-is.
-function SuperAdminSupplierPurchaseReport({ selectedStoreId, onViewDetails }: SuperAdminSupplierPurchaseReportProps) {
+function SuperAdminSupplierPurchaseReport({ selectedStoreId }: SuperAdminSupplierPurchaseReportProps) {
   const [dateRange, setDateRange] = useState<DateRangeSelection>(DEFAULT_DATE_RANGE);
   const [rows, setRows] = useState<StoreSupplierPurchaseMetric[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,7 +63,52 @@ function SuperAdminSupplierPurchaseReport({ selectedStoreId, onViewDetails }: Su
   const exportMenuRef = useRef<HTMLDivElement>(null);
   useDismissablePanel({ isOpen: isExportMenuOpen, onClose: () => setIsExportMenuOpen(false), refs: [exportMenuRef] });
 
+  // "View Details" on a (store, supplier) row switches this same page to its
+  // Detailed view instead of bubbling up to SuperAdminOrders.tsx's Order List
+  // sub-tab, which used to drop the date range (no date-filtering concept
+  // there). null = Summary is showing.
+  const [detail, setDetail] = useState<DetailTarget | null>(null);
+  const [detailPage, setDetailPage] = useState(1);
+  const [detailRows, setDetailRows] = useState<OrderHistoryEntry[]>([]);
+  const [detailPageCount, setDetailPageCount] = useState(1);
+  const [detailTotal, setDetailTotal] = useState(0);
+  const [detailAwaiting, setDetailAwaiting] = useState(0);
+  const [detailReceived, setDetailReceived] = useState(0);
+  const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+
   const resolvedRange = resolveDateRange(dateRange) ?? widestAllowedRange();
+
+  useEffect(() => {
+    if (detail === null) return;
+    let cancelled = false;
+    setIsDetailLoading(true);
+    setDetailError(null);
+    getOrderHistoryForStore(detail.storeId, resolvedRange.startDate, resolvedRange.endDate, detail.supplierName, detailPage, DETAIL_PAGE_SIZE)
+      .then((result) => {
+        if (cancelled) return;
+        setDetailRows(result.rows);
+        setDetailPageCount(result.totalPages);
+        setDetailTotal(result.totalElements);
+        setDetailAwaiting(result.awaitingReceiptCount);
+        setDetailReceived(result.receivedCount);
+      })
+      .catch((error: Error) => {
+        if (!cancelled) setDetailError(error.message);
+      })
+      .finally(() => {
+        if (!cancelled) setIsDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail, detailPage, resolvedRange.startDate, resolvedRange.endDate]);
+
+  function openDetail(row: StoreSupplierPurchaseMetric) {
+    setDetailPage(1);
+    setDetail({ storeId: row.storeId, storeName: row.storeName, supplierName: row.supplierName });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -110,7 +161,7 @@ function SuperAdminSupplierPurchaseReport({ selectedStoreId, onViewDetails }: Su
         storeName: group.storeName,
         supplierName: row.supplierName,
         orderEntryCount: row.orderEntryCount,
-        totalQuantity: row.totalQuantity,
+        receivedCount: row.receivedCount,
       })),
     );
   }
@@ -144,6 +195,41 @@ function SuperAdminSupplierPurchaseReport({ selectedStoreId, onViewDetails }: Su
   }
 
   const hasExportableRows = visibleGroups.length > 0;
+
+  if (detail !== null) {
+    return (
+      <div className="sa-supplier-purchase-report">
+        <div className="sa-supplier-purchase-report__toolbar">
+          <button type="button" className="btn btn--secondary" onClick={() => setDetail(null)}>
+            <ArrowLeft size={14} /> Back to Summary
+          </button>
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+        </div>
+
+        <div className="sa-supplier-purchase-report__detail-heading">
+          Detailed records for <strong>{detail.supplierName}</strong> at <strong>{detail.storeName}</strong>
+        </div>
+
+        {detailError && <div className="sa-supplier-purchase-report__error">{detailError}</div>}
+
+        <div className="stat-card-row">
+          <StatCard icon={Layers} label="Total Line Items" value={detailTotal} tone="primary" />
+          <StatCard icon={Truck} label="Awaiting Receipt" value={detailAwaiting} tone="warning" />
+          <StatCard icon={PackageCheck} label="Received" value={detailReceived} tone="success" />
+        </div>
+
+        <OrderHistoryTable rows={detailRows} isLoading={isDetailLoading} />
+        <Pagination
+          page={detailPage}
+          pageCount={detailPageCount}
+          totalItems={detailTotal}
+          pageSize={DETAIL_PAGE_SIZE}
+          onPageChange={setDetailPage}
+          itemLabel="records"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="sa-supplier-purchase-report">
@@ -203,7 +289,7 @@ function SuperAdminSupplierPurchaseReport({ selectedStoreId, onViewDetails }: Su
             isExpanded={expanded[group.storeId] ?? true}
             onToggle={() => toggleExpanded(group.storeId)}
           >
-            <SupplierPurchaseTable rows={group.rows} onViewDetails={onViewDetails} />
+            <SupplierPurchaseTable rows={group.rows} onViewDetails={openDetail} />
           </StoreAccordionGroup>
         ))
       )}

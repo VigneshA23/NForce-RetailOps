@@ -20,6 +20,9 @@ export interface OrderListEntry {
   imageId: number | null;
   // What actually arrived when the order was marked Received; null otherwise.
   quantityReceived?: number | null;
+  // When this entry's current RECEIVED status was reached; null otherwise.
+  // Not updatedAt -- that also changes on a plain edit, not just receipt.
+  receivedAt?: string | null;
   // Only present on the response to the Ordered -> Received change itself.
   receipt?: ReceiptOutcome | null;
 }
@@ -68,11 +71,14 @@ export interface CreateOrderListEntryValues {
 }
 
 // Owner/Admin's Purchasing Report -- already aggregated server-side
-// (COUNT/SUM), scoped to the caller's own store.
+// (COUNT/SUM), scoped to the caller's own store. receivedCount is the subset
+// of orderEntryCount whose status is RECEIVED, for the Summary table's
+// "Received" column.
 export interface SupplierPurchaseMetric {
   supplierName: string;
   orderEntryCount: number;
   totalQuantity: number;
+  receivedCount: number;
 }
 
 // Super Admin's cross-store version: a flat, already-aggregated list; the
@@ -83,4 +89,42 @@ export interface StoreSupplierPurchaseMetric {
   supplierName: string;
   orderEntryCount: number;
   totalQuantity: number;
+  receivedCount: number;
+}
+
+// Purchasing Report's Detailed view: one Ordered/Received line (Needs
+// Ordering never appears here), with both the ordered and received date/by
+// so a shortfall or a slow delivery is visible without cross-referencing
+// anything else. storeId/storeName only matter for Super Admin's cross-store
+// report, but are always populated.
+export interface OrderHistoryEntry {
+  id: number;
+  storeInventoryItemId: number;
+  itemName: string;
+  category: string | null;
+  unitOfMeasurement: string;
+  imageId: number | null;
+  supplierId: number | null;
+  supplierName: string;
+  quantityOrdered: number;
+  quantityReceived: number | null;
+  status: Exclude<OrderStatus, 'NEEDS_ORDERING'>;
+  orderedAt: string | null;
+  orderedByName: string | null;
+  receivedAt: string | null;
+  receivedByName: string | null;
+  storeId: number;
+  storeName: string;
+}
+
+// awaitingReceiptCount/receivedCount are over every row matching the date
+// range/supplier filters, independent of pagination.
+export interface OrderHistoryPage {
+  rows: OrderHistoryEntry[];
+  page: number;
+  size: number;
+  totalPages: number;
+  totalElements: number;
+  awaitingReceiptCount: number;
+  receivedCount: number;
 }

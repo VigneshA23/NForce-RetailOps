@@ -22,6 +22,10 @@ public record OrderListEntryResponse(
     OffsetDateTime updatedAt,
     Long imageId,
     BigDecimal quantityReceived,
+    // When this entry's current RECEIVED status was reached (null otherwise)
+    // -- the Order List's "Received Today" tile filters on this, not
+    // updatedAt, since updatedAt also changes on a plain edit.
+    OffsetDateTime receivedAt,
     // Only set on the response to the Ordered -> Received change itself;
     // null on every list read.
     ReceiptOutcome receipt
@@ -61,6 +65,7 @@ public record OrderListEntryResponse(
             entry.getUpdatedAt(),
             entry.getStoreInventoryItem().getImageId(),
             entry.getQuantityReceived(),
+            entry.getReceivedAt(),
             receipt
         );
     }

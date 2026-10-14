@@ -9,12 +9,13 @@ import {
   getOrderListForStore,
   updateSuperAdminOrderStatus,
 } from '../api/superAdminOperations';
-import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
+import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus } from '../types/orderList';
 import type { Supplier } from '../types/supplier';
 import type { InventoryItemCategory } from '../types/storeInventory';
 import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import { buildOrderListText } from '../utils/orderListExport';
 import { STATUS_META, STATUS_ORDER } from '../utils/orderListStatus';
+import { isToday } from '../utils/checklistHistoryOptions';
 import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddToOrderPanel';
 import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
 import SuperAdminInventoryCounts from '../components/SuperAdminInventoryCounts';
@@ -44,7 +45,7 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'OPEN', label: 'All open' },
   { value: 'NEEDS_ORDERING', label: 'Needs ordering' },
   { value: 'ORDERED', label: 'Ordered' },
-  { value: 'RECEIVED', label: 'Received' },
+  { value: 'RECEIVED', label: 'Received Today' },
 ];
 
 type SubTab = 'orders' | 'counts' | 'eod-report' | 'purchasing-report';
@@ -351,8 +352,16 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     [storeInventoryItems],
   );
 
-  const matchesStatusFilter = (entry: OrderListEntry) =>
-    statusFilter === 'OPEN' ? entry.status !== 'RECEIVED' : entry.status === statusFilter;
+  // RECEIVED is additionally narrowed to today's receipts -- order list rows
+  // are never deleted, so without this the tile would accumulate every
+  // delivery ever received rather than showing what still needs reviewing
+  // today. receivedAt (not updatedAt) is the signal: updatedAt also changes
+  // on a plain edit, not just on receipt.
+  const matchesStatusFilter = (entry: OrderListEntry) => {
+    if (statusFilter === 'OPEN') return entry.status !== 'RECEIVED';
+    if (statusFilter === 'RECEIVED') return entry.status === 'RECEIVED' && !!entry.receivedAt && isToday(entry.receivedAt);
+    return entry.status === statusFilter;
+  };
 
   const filteredEntries = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -480,7 +489,10 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const openCount = useMemo(() => entries.filter((e) => e.status !== 'RECEIVED').length, [entries]);
   const needsCount = useMemo(() => entries.filter((e) => e.status === 'NEEDS_ORDERING').length, [entries]);
   const orderedCount = useMemo(() => entries.filter((e) => e.status === 'ORDERED').length, [entries]);
-  const receivedCount = useMemo(() => entries.filter((e) => e.status === 'RECEIVED').length, [entries]);
+  const receivedCount = useMemo(
+    () => entries.filter((e) => e.status === 'RECEIVED' && !!e.receivedAt && isToday(e.receivedAt)).length,
+    [entries],
+  );
 
   function pickStatusTile(next: StatusFilter) {
     setStatusFilter((current) => (current === next ? 'OPEN' : next));
@@ -699,19 +711,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
           keeping a filter of its own -- null shows every store, a picked
           store narrows down to just that one. */}
       {subTab === 'purchasing-report' && (
-        <SuperAdminSupplierPurchaseReport
-          selectedStoreId={selectedStoreId}
-          onViewDetails={(row: StoreSupplierPurchaseMetric) => {
-            selectStore(row.storeId, row.storeName);
-            if (row.supplierName === 'No Supplier') {
-              setSupplierFilter('UNASSIGNED');
-            } else {
-              const match = suppliers.find((s) => s.name.toLowerCase() === row.supplierName.toLowerCase());
-              setSupplierFilter(match ? String(match.id) : 'all');
-            }
-            setSubTab('orders');
-          }}
-        />
+        <SuperAdminSupplierPurchaseReport selectedStoreId={selectedStoreId} />
       )}
 
       {selectedStoreId !== null && subTab !== 'purchasing-report' && (
@@ -729,7 +729,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
             <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" active={statusFilter === 'NEEDS_ORDERING'} onClick={() => pickStatusTile('NEEDS_ORDERING')} />
             <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" active={statusFilter === 'ORDERED'} onClick={() => pickStatusTile('ORDERED')} />
-            <StatCard icon={PackageCheck} label="Received" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
+            <StatCard icon={PackageCheck} label="Received Today" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
           </div>
 
           <div className="order-list__filter-row">

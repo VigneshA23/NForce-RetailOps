@@ -1,6 +1,7 @@
 package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
+import com.nforce.retailops.dto.OrderHistoryPageResponse;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
@@ -54,6 +55,23 @@ public class OrderListController {
         @RequestParam(required = false) LocalDate toDate
     ) {
         return ResponseEntity.ok(orderListService.getSupplierMetricsForOwner(principal.getUser().getId(), fromDate, toDate));
+    }
+
+    // Purchasing Report's Detailed view: every Ordered/Received line in range,
+    // optionally narrowed to one supplier (as named in supplier-metrics above
+    // or the "No Supplier" sentinel). Same store-from-caller rule as
+    // supplier-metrics -- no storeId parameter exists to request another store.
+    @GetMapping("/history")
+    public ResponseEntity<OrderHistoryPageResponse> history(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @RequestParam(required = false) LocalDate fromDate,
+        @RequestParam(required = false) LocalDate toDate,
+        @RequestParam(required = false) String supplierName,
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size
+    ) {
+        return ResponseEntity.ok(orderListService.getOrderHistoryForOwner(
+            principal.getUser().getId(), fromDate, toDate, supplierName, page, size));
     }
 
     @PostMapping

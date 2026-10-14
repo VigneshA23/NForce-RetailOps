@@ -3,13 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import SuperAdminSupplierPurchaseReport from './SuperAdminSupplierPurchaseReport';
 import * as superAdminOperationsApi from '../api/superAdminOperations';
-import type { StoreSupplierPurchaseMetric } from '../types/orderList';
+import type { OrderHistoryEntry, OrderHistoryPage, StoreSupplierPurchaseMetric } from '../types/orderList';
 
 vi.mock('../api/superAdminOperations', () => ({
   getSupplierPurchaseMetrics: vi.fn(),
+  getOrderHistoryForStore: vi.fn(),
 }));
 
 const mockGetSupplierPurchaseMetrics = vi.mocked(superAdminOperationsApi.getSupplierPurchaseMetrics);
+const mockGetOrderHistoryForStore = vi.mocked(superAdminOperationsApi.getOrderHistoryForStore);
 
 function metric(overrides: Partial<StoreSupplierPurchaseMetric>): StoreSupplierPurchaseMetric {
   return {
@@ -18,12 +20,50 @@ function metric(overrides: Partial<StoreSupplierPurchaseMetric>): StoreSupplierP
     supplierName: 'Supplier A',
     orderEntryCount: 8,
     totalQuantity: 42,
+    receivedCount: 5,
+    ...overrides,
+  };
+}
+
+function historyEntry(overrides: Partial<OrderHistoryEntry>): OrderHistoryEntry {
+  return {
+    id: 1,
+    storeInventoryItemId: 1,
+    itemName: 'Napkins',
+    category: 'SUPPLIES',
+    unitOfMeasurement: 'pack',
+    imageId: null,
+    supplierId: 1,
+    supplierName: 'Supplier A',
+    quantityOrdered: 10,
+    quantityReceived: 10,
+    status: 'RECEIVED',
+    orderedAt: '2026-01-05T10:00:00+00:00',
+    orderedByName: 'Super Admin',
+    receivedAt: '2026-01-06T09:30:00+00:00',
+    receivedByName: 'Super Admin',
+    storeId: 1,
+    storeName: 'Store 1',
+    ...overrides,
+  };
+}
+
+function historyPage(overrides: Partial<OrderHistoryPage>): OrderHistoryPage {
+  return {
+    rows: [historyEntry({})],
+    page: 1,
+    size: 20,
+    totalPages: 1,
+    totalElements: 1,
+    awaitingReceiptCount: 0,
+    receivedCount: 1,
     ...overrides,
   };
 }
 
 beforeEach(() => {
   mockGetSupplierPurchaseMetrics.mockReset();
+  mockGetOrderHistoryForStore.mockReset();
 });
 
 describe('SuperAdminSupplierPurchaseReport', () => {
@@ -46,9 +86,9 @@ describe('SuperAdminSupplierPurchaseReport', () => {
   it('groups rows by store, each behind its own accordion header, expanded by default', async () => {
     const user = userEvent.setup();
     mockGetSupplierPurchaseMetrics.mockResolvedValue([
-      metric({ storeId: 1, storeName: 'Store 1', supplierName: 'Supplier A', orderEntryCount: 8, totalQuantity: 42 }),
-      metric({ storeId: 1, storeName: 'Store 1', supplierName: 'Supplier B', orderEntryCount: 3, totalQuantity: 17 }),
-      metric({ storeId: 2, storeName: 'Store 2', supplierName: 'Supplier A', orderEntryCount: 5, totalQuantity: 31 }),
+      metric({ storeId: 1, storeName: 'Store 1', supplierName: 'Supplier A', orderEntryCount: 8, receivedCount: 5 }),
+      metric({ storeId: 1, storeName: 'Store 1', supplierName: 'Supplier B', orderEntryCount: 3, receivedCount: 1 }),
+      metric({ storeId: 2, storeName: 'Store 2', supplierName: 'Supplier A', orderEntryCount: 5, receivedCount: 4 }),
     ]);
 
     render(<SuperAdminSupplierPurchaseReport selectedStoreId={null} />);
@@ -64,7 +104,7 @@ describe('SuperAdminSupplierPurchaseReport', () => {
 
     const storeTwoBody = storeTwoHeader.closest('.store-accordion-group') as HTMLElement;
     const storeTwoRow = within(storeTwoBody).getByText('Supplier A').closest('tr')!;
-    expect(storeTwoRow.querySelector('[data-label="Total"]')).toHaveTextContent('31 units');
+    expect(storeTwoRow.querySelector('[data-label="Received"]')).toHaveTextContent('4 items');
 
     // Collapsing one store's group leaves the other one alone.
     await user.click(storeOneHeader);
@@ -96,5 +136,40 @@ describe('SuperAdminSupplierPurchaseReport', () => {
 
     const text = document.body.textContent ?? '';
     expect(text.indexOf('Alpha Store')).toBeLessThan(text.indexOf('Zeta Store'));
+  });
+
+  describe('Detailed view', () => {
+    it('switches to the Detailed view in-page, scoped to the clicked row\'s store and supplier', async () => {
+      const user = userEvent.setup();
+      mockGetSupplierPurchaseMetrics.mockResolvedValue([
+        metric({ storeId: 1, storeName: 'Store 1', supplierName: 'Supplier A' }),
+      ]);
+      mockGetOrderHistoryForStore.mockResolvedValue(historyPage({}));
+
+      render(<SuperAdminSupplierPurchaseReport selectedStoreId={null} />);
+      await user.click(await screen.findByRole('button', { name: 'View Details' }));
+
+      expect(await screen.findByText('Napkins')).toBeInTheDocument();
+      expect(mockGetOrderHistoryForStore).toHaveBeenCalledWith(
+        1, expect.any(String), expect.any(String), 'Supplier A', 1, 20,
+      );
+    });
+
+    it('returns to the Summary view via Back to Summary', async () => {
+      const user = userEvent.setup();
+      mockGetSupplierPurchaseMetrics.mockResolvedValue([
+        metric({ storeId: 1, storeName: 'Store 1', supplierName: 'Supplier A' }),
+      ]);
+      mockGetOrderHistoryForStore.mockResolvedValue(historyPage({}));
+
+      render(<SuperAdminSupplierPurchaseReport selectedStoreId={null} />);
+      await user.click(await screen.findByRole('button', { name: 'View Details' }));
+      await screen.findByText('Napkins');
+
+      await user.click(screen.getByRole('button', { name: /back to summary/i }));
+
+      expect(await screen.findByRole('button', { name: /Store 1/i })).toBeInTheDocument();
+      expect(screen.queryByText('Napkins')).not.toBeInTheDocument();
+    });
   });
 });

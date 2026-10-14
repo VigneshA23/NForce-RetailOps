@@ -51,7 +51,8 @@ public class StockReceiptApprovalService {
     public StockReceiptRequestResponse approve(Long ownerId, Long requestId) {
         StockReceiptRequest request = requirePendingRequest(ownerId, requestId);
         if (request.getOrderListEntry() != null) {
-            orderListService.confirmReceivedByApproval(request.getOrderListEntry(), request.getQuantity());
+            User owner = userRepository.getReferenceById(ownerId);
+            orderListService.confirmReceivedByApproval(request.getOrderListEntry(), request.getQuantity(), owner.getFullName());
         }
         stockCheckService.applyApprovedDelivery(request);
         decide(request, StockReceiptRequestStatus.APPROVED, ownerId);

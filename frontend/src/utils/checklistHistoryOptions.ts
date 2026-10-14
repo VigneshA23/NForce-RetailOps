@@ -182,6 +182,14 @@ export function todayDate(): string {
   return localDateString(new Date());
 }
 
+// Whether a full ISO timestamp (e.g. an order entry's receivedAt) falls on
+// today's calendar date in the browser's local zone -- same comparison
+// InventoryCounts' own "Today, 9:05 AM" formatting uses, pulled out here so
+// Order List's "Received Today" tile doesn't duplicate it a third time.
+export function isToday(isoTimestamp: string): boolean {
+  return localDateString(new Date(isoTimestamp)) === todayDate();
+}
+
 export function yesterday(): string {
   const d = new Date();
   d.setDate(d.getDate() - 1);

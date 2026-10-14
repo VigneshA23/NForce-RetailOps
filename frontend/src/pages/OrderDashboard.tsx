@@ -26,7 +26,6 @@ interface OrderDashboardProps {
 
 function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
   const [subTab, setSubTab] = useState<SubTab>('orders');
-  const [purchaseSeed, setPurchaseSeed] = useState<{ supplierName: string; id: number } | null>(null);
 
   // Arriving from the Home low-stock tile should land on Order List even if
   // another sub-tab was last active -- same nonce-guard pattern as the seed
@@ -37,17 +36,6 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
     appliedSeedId.current = seed.id;
     setSubTab('orders');
   }, [seed]);
-
-  // Purchasing Report's "View Details" link -- fully local to this page
-  // (Order List and Purchasing Report are both its own sub-tabs), unlike
-  // Super Admin's equivalent which has to bubble up to a separate
-  // top-level page. The date range from SupplierPurchaseReport's own
-  // onViewDetails callback is intentionally dropped here: Order List has no
-  // date-filtering concept to apply it to.
-  function handleViewPurchaseDetails(supplierName: string) {
-    setPurchaseSeed({ supplierName, id: Date.now() });
-    setSubTab('orders');
-  }
 
   return (
     <div className="order-dashboard-page">
@@ -71,12 +59,10 @@ function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
         </div>
       </div>
 
-      {subTab === 'orders' && <OrderList storeName={storeName} seed={seed} purchaseSeed={purchaseSeed ?? undefined} />}
+      {subTab === 'orders' && <OrderList storeName={storeName} seed={seed} />}
       {subTab === 'counts' && <InventoryCounts />}
       {subTab === 'eod-report' && <EodSupplierReport storeName={storeName} />}
-      {subTab === 'supplier-report' && (
-        <SupplierPurchaseReport storeName={storeName} onViewDetails={(supplierName) => handleViewPurchaseDetails(supplierName)} />
-      )}
+      {subTab === 'supplier-report' && <SupplierPurchaseReport storeName={storeName} />}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { apiRequest } from './client';
-import type { CreateOrderListEntryValues, OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
+import type { CreateOrderListEntryValues, OrderHistoryPage, OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
 import type { StockCheckSnapshotKey, StockCheckResponse, SuperAdminStockCheckHistoryPage, EodSupplierReport } from '../types/stockCheck';
 import type { InventoryCountHistoryEntry, InventoryCountsPage, InventoryItemCategory } from '../types/storeInventory';
 
@@ -112,6 +112,23 @@ export async function createSuperAdminOrderListEntry(storeId: number, values: Cr
 export async function getSupplierPurchaseMetrics(fromDate: string, toDate: string): Promise<StoreSupplierPurchaseMetric[]> {
   const params = new URLSearchParams({ fromDate, toDate });
   return apiRequest<StoreSupplierPurchaseMetric[]>(`/super-admin/order-list/supplier-metrics?${params}`);
+}
+
+// Purchasing Report's Detailed view, scoped to one store (Super Admin picks
+// the store at the page level, same as the Order List/Inventory Counts/EOD tabs).
+export async function getOrderHistoryForStore(
+  storeId: number,
+  fromDate: string,
+  toDate: string,
+  supplierName?: string,
+  page?: number,
+  size?: number,
+): Promise<OrderHistoryPage> {
+  const params = new URLSearchParams({ fromDate, toDate });
+  if (supplierName) params.set('supplierName', supplierName);
+  if (page !== undefined) params.set('page', String(page));
+  if (size !== undefined) params.set('size', String(size));
+  return apiRequest<OrderHistoryPage>(`/super-admin/stores/${storeId}/order-list/history?${params}`);
 }
 
 export interface TrendDataPoint {

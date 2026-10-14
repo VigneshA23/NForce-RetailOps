@@ -12,6 +12,7 @@ public record StoreSupplierPurchaseMetricResponse(
     String storeName,
     String supplierName,
     long orderEntryCount,
-    BigDecimal totalQuantity
+    BigDecimal totalQuantity,
+    long receivedCount
 ) {
 }

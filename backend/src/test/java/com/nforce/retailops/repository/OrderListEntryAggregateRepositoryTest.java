@@ -156,13 +156,14 @@ class OrderListEntryAggregateRepositoryTest {
         entry(store, OrderStatus.NEEDS_ORDERING, supplierA, 10);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            store.getId(), OrderStatus.PURCHASED_STATUSES,
+            store.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
             rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).hasSize(1);
         assertThat(rows.get(0)[1]).isEqualTo("Supplier Metrics A");
         assertThat(((Number) rows.get(0)[2]).longValue()).isEqualTo(2L);
         assertThat(((Number) rows.get(0)[3]).longValue()).isEqualTo(12L);
+        assertThat(((Number) rows.get(0)[4]).longValue()).isEqualTo(1L);
     }
 
     @Test
@@ -176,7 +177,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(storeTwo, OrderStatus.ORDERED, supplierA, 20);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            storeOne.getId(), OrderStatus.PURCHASED_STATUSES,
+            storeOne.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
             rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).hasSize(1);
@@ -196,7 +197,7 @@ class OrderListEntryAggregateRepositoryTest {
         entryCreatedAt(store, OrderStatus.ORDERED, supplierA, 16, rangeStart(LocalDate.of(2026, 9, 5)));
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            store.getId(), OrderStatus.PURCHASED_STATUSES,
+            store.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
             rangeStart(LocalDate.of(2026, 9, 1)), rangeEndExclusive(LocalDate.of(2026, 9, 4)));
 
         // Sep 1 (2) + Sep 2 (4) + Sep 4 (8) = 14; Aug 31 and Sep 5 excluded.
@@ -213,7 +214,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(store, OrderStatus.ORDERED, null, 9);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            store.getId(), OrderStatus.PURCHASED_STATUSES,
+            store.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
             rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).hasSize(1);
@@ -229,7 +230,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(store, OrderStatus.NEEDS_ORDERING, supplier("Supplier Empty A"), 5);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            store.getId(), OrderStatus.PURCHASED_STATUSES,
+            store.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
             rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).isEmpty();
@@ -248,7 +249,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(storeTwo, OrderStatus.ORDERED, supplierA, 20);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsGroupedByStore(
-            OrderStatus.PURCHASED_STATUSES, rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
+            OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED, rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).hasSize(2);
         assertThat(rows).extracting(row -> row[0], row -> ((Number) row[5]).longValue())
@@ -266,7 +267,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(store, OrderStatus.NEEDS_ORDERING, supplierA, 99);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsGroupedByStore(
-            OrderStatus.PURCHASED_STATUSES, rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
+            OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED, rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).isEmpty();
     }

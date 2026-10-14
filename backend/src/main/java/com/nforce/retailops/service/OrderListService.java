@@ -1,6 +1,8 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.CreateOrderListEntryRequest;
+import com.nforce.retailops.dto.OrderHistoryEntryResponse;
+import com.nforce.retailops.dto.OrderHistoryPageResponse;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.SupplierPurchaseMetricResponse;
 import com.nforce.retailops.dto.UpdateOrderListEntryRequest;
@@ -170,7 +172,16 @@ public class OrderListService {
         if (currentStatus != targetStatus) {
             entry.setStatusChangedByRole(ROLE_OWNER_ADMIN);
         }
-        stampOrderedAt(entry, currentStatus, targetStatus);
+        // Only resolved when actually needed for a stamp below -- a plain edit
+        // (no status change) never touches the user repository at all, same as
+        // before this entry gained ordered/received attribution.
+        boolean movingToOrdered = targetStatus == OrderStatus.ORDERED && currentStatus != OrderStatus.ORDERED;
+        boolean receivedNow = currentStatus == OrderStatus.ORDERED && targetStatus == OrderStatus.RECEIVED;
+        User owner = movingToOrdered || receivedNow ? userRepository.getReferenceById(ownerId) : null;
+
+        if (movingToOrdered) {
+            stampOrderedAt(entry, currentStatus, targetStatus, owner.getFullName());
+        }
         entry.setQuantityNeeded(request.quantityNeeded());
         entry.setNote(request.note());
         entry.setStatus(targetStatus);
@@ -183,26 +194,37 @@ public class OrderListService {
             entry.setSupplier(supplier);
         }
 
-        boolean receivedNow = currentStatus == OrderStatus.ORDERED && targetStatus == OrderStatus.RECEIVED;
         if (receivedNow) {
             entry.setQuantityReceived(request.quantityReceived() != null
                 ? request.quantityReceived()
                 : entry.totalQuantityOrdered());
+            stampReceived(entry, owner.getFullName());
         }
 
         entry = orderListEntryRepository.save(entry);
         if (receivedNow) {
-            closeAlsoReceived(entry, request.alsoReceivedEntryIds());
-            User owner = userRepository.getReferenceById(ownerId);
+            closeAlsoReceived(entry, request.alsoReceivedEntryIds(), owner.getFullName());
             return OrderListEntryResponse.from(entry, applyReceivedStock(entry, owner, null));
         }
         return OrderListEntryResponse.from(entry);
     }
 
+    // The permanent record of "received on this day, by this person" --
+    // written only where a real delivery is being confirmed, never by
+    // resolveShortageIfPresent's auto-withdrawal (which leaves both null).
+    private static void stampReceived(OrderListEntry entry, String receivedByName) {
+        entry.setReceivedAt(OffsetDateTime.now());
+        entry.setReceivedByName(receivedByName);
+    }
+
     // "Both orders received": the lead entry's receipt already covers these, so
     // they are only closed (stock is not updated again). Each must be an
-    // Ordered row for the same item in the same store.
-    private void closeAlsoReceived(OrderListEntry lead, List<Long> alsoReceivedIds) {
+    // Ordered row for the same item in the same store. Also a real delivery
+    // from the receiving person's point of view, so it gets the same
+    // quantityReceived/receivedAt/receivedByName stamp as the lead entry --
+    // otherwise a co-received row stayed RECEIVED with no quantity or receipt
+    // time at all.
+    private void closeAlsoReceived(OrderListEntry lead, List<Long> alsoReceivedIds, String receivedByName) {
         if (alsoReceivedIds == null) {
             return;
         }
@@ -217,15 +239,19 @@ public class OrderListService {
             }
             other.setStatus(OrderStatus.RECEIVED);
             other.setStatusChangedByRole(ROLE_OWNER_ADMIN);
+            other.setQuantityReceived(other.totalQuantityOrdered());
+            stampReceived(other, receivedByName);
             orderListEntryRepository.save(other);
         }
     }
 
-    // The permanent record of "ordered on this day", written by every path
-    // that moves an entry to Ordered (Order List page, EOD report, Super Admin).
-    private static void stampOrderedAt(OrderListEntry entry, OrderStatus from, OrderStatus to) {
+    // The permanent record of "ordered on this day, by this person", written
+    // by every path that moves an entry to Ordered (Order List page, EOD
+    // report, Super Admin).
+    private static void stampOrderedAt(OrderListEntry entry, OrderStatus from, OrderStatus to, String orderedByName) {
         if (to == OrderStatus.ORDERED && from != OrderStatus.ORDERED) {
             entry.setOrderedAt(OffsetDateTime.now());
+            entry.setOrderedByName(orderedByName);
         }
     }
 
@@ -338,9 +364,12 @@ public class OrderListService {
     // The order side of an approved received-stock request: Ordered -> Received
     // with the quantity the employee reported. Stock itself is applied by the
     // approval (the employee's End of Day count already includes the delivery),
-    // so this deliberately does not go through applyReceivedStock.
+    // so this deliberately does not go through applyReceivedStock. receivedByName
+    // is the approving Owner/Admin -- the one who confirmed the delivery really
+    // happened, not the employee who reported it (that's already raisedBy/the
+    // StockReceiptRequest's own requestedBy).
     @Transactional
-    public void confirmReceivedByApproval(OrderListEntry entry, BigDecimal quantityReceived) {
+    public void confirmReceivedByApproval(OrderListEntry entry, BigDecimal quantityReceived, String receivedByName) {
         if (entry.getStatus() != OrderStatus.ORDERED) {
             throw new InvalidOrderEntryTransitionException(
                 "This order is no longer Ordered, so it cannot be confirmed as received. Reject this request instead.");
@@ -348,6 +377,7 @@ public class OrderListService {
         entry.setStatus(OrderStatus.RECEIVED);
         entry.setQuantityReceived(quantityReceived);
         entry.setStatusChangedByRole(ROLE_OWNER_ADMIN);
+        stampReceived(entry, receivedByName);
         orderListEntryRepository.save(entry);
     }
 
@@ -397,11 +427,13 @@ public class OrderListService {
         if (currentStatus != targetStatus) {
             entry.setStatusChangedByRole(ROLE_SUPER_ADMIN);
         }
-        stampOrderedAt(entry, currentStatus, targetStatus);
+        String actorName = superAdmin != null ? superAdmin.getName() : "Super Admin";
+        stampOrderedAt(entry, currentStatus, targetStatus, actorName);
         entry.setStatus(targetStatus);
         boolean receivedNow = currentStatus == OrderStatus.ORDERED && targetStatus == OrderStatus.RECEIVED;
         if (receivedNow) {
             entry.setQuantityReceived(quantityReceived != null ? quantityReceived : entry.totalQuantityOrdered());
+            stampReceived(entry, actorName);
         }
         entry = orderListEntryRepository.save(entry);
         if (receivedNow) {
@@ -639,16 +671,73 @@ public class OrderListService {
         StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            storeOwner.getStore().getId(), OrderStatus.PURCHASED_STATUSES, rangeStart(fromDate), rangeEndExclusive(toDate));
+            storeOwner.getStore().getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
+            rangeStart(fromDate), rangeEndExclusive(toDate));
 
         return rows.stream()
             .map(row -> new SupplierPurchaseMetricResponse(
                 row[1] != null ? (String) row[1] : NO_SUPPLIER,
                 ((Number) row[2]).longValue(),
-                toDecimal(row[3])
+                toDecimal(row[3]),
+                ((Number) row[4]).longValue()
             ))
             .sorted(Comparator.comparing(SupplierPurchaseMetricResponse::supplierName, String.CASE_INSENSITIVE_ORDER))
             .toList();
+    }
+
+    private static final int HISTORY_DEFAULT_PAGE_SIZE = 20;
+    private static final int HISTORY_MAX_PAGE_SIZE = 100;
+
+    // Order History (Owner/Admin): the Purchasing Report's Detailed view, a
+    // per-line complement to getSupplierMetricsForOwner's supplier totals
+    // above -- same date-range validation and PURCHASED_STATUSES filter, but
+    // every Ordered/Received row itself rather than aggregated counts.
+    @Transactional(readOnly = true)
+    public OrderHistoryPageResponse getOrderHistoryForOwner(
+        Long ownerId, LocalDate fromDate, LocalDate toDate, String supplierName, Integer page, Integer size
+    ) {
+        StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
+        return orderHistoryForStore(storeOwner.getStore().getId(), fromDate, toDate, supplierName, page, size);
+    }
+
+    // Super Admin's counterpart, store-id based like listForStore above.
+    @Transactional(readOnly = true)
+    public OrderHistoryPageResponse getOrderHistoryForStore(
+        Long storeId, LocalDate fromDate, LocalDate toDate, String supplierName, Integer page, Integer size
+    ) {
+        return orderHistoryForStore(storeId, fromDate, toDate, supplierName, page, size);
+    }
+
+    private OrderHistoryPageResponse orderHistoryForStore(
+        Long storeId, LocalDate fromDate, LocalDate toDate, String supplierName, Integer page, Integer size
+    ) {
+        DateRangeValidator.validate(fromDate, toDate, MAX_DATE_RANGE_DAYS);
+
+        List<OrderListEntry> all = orderListEntryRepository
+            .findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+                storeId, OrderStatus.PURCHASED_STATUSES, rangeStart(fromDate), rangeEndExclusive(toDate));
+
+        String needle = supplierName == null ? "" : supplierName.trim();
+        List<OrderListEntry> filtered = needle.isEmpty() ? all : all.stream()
+            .filter(e -> needle.equalsIgnoreCase(e.getSupplier() != null ? e.getSupplier().getName() : NO_SUPPLIER))
+            .toList();
+
+        long awaitingReceiptCount = filtered.stream().filter(e -> e.getStatus() == OrderStatus.ORDERED).count();
+        long receivedCount = filtered.stream().filter(e -> e.getStatus() == OrderStatus.RECEIVED).count();
+
+        int requestedPage = page == null ? 1 : Math.max(page, 1);
+        int clampedSize = size == null ? HISTORY_DEFAULT_PAGE_SIZE : Math.min(Math.max(size, 1), HISTORY_MAX_PAGE_SIZE);
+        int totalPages = Math.max(1, (int) Math.ceil(filtered.size() / (double) clampedSize));
+        int currentPage = Math.min(requestedPage, totalPages);
+        int fromIndex = Math.min((currentPage - 1) * clampedSize, filtered.size());
+        int toIndex = Math.min(fromIndex + clampedSize, filtered.size());
+
+        List<OrderHistoryEntryResponse> pageRows = filtered.subList(fromIndex, toIndex).stream()
+            .map(OrderHistoryEntryResponse::from)
+            .toList();
+
+        return new OrderHistoryPageResponse(
+            pageRows, currentPage, clampedSize, totalPages, filtered.size(), awaitingReceiptCount, receivedCount);
     }
 
     // Same half-open-interval convention as ActivityLogService.rangeStart/
