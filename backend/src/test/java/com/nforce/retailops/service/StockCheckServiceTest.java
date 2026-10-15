@@ -28,6 +28,7 @@ import com.nforce.retailops.repository.StockCheckCorrectionRepository;
 import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StockReceiptRequestRepository;
+import com.nforce.retailops.repository.StockShortageReportRepository;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.StockReceiptRequest;
@@ -85,6 +86,7 @@ class StockCheckServiceTest {
     @Mock private OrderListService orderListService;
     @Mock private UserProfileService userProfileService;
     @Mock private StockReceiptRequestRepository stockReceiptRequestRepository;
+    @Mock private StockShortageReportRepository stockShortageReportRepository;
     @Mock private NotificationService notificationService;
 
     @InjectMocks
@@ -179,7 +181,7 @@ class StockCheckServiceTest {
         verify(stockCheckCorrectionRepository, never()).save(any());
         // Reconciled with no shortage: nothing raised.
         verify(orderListService).reconcileStartOfDayShortage(
-            eq(store), eq(milk), org.mockito.ArgumentMatchers.argThat(q -> q.signum() == 0), eq(employee), isNull());
+            eq(store), eq(milk), org.mockito.ArgumentMatchers.argThat(q -> q.signum() == 0), eq(false), eq(employee), isNull());
         verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), any(), any());
     }
 
@@ -233,7 +235,7 @@ class StockCheckServiceTest {
         assertThat(check.midDayUsage()).isEqualByComparingTo(bd(28));
         assertThat(check.getCurrentCount()).isEqualByComparingTo(bd(20));
         // Required comes from today's minimum (35) less the 20 left, not from the employee.
-        verify(orderListService).upsertReportedShortage(eq(store), eq(milk), eq(bd(15)), eq("rush"), eq(employee), any(), eq(false));
+        verify(orderListService).upsertReportedShortage(eq(store), eq(milk), eq(bd(15)), eq("rush"), eq(employee), any(), eq(false), eq(false));
     }
 
     @Test
@@ -244,13 +246,46 @@ class StockCheckServiceTest {
         StoreOwner activeOwner = new StoreOwner();
         activeOwner.setOwner(owner);
         when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(activeOwner));
-        when(orderListService.upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean()))
+        when(orderListService.upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean()))
             .thenReturn(new OrderListEntry());
 
         stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), "rush", null));
 
         verify(notificationService).notifyOwnerOfReportedShortage(
             eq(milk), eq(employee), eq(bd(20)), eq(bd(15)), eq(true), eq("rush"), eq(owner));
+    }
+
+    @Test
+    void midDayZeroStockSendsTheUrgentOutOfStockNotificationInstead() {
+        milk.setMinWeekday(bd(8));
+        milk.setMinWeekend(bd(8));
+        checkWithStartOfDay(3, 0);
+        StoreOwner activeOwner = new StoreOwner();
+        activeOwner.setOwner(owner);
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(activeOwner));
+
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(0), null, null));
+
+        verify(orderListService).upsertReportedShortage(eq(store), eq(milk), eq(bd(8)), any(), eq(employee), any(), eq(false), eq(true));
+        verify(notificationService).notifyOwnerOfStockOut(eq(milk), eq(employee), any(), eq(owner));
+        verify(notificationService, never()).notifyOwnerOfReportedShortage(any(), any(), any(), any(), anyBoolean(), any(), any());
+    }
+
+    @Test
+    void startOfDayZeroCountFlagsUrgentAndNotifiesTheOwnerWhenNewlyUrgent() {
+        milk.setMinWeekday(bd(8));
+        milk.setMinWeekend(bd(8));
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.empty());
+        StoreOwner activeOwner = new StoreOwner();
+        activeOwner.setOwner(owner);
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(activeOwner));
+        when(orderListService.reconcileStartOfDayShortage(any(), any(), any(), anyBoolean(), any(), any())).thenReturn(true);
+
+        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 0, 0));
+
+        verify(orderListService).reconcileStartOfDayShortage(eq(store), eq(milk), eq(bd(8)), eq(true), eq(employee), isNull());
+        verify(notificationService).notifyOwnerOfStockOut(eq(milk), eq(employee), any(), eq(owner));
     }
 
     @Test
@@ -261,7 +296,7 @@ class StockCheckServiceTest {
         StoreOwner activeOwner = new StoreOwner();
         activeOwner.setOwner(owner);
         when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(activeOwner));
-        when(orderListService.upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean()))
+        when(orderListService.upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean()))
             .thenReturn(null);
 
         stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), null, null));
@@ -312,7 +347,7 @@ class StockCheckServiceTest {
         assertThatThrownBy(() -> stockCheckService.reportAdHocShortage(
             EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(5), null, null)))
             .isInstanceOf(InvalidStockCheckException.class);
-        verify(orderListService, never()).upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean());
+        verify(orderListService, never()).upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
     }
 
     @Test
@@ -691,7 +726,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false
             )
         ));
 
@@ -769,7 +804,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false
             )
         ));
 
@@ -796,7 +831,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false
             )
         ));
     }
@@ -878,7 +913,7 @@ class StockCheckServiceTest {
 
         stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 7, 0));
 
-        verify(orderListService).reconcileStartOfDayShortage(eq(store), eq(milk), eq(bd(1)), eq(employee), isNull());
+        verify(orderListService).reconcileStartOfDayShortage(eq(store), eq(milk), eq(bd(1)), eq(false), eq(employee), isNull());
     }
 
     @Test
@@ -890,7 +925,7 @@ class StockCheckServiceTest {
 
         stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 8, 0));
 
-        verify(orderListService).reconcileStartOfDayShortage(eq(store), eq(milk), eq(bd(0)), eq(employee), isNull());
+        verify(orderListService).reconcileStartOfDayShortage(eq(store), eq(milk), eq(bd(0)), eq(false), eq(employee), isNull());
     }
 
     @Test
@@ -1341,5 +1376,148 @@ class StockCheckServiceTest {
             .isInstanceOf(InvalidStockCheckException.class);
 
         verify(stockCheckCorrectionRepository, never()).save(any());
+    }
+
+    // ---- Start of Day reconciled against the last End of Day ----------------
+
+    // Yesterday's row with an End of Day usable of 20, and no row yet today.
+    private void yesterdayEndedAt(int usable) {
+        StockCheck yesterday = existingCheck(LocalDate.now().minusDays(1));
+        yesterday.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(30), bd(0), user(99L, "Alex"), OffsetDateTime.now().minusDays(1).minusHours(9), false);
+        yesterday.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(usable), bd(0), user(99L, "Alex"), OffsetDateTime.now().minusDays(1), false);
+        when(stockCheckRepository.findFirstByStoreInventoryItemIdAndCheckDateBeforeOrderByCheckDateDesc(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(yesterday));
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now())).thenReturn(Optional.empty());
+    }
+
+    @Test
+    void startOfDayMatchingTheLastEndOfDayNeedsNothingElse() {
+        yesterdayEndedAt(20);
+
+        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 22, 2));
+
+        verify(stockReceiptRequestRepository, never()).save(any(StockReceiptRequest.class));
+        verify(stockCheckRepository).save(any(StockCheck.class));
+    }
+
+    @Test
+    void startOfDayLowerThanTheLastEndOfDayNeedsAReason() {
+        yesterdayEndedAt(20);
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 15, 0)))
+            .isInstanceOf(InvalidStockCheckException.class)
+            .hasMessageContaining("lower than the last End of Day");
+
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
+        verify(stockReceiptRequestRepository, never()).save(any(StockReceiptRequest.class));
+    }
+
+    @Test
+    void startOfDayLowerThanTheLastEndOfDayWithAReasonIsSavedAndSentToTheAdmin() {
+        yesterdayEndedAt(20);
+        when(stockReceiptRequestRepository.save(any(StockReceiptRequest.class))).thenAnswer(i -> i.getArgument(0));
+        StoreOwner activeOwner = new StoreOwner();
+        activeOwner.setOwner(owner);
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(activeOwner));
+
+        stockCheckService.submitCheck(EMPLOYEE_ID, new StockCheckSubmitRequest(
+            STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd(15), bd(0), null, null, null, "Spilled overnight"));
+
+        ArgumentCaptor<StockReceiptRequest> captor = ArgumentCaptor.forClass(StockReceiptRequest.class);
+        verify(stockReceiptRequestRepository).save(captor.capture());
+        StockReceiptRequest request = captor.getValue();
+        assertThat(request.getType()).isEqualTo(com.nforce.retailops.entity.StockReceiptRequestType.LOWER_COUNT);
+        assertThat(request.getSnapshot()).isEqualTo(StockCheckSnapshot.START_OF_DAY);
+        assertThat(request.getQuantity()).isEqualByComparingTo(bd(5));
+        assertThat(request.getReason()).isEqualTo("Spilled overnight");
+        verify(notificationService).notifyOwnerOfStockReceiptRequest(request, owner);
+        verify(stockCheckRepository).save(any(StockCheck.class));
+    }
+
+    @Test
+    void startOfDayHigherThanTheLastEndOfDayNeedsARestock() {
+        yesterdayEndedAt(20);
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 25, 0)))
+            .isInstanceOf(InvalidStockCheckException.class)
+            .hasMessageContaining("restocked");
+
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
+    }
+
+    @Test
+    void startOfDayRestockIsSentToTheAdminAsAStartOfDayRequest() {
+        yesterdayEndedAt(20);
+        when(stockReceiptRequestRepository.save(any(StockReceiptRequest.class))).thenAnswer(i -> i.getArgument(0));
+
+        stockCheckService.submitCheck(EMPLOYEE_ID, new StockCheckSubmitRequest(
+            STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd(25), bd(0), null, null,
+            List.of(new StockCheckSubmitRequest.ReceivedItem(null, bd(5)))));
+
+        ArgumentCaptor<StockReceiptRequest> captor = ArgumentCaptor.forClass(StockReceiptRequest.class);
+        verify(stockReceiptRequestRepository).save(captor.capture());
+        assertThat(captor.getValue().getSnapshot()).isEqualTo(StockCheckSnapshot.START_OF_DAY);
+        assertThat(captor.getValue().getType()).isEqualTo(com.nforce.retailops.entity.StockReceiptRequestType.RESTOCK);
+        assertThat(captor.getValue().getQuantity()).isEqualByComparingTo(bd(5));
+    }
+
+    @Test
+    void aRestockSmallerThanTheStartOfDayGapIsRefused() {
+        yesterdayEndedAt(20);
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, new StockCheckSubmitRequest(
+            STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd(25), bd(0), null, null,
+            List.of(new StockCheckSubmitRequest.ReceivedItem(null, bd(2))))))
+            .isInstanceOf(InvalidStockCheckException.class);
+
+        verify(stockReceiptRequestRepository, never()).save(any(StockReceiptRequest.class));
+    }
+
+    @Test
+    void aStartOfDayWithNoEndOfDayBeforeItIsNotReconciled() {
+        when(stockCheckRepository.findFirstByStoreInventoryItemIdAndCheckDateBeforeOrderByCheckDateDesc(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.empty());
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now())).thenReturn(Optional.empty());
+
+        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 99, 0));
+
+        verify(stockCheckRepository).save(any(StockCheck.class));
+    }
+
+    @Test
+    void approvingAStartOfDayRestockDoesNotRaiseTheDaysReceivedTotal() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(25), bd(0), employee, OffsetDateTime.now(), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        StockReceiptRequest request = new StockReceiptRequest();
+        request.setStore(store);
+        request.setStoreInventoryItem(milk);
+        request.setCheckDate(LocalDate.now());
+        request.setSnapshot(StockCheckSnapshot.START_OF_DAY);
+        request.setQuantity(bd(5));
+        request.setRequestedBy(employee);
+
+        stockCheckService.applyApprovedDelivery(request);
+
+        // The opening count already includes the restock, so usage must not grow by it.
+        assertThat(check.getQuantityReceived()).isEqualByComparingTo(bd(0));
+        assertThat(check.getCurrentCount()).isEqualByComparingTo(bd(25));
+        verify(stockCheckReceiptRepository).save(any(StockCheckReceipt.class));
+    }
+
+    @Test
+    void midDayShortageIsRecordedSoItShowsInTheCountHistory() {
+        milk.setMinWeekday(bd(35));
+        milk.setMinWeekend(bd(35));
+        checkWithStartOfDay(50, 2);
+
+        stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), "rush", null));
+
+        ArgumentCaptor<com.nforce.retailops.entity.StockShortageReport> captor =
+            ArgumentCaptor.forClass(com.nforce.retailops.entity.StockShortageReport.class);
+        verify(stockShortageReportRepository).save(captor.capture());
+        assertThat(captor.getValue().getReportedUsable()).isEqualByComparingTo(bd(20));
+        assertThat(captor.getValue().getReportedBy()).isEqualTo(employee);
     }
 }

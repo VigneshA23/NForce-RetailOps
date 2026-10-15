@@ -1,6 +1,7 @@
 import type { StockCheckResponse, SuperAdminStockCheckResponse } from '../types/stockCheck';
 
-export type StockCheckHistoryRowStatus = 'shortage' | 'optimal' | 'pending';
+// 'skipped': End of Day was explained as not countable instead of counted.
+export type StockCheckHistoryRowStatus = 'shortage' | 'optimal' | 'pending' | 'skipped';
 
 export interface StockCheckHistoryRowView extends StockCheckResponse {
   counted: number | null;
@@ -27,7 +28,13 @@ export function toStockCheckHistoryRowView(row: StockCheckResponse): StockCheckH
   const counted = row.endOfDay?.usable ?? null;
   const hasData = counted != null && row.requiredPar != null;
   const deficit = hasData ? roundQuantity(Math.max(0, row.requiredPar! - counted!)) : null;
-  const status: StockCheckHistoryRowStatus = deficit != null && deficit > 0 ? 'shortage' : hasData ? 'optimal' : 'pending';
+  const status: StockCheckHistoryRowStatus = deficit != null && deficit > 0
+    ? 'shortage'
+    : hasData
+      ? 'optimal'
+      : counted == null && row.endOfDaySkipped
+        ? 'skipped'
+        : 'pending';
   const buffer = hasData && status === 'optimal' ? roundQuantity(counted! - row.requiredPar!) : null;
   return { ...row, counted, deficit, buffer, status };
 }

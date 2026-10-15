@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -16,6 +17,9 @@ import java.util.List;
 // employee confirms when the closing count is higher than the opening one. It is
 // added to today's received total in the same save, so usage is worked out
 // against it. Null or zero means nothing was received.
+//
+// With Start of Day, receivedItems / receivedOrderEntryId explain a count above
+// yesterday's End of Day (a restock); a count below it carries lowerCountReason.
 //
 // Reported stock is not applied on save: it becomes a pending request the
 // store's Owner/Admin approves. receivedOrderEntryId names an existing Ordered
@@ -48,7 +52,12 @@ public record StockCheckSubmitRequest(
     Long receivedOrderEntryId,
 
     @Valid
-    List<ReceivedItem> receivedItems
+    List<ReceivedItem> receivedItems,
+
+    // Start of Day only: why the count is below yesterday's End of Day. Needed
+    // for such a count, which then waits for the Owner/Admin to accept it.
+    @Size(max = 500, message = "Reason can be at most 500 characters")
+    String lowerCountReason
 ) {
     // One thing the employee says arrived: an existing Ordered order
     // (orderEntryId set; quantity defaults to what was ordered) or new stock
@@ -63,16 +72,20 @@ public record StockCheckSubmitRequest(
     ) {
     }
 
+    public StockCheckSubmitRequest(Long storeId, Long storeInventoryItemId, StockCheckSnapshot snapshot, BigDecimal available, BigDecimal deadStock, BigDecimal quantityReceived, Long receivedOrderEntryId, List<ReceivedItem> receivedItems) {
+        this(storeId, storeInventoryItemId, snapshot, available, deadStock, quantityReceived, receivedOrderEntryId, receivedItems, null);
+    }
+
     public StockCheckSubmitRequest(Long storeId, Long storeInventoryItemId, StockCheckSnapshot snapshot, BigDecimal available, BigDecimal deadStock, BigDecimal quantityReceived, Long receivedOrderEntryId) {
-        this(storeId, storeInventoryItemId, snapshot, available, deadStock, quantityReceived, receivedOrderEntryId, null);
+        this(storeId, storeInventoryItemId, snapshot, available, deadStock, quantityReceived, receivedOrderEntryId, null, null);
     }
 
     public StockCheckSubmitRequest(Long storeId, Long storeInventoryItemId, StockCheckSnapshot snapshot, BigDecimal available, BigDecimal deadStock, BigDecimal quantityReceived) {
-        this(storeId, storeInventoryItemId, snapshot, available, deadStock, quantityReceived, null, null);
+        this(storeId, storeInventoryItemId, snapshot, available, deadStock, quantityReceived, null, null, null);
     }
 
     public StockCheckSubmitRequest(Long storeId, Long storeInventoryItemId, StockCheckSnapshot snapshot, BigDecimal available, BigDecimal deadStock) {
-        this(storeId, storeInventoryItemId, snapshot, available, deadStock, null, null, null);
+        this(storeId, storeInventoryItemId, snapshot, available, deadStock, null, null, null, null);
     }
 
     // receivedItems, or the single legacy quantityReceived / receivedOrderEntryId pair.

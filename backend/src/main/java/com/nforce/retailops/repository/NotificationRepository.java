@@ -40,6 +40,8 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     // Dedup: prevent duplicate scheduled-job notifications for the same store+day
     boolean existsByRecipientSuperAdminIdAndDedupKey(Long recipientSuperAdminId, String dedupKey);
 
+    boolean existsByRecipientUserIdAndDedupKey(Long recipientUserId, String dedupKey);
+
     // Nudge cooldown: has this issue already produced a notification of this
     // category since the given time?
     boolean existsByRelatedIssueIdAndCategoryAndCreatedAtAfter(Long relatedIssueId, String category, OffsetDateTime since);

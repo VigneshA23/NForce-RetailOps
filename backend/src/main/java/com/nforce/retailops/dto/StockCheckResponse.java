@@ -31,7 +31,9 @@ public record StockCheckResponse(
     BigDecimal requiredTomorrow,
     // Null until End of Day has been counted.
     BigDecimal quantityToOrder,
-    List<StockCheckEditResponse> edits
+    List<StockCheckEditResponse> edits,
+    // Set when End of Day was not counted and the reason was recorded instead.
+    EndOfDaySkippedResponse endOfDaySkipped
 ) {
     public static StockCheckResponse from(StockCheck check) {
         return from(check, List.of());
@@ -53,7 +55,8 @@ public record StockCheckResponse(
             check.stockUsed(),
             check.getRequiredTomorrow(),
             check.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? check.getQuantityNeeded() : null,
-            edits
+            edits,
+            EndOfDaySkippedResponse.from(check)
         );
     }
 }

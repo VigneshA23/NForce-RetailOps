@@ -236,6 +236,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
             onNavigate={handleNotificationNavigate}
             activeStoreId={store.id}
             assignedStores={stores}
+            answerAs="EMPLOYEE"
             onBackToHome={() => { setOverlay(null); setActiveTab('today'); }}
           />
         : ALL_EMPLOYEE_TABS.map((tab) =>
@@ -264,7 +265,13 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
                 {tab === 'missing' && (
                   <MissingTasks store={store} onMoved={refreshMissedCount} onBack={() => setActiveTab('today')} />
                 )}
-                {tab === 'stock-check' && <EmployeeStockCheck store={store} refreshSignal={stockCheckRefresh} />}
+                {tab === 'stock-check' && (
+                  <EmployeeStockCheck
+                    store={store}
+                    refreshSignal={stockCheckRefresh}
+                    onOpenNotifications={() => setOverlay('notifications')}
+                  />
+                )}
               </div>
             ) : null,
           )

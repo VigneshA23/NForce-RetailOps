@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List, Lock } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { ApiError } from '../api/client';
 import { getMe } from '../api/me';
@@ -8,7 +8,10 @@ import type { DailyStockCheckItem, StockCheckSnapshotKey } from '../types/stockC
 import type { StoreSummary } from '../types/store';
 import AdHocShortageModal, { type AdHocShortageValues } from '../components/AdHocShortageModal';
 import EmployeeStockCheckHistory from '../components/EmployeeStockCheckHistory';
+import LowerCountModal from '../components/LowerCountModal';
+import MissedEndOfDayBlockModal from '../components/MissedEndOfDayBlockModal';
 import ReceivedStockModal, { type ReceivedItemInput } from '../components/ReceivedStockModal';
+import { roundQty } from '../utils/quantity';
 import StockSnapshotCard from '../components/StockSnapshotCard';
 import ItemIcon from '../components/ItemIcon';
 import SearchInput from '../components/SearchInput';
@@ -19,6 +22,9 @@ interface EmployeeStockCheckProps {
   // Changes whenever something outside (a notification click) asks for fresh
   // data; 0 means never asked.
   refreshSignal?: number;
+  // Takes the employee to the Notifications page, where a missing End of Day
+  // from yesterday is answered.
+  onOpenNotifications?: () => void;
 }
 
 const SNAPSHOT_LABELS: Record<StockCheckSnapshotKey, string> = {
@@ -51,8 +57,9 @@ function toViewItem(item: DailyStockCheckItem): StockCheckViewItem {
 // Day -- with no time window on either. Saving a count again updates it.
 type View = 'today' | 'history';
 
-function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProps) {
+function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: EmployeeStockCheckProps) {
   const [view, setView] = useState<View>('today');
+  const [missedBlock, setMissedBlock] = useState<DailyStockCheckItem | null>(null);
   const [myUserId, setMyUserId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -75,6 +82,15 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
     deadStock: number;
     startUsable: number;
     endUsable: number;
+    snapshot: StockCheckSnapshotKey;
+    resolve: (saved: boolean) => void;
+  } | null>(null);
+  const [lowerPrompt, setLowerPrompt] = useState<{
+    item: DailyStockCheckItem;
+    available: number;
+    deadStock: number;
+    countedUsable: number;
+    expectedUsable: number;
     resolve: (saved: boolean) => void;
   } | null>(null);
 
@@ -111,6 +127,12 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
     deadStock: number,
   ): Promise<boolean> {
     if (pendingKey != null) return false;
+    // Yesterday's End of Day for this item is still unanswered: Start of Day
+    // waits until it is (the server refuses it too).
+    if (snapshot === 'START_OF_DAY' && staleItem.missedEndOfDay && staleItem.startOfDay == null) {
+      setMissedBlock(staleItem);
+      return false;
+    }
     let item = staleItem;
     if (snapshot === 'END_OF_DAY') {
       // The page can be open for hours: an admin may have marked an order
@@ -136,17 +158,53 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
       const startUsable = item.startOfDay.usable;
       if (endUsable > startUsable + (item.quantityReceived ?? 0) + (item.pendingReceivedQuantity ?? 0)) {
         return new Promise<boolean>((resolve) => {
-          setReceivedPrompt({ item, available, deadStock, startUsable, endUsable, resolve });
+          setReceivedPrompt({ item, available, deadStock, startUsable, endUsable, snapshot: 'END_OF_DAY', resolve });
+        });
+      }
+    }
+    // Start of Day must match the last End of Day (plus anything received
+    // since). Above it means a restock to declare; below it needs a reason and
+    // the admin's approval. What today's pending or approved requests already
+    // explain is not asked about again.
+    const previous = item.previousEndOfDay;
+    if (snapshot === 'START_OF_DAY' && previous != null) {
+      const startUsable = roundQty(available - deadStock);
+      if (startUsable > roundQty(previous.expectedStart + previous.restockCovered)) {
+        return new Promise<boolean>((resolve) => {
+          setReceivedPrompt({
+            item, available, deadStock, startUsable: previous.expectedStart, endUsable: startUsable, snapshot: 'START_OF_DAY', resolve,
+          });
+        });
+      }
+      if (startUsable < previous.expectedStart && roundQty(previous.expectedStart - startUsable) > previous.lowerCovered) {
+        return new Promise<boolean>((resolve) => {
+          setLowerPrompt({ item, available, deadStock, countedUsable: startUsable, expectedUsable: previous.expectedStart, resolve });
         });
       }
     }
     return saveCount(item, snapshot, available, deadStock);
   }
 
+  async function confirmLower(reason: string) {
+    if (lowerPrompt == null) return;
+    const { item, available, deadStock, resolve } = lowerPrompt;
+    const saved = await saveCount(item, 'START_OF_DAY', available, deadStock, undefined, reason);
+    if (saved) {
+      getTodayStockCheck(store.id).then(setItems).catch(() => {});
+      setLowerPrompt(null);
+      resolve(true);
+    }
+  }
+
+  function cancelLower() {
+    lowerPrompt?.resolve(false);
+    setLowerPrompt(null);
+  }
+
   async function confirmReceived(received: ReceivedItemInput[]) {
     if (receivedPrompt == null) return;
-    const { item, available, deadStock, resolve } = receivedPrompt;
-    const saved = await saveCount(item, 'END_OF_DAY', available, deadStock, received.map((r) => ({ orderEntryId: r.orderId, quantity: r.quantity })));
+    const { item, available, deadStock, snapshot, resolve } = receivedPrompt;
+    const saved = await saveCount(item, snapshot, available, deadStock, received.map((r) => ({ orderEntryId: r.orderId, quantity: r.quantity })));
     // Keep the prompt open on failure so the employee can retry or cancel.
     if (saved) {
       // The report is only a request until the admin approves it; pick up the
@@ -168,13 +226,14 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
     available: number,
     deadStock: number,
     receivedItems?: { orderEntryId: number | null; quantity: number }[],
+    lowerCountReason?: string,
   ): Promise<boolean> {
     if (pendingKey != null) return false;
     const key = `${item.storeInventoryItemId}:${snapshot}`;
     const isUpdate = (snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay) != null;
     setPendingKey(key);
     try {
-      const saved = await submitStockCheck(store.id, item.storeInventoryItemId, snapshot, available, deadStock, receivedItems);
+      const saved = await submitStockCheck(store.id, item.storeInventoryItemId, snapshot, available, deadStock, receivedItems, lowerCountReason);
       setItems((current) =>
         current.map((i) =>
           i.storeInventoryItemId === item.storeInventoryItemId
@@ -193,6 +252,9 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
       nfToast.success(`${item.itemName} ${SNAPSHOT_LABELS[snapshot]} ${isUpdate ? 'updated' : 'saved'}.`);
       if (receivedItems != null && receivedItems.length > 0) {
         nfToast.success('Received stock sent to your admin for approval. Stock updates once they approve it.');
+      }
+      if (lowerCountReason) {
+        nfToast.success('Lower Start of Day count sent to your admin for approval.');
       }
       return true;
     } catch (error) {
@@ -412,6 +474,16 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
               key={item.storeInventoryItemId}
               className={`employee-stock-check-page__item${item.status === 'shortage' ? ' employee-stock-check-page__item--shortage' : ''}${item.status === 'optimal' ? ' employee-stock-check-page__item--optimal' : ''}`}
             >
+              {item.missedEndOfDay && item.startOfDay == null && (
+                <p className="employee-stock-check-page__review employee-stock-check-page__review--rejected" role="status">
+                  <AlertTriangle size={14} /> Yesterday&apos;s End of Day is missing. Respond to it in your notifications before taking Start of Day.
+                </p>
+              )}
+              {item.startOfDayLocked && (
+                <p className="employee-stock-check-page__review employee-stock-check-page__review--locked" role="status">
+                  <Lock size={14} /> An order has been placed based on the Start of Day count, so you cannot edit it.
+                </p>
+              )}
               <div
                 className="employee-stock-check-page__item-header"
                 role="button"
@@ -482,11 +554,34 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
                     </span>
                   </div>
 
+                  {item.previousEndOfDay && (
+                    <p className="employee-stock-check-page__eod-note">
+                      Last End of Day ({new Date(`${item.previousEndOfDay.date}T00:00:00`).toLocaleDateString()}):{' '}
+                      <strong>{item.previousEndOfDay.usable} {item.unitOfMeasurement}</strong>
+                      {item.previousEndOfDay.submittedByName ? <> · submitted by {item.previousEndOfDay.submittedByName}</> : null}
+                      {item.previousEndOfDay.expectedStart !== item.previousEndOfDay.usable ? (
+                        <> · expected Start of Day: <strong>{item.previousEndOfDay.expectedStart} {item.unitOfMeasurement}</strong> (incl. deliveries received since)</>
+                      ) : null}
+                    </p>
+                  )}
+                  {item.startOfDayReview && (
+                    <p
+                      className={`employee-stock-check-page__review employee-stock-check-page__review--${item.startOfDayReview.status.toLowerCase()}`}
+                      role="status"
+                    >
+                      {item.startOfDayReview.status === 'PENDING'
+                        ? item.startOfDayReview.type === 'LOWER_COUNT'
+                          ? 'Start of Day is lower than the last End of Day. Waiting for your admin to approve.'
+                          : 'Restock reported with Start of Day. Waiting for your admin to approve.'
+                        : 'Your admin rejected the Start of Day request. Please recount and save Start of Day again.'}
+                    </p>
+                  )}
                   <div className="employee-stock-check-page__snapshots">
                     {(['START_OF_DAY', 'END_OF_DAY'] as const).map((snapshot) => (
                       <StockSnapshotCard
                         key={snapshot}
                         canEdit={(() => {
+                          if (snapshot === 'START_OF_DAY' && item.startOfDayLocked) return false;
                           const saved = snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay;
                           return !saved || saved.enteredById == null || myUserId == null || saved.enteredById === myUserId;
                         })()}
@@ -565,11 +660,39 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
         unit={receivedPrompt?.item.unitOfMeasurement ?? ''}
         startUsable={receivedPrompt?.startUsable ?? 0}
         endUsable={receivedPrompt?.endUsable ?? 0}
-        alreadyReceived={(receivedPrompt?.item.quantityReceived ?? 0) + (receivedPrompt?.item.pendingReceivedQuantity ?? 0)}
+        snapshot={receivedPrompt?.snapshot}
+        alreadyReceived={
+          receivedPrompt?.snapshot === 'START_OF_DAY'
+            ? receivedPrompt.item.previousEndOfDay?.restockCovered ?? 0
+            : (receivedPrompt?.item.quantityReceived ?? 0) + (receivedPrompt?.item.pendingReceivedQuantity ?? 0)
+        }
         orders={receivedPrompt?.item.openOrders ?? []}
         isSubmitting={pendingKey != null}
         onConfirm={confirmReceived}
         onCancel={cancelReceived}
+      />
+
+      <LowerCountModal
+        isOpen={lowerPrompt != null}
+        itemName={lowerPrompt?.item.itemName ?? ''}
+        unit={lowerPrompt?.item.unitOfMeasurement ?? ''}
+        countedUsable={lowerPrompt?.countedUsable ?? 0}
+        expectedUsable={lowerPrompt?.expectedUsable ?? 0}
+        previousByName={lowerPrompt?.item.previousEndOfDay?.submittedByName ?? null}
+        isSubmitting={pendingKey != null}
+        onConfirm={confirmLower}
+        onCancel={cancelLower}
+      />
+
+      <MissedEndOfDayBlockModal
+        isOpen={missedBlock != null}
+        itemName={missedBlock?.itemName ?? ''}
+        date={missedBlock?.missedEndOfDay?.date ?? null}
+        onOpenNotifications={() => {
+          setMissedBlock(null);
+          onOpenNotifications?.();
+        }}
+        onClose={() => setMissedBlock(null)}
       />
 
       <AdHocShortageModal

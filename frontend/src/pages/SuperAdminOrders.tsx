@@ -568,7 +568,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     return (
       <tr
         key={entry.id}
-        className="order-list__row"
+        className={`order-list__row${entry.urgent ? ' order-list__row--urgent' : ''}`}
         style={row.checked ? { background: '#fff5f6', borderColor: '#f6b9c2' } : undefined}
       >
         <td className="order-list__mobile-card-td">
@@ -633,7 +633,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     const isFlat = variant === 'flat';
     if (isMobile) return renderMobileCard(row);
     return (
-      <tr key={entry.id} className="order-list__row" style={{ background: row.checked ? '#fff5f6' : undefined }}>
+      <tr key={entry.id} className={`order-list__row${entry.urgent ? ' order-list__row--urgent' : ''}`} style={{ background: row.checked ? '#fff5f6' : undefined }}>
         <td className="order-list__checkbox-cell">
           <CheckboxButton checked={row.checked} ariaLabel={`Select ${entry.itemName}`} onClick={() => toggleSelected(entry.id)} />
         </td>

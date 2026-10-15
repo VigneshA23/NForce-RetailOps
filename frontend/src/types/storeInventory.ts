@@ -137,7 +137,7 @@ export interface InventoryCountsPage {
 }
 
 // How an entry was made: a Start of Day or End of Day count, or a delivery.
-export type InventoryCountSource = 'START_OF_DAY' | 'END_OF_DAY' | 'STOCK_RECEIVED';
+export type InventoryCountSource = 'START_OF_DAY' | 'END_OF_DAY' | 'STOCK_RECEIVED' | 'SHORTAGE_REPORT';
 
 // One entry in the history timeline; count is the usable stock after it.
 export interface InventoryCountHistoryEntry {

@@ -25,13 +25,17 @@ public record StockReceiptRequestResponse(
     String orderSupplierName,
     OffsetDateTime orderedAt,
     String decidedByName,
-    OffsetDateTime decidedAt
+    OffsetDateTime decidedAt,
+    String type,
+    String snapshot,
+    String reason
 ) {
     public static StockReceiptRequestResponse from(StockReceiptRequest r) {
         OrderListEntry order = r.getOrderListEntry();
         return new StockReceiptRequestResponse(
             r.getId(),
-            order != null ? "EXISTING_ORDER" : "NEW_STOCK",
+            r.getType() == com.nforce.retailops.entity.StockReceiptRequestType.LOWER_COUNT
+                ? "LOWER_COUNT" : order != null ? "EXISTING_ORDER" : "NEW_STOCK",
             r.getStatus().name(),
             r.getStoreInventoryItem().getName(),
             r.getStoreInventoryItem().getUnitOfMeasurement(),
@@ -44,7 +48,10 @@ public record StockReceiptRequestResponse(
             order != null && order.getSupplier() != null ? order.getSupplier().getName() : null,
             order != null ? order.getOrderedAt() : null,
             r.getDecidedBy() != null ? r.getDecidedBy().getFullName() : null,
-            r.getDecidedAt()
+            r.getDecidedAt(),
+            r.getType().name(),
+            r.getSnapshot().name(),
+            r.getReason()
         );
     }
 }

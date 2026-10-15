@@ -88,6 +88,10 @@ public class OrderListEntry {
     @Column(name = "ad_hoc", nullable = false)
     private boolean adHoc;
 
+    // The item is completely out of stock: highlighted red on the Order List.
+    @Column(name = "urgent", nullable = false)
+    private boolean urgent;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "raised_by_user_id")
     private User raisedBy;
@@ -231,6 +235,14 @@ public class OrderListEntry {
 
     public void setAdHoc(boolean adHoc) {
         this.adHoc = adHoc;
+    }
+
+    public boolean isUrgent() {
+        return urgent;
+    }
+
+    public void setUrgent(boolean urgent) {
+        this.urgent = urgent;
     }
 
     public User getRaisedBy() {

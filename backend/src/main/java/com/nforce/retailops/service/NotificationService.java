@@ -1,11 +1,14 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.MissedEndOfDayResponse;
 import com.nforce.retailops.dto.NotificationResponse;
 import com.nforce.retailops.entity.AdminCorrection;
 import com.nforce.retailops.entity.Notification;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.RaisedIssue;
+import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.StockReceiptRequest;
+import com.nforce.retailops.entity.StockReceiptRequestType;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
@@ -14,6 +17,7 @@ import com.nforce.retailops.entity.TaskResponseEntry;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.NotificationNotFoundException;
 import com.nforce.retailops.repository.NotificationRepository;
+import com.nforce.retailops.repository.StockCheckRepository;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -62,12 +66,26 @@ public class NotificationService {
         PRIORITY_BY_CATEGORY.put("STOCK_RECEIPT_REQUEST",         "HIGH");
         PRIORITY_BY_CATEGORY.put("STOCK_RECEIPT_APPROVED",        "MEDIUM");
         PRIORITY_BY_CATEGORY.put("STOCK_RECEIPT_REJECTED",        "HIGH");
+        PRIORITY_BY_CATEGORY.put("MISSED_END_OF_DAY",             "HIGH");
+        PRIORITY_BY_CATEGORY.put("STOCK_OUT_URGENT",              "HIGH");
     }
 
     private final NotificationRepository notificationRepository;
+    private final StockCheckRepository stockCheckRepository;
 
-    public NotificationService(NotificationRepository notificationRepository) {
+    public NotificationService(NotificationRepository notificationRepository, StockCheckRepository stockCheckRepository) {
         this.notificationRepository = notificationRepository;
+        this.stockCheckRepository = stockCheckRepository;
+    }
+
+    // A missed End of Day notice carries its items, looked up live so a row
+    // answered by someone else already shows as answered.
+    private NotificationResponse toResponse(Notification n) {
+        if (n.getMissedEodDate() == null || n.getStore() == null) {
+            return NotificationResponse.from(n);
+        }
+        return NotificationResponse.from(n, MissedEndOfDayResponse.of(
+            n.getMissedEodDate(), stockCheckRepository.findForStoreOnDate(n.getStore().getId(), n.getMissedEodDate())));
     }
 
     // MAX_NOTIFICATIONS is a per-page cap (abuse guard), not an absolute limit --
@@ -246,6 +264,18 @@ public class NotificationService {
         send(owner, "STOCK_SHORTAGE_REPORTED", "Shortage reported at " + store, message.toString(), "/orders");
     }
 
+    // An item is completely out of stock (counted zero at Start of Day, or
+    // reported as zero mid-day): the admin needs to order it straight away.
+    @Transactional
+    public void notifyOwnerOfStockOut(StoreInventoryItem storeItem, User employee, String source, User owner) {
+        String store = storeItem.getStore().getName();
+        String item = storeItem.getName();
+        String message = "There is no stock of " + item + " in the store"
+            + (employee != null ? " (" + source + " count by " + employee.getFullName() + ")" : "")
+            + ". It needs urgent ordering.";
+        send(owner, "STOCK_OUT_URGENT", "Out of stock: " + item + " at " + store, message, "/orders");
+    }
+
     // An employee reported received stock at End of Day: asks the admin to
     // approve it. linkPath "/notifications" opens the All Notifications page,
     // where the request itself is shown with Approve / Reject.
@@ -261,10 +291,17 @@ public class NotificationService {
         n.setRecipientUser(owner);
         n.setCategory("STOCK_RECEIPT_REQUEST");
         n.setPriority("HIGH");
-        if (order == null) {
+        String countName = request.getSnapshot() == StockCheckSnapshot.START_OF_DAY ? "Start of Day" : "End of Day";
+        if (request.getType() == StockReceiptRequestType.LOWER_COUNT) {
+            n.setTitle(employee + " submitted a lower Start of Day count at " + store);
+            n.setMessage(employee + " counted " + item + " " + request.getQuantity() + " " + unit
+                + " below the last End of Day. Reason: " + request.getReason()
+                + ". Approve to accept the count, or reject to ask for a recount.");
+        } else if (order == null) {
             n.setTitle(employee + " reported received stock at " + store);
             n.setMessage(employee + " reported receiving " + request.getQuantity() + " " + unit + " of " + item
-                + " that is not on an existing order, and is requesting approval for the received quantity.");
+                + " that is not on an existing order with the " + countName
+                + " count, and is requesting approval for the received quantity.");
         } else {
             n.setTitle(employee + " is requesting approval to confirm an order as received at " + store);
             n.setMessage(employee + " is requesting approval to confirm Order #" + order.getId() + " for " + item
@@ -281,6 +318,18 @@ public class NotificationService {
     public void notifyEmployeeOfStockReceiptDecision(StockReceiptRequest request, boolean approved) {
         String item = request.getStoreInventoryItem().getName();
         String unit = request.getStoreInventoryItem().getUnitOfMeasurement();
+        String countName = request.getSnapshot() == StockCheckSnapshot.START_OF_DAY ? "Start of Day" : "End of Day";
+        if (request.getType() == StockReceiptRequestType.LOWER_COUNT) {
+            if (approved) {
+                send(request.getRequestedBy(), "STOCK_RECEIPT_APPROVED", "Lower Start of Day approved",
+                    "Your lower Start of Day count for " + item + " was approved.", "/stock-check");
+            } else {
+                send(request.getRequestedBy(), "STOCK_RECEIPT_REJECTED", "Lower Start of Day rejected",
+                    "Your lower Start of Day count for " + item + " was rejected. Please recount and save "
+                        + "the Start of Day count again.", "/stock-check");
+            }
+            return;
+        }
         String subject = request.getOrderListEntry() == null
             ? request.getQuantity() + " " + unit + " of " + item
             : "Order #" + request.getOrderListEntry().getId() + " for " + item;
@@ -293,7 +342,7 @@ public class NotificationService {
             send(request.getRequestedBy(), "STOCK_RECEIPT_REJECTED",
                 "Received stock rejected",
                 "Your report of received stock was rejected: " + subject
-                    + ". Stock was not changed. Please review your End of Day count for " + item + ".",
+                    + ". Stock was not changed. Please review your " + countName + " count for " + item + ".",
                 "/stock-check");
         }
     }
@@ -381,7 +430,7 @@ public class NotificationService {
         return notificationRepository
             .findByRecipientUserIdOrderByCreatedAtDesc(userId, pageRequest(page, size))
             .stream()
-            .map(NotificationResponse::from)
+            .map(this::toResponse)
             .toList();
     }
 
@@ -395,7 +444,7 @@ public class NotificationService {
         Notification n = notificationRepository.findByIdAndRecipientUserId(notificationId, userId)
             .orElseThrow(() -> new NotificationNotFoundException("Notification not found"));
         n.setRead(true);
-        return NotificationResponse.from(notificationRepository.save(n));
+        return toResponse(notificationRepository.save(n));
     }
 
     @Transactional

@@ -16,8 +16,13 @@ interface ReceivedStockModalProps {
   isOpen: boolean;
   itemName: string;
   unit: string;
+  // End of Day mode: today's Start of Day and End of Day usable stock. Start
+  // of Day mode: what Start of Day should be (the last End of Day plus
+  // deliveries since) and the Start of Day usable stock counted.
   startUsable: number;
   endUsable: number;
+  // Which count is being explained; defaults to End of Day.
+  snapshot?: 'START_OF_DAY' | 'END_OF_DAY';
   // Already logged as received today, or reported and waiting on approval.
   alreadyReceived?: number;
   // Ordered orders for this item the employee can confirm as received.
@@ -45,6 +50,7 @@ function ReceivedStockModal({
   unit,
   startUsable,
   endUsable,
+  snapshot = 'END_OF_DAY',
   alreadyReceived = 0,
   orders = [],
   isSubmitting = false,
@@ -52,6 +58,7 @@ function ReceivedStockModal({
   onCancel,
 }: ReceivedStockModalProps) {
   const hasOrders = orders.length > 0;
+  const isStart = snapshot === 'START_OF_DAY';
   const [newStock, setNewStock] = useState(false);
   const [orderIds, setOrderIds] = useState<number[]>([]);
   const [quantity, setQuantity] = useState('');
@@ -119,8 +126,12 @@ function ReceivedStockModal({
       isOpen={isOpen}
       onClose={onCancel}
       centered
-      title="Enter stock received today"
-      subtitle={`${itemName}: End of Day (${endUsable} ${unit}) is higher than Start of Day (${startUsable} ${unit}), so stock must have been received. Enter the quantity so today's usage is calculated correctly. Your admin has to approve it before stock is updated.`}
+      title={isStart ? 'Enter stock restocked' : 'Enter stock received today'}
+      subtitle={
+        isStart
+          ? `${itemName}: Start of Day (${endUsable} ${unit}) is higher than the last End of Day (${startUsable} ${unit}), so the item must have been restocked. Choose an existing order that was received, or enter new stock. Your admin has to approve it before stock is updated.`
+          : `${itemName}: End of Day (${endUsable} ${unit}) is higher than Start of Day (${startUsable} ${unit}), so stock must have been received. Enter the quantity so today's usage is calculated correctly. Your admin has to approve it before stock is updated.`
+      }
       footer={
         <>
           <button type="button" className="btn btn--secondary" disabled={isSubmitting} onClick={onCancel}>
@@ -135,7 +146,9 @@ function ReceivedStockModal({
       <form id="received-stock-form" onSubmit={handleSubmit} noValidate>
         {hasOrders && (
           <fieldset className="received-stock-modal__choices">
-            <legend className="received-stock-modal__legend">What was received? Choose new stock, or one or more existing orders.</legend>
+            <legend className="received-stock-modal__legend">
+              {isStart ? 'What was restocked?' : 'What was received?'} Choose new stock, or one or more existing orders.
+            </legend>
             <label className="received-stock-modal__choice">
               <input type="checkbox" checked={newStock} disabled={ordersSelected} onChange={toggleNewStock} />
               <span>New stock, not on an existing order</span>
@@ -156,7 +169,7 @@ function ReceivedStockModal({
             ))}
           </fieldset>
         )}
-        <FormField label={`Stock received today (${unit})`} htmlFor="received-stock-quantity" error={error ?? undefined}>
+        <FormField label={isStart ? `Stock restocked (${unit})` : `Stock received today (${unit})`} htmlFor="received-stock-quantity" error={error ?? undefined}>
           <input
             id="received-stock-quantity"
             type="text"
