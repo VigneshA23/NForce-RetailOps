@@ -621,7 +621,7 @@
   .employee-history-filters {
     flex-direction: row;
     align-items: center;
-    max-width: 600px;
+    max-width: none;
   }
 
   .employee-history-date-trigger-wrap {
@@ -630,9 +630,8 @@
   }
 }
 
-/* Pages with extra filters (Super Admin's store picker, search) need more
-   room than the plain single-date Employee bar -- widened and allowed to
-   wrap instead of the fixed 600px cap above. */
+/* Pages with extra filters (Super Admin's store picker, search) need to wrap
+   instead of keeping all controls on the single-date bar's row. */
 .employee-history-filters--extended {
   flex-wrap: wrap;
 }

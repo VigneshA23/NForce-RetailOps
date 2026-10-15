@@ -87,3 +87,32 @@ describe('EmployeeStockCheck item card expand/collapse', () => {
     await waitFor(() => expect(screen.queryByText('Shift Stock Reconciliations')).not.toBeInTheDocument());
   });
 });
+
+describe('EmployeeStockCheck status filters', () => {
+  it('matches Stock Check History status options and separates shortages from sufficient or uncounted items', async () => {
+    const user = userEvent.setup();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([
+      { ...item, storeInventoryItemId: 1, itemName: 'Milk', currentStock: 2 },
+      { ...item, storeInventoryItemId: 2, itemName: 'Sugar', currentStock: 8 },
+      { ...item, storeInventoryItemId: 3, itemName: 'Flour', currentStock: null },
+    ]);
+
+    render(<EmployeeStockCheck store={store} />);
+
+    await screen.findByText('Milk');
+    expect(screen.getByRole('button', { name: 'All Records (3)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Shortage (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sufficient (2)' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Shortage (1)' }));
+    expect(screen.getByText('Milk')).toBeInTheDocument();
+    expect(screen.queryByText('Sugar')).not.toBeInTheDocument();
+    expect(screen.queryByText('Flour')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Sufficient (2)' }));
+    expect(screen.getByText('Sugar')).toBeInTheDocument();
+    expect(screen.getByText('Flour')).toBeInTheDocument();
+    expect(screen.queryByText('Milk')).not.toBeInTheDocument();
+  });
+});

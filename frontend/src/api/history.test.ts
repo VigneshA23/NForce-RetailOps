@@ -35,6 +35,7 @@ describe('getShiftHistory completedByAll', () => {
                 completionType: 'MULTIPLE',
                 completed: true,
                 currentlyActive: true,
+                totalActiveEmployees: 5,
                 responses: [
                   {
                     id: 3,
@@ -85,6 +86,8 @@ describe('getShiftHistory completedByAll', () => {
 
     expect(task.completedByAll).toHaveLength(3);
     expect(task.completedByAll.every((responder) => responder.name === 'Alice Caller')).toBe(true);
+    expect(task.completedByCount).toBe(1);
+    expect(task.totalActiveEmployees).toBe(5);
   });
 });
 
@@ -102,6 +105,7 @@ describe('getShiftHistory inactive tasks', () => {
       completionType: 'SINGLE',
       completed: true,
       currentlyActive: true,
+      totalActiveEmployees: 3,
       responses: [
         {
           id: 1,
@@ -178,5 +182,120 @@ describe('getShiftHistory inactive tasks', () => {
 
     const result = await getShiftHistory(1, '2026-09-15');
     expect(result.categories[0].tasks[0].status).toBe('YES');
+  });
+});
+
+describe('getShiftHistory multi-response progress', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('preserves the submitted answer and reports distinct responders while a MULTIPLE task is in progress', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(200, {
+        storeId: 1,
+        storeName: 'Test Store',
+        date: '2026-09-15',
+        hasChecklist: true,
+        categories: [
+          {
+            id: 10,
+            name: 'Prep',
+            active: true,
+            tasks: [
+              {
+                id: 100,
+                name: 'Prepare waffle cones',
+                description: null,
+                responseType: 'NUMERIC',
+                completionType: 'MULTIPLE',
+                completed: false,
+                currentlyActive: true,
+                totalActiveEmployees: 5,
+                responses: [
+                  {
+                    id: 1,
+                    employeeUserId: 5,
+                    employeeFullName: 'Alice Caller',
+                    empId: 'EMP-001',
+                    booleanValue: null,
+                    numericValue: 9,
+                    textValue: null,
+                    respondedAt: '2026-09-15T18:00:00Z',
+                    latestCorrection: null,
+                    resubmissionHistory: [],
+                    undone: false,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        issues: [],
+      }),
+    );
+
+    const result = await getShiftHistory(1, '2026-09-15');
+    const category = result.categories[0];
+    const task = category.tasks[0];
+
+    expect(task.status).toBe('IN_PROGRESS');
+    expect(task.responseValue).toBe('9');
+    expect(task.completedByCount).toBe(1);
+    expect(task.totalActiveEmployees).toBe(5);
+    expect(category.tasksCompleted).toBe(0);
+    expect(category.tasksTotal).toBe(1);
+  });
+
+  it('does not count dangling undone responses as active responders', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse(200, {
+        storeId: 1,
+        storeName: 'Test Store',
+        date: '2026-09-15',
+        hasChecklist: true,
+        categories: [
+          {
+            id: 10,
+            name: 'Prep',
+            active: true,
+            tasks: [
+              {
+                id: 100,
+                name: 'Prepare waffle cones',
+                description: null,
+                responseType: 'YES_NO',
+                completionType: 'MULTIPLE',
+                completed: false,
+                currentlyActive: true,
+                totalActiveEmployees: 5,
+                responses: [
+                  {
+                    id: 1,
+                    employeeUserId: 5,
+                    employeeFullName: 'Alice Caller',
+                    empId: 'EMP-001',
+                    booleanValue: true,
+                    numericValue: null,
+                    textValue: null,
+                    respondedAt: '2026-09-15T18:00:00Z',
+                    latestCorrection: null,
+                    resubmissionHistory: [],
+                    undone: true,
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+        issues: [],
+      }),
+    );
+
+    const result = await getShiftHistory(1, '2026-09-15');
+    const task = result.categories[0].tasks[0];
+
+    expect(task.status).toBe('NOT_ANSWERED');
+    expect(task.completedByCount).toBe(0);
   });
 });

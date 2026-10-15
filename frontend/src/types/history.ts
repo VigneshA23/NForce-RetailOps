@@ -1,14 +1,10 @@
 import type { CategoryBadgeColor } from '../utils/categoryBadge';
 
 // Status is derived client-side (see api/history.ts) from the real backend's
-// per-task `completed` boolean and its responses' `booleanValue` -- there is
-// no such field on the wire. NOT_ANSWERED: no completed response yet. NO
-// ("Flagged"): completed, and the most recent response's booleanValue is
-// explicitly false. YES ("Complete"): completed, anything else (including
-// NUMERIC/TEXT tasks, which have no booleanValue at all). INACTIVE: the task
-// (or its category) has since been deactivated -- takes priority over the
-// other three, but the recorded responseValue below is still shown.
-export type TaskStatus = 'YES' | 'NO' | 'NOT_ANSWERED' | 'INACTIVE';
+// completion state, response entries, and task completion type. IN_PROGRESS is
+// a MULTIPLE task with at least one active responder that has not met its
+// completion threshold. INACTIVE takes priority over every active status.
+export type TaskStatus = 'YES' | 'NO' | 'IN_PROGRESS' | 'NOT_ANSWERED' | 'INACTIVE';
 
 export interface HistoryResponder {
   employeeUserId: number;
@@ -55,8 +51,12 @@ export interface HistoryTaskDetail {
   // same way responseValue above is derived (Yes/No vs Done/Not done differ
   // by response type; NUMERIC/TEXT need no boolean label at all).
   responseType: 'YES_NO' | 'DONE_NOT_DONE' | 'NUMERIC' | 'TEXT';
+  completionType: 'SINGLE' | 'MULTIPLE';
   name: string;
   status: TaskStatus;
+  // Distinct active responders and current store active-employee headcount.
+  completedByCount: number;
+  totalActiveEmployees: number;
   // The actual value the employee submitted (Yes/No, Done/Not done, a number
   // [+ unit], or free text) -- derived client-side from the backend's raw
   // booleanValue/numericValue/textValue, null when nothing was ever answered.

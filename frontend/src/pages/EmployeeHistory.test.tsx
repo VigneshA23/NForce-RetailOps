@@ -164,8 +164,11 @@ describe('EmployeeHistory task responder list', () => {
               id: 100,
               responseId: 500,
               responseType: 'YES_NO',
+              completionType: 'MULTIPLE',
               name: 'Wipe counters',
               status: 'YES',
+              completedByCount: 2,
+              totalActiveEmployees: 5,
               responseValue: 'Yes',
               completedBy: { employeeUserId: 2, name: 'Bob Teammate' },
               completedAt: '3:00 PM',
@@ -185,6 +188,7 @@ describe('EmployeeHistory task responder list', () => {
 
     expect(await screen.findByText('· Bob Teammate · 3:00 PM')).toBeInTheDocument()
     expect(screen.queryByText('Alice Caller', { exact: false })).not.toBeInTheDocument()
+    expect(screen.getByText('2/5 responded')).toBeInTheDocument()
   })
 
   it('keeps the single-line responder view for a SINGLE-completion task', async () => {
@@ -205,8 +209,11 @@ describe('EmployeeHistory task responder list', () => {
               id: 100,
               responseId: 501,
               responseType: 'YES_NO',
+              completionType: 'SINGLE',
               name: 'Unlock front door',
               status: 'YES',
+              completedByCount: 1,
+              totalActiveEmployees: 1,
               responseValue: 'Yes',
               completedBy: { employeeUserId: 1, name: 'Alice Caller' },
               completedAt: '2:00 PM',
@@ -223,6 +230,49 @@ describe('EmployeeHistory task responder list', () => {
 
     expect(await screen.findByText('Yes')).toBeInTheDocument()
     expect(screen.getByText('· Alice Caller · 2:00 PM')).toBeInTheDocument()
+  })
+
+  it('shows a saved response, In Progress, and x/y counts for a partially answered MULTIPLE task', async () => {
+    mockGetShiftHistory.mockResolvedValue({
+      date: '2026-09-02',
+      storeId: 1,
+      hasChecklist: true,
+      issues: [],
+      categories: [
+        {
+          id: 10,
+          name: 'Cleaning',
+          badgeColor: 'blue',
+          tasksCompleted: 0,
+          tasksTotal: 1,
+          tasks: [
+            {
+              id: 100,
+              responseId: 500,
+              responseType: 'NUMERIC',
+              completionType: 'MULTIPLE',
+              name: 'Count the front display',
+              status: 'IN_PROGRESS',
+              completedByCount: 1,
+              totalActiveEmployees: 4,
+              responseValue: '12',
+              completedBy: { employeeUserId: 2, name: 'Bob Teammate' },
+              completedAt: '3:00 PM',
+              completedByAll: [{ employeeUserId: 2, name: 'Bob Teammate', respondedAt: '3:00 PM' }],
+              resubmissionHistory: [],
+            },
+          ],
+        },
+      ],
+    })
+
+    render(<EmployeeHistory store={STORE} />)
+
+    expect(await screen.findByText('12')).toBeInTheDocument()
+    expect(screen.getByText('In Progress', { selector: '.employee-history-task-status' })).toBeInTheDocument()
+    expect(screen.getByText('1/4 responded')).toBeInTheDocument()
+    expect(screen.getByText('In Progress', { selector: '.stat-card__label' }).closest('.stat-card')).toHaveTextContent('1')
+    expect(screen.getByText('Not Answered', { selector: '.stat-card__label' }).closest('.stat-card')).toHaveTextContent('0')
   })
 })
 
