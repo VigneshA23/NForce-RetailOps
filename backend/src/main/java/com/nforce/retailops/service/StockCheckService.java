@@ -772,13 +772,29 @@ public class StockCheckService {
 
         InventoryCountStatus status = InventoryCountStatusCalculator.calculate(latest, today, minimum);
 
+        // Change vs. the immediately preceding count-or-delivery event -- the
+        // same merge of StockCheck snapshots and receipts the Change History
+        // timeline uses (countHistoryForStore below), not just a diff between
+        // two StockCheck rows. A delivery recorded against no row (the common
+        // case: stock arrives between formal counts) never creates a second
+        // StockCheck row, so comparing rows alone left "change" stuck at "--"
+        // after every such delivery even though currentStock had moved.
+        List<StockCheck> recent = stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2));
+        List<StockCheckReceipt> recentReceipts = stockCheckReceiptRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2));
+        List<CountEvent> events = new ArrayList<>();
+        for (StockCheck check : recent) {
+            events.addAll(countEvents(check));
+        }
+        for (StockCheckReceipt receipt : recentReceipts) {
+            events.add(receiptEvent(receipt));
+        }
+        events.sort(EVENT_ORDER.reversed());
+
         BigDecimal change = null;
         LocalDate changeFromDate = null;
-        List<StockCheck> recent = stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2));
-        if (recent.size() > 1) {
-            StockCheck previous = recent.get(1);
-            change = currentStock.subtract(previous.getCurrentCount());
-            changeFromDate = previous.getCheckDate();
+        if (events.size() > 1) {
+            change = events.get(0).count().subtract(events.get(1).count());
+            changeFromDate = events.get(1).date();
         }
 
         // Last update: the most recent count, unless a delivery came after it.

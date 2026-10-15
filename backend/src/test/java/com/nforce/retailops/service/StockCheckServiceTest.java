@@ -1247,6 +1247,38 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void inventoryCountsComputesChangeFromADeliveryNotAppliedToAnyRow() {
+        milk.setMinWeekday(bd(10));
+        milk.setMinWeekend(bd(10));
+        StockCheck yesterday = checkWithCount(milk, LocalDate.now().minusDays(1), 4, 0);
+        ReflectionTestUtils.setField(yesterday, "createdAt", OffsetDateTime.now().minusDays(1));
+        yesterday.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(4), bd(0), employee, OffsetDateTime.now().minusDays(1), false);
+
+        User owner = user(OWNER_ID, "Olivia");
+        StockCheckReceipt receipt = new StockCheckReceipt();
+        receipt.setStoreInventoryItem(milk);
+        receipt.setQuantity(bd(6));
+        receipt.setCountAfter(bd(10));
+        receipt.setReceivedByUser(owner);
+        receipt.setReceivedAt(OffsetDateTime.now().minusHours(1));
+
+        when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of(yesterday));
+        when(stockCheckRepository.findRecentForItem(any(), any(Pageable.class))).thenReturn(List.of(yesterday));
+        when(stockCheckReceiptRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of(receipt));
+        when(stockCheckReceiptRepository.findUnappliedForStore(STORE_ID)).thenReturn(List.of(receipt));
+        when(stockCheckReceiptRepository.findRecentForItem(any(), any(Pageable.class))).thenReturn(List.of(receipt));
+
+        InventoryCountRowResponse row = stockCheckService.listInventoryCounts(OWNER_ID, null, null, null, null, null).rows().get(0);
+
+        // A delivery recorded against no row never creates a second StockCheck
+        // row, so comparing rows alone (the old logic) left "change" stuck at
+        // null even though currentStock moved from 4 to 10.
+        assertThat(row.change()).isEqualByComparingTo(bd(6));
+        assertThat(row.changeFromDate()).isEqualTo(LocalDate.now().minusDays(1));
+    }
+
+    @Test
     void countHistoryOmitsEntriesOlderThanSevenDaysButKeepsTheBoundaryEntrysDeltaCorrect() {
         StockCheck withinWindow = checkWithCount(milk, LocalDate.now().minusDays(6), 30, 0);
         StockCheck atTheEdge = checkWithCount(milk, LocalDate.now().minusDays(7), 24, 0);
