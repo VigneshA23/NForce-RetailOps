@@ -44,6 +44,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -189,12 +190,19 @@ class SuperAdminOperationsControllerTest {
         return storeInventoryItemRepository.save(item);
     }
 
+    // findSupplierMetricsGroupedByStore and the Order History endpoint both
+    // match a date range on orderedAt/receivedAt, not createdAt (a shortage
+    // can sit as NEEDS_ORDERING for days before someone acts on it) -- so an
+    // ORDERED/RECEIVED test entry needs those stamped the same way
+    // OrderListService's own stampOrderedAt/stampReceived would, or it can
+    // never match any date-range query.
     private OrderListEntry orderEntry(Store store, StoreInventoryItem item, OrderStatus status) {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
         entry.setStoreInventoryItem(item);
         entry.setQuantityNeeded(bd(2));
         entry.setStatus(status);
+        stampPurchaseDates(entry, status);
         return orderListEntryRepository.save(entry);
     }
 
@@ -211,7 +219,17 @@ class SuperAdminOperationsControllerTest {
         entry.setQuantityNeeded(bd(quantity));
         entry.setSupplier(supplier);
         entry.setStatus(status);
+        stampPurchaseDates(entry, status);
         return orderListEntryRepository.save(entry);
+    }
+
+    private static void stampPurchaseDates(OrderListEntry entry, OrderStatus status) {
+        if (status == OrderStatus.ORDERED || status == OrderStatus.RECEIVED) {
+            entry.setOrderedAt(OffsetDateTime.now());
+        }
+        if (status == OrderStatus.RECEIVED) {
+            entry.setReceivedAt(OffsetDateTime.now());
+        }
     }
 
     private SuperAdmin superAdmin(String email) {

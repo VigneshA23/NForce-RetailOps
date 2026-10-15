@@ -671,7 +671,7 @@ public class OrderListService {
         StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            storeOwner.getStore().getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
+            storeOwner.getStore().getId(), OrderStatus.PURCHASED_STATUSES,
             rangeStart(fromDate), rangeEndExclusive(toDate));
 
         return rows.stream()
@@ -714,7 +714,7 @@ public class OrderListService {
         DateRangeValidator.validate(fromDate, toDate, MAX_DATE_RANGE_DAYS);
 
         List<OrderListEntry> all = orderListEntryRepository
-            .findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+            .findByStoreIdAndStatusInAndActivityInRange(
                 storeId, OrderStatus.PURCHASED_STATUSES, rangeStart(fromDate), rangeEndExclusive(toDate));
 
         String needle = supplierName == null ? "" : supplierName.trim();

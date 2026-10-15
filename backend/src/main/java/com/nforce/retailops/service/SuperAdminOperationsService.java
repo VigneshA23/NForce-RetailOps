@@ -176,7 +176,7 @@ public class SuperAdminOperationsService {
         DateRangeValidator.validate(fromDate, toDate, MAX_DATE_RANGE_DAYS);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsGroupedByStore(
-            OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
+            OrderStatus.PURCHASED_STATUSES,
             OrderListService.rangeStart(fromDate), OrderListService.rangeEndExclusive(toDate));
 
         return rows.stream()

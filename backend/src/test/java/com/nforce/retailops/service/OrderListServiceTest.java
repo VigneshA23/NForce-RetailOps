@@ -863,7 +863,7 @@ class OrderListServiceTest {
     void getSupplierMetricsForOwnerDerivesTheStoreFromTheCallersOwnStoreOwnerLinkNotAParameter() {
         Store store = store();
         stubActiveStoreOwner(store);
-        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any()))
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
             .thenReturn(List.of());
 
         orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
@@ -871,13 +871,13 @@ class OrderListServiceTest {
         // The only store ID ever reaches the repository via the owner's own
         // link (stubActiveStoreOwner) -- there is no storeId parameter on the
         // service method for a caller to override.
-        verify(orderListEntryRepository).findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any());
+        verify(orderListEntryRepository).findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any());
     }
 
     @Test
     void getSupplierMetricsForOwnerMapsRowsAndSortsSupplierNamesCaseInsensitively() {
         stubActiveStoreOwner(store());
-        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any()))
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
             .thenReturn(List.of(
                 new Object[]{2L, "fresh foods", 3L, 17L, 1L},
                 new Object[]{1L, "Acme Supplies", 8L, 42L, 5L}
@@ -896,7 +896,7 @@ class OrderListServiceTest {
     @Test
     void getSupplierMetricsForOwnerLabelsANullSupplierAsNoSupplier() {
         stubActiveStoreOwner(store());
-        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any()))
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
             .thenReturn(List.<Object[]>of(new Object[]{null, null, 1L, 9L, 0L}));
 
         List<SupplierPurchaseMetricResponse> result = orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
@@ -907,7 +907,7 @@ class OrderListServiceTest {
     @Test
     void getSupplierMetricsForOwnerReturnsAnEmptyListWhenNothingQualifies() {
         stubActiveStoreOwner(store());
-        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), eq(OrderStatus.RECEIVED), any(), any()))
+        when(orderListEntryRepository.findSupplierMetricsForStore(eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any()))
             .thenReturn(List.of());
 
         List<SupplierPurchaseMetricResponse> result = orderListService.getSupplierMetricsForOwner(OWNER_ID, FROM_DATE, TO_DATE);
@@ -921,7 +921,7 @@ class OrderListServiceTest {
 
         assertThatThrownBy(() -> orderListService.getSupplierMetricsForOwner(OWNER_ID, TO_DATE, FROM_DATE))
             .isInstanceOf(InvalidDateRangeException.class);
-        verify(orderListEntryRepository, never()).findSupplierMetricsForStore(any(), any(), any(), any(), any());
+        verify(orderListEntryRepository, never()).findSupplierMetricsForStore(any(), any(), any(), any());
     }
 
     @Test
@@ -966,12 +966,12 @@ class OrderListServiceTest {
     @Test
     void getOrderHistoryForOwnerDerivesTheStoreFromTheCallersOwnStoreOwnerLinkNotAParameter() {
         stubActiveStoreOwner(store());
-        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndActivityInRange(
             eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(List.of());
 
         orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, null, null, null);
 
-        verify(orderListEntryRepository).findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+        verify(orderListEntryRepository).findByStoreIdAndStatusInAndActivityInRange(
             eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any());
     }
 
@@ -980,7 +980,7 @@ class OrderListServiceTest {
         stubActiveStoreOwner(store());
         OrderListEntry ordered = historyEntry(OrderStatus.ORDERED, "Metro Wholesale", FROM_DATE);
         OrderListEntry received = historyEntry(OrderStatus.RECEIVED, "Metro Wholesale", FROM_DATE);
-        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndActivityInRange(
             eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(List.of(ordered, received));
 
         OrderHistoryPageResponse page = orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, null, null, null);
@@ -1002,7 +1002,7 @@ class OrderListServiceTest {
         stubActiveStoreOwner(store());
         OrderListEntry metro = historyEntry(OrderStatus.ORDERED, "Metro Wholesale", FROM_DATE);
         OrderListEntry costco = historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE);
-        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndActivityInRange(
             eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(List.of(metro, costco));
 
         OrderHistoryPageResponse page = orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, "metro wholesale", null, null);
@@ -1016,7 +1016,7 @@ class OrderListServiceTest {
         stubActiveStoreOwner(store());
         OrderListEntry noSupplier = historyEntry(OrderStatus.ORDERED, null, FROM_DATE);
         OrderListEntry withSupplier = historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE);
-        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndActivityInRange(
             eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(List.of(noSupplier, withSupplier));
 
         OrderHistoryPageResponse page = orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, "No Supplier", null, null);
@@ -1032,7 +1032,7 @@ class OrderListServiceTest {
             historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE),
             historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE),
             historyEntry(OrderStatus.ORDERED, "Costco", FROM_DATE));
-        when(orderListEntryRepository.findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(
+        when(orderListEntryRepository.findByStoreIdAndStatusInAndActivityInRange(
             eq(STORE_ID), eq(OrderStatus.PURCHASED_STATUSES), any(), any())).thenReturn(entries);
 
         OrderHistoryPageResponse page = orderListService.getOrderHistoryForOwner(OWNER_ID, FROM_DATE, TO_DATE, null, 2, 2);
@@ -1050,7 +1050,7 @@ class OrderListServiceTest {
         assertThatThrownBy(() -> orderListService.getOrderHistoryForOwner(OWNER_ID, TO_DATE, FROM_DATE, null, null, null))
             .isInstanceOf(InvalidDateRangeException.class);
         verify(orderListEntryRepository, never())
-            .findByStoreIdAndStatusInAndCreatedAtGreaterThanEqualAndCreatedAtLessThanOrderByCreatedAtDesc(any(), any(), any(), any());
+            .findByStoreIdAndStatusInAndActivityInRange(any(), any(), any(), any());
     }
 
     // ---- listForStore / updateStatusForSuperAdmin (Super Admin, cross-store) ----

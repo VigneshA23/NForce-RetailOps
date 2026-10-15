@@ -29,6 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -105,12 +106,19 @@ class OrderListControllerTest {
         return storeInventoryItemRepository.save(item);
     }
 
+    // findSupplierMetricsForStore and the Order History endpoint both match a
+    // date range on orderedAt/receivedAt, not createdAt (a shortage can sit
+    // as NEEDS_ORDERING for days before someone acts on it) -- so an
+    // ORDERED/RECEIVED test entry needs those stamped the same way
+    // OrderListService's own stampOrderedAt/stampReceived would, or it can
+    // never match any date-range query.
     private OrderListEntry orderEntry(Store store, OrderStatus status) {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
         entry.setStoreInventoryItem(inventoryItem(store));
         entry.setQuantityNeeded(bd(2));
         entry.setStatus(status);
+        stampPurchaseDates(entry, status);
         return orderListEntryRepository.save(entry);
     }
 
@@ -127,7 +135,17 @@ class OrderListControllerTest {
         entry.setQuantityNeeded(bd(quantity));
         entry.setSupplier(supplier);
         entry.setStatus(status);
+        stampPurchaseDates(entry, status);
         return orderListEntryRepository.save(entry);
+    }
+
+    private static void stampPurchaseDates(OrderListEntry entry, OrderStatus status) {
+        if (status == OrderStatus.ORDERED || status == OrderStatus.RECEIVED) {
+            entry.setOrderedAt(OffsetDateTime.now());
+        }
+        if (status == OrderStatus.RECEIVED) {
+            entry.setReceivedAt(OffsetDateTime.now());
+        }
     }
 
     private String login(String email) throws Exception {

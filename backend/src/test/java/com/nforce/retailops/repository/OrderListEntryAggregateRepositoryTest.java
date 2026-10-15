@@ -116,6 +116,12 @@ class OrderListEntryAggregateRepositoryTest {
         return supplierRepository.save(supplier);
     }
 
+    // findSupplierMetricsForStore/findSupplierMetricsGroupedByStore match on
+    // orderedAt/receivedAt, not createdAt (a shortage can sit as
+    // NEEDS_ORDERING for days before someone acts on it) -- so an
+    // ORDERED/RECEIVED entry needs those stamped the same way
+    // OrderListService's own stampOrderedAt/stampReceived would, or it can
+    // never match any date-range query.
     private OrderListEntry entry(Store store, OrderStatus status, Supplier supplier, int quantity) {
         OrderListEntry entry = new OrderListEntry();
         entry.setStore(store);
@@ -123,13 +129,25 @@ class OrderListEntryAggregateRepositoryTest {
         entry.setQuantityNeeded(bd(quantity));
         entry.setSupplier(supplier);
         entry.setStatus(status);
+        if (status == OrderStatus.ORDERED || status == OrderStatus.RECEIVED) {
+            entry.setOrderedAt(OffsetDateTime.now());
+        }
+        if (status == OrderStatus.RECEIVED) {
+            entry.setReceivedAt(OffsetDateTime.now());
+        }
         return orderListEntryRepository.save(entry);
     }
 
     // Same onwards-overwrite trick as entryCreatedAt above, but for an entry
-    // carrying a supplier and a specific quantity.
+    // carrying a supplier and a specific quantity -- orderedAt (and, for a
+    // RECEIVED entry, receivedAt too) is overwritten to the same instant,
+    // since that's what these date-boundary tests actually need to control.
     private OrderListEntry entryCreatedAt(Store store, OrderStatus status, Supplier supplier, int quantity, OffsetDateTime createdAt) {
         OrderListEntry entry = entry(store, status, supplier, quantity);
+        entry.setOrderedAt(createdAt);
+        if (status == OrderStatus.RECEIVED) {
+            entry.setReceivedAt(createdAt);
+        }
         orderListEntryRepository.saveAndFlush(entry);
         ReflectionTestUtils.setField(entry, "createdAt", createdAt);
         return orderListEntryRepository.saveAndFlush(entry);
@@ -156,7 +174,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(store, OrderStatus.NEEDS_ORDERING, supplierA, 10);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            store.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
+            store.getId(), OrderStatus.PURCHASED_STATUSES,
             rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).hasSize(1);
@@ -177,7 +195,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(storeTwo, OrderStatus.ORDERED, supplierA, 20);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            storeOne.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
+            storeOne.getId(), OrderStatus.PURCHASED_STATUSES,
             rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).hasSize(1);
@@ -197,7 +215,7 @@ class OrderListEntryAggregateRepositoryTest {
         entryCreatedAt(store, OrderStatus.ORDERED, supplierA, 16, rangeStart(LocalDate.of(2026, 9, 5)));
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            store.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
+            store.getId(), OrderStatus.PURCHASED_STATUSES,
             rangeStart(LocalDate.of(2026, 9, 1)), rangeEndExclusive(LocalDate.of(2026, 9, 4)));
 
         // Sep 1 (2) + Sep 2 (4) + Sep 4 (8) = 14; Aug 31 and Sep 5 excluded.
@@ -214,7 +232,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(store, OrderStatus.ORDERED, null, 9);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            store.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
+            store.getId(), OrderStatus.PURCHASED_STATUSES,
             rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).hasSize(1);
@@ -230,7 +248,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(store, OrderStatus.NEEDS_ORDERING, supplier("Supplier Empty A"), 5);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsForStore(
-            store.getId(), OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED,
+            store.getId(), OrderStatus.PURCHASED_STATUSES,
             rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).isEmpty();
@@ -249,7 +267,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(storeTwo, OrderStatus.ORDERED, supplierA, 20);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsGroupedByStore(
-            OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED, rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
+            OrderStatus.PURCHASED_STATUSES, rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).hasSize(2);
         assertThat(rows).extracting(row -> row[0], row -> ((Number) row[5]).longValue())
@@ -267,7 +285,7 @@ class OrderListEntryAggregateRepositoryTest {
         entry(store, OrderStatus.NEEDS_ORDERING, supplierA, 99);
 
         List<Object[]> rows = orderListEntryRepository.findSupplierMetricsGroupedByStore(
-            OrderStatus.PURCHASED_STATUSES, OrderStatus.RECEIVED, rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
+            OrderStatus.PURCHASED_STATUSES, rangeStart(LocalDate.now().minusDays(1)), rangeEndExclusive(LocalDate.now()));
 
         assertThat(rows).isEmpty();
     }
