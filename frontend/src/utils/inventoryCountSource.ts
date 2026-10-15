@@ -5,6 +5,7 @@ const SOURCE_LABELS: Record<InventoryCountSource, string> = {
   START_OF_DAY: 'Start of day',
   END_OF_DAY: 'End of day',
   STOCK_RECEIVED: 'Stock received',
+  SHORTAGE_REPORT: 'Shortage reported',
 };
 
 export function countSourceLabel(source: InventoryCountSource | null | undefined): string | null {

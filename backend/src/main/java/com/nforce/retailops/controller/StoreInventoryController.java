@@ -3,6 +3,8 @@ package com.nforce.retailops.controller;
 import com.nforce.retailops.dto.EodSupplierReportResponse;
 import com.nforce.retailops.dto.InventoryCountHistoryEntryResponse;
 import com.nforce.retailops.dto.InventoryCountsPageResponse;
+import com.nforce.retailops.dto.MissedEndOfDayAnswerRequest;
+import com.nforce.retailops.dto.MissedEndOfDayResponse;
 import com.nforce.retailops.dto.StatusRequest;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
@@ -122,6 +124,16 @@ public class StoreInventoryController {
         @PathVariable Long itemId
     ) {
         return ResponseEntity.ok(stockCheckService.getCountHistory(principal.getUser().getId(), itemId));
+    }
+
+    // Owner/Admin answering yesterday's missing End of Day for one item (same
+    // one-answer rule as the employee endpoint).
+    @PostMapping("/missed-end-of-day")
+    public ResponseEntity<MissedEndOfDayResponse.Item> answerMissedEndOfDay(
+        @AuthenticationPrincipal AppUserDetails principal,
+        @Valid @RequestBody MissedEndOfDayAnswerRequest request
+    ) {
+        return ResponseEntity.ok(stockCheckService.answerMissedEndOfDayAsOwner(principal.getUser().getId(), request));
     }
 
     @PatchMapping("/stock-checks/{id}")

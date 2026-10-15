@@ -1156,3 +1156,18 @@
     font-size: 12px;
   }
 }
+
+/* Out-of-stock items: highlighted red until ordered. */
+.order-list__row--urgent,
+.order-list__row--urgent > td {
+  background: #fdecea;
+}
+
+.order-list__row--urgent:hover,
+.order-list__row--urgent:hover > td {
+  background: #fbd9d5;
+}
+
+.order-list__row--urgent {
+  box-shadow: inset 4px 0 0 #d32f2f;
+}

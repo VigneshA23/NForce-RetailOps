@@ -18,9 +18,15 @@ public record NotificationResponse(
     String relatedIssueStatus,
     Long storeId,
     OffsetDateTime createdAt,
-    StockReceiptRequestResponse receiptRequest
+    StockReceiptRequestResponse receiptRequest,
+    // Only on MISSED_END_OF_DAY notices: the items and where each one stands.
+    MissedEndOfDayResponse missedEod
 ) {
     public static NotificationResponse from(Notification n) {
+        return from(n, null);
+    }
+
+    public static NotificationResponse from(Notification n, MissedEndOfDayResponse missedEod) {
         Long issueId = null;
         String issueNote = null;
         String storeName = n.getStore() != null ? n.getStore().getName() : null;
@@ -53,7 +59,8 @@ public record NotificationResponse(
             issueStatus,
             storeId,
             n.getCreatedAt(),
-            n.getStockReceiptRequest() != null ? StockReceiptRequestResponse.from(n.getStockReceiptRequest()) : null
+            n.getStockReceiptRequest() != null ? StockReceiptRequestResponse.from(n.getStockReceiptRequest()) : null,
+            missedEod
         );
     }
 }

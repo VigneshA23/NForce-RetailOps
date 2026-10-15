@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Notifications from './Notifications';
 import * as notificationsApi from '../api/notifications';
 import * as receiptApi from '../api/stockReceiptRequests';
-import type { Notification, StockReceiptRequest } from '../types/notification';
+import * as stockChecksApi from '../api/stockChecks';
+import * as storeInventoryApi from '../api/storeInventory';
+import type { MissedEndOfDayItem, Notification, StockReceiptRequest } from '../types/notification';
 import type { StoreSummary } from '../types/store';
 
 vi.mock('../api/notifications', () => ({
@@ -18,6 +20,9 @@ vi.mock('../api/stockReceiptRequests', () => ({
  approveStockReceiptRequest: vi.fn(),
  rejectStockReceiptRequest: vi.fn(),
 }));
+
+vi.mock('../api/stockChecks', () => ({ answerMissedEndOfDay: vi.fn() }));
+vi.mock('../api/storeInventory', () => ({ answerMissedEndOfDayAsOwner: vi.fn() }));
 
 const mockGetNotifications = vi.mocked(notificationsApi.getNotifications);
 const mockGetUnreadCount = vi.mocked(notificationsApi.getUnreadCount);
@@ -275,5 +280,73 @@ describe('Notifications — received stock requests', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('This order is no longer Ordered.');
     expect(screen.getByRole('button', { name: /Approve/ })).toBeInTheDocument();
+  });
+});
+
+describe('Notifications missing End of Day notice', () => {
+  const pendingItem: MissedEndOfDayItem = {
+    storeInventoryItemId: 7, itemName: 'Butter', unitOfMeasurement: 'g', startOfDayUsable: 300, status: 'PENDING',
+    endOfDayAvailable: null, endOfDayDeadStock: null, answeredByName: null, answeredAt: null, reason: null,
+  };
+
+  function missedNotification(items: MissedEndOfDayItem[]): Notification {
+    return makeNotification({
+      id: 21,
+      title: 'End of Day missing for 14 Oct',
+      message: '1 item was counted at Start of Day but never at End of Day.',
+      category: 'MISSED_END_OF_DAY',
+      priority: 'HIGH',
+      linkPath: '/notifications',
+      storeId: 1,
+      read: true,
+      createdAt: new Date().toISOString(),
+      missedEod: { date: '2026-10-14', items },
+    });
+  }
+
+  async function openNotice(items: MissedEndOfDayItem[], answerAs: 'EMPLOYEE' | 'OWNER_ADMIN' = 'EMPLOYEE') {
+    mockGetNotifications.mockResolvedValue([missedNotification(items)]);
+    render(<Notifications onUnreadChange={vi.fn()} answerAs={answerAs} />);
+    await userEvent.click(await screen.findByText('End of Day missing for 14 Oct'));
+  }
+
+  it('shows the items to answer inside the notice', async () => {
+    await openNotice([pendingItem]);
+    expect(await screen.findByLabelText('Missing End of Day counts')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save End of Day' })).toBeInTheDocument();
+  });
+
+  it('answers as an employee against the store of the notice and updates the row', async () => {
+    const saved: MissedEndOfDayItem = { ...pendingItem, status: 'COUNTED', endOfDayAvailable: 120, endOfDayDeadStock: 0, answeredByName: 'Me' };
+    vi.mocked(stockChecksApi.answerMissedEndOfDay).mockResolvedValue(saved);
+    await openNotice([pendingItem]);
+
+    await userEvent.type(await screen.findByLabelText(/Available/), '120');
+    await userEvent.click(screen.getByRole('button', { name: 'Save End of Day' }));
+
+    await waitFor(() => expect(stockChecksApi.answerMissedEndOfDay).toHaveBeenCalledWith(1, { storeInventoryItemId: 7, available: 120, deadStock: 0 }));
+    expect(await screen.findByText(/Counted 120 g/)).toBeInTheDocument();
+  });
+
+  it('answers as the owner through the owner endpoint', async () => {
+    const saved: MissedEndOfDayItem = { ...pendingItem, status: 'COUNTED', endOfDayAvailable: 90, endOfDayDeadStock: 0, answeredByName: 'Owner' };
+    vi.mocked(storeInventoryApi.answerMissedEndOfDayAsOwner).mockResolvedValue(saved);
+    await openNotice([pendingItem], 'OWNER_ADMIN');
+
+    await userEvent.type(await screen.findByLabelText(/Available/), '90');
+    await userEvent.click(screen.getByRole('button', { name: 'Save End of Day' }));
+
+    await waitFor(() => expect(storeInventoryApi.answerMissedEndOfDayAsOwner).toHaveBeenCalledWith({ storeInventoryItemId: 7, available: 90, deadStock: 0 }));
+    expect(stockChecksApi.answerMissedEndOfDay).not.toHaveBeenCalled();
+  });
+
+  it('cannot be deleted while an item is still waiting', async () => {
+    await openNotice([pendingItem]);
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+  });
+
+  it('offers delete once every item has been answered', async () => {
+    await openNotice([{ ...pendingItem, status: 'COUNTED', endOfDayAvailable: 5, answeredByName: 'Rahul' }]);
+    expect((await screen.findAllByRole('button', { name: /delete/i })).length).toBeGreaterThan(0);
   });
 });

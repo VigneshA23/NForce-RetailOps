@@ -215,7 +215,7 @@ class OrderListServiceTest {
         stubOnOrder();
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, false);
+        orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, false, false);
 
         verify(orderListEntryRepository, times(1)).save(waiting);
         assertThat(waiting.totalQuantityOrdered()).isEqualByComparingTo(bd(5));
@@ -227,7 +227,7 @@ class OrderListServiceTest {
         stubOnOrder(entry(OrderStatus.ORDERED, 1));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, false);
+        orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, false, false);
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
@@ -241,7 +241,7 @@ class OrderListServiceTest {
         stubOnOrder(entry(OrderStatus.ORDERED, 1));
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, true);
+        orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, true, false);
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
@@ -249,11 +249,52 @@ class OrderListServiceTest {
     }
 
     @Test
+    void outOfStockReportPutsTheRestInTheNeedsColumnAndFlagsItUrgent() {
+        // Minimum 8, SOD was 3 so 5 is waiting; stock is now 0: needs becomes 8, manual stays 0.
+        OrderListEntry waiting = entry(OrderStatus.NEEDS_ORDERING, 5);
+        stubWaitingEntry(waiting);
+        stubOnOrder();
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertReportedShortage(store(), item(), bd(8), null, new User(), null, false, true);
+
+        assertThat(waiting.getQuantityNeeded()).isEqualByComparingTo(bd(8));
+        assertThat(waiting.getManualAddition()).isEqualByComparingTo(bd(0));
+        assertThat(waiting.isUrgent()).isTrue();
+    }
+
+    @Test
+    void outOfStockReportFlagsAnAlreadyCoveringRowUrgentWithoutChangingQuantity() {
+        OrderListEntry waiting = entry(OrderStatus.NEEDS_ORDERING, 8);
+        stubWaitingEntry(waiting);
+        stubOnOrder();
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.upsertReportedShortage(store(), item(), bd(8), null, new User(), null, false, true);
+
+        assertThat(waiting.getQuantityNeeded()).isEqualByComparingTo(bd(8));
+        assertThat(waiting.isUrgent()).isTrue();
+    }
+
+    @Test
+    void startOfDayZeroCountFlagsTheRowUrgentAndReportsItNewly() {
+        OrderListEntry waiting = entry(OrderStatus.NEEDS_ORDERING, 4);
+        stubOnOrder();
+        stubWaitingEntry(waiting);
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        boolean newlyUrgent = orderListService.reconcileStartOfDayShortage(store(), item(), bd(8), true, new User(), null);
+
+        assertThat(newlyUrgent).isTrue();
+        assertThat(waiting.isUrgent()).isTrue();
+    }
+
+    @Test
     void reportedShortageRaisesNothingWhenExistingRowsAlreadyCoverIt() {
         stubWaitingEntry(entry(OrderStatus.NEEDS_ORDERING, 2));
         stubOnOrder(entry(OrderStatus.ORDERED, 3));
 
-        OrderListEntry result = orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, false);
+        OrderListEntry result = orderListService.upsertReportedShortage(store(), item(), bd(5), null, new User(), null, false, false);
 
         assertThat(result).isNull();
         verify(orderListEntryRepository, never()).save(any());
@@ -316,7 +357,7 @@ class OrderListServiceTest {
         stubWaitingEntry(waiting);
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.reconcileStartOfDayShortage(store(), item(), bd(7), new User(), null);
+        orderListService.reconcileStartOfDayShortage(store(), item(), bd(7), false, new User(), null);
 
         verify(orderListEntryRepository, times(1)).save(waiting);
         assertThat(waiting.getQuantityNeeded()).isEqualByComparingTo(bd(7));
@@ -329,7 +370,7 @@ class OrderListServiceTest {
         stubOpenSystemEntry(waiting);
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.reconcileStartOfDayShortage(store(), item(), bd(0), new User(), null);
+        orderListService.reconcileStartOfDayShortage(store(), item(), bd(0), false, new User(), null);
 
         assertThat(waiting.getStatus()).isEqualTo(OrderStatus.RECEIVED);
     }
@@ -341,7 +382,7 @@ class OrderListServiceTest {
         stubWaitingEntry();
         when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        orderListService.reconcileStartOfDayShortage(store(), item(), bd(5), new User(), null);
+        orderListService.reconcileStartOfDayShortage(store(), item(), bd(5), false, new User(), null);
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
@@ -357,7 +398,7 @@ class OrderListServiceTest {
         stubOnOrder(entry(OrderStatus.ORDERED, 5));
         stubOpenSystemEntry();
 
-        orderListService.reconcileStartOfDayShortage(store(), item(), bd(5), new User(), null);
+        orderListService.reconcileStartOfDayShortage(store(), item(), bd(5), false, new User(), null);
 
         verify(orderListEntryRepository, never()).save(any());
     }

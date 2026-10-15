@@ -4,8 +4,11 @@ import com.nforce.retailops.entity.StockCheck;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import jakarta.persistence.LockModeType;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -20,9 +23,21 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
         + "left join fetch sc.startOfDayEnteredBy "
         + "left join fetch sc.startOfDayCheckedBy "
         + "left join fetch sc.endOfDayEnteredBy "
-        + "left join fetch sc.endOfDayCheckedBy ";
+        + "left join fetch sc.endOfDayCheckedBy "
+        + "left join fetch sc.endOfDaySkippedBy ";
 
     Optional<StockCheck> findByStoreInventoryItemIdAndCheckDate(Long storeInventoryItemId, LocalDate checkDate);
+
+    // The item's most recent row before the given day: what Start of Day is
+    // reconciled against.
+    Optional<StockCheck> findFirstByStoreInventoryItemIdAndCheckDateBeforeOrderByCheckDateDesc(Long storeInventoryItemId, LocalDate date);
+
+    // Each of a store's items' most recent row before the given day.
+    @Query("select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS
+        + "where sc.store.id = :storeId and sc.checkDate = ("
+        + "select max(s2.checkDate) from StockCheck s2 "
+        + "where s2.storeInventoryItem = sc.storeInventoryItem and s2.checkDate < :date)")
+    List<StockCheck> findLatestBeforeForStore(@Param("storeId") Long storeId, @Param("date") LocalDate date);
 
     List<StockCheck> findByStoreInventoryItemIdInAndCheckDate(List<Long> storeInventoryItemIds, LocalDate checkDate);
 
@@ -31,6 +46,21 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
     @Query("select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS
         + "where sc.store.id = :storeId and sc.checkDate = :checkDate")
     List<StockCheck> findForStoreOnDate(@Param("storeId") Long storeId, @Param("checkDate") LocalDate checkDate);
+
+    // The day's Start of Day counts nobody has followed up with an End of Day
+    // (or a "could not count") for -- active items only, since a deactivated
+    // item is no longer on anyone's checklist.
+    @Query("select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS
+        + "where sc.store.id = :storeId and sc.checkDate = :checkDate and sii.active = true "
+        + "and sc.startOfDayAvailable is not null and sc.endOfDayAvailable is null "
+        + "and sc.endOfDaySkippedAt is null order by sii.name")
+    List<StockCheck> findMissedEndOfDay(@Param("storeId") Long storeId, @Param("checkDate") LocalDate checkDate);
+
+    // Locked read for answering a missed End of Day: two people answering at
+    // once must not both get through ("first response wins").
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select sc from StockCheck sc where sc.storeInventoryItem.id = :itemId and sc.checkDate = :checkDate")
+    Optional<StockCheck> lockByItemAndDate(@Param("itemId") Long itemId, @Param("checkDate") LocalDate checkDate);
 
     // Owner/Admin's historical review: every record for their store within a
     // date range, most recent first, bounded by page/size. No join against

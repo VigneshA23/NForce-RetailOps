@@ -1,4 +1,6 @@
 import { apiRequest } from './client';
+import type { MissedEndOfDayAnswer } from './stockChecks';
+import type { MissedEndOfDayItem } from '../types/notification';
 import type {
   InventoryCountHistoryEntry,
   InventoryCountsPage,
@@ -108,4 +110,13 @@ export async function getInventoryCounts(params: InventoryCountsParams = {}): Pr
 // Newest-first count-history timeline for one Inventory Counts row.
 export async function getInventoryCountHistory(itemId: number): Promise<InventoryCountHistoryEntry[]> {
   return apiRequest<InventoryCountHistoryEntry[]>(`/stores/inventory/counts/${itemId}/history`);
+}
+
+// Owner/Admin answering yesterday's missing End of Day (same rule as the
+// employee endpoint: only the first answer counts).
+export async function answerMissedEndOfDayAsOwner(answer: MissedEndOfDayAnswer): Promise<MissedEndOfDayItem> {
+  return apiRequest<MissedEndOfDayItem>('/stores/inventory/missed-end-of-day', {
+    method: 'POST',
+    body: { couldNotCount: false, ...answer },
+  });
 }

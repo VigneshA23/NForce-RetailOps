@@ -14,6 +14,8 @@ export interface OrderListEntry {
   note: string | null;
   status: OrderStatus;
   adHoc: boolean;
+  // Completely out of stock -- the row is highlighted red.
+  urgent?: boolean;
   raisedByName: string | null;
   createdAt: string;
   updatedAt: string;

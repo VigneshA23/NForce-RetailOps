@@ -116,3 +116,54 @@ describe('EmployeeStockCheck status filters', () => {
     expect(screen.queryByText('Milk')).not.toBeInTheDocument();
   });
 });
+
+describe('EmployeeStockCheck missing End of Day from yesterday', () => {
+  const blocked: DailyStockCheckItem = { ...item, missedEndOfDay: { date: '2026-10-14' } };
+
+  async function expandMilk(user: ReturnType<typeof userEvent.setup>) {
+    await screen.findByText('Milk');
+    await user.click(screen.getByText('Milk'));
+    await waitFor(() => expect(screen.getByText('Shift Stock Reconciliations')).toBeInTheDocument());
+  }
+
+  it('flags the item on its card', async () => {
+    const user = userEvent.setup();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([blocked]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await expandMilk(user);
+
+    expect(screen.getByText(/Yesterday's End of Day is missing/)).toBeInTheDocument();
+  });
+
+  it('shows the popup instead of saving Start of Day, and its button opens the notifications', async () => {
+    const user = userEvent.setup();
+    const onOpenNotifications = vi.fn();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([blocked]);
+
+    const { container } = render(<EmployeeStockCheck store={store} onOpenNotifications={onOpenNotifications} />);
+    await expandMilk(user);
+
+    await user.type(container.querySelector('#stock-1-sod-available') as HTMLInputElement, '5');
+    await user.click(screen.getAllByRole('button', { name: 'Save Check' })[0]);
+
+    expect(await screen.findByText("Yesterday's End of Day is missing")).toBeInTheDocument();
+    expect(stockCheckApi.submitStockCheck).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'Respond in notifications' }));
+    expect(onOpenNotifications).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not flag an item that has no missing End of Day', async () => {
+    const user = userEvent.setup();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([item]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await expandMilk(user);
+
+    expect(screen.queryByText(/Yesterday's End of Day is missing/)).not.toBeInTheDocument();
+  });
+});

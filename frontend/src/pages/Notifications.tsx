@@ -7,8 +7,11 @@ import {
 } from 'lucide-react';
 import { deleteNotification, getNotifications, getUnreadCount, markAllRead, markNotificationRead } from '../api/notifications';
 import { approveStockReceiptRequest, rejectStockReceiptRequest } from '../api/stockReceiptRequests';
+import { answerMissedEndOfDay, type MissedEndOfDayAnswer } from '../api/stockChecks';
+import { answerMissedEndOfDayAsOwner } from '../api/storeInventory';
+import MissedEndOfDayPanel from '../components/MissedEndOfDayPanel';
 import NotificationMessage from '../components/NotificationMessage';
-import type { Notification, StockReceiptRequest } from '../types/notification';
+import type { MissedEndOfDayItem, Notification, StockReceiptRequest } from '../types/notification';
 import type { StoreSummary } from '../types/store';
 import { useMediaQuery } from '../hooks/useMediaQuery';
 import { ALL_DISPLAY_CATEGORIES, getCategoryMeta, type DisplayCategory } from '../utils/notificationCategoryMeta';
@@ -28,6 +31,12 @@ function getPriority(n: Notification): Priority {
   const p = n.priority as Priority;
   if (p === 'HIGH' || p === 'MEDIUM' || p === 'LOW') return p;
   return 'MEDIUM';
+}
+
+// A missed End of Day notice with items still waiting has to be answered, not
+// dismissed (same rule as a pending stock request).
+function hasPendingMissedEod(n: Notification): boolean {
+  return n.missedEod?.items.some((i) => i.status === 'PENDING') ?? false;
 }
 
 const PRIORITY_META: Record<Priority, { label: string; colorVar: string; bgVar: string }> = {
@@ -300,7 +309,7 @@ function NotifRow({ n, assignedStores, selected, onSelect, onMarkRead, onDelete,
             : <Check size={10} />}
         </button>
       )}
-      {n.receiptRequest?.status !== 'PENDING' && (
+      {n.receiptRequest?.status !== 'PENDING' && !hasPendingMissedEod(n) && (
       <button
         type="button"
         className="nfp-row__delete-btn"
@@ -331,13 +340,18 @@ interface ReceiptRequestPanelProps {
 // to tell apart, and carries the Approve / Reject buttons while it is pending.
 function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequestPanelProps) {
   const isOrder = request.kind === 'EXISTING_ORDER';
+  const isLower = request.kind === 'LOWER_COUNT';
+  const atStart = request.snapshot === 'START_OF_DAY';
   const pending = request.status === 'PENDING';
   const rows: [string, string][] = [
     ['Employee', request.requestedByName],
     ['Store', request.storeName],
     ['Item', request.itemName],
-    ['Quantity reported received', `${request.quantity} ${request.unit}`],
+    isLower
+      ? ['Below last End of Day by', `${request.quantity} ${request.unit}`]
+      : [atStart ? 'Quantity reported restocked' : 'Quantity reported received', `${request.quantity} ${request.unit}`],
   ];
+  if (isLower && request.reason) rows.push(['Reason', request.reason]);
   if (isOrder) {
     rows.push(['Order', `Order #${request.orderId}`]);
     if (request.orderedQuantity != null) rows.push(['Quantity ordered', `${request.orderedQuantity} ${request.unit}`]);
@@ -349,12 +363,18 @@ function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequ
   return (
     <section className="nfp-receipt" aria-label="Received stock request">
       <p className="nfp-receipt__kind">
-        {isOrder ? 'Confirm existing order as received' : 'Received stock, not on an existing order'}
+        {isLower
+          ? 'Start of Day lower than the last End of Day'
+          : isOrder
+            ? `Confirm existing order as received${atStart ? ' (Start of Day restock)' : ''}`
+            : `Received stock, not on an existing order${atStart ? ' (Start of Day restock)' : ''}`}
       </p>
       <p className="nfp-receipt__summary">
-        {isOrder
-          ? `${request.requestedByName} is requesting approval to confirm Order #${request.orderId} as received. If approved, the order moves from Ordered to Received and stock is updated.`
-          : `${request.requestedByName} reported receiving stock that is not on an existing order and is requesting approval for the received quantity. If approved, stock is updated.`}
+        {isLower
+          ? `${request.requestedByName} counted lower than the last End of Day and is requesting approval for the lower Start of Day count. If rejected, they are asked to recount.`
+          : isOrder
+            ? `${request.requestedByName} is requesting approval to confirm Order #${request.orderId} as received. If approved, the order moves from Ordered to Received and stock is updated.`
+            : `${request.requestedByName} reported receiving stock that is not on an existing order and is requesting approval for the received quantity. If approved, stock is updated.`}
       </p>
       <dl className="nfp-receipt__details">
         {rows.map(([label, value]) => (
@@ -410,9 +430,11 @@ interface DetailPaneProps {
   onDecideReceipt?: (n: Notification, action: 'approve' | 'reject') => void;
   decidingReceipt?: { id: number; action: 'approve' | 'reject' } | null;
   receiptError?: { id: number; message: string } | null;
+  onAnswerMissedEod?: (n: Notification, answer: MissedEndOfDayAnswer) => Promise<MissedEndOfDayItem>;
+  onMissedEodAnswered?: (n: Notification, item: MissedEndOfDayItem) => void;
 }
 
-function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingId, onDecideReceipt, decidingReceipt, receiptError }: DetailPaneProps) {
+function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingId, onDecideReceipt, decidingReceipt, receiptError, onAnswerMissedEod, onMissedEodAnswered }: DetailPaneProps) {
   if (!n) {
     return (
       <div className="nfp-detail nfp-detail--empty">
@@ -478,6 +500,14 @@ function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingI
         />
       )}
 
+      {n.missedEod && onAnswerMissedEod && (
+        <MissedEndOfDayPanel
+          missedEod={n.missedEod}
+          onAnswer={(answer) => onAnswerMissedEod(n, answer)}
+          onAnswered={(item) => onMissedEodAnswered?.(n, item)}
+        />
+      )}
+
       <div className="nfp-detail__actions">
         {n.linkPath && n.linkPath !== '/notifications' && onNavigate && (
           <button
@@ -488,7 +518,7 @@ function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingI
             Open related page <ArrowUpRight size={14} aria-hidden="true" />
           </button>
         )}
-        {onDelete && n.receiptRequest?.status !== 'PENDING' && (
+        {onDelete && n.receiptRequest?.status !== 'PENDING' && !hasPendingMissedEod(n) && (
           <button
             type="button"
             className="nfp-detail__delete-btn"
@@ -522,9 +552,13 @@ interface NotificationsProps {
   onBackToHome?: () => void;
   // Opens this notification once the list has loaded (clicked in the bell).
   focusNotificationId?: number | null;
+  // Who is answering a "End of Day missing" notice: an employee answers for
+  // the notice's store, an Owner/Admin for their own. Left out for roles that
+  // never receive one.
+  answerAs?: 'EMPLOYEE' | 'OWNER_ADMIN';
 }
 
-function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId, assignedStores, focusNotificationId }: NotificationsProps) {
+function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId, assignedStores, focusNotificationId, answerAs }: NotificationsProps) {
   const isWide = useMediaQuery('(min-width: 900px)');
   const isDesktopPointer = useMediaQuery('(hover: hover) and (pointer: fine)');
 
@@ -630,9 +664,32 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
     }
   }
 
+  function handleAnswerMissedEod(n: Notification, answer: MissedEndOfDayAnswer): Promise<MissedEndOfDayItem> {
+    return answerAs === 'OWNER_ADMIN'
+      ? answerMissedEndOfDayAsOwner(answer)
+      : answerMissedEndOfDay(n.storeId as number, answer);
+  }
+
+  // Swaps the answered row into every notice of that store and day, so the
+  // list and detail pane agree without a refetch.
+  function handleMissedEodAnswered(n: Notification, item: MissedEndOfDayItem) {
+    setItems(prev => prev.map(other =>
+      other.missedEod && other.storeId === n.storeId && other.missedEod.date === n.missedEod?.date
+        ? {
+            ...other,
+            missedEod: {
+              ...other.missedEod,
+              items: other.missedEod.items.map(i => i.storeInventoryItemId === item.storeInventoryItemId ? item : i),
+            },
+          }
+        : other,
+    ));
+  }
+
   async function handleDelete(id: number) {
-    // A pending stock request has to be decided, not dismissed.
-    if (items.find(n => n.id === id)?.receiptRequest?.status === 'PENDING') return;
+    // A pending stock request or missing End of Day has to be answered, not dismissed.
+    const target0 = items.find(n => n.id === id);
+    if (target0?.receiptRequest?.status === 'PENDING' || (target0 && hasPendingMissedEod(target0))) return;
     setDeletingId(id);
     await deleteNotification(id).catch(() => {});
     const target = items.find(n => n.id === id);
@@ -728,6 +785,8 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
             onDecideReceipt={handleDecideReceipt}
             decidingReceipt={decidingReceipt}
             receiptError={receiptError}
+            onAnswerMissedEod={answerAs ? handleAnswerMissedEod : undefined}
+            onMissedEodAnswered={handleMissedEodAnswered}
           />
         </div>
       </div>
@@ -950,6 +1009,8 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
                 onDecideReceipt={handleDecideReceipt}
                 decidingReceipt={decidingReceipt}
                 receiptError={receiptError}
+                onAnswerMissedEod={answerAs ? handleAnswerMissedEod : undefined}
+                onMissedEodAnswered={handleMissedEodAnswered}
               />
             </div>
           )}

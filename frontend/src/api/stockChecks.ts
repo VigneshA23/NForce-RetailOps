@@ -1,4 +1,5 @@
 import { apiRequest } from './client';
+import type { MissedEndOfDayItem } from '../types/notification';
 import type {
   DailyStockCheckItem,
   StockCheckHistoryPage,
@@ -30,6 +31,8 @@ export async function submitStockCheck(
   available: number,
   deadStock: number,
   receivedItems?: { orderEntryId: number | null; quantity: number }[],
+  // Start of Day only: why the count is below the last End of Day.
+  lowerCountReason?: string,
 ): Promise<StockCheckResponse> {
   return apiRequest<StockCheckResponse>('/me/inventory/stock-checks', {
     method: 'POST',
@@ -40,6 +43,7 @@ export async function submitStockCheck(
       available,
       deadStock,
       receivedItems: receivedItems ?? null,
+      lowerCountReason: lowerCountReason ?? null,
     },
   });
 }
@@ -73,5 +77,23 @@ export async function reportAdHocShortage(
   return apiRequest<void>(`/me/inventory/ad-hoc?storeId=${storeId}`, {
     method: 'POST',
     body: { storeInventoryItemId, currentStock, note: note?.trim() || null, orderedAlreadyReceived },
+  });
+}
+
+// Answers yesterday's missing End of Day for one item: the count, or
+// couldNotCount with a reason (at least 15 words). Only the first answer from
+// anyone in the store is accepted.
+export interface MissedEndOfDayAnswer {
+  storeInventoryItemId: number;
+  available?: number;
+  deadStock?: number;
+  couldNotCount?: boolean;
+  reason?: string;
+}
+
+export async function answerMissedEndOfDay(storeId: number, answer: MissedEndOfDayAnswer): Promise<MissedEndOfDayItem> {
+  return apiRequest<MissedEndOfDayItem>('/me/inventory/missed-end-of-day', {
+    method: 'POST',
+    body: { storeId, couldNotCount: false, ...answer },
   });
 }

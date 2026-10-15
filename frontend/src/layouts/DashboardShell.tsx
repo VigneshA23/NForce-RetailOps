@@ -244,6 +244,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
           onUnreadChange={handleNotificationsCountChange}
           onNavigate={handleNotificationNavigate}
           focusNotificationId={focusNotificationId}
+          answerAs="OWNER_ADMIN"
           onBackToHome={() => { setOverlay(null); setActiveTab('home'); }}
         />
       ) : (

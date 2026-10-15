@@ -43,7 +43,9 @@ public record EodSupplierReportResponse(
         Long orderEntryId,
         // The day the order was actually placed -- which can be later than
         // this report's own date (yesterday's shortage ordered today).
-        LocalDate orderedOn
+        LocalDate orderedOn,
+        // Why End of Day has no count (status END_OF_DAY_SKIPPED), else null.
+        String endOfDaySkippedReason
     ) {
     }
 
@@ -56,6 +58,9 @@ public record EodSupplierReportResponse(
     public enum Status {
         START_OF_DAY_PENDING,
         END_OF_DAY_PENDING,
+        // Start of Day only, and the missing End of Day was explained as not
+        // countable (it can no longer be answered).
+        END_OF_DAY_SKIPPED,
         NEEDS_TO_ORDER,
         ORDERED,
         NOT_ORDERED,

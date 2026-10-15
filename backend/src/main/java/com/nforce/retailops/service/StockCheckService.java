@@ -8,6 +8,8 @@ import com.nforce.retailops.dto.InventoryCountRowResponse;
 import com.nforce.retailops.dto.InventoryCountSource;
 import com.nforce.retailops.dto.InventoryCountStatus;
 import com.nforce.retailops.dto.InventoryCountsPageResponse;
+import com.nforce.retailops.dto.MissedEndOfDayAnswerRequest;
+import com.nforce.retailops.dto.MissedEndOfDayResponse;
 import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckEditResponse;
@@ -23,6 +25,8 @@ import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.StockReceiptRequest;
 import com.nforce.retailops.entity.StockReceiptRequestStatus;
+import com.nforce.retailops.entity.StockReceiptRequestType;
+import com.nforce.retailops.entity.StockShortageReport;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
@@ -32,6 +36,7 @@ import com.nforce.retailops.entity.User;
 import com.nforce.retailops.dto.SuperAdminStockCheckHistoryPageResponse;
 import com.nforce.retailops.dto.SuperAdminStockCheckResponse;
 import com.nforce.retailops.exception.InvalidStockCheckException;
+import com.nforce.retailops.exception.MissedEndOfDayPendingException;
 import com.nforce.retailops.exception.StockCheckLockedException;
 import com.nforce.retailops.exception.InventoryItemNotAssignedException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
@@ -40,6 +45,7 @@ import com.nforce.retailops.repository.StockCheckCorrectionRepository;
 import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StockReceiptRequestRepository;
+import com.nforce.retailops.repository.StockShortageReportRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -95,6 +101,9 @@ public class StockCheckService {
 
     static final String NO_SUPPLIER = "No Supplier";
 
+    static final String START_OF_DAY_ORDERED_MESSAGE =
+        "An order has been placed based on the Start of Day count, so it can't be edited today.";
+
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final StockCheckRepository stockCheckRepository;
     private final StockCheckCorrectionRepository stockCheckCorrectionRepository;
@@ -106,6 +115,7 @@ public class StockCheckService {
     private final NotificationService notificationService;
     private final StockCheckReceiptRepository stockCheckReceiptRepository;
     private final StockReceiptRequestRepository stockReceiptRequestRepository;
+    private final StockShortageReportRepository stockShortageReportRepository;
 
     public StockCheckService(
         StoreInventoryItemRepository storeInventoryItemRepository,
@@ -118,7 +128,8 @@ public class StockCheckService {
         UserProfileService userProfileService,
         NotificationService notificationService,
         StockCheckReceiptRepository stockCheckReceiptRepository,
-        StockReceiptRequestRepository stockReceiptRequestRepository
+        StockReceiptRequestRepository stockReceiptRequestRepository,
+        StockShortageReportRepository stockShortageReportRepository
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.stockCheckRepository = stockCheckRepository;
@@ -131,6 +142,7 @@ public class StockCheckService {
         this.notificationService = notificationService;
         this.stockCheckReceiptRepository = stockCheckReceiptRepository;
         this.stockReceiptRequestRepository = stockReceiptRequestRepository;
+        this.stockShortageReportRepository = stockShortageReportRepository;
     }
 
     // ---- Employee: today's checklist --------------------------------------
@@ -141,12 +153,43 @@ public class StockCheckService {
         LocalDate today = LocalDate.now();
         List<StoreInventoryItem> items = storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(storeId);
         Map<Long, StockCheck> todaysChecksByItemId = checksByItemId(storeId, today);
+        java.util.Set<Long> unansweredYesterdayItemIds = stockCheckRepository
+            .findMissedEndOfDay(storeId, today.minusDays(1)).stream()
+            .map(sc -> sc.getStoreInventoryItem().getId())
+            .collect(Collectors.toSet());
+        java.util.Set<Long> orderedTodayItemIds = orderListService.itemIdsOrderedOn(storeId, today);
         Map<Long, List<OrderListEntry>> orderedByItemId = orderListService.orderedEntriesByItem(storeId);
         List<StockReceiptRequest> pendingRequests = stockReceiptRequestRepository
             .findByStoreIdAndCheckDateAndStatus(storeId, today, StockReceiptRequestStatus.PENDING);
-        Map<Long, BigDecimal> pendingByItemId = pendingRequests.stream().collect(Collectors.groupingBy(
+        // Only restock reported with End of Day counts here: a Start of Day restock
+        // already sits inside that count.
+        Map<Long, BigDecimal> pendingByItemId = pendingRequests.stream()
+            .filter(r -> r.getType() == StockReceiptRequestType.RESTOCK && r.getSnapshot() == StockCheckSnapshot.END_OF_DAY)
+            .collect(Collectors.groupingBy(
             r -> r.getStoreInventoryItem().getId(),
             Collectors.reducing(BigDecimal.ZERO, StockReceiptRequest::getQuantity, BigDecimal::add)));
+        Map<Long, StockCheck> previousByItemId = stockCheckRepository.findLatestBeforeForStore(storeId, today).stream()
+            .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), Function.identity(), (a, b) -> a));
+        Map<Long, List<StockCheckReceipt>> unappliedByItemId = stockCheckReceiptRepository.findUnappliedForStore(storeId).stream()
+            .collect(Collectors.groupingBy(r -> r.getStoreInventoryItem().getId()));
+        Map<Long, StockReceiptRequest> startReviewByItemId = new java.util.HashMap<>();
+        Map<Long, BigDecimal> restockCoveredByItemId = new java.util.HashMap<>();
+        Map<Long, BigDecimal> lowerCoveredByItemId = new java.util.HashMap<>();
+        for (StockReceiptRequest r : stockReceiptRequestRepository
+            .findByStoreIdAndCheckDateAndSnapshotOrderByIdAsc(storeId, today, StockCheckSnapshot.START_OF_DAY)) {
+            if (r.getStatus() != StockReceiptRequestStatus.REJECTED) {
+                (r.getType() == StockReceiptRequestType.RESTOCK ? restockCoveredByItemId : lowerCoveredByItemId)
+                    .merge(r.getStoreInventoryItem().getId(), r.getQuantity(),
+                        r.getType() == StockReceiptRequestType.RESTOCK ? BigDecimal::add : BigDecimal::max);
+            }
+            // A pending request wins over anything decided; otherwise the latest
+            // one shows, so a re-save after a rejection reflects its own state.
+            Long itemId = r.getStoreInventoryItem().getId();
+            StockReceiptRequest current = startReviewByItemId.get(itemId);
+            if (current == null || !current.isPending() || r.isPending()) {
+                startReviewByItemId.put(itemId, r);
+            }
+        }
         java.util.Set<Long> orderIdsAwaitingApproval = pendingRequests.stream()
             .filter(r -> r.getOrderListEntry() != null)
             .map(r -> r.getOrderListEntry().getId())
@@ -177,10 +220,52 @@ public class StockCheckService {
                         .map(e -> new DailyStockCheckItemResponse.OpenOrder(
                             e.getId(), e.totalQuantityOrdered(),
                             e.getSupplier() != null ? e.getSupplier().getName() : null, e.getOrderedAt()))
-                        .toList()
+                        .toList(),
+                    previousEndOfDay(
+                        previousByItemId.get(item.getId()), unappliedByItemId.getOrDefault(item.getId(), List.of()),
+                        restockCoveredByItemId.getOrDefault(item.getId(), BigDecimal.ZERO),
+                        lowerCoveredByItemId.getOrDefault(item.getId(), BigDecimal.ZERO)),
+                    startOfDayReview(startReviewByItemId.get(item.getId())),
+                    check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
+                        && orderedTodayItemIds.contains(item.getId()),
+                    unansweredYesterdayItemIds.contains(item.getId())
+                        && (check == null || !check.hasSnapshot(StockCheckSnapshot.START_OF_DAY))
+                        ? new DailyStockCheckItemResponse.MissedEndOfDay(today.minusDays(1))
+                        : null
                 );
             })
             .toList();
+    }
+
+    // Last counted day's End of Day, and what Start of Day should come to: that
+    // End of Day plus deliveries received after it (a delivery received after a
+    // row was first taken is not in that row's counts). Null when the last
+    // counted day has no End of Day to compare against.
+    private static DailyStockCheckItemResponse.PreviousEndOfDay previousEndOfDay(
+        StockCheck previous, List<StockCheckReceipt> unapplied, BigDecimal restockCovered, BigDecimal lowerCovered
+    ) {
+        if (previous == null || !previous.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
+            return null;
+        }
+        BigDecimal usable = previous.usableFor(StockCheckSnapshot.END_OF_DAY);
+        User by = previous.getEndOfDayEnteredBy() != null ? previous.getEndOfDayEnteredBy() : previous.getEndOfDayCheckedBy();
+        OffsetDateTime at = previous.getEndOfDayEnteredAt() != null ? previous.getEndOfDayEnteredAt() : previous.getEndOfDayCheckedAt();
+        return new DailyStockCheckItemResponse.PreviousEndOfDay(
+            previous.getCheckDate(), usable, expectedStart(previous, unapplied),
+            by == null ? null : by.getId(), by == null ? null : by.getFullName(), at, restockCovered, lowerCovered);
+    }
+
+    private static BigDecimal expectedStart(StockCheck previous, List<StockCheckReceipt> unapplied) {
+        return previous.usableFor(StockCheckSnapshot.END_OF_DAY).add(StockCheckReceipt.pendingTotal(unapplied, previous));
+    }
+
+    // Pending or rejected only: an approved request needs no flag on the card.
+    private static DailyStockCheckItemResponse.StartOfDayReview startOfDayReview(StockReceiptRequest request) {
+        if (request == null || request.getStatus() == StockReceiptRequestStatus.APPROVED) {
+            return null;
+        }
+        return new DailyStockCheckItemResponse.StartOfDayReview(
+            request.getType().name(), request.getStatus().name(), request.getQuantity(), request.getReason());
     }
 
     // Full item roster for the employee's "Report Shortage" picker --
@@ -228,6 +313,19 @@ public class StockCheckService {
                 return created;
             });
 
+        // Yesterday's End of Day must be answered (counted or explained) before
+        // today's Start of Day for the item can be taken.
+        if (request.snapshot() == StockCheckSnapshot.START_OF_DAY && !check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)) {
+            stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today.minusDays(1))
+                .filter(y -> y.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
+                    && !y.hasSnapshot(StockCheckSnapshot.END_OF_DAY) && !y.isEndOfDaySkipped())
+                .ifPresent(y -> {
+                    throw new MissedEndOfDayPendingException(
+                        "Yesterday's End of Day count for " + item.getName() + " is missing. "
+                            + "Respond to it from your notifications, then take today's Start of Day.");
+                });
+        }
+
         // First responder owns the snapshot: later employees can't overwrite
         // or edit it. (Owner/Admin corrections go through correctCheck.)
         if (check.hasSnapshot(request.snapshot())) {
@@ -239,6 +337,15 @@ public class StockCheckService {
                     "This check was already submitted by " + firstEnterer.getFullName()
                         + ". Only they can edit it.");
             }
+        }
+
+        // Once the admin has marked the order raised from this Start of Day as
+        // Ordered, today's Start of Day is frozen for everyone (Owner/Admin
+        // corrections still go through correctCheck).
+        if (request.snapshot() == StockCheckSnapshot.START_OF_DAY
+            && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
+            && orderListService.itemIdsOrderedOn(request.storeId(), today).contains(item.getId())) {
+            throw new StockCheckLockedException(START_OF_DAY_ORDERED_MESSAGE);
         }
 
         // Reported stock is only a request here: nothing about quantities or
@@ -275,15 +382,45 @@ public class StockCheckService {
         }
         BigDecimal received = deliveries.stream().map(Delivery::quantity).reduce(BigDecimal.ZERO, BigDecimal::add);
         boolean hasDelivery = !deliveries.isEmpty();
-        if (hasDelivery) {
-            if (request.snapshot() != StockCheckSnapshot.END_OF_DAY) {
-                throw new InvalidStockCheckException("Received stock can only be recorded with the End of Day count");
+
+        // Start of Day is reconciled against the last counted End of Day: it may
+        // match, be higher (stock was restocked: the employee must say so) or be
+        // lower (needs a reason and the admin approving it). Nothing is saved
+        // yet, so a refused count leaves the row untouched.
+        BigDecimal startGap = null;
+        if (request.snapshot() == StockCheckSnapshot.START_OF_DAY) {
+            startGap = startOfDayGap(item, today, request.available().subtract(request.deadStock()));
+            if (hasDelivery && (startGap == null || startGap.signum() <= 0)) {
+                throw new InvalidStockCheckException(
+                    "Start of Day is not higher than the last End of Day, so there is no restock to report");
             }
-            if (!check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)) {
-                throw new InvalidStockCheckException("Submit today's Start of Day stock check before recording received stock");
+        } else if (hasDelivery && !check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)) {
+            throw new InvalidStockCheckException("Submit today's Start of Day stock check before recording received stock");
+        }
+        boolean lowerStart = startGap != null && startGap.signum() < 0;
+        String lowerReason = request.lowerCountReason() == null ? "" : request.lowerCountReason().trim();
+        StockReceiptRequest coveringLower = null;
+        if (lowerStart) {
+            coveringLower = stockReceiptRequestRepository
+                .findFirstByStoreInventoryItemIdAndCheckDateAndTypeAndStatusInOrderByIdDesc(
+                    item.getId(), today, StockReceiptRequestType.LOWER_COUNT,
+                    List.of(StockReceiptRequestStatus.PENDING, StockReceiptRequestStatus.APPROVED))
+                .orElse(null);
+            boolean alreadyCovered = coveringLower != null && coveringLower.getQuantity().compareTo(startGap.negate()) >= 0;
+            if (lowerReason.isEmpty() && !alreadyCovered) {
+                throw new InvalidStockCheckException(
+                    "Start of Day is lower than the last End of Day. Give a reason and request approval from your admin");
             }
         }
 
+        if (startGap != null && startGap.signum() > 0) {
+            BigDecimal covered = stockReceiptRequestRepository.startRestockCoveredFor(item.getId(), today);
+            BigDecimal explainedAtStart = (covered == null ? BigDecimal.ZERO : covered).add(received);
+            if (explainedAtStart.compareTo(startGap) < 0) {
+                throw new InvalidStockCheckException(
+                    "Start of Day is higher than the last End of Day. Enter the stock restocked");
+            }
+        }
         check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null, null, false);
         // A closing count above what the opening count plus deliveries can
         // explain means stock arrived that wasn't recorded. Deliveries still
@@ -297,8 +434,12 @@ public class StockCheckService {
                     "End of Day is higher than Start of Day plus stock received. Enter the stock received today");
             }
         }
+        if (lowerStart && !lowerReason.isEmpty()) {
+            raiseLowerCountRequest(item, today, startGap.negate(), lowerReason, coveringLower, employee);
+        }
         for (Delivery delivery : deliveries) {
             StockReceiptRequest receiptRequest = new StockReceiptRequest();
+            receiptRequest.setSnapshot(request.snapshot());
             receiptRequest.setStore(item.getStore());
             receiptRequest.setStoreInventoryItem(item);
             receiptRequest.setOrderListEntry(delivery.order());
@@ -314,6 +455,44 @@ public class StockCheckService {
         return StockCheckResponse.from(check);
     }
 
+    // Start of Day usable minus what it should be (the last counted day's End of
+    // Day plus deliveries since). Null when there is nothing to compare with.
+    private BigDecimal startOfDayGap(StoreInventoryItem item, LocalDate today, BigDecimal startUsable) {
+        StockCheck previous = stockCheckRepository
+            .findFirstByStoreInventoryItemIdAndCheckDateBeforeOrderByCheckDateDesc(item.getId(), today)
+            .orElse(null);
+        if (previous == null || !previous.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
+            return null;
+        }
+        return startUsable.subtract(expectedStart(previous, stockCheckReceiptRepository.findUnappliedForItem(item.getId())));
+    }
+
+    // One open lower-count request per item and day: a re-save while it is
+    // pending updates it instead of notifying the admin a second time.
+    private void raiseLowerCountRequest(
+        StoreInventoryItem item, LocalDate today, BigDecimal shortfall, String reason, StockReceiptRequest existing, User employee
+    ) {
+        if (existing != null && existing.isPending()) {
+            existing.setQuantity(shortfall);
+            existing.setReason(reason);
+            stockReceiptRequestRepository.save(existing);
+            return;
+        }
+        StockReceiptRequest lower = new StockReceiptRequest();
+        lower.setStore(item.getStore());
+        lower.setStoreInventoryItem(item);
+        lower.setCheckDate(today);
+        lower.setSnapshot(StockCheckSnapshot.START_OF_DAY);
+        lower.setType(StockReceiptRequestType.LOWER_COUNT);
+        lower.setQuantity(shortfall);
+        lower.setReason(reason);
+        lower.setRequestedBy(employee);
+        StockReceiptRequest saved = stockReceiptRequestRepository.save(lower);
+        storeOwnerRepository.findByStoreIdAndActiveTrue(item.getStore().getId())
+            .map(StoreOwner::getOwner)
+            .ifPresent(owner -> notificationService.notifyOwnerOfStockReceiptRequest(saved, owner));
+    }
+
     // The stock side of an approved received-stock request: the delivery goes
     // on the day's received total (the closing count already includes it, so
     // it is not added to the count) and a receipt row records who received it.
@@ -322,8 +501,12 @@ public class StockCheckService {
         StoreInventoryItem item = request.getStoreInventoryItem();
         StockCheck check = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), request.getCheckDate())
             .orElseThrow(() -> new InvalidStockCheckException("The stock check this delivery was reported on no longer exists"));
-        check.recordDelivery(request.getQuantity());
-        check = stockCheckRepository.save(check);
+        // A Start of Day restock is already inside that count, so only an End of
+        // Day one raises the day's received total (usage is Start + received - End).
+        if (request.getSnapshot() == StockCheckSnapshot.END_OF_DAY) {
+            check.recordDelivery(request.getQuantity());
+            check = stockCheckRepository.save(check);
+        }
 
         StockCheckReceipt receipt = new StockCheckReceipt();
         receipt.setStore(item.getStore());
@@ -333,6 +516,68 @@ public class StockCheckService {
         receipt.setCountAfter(check.getCurrentCount());
         receipt.setReceivedByUser(request.getRequestedBy());
         stockCheckReceiptRepository.save(receipt);
+    }
+
+    // ---- Missed End of Day: yesterday's count nobody took ---------------------
+
+    // Minimum length of the "could not count" explanation.
+    static final int MIN_SKIP_REASON_WORDS = 15;
+
+    @Transactional
+    public MissedEndOfDayResponse.Item answerMissedEndOfDayAsEmployee(Long employeeUserId, MissedEndOfDayAnswerRequest request) {
+        if (request.storeId() == null) {
+            throw new InvalidStockCheckException("Store is required");
+        }
+        userProfileService.requireAssignedStore(employeeUserId, request.storeId());
+        return answerMissedEndOfDay(userRepository.getReferenceById(employeeUserId), request.storeId(), request);
+    }
+
+    @Transactional
+    public MissedEndOfDayResponse.Item answerMissedEndOfDayAsOwner(Long ownerId, MissedEndOfDayAnswerRequest request) {
+        Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
+        return answerMissedEndOfDay(userRepository.getReferenceById(ownerId), storeId, request);
+    }
+
+    // Yesterday only, and only the first answer is accepted: either the count
+    // itself (saved as End of Day, entered-by = whoever answers; no order list
+    // change, today's Start of Day settles that) or a recorded reason with End
+    // of Day left empty.
+    private MissedEndOfDayResponse.Item answerMissedEndOfDay(User actor, Long storeId, MissedEndOfDayAnswerRequest request) {
+        LocalDate yesterday = LocalDate.now().minusDays(1);
+        StockCheck check = stockCheckRepository.lockByItemAndDate(request.storeInventoryItemId(), yesterday)
+            .filter(c -> c.getStore().getId().equals(storeId))
+            .orElseThrow(() -> new StoreInventoryItemNotFoundException("Stock check not found"));
+        if (!check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)) {
+            throw new InvalidStockCheckException("There is no Start of Day count for that day to follow up");
+        }
+        MissedEndOfDayResponse.Item existing = MissedEndOfDayResponse.Item.from(check);
+        if (!MissedEndOfDayResponse.PENDING.equals(existing.status())) {
+            throw new StockCheckLockedException(
+                "This End of Day was already answered"
+                    + (existing.answeredByName() != null ? " by " + existing.answeredByName() : "") + ".");
+        }
+
+        if (request.couldNotCount()) {
+            String reason = request.reason() == null ? "" : request.reason().trim();
+            if (reason.isEmpty() || reason.split("\\s+").length < MIN_SKIP_REASON_WORDS) {
+                throw new InvalidStockCheckException(
+                    "Explain why it could not be counted in at least " + MIN_SKIP_REASON_WORDS + " words");
+            }
+            check.skipEndOfDay(reason, actor, OffsetDateTime.now());
+            return MissedEndOfDayResponse.Item.from(stockCheckRepository.save(check));
+        }
+
+        if (request.available() == null || request.deadStock() == null) {
+            throw new InvalidStockCheckException("Enter the available and dead stock, or say it could not be counted");
+        }
+        requireDeadStockWithinAvailable(request.available(), request.deadStock());
+        check = applySnapshot(check, StockCheckSnapshot.END_OF_DAY, request.available(), request.deadStock(), actor, null, null, false);
+        if (check.stockUsed() != null && check.stockUsed().signum() < 0) {
+            throw new InvalidStockCheckException(
+                "End of Day is higher than Start of Day plus stock received that day. "
+                    + "Ask your admin to correct it from Stock Check History");
+        }
+        return MissedEndOfDayResponse.Item.from(check);
     }
 
     // ---- Employee: ad-hoc shortage report ----------------------------------
@@ -369,9 +614,19 @@ public class StockCheckService {
         check.recordMidDayCount(request.currentStock(), employee);
         stockCheckRepository.save(check);
 
+        StockShortageReport report = new StockShortageReport();
+        report.setStore(storeItem.getStore());
+        report.setStoreInventoryItem(storeItem);
+        report.setCheckDate(LocalDate.now());
+        report.setReportedUsable(request.currentStock());
+        report.setReportedBy(employee);
+        report.setNote(request.note());
+        stockShortageReportRepository.save(report);
+
         // The employee no longer types a quantity: what is needed is today's
         // minimum less what is left. upsertReportedShortage then nets off what
         // is already on the order list.
+        boolean outOfStock = request.currentStock().signum() == 0;
         BigDecimal minimum = storeItem.requiredMinimumOn(LocalDate.now());
         BigDecimal required = minimum == null
             ? BigDecimal.ZERO
@@ -380,13 +635,20 @@ public class StockCheckService {
         OrderListEntry raised = orderListService.upsertReportedShortage(
             storeItem.getStore(), storeItem, required,
             request.note(), employee, storeItem.getPreferredSupplier(),
-            Boolean.TRUE.equals(request.orderedAlreadyReceived())
+            Boolean.TRUE.equals(request.orderedAlreadyReceived()),
+            outOfStock
         );
 
         storeOwnerRepository.findByStoreIdAndActiveTrue(storeItem.getStore().getId())
             .map(StoreOwner::getOwner)
-            .ifPresent(owner -> notificationService.notifyOwnerOfReportedShortage(
-                storeItem, employee, request.currentStock(), required, raised != null, request.note(), owner));
+            .ifPresent(owner -> {
+                if (outOfStock) {
+                    notificationService.notifyOwnerOfStockOut(storeItem, employee, "reported", owner);
+                } else {
+                    notificationService.notifyOwnerOfReportedShortage(
+                        storeItem, employee, request.currentStock(), required, raised != null, request.note(), owner);
+                }
+            });
     }
 
     // ---- Owner/Admin: history, correction, EOD report -----------------------
@@ -706,10 +968,13 @@ public class StockCheckService {
             .collect(Collectors.toMap(r -> r.getStoreInventoryItem().getId(), Function.identity(), (a, b) -> a));
         Map<Long, List<StockCheckReceipt>> unappliedByItemId = stockCheckReceiptRepository.findUnappliedForStore(storeId).stream()
             .collect(Collectors.groupingBy(r -> r.getStoreInventoryItem().getId()));
+        Map<Long, StockShortageReport> latestReportByItemId = stockShortageReportRepository.findLatestPerItemForStore(storeId).stream()
+            .collect(Collectors.toMap(r -> r.getStoreInventoryItem().getId(), Function.identity(), (a, b) -> a));
 
         List<InventoryCountRowResponse> allRows = items.stream()
             .map(item -> toCountRow(
                 item, latestByItemId.get(item.getId()), latestReceiptByItemId.get(item.getId()),
+                latestReportByItemId.get(item.getId()),
                 unappliedByItemId.getOrDefault(item.getId(), List.of()), today))
             .toList();
 
@@ -750,7 +1015,7 @@ public class StockCheckService {
     }
 
     private InventoryCountRowResponse toCountRow(
-        StoreInventoryItem item, StockCheck latest, StockCheckReceipt latestReceipt,
+        StoreInventoryItem item, StockCheck latest, StockCheckReceipt latestReceipt, StockShortageReport latestReport,
         List<StockCheckReceipt> unappliedReceipts, LocalDate today
     ) {
         BigDecimal minimum = item.requiredMinimumOn(today);
@@ -802,6 +1067,10 @@ public class StockCheckService {
         if (latestReceipt != null && (lastUpdate == null || latestReceipt.getReceivedAt().isAfter(lastUpdate.at()))) {
             lastUpdate = receiptEvent(latestReceipt);
         }
+        // ...or a mid-day shortage report, which also moves the count.
+        if (latestReport != null && (lastUpdate == null || latestReport.getReportedAt().isAfter(lastUpdate.at()))) {
+            lastUpdate = shortageEvent(latestReport);
+        }
         OffsetDateTime lastUpdatedAt = lastUpdate != null ? lastUpdate.at() : latest.getUpdatedAt();
         String lastUpdatedBy = lastUpdate != null && lastUpdate.by() != null ? lastUpdate.by() : latest.getCheckedBy().getFullName();
         InventoryCountSource lastUpdatedSource = lastUpdate != null ? lastUpdate.source() : InventoryCountSource.valueOf(latestSnapshot.name());
@@ -842,6 +1111,9 @@ public class StockCheckService {
         }
         for (StockCheckReceipt receipt : stockCheckReceiptRepository.findRecentForItem(item.getId(), PageRequest.of(0, MAX_HISTORY_ENTRIES))) {
             events.add(receiptEvent(receipt));
+        }
+        for (StockShortageReport report : stockShortageReportRepository.findRecentForItem(item.getId(), PageRequest.of(0, MAX_HISTORY_ENTRIES))) {
+            events.add(shortageEvent(report));
         }
         events.sort(EVENT_ORDER.reversed());
 
@@ -894,6 +1166,14 @@ public class StockCheckService {
             : check.getUpdatedAt() != null ? check.getUpdatedAt()
             : check.getCheckDate().atStartOfDay(ZoneId.systemDefault()).toOffsetDateTime();
         return new CountEvent(check.getCheckDate(), usable, by == null ? null : by.getFullName(), at, source);
+    }
+
+    // A mid-day shortage report: the usable stock the employee said was left.
+    private static CountEvent shortageEvent(StockShortageReport report) {
+        return new CountEvent(
+            report.getReportedAt().atZoneSameInstant(ZoneId.systemDefault()).toLocalDate(),
+            report.getReportedUsable(), report.getReportedBy().getFullName(), report.getReportedAt(),
+            InventoryCountSource.SHORTAGE_REPORT);
     }
 
     private static CountEvent receiptEvent(StockCheckReceipt receipt) {
@@ -1003,7 +1283,15 @@ public class StockCheckService {
             return;
         }
         BigDecimal shortage = orderQuantity(item.requiredMinimumOn(check.getCheckDate()), check.getCurrentCount());
-        orderListService.reconcileStartOfDayShortage(item.getStore(), item, shortage, raisedBy, item.getPreferredSupplier());
+        // Nothing left at all: flag the order urgent and tell the Owner/Admin.
+        boolean outOfStock = check.getCurrentCount() != null && check.getCurrentCount().signum() == 0;
+        boolean newlyUrgent = orderListService.reconcileStartOfDayShortage(
+            item.getStore(), item, shortage, outOfStock, raisedBy, item.getPreferredSupplier());
+        if (newlyUrgent) {
+            storeOwnerRepository.findByStoreIdAndActiveTrue(item.getStore().getId())
+                .map(StoreOwner::getOwner)
+                .ifPresent(owner -> notificationService.notifyOwnerOfStockOut(item, raisedBy, "start of day", owner));
+        }
     }
 
     static BigDecimal orderQuantity(BigDecimal requiredTomorrow, BigDecimal endUsable) {
@@ -1056,9 +1344,11 @@ public class StockCheckService {
         EodSupplierReportResponse.Status status;
         if (toOrder == null) {
             boolean startCounted = check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY);
-            status = startCounted
-                ? EodSupplierReportResponse.Status.END_OF_DAY_PENDING
-                : EodSupplierReportResponse.Status.START_OF_DAY_PENDING;
+            status = check != null && check.isEndOfDaySkipped()
+                ? EodSupplierReportResponse.Status.END_OF_DAY_SKIPPED
+                : startCounted
+                    ? EodSupplierReportResponse.Status.END_OF_DAY_PENDING
+                    : EodSupplierReportResponse.Status.START_OF_DAY_PENDING;
         } else if (shortOnThisDay) {
             status = orderCounts
                 ? EodSupplierReportResponse.Status.ORDERED
@@ -1087,7 +1377,8 @@ public class StockCheckService {
             status,
             orderedQuantity,
             orderEntryId,
-            orderedOn
+            orderedOn,
+            check != null && check.isEndOfDaySkipped() ? check.getEndOfDaySkippedReason() : null
         );
     }
 }

@@ -17,6 +17,7 @@ import { buildAndDownloadStockCheckHistoryPdf, buildStockCheckHistoryWorkbook } 
 import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import useDismissablePanel from '../hooks/useDismissablePanel';
+import EndOfDaySkippedBadge from './EndOfDaySkippedBadge';
 import './StockCheckHistory.css';
 import './EmployeeStockCheckHistory.css';
 
@@ -33,6 +34,9 @@ type StatusFilter = 'all' | 'shortage' | 'sufficient';
 function QtyNeededBadge({ row }: { row: StockCheckHistoryRowView }) {
   if (row.status === 'shortage') {
     return <span className="badge badge--danger">+{row.deficit} {row.unitOfMeasurement} needed</span>;
+  }
+  if (row.status === 'skipped') {
+    return <EndOfDaySkippedBadge reason={row.endOfDaySkipped?.reason} byName={row.endOfDaySkipped?.byName} />;
   }
   if (row.status === 'pending') {
     return <span className="badge badge--outline">— (Not Counted)</span>;

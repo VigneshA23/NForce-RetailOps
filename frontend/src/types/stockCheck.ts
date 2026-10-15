@@ -58,6 +58,14 @@ export interface StockCheckResponse {
   // Null until End of Day has been counted.
   quantityToOrder: number | null;
   edits: StockCheckEdit[];
+  // Set when End of Day has no count because nobody could count it.
+  endOfDaySkipped?: EndOfDaySkipped | null;
+}
+
+export interface EndOfDaySkipped {
+  reason: string;
+  byName: string | null;
+  at: string | null;
 }
 
 // GET /api/stores/inventory/stock-checks?startDate=&endDate=&page=&size= --
@@ -123,6 +131,35 @@ export interface DailyStockCheckItem {
   pendingReceivedQuantity?: number;
   // Ordered orders the employee can confirm as received.
   openOrders?: OpenOrder[];
+  // The last counted day's End of Day, which Start of Day is reconciled against.
+  previousEndOfDay?: PreviousEndOfDay | null;
+  // Today's Start of Day request that is waiting on, or was turned down by, the admin.
+  startOfDayReview?: StartOfDayReview | null;
+  // The order raised from today's Start of Day has been placed, so it is frozen.
+  startOfDayLocked?: boolean;
+  // Yesterday's End of Day for this item is still unanswered: today's Start of
+  // Day is refused until it is answered from the Notifications page.
+  missedEndOfDay?: { date: string } | null;
+}
+
+// expectedStart = that End of Day plus deliveries since; restockCovered and
+// lowerCovered are what today's pending/approved Start of Day requests explain.
+export interface PreviousEndOfDay {
+  date: string;
+  usable: number;
+  expectedStart: number;
+  submittedById: number | null;
+  submittedByName: string | null;
+  submittedAt: string | null;
+  restockCovered: number;
+  lowerCovered: number;
+}
+
+export interface StartOfDayReview {
+  type: 'RESTOCK' | 'LOWER_COUNT';
+  status: 'PENDING' | 'REJECTED';
+  quantity: number;
+  reason: string | null;
 }
 
 export interface OpenOrder {
@@ -135,6 +172,7 @@ export interface OpenOrder {
 export type EodReportStatus =
   | 'START_OF_DAY_PENDING'
   | 'END_OF_DAY_PENDING'
+  | 'END_OF_DAY_SKIPPED'
   | 'NEEDS_TO_ORDER'
   | 'ORDERED'
   | 'NOT_ORDERED'
@@ -165,6 +203,8 @@ export interface EodReportRow {
   // The day the order was actually placed (YYYY-MM-DD) -- can be later than
   // the report's own date, e.g. yesterday's shortage ordered today.
   orderedOn: string | null;
+  // Why End of Day has no count (status END_OF_DAY_SKIPPED).
+  endOfDaySkippedReason?: string | null;
 }
 
 // GET /api/stores/inventory/eod-report?date= -- grouped by preferred

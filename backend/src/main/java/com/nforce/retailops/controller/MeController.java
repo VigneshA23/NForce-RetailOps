@@ -8,6 +8,8 @@ import com.nforce.retailops.dto.DailyStockCheckItemResponse;
 import com.nforce.retailops.dto.EmployeeSearchResponse;
 import com.nforce.retailops.dto.IssueResponse;
 import com.nforce.retailops.dto.MeResponse;
+import com.nforce.retailops.dto.MissedEndOfDayAnswerRequest;
+import com.nforce.retailops.dto.MissedEndOfDayResponse;
 import com.nforce.retailops.dto.MissedTaskMoveResponse;
 import com.nforce.retailops.dto.MissedTasksPageResponse;
 import com.nforce.retailops.dto.MoveMissedTaskRequest;
@@ -360,6 +362,21 @@ public class MeController {
         }
         AppUserDetails userDetails = (AppUserDetails) principal;
         return ResponseEntity.ok(stockCheckService.submitCheck(userDetails.getUser().getId(), request));
+    }
+
+    // Employee-facing: answer yesterday's missing End of Day for one item,
+    // either with the count or with a reason it could not be counted. Only
+    // the first answer is accepted.
+    @PostMapping("/inventory/missed-end-of-day")
+    public ResponseEntity<MissedEndOfDayResponse.Item> answerMissedEndOfDay(
+        @AuthenticationPrincipal UserDetails principal,
+        @Valid @RequestBody MissedEndOfDayAnswerRequest request
+    ) {
+        if (principal instanceof SuperAdminUserDetails) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        AppUserDetails userDetails = (AppUserDetails) principal;
+        return ResponseEntity.ok(stockCheckService.answerMissedEndOfDayAsEmployee(userDetails.getUser().getId(), request));
     }
 
     // Employee-facing: this employee's own store's stock-check history --
