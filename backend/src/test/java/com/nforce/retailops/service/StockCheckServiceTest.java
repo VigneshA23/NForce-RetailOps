@@ -1425,7 +1425,19 @@ class StockCheckServiceTest {
     void startOfDayMatchingTheLastEndOfDayNeedsNothingElse() {
         yesterdayEndedAt(20);
 
-        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 22, 2));
+        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 20, 0));
+
+        verify(stockReceiptRequestRepository, never()).save(any(StockReceiptRequest.class));
+        verify(stockCheckRepository).save(any(StockCheck.class));
+    }
+
+    // Stock going dead overnight is not stock going missing: the total still
+    // matches the last End of Day, so no reason or approval is needed.
+    @Test
+    void startOfDayWithSameTotalButSomeDeadNeedsNothingElse() {
+        yesterdayEndedAt(20);
+
+        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 20, 10));
 
         verify(stockReceiptRequestRepository, never()).save(any(StockReceiptRequest.class));
         verify(stockCheckRepository).save(any(StockCheck.class));

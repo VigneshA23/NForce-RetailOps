@@ -247,7 +247,9 @@ public class StockCheckService {
         if (previous == null || !previous.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
             return null;
         }
-        BigDecimal usable = previous.usableFor(StockCheckSnapshot.END_OF_DAY);
+        // Total on hand, dead stock included: stock going dead overnight is not
+        // stock going missing, so Start of Day is reconciled against totals.
+        BigDecimal usable = previous.availableFor(StockCheckSnapshot.END_OF_DAY);
         User by = previous.getEndOfDayEnteredBy() != null ? previous.getEndOfDayEnteredBy() : previous.getEndOfDayCheckedBy();
         OffsetDateTime at = previous.getEndOfDayEnteredAt() != null ? previous.getEndOfDayEnteredAt() : previous.getEndOfDayCheckedAt();
         return new DailyStockCheckItemResponse.PreviousEndOfDay(
@@ -256,7 +258,7 @@ public class StockCheckService {
     }
 
     private static BigDecimal expectedStart(StockCheck previous, List<StockCheckReceipt> unapplied) {
-        return previous.usableFor(StockCheckSnapshot.END_OF_DAY).add(StockCheckReceipt.pendingTotal(unapplied, previous));
+        return previous.availableFor(StockCheckSnapshot.END_OF_DAY).add(StockCheckReceipt.pendingTotal(unapplied, previous));
     }
 
     // Pending or rejected only: an approved request needs no flag on the card.
@@ -402,7 +404,7 @@ public class StockCheckService {
         // unconditionally above).
         BigDecimal startGap = null;
         if (request.snapshot() == StockCheckSnapshot.START_OF_DAY) {
-            startGap = startOfDayGap(item, today, request.available().subtract(request.deadStock()));
+            startGap = startOfDayGap(item, today, request.available());
             if (hasDelivery && (startGap == null || startGap.signum() <= 0)) {
                 throw new InvalidStockCheckException(
                     "Start of Day is not higher than the last End of Day, so there is no restock to report");
@@ -466,8 +468,8 @@ public class StockCheckService {
         return StockCheckResponse.from(check);
     }
 
-    // Start of Day usable minus what it should be (the last counted day's End of
-    // Day plus deliveries since). Null when there is nothing to compare with.
+    // Start of Day total (dead stock included) minus what it should be (the last
+    // counted day's End of Day total plus deliveries since). Null when there is nothing to compare with.
     private BigDecimal startOfDayGap(StoreInventoryItem item, LocalDate today, BigDecimal startUsable) {
         StockCheck previous = stockCheckRepository
             .findFirstByStoreInventoryItemIdAndCheckDateBeforeOrderByCheckDateDesc(item.getId(), today)

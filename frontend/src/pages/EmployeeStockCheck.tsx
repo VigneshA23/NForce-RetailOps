@@ -168,7 +168,8 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
     // explain is not asked about again.
     const previous = item.previousEndOfDay;
     if (snapshot === 'START_OF_DAY' && previous != null) {
-      const startUsable = roundQty(available - deadStock);
+      // Totals, dead stock included: stock going dead overnight is not missing.
+      const startUsable = roundQty(available);
       if (startUsable > roundQty(previous.expectedStart + previous.restockCovered)) {
         return new Promise<boolean>((resolve) => {
           setReceivedPrompt({
