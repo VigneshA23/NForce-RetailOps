@@ -39,6 +39,7 @@
    styling (white card, larger padding) otherwise stands out next to the
    other filters here. */
 .filter-bar .select,
+.filter-bar .multi-select__trigger,
 .filter-bar .searchable-select__trigger {
   background: var(--color-bg-page);
   border-radius: 6px;

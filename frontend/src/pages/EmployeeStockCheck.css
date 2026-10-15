@@ -105,8 +105,8 @@
 }
 
 .employee-stock-check-page__search {
-  flex: 1 1 auto;
-  max-width: 420px;
+  flex: 1 1 420px;
+  min-width: 0;
 }
 
 .employee-stock-check-page__formula-hint {
@@ -120,8 +120,8 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-secondary);
-  white-space: normal;
-  max-width: 100%;
+  white-space: nowrap;
+  flex: 0 0 auto;
   box-sizing: border-box;
 }
 
@@ -134,12 +134,17 @@
 }
 
 .employee-stock-check-page__filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-sm);
 }
 
 .employee-stock-check-page__filter-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
   padding: 6px 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-pill);
@@ -148,12 +153,29 @@
   font-weight: 600;
   color: var(--color-text-secondary);
   cursor: pointer;
+  white-space: nowrap;
+}
+
+.employee-stock-check-page__filter-pill--shortage {
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
+}
+
+.employee-stock-check-page__filter-pill--sufficient {
+  background: var(--color-badge-icon-success-bg);
+  color: var(--color-badge-icon-success-fg);
 }
 
 .employee-stock-check-page__filter-pill--active {
-  background: var(--color-badge-solid-bg);
-  color: var(--color-badge-solid-text);
-  border-color: var(--color-badge-solid-bg);
+  outline: 2px solid currentColor;
+  outline-offset: -1px;
+}
+
+@media (--mobile) {
+  .employee-stock-check-page__filter-pill {
+    padding: 7px 4px;
+    font-size: 11px;
+  }
 }
 
 .employee-stock-check-page__list {

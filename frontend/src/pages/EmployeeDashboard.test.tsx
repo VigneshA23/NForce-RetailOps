@@ -49,6 +49,25 @@ beforeEach(() => {
   mockSubmitTaskResponse.mockReset()
 })
 
+describe('EmployeeDashboard filters', () => {
+  it('opens both category and status filter dropdowns', async () => {
+    mockGetDailyChecklist.mockResolvedValue([category([task()])])
+    const user = userEvent.setup()
+    render(<EmployeeDashboard store={STORE} onLogout={vi.fn()} employeeId={7} />)
+
+    await screen.findByText('Sweep the floor')
+    const categoryTrigger = screen.getByRole('button', { name: 'All Categories' })
+    await user.click(categoryTrigger)
+    expect(categoryTrigger).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('checkbox', { name: 'Closing Checks' })).toBeInTheDocument()
+
+    const statusTrigger = screen.getByRole('button', { name: 'All Status' })
+    await user.click(statusTrigger)
+    expect(statusTrigger).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('option', { name: 'Open' })).toBeInTheDocument()
+  })
+})
+
 describe('EmployeeDashboard moved units', () => {
   it('renders a moved unit with its "Due <date>" badge under its category', async () => {
     mockGetDailyChecklist.mockResolvedValue([category([task({ originalDueDate: '2026-05-12' })])])

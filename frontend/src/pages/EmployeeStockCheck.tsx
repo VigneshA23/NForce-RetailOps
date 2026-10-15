@@ -26,7 +26,7 @@ const SNAPSHOT_LABELS: Record<StockCheckSnapshotKey, string> = {
   END_OF_DAY: 'End of Day Stock Check',
 };
 
-type StatusFilter = 'all' | 'shortage' | 'optimal';
+type StatusFilter = 'all' | 'shortage' | 'sufficient';
 type ItemStatus = 'shortage' | 'optimal' | 'pending';
 
 interface StockCheckViewItem extends DailyStockCheckItem {
@@ -258,7 +258,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
   const viewItems = useMemo(() => items.map(toViewItem), [items]);
 
   const shortageCount = useMemo(() => viewItems.filter((i) => i.status === 'shortage').length, [viewItems]);
-  const optimalCount = useMemo(() => viewItems.filter((i) => i.status === 'optimal').length, [viewItems]);
+  const sufficientCount = useMemo(() => viewItems.filter((i) => i.status !== 'shortage').length, [viewItems]);
 
   function isExpanded(item: StockCheckViewItem): boolean {
     return collapsedOverrides[item.storeInventoryItemId] ?? item.status === 'shortage';
@@ -274,7 +274,8 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
   const visibleItems = useMemo(() => {
     const query = search.trim().toLowerCase();
     return viewItems.filter((item) => {
-      if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+      if (statusFilter === 'shortage' && item.status !== 'shortage') return false;
+      if (statusFilter === 'sufficient' && item.status === 'shortage') return false;
       if (query === '') return true;
       return (
         item.itemName.toLowerCase().includes(query) ||
@@ -378,21 +379,23 @@ function EmployeeStockCheck({ store, refreshSignal = 0 }: EmployeeStockCheckProp
               className={`employee-stock-check-page__filter-pill${statusFilter === 'all' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
               onClick={() => setStatusFilter('all')}
             >
-              All Items ({viewItems.length})
+              All Records ({viewItems.length})
             </button>
             <button
               type="button"
-              className={`employee-stock-check-page__filter-pill${statusFilter === 'shortage' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
+              className={`employee-stock-check-page__filter-pill employee-stock-check-page__filter-pill--shortage${statusFilter === 'shortage' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
               onClick={() => setStatusFilter('shortage')}
             >
+              <AlertTriangle size={13} />
               Shortage ({shortageCount})
             </button>
             <button
               type="button"
-              className={`employee-stock-check-page__filter-pill${statusFilter === 'optimal' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
-              onClick={() => setStatusFilter('optimal')}
+              className={`employee-stock-check-page__filter-pill employee-stock-check-page__filter-pill--sufficient${statusFilter === 'sufficient' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
+              onClick={() => setStatusFilter('sufficient')}
             >
-              Optimal ({optimalCount})
+              <CheckCircle2 size={13} />
+              Sufficient ({sufficientCount})
             </button>
           </div>
         </div>

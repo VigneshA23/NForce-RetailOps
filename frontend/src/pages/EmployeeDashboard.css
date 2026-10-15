@@ -196,6 +196,13 @@
   align-items: start;
 }
 
+/* Keep the checklist dropdown popovers above the category cards that follow. */
+.employee-dashboard-body > .filter-bar {
+  position: relative;
+  z-index: 5;
+  overflow: visible;
+}
+
 .checklist-category {
   background: var(--color-surface-card);
   border: 1px solid var(--color-border);
@@ -740,7 +747,7 @@
 
 /* ── Multi-select checkbox dropdown ─────────────────────────────────── */
 
-.multi-select {
+.employee-dashboard .multi-select {
   position: relative;
 }
 
@@ -750,11 +757,11 @@
   justify-content: space-between;
   gap: 8px;
   min-width: 160px;
-  height: 40px;
-  padding: 0 12px;
-  border-radius: var(--radius-sm);
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 6px;
   border: 1px solid var(--color-border);
-  background: var(--color-surface-card);
+  background: var(--color-bg-page);
   color: var(--color-text-primary);
   font-size: 13px;
   font-weight: 500;
@@ -780,7 +787,7 @@
   transform: rotate(180deg);
 }
 
-.multi-select__panel {
+.employee-dashboard .multi-select__panel {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;

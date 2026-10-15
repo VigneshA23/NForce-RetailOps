@@ -55,6 +55,7 @@ interface ChecklistDayHistoryViewProps {
 const TASK_STATUS_META = {
   YES: { label: 'Complete', badgeClass: 'badge--success', icon: CheckCircle2 },
   NO: { label: 'Flagged', badgeClass: 'badge--warning', icon: Flag },
+  IN_PROGRESS: { label: 'In Progress', badgeClass: 'badge--info', icon: Clock },
   NOT_ANSWERED: { label: 'Not answered', badgeClass: 'badge--outline', icon: Clock },
   // Grey, like Not answered -- this task (or its category) has since been
   // deactivated. Its recorded response still shows above the badge.
@@ -164,15 +165,16 @@ function ChecklistDayHistoryView({
     }
   }, [focusTaskId, history])
 
-  let complete = 0, flagged = 0, notAnswered = 0
+  let complete = 0, flagged = 0, inProgress = 0, notAnswered = 0
   if (hasActivity(history)) {
     for (const cat of history.categories) {
       for (const task of cat.tasks) {
         if (task.status === 'YES') complete++
         else if (task.status === 'NO') flagged++
+        else if (task.status === 'IN_PROGRESS') inProgress++
         // Inactive tasks are audit records, not part of today's/this day's
-        // outstanding work -- excluded from all three stat-card tallies.
-        else if (task.status !== 'INACTIVE') notAnswered++
+        // outstanding work, so exclude them from the summary tallies.
+        else if (task.status === 'NOT_ANSWERED') notAnswered++
       }
     }
   }
@@ -239,6 +241,7 @@ function ChecklistDayHistoryView({
       <div className="stat-card-row" style={{ marginBottom: 'var(--space-lg)' }}>
         <StatCard icon={CheckCircle2} label="Tasks Complete" value={complete} tone="success" />
         <StatCard icon={Flag} label="Flagged" value={flagged} tone="warning" />
+        <StatCard icon={Clock} label="In Progress" value={inProgress} tone="info" />
         <StatCard icon={HelpCircle} label="Not Answered" value={notAnswered} tone="primary" />
       </div>
 
@@ -543,6 +546,11 @@ function ChecklistDayHistoryView({
                               <StatusIcon size={14} />
                               {meta.label}
                             </span>
+                            {task.completionType === 'MULTIPLE' && task.status !== 'INACTIVE' && task.completedByCount > 0 && (
+                              <span className="badge badge--outline employee-history-task-response-count">
+                                {task.completedByCount}/{task.totalActiveEmployees} responded
+                              </span>
+                            )}
                             {task.completedVia === 'MOVED' && (
                               <span className="badge badge--info" title="Completed as a moved task, attributed to its original due date">
                                 Moved completion
