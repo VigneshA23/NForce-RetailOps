@@ -349,6 +349,18 @@ public class OrderListService {
             .collect(java.util.stream.Collectors.groupingBy(e -> e.getStoreInventoryItem().getId()));
     }
 
+    // Items whose system-raised (not ad hoc) order was marked Ordered on `date`.
+    // Start of Day is locked for these: the order was placed from that count.
+    @Transactional(readOnly = true)
+    public java.util.Set<Long> itemIdsOrderedOn(Long storeId, LocalDate date) {
+        return orderListEntryRepository
+            .findByStoreIdAndOrderedAtGreaterThanEqualAndOrderedAtLessThan(storeId, rangeStart(date), rangeEndExclusive(date))
+            .stream()
+            .filter(e -> !e.isAdHoc())
+            .map(e -> e.getStoreInventoryItem().getId())
+            .collect(java.util.stream.Collectors.toSet());
+    }
+
     // An Ordered order of this item in this store, or an error; what an employee
     // may name when reporting it received.
     @Transactional(readOnly = true)
@@ -534,10 +546,18 @@ public class OrderListService {
     // update against the winner's row instead of surfacing as a raw 500.
     @Transactional
     public OrderListEntry upsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+        return upsertShortage(store, item, quantityNeeded, note, adHoc, false, raisedBy, defaultSupplier);
+    }
+
+    // urgent: the item is completely out of stock. A system (non-adHoc) upsert
+    // sets the flag to exactly this value, so a fresh count that is no longer
+    // zero clears it; a manual top-up never changes it.
+    @Transactional
+    public OrderListEntry upsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier) {
         try {
-            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, raisedBy, defaultSupplier);
+            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, urgent, raisedBy, defaultSupplier);
         } catch (DataIntegrityViolationException raceLostInsert) {
-            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, raisedBy, defaultSupplier);
+            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, urgent, raisedBy, defaultSupplier);
         }
     }
 
@@ -547,7 +567,7 @@ public class OrderListService {
     // what is already Ordered is netted off and only the remainder is added.
     // Returns null when the existing rows already cover the requirement.
     @Transactional
-    public OrderListEntry upsertReportedShortage(Store store, StoreInventoryItem item, BigDecimal requiredQuantity, String note, User raisedBy, Supplier defaultSupplier, boolean orderedAlreadyReceived) {
+    public OrderListEntry upsertReportedShortage(Store store, StoreInventoryItem item, BigDecimal requiredQuantity, String note, User raisedBy, Supplier defaultSupplier, boolean orderedAlreadyReceived, boolean outOfStock) {
         BigDecimal covered = BigDecimal.ZERO;
         for (OrderListEntry existing : orderListEntryRepository
             .findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(store.getId(), item.getId(), OrderStatus.NEEDS_ORDERING)) {
@@ -560,13 +580,45 @@ public class OrderListService {
             }
         }
         BigDecimal remaining = requiredQuantity.subtract(covered);
+        if (outOfStock) {
+            return raiseOutOfStock(store, item, remaining.max(BigDecimal.ZERO), note, raisedBy, defaultSupplier);
+        }
         if (remaining.signum() <= 0) {
             return null;
         }
         return upsertShortage(store, item, remaining, note, true, raisedBy, defaultSupplier);
     }
 
-    private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, User raisedBy, Supplier defaultSupplier) {
+    // The item is out of stock, so the rest of the requirement goes into the
+    // Needs column itself (not Manual) and the row is flagged urgent. Works on
+    // the row still waiting to be ordered; a new system row only when none is.
+    private OrderListEntry raiseOutOfStock(Store store, StoreInventoryItem item, BigDecimal remaining, String note, User raisedBy, Supplier defaultSupplier) {
+        OrderListEntry entry = orderListEntryRepository
+            .findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(store.getId(), item.getId(), OrderStatus.NEEDS_ORDERING)
+            .stream().findFirst().orElse(null);
+        if (entry == null) {
+            if (remaining.signum() <= 0) {
+                return null;
+            }
+            entry = new OrderListEntry();
+            entry.setStore(store);
+            entry.setStoreInventoryItem(item);
+            entry.setSupplier(defaultSupplier);
+            entry.setStatus(OrderStatus.NEEDS_ORDERING);
+            entry.setAdHoc(false);
+        }
+        entry.setQuantityNeeded(entry.getQuantityNeeded().add(remaining));
+        entry.setUrgent(true);
+        if (note != null) {
+            entry.setNote(note);
+        }
+        if (entry.getRaisedBy() == null) {
+            entry.setRaisedBy(raisedBy);
+        }
+        return orderListEntryRepository.save(entry);
+    }
+
+    private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier) {
         // A manual add tops up the Manual column of the item's row that is
         // still waiting to be ordered; only when every active row is already
         // Ordered (or there is none) does it become a row of its own.
@@ -605,6 +657,7 @@ public class OrderListService {
             entry.setManualAddition(entry.getManualAddition().add(quantityNeeded));
         } else {
             entry.setQuantityNeeded(quantityNeeded);
+            entry.setUrgent(urgent);
         }
         if (note != null) {
             entry.setNote(note);
@@ -631,12 +684,16 @@ public class OrderListService {
     //    and only a remaining shortfall becomes a separate Needs Ordering row.
     // Re-saving SOD re-runs this and lands on the same result.
     @Transactional
-    public void reconcileStartOfDayShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, User raisedBy, Supplier defaultSupplier) {
+    // outOfStock flags the row urgent; returns true only when that flag was
+    // newly raised, so re-saving the same zero count doesn't re-notify.
+    public boolean reconcileStartOfDayShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, boolean outOfStock, User raisedBy, Supplier defaultSupplier) {
         if (quantityNeeded.signum() <= 0) {
             resolveShortageIfPresent(store, item);
-            return;
+            return false;
         }
-        upsertShortage(store, item, quantityNeeded, null, false, raisedBy, defaultSupplier);
+        boolean wasUrgent = openSystemEntry(store, item).map(OrderListEntry::isUrgent).orElse(false);
+        OrderListEntry entry = upsertShortage(store, item, quantityNeeded, null, false, outOfStock, raisedBy, defaultSupplier);
+        return outOfStock && entry != null && !wasUrgent;
     }
 
     // Called whenever a fresh count shows the item back at or above its

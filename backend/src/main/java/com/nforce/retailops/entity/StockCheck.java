@@ -93,6 +93,18 @@ public class StockCheck {
     @Column(name = "end_of_day_checked_at")
     private OffsetDateTime endOfDayCheckedAt;
 
+    // Set instead of an End of Day count when nobody could count it (see
+    // skipEndOfDay). End of Day itself stays null.
+    @Column(name = "end_of_day_skipped_reason", columnDefinition = "TEXT")
+    private String endOfDaySkippedReason;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "end_of_day_skipped_by")
+    private User endOfDaySkippedBy;
+
+    @Column(name = "end_of_day_skipped_at")
+    private OffsetDateTime endOfDaySkippedAt;
+
     // The next day's minimum, persisted when EOD is saved so a past report
     // stays accurate even if the item's thresholds change later.
     @Column(name = "required_tomorrow")
@@ -286,12 +298,32 @@ public class StockCheck {
                 endOfDayCheckedBy = by;
             }
             endOfDayCheckedAt = at;
+            // A real count replaces any earlier "could not count".
+            endOfDaySkippedReason = null;
+            endOfDaySkippedBy = null;
+            endOfDaySkippedAt = null;
         }
         if (by != null) {
             checkedBy = by;
         }
         refreshCurrentCount();
     }
+
+    // End of Day was not counted and the reason was recorded instead. Only
+    // valid while End of Day is still empty.
+    public void skipEndOfDay(String reason, User by, OffsetDateTime at) {
+        endOfDaySkippedReason = reason;
+        endOfDaySkippedBy = by;
+        endOfDaySkippedAt = at;
+    }
+
+    public boolean isEndOfDaySkipped() {
+        return endOfDaySkippedAt != null;
+    }
+
+    public String getEndOfDaySkippedReason() { return endOfDaySkippedReason; }
+    public User getEndOfDaySkippedBy() { return endOfDaySkippedBy; }
+    public OffsetDateTime getEndOfDaySkippedAt() { return endOfDaySkippedAt; }
 
     public Long getId() {
         return id;

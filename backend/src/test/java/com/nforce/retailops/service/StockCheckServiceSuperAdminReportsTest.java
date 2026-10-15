@@ -59,6 +59,7 @@ class StockCheckServiceSuperAdminReportsTest {
     @Mock private StockCheckRepository stockCheckRepository;
     @Mock private StockCheckCorrectionRepository stockCheckCorrectionRepository;
     @Mock private StockCheckReceiptRepository stockCheckReceiptRepository;
+    @Mock private com.nforce.retailops.repository.StockShortageReportRepository stockShortageReportRepository;
     @Mock private UserRepository userRepository;
     @Mock private StoreOwnerRepository storeOwnerRepository;
     @Mock private StoreRepository storeRepository;

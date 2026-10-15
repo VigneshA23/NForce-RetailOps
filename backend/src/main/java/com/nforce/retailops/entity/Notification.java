@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
 @Entity
@@ -67,6 +68,11 @@ public class Notification {
     @JoinColumn(name = "stock_receipt_request_id")
     private StockReceiptRequest stockReceiptRequest;
 
+    // Set on MISSED_END_OF_DAY notices: the business day whose End of Day counts
+    // are missing. The items are looked up live for (store, this date).
+    @Column(name = "missed_eod_date")
+    private LocalDate missedEodDate;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -112,6 +118,9 @@ public class Notification {
 
     public String getDedupKey() { return dedupKey; }
     public void setDedupKey(String dedupKey) { this.dedupKey = dedupKey; }
+
+    public LocalDate getMissedEodDate() { return missedEodDate; }
+    public void setMissedEodDate(LocalDate missedEodDate) { this.missedEodDate = missedEodDate; }
 
     public OffsetDateTime getCreatedAt() { return createdAt; }
 }

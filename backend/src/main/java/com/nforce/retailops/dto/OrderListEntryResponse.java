@@ -28,7 +28,8 @@ public record OrderListEntryResponse(
     OffsetDateTime receivedAt,
     // Only set on the response to the Ordered -> Received change itself;
     // null on every list read.
-    ReceiptOutcome receipt
+    ReceiptOutcome receipt,
+    boolean urgent
 ) {
     // What marking an order received did to the store's stock. stockUpdated is
     // false when there was no stock count for today to add the delivery to
@@ -66,7 +67,8 @@ public record OrderListEntryResponse(
             entry.getStoreInventoryItem().getImageId(),
             entry.getQuantityReceived(),
             entry.getReceivedAt(),
-            receipt
+            receipt,
+            entry.isUrgent()
         );
     }
 }

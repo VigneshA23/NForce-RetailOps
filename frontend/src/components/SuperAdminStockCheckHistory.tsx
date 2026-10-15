@@ -25,6 +25,7 @@ import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import { getInitials } from '../utils/initials';
+import EndOfDaySkippedBadge from './EndOfDaySkippedBadge';
 import './StockCheckHistory.css';
 
 const PAGE_SIZE = 10;
@@ -80,6 +81,9 @@ function matchesFilters(
 function QtyNeededBadge({ row }: { row: SuperAdminStockCheckHistoryRowView }) {
   if (row.status === 'shortage') {
     return <span className="badge badge--danger">+{row.deficit} {row.unitOfMeasurement} needed</span>;
+  }
+  if (row.status === 'skipped') {
+    return <EndOfDaySkippedBadge reason={row.endOfDaySkipped?.reason} byName={row.endOfDaySkipped?.byName} />;
   }
   if (row.status === 'pending') {
     return <span className="badge badge--outline">— (Not Counted)</span>;

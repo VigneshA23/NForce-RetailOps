@@ -40,6 +40,19 @@ public class StockReceiptRequest {
     @Column(nullable = false, length = 20)
     private StockReceiptRequestStatus status = StockReceiptRequestStatus.PENDING;
 
+    // Which count the request was raised with. A Start of Day restock is already
+    // inside that count, so approving it must not add to the day's received total.
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private StockCheckSnapshot snapshot = StockCheckSnapshot.END_OF_DAY;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "request_type", nullable = false, length = 20)
+    private StockReceiptRequestType type = StockReceiptRequestType.RESTOCK;
+
+    // LOWER_COUNT only: the employee's reason for a count below yesterday's.
+    private String reason;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requested_by_user_id", nullable = false)
     private User requestedBy;
@@ -79,6 +92,15 @@ public class StockReceiptRequest {
 
     public BigDecimal getQuantity() { return quantity; }
     public void setQuantity(BigDecimal quantity) { this.quantity = quantity; }
+
+    public StockCheckSnapshot getSnapshot() { return snapshot; }
+    public void setSnapshot(StockCheckSnapshot snapshot) { this.snapshot = snapshot; }
+
+    public StockReceiptRequestType getType() { return type; }
+    public void setType(StockReceiptRequestType type) { this.type = type; }
+
+    public String getReason() { return reason; }
+    public void setReason(String reason) { this.reason = reason; }
 
     public StockReceiptRequestStatus getStatus() { return status; }
     public void setStatus(StockReceiptRequestStatus status) { this.status = status; }

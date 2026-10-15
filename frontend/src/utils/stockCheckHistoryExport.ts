@@ -73,6 +73,7 @@ function countEnteredLabel(row: StockCheckHistoryRowView): string {
 // on-screen badge never shows), or the export disagrees with what's on screen.
 function qtyNeededLabel(row: StockCheckHistoryRowView): string {
   if (row.status === 'shortage') return `+${row.deficit} ${row.unitOfMeasurement} needed`;
+  if (row.status === 'skipped') return `— (EOD Not Counted: ${row.endOfDaySkipped?.reason ?? 'no reason recorded'})`;
   if (row.status === 'pending') return '— (Not Counted)';
   return 'Sufficient';
 }
@@ -80,7 +81,7 @@ function qtyNeededLabel(row: StockCheckHistoryRowView): string {
 function applyStatusStyle(cell: ExcelJS.Cell, status: StockCheckHistoryRowView['status']): void {
   const [textColor, bgColor] = status === 'optimal'
     ? [COLOR_GREEN_TEXT, COLOR_GREEN_BG]
-    : status === 'pending'
+    : status === 'pending' || status === 'skipped'
       ? [COLOR_GRAY_TEXT, COLOR_GRAY_BG]
       : [COLOR_RED_TEXT, COLOR_RED_BG];
   cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: textColor } };
@@ -262,7 +263,7 @@ export async function buildAndDownloadStockCheckHistoryPdf(
     didParseCell: (data) => {
       if (data.section !== 'body' || data.column.index !== statusColumnIndex) return;
       const status = rowStatuses[data.row.index];
-      data.cell.styles.textColor = status === 'optimal' ? PDF_GREEN : status === 'pending' ? PDF_GRAY : PDF_RED;
+      data.cell.styles.textColor = status === 'optimal' ? PDF_GREEN : status === 'pending' || status === 'skipped' ? PDF_GRAY : PDF_RED;
       data.cell.styles.fontStyle = 'bold';
     },
   });

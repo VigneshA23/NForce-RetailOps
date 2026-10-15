@@ -132,6 +132,12 @@ public class GlobalExceptionHandler {
     }
 
     // A snapshot is owned by whoever entered it first; anyone else is refused.
+    // Today's Start of Day waits on yesterday's missing End of Day.
+    @ExceptionHandler(MissedEndOfDayPendingException.class)
+    public ResponseEntity<Map<String, String>> handleMissedEndOfDayPending(MissedEndOfDayPendingException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(StockCheckLockedException.class)
     public ResponseEntity<Map<String, String>> handleStockCheckLocked(StockCheckLockedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));

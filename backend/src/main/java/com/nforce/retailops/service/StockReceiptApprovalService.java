@@ -3,6 +3,7 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.StockReceiptRequestResponse;
 import com.nforce.retailops.entity.StockReceiptRequest;
 import com.nforce.retailops.entity.StockReceiptRequestStatus;
+import com.nforce.retailops.entity.StockReceiptRequestType;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.StockReceiptRequestAlreadyDecidedException;
@@ -50,11 +51,15 @@ public class StockReceiptApprovalService {
     @Transactional
     public StockReceiptRequestResponse approve(Long ownerId, Long requestId) {
         StockReceiptRequest request = requirePendingRequest(ownerId, requestId);
-        if (request.getOrderListEntry() != null) {
-            User owner = userRepository.getReferenceById(ownerId);
-            orderListService.confirmReceivedByApproval(request.getOrderListEntry(), request.getQuantity(), owner.getFullName());
+        // A lower Start of Day count has no delivery behind it: approving just
+        // accepts the count.
+        if (request.getType() == StockReceiptRequestType.RESTOCK) {
+            if (request.getOrderListEntry() != null) {
+                User owner = userRepository.getReferenceById(ownerId);
+                orderListService.confirmReceivedByApproval(request.getOrderListEntry(), request.getQuantity(), owner.getFullName());
+            }
+            stockCheckService.applyApprovedDelivery(request);
         }
-        stockCheckService.applyApprovedDelivery(request);
         decide(request, StockReceiptRequestStatus.APPROVED, ownerId);
         notificationService.notifyEmployeeOfStockReceiptDecision(request, true);
         return StockReceiptRequestResponse.from(request);

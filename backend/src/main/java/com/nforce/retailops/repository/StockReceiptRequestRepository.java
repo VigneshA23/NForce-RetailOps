@@ -18,9 +18,29 @@ public interface StockReceiptRequestRepository extends JpaRepository<StockReceip
     // End of Day usage check can count what is already waiting on approval.
     List<StockReceiptRequest> findByStoreIdAndCheckDateAndStatus(Long storeId, LocalDate checkDate, StockReceiptRequestStatus status);
 
+    // Restock reported with End of Day and still pending. Start of Day restocks
+    // are separate: they sit inside the Start of Day count itself.
     @Query("select coalesce(sum(r.quantity), 0) from StockReceiptRequest r "
-        + "where r.storeInventoryItem.id = :itemId and r.checkDate = :date and r.status = 'PENDING'")
+        + "where r.storeInventoryItem.id = :itemId and r.checkDate = :date and r.status = 'PENDING' "
+        + "and r.type = 'RESTOCK' and r.snapshot = 'END_OF_DAY'")
     java.math.BigDecimal pendingQuantityFor(@Param("itemId") Long itemId, @Param("date") LocalDate date);
+
+    // Restock reported with Start of Day that is pending or already approved,
+    // i.e. what explains a Start of Day above yesterday's End of Day.
+    @Query("select coalesce(sum(r.quantity), 0) from StockReceiptRequest r "
+        + "where r.storeInventoryItem.id = :itemId and r.checkDate = :date "
+        + "and r.status in ('PENDING', 'APPROVED') and r.type = 'RESTOCK' and r.snapshot = 'START_OF_DAY'")
+    java.math.BigDecimal startRestockCoveredFor(@Param("itemId") Long itemId, @Param("date") LocalDate date);
+
+    // The latest Start of Day lower-count request for the item that day.
+    Optional<StockReceiptRequest> findFirstByStoreInventoryItemIdAndCheckDateAndTypeAndStatusInOrderByIdDesc(
+        Long itemId, LocalDate checkDate, com.nforce.retailops.entity.StockReceiptRequestType type,
+        java.util.Collection<StockReceiptRequestStatus> statuses);
+
+    // Every Start of Day request for a store's day, so the employee screen can
+    // show which items are waiting on, or were turned down by, the admin.
+    List<StockReceiptRequest> findByStoreIdAndCheckDateAndSnapshotOrderByIdAsc(
+        Long storeId, LocalDate checkDate, com.nforce.retailops.entity.StockCheckSnapshot snapshot);
 
     boolean existsByOrderListEntryIdAndStatus(Long orderListEntryId, StockReceiptRequestStatus status);
 }

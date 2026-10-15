@@ -16,12 +16,14 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { formatDateLabel, formatDateNavLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
 import { buildEodReportText, usableStock } from '../utils/orderListExport';
 import { nfToast } from '../utils/toast';
+import EndOfDaySkippedBadge from './EndOfDaySkippedBadge';
 import '../pages/OrderList.css';
 import './EodSupplierReport.css';
 
 const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
   START_OF_DAY_PENDING: { label: 'Not Updated Today', tone: 'outline' },
   END_OF_DAY_PENDING: { label: 'EOD Pending', tone: 'warning' },
+  END_OF_DAY_SKIPPED: { label: 'EOD Not Counted', tone: 'outline' },
   NEEDS_TO_ORDER: { label: 'Needs to Order', tone: 'danger' },
   ORDERED: { label: 'Ordered', tone: 'purple' },
   NOT_ORDERED: { label: 'Not Ordered', tone: 'outline' },
@@ -281,7 +283,9 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
         />
       );
     }
-    const badge = <span className={`badge badge--${row.statusTone}`}>{row.statusLabel}</span>;
+    const badge = row.item.status === 'END_OF_DAY_SKIPPED'
+      ? <EndOfDaySkippedBadge reason={row.item.endOfDaySkippedReason} className={`badge badge--${row.statusTone}`} />
+      : <span className={`badge badge--${row.statusTone}`}>{row.statusLabel}</span>;
     // The order date can differ from the report's own date (yesterday's
     // shortage ordered today), so it's always spelled out.
     if (row.item.status === 'ORDERED' && row.item.orderedOn) {

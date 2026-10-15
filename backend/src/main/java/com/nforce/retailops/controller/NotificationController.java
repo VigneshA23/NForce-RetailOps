@@ -3,7 +3,10 @@ package com.nforce.retailops.controller;
 import com.nforce.retailops.dto.NotificationResponse;
 import com.nforce.retailops.security.AppUserDetails;
 import com.nforce.retailops.security.SuperAdminUserDetails;
+import com.nforce.retailops.service.MissedEndOfDayService;
 import com.nforce.retailops.service.NotificationService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -23,10 +26,24 @@ import java.util.Map;
 @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'EMPLOYEE', 'SUPER_ADMIN')")
 public class NotificationController {
 
-    private final NotificationService notificationService;
+    private static final Logger log = LoggerFactory.getLogger(NotificationController.class);
 
-    public NotificationController(NotificationService notificationService) {
+    private final NotificationService notificationService;
+    private final MissedEndOfDayService missedEndOfDayService;
+
+    public NotificationController(NotificationService notificationService, MissedEndOfDayService missedEndOfDayService) {
         this.notificationService = notificationService;
+        this.missedEndOfDayService = missedEndOfDayService;
+    }
+
+    // First load of the day raises the "End of Day missing" notice; it must
+    // never stop notifications from loading.
+    private void raiseMissedEndOfDayNotices(Long userId) {
+        try {
+            missedEndOfDayService.ensureNoticesFor(userId);
+        } catch (RuntimeException ex) {
+            log.warn("Could not raise missed End of Day notices for user {}", userId, ex);
+        }
     }
 
     @GetMapping
@@ -38,6 +55,7 @@ public class NotificationController {
             return ResponseEntity.ok(notificationService.listForSuperAdmin(sa.getSuperAdmin().getId(), page, size));
         }
         AppUserDetails principal = (AppUserDetails) auth.getPrincipal();
+        raiseMissedEndOfDayNotices(principal.getUser().getId());
         return ResponseEntity.ok(notificationService.list(principal.getUser().getId(), page, size));
     }
 
@@ -47,6 +65,7 @@ public class NotificationController {
             return ResponseEntity.ok(notificationService.unreadCountForSuperAdmin(sa.getSuperAdmin().getId()));
         }
         AppUserDetails principal = (AppUserDetails) auth.getPrincipal();
+        raiseMissedEndOfDayNotices(principal.getUser().getId());
         return ResponseEntity.ok(notificationService.unreadCount(principal.getUser().getId()));
     }
 

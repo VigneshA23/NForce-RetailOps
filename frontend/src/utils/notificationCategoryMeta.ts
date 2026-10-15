@@ -79,6 +79,7 @@ export const CATEGORY_META: Record<string, CategoryMeta> = {
   STOCK_RECEIPT_REQUEST: { icon: PackageCheck, ...WARNING, displayCategory: 'Stock & Orders' },
   STOCK_RECEIPT_APPROVED: { icon: PackageCheck, ...SUCCESS, displayCategory: 'Stock & Orders' },
   STOCK_RECEIPT_REJECTED: { icon: PackageX, ...WARNING, displayCategory: 'Stock & Orders' },
+  MISSED_END_OF_DAY: { icon: AlarmClock, ...WARNING, displayCategory: 'Stock & Orders' },
 
   STORE_ZERO_ACTIVITY: { icon: TriangleAlert, ...WARNING, displayCategory: 'Platform Alerts' },
   ISSUES_OVERDUE: { icon: AlarmClock, ...WARNING, displayCategory: 'Platform Alerts' },

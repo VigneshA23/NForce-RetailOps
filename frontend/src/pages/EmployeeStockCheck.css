@@ -447,3 +447,38 @@
     position: static;
   }
 }
+
+.employee-stock-check-page__eod-note {
+  margin: 0 0 var(--space-3, 12px);
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--color-surface-muted, rgba(0, 0, 0, 0.04));
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.employee-stock-check-page__review {
+  margin: 0 0 var(--space-3, 12px);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+.employee-stock-check-page__review--pending {
+  background: var(--color-badge-warning-bg, #fff4d6);
+  color: var(--color-badge-warning-fg, #8a5a00);
+}
+
+.employee-stock-check-page__review--locked {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 0;
+  background: var(--color-badge-warning-bg, #fff4d6);
+  color: var(--color-badge-warning-fg, #8a5a00);
+}
+
+.employee-stock-check-page__review--rejected {
+  background: var(--color-badge-danger-bg, #fde8ea);
+  color: var(--color-badge-danger-fg, #b3162a);
+}
