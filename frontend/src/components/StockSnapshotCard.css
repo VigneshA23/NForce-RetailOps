@@ -53,6 +53,10 @@
   gap: var(--space-sm);
 }
 
+.stock-snapshot-card__fields-wrap {
+  position: relative;
+}
+
 .stock-snapshot-card__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -60,6 +64,15 @@
   padding: var(--space-sm);
   background: var(--color-bg-page);
   border-radius: var(--radius-sm);
+}
+
+.stock-snapshot-card__fields-overlay {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  cursor: not-allowed;
 }
 
 .stock-snapshot-card__field {

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import type { StockSnapshot } from '../types/stockCheck';
 import { formatTimeLabel } from '../utils/checklistHistoryOptions';
 import { parseQty, qtyRuleHint } from '../utils/quantity';
+import { nfToast } from '../utils/toast';
 import ButtonDots from './ButtonDots';
 import CounterStepper from './CounterStepper';
 import './StockSnapshotCard.css';
@@ -26,6 +27,10 @@ interface StockSnapshotCardProps {
   canEdit?: boolean;
   // The item's unit -- countable units (Nos., box, bottle...) take whole numbers.
   unit?: string;
+  // Set to lock the whole card and show this message instead of the Save
+  // controls -- e.g. End of Day before today's Start of Day exists. Distinct
+  // from canEdit=false (an ownership lock), which keeps its own message.
+  disabledReason?: string;
 }
 
 // One Start of Day or End of Day count for one item. The count stays
@@ -33,12 +38,13 @@ interface StockSnapshotCardProps {
 // one), so the fields are always shown rather than toggling to a read-only
 // view -- the "Editable Count" / "In Progress" badge is the only thing that
 // changes once it's been saved.
-function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, onSave, footer, savedLabel = 'Editable Count', canEdit = true, unit }: StockSnapshotCardProps) {
+function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, onSave, footer, savedLabel = 'Editable Count', canEdit = true, unit, disabledReason }: StockSnapshotCardProps) {
   const [available, setAvailable] = useState(() => (snapshot ? String(snapshot.available) : ''));
   const [deadStock, setDeadStock] = useState(() => (snapshot ? String(snapshot.deadStock) : '0'));
   const [error, setError] = useState<string | null>(null);
 
   const isSaved = snapshot != null;
+  const isEditable = canEdit && !disabledReason;
 
   // Re-sync the fields when the saved snapshot changes under us (our own
   // save completing, or a reload), without clobbering a brand-new item that
@@ -52,7 +58,7 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!canEdit) return;
+    if (!isEditable) return;
     const availableValue = parseQty(available, unit);
     const deadValue = parseQty(deadStock, unit);
     if (availableValue === null) {
@@ -104,37 +110,52 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
       )}
 
       <form className="stock-snapshot-card__form" onSubmit={handleSubmit} noValidate>
-        <div className="stock-snapshot-card__fields">
-          <div className="stock-snapshot-card__field">
-            <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-available`}>Total Stock</label>
-            <CounterStepper
-              id={`${idPrefix}-available`}
-              value={available}
-              unit={unit}
-              disabled={isSubmitting || !canEdit}
-              onChange={setAvailable}
-            />
+        <div className="stock-snapshot-card__fields-wrap">
+          <div className="stock-snapshot-card__fields">
+            <div className="stock-snapshot-card__field">
+              <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-available`}>Total Stock</label>
+              <CounterStepper
+                id={`${idPrefix}-available`}
+                value={available}
+                unit={unit}
+                disabled={isSubmitting || !isEditable}
+                onChange={setAvailable}
+              />
+            </div>
+            <div className="stock-snapshot-card__field">
+              <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-dead`}>Dead / Spoilage</label>
+              <CounterStepper
+                id={`${idPrefix}-dead`}
+                value={deadStock}
+                unit={unit}
+                disabled={isSubmitting || !isEditable}
+                onChange={setDeadStock}
+              />
+            </div>
           </div>
-          <div className="stock-snapshot-card__field">
-            <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-dead`}>Dead / Spoilage</label>
-            <CounterStepper
-              id={`${idPrefix}-dead`}
-              value={deadStock}
-              unit={unit}
-              disabled={isSubmitting || !canEdit}
-              onChange={setDeadStock}
+          {/* Disabled inputs don't fire click events, so without this an
+              employee tapping a greyed-out End of Day field gets no feedback
+              at all. This overlay catches the tap and surfaces why. */}
+          {disabledReason && (
+            <button
+              type="button"
+              className="stock-snapshot-card__fields-overlay"
+              aria-label={disabledReason}
+              onClick={() => nfToast.error(disabledReason)}
             />
-          </div>
+          )}
         </div>
         {error && <p className="stock-snapshot-card__error" role="alert">{error}</p>}
         <div className="stock-snapshot-card__actions">
           <span className="stock-snapshot-card__footer-text">{footer}</span>
-          {canEdit ? (
+          {isEditable ? (
             <button type="submit" className={`btn ${isSaved ? 'btn--secondary' : 'btn--danger'}`} disabled={isSubmitting}>
               {isSubmitting ? <ButtonDots /> : isSaved ? 'Update Count' : 'Save Check'}
             </button>
           ) : (
-            <span className="stock-snapshot-card__footer-text">Only {snapshot?.enteredByName ?? 'the first responder'} can edit this count</span>
+            <span className="stock-snapshot-card__footer-text">
+              {disabledReason ?? `Only ${snapshot?.enteredByName ?? 'the first responder'} can edit this count`}
+            </span>
           )}
         </div>
       </form>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import EmployeeStockCheck from './EmployeeStockCheck';
@@ -85,6 +85,25 @@ describe('EmployeeStockCheck item card expand/collapse', () => {
     // Click empty space on the header (the target text) to collapse again.
     await user.click(screen.getByText(/Today's target/));
     await waitFor(() => expect(screen.queryByText('Shift Stock Reconciliations')).not.toBeInTheDocument());
+  });
+});
+
+describe('EmployeeStockCheck End of Day gating', () => {
+  it('disables End of Day until Start of Day has been saved for that item', async () => {
+    const user = userEvent.setup();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([item]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await user.click(await screen.findByText('Milk'));
+    await screen.findByText('Shift Stock Reconciliations');
+
+    const eodCard = screen.getByRole('region', { name: 'End of Day Stock Check' });
+    expect(within(eodCard).getByText('Submit the Start of Day count first')).toBeInTheDocument();
+    expect(within(eodCard).queryByRole('button', { name: 'Save Check' })).not.toBeInTheDocument();
+
+    const sodCard = screen.getByRole('region', { name: 'Start of Day Stock Check' });
+    expect(within(sodCard).getByRole('button', { name: 'Save Check' })).toBeEnabled();
   });
 });
 

@@ -3,6 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import StockSnapshotCard from './StockSnapshotCard';
 import type { StockSnapshot } from '../types/stockCheck';
+import { nfToast } from '../utils/toast';
+
+vi.mock('../utils/toast', () => ({
+  nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
 
 const saved: StockSnapshot = {
   available: 50,
@@ -61,5 +66,41 @@ describe('StockSnapshotCard', () => {
     await user.click(screen.getByRole('button', { name: 'Update Count' }));
 
     expect(onSave).toHaveBeenCalledWith(48, 2);
+  });
+
+  it('disables End of Day with its reason when Start of Day has not been saved', () => {
+    const onSave = vi.fn();
+    render(
+      <StockSnapshotCard
+        title="End of Day"
+        idPrefix="milk-eod"
+        snapshot={null}
+        onSave={onSave}
+        disabledReason="Submit the Start of Day count first"
+      />,
+    );
+
+    expect(screen.getByText('Submit the Start of Day count first')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save Check' })).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Total Stock')).toBeDisabled();
+    expect(screen.getByLabelText('Dead / Spoilage')).toBeDisabled();
+  });
+
+  it('shows a toast with the reason when the disabled End of Day area is tapped', async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    render(
+      <StockSnapshotCard
+        title="End of Day"
+        idPrefix="milk-eod"
+        snapshot={null}
+        onSave={onSave}
+        disabledReason="Start of Day stock check not submitted"
+      />,
+    );
+
+    await user.click(screen.getByLabelText('Start of Day stock check not submitted'));
+
+    expect(nfToast.error).toHaveBeenCalledWith('Start of Day stock check not submitted');
   });
 });

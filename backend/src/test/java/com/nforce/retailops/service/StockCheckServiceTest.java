@@ -513,6 +513,19 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void endOfDayIsRejectedWithoutATodaysStartOfDayCount() {
+        // No existing row for today at all -- a brand-new item being closed
+        // out without ever being opened.
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 10, 0)))
+            .isInstanceOf(InvalidStockCheckException.class)
+            .hasMessage("Submit today's Start of Day stock check before the End of Day count");
+        verify(stockCheckRepository, never()).save(any());
+    }
+
+    @Test
     void listHistoricalChecksThrowsStoreNotFoundForAnOwnerWithoutAnOwnedStore() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of());
 
@@ -859,8 +872,7 @@ class StockCheckServiceTest {
     void endOfDayAtOrAboveTomorrowsMinimumResolvesAnyOutstandingOrder() {
         milk.setMinWeekday(bd(20));
         milk.setMinWeekend(bd(20));
-        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
-            .thenReturn(Optional.empty());
+        checkWithStartOfDay(30, 0);
 
         StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 25, 0));
 

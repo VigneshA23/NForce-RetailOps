@@ -228,6 +228,15 @@ public class StockCheckService {
                 return created;
             });
 
+        // End of Day only makes sense against an opening count: without it
+        // there's nothing to reconcile usage against, so block it outright
+        // rather than letting an employee skip straight to closing. Owner/
+        // Admin corrections go through correctCheck, not this method, so a
+        // backfill isn't blocked by this.
+        if (request.snapshot() == StockCheckSnapshot.END_OF_DAY && !check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)) {
+            throw new InvalidStockCheckException("Submit today's Start of Day stock check before the End of Day count");
+        }
+
         // First responder owns the snapshot: later employees can't overwrite
         // or edit it. (Owner/Admin corrections go through correctCheck.)
         if (check.hasSnapshot(request.snapshot())) {
@@ -275,13 +284,8 @@ public class StockCheckService {
         }
         BigDecimal received = deliveries.stream().map(Delivery::quantity).reduce(BigDecimal.ZERO, BigDecimal::add);
         boolean hasDelivery = !deliveries.isEmpty();
-        if (hasDelivery) {
-            if (request.snapshot() != StockCheckSnapshot.END_OF_DAY) {
-                throw new InvalidStockCheckException("Received stock can only be recorded with the End of Day count");
-            }
-            if (!check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)) {
-                throw new InvalidStockCheckException("Submit today's Start of Day stock check before recording received stock");
-            }
+        if (hasDelivery && request.snapshot() != StockCheckSnapshot.END_OF_DAY) {
+            throw new InvalidStockCheckException("Received stock can only be recorded with the End of Day count");
         }
 
         check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null, null, false);
