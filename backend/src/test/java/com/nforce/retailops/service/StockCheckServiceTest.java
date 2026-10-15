@@ -1077,11 +1077,22 @@ class StockCheckServiceTest {
     // ---- Inventory Counts (live per-item status) ---------------------------
 
     private StockCheck checkWithCount(StoreInventoryItem item, LocalDate date, int available, int dead) {
+        return checkWithCount(item, date, available, dead, OffsetDateTime.now());
+    }
+
+    // toCountRow/countHistoryForStore order same-item events by their recorded
+    // checkedAt instant, not by checkDate -- a real correction can be entered
+    // out of calendar order, so the two must stay independent. A test with
+    // several checks therefore needs an explicit, well-separated checkedAt per
+    // call: back-to-back OffsetDateTime.now() calls can land in the same or
+    // reversed real-time order from their checkDates, making the sort (and the
+    // assertions on it) flaky depending on how fast the JVM gets there.
+    private StockCheck checkWithCount(StoreInventoryItem item, LocalDate date, int available, int dead, OffsetDateTime checkedAt) {
         StockCheck check = new StockCheck();
         check.setStore(store);
         check.setStoreInventoryItem(item);
         check.setCheckDate(date);
-        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(available), bd(dead), employee, OffsetDateTime.now(), false);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(available), bd(dead), employee, checkedAt, false);
         return check;
     }
 
@@ -1152,8 +1163,8 @@ class StockCheckServiceTest {
 
     @Test
     void inventoryCountsComputesChangeAgainstThePreviousCount() {
-        StockCheck today = checkWithCount(milk, LocalDate.now(), 30, 0);
-        StockCheck yesterday = checkWithCount(milk, LocalDate.now().minusDays(1), 24, 0);
+        StockCheck yesterday = checkWithCount(milk, LocalDate.now().minusDays(1), 24, 0, OffsetDateTime.now().minusDays(1));
+        StockCheck today = checkWithCount(milk, LocalDate.now(), 30, 0, OffsetDateTime.now());
 
         when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk));
         when(stockCheckRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of(today));
@@ -1217,9 +1228,9 @@ class StockCheckServiceTest {
 
     @Test
     void countHistoryReturnsNewestFirstWithDeltaAgainstTheNextOlderEntry() {
-        StockCheck newest = checkWithCount(milk, LocalDate.now(), 30, 0);
-        StockCheck middle = checkWithCount(milk, LocalDate.now().minusDays(1), 24, 0);
-        StockCheck oldest = checkWithCount(milk, LocalDate.now().minusDays(2), 20, 0);
+        StockCheck newest = checkWithCount(milk, LocalDate.now(), 30, 0, OffsetDateTime.now());
+        StockCheck middle = checkWithCount(milk, LocalDate.now().minusDays(1), 24, 0, OffsetDateTime.now().minusDays(1));
+        StockCheck oldest = checkWithCount(milk, LocalDate.now().minusDays(2), 20, 0, OffsetDateTime.now().minusDays(2));
         when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
         when(stockCheckRepository.findRecentForItem(eq(ITEM_ID), any(Pageable.class)))
             .thenReturn(List.of(newest, middle, oldest));
@@ -1327,9 +1338,9 @@ class StockCheckServiceTest {
 
     @Test
     void countHistoryOmitsEntriesOlderThanSevenDaysButKeepsTheBoundaryEntrysDeltaCorrect() {
-        StockCheck withinWindow = checkWithCount(milk, LocalDate.now().minusDays(6), 30, 0);
-        StockCheck atTheEdge = checkWithCount(milk, LocalDate.now().minusDays(7), 24, 0);
-        StockCheck tooOld = checkWithCount(milk, LocalDate.now().minusDays(8), 20, 0);
+        StockCheck withinWindow = checkWithCount(milk, LocalDate.now().minusDays(6), 30, 0, OffsetDateTime.now().minusDays(6));
+        StockCheck atTheEdge = checkWithCount(milk, LocalDate.now().minusDays(7), 24, 0, OffsetDateTime.now().minusDays(7));
+        StockCheck tooOld = checkWithCount(milk, LocalDate.now().minusDays(8), 20, 0, OffsetDateTime.now().minusDays(8));
         when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
         when(stockCheckRepository.findRecentForItem(eq(ITEM_ID), any(Pageable.class)))
             .thenReturn(List.of(withinWindow, atTheEdge, tooOld));
