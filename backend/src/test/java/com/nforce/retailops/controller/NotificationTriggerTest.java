@@ -392,6 +392,75 @@ class NotificationTriggerTest {
 
     @Test
     @Transactional
+    void employeeStatusChangesCreateOneNotificationAcrossAllAssignedStores() throws Exception {
+        Role empRole = role("EMPLOYEE");
+        User employee = user("trig-emp-multi-store@nforce.test", empRole);
+        StoreEmployee se = linkEmployee(employee, store());
+        se.getStores().add(store());
+        se.getStores().add(store());
+        storeEmployeeRepository.save(se);
+        superAdmin("trig-superadmin-multi-store@nforce.test");
+        String superToken = login("trig-superadmin-multi-store@nforce.test");
+
+        mockMvc.perform(patch("/api/employees/{id}/status", se.getId())
+                .header("Authorization", "Bearer " + superToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\": false}"))
+            .andExpect(status().isOk());
+        mockMvc.perform(patch("/api/employees/{id}/status", se.getId())
+                .header("Authorization", "Bearer " + superToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\": true}"))
+            .andExpect(status().isOk());
+
+        var notifications = notificationRepository.findByRecipientUserIdOrderByCreatedAtDesc(
+            employee.getId(), org.springframework.data.domain.PageRequest.of(0, 10));
+        assertThat(notifications).hasSize(2);
+        assertThat(notifications.stream().map(notification -> notification.getCategory()).toList())
+            .containsExactlyInAnyOrder("EMPLOYEE_ACCOUNT_DEACTIVATED", "EMPLOYEE_ACCOUNT_REACTIVATED");
+        assertThat(notifications).allSatisfy(notification -> assertThat(notification.getStore()).isNull());
+    }
+
+    @Test
+    @Transactional
+    void ownerStatusChangesCreateOneNotificationAcrossAllAssignedStores() throws Exception {
+        Role ownerRole = role("OWNER_ADMIN");
+        Role empRole = role("EMPLOYEE");
+        User owner = user("trig-owner-multi-store@nforce.test", ownerRole);
+        User employee = user("trig-emp-owner-multi-store@nforce.test", empRole);
+        Store firstStore = store();
+        Store secondStore = store();
+        Store thirdStore = store();
+        linkOwner(owner, firstStore);
+        linkOwner(owner, secondStore);
+        linkOwner(owner, thirdStore);
+        StoreEmployee se = linkEmployee(employee, firstStore);
+        se.getStores().add(secondStore);
+        se.getStores().add(thirdStore);
+        storeEmployeeRepository.save(se);
+        String ownerToken = login("trig-owner-multi-store@nforce.test");
+
+        mockMvc.perform(patch("/api/employees/{id}/status", se.getId())
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\": false}"))
+            .andExpect(status().isOk());
+        mockMvc.perform(patch("/api/employees/{id}/status", se.getId())
+                .header("Authorization", "Bearer " + ownerToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"active\": true}"))
+            .andExpect(status().isOk());
+
+        var notifications = notificationRepository.findByRecipientUserIdOrderByCreatedAtDesc(
+            employee.getId(), org.springframework.data.domain.PageRequest.of(0, 10));
+        assertThat(notifications).hasSize(2);
+        assertThat(notifications.stream().map(notification -> notification.getCategory()).toList())
+            .containsExactlyInAnyOrder("EMPLOYEE_ACCOUNT_DEACTIVATED", "EMPLOYEE_ACCOUNT_REACTIVATED");
+        assertThat(notifications).allSatisfy(notification -> assertThat(notification.getStore()).isNull());
+    }
+
+    @Test
+    @Transactional
     void resolveIssueCreatesNotificationForReporterOnly() throws Exception {
         Role ownerRole = role("OWNER_ADMIN");
         Role empRole = role("EMPLOYEE");
