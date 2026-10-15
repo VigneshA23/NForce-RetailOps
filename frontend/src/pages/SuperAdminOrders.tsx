@@ -579,7 +579,9 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
               </div>
-              <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              {row.stockUpdate.label && (
+                <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              )}
               {entry.note && <div className="order-list__item-mobile-meta">{entry.note}</div>}
             </div>
           </div>
@@ -644,7 +646,9 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
               <div className="order-list__item-name">
                 <span className="order-list__item-name-text">{entry.itemName}</span>
               </div>
-              <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              {row.stockUpdate.label && (
+                <div className={`order-list__stock-update${row.stockUpdate.updatedToday ? '' : ' order-list__stock-update--stale'}`}>{row.stockUpdate.label}</div>
+              )}
               {entry.note && <div className="order-list__item-meta">{entry.note}</div>}
             </div>
           </div>
