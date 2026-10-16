@@ -545,7 +545,17 @@
   white-space: nowrap;
 }
 
+/* Name on its own line, date/time below it -- two short lines read more
+   reliably than one long "Name · date, time" string, which was the one
+   thing in this cell liable to get truncated by the ellipsis below. */
 .order-list__stock-update {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.order-list__stock-update-name,
+.order-list__stock-update-when {
   font-size: 12px;
   font-weight: 600;
   color: #16794a;
@@ -554,7 +564,8 @@
   text-overflow: ellipsis;
 }
 
-.order-list__stock-update--stale {
+.order-list__stock-update--stale .order-list__stock-update-name,
+.order-list__stock-update--stale .order-list__stock-update-when {
   color: #b3162a;
 }
 

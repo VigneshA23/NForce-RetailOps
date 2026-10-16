@@ -136,6 +136,40 @@ describe('OrderList mark received', () => {
   });
 });
 
+describe('OrderList stock update line', () => {
+  it('shows who last counted the item and when, on separate lines', async () => {
+    mockGetOrderList.mockResolvedValue([entry({ id: 1, itemName: 'Milk', storeInventoryItemId: 100, status: 'NEEDS_ORDERING' })]);
+    mockGetInventoryCounts.mockResolvedValue(countsPage({
+      rows: [
+        {
+          itemId: 100,
+          name: 'Milk',
+          category: null,
+          unitOfMeasurement: 'L',
+          currentStock: 5,
+          minimum: 10,
+          status: 'LOW',
+          lastUpdatedAt: '2026-10-16T05:00:00Z',
+          lastUpdatedByName: 'Ananya Reddy',
+          lastUpdatedSource: null,
+          change: null,
+          changeFromDate: null,
+          latestCheckId: null,
+          latestSnapshot: null,
+          latestAvailable: null,
+          latestDeadStock: null,
+          imageId: null,
+        },
+      ],
+    }));
+
+    render(<OrderList storeName="Downtown" />);
+
+    expect(await screen.findByText('Milk')).toBeInTheDocument();
+    expect(await screen.findByText('Ananya Reddy')).toBeInTheDocument();
+  });
+});
+
 describe('OrderList status filter', () => {
   it('defaults to "All open", hiding already-received entries', async () => {
     render(<OrderList storeName="Downtown" />);
