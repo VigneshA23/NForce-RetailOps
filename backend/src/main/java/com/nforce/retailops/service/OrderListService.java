@@ -633,11 +633,15 @@ public class OrderListService {
         LocalDate today = LocalDate.now();
         stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
             .filter(c -> c.getCurrentCount() != null)
-            .ifPresent(c -> entry.setStockSnapshot(
-                c.getCurrentCount(),
-                c.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? c.getRequiredTomorrow() : item.requiredMinimumOn(today),
-                actor != null ? actor.getFullName() : null,
-                OffsetDateTime.now()));
+            .ifPresent(c -> {
+                boolean forTomorrow = c.hasSnapshot(StockCheckSnapshot.END_OF_DAY);
+                entry.setStockSnapshot(
+                    c.getCurrentCount(),
+                    forTomorrow ? c.getRequiredTomorrow() : item.requiredMinimumOn(today),
+                    actor != null ? actor.getFullName() : null,
+                    OffsetDateTime.now(),
+                    forTomorrow);
+            });
     }
 
     private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier) {

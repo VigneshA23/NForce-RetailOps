@@ -751,7 +751,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null, null, null, false
             )
         ));
 
@@ -829,7 +829,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null, null, null, false
             )
         ));
 
@@ -856,7 +856,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null, null, null, false
             )
         ));
     }

@@ -35,7 +35,9 @@ public record OrderListEntryResponse(
     BigDecimal stockAtOrder,
     BigDecimal minimumAtOrder,
     String stockAtOrderByName,
-    OffsetDateTime stockAtOrderAt
+    OffsetDateTime stockAtOrderAt,
+    // True when minimumAtOrder is tomorrow's (row raised from an End of Day count).
+    boolean stockForTomorrow
 ) {
     // What marking an order received did to the store's stock. stockUpdated is
     // false when there was no stock count for today to add the delivery to
@@ -78,7 +80,8 @@ public record OrderListEntryResponse(
             entry.getStockAtOrder(),
             entry.getMinimumAtOrder(),
             entry.getStockAtOrderByName(),
-            entry.getStockAtOrderAt()
+            entry.getStockAtOrderAt(),
+            entry.isStockForTomorrow()
         );
     }
 }
