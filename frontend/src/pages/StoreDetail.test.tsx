@@ -94,7 +94,11 @@ function searchSampleDetail(): ChecklistHistoryDetail {
       name: 'Opening Checks',
       tasks: [
         taskItem({ id: 1, name: 'Check float cash in till', responses: respondedWith(1, 'Jane Doe', true) }),
-        taskItem({ id: 2, name: 'Clean restrooms', responses: respondedWith(2, 'John Smith', false) }),
+        taskItem({
+          id: 2,
+          name: 'Clean restrooms',
+          responses: respondedWith(2, 'John Smith', false).map((r) => ({ ...r, flaggedNeedsCorrection: true })),
+        }),
       ],
     }),
   ]);

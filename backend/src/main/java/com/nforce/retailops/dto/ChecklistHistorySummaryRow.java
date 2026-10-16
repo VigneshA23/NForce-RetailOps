@@ -9,8 +9,9 @@ public record ChecklistHistorySummaryRow(
     boolean hasChecklist,
     int totalTasks,
     int completedTasks,
-    // Tasks whose latest response that day is a Yes/No task answered "No" -- the
-    // same Issue definition ChecklistHistoryService.getDetail's frontend consumer
+    // Tasks whose latest response that day has been explicitly flagged by an
+    // admin/super-admin for correction -- the same Issue definition
+    // ChecklistHistoryService.getDetail's frontend consumer
     // (checklistHistoryOptions.taskStatus) already uses.
     int issueCount
 ) {

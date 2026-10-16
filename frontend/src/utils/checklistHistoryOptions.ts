@@ -65,9 +65,9 @@ export function taskStatus(task: ChecklistHistoryTaskItem): ChecklistTaskStatus 
   // A dangling undone response (no resubmission since) isn't a real current
   // answer -- it's only surfaced so its history/name still shows.
   if (response.undone) return 'OPEN';
-  if (task.responseType === 'YES_NO' && response.booleanValue === false) return 'ISSUE';
-  // Flagged responses need employee attention — treat as ISSUE so the status
-  // column updates immediately without waiting for the employee to re-submit.
+  // Only an admin/super-admin explicitly flagging a response for correction
+  // makes it an ISSUE — a plain "No"/"Not done" answer is a valid, complete
+  // response on its own and must not be auto-classified as an issue.
   if (response.flaggedNeedsCorrection) return 'ISSUE';
   // A MULTIPLE-completion task needs at least 2 distinct employees to have
   // responded -- one employee's response alone leaves it Open, not Complete.

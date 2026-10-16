@@ -108,7 +108,7 @@ describe('SuperAdminChecklist task sections', () => {
     expect(screen.queryByLabelText('1 flagged tasks')).not.toBeInTheDocument();
   });
 
-  it('shows a red issue count only when flagged tasks exist', async () => {
+  it('does not count a plain, unflagged No answer as an issue', async () => {
     mockGetDetail.mockResolvedValue(
       checklistDetail([
         taskItem({ id: 1, name: 'Clean restrooms', responses: [{ ...completedResponse, booleanValue: false }] }),
@@ -117,8 +117,21 @@ describe('SuperAdminChecklist task sections', () => {
 
     renderChecklist();
 
+    expect(await screen.findByLabelText('1 completed tasks')).toHaveClass('store-detail-outstanding__count--completed');
+    expect(screen.queryByLabelText('1 flagged tasks')).not.toBeInTheDocument();
+  });
+
+  it('shows a red issue count only when a response has been explicitly flagged by an admin', async () => {
+    mockGetDetail.mockResolvedValue(
+      checklistDetail([
+        taskItem({ id: 1, name: 'Clean restrooms', responses: [{ ...completedResponse, flaggedNeedsCorrection: true }] }),
+      ]),
+    );
+
+    renderChecklist();
+
     expect(await screen.findByLabelText('1 flagged tasks')).toHaveClass('store-detail-outstanding__count--issues');
-    expect(screen.queryByLabelText(/completed tasks/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('1 completed tasks')).not.toBeInTheDocument();
   });
 
   it('keeps the user-controlled collapse state during live refresh', async () => {
