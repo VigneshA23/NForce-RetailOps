@@ -44,7 +44,15 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
     const nextErrors: typeof errors = {};
     if (!values.storeInventoryItemId) nextErrors.storeInventoryItemId = 'Item is required';
     const current = parseQty(values.currentStock, selectedUnit);
-    if (current === null || current < 0) nextErrors.currentStock = `Enter ${qtyRuleHint(selectedUnit)} (0 or more)`;
+    const expected = selectedItem?.currentStock;
+    const minimum = selectedItem?.minTarget;
+    if (current === null || current < 0) {
+      nextErrors.currentStock = `Enter ${qtyRuleHint(selectedUnit)} (0 or more)`;
+    } else if (expected != null && current >= expected) {
+      nextErrors.currentStock = `Current stock must be less than the ${expected} ${selectedUnit} expected on hand. If stock was delivered, report the delivery first`;
+    } else if (minimum != null && minimum > 0 && current >= minimum) {
+      nextErrors.currentStock = `Current stock (${current} ${selectedUnit}) is not below today's minimum of ${minimum} ${selectedUnit}, so this isn't a shortage`;
+    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
