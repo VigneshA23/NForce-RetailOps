@@ -185,6 +185,30 @@ public class NotificationService {
         notificationRepository.save(n);
     }
 
+    // Super Admin side of the same event -- the Issues list page itself is a
+    // live query (so the issue shows up there regardless), but without this
+    // the notification bell never lit up for a newly-raised issue the way the
+    // owner's does. Mirrors createForIssue above, one row per super admin.
+    @Transactional
+    public void createForIssueSuperAdmin(RaisedIssue issue, SuperAdmin superAdmin) {
+        String employeeName = issue.getEmployeeUser().getFullName();
+        String storeName = issue.getStore().getName();
+        String notePreview = issue.getNote().length() > 80
+            ? issue.getNote().substring(0, 80) + "…"
+            : issue.getNote();
+
+        Notification n = new Notification();
+        n.setRecipientSuperAdmin(superAdmin);
+        n.setCategory("ISSUE_RAISED");
+        n.setPriority("HIGH");
+        n.setTitle(employeeName + " raised an issue at " + storeName);
+        n.setMessage(notePreview);
+        n.setRelatedIssue(issue);
+        n.setStore(issue.getStore());
+        n.setLinkPath("/issues");
+        notificationRepository.save(n);
+    }
+
     // Notifies the employee who raised the issue when the admin acknowledges or resolves it.
     // Scoped to the single reporter — never fan-out to all store employees.
     @Transactional

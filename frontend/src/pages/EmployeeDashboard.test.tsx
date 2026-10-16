@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EmployeeDashboard from './EmployeeDashboard'
@@ -131,12 +131,13 @@ describe('EmployeeDashboard moved units', () => {
     expect(screen.getAllByRole('button', { name: 'Yes' })).toHaveLength(1)
   })
 
-  it('refetches and drops a task that was deactivated by an admin while the page was open, on a 404', async () => {
+  it('shows a "no longer available" message on a 404, then quietly drops the task after a delay', async () => {
     // Mirrors the real scenario: the checklist was fetched once on mount, an
     // admin then deactivated the task, and the employee's stale, already-loaded
-    // card is still clickable -- so submitting against it 404s. The second
-    // getDailyChecklist call simulates the backend no longer returning the
-    // (now inactive) task.
+    // card is still clickable -- so submitting against it 404s. The employee
+    // should see a clear message (and the card should lock) before it quietly
+    // disappears, rather than the whole page appearing to reload out from
+    // under them with no explanation.
     mockGetDailyChecklist
       .mockResolvedValueOnce([category([task(), task({ id: 101, name: 'Log any pest or hygiene observations' })])])
       .mockResolvedValueOnce([category([task()])])
@@ -148,9 +149,13 @@ describe('EmployeeDashboard moved units', () => {
     const yesButtons = screen.getAllByRole('button', { name: 'Yes' })
     await user.click(yesButtons[1])
 
-    await screen.findByText('Sweep the floor')
-    expect(screen.queryByText('Log any pest or hygiene observations')).not.toBeInTheDocument()
-    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(2)
+    expect(await screen.findByText(/no longer available/i)).toBeInTheDocument()
+    // Still visible and locked, not silently gone yet.
+    expect(screen.getByText('Log any pest or hygiene observations')).toBeInTheDocument()
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(1)
+
+    await waitFor(() => expect(mockGetDailyChecklist).toHaveBeenCalledTimes(2), { timeout: 4000 })
+    await waitFor(() => expect(screen.queryByText('Log any pest or hygiene observations')).not.toBeInTheDocument())
   })
 
   it('refetches when a focusTaskId notification deep-link targets a task reactivated after the page already loaded', async () => {

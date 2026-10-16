@@ -236,6 +236,11 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder = 'All C
 }
 
 const GENERIC_TASK_ERROR = "Couldn't save your response. Please try again."
+const TASK_REMOVED_ERROR = 'This task is no longer available — an admin removed it from the checklist.'
+// How long the "no longer available" message stays up before the checklist
+// silently refetches and drops the task's card -- long enough to read, short
+// enough not to feel stuck.
+const TASK_REMOVED_REFRESH_DELAY_MS = 2500
 
 function ownResponse(task: ChecklistTask, employeeId: number | null): TaskResponseSummary | undefined {
   if (employeeId == null) return undefined
@@ -281,6 +286,12 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   const [pendingUnitKey, setPendingUnitKey] = useState<string | null>(null)
   const [undoingUnitKey, setUndoingUnitKey] = useState<string | null>(null)
   const [taskErrors, setTaskErrors] = useState<Record<string, string>>({})
+  // Units whose submit just 404'd (task/category deactivated server-side) --
+  // locked out while the "no longer available" message is up, until the
+  // delayed silent refetch drops their card entirely.
+  const [removedUnitKeys, setRemovedUnitKeys] = useState<Set<string>>(new Set())
+  const removalTimers = useRef<number[]>([])
+  useEffect(() => () => { removalTimers.current.forEach(window.clearTimeout) }, [])
   const [drafts, setDrafts] = useState<Record<string, string>>({})
   const [openCompletedByUnitKey, setOpenCompletedByUnitKey] = useState<string | null>(null)
   const [taskSearch, setTaskSearch] = useState('')
@@ -344,10 +355,17 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
     return () => { window.clearTimeout(timer); window.clearTimeout(clearTimer) }
   }, [focusTaskId, categories])
 
-  function loadChecklist() {
+  // `silent`: refetch in the background without flashing the full-page
+  // "Loading…"/error states -- used when a task on an already-rendered page
+  // needs to quietly drop out (e.g. after the employee has seen a "this task
+  // is no longer available" message) rather than visibly reloading the whole
+  // checklist out from under them.
+  function loadChecklist({ silent = false }: { silent?: boolean } = {}) {
     let active = true
-    setLoading(true)
-    setError(null)
+    if (!silent) {
+      setLoading(true)
+      setError(null)
+    }
     getDailyChecklist(store.id)
       .then((result) => {
         if (active) {
@@ -367,7 +385,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
         }
       })
       .catch((err) => {
-        if (!active) return
+        if (!active || silent) return
         const message =
           err instanceof ApiError && err.status === 404
             ? "You're not assigned to this store, so no checklist is available."
@@ -512,14 +530,24 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
       })
       localStorage.removeItem(localDraftKey(store.id, unitKey, todayDateKey()))
     } catch (err) {
+      // 404: the task (or its category) was deactivated by an admin while this
+      // page was already open -- tell the employee plainly instead of letting
+      // the card just vanish, lock it so they can't keep retrying a dead task,
+      // then quietly refetch (no full-page reload flash) once they've had a
+      // moment to read it; the active-only GET naturally drops it from the list.
+      if (err instanceof ApiError && err.status === 404) {
+        setTaskErrors((previous) => ({ ...previous, [unitKey]: TASK_REMOVED_ERROR }))
+        setRemovedUnitKeys((previous) => new Set(previous).add(unitKey))
+        const timer = window.setTimeout(() => loadChecklist({ silent: true }), TASK_REMOVED_REFRESH_DELAY_MS)
+        removalTimers.current.push(timer)
+        return
+      }
       const message = err instanceof ApiError ? err.message : GENERIC_TASK_ERROR
       setTaskErrors((previous) => ({ ...previous, [unitKey]: message }))
       // 409: the task's completion state changed under us (e.g. SINGLE already
-      // answered by someone else). 404: the task (or its category) was
-      // deactivated by an admin while this page was already open -- the
-      // active-only GET below will naturally drop it from the list. Either
-      // way the stale local state needs a refetch, not just an inline error.
-      if (err instanceof ApiError && (err.status === 409 || err.status === 404)) loadChecklist()
+      // answered by someone else) -- the stale local state needs a refetch,
+      // not just an inline error.
+      if (err instanceof ApiError && err.status === 409) loadChecklist()
     } finally {
       setPendingUnitKey(null)
     }
@@ -736,7 +764,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                           const myResponseIsFlagged = mine?.flaggedNeedsCorrection === true
                           const isSingleLocked = task.completionType === 'SINGLE' && task.responses.length > 0 && !myResponseIsFlagged
                           const isLockedByOther = isSingleLocked && !task.canUndo
-                          const controlsDisabled = isPending || isSingleLocked
+                          const controlsDisabled = isPending || isSingleLocked || removedUnitKeys.has(unitKey)
                           const draft = drafts[unitKey]
                           const taskError = taskErrors[unitKey]
                           const isMyAnswerDone = mine != null && !myResponseIsFlagged

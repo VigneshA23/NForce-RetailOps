@@ -17,6 +17,7 @@ import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.access.AccessDeniedException;
@@ -46,6 +47,7 @@ public class RaisedIssueService {
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final StoreOwnerRepository storeOwnerRepository;
+    private final SuperAdminRepository superAdminRepository;
     private final UserProfileService userProfileService;
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
@@ -55,6 +57,7 @@ public class RaisedIssueService {
         StoreRepository storeRepository,
         UserRepository userRepository,
         StoreOwnerRepository storeOwnerRepository,
+        SuperAdminRepository superAdminRepository,
         UserProfileService userProfileService,
         NotificationService notificationService,
         ActivityLogService activityLogService
@@ -63,6 +66,7 @@ public class RaisedIssueService {
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
         this.storeOwnerRepository = storeOwnerRepository;
+        this.superAdminRepository = superAdminRepository;
         this.userProfileService = userProfileService;
         this.notificationService = notificationService;
         this.activityLogService = activityLogService;
@@ -88,6 +92,13 @@ public class RaisedIssueService {
         // Notify the store's current active owner, if one exists.
         activeOwner(request.storeId())
             .ifPresent(owner -> notificationService.createForIssue(saved, owner));
+
+        // Also notify every super admin -- the Super Admin Issues page lists
+        // this immediately regardless (it's a live query), but without this
+        // their notification bell never reflected a newly-raised issue the
+        // way the owner's does.
+        superAdminRepository.findAll()
+            .forEach(superAdmin -> notificationService.createForIssueSuperAdmin(saved, superAdmin));
 
         activityLogService.log(
             "ISSUE_REPORTED", employee.getFullName(), "EMPLOYEE",
