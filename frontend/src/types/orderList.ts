@@ -16,6 +16,10 @@ export interface OrderListEntry {
   adHoc: boolean;
   // Completely out of stock -- the row is highlighted red.
   urgent?: boolean;
+  // Stock and minimum as they were when this row was raised -- not the item's
+  // live stock. Null for manual rows and rows raised before it was recorded.
+  stockAtOrder?: number | null;
+  minimumAtOrder?: number | null;
   raisedByName: string | null;
   createdAt: string;
   updatedAt: string;

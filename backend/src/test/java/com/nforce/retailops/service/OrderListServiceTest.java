@@ -115,6 +115,47 @@ class OrderListServiceTest {
     }
 
     @Test
+    void upsertShortageRecordsTheStockAndMinimumItWasRaisedAgainst() {
+        StoreInventoryItem milk = item();
+        milk.setMinWeekday(bd(8));
+        milk.setMinWeekend(bd(8));
+        com.nforce.retailops.entity.StockCheck check = new com.nforce.retailops.entity.StockCheck();
+        ReflectionTestUtils.setField(check, "currentCount", bd(3));
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, java.time.LocalDate.now()))
+            .thenReturn(java.util.Optional.of(check));
+        stubWaitingEntry();
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        OrderListEntry saved = orderListService.upsertShortage(store(), milk, bd(2), null, true, new User(), null);
+
+        assertThat(saved.getStockAtOrder()).isEqualByComparingTo(bd(3));
+        assertThat(saved.getMinimumAtOrder()).isEqualByComparingTo(bd(8));
+    }
+
+    @Test
+    void anOrderedEntryKeepsItsStockSnapshotWhenALaterShortageIsRaisedBesideIt() {
+        OrderListEntry ordered = new OrderListEntry();
+        ordered.setStatus(OrderStatus.ORDERED);
+        ordered.setQuantityNeeded(bd(3));
+        ordered.setStockSnapshot(bd(5), bd(8));
+        when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(STORE_ID, ITEM_ID, OrderStatus.ORDERED))
+            .thenReturn(List.of(ordered));
+        stubWaitingEntry();
+        com.nforce.retailops.entity.StockCheck check = new com.nforce.retailops.entity.StockCheck();
+        ReflectionTestUtils.setField(check, "currentCount", bd(3));
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, java.time.LocalDate.now()))
+            .thenReturn(java.util.Optional.of(check));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        OrderListEntry fresh = orderListService.upsertShortage(store(), item(), bd(5), null, false, new User(), null);
+
+        assertThat(fresh.getQuantityNeeded()).isEqualByComparingTo(bd(2));
+        assertThat(fresh.getStockAtOrder()).isEqualByComparingTo(bd(3));
+        assertThat(ordered.getStockAtOrder()).isEqualByComparingTo(bd(5));
+        assertThat(ordered.getMinimumAtOrder()).isEqualByComparingTo(bd(8));
+    }
+
+    @Test
     void upsertShortageUpdatesTheOpenSystemEntryInsteadOfCreatingASecondOne() {
         OrderListEntry existing = new OrderListEntry();
         ReflectionTestUtils.setField(existing, "id", 99L);
