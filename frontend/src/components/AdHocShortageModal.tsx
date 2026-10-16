@@ -104,14 +104,24 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
           />
         </FormField>
         {hasOpenOrder && (
-          <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
             <input
               id="ad-hoc-received"
               type="checkbox"
+              style={{ marginTop: 4 }}
               checked={values.orderedAlreadyReceived}
               onChange={(event) => setValues((current) => ({ ...current, orderedAlreadyReceived: event.target.checked }))}
             />
-            <span>An earlier order for this item has already been received</span>
+            <span>
+              An earlier order for this item has already been received
+              {selectedItem?.openOrders?.map((order) => (
+                <span key={order.id} style={{ display: 'block', fontSize: 14, opacity: 0.75 }}>
+                  {order.quantity} {selectedUnit}
+                  {order.supplierName ? ` · ${order.supplierName}` : ''}
+                  {order.orderedAt ? ` · ordered ${new Date(order.orderedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}
+                </span>
+              ))}
+            </span>
           </label>
         )}
         <FormField label="Note (optional)" htmlFor="ad-hoc-note">

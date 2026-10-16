@@ -20,6 +20,9 @@ export interface OrderListEntry {
   // live stock. Null for manual rows and rows raised before it was recorded.
   stockAtOrder?: number | null;
   minimumAtOrder?: number | null;
+  // Who recorded that stock, and when -- the line under the item name.
+  stockAtOrderByName?: string | null;
+  stockAtOrderAt?: string | null;
   raisedByName: string | null;
   createdAt: string;
   updatedAt: string;

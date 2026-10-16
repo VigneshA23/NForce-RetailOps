@@ -609,7 +609,7 @@ public class OrderListService {
         }
         entry.setQuantityNeeded(entry.getQuantityNeeded().add(remaining));
         entry.setUrgent(true);
-        stampStockSnapshot(entry, item);
+        stampStockSnapshot(entry, item, raisedBy);
         if (note != null) {
             entry.setNote(note);
         }
@@ -625,13 +625,15 @@ public class OrderListService {
     // worked out on). Only called for a row still waiting to be ordered: once
     // Ordered the system never touches a row, so its figures stay as they were.
     // No count today (a manual "Add to order") leaves the row without a snapshot.
-    private void stampStockSnapshot(OrderListEntry entry, StoreInventoryItem item) {
+    private void stampStockSnapshot(OrderListEntry entry, StoreInventoryItem item, User actor) {
         LocalDate today = LocalDate.now();
         stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
             .filter(c -> c.getCurrentCount() != null)
             .ifPresent(c -> entry.setStockSnapshot(
                 c.getCurrentCount(),
-                c.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? c.getRequiredTomorrow() : item.requiredMinimumOn(today)));
+                c.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? c.getRequiredTomorrow() : item.requiredMinimumOn(today),
+                actor != null ? actor.getFullName() : null,
+                OffsetDateTime.now()));
     }
 
     private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier) {
@@ -675,7 +677,7 @@ public class OrderListService {
             entry.setQuantityNeeded(quantityNeeded);
             entry.setUrgent(urgent);
         }
-        stampStockSnapshot(entry, item);
+        stampStockSnapshot(entry, item, raisedBy);
         if (note != null) {
             entry.setNote(note);
         }

@@ -95,6 +95,14 @@ public class OrderListEntry {
     @Column(name = "minimum_at_order")
     private BigDecimal minimumAtOrder;
 
+    // Who recorded that stock and when -- the line shown under the item name.
+    // Name is denormalized (the actor can be Super Admin, which has no users row).
+    @Column(name = "stock_at_order_by_name")
+    private String stockAtOrderByName;
+
+    @Column(name = "stock_at_order_at")
+    private OffsetDateTime stockAtOrderAt;
+
     @Column(name = "ad_hoc", nullable = false)
     private boolean adHoc;
 
@@ -247,9 +255,19 @@ public class OrderListEntry {
         return minimumAtOrder;
     }
 
-    public void setStockSnapshot(BigDecimal stockAtOrder, BigDecimal minimumAtOrder) {
+    public String getStockAtOrderByName() {
+        return stockAtOrderByName;
+    }
+
+    public OffsetDateTime getStockAtOrderAt() {
+        return stockAtOrderAt;
+    }
+
+    public void setStockSnapshot(BigDecimal stockAtOrder, BigDecimal minimumAtOrder, String byName, OffsetDateTime at) {
         this.stockAtOrder = stockAtOrder;
         this.minimumAtOrder = minimumAtOrder;
+        this.stockAtOrderByName = byName;
+        this.stockAtOrderAt = at;
     }
 
     public boolean isAdHoc() {
