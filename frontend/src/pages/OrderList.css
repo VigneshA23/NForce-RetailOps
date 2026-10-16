@@ -438,7 +438,18 @@
 }
 
 .order-list__group-table {
-  min-width: 680px;
+  /* Wide enough that Item (the leftover column) keeps room for the full
+     name and "Person / date, time" lines; narrower screens scroll sideways
+     via .table-scroll instead of truncating them. */
+  min-width: 1130px;
+}
+
+/* Item is a fixed width rather than the leftover column, so on wide screens
+   it no longer balloons and pushes Stock far from the item text -- extra
+   space is shared across the numeric columns instead, keeping the
+   Item-to-Stock gap close to the Stock-to-Need gap. */
+.order-list__col--item {
+  width: 220px;
 }
 
 .order-list__flat-table {
@@ -540,9 +551,8 @@
    long item name can't push the row taller or crowd the columns beside it. */
 .order-list__item-name-text {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 /* Name on its own line, date/time below it -- two short lines read more
@@ -559,9 +569,8 @@
   font-size: 12px;
   font-weight: 600;
   color: #16794a;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .order-list__stock-update--stale .order-list__stock-update-name,

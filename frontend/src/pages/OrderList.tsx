@@ -835,7 +835,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                     <table className="order-list__group-table">
                       <colgroup>
                         <col className="order-list__col--checkbox" />
-                        <col />
+                        <col className="order-list__col--item" />
                         <col className="order-list__col--category" />
                         <col className="order-list__col--num" />
                         <col className="order-list__col--num" />
@@ -876,7 +876,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <table className="order-list__flat-table">
               <colgroup>
                 <col style={{ width: '3%' }} />
-                <col style={{ width: '27%' }} />
+                <col style={{ width: 240 }} />
                 <col style={{ width: '7%' }} />
                 <col style={{ width: '7%' }} />
                 <col style={{ width: '7%' }} />
