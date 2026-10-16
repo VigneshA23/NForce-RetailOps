@@ -344,9 +344,12 @@ function OrderList({ storeName, seed }: OrderListProps) {
       categoryLabel,
       onHand: stock?.current ?? entry.stockAtOrder ?? null,
       par: stock?.minimum ?? entry.minimumAtOrder ?? null,
-      // "Updated by X at T" describes the live count, so it only belongs on
-      // a row that follows it.
-      stockUpdate: describeStockUpdate(stock?.lastUpdatedAt, stock?.lastUpdatedByName),
+      // The row's own snapshot author/time when it has one, so an Ordered row
+      // keeps showing who submitted the stock it was ordered against; the
+      // live count's author/time only for a row without a snapshot.
+      stockUpdate: entry.stockAtOrderAt
+        ? describeStockUpdate(entry.stockAtOrderAt, entry.stockAtOrderByName)
+        : describeStockUpdate(stock?.lastUpdatedAt, stock?.lastUpdatedByName),
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
       meta: entry.note ? `${raisedBy} · ${raisedAt} · ${entry.note}` : `${raisedBy} · ${raisedAt}`,
       // Mobile's card shows category as its own pill below the stats box now,

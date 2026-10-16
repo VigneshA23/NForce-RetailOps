@@ -137,7 +137,7 @@ class OrderListServiceTest {
         OrderListEntry ordered = new OrderListEntry();
         ordered.setStatus(OrderStatus.ORDERED);
         ordered.setQuantityNeeded(bd(3));
-        ordered.setStockSnapshot(bd(5), bd(8));
+        ordered.setStockSnapshot(bd(5), bd(8), "Ananya", java.time.OffsetDateTime.now());
         when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(STORE_ID, ITEM_ID, OrderStatus.ORDERED))
             .thenReturn(List.of(ordered));
         stubWaitingEntry();
@@ -153,6 +153,8 @@ class OrderListServiceTest {
         assertThat(fresh.getStockAtOrder()).isEqualByComparingTo(bd(3));
         assertThat(ordered.getStockAtOrder()).isEqualByComparingTo(bd(5));
         assertThat(ordered.getMinimumAtOrder()).isEqualByComparingTo(bd(8));
+        assertThat(ordered.getStockAtOrderByName()).isEqualTo("Ananya");
+        assertThat(fresh.getStockAtOrderAt()).isNotNull();
     }
 
     @Test
