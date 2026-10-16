@@ -441,7 +441,7 @@
   /* Wide enough that Item (the leftover column) keeps room for the full
      name and "Person / date, time" lines; narrower screens scroll sideways
      via .table-scroll instead of truncating them. */
-  min-width: 1130px;
+  min-width: 1180px;
 }
 
 /* Item is a fixed width rather than the leftover column, so on wide screens
@@ -453,7 +453,7 @@
 }
 
 .order-list__flat-table {
-  min-width: 1100px;
+  min-width: 1190px;
 }
 
 /* Grouped table's colgroup: every fixed-width column below is a px/%
@@ -475,6 +475,12 @@
 
 .order-list__col--status {
   width: 200px;
+}
+
+/* Need also carries the "Tomorrow" tag, so it gets a fixed width wide enough
+   for "5 kg [Tomorrow]" instead of the tag spilling into Manual. */
+.order-list__col--need {
+  width: 150px;
 }
 
 /* Category is the least essential column at a glance (mostly "--" anyway),
@@ -571,6 +577,20 @@
   color: #16794a;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.order-list__tomorrow-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border: 1px solid #b3162a;
+  border-radius: 6px;
+  color: #b3162a;
+  background: #fff5f6;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  vertical-align: middle;
 }
 
 .order-list__stock-update--stale .order-list__stock-update-name,
@@ -927,6 +947,13 @@
 
   .order-list__item-mobile-meta {
     display: block;
+  }
+
+  /* Top-right of the card, level with the item name. */
+  .order-list__tomorrow-tag--card {
+    align-self: flex-start;
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
   /* The nested grey box grouping Stock/Need/Manual/Ordered, replacing the

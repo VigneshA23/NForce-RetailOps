@@ -23,6 +23,8 @@ export interface OrderListEntry {
   // Who recorded that stock, and when -- the line under the item name.
   stockAtOrderByName?: string | null;
   stockAtOrderAt?: string | null;
+  // True when minimumAtOrder is tomorrow's (row raised from an End of Day count).
+  stockForTomorrow?: boolean;
   raisedByName: string | null;
   createdAt: string;
   updatedAt: string;

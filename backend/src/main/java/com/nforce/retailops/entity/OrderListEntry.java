@@ -103,6 +103,10 @@ public class OrderListEntry {
     @Column(name = "stock_at_order_at")
     private OffsetDateTime stockAtOrderAt;
 
+    // The snapshot's minimum is tomorrow's (raised from an End of Day count).
+    @Column(name = "stock_for_tomorrow", nullable = false)
+    private boolean stockForTomorrow;
+
     @Column(name = "ad_hoc", nullable = false)
     private boolean adHoc;
 
@@ -263,7 +267,12 @@ public class OrderListEntry {
         return stockAtOrderAt;
     }
 
-    public void setStockSnapshot(BigDecimal stockAtOrder, BigDecimal minimumAtOrder, String byName, OffsetDateTime at) {
+    public boolean isStockForTomorrow() {
+        return stockForTomorrow;
+    }
+
+    public void setStockSnapshot(BigDecimal stockAtOrder, BigDecimal minimumAtOrder, String byName, OffsetDateTime at, boolean forTomorrow) {
+        this.stockForTomorrow = forTomorrow;
         this.stockAtOrder = stockAtOrder;
         this.minimumAtOrder = minimumAtOrder;
         this.stockAtOrderByName = byName;
