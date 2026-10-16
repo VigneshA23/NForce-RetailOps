@@ -140,8 +140,21 @@ public class TaskService {
                 .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
         }
 
+        // An "all stores" task has no task_stores rows of its own (see
+        // resolveStores below -- that set stays dynamic by design, and the
+        // daily checklist query matches on the flag directly rather than this
+        // list). Displaying it still needs a concrete answer, so it's
+        // resolved here the same way resolveTaskStoresForLog already does for
+        // the activity log: this owner's own current stores.
+        List<StoreOptionResponse> ownerStores = storeOwnerRepository.findByOwnerId(ownerId).stream()
+            .filter(StoreOwner::isActive)
+            .map(so -> StoreOptionResponse.from(so.getStore()))
+            .toList();
+
         return tasks.stream()
-            .map(task -> TaskResponse.from(task, storesByTaskId.getOrDefault(task.getId(), List.of())))
+            .map(task -> TaskResponse.from(
+                task,
+                task.isAppliesToAllStores() ? ownerStores : storesByTaskId.getOrDefault(task.getId(), List.of())))
             .toList();
     }
 
@@ -211,8 +224,26 @@ public class TaskService {
                 .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
         }
 
+        // Same "all stores" resolution as listTasks above, batched across every
+        // distinct owner represented in this list instead of one query per task.
+        Set<Long> ownerIds = tasks.stream()
+            .filter(Task::isAppliesToAllStores)
+            .map(task -> task.getOwner().getId())
+            .collect(Collectors.toSet());
+        Map<Long, List<StoreOptionResponse>> ownerStoresByOwnerId = ownerIds.isEmpty()
+            ? Map.of()
+            : storeOwnerRepository.findByOwnerIdInWithStoreAndOwner(ownerIds).stream()
+                .filter(StoreOwner::isActive)
+                .collect(Collectors.groupingBy(
+                    so -> so.getOwner().getId(),
+                    Collectors.mapping(so -> StoreOptionResponse.from(so.getStore()), Collectors.toList())));
+
         return tasks.stream()
-            .map(task -> TaskResponse.from(task, storesByTaskId.getOrDefault(task.getId(), List.of())))
+            .map(task -> TaskResponse.from(
+                task,
+                task.isAppliesToAllStores()
+                    ? ownerStoresByOwnerId.getOrDefault(task.getOwner().getId(), List.of())
+                    : storesByTaskId.getOrDefault(task.getId(), List.of())))
             .toList();
     }
 

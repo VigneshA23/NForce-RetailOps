@@ -7,9 +7,9 @@ import './TaskTable.css';
 interface TaskTableProps {
   tasks: AdminTask[];
   isLoading?: boolean;
-  // Shown only on the Super Admin Tasks page, which lists tasks across every
-  // store -- the Owner Admin page omits it since its tasks are already
-  // scoped to that owner's own store(s).
+  // Shown on both the Super Admin Tasks page (which lists tasks across every
+  // store) and the Owner/Admin Tasks page (to show which of their own
+  // store(s) a task is linked to, for an owner with more than one store).
   showStoreColumn?: boolean;
   onRowClick: (task: AdminTask) => void;
   // Omitted by the Super Admin Tasks page, which doesn't support in-place
@@ -29,8 +29,14 @@ function isExpired(endDate?: string | null): boolean {
   return endDate < new Date().toISOString().slice(0, 10);
 }
 
+// appliesToAllStores records the original creation-time intent (so an edit
+// can re-resolve it against stores added since), not which stores a given
+// row is actually linked to today -- a Super-Admin-created "All Stores" task
+// is fanned out into one row per owner (see TaskService.createTasksAsSuperAdmin),
+// each carrying that same flag alongside its own real, narrow task_stores
+// list. Always showing the real list here is what makes this column honest
+// for both the Super Admin view and an Owner/Admin looking at their own row.
 function taskStoresLabel(task: AdminTask): string {
-  if (task.appliesToAllStores) return 'All Stores';
   if (task.stores.length === 0) return '—';
   return task.stores.map((store) => store.name).join(', ');
 }

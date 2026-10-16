@@ -122,6 +122,23 @@ describe('TaskTable columns', () => {
     expect(screen.queryByRole('columnheader', { name: 'Store' })).not.toBeInTheDocument();
     expect(screen.queryByText('Downtown - Store 1')).not.toBeInTheDocument();
   });
+
+  // appliesToAllStores records creation-time intent, not which stores this
+  // particular row is actually linked to today (a Super-Admin "All Stores"
+  // task is fanned out into one row per owner, each with its own narrow,
+  // real task_stores list -- see TaskService.createTasksAsSuperAdmin). The
+  // Store column must show that real list even when the flag is true,
+  // otherwise an owner with a single store sees "All Stores" instead of
+  // their own store's name on their own task.
+  it('shows the real linked store names rather than "All Stores" even when appliesToAllStores is true', () => {
+    renderTable(
+      [baseTask({ appliesToAllStores: true, stores: [{ id: 1, name: 'Keds Ice Cream - Plano' }] })],
+      { showStoreColumn: true },
+    );
+
+    expect(desktopScope().getByText('Keds Ice Cream - Plano')).toBeInTheDocument();
+    expect(screen.queryByText('All Stores')).not.toBeInTheDocument();
+  });
 });
 
 describe('TaskTable status toggle', () => {
