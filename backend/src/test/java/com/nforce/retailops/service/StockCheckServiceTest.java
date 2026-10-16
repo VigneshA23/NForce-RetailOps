@@ -351,6 +351,18 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void midDayShortageMustBeBelowTheExpectedOnHand() {
+        milk.setMinWeekday(bd(100));
+        milk.setMinWeekend(bd(100));
+        checkWithStartOfDay(20, 0);
+
+        assertThatThrownBy(() -> stockCheckService.reportAdHocShortage(
+            EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), null, null)))
+            .isInstanceOf(InvalidStockCheckException.class);
+        verify(orderListService, never()).upsertReportedShortage(any(), any(), any(), any(), any(), any(), anyBoolean(), anyBoolean());
+    }
+
+    @Test
     void endOfDayAboveStartOfDayWithReceivedStockOnlyCreatesAPendingRequestAndNotifiesTheOwner() {
         StockCheck check = existingCheck(LocalDate.now());
         check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
@@ -739,7 +751,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null, null, null
             )
         ));
 
@@ -817,7 +829,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null, null, null
             )
         ));
 
@@ -844,7 +856,7 @@ class StockCheckServiceTest {
         when(orderListService.listForStore(STORE_ID)).thenReturn(List.of(
             new OrderListEntryResponse(
                 99L, ITEM_ID, "Milk", "L", bd(6), bd(0), null, null, null, "NEEDS_ORDERING",
-                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null
+                false, null, OffsetDateTime.now(), OffsetDateTime.now(), null, null, null, null, false, null, null, null, null
             )
         ));
     }

@@ -621,6 +621,21 @@ public class StockCheckService {
                 "End of Day is already saved for this item. Edit the End of Day count instead");
         }
 
+        // A shortage means running below the minimum, and mid-day stock cannot
+        // be more than what the app already expects to be on hand.
+        BigDecimal todaysMinimum = storeItem.requiredMinimumOn(LocalDate.now());
+        if (todaysMinimum != null && todaysMinimum.signum() > 0 && request.currentStock().compareTo(todaysMinimum) >= 0) {
+            throw new InvalidStockCheckException(
+                "Current stock must be below today's minimum of " + todaysMinimum.stripTrailingZeros().toPlainString()
+                    + ". This item is not short");
+        }
+        if (check.getCurrentCount() != null && request.currentStock().compareTo(check.getCurrentCount()) >= 0) {
+            throw new InvalidStockCheckException(
+                "Current stock must be less than the "
+                    + check.getCurrentCount().stripTrailingZeros().toPlainString()
+                    + " expected on hand. Report a delivery first if stock was received");
+        }
+
         User employee = userRepository.getReferenceById(employeeUserId);
 
         // Bank the usage so far; the current count follows the figure given.

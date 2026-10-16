@@ -153,8 +153,10 @@ public class ChecklistHistoryService {
                 List<TaskResponseEntry> responses = context.responsesByTask().getOrDefault(task.getId(), List.of());
                 if (!responses.isEmpty()) {
                     for (TaskResponseEntry response : responses) {
-                        boolean isIssue = response.getResponseType() == ResponseType.YES_NO
-                            && Boolean.FALSE.equals(response.getValueBoolean());
+                        // Only an admin/super-admin explicitly flagging a response for
+                        // correction makes it an ISSUE -- a plain "No"/"Not done" answer
+                        // is a valid, complete response on its own.
+                        boolean isIssue = response.isFlaggedNeedsCorrection();
                         details.add(new ChecklistHistoryTaskDetailRow(
                             context.store().getId(), context.store().getName(), context.date(),
                             task.getCategory().getName(), task.getName(), isIssue ? "ISSUE" : "COMPLETED",
@@ -436,7 +438,7 @@ public class ChecklistHistoryService {
                         (a, b) -> a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b
                     ));
                 long issueCount = latestResponseByTask.values().stream()
-                    .filter(entry -> entry.getResponseType() == ResponseType.YES_NO && Boolean.FALSE.equals(entry.getValueBoolean()))
+                    .filter(TaskResponseEntry::isFlaggedNeedsCorrection)
                     .count();
 
                 contexts.add(new StoreDayContext(

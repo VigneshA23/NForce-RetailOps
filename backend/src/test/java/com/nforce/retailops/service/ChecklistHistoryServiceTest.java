@@ -283,7 +283,7 @@ class ChecklistHistoryServiceTest {
     // day was "No") -- not a newly invented rule -- and only the latest
     // response per task that day should be considered.
     @Test
-    void summaryCountsAYesNoTaskAnsweredNoAsAnIssueUsingItsLatestResponseOnly() {
+    void summaryCountsAnAdminFlaggedResponseAsAnIssueUsingItsLatestResponseOnly() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
         when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
@@ -293,18 +293,20 @@ class ChecklistHistoryServiceTest {
         when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(yesNoTask));
 
         User employee = user(99L, "Jane Doe");
-        // An earlier "Yes" followed by a corrected, later "No" -- only the later
-        // (higher createdAt) answer should count toward the exception.
+        // An earlier, unflagged "Yes" followed by a later response an admin flagged
+        // for correction -- only the later (higher createdAt) answer should count
+        // toward the issue total.
         TaskResponseEntry earlierYes = response(yesNoTask, store, employee, today);
         earlierYes.setValueBoolean(true);
         ReflectionTestUtils.setField(earlierYes, "createdAt", OffsetDateTime.now().minusHours(1));
 
-        TaskResponseEntry laterNo = response(yesNoTask, store, employee, today);
-        laterNo.setValueBoolean(false);
-        ReflectionTestUtils.setField(laterNo, "createdAt", OffsetDateTime.now());
+        TaskResponseEntry laterFlagged = response(yesNoTask, store, employee, today);
+        laterFlagged.setValueBoolean(false);
+        laterFlagged.setFlaggedNeedsCorrection(true);
+        ReflectionTestUtils.setField(laterFlagged, "createdAt", OffsetDateTime.now());
 
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
-            .thenReturn(List.of(earlierYes, laterNo));
+            .thenReturn(List.of(earlierYes, laterFlagged));
 
         List<ChecklistHistorySummaryRow> rows = checklistHistoryService.getSummary(OWNER_ID, List.of(10L), today, today);
 
@@ -413,7 +415,7 @@ class ChecklistHistoryServiceTest {
     }
 
     @Test
-    void operationsReportMarksAYesNoTaskAnsweredNoAsIssueInDetails() {
+    void operationsReportDoesNotMarkAPlainYesNoTaskAnsweredNoAsIssue() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
         when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
@@ -433,8 +435,34 @@ class ChecklistHistoryServiceTest {
 
         assertThat(report.details()).hasSize(1);
         ChecklistHistoryTaskDetailRow row = report.details().get(0);
-        assertThat(row.status()).isEqualTo("ISSUE");
+        assertThat(row.status()).isEqualTo("COMPLETED");
         assertThat(row.response()).isEqualTo("No");
+        assertThat(report.summary().get(0).issueCount()).isEqualTo(0);
+    }
+
+    @Test
+    void operationsReportMarksAnAdminFlaggedResponseAsIssueInDetails() {
+        LocalDate today = LocalDate.now();
+        Store store = store(10L, "Downtown");
+        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+
+        Category category = category(20L, "Opening", 0);
+        Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
+        when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of(task));
+
+        User employee = user(99L, "Jane Doe");
+        TaskResponseEntry flagged = response(task, store, employee, today);
+        flagged.setValueBoolean(true);
+        flagged.setFlaggedNeedsCorrection(true);
+        when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
+            .thenReturn(List.of(flagged));
+
+        ChecklistHistoryOperationsReportResponse report =
+            checklistHistoryService.getOperationsReport(OWNER_ID, today, today);
+
+        assertThat(report.details()).hasSize(1);
+        ChecklistHistoryTaskDetailRow row = report.details().get(0);
+        assertThat(row.status()).isEqualTo("ISSUE");
         assertThat(report.summary().get(0).issueCount()).isEqualTo(1);
     }
 

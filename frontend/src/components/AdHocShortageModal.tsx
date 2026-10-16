@@ -44,7 +44,15 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
     const nextErrors: typeof errors = {};
     if (!values.storeInventoryItemId) nextErrors.storeInventoryItemId = 'Item is required';
     const current = parseQty(values.currentStock, selectedUnit);
-    if (current === null || current < 0) nextErrors.currentStock = `Enter ${qtyRuleHint(selectedUnit)} (0 or more)`;
+    const expected = selectedItem?.currentStock;
+    const minimum = selectedItem?.minTarget;
+    if (current === null || current < 0) {
+      nextErrors.currentStock = `Enter ${qtyRuleHint(selectedUnit)} (0 or more)`;
+    } else if (expected != null && current >= expected) {
+      nextErrors.currentStock = `Current stock must be less than the ${expected} ${selectedUnit} expected on hand. If stock was delivered, report the delivery first`;
+    } else if (minimum != null && minimum > 0 && current >= minimum) {
+      nextErrors.currentStock = `Current stock (${current} ${selectedUnit}) is not below today's minimum of ${minimum} ${selectedUnit}, so this isn't a shortage`;
+    }
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
@@ -104,14 +112,24 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
           />
         </FormField>
         {hasOpenOrder && (
-          <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
+          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
             <input
               id="ad-hoc-received"
               type="checkbox"
+              style={{ marginTop: 4 }}
               checked={values.orderedAlreadyReceived}
               onChange={(event) => setValues((current) => ({ ...current, orderedAlreadyReceived: event.target.checked }))}
             />
-            <span>An earlier order for this item has already been received</span>
+            <span>
+              An earlier order for this item has already been received
+              {selectedItem?.openOrders?.map((order) => (
+                <span key={order.id} style={{ display: 'block', fontSize: 14, opacity: 0.75 }}>
+                  {order.quantity} {selectedUnit}
+                  {order.supplierName ? ` · ${order.supplierName}` : ''}
+                  {order.orderedAt ? ` · ordered ${new Date(order.orderedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}
+                </span>
+              ))}
+            </span>
           </label>
         )}
         <FormField label="Note (optional)" htmlFor="ad-hoc-note">
