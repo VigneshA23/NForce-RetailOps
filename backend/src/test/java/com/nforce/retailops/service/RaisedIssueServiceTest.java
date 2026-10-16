@@ -17,6 +17,7 @@ import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.RaisedIssueRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -52,6 +53,7 @@ class RaisedIssueServiceTest {
     @Mock private StoreRepository storeRepository;
     @Mock private UserRepository userRepository;
     @Mock private StoreOwnerRepository storeOwnerRepository;
+    @Mock private SuperAdminRepository superAdminRepository;
     @Mock private UserProfileService userProfileService;
     @Mock private NotificationService notificationService;
     @Mock private ActivityLogService activityLogService;
@@ -98,6 +100,28 @@ class RaisedIssueServiceTest {
         assertThat(response.note()).isEqualTo("Freezer is loud.");
         assertThat(response.status()).isEqualTo("OPEN");
         assertThat(response.storeId()).isEqualTo(STORE_ID);
+    }
+
+    // The Super Admin Issues page is a live query, so a raised issue shows up
+    // there regardless -- but without a notification of its own, the Super
+    // Admin's notification bell never reflected it the way the owner's does.
+    @Test
+    void raisingAnIssueNotifiesEverySuperAdmin() {
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
+        when(userRepository.findById(EMPLOYEE_ID)).thenReturn(Optional.of(employee));
+        when(raisedIssueRepository.save(any(RaisedIssue.class))).thenAnswer(i -> i.getArgument(0));
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.empty());
+
+        SuperAdmin firstAdmin = new SuperAdmin();
+        ReflectionTestUtils.setField(firstAdmin, "id", 1L);
+        SuperAdmin secondAdmin = new SuperAdmin();
+        ReflectionTestUtils.setField(secondAdmin, "id", 2L);
+        when(superAdminRepository.findAll()).thenReturn(java.util.List.of(firstAdmin, secondAdmin));
+
+        raisedIssueService.createIssue(EMPLOYEE_ID, new RaiseIssueRequest(STORE_ID, "Freezer is loud."));
+
+        verify(notificationService).createForIssueSuperAdmin(any(RaisedIssue.class), eq(firstAdmin));
+        verify(notificationService).createForIssueSuperAdmin(any(RaisedIssue.class), eq(secondAdmin));
     }
 
     @Test
