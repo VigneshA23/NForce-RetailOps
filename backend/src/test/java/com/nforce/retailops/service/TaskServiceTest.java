@@ -883,6 +883,62 @@ class TaskServiceTest {
     }
 
     @Test
+    void setActive_reactivatingATaskNotifiesTheStoresEmployeesAndActiveOwner() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.setActive(false);
+        task.setName("Log any pest or hygiene observations");
+        task.setCategory(category);
+
+        Store store = new Store();
+        ReflectionTestUtils.setField(store, "id", 20L);
+        task.setStores(Set.of(store));
+
+        User employee = new User();
+        ReflectionTestUtils.setField(employee, "id", 30L);
+        employee.setActive(true);
+        com.nforce.retailops.entity.StoreEmployee storeEmployee = new com.nforce.retailops.entity.StoreEmployee();
+        storeEmployee.setEmployee(employee);
+
+        User owner = new User();
+        ReflectionTestUtils.setField(owner, "id", OWNER_ID);
+        owner.setActive(true);
+        StoreOwner storeOwner = new StoreOwner();
+        storeOwner.setOwner(owner);
+        storeOwner.setStore(store);
+
+        when(taskRepository.findByIdAndOwnerId(taskId, OWNER_ID)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(List.of(20L)))
+            .thenReturn(List.of(storeEmployee));
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(20L)).thenReturn(Optional.of(storeOwner));
+
+        TaskResponse response = taskService.setActive(OWNER_ID, taskId, true);
+
+        assertThat(response.active()).isTrue();
+        verify(notificationService).sendForStore(
+            eq(employee), eq("TASK_REACTIVATED"), any(), any(), any(), eq(store));
+        verify(notificationService).sendForStore(
+            eq(owner), eq("TASK_REACTIVATED"), any(), any(), any(), eq(store));
+    }
+
+    @Test
+    void setActive_doesNotNotifyWhenAnAlreadyActiveTaskIsSavedAsActiveAgain() {
+        Long taskId = 9L;
+        var task = new Task();
+        ReflectionTestUtils.setField(task, "id", taskId);
+        task.setActive(true);
+        task.setCategory(category);
+        when(taskRepository.findByIdAndOwnerId(taskId, OWNER_ID)).thenReturn(Optional.of(task));
+        when(taskRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        taskService.setActive(OWNER_ID, taskId, true);
+
+        verify(notificationService, never()).sendForStore(any(), eq("TASK_REACTIVATED"), any(), any(), any(), any());
+    }
+
+    @Test
     void deleteTaskAsSuperAdmin_rejectsWhenTaskHasHistory() {
         Long taskId = 9L;
         var task = new Task();

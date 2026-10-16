@@ -305,6 +305,12 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   }
 
   const [highlightedUnitKey, setHighlightedUnitKey] = useState<string | null>(null)
+  // One refetch attempt per focusTaskId click -- covers a notification (e.g.
+  // "task reactivated") deep-linking to a task this already-open, already-loaded
+  // page doesn't have yet. Keyed by `ts` so clicking the same notification again
+  // (a new `ts`) can retry, but a single click never loops if the task is
+  // genuinely gone (wrong store, deleted, etc).
+  const focusRefetchedTs = useRef<number | null>(null)
 
   // Clear any filter/collapse that would hide the targeted task, expand its
   // category, then scroll it into view and flash a highlight once rendered.
@@ -314,7 +320,13 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   useEffect(() => {
     if (!focusTaskId) return
     const owningCategory = categories.find((cat) => cat.tasks.some((t) => t.id === focusTaskId.taskId))
-    if (!owningCategory) return
+    if (!owningCategory) {
+      if (focusRefetchedTs.current !== focusTaskId.ts) {
+        focusRefetchedTs.current = focusTaskId.ts
+        loadChecklist()
+      }
+      return
+    }
     const targetTask =
       owningCategory.tasks.find((t) => t.id === focusTaskId.taskId && t.originalDueDate == null) ??
       owningCategory.tasks.find((t) => t.id === focusTaskId.taskId)
@@ -502,7 +514,12 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
     } catch (err) {
       const message = err instanceof ApiError ? err.message : GENERIC_TASK_ERROR
       setTaskErrors((previous) => ({ ...previous, [unitKey]: message }))
-      if (err instanceof ApiError && err.status === 409) loadChecklist()
+      // 409: the task's completion state changed under us (e.g. SINGLE already
+      // answered by someone else). 404: the task (or its category) was
+      // deactivated by an admin while this page was already open -- the
+      // active-only GET below will naturally drop it from the list. Either
+      // way the stale local state needs a refetch, not just an inline error.
+      if (err instanceof ApiError && (err.status === 409 || err.status === 404)) loadChecklist()
     } finally {
       setPendingUnitKey(null)
     }
