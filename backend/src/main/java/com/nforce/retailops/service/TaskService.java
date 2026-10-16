@@ -125,6 +125,41 @@ public class TaskService {
             .toList();
     }
 
+    // Notifies every active employee (and each affected store's active owner)
+    // that a task they can see was just reactivated, so it's worth checking
+    // the checklist again -- mirrors TASK_ADDED's fan-out in createTaskInternal,
+    // but across every affected store (a reactivated all-stores task can span
+    // several) and deduped by employee id so one person assigned to more than
+    // one affected store isn't notified twice.
+    private void notifyTaskReactivated(Task task, List<Store> stores) {
+        Set<Long> notified = new HashSet<>();
+        for (Store store : stores) {
+            storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(List.of(store.getId()))
+                .stream().map(se -> se.getEmployee()).filter(User::isActive)
+                .forEach(employee -> {
+                    if (notified.add(employee.getId())) {
+                        notificationService.sendForStore(
+                            employee, "TASK_REACTIVATED",
+                            "Task reactivated: " + task.getName(),
+                            "\"" + task.getName() + "\" is back on your checklist.",
+                            "/checklist?taskId=" + task.getId(), store);
+                    }
+                });
+            storeOwnerRepository.findByStoreIdAndActiveTrue(store.getId())
+                .map(StoreOwner::getOwner)
+                .filter(User::isActive)
+                .ifPresent(owner -> {
+                    if (notified.add(owner.getId())) {
+                        notificationService.sendForStore(
+                            owner, "TASK_REACTIVATED",
+                            "Task reactivated: " + task.getName(),
+                            "\"" + task.getName() + "\" is back on the checklist.",
+                            "/checklist?taskId=" + task.getId(), store);
+                    }
+                });
+        }
+    }
+
     @Transactional(readOnly = true)
     public List<TaskResponse> listTasks(Long ownerId) {
         List<Task> tasks = taskRepository.findByOwnerIdOrderByCategoryAndDisplayOrderFetchCategory(ownerId);
@@ -273,14 +308,19 @@ public class TaskService {
             throw new InvalidTaskConfigurationException(
                 "This task's end date has passed and cannot be activated");
         }
+        boolean reactivated = active && !task.isActive();
         task.setActive(active);
         task = taskRepository.save(task);
 
+        List<Store> affectedStores = resolveTaskStoresForLog(task, task.getOwner().getId());
         activityLogService.logForStores(
             active ? "TASK_ACTIVATED" : "TASK_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
-            resolveTaskStoresForLog(task, task.getOwner().getId()), "TASK", task.getName(),
+            affectedStores, "TASK", task.getName(),
             (active ? "Activated task \"" : "Deactivated task \"") + task.getName() + "\""
         );
+        if (reactivated) {
+            notifyTaskReactivated(task, affectedStores);
+        }
 
         return TaskResponse.from(task);
     }
@@ -550,14 +590,19 @@ public class TaskService {
             throw new InvalidTaskConfigurationException(
                 "This task's end date has passed and cannot be activated");
         }
+        boolean reactivated = active && !task.isActive();
         task.setActive(active);
         task = taskRepository.save(task);
 
+        List<Store> affectedStores = resolveTaskStoresForLog(task, ownerId);
         activityLogService.logForStores(
             active ? "TASK_ACTIVATED" : "TASK_DEACTIVATED", ownerName(ownerId), "OWNER_ADMIN",
-            resolveTaskStoresForLog(task, ownerId), "TASK", task.getName(),
+            affectedStores, "TASK", task.getName(),
             (active ? "Activated task \"" : "Deactivated task \"") + task.getName() + "\""
         );
+        if (reactivated) {
+            notifyTaskReactivated(task, affectedStores);
+        }
 
         return TaskResponse.from(task);
     }

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import EmployeeDashboard from './EmployeeDashboard'
 import * as tasksApi from '../api/tasks'
+import { ApiError } from '../api/client'
 import type { ChecklistCategory, ChecklistTask } from '../types/task'
 import type { StoreSummary } from '../types/store'
 
@@ -47,6 +48,7 @@ function category(tasks: ChecklistTask[]): ChecklistCategory {
 beforeEach(() => {
   mockGetDailyChecklist.mockReset()
   mockSubmitTaskResponse.mockReset()
+  Element.prototype.scrollIntoView = vi.fn()
 })
 
 describe('EmployeeDashboard filters', () => {
@@ -127,6 +129,51 @@ describe('EmployeeDashboard moved units', () => {
     // Only the moved unit shows a completed state; the normal unit is untouched.
     await screen.findByText(/answered yes/i)
     expect(screen.getAllByRole('button', { name: 'Yes' })).toHaveLength(1)
+  })
+
+  it('refetches and drops a task that was deactivated by an admin while the page was open, on a 404', async () => {
+    // Mirrors the real scenario: the checklist was fetched once on mount, an
+    // admin then deactivated the task, and the employee's stale, already-loaded
+    // card is still clickable -- so submitting against it 404s. The second
+    // getDailyChecklist call simulates the backend no longer returning the
+    // (now inactive) task.
+    mockGetDailyChecklist
+      .mockResolvedValueOnce([category([task(), task({ id: 101, name: 'Log any pest or hygiene observations' })])])
+      .mockResolvedValueOnce([category([task()])])
+    mockSubmitTaskResponse.mockRejectedValue(new ApiError(404, 'Task not found'))
+    const user = userEvent.setup()
+    render(<EmployeeDashboard store={STORE} onLogout={vi.fn()} employeeId={7} />)
+
+    await screen.findByText('Log any pest or hygiene observations')
+    const yesButtons = screen.getAllByRole('button', { name: 'Yes' })
+    await user.click(yesButtons[1])
+
+    await screen.findByText('Sweep the floor')
+    expect(screen.queryByText('Log any pest or hygiene observations')).not.toBeInTheDocument()
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(2)
+  })
+
+  it('refetches when a focusTaskId notification deep-link targets a task reactivated after the page already loaded', async () => {
+    // The checklist was fetched once before the task was reactivated, so it's
+    // missing from the first load. Clicking a "Task reactivated" notification
+    // sets focusTaskId for it -- the page should refetch and then find/scroll
+    // to it, instead of silently doing nothing.
+    mockGetDailyChecklist
+      .mockResolvedValueOnce([category([task()])])
+      .mockResolvedValueOnce([category([task(), task({ id: 101, name: 'Log any pest or hygiene observations' })])])
+    const { rerender } = render(
+      <EmployeeDashboard store={STORE} onLogout={vi.fn()} employeeId={7} />,
+    )
+
+    await screen.findByText('Sweep the floor')
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <EmployeeDashboard store={STORE} onLogout={vi.fn()} employeeId={7} focusTaskId={{ taskId: 101, ts: 1 }} />,
+    )
+
+    await screen.findByText('Log any pest or hygiene observations')
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(2)
   })
 
   it('renders the Missed Tasks stat tile with the count and navigates on click', async () => {

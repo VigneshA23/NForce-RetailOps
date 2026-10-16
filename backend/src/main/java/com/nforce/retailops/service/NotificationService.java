@@ -50,6 +50,7 @@ public class NotificationService {
         PRIORITY_BY_CATEGORY.put("ACCOUNT_REACTIVATED",           "MEDIUM");
         PRIORITY_BY_CATEGORY.put("EMPLOYEE_ACCOUNT_REACTIVATED",  "MEDIUM");
         PRIORITY_BY_CATEGORY.put("TASK_ADDED",                    "LOW");
+        PRIORITY_BY_CATEGORY.put("TASK_REACTIVATED",              "LOW");
         PRIORITY_BY_CATEGORY.put("TASK_MAKEUP_FULFILLED",         "LOW");
         PRIORITY_BY_CATEGORY.put("CATEGORY_ADDED",                "LOW");
         PRIORITY_BY_CATEGORY.put("STOCK_ITEM_ADDED",              "MEDIUM");
