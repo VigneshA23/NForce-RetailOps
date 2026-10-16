@@ -91,9 +91,16 @@ describe('taskStatus', () => {
     expect(taskStatus(task({ responses: [response({ undone: true })] }))).toBe('OPEN');
   });
 
-  it('is ISSUE for a Yes/No task whose latest response is No', () => {
+  it('is COMPLETE (not ISSUE) for a Yes/No task whose latest response is a plain, unflagged No', () => {
     const result = taskStatus(
       task({ responseType: 'YES_NO', responses: [response({ booleanValue: false })] })
+    );
+    expect(result).toBe('COMPLETE');
+  });
+
+  it('is ISSUE for a response an admin/super-admin has explicitly flagged for correction', () => {
+    const result = taskStatus(
+      task({ responseType: 'YES_NO', responses: [response({ booleanValue: true, flaggedNeedsCorrection: true })] })
     );
     expect(result).toBe('ISSUE');
   });

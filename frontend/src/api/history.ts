@@ -59,6 +59,7 @@ interface RawResponseEntry {
   numericValue: number | null;
   textValue: string | null;
   respondedAt: string;
+  flaggedNeedsCorrection: boolean;
   latestCorrection: RawAdminCorrectionEntry | null;
   resubmissionHistory: RawResubmissionHistoryEntry[];
   // True only for a dangling entry synthesized because the employee explicitly
@@ -130,8 +131,9 @@ function activeResponderCount(responses: RawResponseEntry[]): number {
 // Inactive (task itself deactivated, or its category) takes priority over
 // every other status. A MULTIPLE task with some active responses but below its
 // threshold is in progress, not unanswered. A dangling undo alone is not an
-// active response. Once complete, the latest explicit "No" is flagged and
-// anything else is complete.
+// active response. Once complete, a response is only "Flagged" when an
+// admin/super-admin has explicitly flagged it for correction -- a plain "No"/
+// "Not done" answer is a valid, complete response on its own.
 function deriveTaskStatus(
   task: RawTaskItem,
   latest: RawResponseEntry | null,
@@ -143,7 +145,7 @@ function deriveTaskStatus(
     return task.completionType === 'MULTIPLE' && responderCount > 0 ? 'IN_PROGRESS' : 'NOT_ANSWERED';
   }
   if (!latest || latest.undone) return 'NOT_ANSWERED';
-  return latest.booleanValue === false ? 'NO' : 'YES';
+  return latest.flaggedNeedsCorrection ? 'NO' : 'YES';
 }
 
 // Label shown in place of a dangling response's stale pre-undo value, or as the
