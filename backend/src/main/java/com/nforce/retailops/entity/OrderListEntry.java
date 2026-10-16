@@ -85,6 +85,16 @@ public class OrderListEntry {
     @Column(name = "received_by_name")
     private String receivedByName;
 
+    // Usable stock and required minimum as of when this row was raised or last
+    // recalculated while still Needs Ordering. Never touched once Ordered, so
+    // the row keeps showing the situation it was ordered against. Null for
+    // manual rows and rows that predate V101.
+    @Column(name = "stock_at_order")
+    private BigDecimal stockAtOrder;
+
+    @Column(name = "minimum_at_order")
+    private BigDecimal minimumAtOrder;
+
     @Column(name = "ad_hoc", nullable = false)
     private boolean adHoc;
 
@@ -227,6 +237,19 @@ public class OrderListEntry {
 
     public void setReceivedByName(String receivedByName) {
         this.receivedByName = receivedByName;
+    }
+
+    public BigDecimal getStockAtOrder() {
+        return stockAtOrder;
+    }
+
+    public BigDecimal getMinimumAtOrder() {
+        return minimumAtOrder;
+    }
+
+    public void setStockSnapshot(BigDecimal stockAtOrder, BigDecimal minimumAtOrder) {
+        this.stockAtOrder = stockAtOrder;
+        this.minimumAtOrder = minimumAtOrder;
     }
 
     public boolean isAdHoc() {

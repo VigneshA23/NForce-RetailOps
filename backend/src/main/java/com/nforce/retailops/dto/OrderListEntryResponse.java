@@ -29,7 +29,11 @@ public record OrderListEntryResponse(
     // Only set on the response to the Ordered -> Received change itself;
     // null on every list read.
     ReceiptOutcome receipt,
-    boolean urgent
+    boolean urgent,
+    // Stock and minimum as they were when this row was raised; null when
+    // there was no count behind it (manual rows, older rows).
+    BigDecimal stockAtOrder,
+    BigDecimal minimumAtOrder
 ) {
     // What marking an order received did to the store's stock. stockUpdated is
     // false when there was no stock count for today to add the delivery to
@@ -68,7 +72,9 @@ public record OrderListEntryResponse(
             entry.getQuantityReceived(),
             entry.getReceivedAt(),
             receipt,
-            entry.isUrgent()
+            entry.isUrgent(),
+            entry.getStockAtOrder(),
+            entry.getMinimumAtOrder()
         );
     }
 }

@@ -325,7 +325,14 @@ function OrderList({ storeName, seed }: OrderListProps) {
   }, [entries, search, categoryFilter, categoryByItemId, supplierFilter, statusFilter]);
 
   function decorate(entry: OrderListEntry) {
-    const stock = stockByItemId.get(entry.storeInventoryItemId);
+    // A row still waiting to be ordered follows the item's current count (the
+    // server recalculates it on every count). Once ordered it must keep the
+    // stock it was ordered against, so a later count or shortage report on
+    // the same item doesn't rewrite it -- rows with no recorded snapshot show
+    // a dash rather than a live figure that may not be theirs.
+    const waiting = entry.status === 'NEEDS_ORDERING';
+    const liveStock = stockByItemId.get(entry.storeInventoryItemId);
+    const stock = waiting ? liveStock : undefined;
     const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
     const meta = STATUS_META[entry.status];
     const categoryLabel = categoryLabelOf(category) || '—';
@@ -335,8 +342,10 @@ function OrderList({ storeName, seed }: OrderListProps) {
       entry,
       category,
       categoryLabel,
-      onHand: stock?.current ?? null,
-      par: stock?.minimum ?? null,
+      onHand: stock?.current ?? entry.stockAtOrder ?? null,
+      par: stock?.minimum ?? entry.minimumAtOrder ?? null,
+      // "Updated by X at T" describes the live count, so it only belongs on
+      // a row that follows it.
       stockUpdate: describeStockUpdate(stock?.lastUpdatedAt, stock?.lastUpdatedByName),
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
       meta: entry.note ? `${raisedBy} · ${raisedAt} · ${entry.note}` : `${raisedBy} · ${raisedAt}`,

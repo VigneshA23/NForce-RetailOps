@@ -609,6 +609,7 @@ public class OrderListService {
         }
         entry.setQuantityNeeded(entry.getQuantityNeeded().add(remaining));
         entry.setUrgent(true);
+        stampStockSnapshot(entry, item);
         if (note != null) {
             entry.setNote(note);
         }
@@ -616,6 +617,21 @@ public class OrderListService {
             entry.setRaisedBy(raisedBy);
         }
         return orderListEntryRepository.save(entry);
+    }
+
+    // Records the stock and minimum this row is being raised against, from
+    // today's count for the item (the latest usable figure, and tomorrow's
+    // minimum once End of Day is in -- the same basis the order quantity was
+    // worked out on). Only called for a row still waiting to be ordered: once
+    // Ordered the system never touches a row, so its figures stay as they were.
+    // No count today (a manual "Add to order") leaves the row without a snapshot.
+    private void stampStockSnapshot(OrderListEntry entry, StoreInventoryItem item) {
+        LocalDate today = LocalDate.now();
+        stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
+            .filter(c -> c.getCurrentCount() != null)
+            .ifPresent(c -> entry.setStockSnapshot(
+                c.getCurrentCount(),
+                c.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? c.getRequiredTomorrow() : item.requiredMinimumOn(today)));
     }
 
     private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier) {
@@ -659,6 +675,7 @@ public class OrderListService {
             entry.setQuantityNeeded(quantityNeeded);
             entry.setUrgent(urgent);
         }
+        stampStockSnapshot(entry, item);
         if (note != null) {
             entry.setNote(note);
         }
