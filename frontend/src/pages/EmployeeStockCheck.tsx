@@ -44,10 +44,13 @@ interface StockCheckViewItem extends DailyStockCheckItem {
 // "Available" is the latest known count (End of Day once saved, else the
 // running current stock: Start of Day plus deliveries, or the last mid-day
 // shortage report), so a live shortage/optimal indicator can show before End of Day is
-// saved. This is a display-only estimate -- it never feeds quantityToOrder,
-// which the backend only finalizes once End of Day is saved.
+// saved. Before Start of Day is entered today, it falls back to the expected
+// start-of-day stock (last End of Day plus deliveries since) instead of
+// showing nothing. This is a display-only estimate -- it never feeds
+// quantityToOrder, which the backend only finalizes once End of Day is saved.
 function toViewItem(item: DailyStockCheckItem): StockCheckViewItem {
-  const available = item.endOfDay?.usable ?? item.currentStock ?? item.startOfDay?.usable ?? null;
+  const available =
+    item.endOfDay?.usable ?? item.currentStock ?? item.startOfDay?.usable ?? item.previousEndOfDay?.expectedStart ?? null;
   const needed = item.minTarget != null && available != null ? Math.max(0, item.minTarget - available) : null;
   const status: ItemStatus = needed != null && needed > 0 ? 'shortage' : available != null ? 'optimal' : 'pending';
   return { ...item, available, needed, status };
@@ -155,8 +158,11 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
     }
     if (snapshot === 'END_OF_DAY' && item.startOfDay != null) {
       const endUsable = available - deadStock;
-      const startUsable = item.startOfDay.usable;
-      if (endUsable > startUsable + (item.quantityReceived ?? 0) + (item.pendingReceivedQuantity ?? 0)) {
+      // currentStock already accounts for a mid-day shortage report rebasing
+      // the usable figure; startOfDay.usable + quantityReceived alone would
+      // miss that and let the shortage cancel itself out undetected.
+      const startUsable = item.currentStock ?? item.startOfDay.usable + (item.quantityReceived ?? 0);
+      if (endUsable > startUsable + (item.pendingReceivedQuantity ?? 0)) {
         return new Promise<boolean>((resolve) => {
           setReceivedPrompt({ item, available, deadStock, startUsable, endUsable, snapshot: 'END_OF_DAY', resolve });
         });
@@ -558,16 +564,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                     </span>
                   </div>
 
-                  {item.previousEndOfDay && (
-                    <p className="employee-stock-check-page__eod-note">
-                      Last End of Day ({new Date(`${item.previousEndOfDay.date}T00:00:00`).toLocaleDateString()}):{' '}
-                      <strong>{item.previousEndOfDay.usable} {item.unitOfMeasurement}</strong>
-                      {item.previousEndOfDay.submittedByName ? <> · submitted by {item.previousEndOfDay.submittedByName}</> : null}
-                      {item.previousEndOfDay.expectedStart !== item.previousEndOfDay.usable ? (
-                        <> · expected Start of Day: <strong>{item.previousEndOfDay.expectedStart} {item.unitOfMeasurement}</strong> (incl. deliveries received since)</>
-                      ) : null}
-                    </p>
-                  )}
                   {item.startOfDayReview && (
                     <p
                       className={`employee-stock-check-page__review employee-stock-check-page__review--${item.startOfDayReview.status.toLowerCase()}`}
@@ -673,7 +669,9 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
         alreadyReceived={
           receivedPrompt?.snapshot === 'START_OF_DAY'
             ? receivedPrompt.item.previousEndOfDay?.restockCovered ?? 0
-            : (receivedPrompt?.item.quantityReceived ?? 0) + (receivedPrompt?.item.pendingReceivedQuantity ?? 0)
+            // startUsable is already currentStock, which bakes in quantityReceived --
+            // only pendingReceivedQuantity (not yet applied) still needs adding here.
+            : receivedPrompt?.item.pendingReceivedQuantity ?? 0
         }
         orders={receivedPrompt?.item.openOrders ?? []}
         isSubmitting={pendingKey != null}
