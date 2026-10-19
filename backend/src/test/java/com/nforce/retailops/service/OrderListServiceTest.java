@@ -137,7 +137,7 @@ class OrderListServiceTest {
         OrderListEntry ordered = new OrderListEntry();
         ordered.setStatus(OrderStatus.ORDERED);
         ordered.setQuantityNeeded(bd(3));
-        ordered.setStockSnapshot(bd(5), bd(8), "Ananya", java.time.OffsetDateTime.now());
+        ordered.setStockSnapshot(bd(5), bd(8), "Ananya", java.time.OffsetDateTime.now(), false);
         when(orderListEntryRepository.findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(STORE_ID, ITEM_ID, OrderStatus.ORDERED))
             .thenReturn(List.of(ordered));
         stubWaitingEntry();

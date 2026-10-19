@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.StoreOptionResponse;
 import com.nforce.retailops.dto.TaskRequest;
 import com.nforce.retailops.dto.TaskResponse;
 import com.nforce.retailops.dto.TaskResponseSubmitRequest;
@@ -974,5 +975,42 @@ class TaskServiceTest {
 
         assertThat(responses).hasSize(1);
         assertThat(responses.get(0).id()).isEqualTo(55L);
+    }
+
+    // An "all stores" task has no task_stores rows of its own (resolveStores
+    // keeps that set dynamic by design -- the daily checklist query matches
+    // on the appliesToAllStores flag directly, not this list), so the list
+    // endpoint must resolve a real store list for display itself rather than
+    // surface an empty one.
+    @Test
+    void listTasksForSuperAdmin_resolvesAnAllStoresTaskToItsOwnersCurrentStores() {
+        Task task = taskOf(55L, 1L, "Clean counter", true);
+        task.setAppliesToAllStores(true);
+        when(taskRepository.findAllOrderByCategoryAndDisplayOrderFetchCategory()).thenReturn(List.of(task));
+        when(taskRepository.findStoreRowsGroupedByTaskIds(List.of(55L))).thenReturn(List.of());
+        StoreOwner ownerStore = activeStoreOwner(10L, 1L);
+        ownerStore.getStore().setName("Keds Ice Cream - Plano");
+        when(storeOwnerRepository.findByOwnerIdInWithStoreAndOwner(Set.of(1L))).thenReturn(List.of(ownerStore));
+
+        List<TaskResponse> responses = taskService.listTasksForSuperAdmin();
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).stores()).extracting(StoreOptionResponse::name).containsExactly("Keds Ice Cream - Plano");
+    }
+
+    @Test
+    void listTasks_resolvesAnAllStoresTaskToTheOwnersCurrentStores() {
+        Task task = taskOf(55L, 1L, "Clean counter", true);
+        task.setAppliesToAllStores(true);
+        when(taskRepository.findByOwnerIdOrderByCategoryAndDisplayOrderFetchCategory(1L)).thenReturn(List.of(task));
+        when(taskRepository.findStoreRowsGroupedByTaskIds(List.of(55L))).thenReturn(List.of());
+        StoreOwner ownerStore = activeStoreOwner(10L, 1L);
+        ownerStore.getStore().setName("Keds Ice Cream - Plano");
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(ownerStore));
+
+        List<TaskResponse> responses = taskService.listTasks(1L);
+
+        assertThat(responses).hasSize(1);
+        assertThat(responses.get(0).stores()).extracting(StoreOptionResponse::name).containsExactly("Keds Ice Cream - Plano");
     }
 }

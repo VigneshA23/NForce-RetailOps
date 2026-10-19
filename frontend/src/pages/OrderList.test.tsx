@@ -170,6 +170,38 @@ describe('OrderList stock update line', () => {
   });
 });
 
+describe('OrderList tomorrow tag', () => {
+  const forTomorrow = { stockAtOrder: 4, minimumAtOrder: 7, stockAtOrderByName: 'Divya Nair', stockForTomorrow: true };
+
+  it("tags a row raised from today's End of Day and shows tomorrow's minimum", async () => {
+    mockGetOrderList.mockResolvedValue([
+      entry({ id: 1, itemName: 'Milk', status: 'NEEDS_ORDERING', ...forTomorrow, stockAtOrderAt: new Date().toISOString() }),
+    ]);
+    mockGetInventoryCounts.mockResolvedValue(countsPage({
+      rows: [{
+        itemId: 100, name: 'Milk', category: null, unitOfMeasurement: 'L', currentStock: 4, minimum: 5, status: 'LOW',
+        lastUpdatedAt: new Date().toISOString(), lastUpdatedByName: 'Divya Nair', lastUpdatedSource: null, change: null,
+        changeFromDate: null, latestCheckId: null, latestSnapshot: null, latestAvailable: null, latestDeadStock: null, imageId: null,
+      }],
+    }));
+    render(<OrderList storeName="Downtown" />);
+
+    expect(await screen.findByText('Tomorrow')).toBeInTheDocument();
+    expect(screen.getByText('/ 7')).toBeInTheDocument();
+  });
+
+  it('drops the tag once the End of Day count is from a previous day', async () => {
+    const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    mockGetOrderList.mockResolvedValue([
+      entry({ id: 1, itemName: 'Milk', status: 'NEEDS_ORDERING', ...forTomorrow, stockAtOrderAt: yesterday }),
+    ]);
+    render(<OrderList storeName="Downtown" />);
+
+    await screen.findByText('Milk');
+    expect(screen.queryByText('Tomorrow')).not.toBeInTheDocument();
+  });
+});
+
 describe('OrderList status filter', () => {
   it('defaults to "All open", hiding already-received entries', async () => {
     render(<OrderList storeName="Downtown" />);

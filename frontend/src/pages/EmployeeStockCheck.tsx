@@ -318,6 +318,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
           unitOfMeasurement: i.unitOfMeasurement,
           active: true,
           currentStock: i.currentStock,
+          minTarget: i.minTarget,
           openOrders: i.openOrders,
         })),
     [items],

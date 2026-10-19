@@ -581,18 +581,20 @@ public class OrderListService {
         }
         BigDecimal remaining = requiredQuantity.subtract(covered);
         if (outOfStock) {
-            return raiseOutOfStock(store, item, remaining.max(BigDecimal.ZERO), note, raisedBy, defaultSupplier);
+            return raiseReportedNeed(store, item, remaining.max(BigDecimal.ZERO), note, raisedBy, defaultSupplier, true);
         }
         if (remaining.signum() <= 0) {
             return null;
         }
-        return upsertShortage(store, item, remaining, note, true, raisedBy, defaultSupplier);
+        // The shortfall comes from the stock figure, not from the employee
+        // typing a quantity, so it belongs in the Needs column, not Manual.
+        return raiseReportedNeed(store, item, remaining, note, raisedBy, defaultSupplier, false);
     }
 
-    // The item is out of stock, so the rest of the requirement goes into the
-    // Needs column itself (not Manual) and the row is flagged urgent. Works on
+    // The rest of a reported requirement goes into the Needs column itself
+    // (not Manual); out of stock also flags the row urgent. Works on
     // the row still waiting to be ordered; a new system row only when none is.
-    private OrderListEntry raiseOutOfStock(Store store, StoreInventoryItem item, BigDecimal remaining, String note, User raisedBy, Supplier defaultSupplier) {
+    private OrderListEntry raiseReportedNeed(Store store, StoreInventoryItem item, BigDecimal remaining, String note, User raisedBy, Supplier defaultSupplier, boolean urgent) {
         OrderListEntry entry = orderListEntryRepository
             .findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(store.getId(), item.getId(), OrderStatus.NEEDS_ORDERING)
             .stream().findFirst().orElse(null);
@@ -608,7 +610,9 @@ public class OrderListService {
             entry.setAdHoc(false);
         }
         entry.setQuantityNeeded(entry.getQuantityNeeded().add(remaining));
-        entry.setUrgent(true);
+        if (urgent) {
+            entry.setUrgent(true);
+        }
         stampStockSnapshot(entry, item, raisedBy);
         if (note != null) {
             entry.setNote(note);
@@ -629,11 +633,15 @@ public class OrderListService {
         LocalDate today = LocalDate.now();
         stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
             .filter(c -> c.getCurrentCount() != null)
-            .ifPresent(c -> entry.setStockSnapshot(
-                c.getCurrentCount(),
-                c.hasSnapshot(StockCheckSnapshot.END_OF_DAY) ? c.getRequiredTomorrow() : item.requiredMinimumOn(today),
-                actor != null ? actor.getFullName() : null,
-                OffsetDateTime.now()));
+            .ifPresent(c -> {
+                boolean forTomorrow = c.hasSnapshot(StockCheckSnapshot.END_OF_DAY);
+                entry.setStockSnapshot(
+                    c.getCurrentCount(),
+                    forTomorrow ? c.getRequiredTomorrow() : item.requiredMinimumOn(today),
+                    actor != null ? actor.getFullName() : null,
+                    OffsetDateTime.now(),
+                    forTomorrow);
+            });
     }
 
     private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier) {

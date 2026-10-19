@@ -336,6 +336,10 @@ function OrderList({ storeName, seed }: OrderListProps) {
     const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
     const meta = STATUS_META[entry.status];
     const categoryLabel = categoryLabelOf(category) || '—';
+    // "Tomorrow" only holds on the day the End of Day count was taken; the next
+    // day the row is simply for that day, so the tag drops off.
+    const forTomorrow = !!entry.stockForTomorrow && !!entry.stockAtOrderAt
+      && new Date(entry.stockAtOrderAt).toDateString() === new Date().toDateString();
     const raisedBy = entry.raisedByName ?? (entry.adHoc ? 'Manual' : 'Auto-detected');
     const raisedAt = new Date(entry.createdAt).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
     return {
@@ -343,7 +347,10 @@ function OrderList({ storeName, seed }: OrderListProps) {
       category,
       categoryLabel,
       onHand: stock?.current ?? entry.stockAtOrder ?? null,
-      par: stock?.minimum ?? entry.minimumAtOrder ?? null,
+      // A row raised from End of Day is against tomorrow's minimum, which the
+      // live count's (today's) minimum is not.
+      par: (forTomorrow ? entry.minimumAtOrder : stock?.minimum) ?? entry.minimumAtOrder ?? null,
+      forTomorrow,
       // The row's own snapshot author/time when it has one, so an Ordered row
       // keeps showing who submitted the stock it was ordered against; the
       // live count's author/time only for a row without a snapshot.
@@ -536,6 +543,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
               )}
               {entry.note && <div className="order-list__item-mobile-meta">{entry.note}</div>}
             </div>
+            {row.forTomorrow && <span className="order-list__tomorrow-tag order-list__tomorrow-tag--card">Tomorrow</span>}
           </div>
           <div className="order-list__mobile-stats">
             <div className="order-list__mobile-stat">
@@ -610,6 +618,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
         <td className="order-list__num-cell order-list__need-cell" data-label="Need" style={{ color: row.needFg, fontWeight: 800 }}>
           <span className="order-list__cell-value">
             {entry.quantityNeeded} <span className="order-list__unit">{entry.unitOfMeasurement}</span>
+            {row.forTomorrow && <span className="order-list__tomorrow-tag">Tomorrow</span>}
           </span>
         </td>
         <td className="order-list__num-cell order-list__manual-cell" data-label="Manual">
@@ -838,7 +847,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                         <col className="order-list__col--item" />
                         <col className="order-list__col--category" />
                         <col className="order-list__col--num" />
-                        <col className="order-list__col--num" />
+                        <col className="order-list__col--need" />
                         <col className="order-list__col--num" />
                         <col className="order-list__col--num" />
                         <col className="order-list__col--status" />
@@ -878,7 +887,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                 <col style={{ width: '3%' }} />
                 <col style={{ width: 240 }} />
                 <col style={{ width: '7%' }} />
-                <col style={{ width: '7%' }} />
+                <col style={{ width: 150 }} />
                 <col style={{ width: '7%' }} />
                 <col style={{ width: '8%' }} />
                 <col style={{ width: '12%' }} />
