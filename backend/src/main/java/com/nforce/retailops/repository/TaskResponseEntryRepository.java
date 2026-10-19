@@ -151,6 +151,10 @@ public interface TaskResponseEntryRepository extends JpaRepository<TaskResponseE
     // deletion, per TaskResponseEntry's own preserve-history contract.
     boolean existsByTaskId(Long taskId);
 
+    // Backs the deleteCategory history guard -- same no-"active"-predicate rationale
+    // as existsByTaskId, applied to every task under the category at once.
+    boolean existsByTaskIdIn(Collection<Long> taskIds);
+
     // Backs the deleteStore history guard -- any response against a store (active
     // or undone) is enough to block deletion, same rationale as existsByTaskId.
     boolean existsByStoreId(Long storeId);

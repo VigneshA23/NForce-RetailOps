@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.CategoryDeletePreviewResponse;
 import com.nforce.retailops.dto.CategoryRequest;
 import com.nforce.retailops.dto.CategoryResponse;
 import com.nforce.retailops.dto.StoreOptionResponse;
@@ -12,11 +13,13 @@ import com.nforce.retailops.exception.CategoryNotFoundException;
 import com.nforce.retailops.exception.InvalidCategoryOrderException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
 import com.nforce.retailops.exception.StoreInactiveException;
+import com.nforce.retailops.exception.TaskHasHistoryException;
 import com.nforce.retailops.repository.CategoryRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.TaskRepository;
+import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +44,7 @@ public class CategoryService {
     private final NotificationService notificationService;
     private final StoreRepository storeRepository;
     private final ActivityLogService activityLogService;
+    private final TaskResponseEntryRepository taskResponseEntryRepository;
 
     public CategoryService(
         CategoryRepository categoryRepository,
@@ -49,7 +53,8 @@ public class CategoryService {
         StoreEmployeeRepository storeEmployeeRepository,
         NotificationService notificationService,
         StoreRepository storeRepository,
-        ActivityLogService activityLogService
+        ActivityLogService activityLogService,
+        TaskResponseEntryRepository taskResponseEntryRepository
     ) {
         this.categoryRepository = categoryRepository;
         this.taskRepository = taskRepository;
@@ -58,6 +63,7 @@ public class CategoryService {
         this.notificationService = notificationService;
         this.storeRepository = storeRepository;
         this.activityLogService = activityLogService;
+        this.taskResponseEntryRepository = taskResponseEntryRepository;
     }
 
     // ---------------------------------------------------------------------
@@ -227,18 +233,49 @@ public class CategoryService {
         return toResponses(applicable, null);
     }
 
+    // Backs the confirmation popup: lists the tasks a delete would remove along
+    // with the category, and flags whether any has checklist history (blocking it).
+    @Transactional(readOnly = true)
+    public CategoryDeletePreviewResponse previewDeleteAsSuperAdmin(Long categoryId) {
+        Category category = categoryRepository.findById(categoryId)
+            .orElseThrow(() -> new CategoryNotFoundException("Category not found"));
+        List<Task> tasks = taskRepository.findByCategoryId(category.getId());
+        return new CategoryDeletePreviewResponse(
+            tasks.stream().map(Task::getName).sorted(String.CASE_INSENSITIVE_ORDER).toList(),
+            hasHistory(tasks)
+        );
+    }
+
+    // Deletes the category together with its tasks, but only when none of those
+    // tasks has checklist history -- task_responses restricts task deletion (V21),
+    // so history is checked up front to give a clean 409 instead of a raw
+    // constraint violation. Nothing is deleted unless every task is deletable.
     @Transactional
     public void deleteCategoryAsSuperAdmin(Long categoryId) {
         Category category = categoryRepository.findById(categoryId)
             .orElseThrow(() -> new CategoryNotFoundException("Category not found"));
+        List<Task> tasks = taskRepository.findByCategoryId(category.getId());
+        if (hasHistory(tasks)) {
+            throw new TaskHasHistoryException(
+                "One or more tasks in this category have checklist history, so it cannot be deleted. "
+                    + "Deactivate the category instead.");
+        }
         List<Store> affectedStores = resolveStoresForLog(effectiveStoreIds(category));
         String categoryName = category.getName();
+        int taskCount = tasks.size();
+        taskRepository.deleteAll(tasks);
         categoryRepository.delete(category);
         activityLogService.logForStores(
             "CATEGORY_DELETED", "Super Admin", "SUPER_ADMIN",
             affectedStores, "CATEGORY", categoryName,
             "Deleted category \"" + categoryName + "\""
+                + (taskCount > 0 ? " and its " + taskCount + " task" + (taskCount == 1 ? "" : "s") : "")
         );
+    }
+
+    private boolean hasHistory(List<Task> tasks) {
+        return !tasks.isEmpty()
+            && taskResponseEntryRepository.existsByTaskIdIn(tasks.stream().map(Task::getId).toList());
     }
 
     private List<Store> resolveStoresForLog(Set<Long> storeIds) {
