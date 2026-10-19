@@ -74,7 +74,7 @@ function matchesFilters(
   const matches =
     statusFilter === 'all' ||
     (statusFilter === 'shortage' && row.status === 'shortage') ||
-    (statusFilter === 'sufficient' && row.status !== 'shortage');
+    (statusFilter === 'sufficient' && row.status === 'optimal');
   return matchesSearch && matchesCategory && matches;
 }
 

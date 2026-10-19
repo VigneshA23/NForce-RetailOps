@@ -122,16 +122,16 @@ describe('EmployeeStockCheck status filters', () => {
     await screen.findByText('Milk');
     expect(screen.getByRole('button', { name: 'All Records (3)' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Shortage (1)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Sufficient (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sufficient (1)' })).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Shortage (1)' }));
     expect(screen.getByText('Milk')).toBeInTheDocument();
     expect(screen.queryByText('Sugar')).not.toBeInTheDocument();
     expect(screen.queryByText('Flour')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Sufficient (2)' }));
+    await user.click(screen.getByRole('button', { name: 'Sufficient (1)' }));
     expect(screen.getByText('Sugar')).toBeInTheDocument();
-    expect(screen.getByText('Flour')).toBeInTheDocument();
+    expect(screen.queryByText('Flour')).not.toBeInTheDocument();
     expect(screen.queryByText('Milk')).not.toBeInTheDocument();
   });
 });
