@@ -33,6 +33,8 @@ public record DailyStockCheckItemResponse(
     PreviousEndOfDay previousEndOfDay,
     // The Start of Day request still open or turned down for today, if any.
     StartOfDayReview startOfDayReview,
+    // The End of Day request still open or turned down for today, if any.
+    EndOfDayReview endOfDayReview,
     // True once the order raised from today's Start of Day is marked Ordered:
     // Start of Day can no longer be edited today.
     boolean startOfDayLocked,
@@ -57,6 +59,11 @@ public record DailyStockCheckItemResponse(
 
     // type is RESTOCK or LOWER_COUNT, status PENDING or REJECTED.
     public record StartOfDayReview(String type, String status, BigDecimal quantity, String reason) {
+    }
+
+    // type is always RESTOCK today (End of Day has no lower-count reason flow);
+    // status PENDING or REJECTED.
+    public record EndOfDayReview(String type, String status, BigDecimal quantity, String reason) {
     }
 
     public record OpenOrder(Long id, BigDecimal quantity, String supplierName, OffsetDateTime orderedAt) {

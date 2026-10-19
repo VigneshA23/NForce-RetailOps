@@ -6,10 +6,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
-// An employee's End of Day report that stock arrived, waiting on the store's
-// Owner/Admin. Nothing in stock_checks or order_list_entries changes until it
-// is approved. orderListEntry is the existing Ordered order the employee said
-// was received, or null for stock that isn't on any order.
+// An employee's received-stock report, or a lower-than-expected count, held
+// for the store's Owner/Admin to decide. A request with holdsSnapshot=true
+// also carries the submitted count itself (pendingAvailable/pendingDeadStock):
+// stock_checks and order_list_entries are not touched until it is approved,
+// and nothing happens on rejection (the figures are kept on the row only as a
+// record of what was turned down). orderListEntry is the existing Ordered
+// order the employee said was received, or null for stock not on any order.
 @Entity
 @Table(name = "stock_receipt_requests")
 public class StockReceiptRequest {
@@ -52,6 +55,22 @@ public class StockReceiptRequest {
 
     // LOWER_COUNT only: the employee's reason for a count below yesterday's.
     private String reason;
+
+    // Set only on the one request of a submission that holds back a count
+    // (holdsSnapshot=true): the available/dead stock the employee submitted,
+    // not yet written to stock_checks. Applied on approval, discarded (left
+    // here as a record of what was rejected) on rejection. A sibling delivery
+    // request from the same submission (e.g. a second order received at once)
+    // keeps holdsSnapshot=false and is unaffected -- it still only applies its
+    // own delivery via applyApprovedDelivery.
+    @Column(name = "pending_available")
+    private BigDecimal pendingAvailable;
+
+    @Column(name = "pending_dead_stock")
+    private BigDecimal pendingDeadStock;
+
+    @Column(name = "holds_snapshot", nullable = false)
+    private boolean holdsSnapshot = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "requested_by_user_id", nullable = false)
@@ -101,6 +120,15 @@ public class StockReceiptRequest {
 
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
+
+    public BigDecimal getPendingAvailable() { return pendingAvailable; }
+    public void setPendingAvailable(BigDecimal pendingAvailable) { this.pendingAvailable = pendingAvailable; }
+
+    public BigDecimal getPendingDeadStock() { return pendingDeadStock; }
+    public void setPendingDeadStock(BigDecimal pendingDeadStock) { this.pendingDeadStock = pendingDeadStock; }
+
+    public boolean isHoldsSnapshot() { return holdsSnapshot; }
+    public void setHoldsSnapshot(boolean holdsSnapshot) { this.holdsSnapshot = holdsSnapshot; }
 
     public StockReceiptRequestStatus getStatus() { return status; }
     public void setStatus(StockReceiptRequestStatus status) { this.status = status; }

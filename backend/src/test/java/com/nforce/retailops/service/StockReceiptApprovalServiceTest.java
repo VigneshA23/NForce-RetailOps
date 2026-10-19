@@ -163,4 +163,60 @@ class StockReceiptApprovalServiceTest {
         assertThatThrownBy(() -> service.approve(OWNER_ID, 99L))
             .isInstanceOf(StockReceiptRequestNotFoundException.class);
     }
+
+    @Test
+    void approvingARequestThatHoldsACountAppliesItBeforeTheDelivery() {
+        request.setHoldsSnapshot(true);
+        request.setPendingAvailable(bd(20));
+        request.setPendingDeadStock(bd(0));
+
+        service.approve(OWNER_ID, REQUEST_ID);
+
+        org.mockito.InOrder order = org.mockito.Mockito.inOrder(stockCheckService);
+        order.verify(stockCheckService).applyApprovedSnapshot(request);
+        order.verify(stockCheckService).applyApprovedDelivery(request);
+    }
+
+    @Test
+    void approvingASiblingOfASnapshotHoldingRequestStillAppliesTheHeldSnapshot() {
+        StockReceiptRequest primary = new StockReceiptRequest();
+        ReflectionTestUtils.setField(primary, "id", 6L);
+        primary.setStore(request.getStore());
+        primary.setStoreInventoryItem(request.getStoreInventoryItem());
+        primary.setCheckDate(request.getCheckDate());
+        primary.setHoldsSnapshot(true);
+        primary.setPendingAvailable(bd(20));
+        primary.setPendingDeadStock(bd(0));
+        when(requestRepository.findByStoreInventoryItemIdAndCheckDateAndSnapshotAndStatus(
+            request.getStoreInventoryItem().getId(), request.getCheckDate(), request.getSnapshot(), StockReceiptRequestStatus.PENDING))
+            .thenReturn(List.of(primary, request));
+
+        // The owner approves the non-primary sibling first.
+        service.approve(OWNER_ID, REQUEST_ID);
+
+        verify(stockCheckService).applyApprovedSnapshot(primary);
+        verify(stockCheckService).applyApprovedDelivery(request);
+        // The sibling itself is untouched -- only the clicked request is decided.
+        assertThat(primary.isPending()).isTrue();
+    }
+
+    @Test
+    void rejectingASnapshotHoldingRequestRejectsItsSiblingsToo() {
+        request.setHoldsSnapshot(true);
+        StockReceiptRequest sibling = new StockReceiptRequest();
+        ReflectionTestUtils.setField(sibling, "id", 7L);
+        sibling.setStore(request.getStore());
+        sibling.setStoreInventoryItem(request.getStoreInventoryItem());
+        sibling.setCheckDate(request.getCheckDate());
+        when(requestRepository.findByStoreInventoryItemIdAndCheckDateAndSnapshotAndStatus(
+            request.getStoreInventoryItem().getId(), request.getCheckDate(), request.getSnapshot(), StockReceiptRequestStatus.PENDING))
+            .thenReturn(List.of(request, sibling));
+
+        service.reject(OWNER_ID, REQUEST_ID);
+
+        assertThat(request.getStatus()).isEqualTo(StockReceiptRequestStatus.REJECTED);
+        assertThat(sibling.getStatus()).isEqualTo(StockReceiptRequestStatus.REJECTED);
+        verify(notificationService).notifyEmployeeOfStockReceiptDecision(sibling, false);
+        verify(stockCheckService, never()).applyApprovedSnapshot(any());
+    }
 }

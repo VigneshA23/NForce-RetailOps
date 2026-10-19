@@ -577,12 +577,24 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                         : 'Your admin rejected the Start of Day request. Please recount and save Start of Day again.'}
                     </p>
                   )}
+                  {item.endOfDayReview && (
+                    <p
+                      className={`employee-stock-check-page__review employee-stock-check-page__review--${item.endOfDayReview.status.toLowerCase()}`}
+                      role="status"
+                    >
+                      {item.endOfDayReview.status === 'PENDING'
+                        ? 'Restock reported with End of Day. Waiting for your admin to approve.'
+                        : 'Your admin rejected the End of Day request. Please recount and save End of Day again.'}
+                    </p>
+                  )}
                   <div className="employee-stock-check-page__snapshots">
                     {(['START_OF_DAY', 'END_OF_DAY'] as const).map((snapshot) => (
                       <StockSnapshotCard
                         key={snapshot}
                         canEdit={(() => {
                           if (snapshot === 'START_OF_DAY' && item.startOfDayLocked) return false;
+                          if (snapshot === 'START_OF_DAY' && item.startOfDayReview?.status === 'PENDING') return false;
+                          if (snapshot === 'END_OF_DAY' && item.endOfDayReview?.status === 'PENDING') return false;
                           const saved = snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay;
                           return !saved || saved.enteredById == null || myUserId == null || saved.enteredById === myUserId;
                         })()}
@@ -596,7 +608,11 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                         disabledReason={
                           snapshot === 'END_OF_DAY' && item.startOfDay == null
                             ? 'Submit the Start of Day count first'
-                            : undefined
+                            : snapshot === 'START_OF_DAY' && item.startOfDayReview?.status === 'PENDING'
+                              ? 'Waiting for your admin to approve this Start of Day request'
+                              : snapshot === 'END_OF_DAY' && item.endOfDayReview?.status === 'PENDING'
+                                ? 'Waiting for your admin to approve this End of Day request'
+                                : undefined
                         }
                         footer={
                           snapshot === 'START_OF_DAY' ? (

@@ -43,4 +43,12 @@ public interface StockReceiptRequestRepository extends JpaRepository<StockReceip
         Long storeId, LocalDate checkDate, com.nforce.retailops.entity.StockCheckSnapshot snapshot);
 
     boolean existsByOrderListEntryIdAndStatus(Long orderListEntryId, StockReceiptRequestStatus status);
+
+    // Every request for one item/day/snapshot with the given status -- used to
+    // block resubmission while one is PENDING, and to find the sibling rows of
+    // a multi-delivery submission so an owner can approve/reject any one of
+    // them and have the held-back count (if any) go with it.
+    List<StockReceiptRequest> findByStoreInventoryItemIdAndCheckDateAndSnapshotAndStatus(
+        Long storeInventoryItemId, LocalDate checkDate,
+        com.nforce.retailops.entity.StockCheckSnapshot snapshot, StockReceiptRequestStatus status);
 }

@@ -143,6 +143,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
     }
 
+    // A request for this item/snapshot/day is already awaiting the admin's
+    // decision: the count can't be resubmitted until it is approved/rejected.
+    @ExceptionHandler(StockCheckReviewPendingException.class)
+    public ResponseEntity<Map<String, String>> handleStockCheckReviewPending(StockCheckReviewPendingException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(StockReceiptRequestNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleStockReceiptRequestNotFound(StockReceiptRequestNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));

@@ -51,6 +51,11 @@ public class StockReceiptApprovalService {
     @Transactional
     public StockReceiptRequestResponse approve(Long ownerId, Long requestId) {
         StockReceiptRequest request = requirePendingRequest(ownerId, requestId);
+        // A submission can raise more than one request at once (e.g. two
+        // orders received together); only one of them holds the count that
+        // was deferred. Apply it first, regardless of which row the owner
+        // clicked, so applyApprovedDelivery below always finds the day's row.
+        applyHeldSnapshotForGroup(request);
         // A lower Start of Day count has no delivery behind it: approving just
         // accepts the count.
         if (request.getType() == StockReceiptRequestType.RESTOCK) {
@@ -68,9 +73,37 @@ public class StockReceiptApprovalService {
     @Transactional
     public StockReceiptRequestResponse reject(Long ownerId, Long requestId) {
         StockReceiptRequest request = requirePendingRequest(ownerId, requestId);
+        // Reject the whole group together: if the request holding the count is
+        // rejected, the sibling deliveries it was partly justifying no longer
+        // make sense left pending, and vice versa.
+        for (StockReceiptRequest sibling : groupFor(request)) {
+            if (!sibling.getId().equals(request.getId())) {
+                decide(sibling, StockReceiptRequestStatus.REJECTED, ownerId);
+                notificationService.notifyEmployeeOfStockReceiptDecision(sibling, false);
+            }
+        }
         decide(request, StockReceiptRequestStatus.REJECTED, ownerId);
         notificationService.notifyEmployeeOfStockReceiptDecision(request, false);
         return StockReceiptRequestResponse.from(request);
+    }
+
+    // A submission's requests all share (item, day, snapshot); at most one of
+    // them holds a deferred count (see StockCheckService.submitCheck).
+    private java.util.List<StockReceiptRequest> groupFor(StockReceiptRequest request) {
+        return requestRepository.findByStoreInventoryItemIdAndCheckDateAndSnapshotAndStatus(
+            request.getStoreInventoryItem().getId(), request.getCheckDate(), request.getSnapshot(),
+            StockReceiptRequestStatus.PENDING);
+    }
+
+    private void applyHeldSnapshotForGroup(StockReceiptRequest request) {
+        if (request.isHoldsSnapshot()) {
+            stockCheckService.applyApprovedSnapshot(request);
+            return;
+        }
+        groupFor(request).stream()
+            .filter(StockReceiptRequest::isHoldsSnapshot)
+            .findFirst()
+            .ifPresent(stockCheckService::applyApprovedSnapshot);
     }
 
     private StockReceiptRequest requirePendingRequest(Long ownerId, Long requestId) {

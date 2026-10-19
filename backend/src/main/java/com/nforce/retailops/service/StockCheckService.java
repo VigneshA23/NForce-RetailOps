@@ -38,6 +38,7 @@ import com.nforce.retailops.dto.SuperAdminStockCheckResponse;
 import com.nforce.retailops.exception.InvalidStockCheckException;
 import com.nforce.retailops.exception.MissedEndOfDayPendingException;
 import com.nforce.retailops.exception.StockCheckLockedException;
+import com.nforce.retailops.exception.StockCheckReviewPendingException;
 import com.nforce.retailops.exception.InventoryItemNotAssignedException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
@@ -190,6 +191,21 @@ public class StockCheckService {
                 startReviewByItemId.put(itemId, r);
             }
         }
+        // End of Day review banner: only a request that actually holds a count
+        // back locks the card -- an ordinary delivery-only EOD restock request
+        // doesn't, and never has.
+        Map<Long, StockReceiptRequest> endReviewByItemId = new java.util.HashMap<>();
+        for (StockReceiptRequest r : stockReceiptRequestRepository
+            .findByStoreIdAndCheckDateAndSnapshotOrderByIdAsc(storeId, today, StockCheckSnapshot.END_OF_DAY)) {
+            if (!r.isHoldsSnapshot()) {
+                continue;
+            }
+            Long itemId = r.getStoreInventoryItem().getId();
+            StockReceiptRequest current = endReviewByItemId.get(itemId);
+            if (current == null || !current.isPending() || r.isPending()) {
+                endReviewByItemId.put(itemId, r);
+            }
+        }
         java.util.Set<Long> orderIdsAwaitingApproval = pendingRequests.stream()
             .filter(r -> r.getOrderListEntry() != null)
             .map(r -> r.getOrderListEntry().getId())
@@ -226,6 +242,7 @@ public class StockCheckService {
                         restockCoveredByItemId.getOrDefault(item.getId(), BigDecimal.ZERO),
                         lowerCoveredByItemId.getOrDefault(item.getId(), BigDecimal.ZERO)),
                     startOfDayReview(startReviewByItemId.get(item.getId())),
+                    endOfDayReview(endReviewByItemId.get(item.getId())),
                     check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
                         && orderedTodayItemIds.contains(item.getId()),
                     unansweredYesterdayItemIds.contains(item.getId())
@@ -267,6 +284,14 @@ public class StockCheckService {
             return null;
         }
         return new DailyStockCheckItemResponse.StartOfDayReview(
+            request.getType().name(), request.getStatus().name(), request.getQuantity(), request.getReason());
+    }
+
+    private static DailyStockCheckItemResponse.EndOfDayReview endOfDayReview(StockReceiptRequest request) {
+        if (request == null || request.getStatus() == StockReceiptRequestStatus.APPROVED) {
+            return null;
+        }
+        return new DailyStockCheckItemResponse.EndOfDayReview(
             request.getType().name(), request.getStatus().name(), request.getQuantity(), request.getReason());
     }
 
@@ -350,6 +375,18 @@ public class StockCheckService {
             }
         }
 
+        // A request for this snapshot/day is already waiting on the admin: the
+        // count can't be resubmitted until it is decided (the UI locks the
+        // card for the same reason, see startOfDayReview/endOfDayReview).
+        if (!stockReceiptRequestRepository
+            .findByStoreInventoryItemIdAndCheckDateAndSnapshotAndStatus(
+                item.getId(), today, request.snapshot(), StockReceiptRequestStatus.PENDING)
+            .isEmpty()) {
+            throw new StockCheckReviewPendingException(
+                "This " + (request.snapshot() == StockCheckSnapshot.START_OF_DAY ? "Start of Day" : "End of Day")
+                    + " count is waiting for your admin to approve or reject it.");
+        }
+
         // Once the admin has marked the order raised from this Start of Day as
         // Ordered, today's Start of Day is frozen for everyone (Owner/Admin
         // corrections still go through correctCheck).
@@ -426,6 +463,12 @@ public class StockCheckService {
             }
         }
 
+        // A restock is only "explained" once this submission's own deliveries
+        // are counted in -- if they are what closes the gap, the count itself
+        // isn't trustworthy until those deliveries are approved, so it must be
+        // held back too (see mustHold below), not just saved on the strength of
+        // an unapproved declaration.
+        boolean newRestockRequest = false;
         if (startGap != null && startGap.signum() > 0) {
             BigDecimal covered = stockReceiptRequestRepository.startRestockCoveredFor(item.getId(), today);
             BigDecimal explainedAtStart = (covered == null ? BigDecimal.ZERO : covered).add(received);
@@ -433,24 +476,65 @@ public class StockCheckService {
                 throw new InvalidStockCheckException(
                     "Start of Day is higher than the last End of Day. Enter the stock restocked");
             }
+            newRestockRequest = hasDelivery;
         }
-        check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null, null, false);
+
         // A closing count above what the opening count plus deliveries can
-        // explain means stock arrived that wasn't recorded. Deliveries still
-        // waiting on approval count towards that, so re-saving the count while
-        // one is pending doesn't ask again. Rolls the save back.
-        if (request.snapshot() == StockCheckSnapshot.END_OF_DAY && check.stockUsed() != null) {
-            BigDecimal alreadyPending = stockReceiptRequestRepository.pendingQuantityFor(item.getId(), today);
-            BigDecimal explained = (alreadyPending == null ? BigDecimal.ZERO : alreadyPending).add(received);
-            if (check.stockUsed().add(explained).signum() < 0) {
-                throw new InvalidStockCheckException(
-                    "End of Day is higher than Start of Day plus stock received. Enter the stock received today");
+        // explain means stock arrived that wasn't recorded -- computed without
+        // touching check, so a refused or held submission leaves it untouched.
+        // Deliveries still waiting on approval count towards explaining it, so
+        // re-saving while one is pending doesn't ask again (though it can no
+        // longer reach this method at all while one is pending -- see the
+        // review-pending guard above).
+        boolean eodNeedsHold = false;
+        if (request.snapshot() == StockCheckSnapshot.END_OF_DAY) {
+            BigDecimal projectedUsed = check.projectedStockUsed(request.available(), request.deadStock());
+            if (projectedUsed != null) {
+                BigDecimal alreadyPending = stockReceiptRequestRepository.pendingQuantityFor(item.getId(), today);
+                BigDecimal explained = (alreadyPending == null ? BigDecimal.ZERO : alreadyPending).add(received);
+                if (projectedUsed.add(explained).signum() < 0) {
+                    throw new InvalidStockCheckException(
+                        "End of Day is higher than Start of Day plus stock received. Enter the stock received today");
+                }
+                // The gap is only explained because of this call's own, not yet
+                // approved, declared delivery -- hold the count until it's approved.
+                eodNeedsHold = hasDelivery;
             }
         }
-        if (lowerStart && !lowerReason.isEmpty()) {
-            raiseLowerCountRequest(item, today, startGap.negate(), lowerReason, coveringLower, employee);
+
+        boolean lowerStartHeld = lowerStart && !lowerReason.isEmpty();
+        // A submission that raises a new approval request can't be trusted
+        // until that request is decided: the count is held on the request
+        // itself instead of being written to stock_checks, so Available, stock
+        // used, quantity to order and the order list all stay on the last-
+        // approved figures everywhere they're read, until the admin decides.
+        boolean mustHold = lowerStartHeld || newRestockRequest || eodNeedsHold;
+
+        if (!mustHold) {
+            check = applySnapshot(check, request.snapshot(), request.available(), request.deadStock(), employee, null, null, false);
         }
-        for (Delivery delivery : deliveries) {
+
+        // Exactly one request from this submission carries the held-back count
+        // (applied together on approval); new stock takes priority over an
+        // existing order if both are reported at once, matching no particular
+        // rule other than "there's only one count to hold."
+        int primaryDeliveryIndex = -1;
+        if (mustHold && (newRestockRequest || eodNeedsHold) && !deliveries.isEmpty()) {
+            primaryDeliveryIndex = 0;
+            for (int i = 0; i < deliveries.size(); i++) {
+                if (deliveries.get(i).order() == null) {
+                    primaryDeliveryIndex = i;
+                    break;
+                }
+            }
+        }
+
+        if (lowerStartHeld) {
+            raiseLowerCountRequest(item, today, startGap.negate(), lowerReason, coveringLower, employee,
+                request.available(), request.deadStock());
+        }
+        for (int i = 0; i < deliveries.size(); i++) {
+            Delivery delivery = deliveries.get(i);
             StockReceiptRequest receiptRequest = new StockReceiptRequest();
             receiptRequest.setSnapshot(request.snapshot());
             receiptRequest.setStore(item.getStore());
@@ -459,12 +543,19 @@ public class StockCheckService {
             receiptRequest.setCheckDate(today);
             receiptRequest.setQuantity(delivery.quantity());
             receiptRequest.setRequestedBy(employee);
+            if (i == primaryDeliveryIndex) {
+                receiptRequest.setHoldsSnapshot(true);
+                receiptRequest.setPendingAvailable(request.available());
+                receiptRequest.setPendingDeadStock(request.deadStock());
+            }
             StockReceiptRequest savedRequest = stockReceiptRequestRepository.save(receiptRequest);
             storeOwnerRepository.findByStoreIdAndActiveTrue(item.getStore().getId())
                 .map(StoreOwner::getOwner)
                 .ifPresent(owner -> notificationService.notifyOwnerOfStockReceiptRequest(savedRequest, owner));
         }
-        syncOrderList(check, request.snapshot(), employee);
+        if (!mustHold) {
+            syncOrderList(check, request.snapshot(), employee);
+        }
         return StockCheckResponse.from(check);
     }
 
@@ -480,16 +571,22 @@ public class StockCheckService {
         return startUsable.subtract(expectedStart(previous, stockCheckReceiptRepository.findUnappliedForItem(item.getId())));
     }
 
-    // One open lower-count request per item and day: a re-save while it is
-    // pending updates it instead of notifying the admin a second time.
-    private void raiseLowerCountRequest(
-        StoreInventoryItem item, LocalDate today, BigDecimal shortfall, String reason, StockReceiptRequest existing, User employee
+    // One open lower-count request per item and day. The "update in place"
+    // branch below is effectively unreachable through submitCheck now (the
+    // review-pending guard there blocks a resubmission before this is ever
+    // called with an existing PENDING request) -- kept as defense-in-depth
+    // against a race rather than removed.
+    private StockReceiptRequest raiseLowerCountRequest(
+        StoreInventoryItem item, LocalDate today, BigDecimal shortfall, String reason, StockReceiptRequest existing,
+        User employee, BigDecimal available, BigDecimal deadStock
     ) {
         if (existing != null && existing.isPending()) {
             existing.setQuantity(shortfall);
             existing.setReason(reason);
-            stockReceiptRequestRepository.save(existing);
-            return;
+            existing.setHoldsSnapshot(true);
+            existing.setPendingAvailable(available);
+            existing.setPendingDeadStock(deadStock);
+            return stockReceiptRequestRepository.save(existing);
         }
         StockReceiptRequest lower = new StockReceiptRequest();
         lower.setStore(item.getStore());
@@ -500,10 +597,41 @@ public class StockCheckService {
         lower.setQuantity(shortfall);
         lower.setReason(reason);
         lower.setRequestedBy(employee);
+        lower.setHoldsSnapshot(true);
+        lower.setPendingAvailable(available);
+        lower.setPendingDeadStock(deadStock);
         StockReceiptRequest saved = stockReceiptRequestRepository.save(lower);
         storeOwnerRepository.findByStoreIdAndActiveTrue(item.getStore().getId())
             .map(StoreOwner::getOwner)
             .ifPresent(owner -> notificationService.notifyOwnerOfStockReceiptRequest(saved, owner));
+        return saved;
+    }
+
+    // A held-back count (see submitCheck's mustHold) becomes live now that the
+    // admin has approved it -- applied exactly as a normal save would be, down
+    // to the same correction-audit rule, then synced to the order list. A
+    // request that never held a count (an ordinary delivery-only RESTOCK) is a
+    // no-op here; applyApprovedDelivery below does its job instead.
+    @Transactional
+    public StockCheck applyApprovedSnapshot(StockReceiptRequest request) {
+        StoreInventoryItem item = request.getStoreInventoryItem();
+        if (!request.isHoldsSnapshot()) {
+            return stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), request.getCheckDate())
+                .orElse(null);
+        }
+        StockCheck check = stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), request.getCheckDate())
+            .orElseGet(() -> {
+                StockCheck created = new StockCheck();
+                created.setStore(item.getStore());
+                created.setStoreInventoryItem(item);
+                created.setSupplier(item.getPreferredSupplier());
+                created.setCheckDate(request.getCheckDate());
+                return created;
+            });
+        check = applySnapshot(check, request.getSnapshot(), request.getPendingAvailable(), request.getPendingDeadStock(),
+            request.getRequestedBy(), null, null, false);
+        syncOrderList(check, request.getSnapshot(), request.getRequestedBy());
+        return check;
     }
 
     // The stock side of an approved received-stock request: the delivery goes

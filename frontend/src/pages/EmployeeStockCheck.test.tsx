@@ -107,6 +107,72 @@ describe('EmployeeStockCheck End of Day gating', () => {
   });
 });
 
+describe('EmployeeStockCheck pending-approval lock', () => {
+  const savedSod = {
+    available: 15, deadStock: 0, usable: 15, enteredById: 1, enteredByName: 'Ananya', enteredAt: '2026-10-19T09:00:00Z',
+    lastUpdatedByName: 'Ananya', lastUpdatedByAvatarUrl: null, lastUpdatedAt: '2026-10-19T09:00:00Z', edited: false,
+  };
+
+  async function expand(user: ReturnType<typeof userEvent.setup>) {
+    await screen.findByText('Milk');
+    await user.click(screen.getByText('Milk'));
+    await waitFor(() => expect(screen.getByText('Shift Stock Reconciliations')).toBeInTheDocument());
+  }
+
+  it('locks Start of Day and shows the waiting banner while a request is pending', async () => {
+    const user = userEvent.setup();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{
+      ...item,
+      startOfDay: savedSod,
+      startOfDayReview: { type: 'LOWER_COUNT', status: 'PENDING', quantity: 5, reason: 'Spilled overnight' },
+    }]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await expand(user);
+
+    expect(screen.getByText('Start of Day is lower than the last End of Day. Waiting for your admin to approve.')).toBeInTheDocument();
+    const sodCard = screen.getByRole('region', { name: 'Start of Day Stock Check' });
+    expect(within(sodCard).queryByRole('button', { name: 'Save Check' })).not.toBeInTheDocument();
+    expect(within(sodCard).getByText('Waiting for your admin to approve this Start of Day request')).toBeInTheDocument();
+  });
+
+  it('locks End of Day and shows the waiting banner while a request is pending', async () => {
+    const user = userEvent.setup();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{
+      ...item,
+      startOfDay: savedSod,
+      endOfDayReview: { type: 'RESTOCK', status: 'PENDING', quantity: 15, reason: null },
+    }]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await expand(user);
+
+    expect(screen.getByText('Restock reported with End of Day. Waiting for your admin to approve.')).toBeInTheDocument();
+    const eodCard = screen.getByRole('region', { name: 'End of Day Stock Check' });
+    expect(within(eodCard).queryByRole('button', { name: 'Save Check' })).not.toBeInTheDocument();
+    expect(within(eodCard).getByText('Waiting for your admin to approve this End of Day request')).toBeInTheDocument();
+  });
+
+  it('shows the rejected banner and re-enables the card once rejected', async () => {
+    const user = userEvent.setup();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{
+      ...item,
+      startOfDay: savedSod,
+      endOfDayReview: { type: 'RESTOCK', status: 'REJECTED', quantity: 15, reason: null },
+    }]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await expand(user);
+
+    expect(screen.getByText('Your admin rejected the End of Day request. Please recount and save End of Day again.')).toBeInTheDocument();
+    const eodCard = screen.getByRole('region', { name: 'End of Day Stock Check' });
+    expect(within(eodCard).getByRole('button', { name: 'Save Check' })).toBeEnabled();
+  });
+});
+
 describe('EmployeeStockCheck status filters', () => {
   it('matches Stock Check History status options and separates shortages from sufficient or uncounted items', async () => {
     const user = userEvent.setup();
