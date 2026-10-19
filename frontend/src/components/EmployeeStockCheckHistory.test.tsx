@@ -85,7 +85,7 @@ describe('EmployeeStockCheckHistory', () => {
     expect(await screen.findByText('+4 EA needed')).toBeInTheDocument();
   });
 
-  it('uses the Sufficient filter for all non-shortage records and labels Qty Needed consistently', async () => {
+  it('uses the Sufficient filter only for optimal records, excluding not-counted and shortage items', async () => {
     const user = userEvent.setup();
     mockGetEmployeeStockCheckHistory.mockResolvedValue(page({
       items: [
@@ -108,7 +108,7 @@ describe('EmployeeStockCheckHistory', () => {
 
     await user.click(await screen.findByRole('button', { name: /Sufficient/ }));
 
-    expect(screen.getByText('Pending Item')).toBeInTheDocument();
+    expect(screen.queryByText('Pending Item')).not.toBeInTheDocument();
     expect(screen.getByText('Sufficient Item')).toBeInTheDocument();
     expect(screen.queryByText('Shortage Item')).not.toBeInTheDocument();
     expect(screen.getByText('Sufficient')).toBeInTheDocument();

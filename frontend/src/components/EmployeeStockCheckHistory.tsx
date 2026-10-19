@@ -112,13 +112,13 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
   const viewRows = useMemo(() => rows.map(toStockCheckHistoryRowView), [rows]);
 
   const shortageCount = useMemo(() => viewRows.filter((r) => r.status === 'shortage').length, [viewRows]);
-  const sufficientCount = useMemo(() => viewRows.filter((r) => r.status !== 'shortage').length, [viewRows]);
+  const sufficientCount = useMemo(() => viewRows.filter((r) => r.status === 'optimal').length, [viewRows]);
 
   const visibleRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return viewRows.filter((row) => {
       if (statusFilter === 'shortage' && row.status !== 'shortage') return false;
-      if (statusFilter === 'sufficient' && row.status === 'shortage') return false;
+      if (statusFilter === 'sufficient' && row.status !== 'optimal') return false;
       if (query === '') return true;
       return row.itemName.toLowerCase().includes(query) || row.unitOfMeasurement.toLowerCase().includes(query);
     });

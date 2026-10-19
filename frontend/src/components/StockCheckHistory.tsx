@@ -70,7 +70,7 @@ function matchesFilters(row: StockCheckHistoryRowView, search: string, categoryF
   const matches =
     statusFilter === 'all' ||
     (statusFilter === 'shortage' && row.status === 'shortage') ||
-    (statusFilter === 'sufficient' && row.status !== 'shortage');
+    (statusFilter === 'sufficient' && row.status === 'optimal');
   return matchesSearch && matchesCategory && matches;
 }
 

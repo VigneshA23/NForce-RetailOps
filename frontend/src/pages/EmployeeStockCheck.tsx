@@ -321,7 +321,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
   const viewItems = useMemo(() => items.map(toViewItem), [items]);
 
   const shortageCount = useMemo(() => viewItems.filter((i) => i.status === 'shortage').length, [viewItems]);
-  const sufficientCount = useMemo(() => viewItems.filter((i) => i.status !== 'shortage').length, [viewItems]);
+  const sufficientCount = useMemo(() => viewItems.filter((i) => i.status === 'optimal').length, [viewItems]);
 
   function isExpanded(item: StockCheckViewItem): boolean {
     return collapsedOverrides[item.storeInventoryItemId] ?? item.status === 'shortage';
@@ -338,7 +338,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
     const query = search.trim().toLowerCase();
     return viewItems.filter((item) => {
       if (statusFilter === 'shortage' && item.status !== 'shortage') return false;
-      if (statusFilter === 'sufficient' && item.status === 'shortage') return false;
+      if (statusFilter === 'sufficient' && item.status !== 'optimal') return false;
       if (query === '') return true;
       return (
         item.itemName.toLowerCase().includes(query) ||
