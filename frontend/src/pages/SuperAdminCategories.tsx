@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus, Tags, CircleCheck, CircleSlash } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { createCategory, updateCategory, updateCategoryStatus, deleteCategory } from '../api/categories';
+import {
+  createCategory,
+  updateCategory,
+  updateCategoryStatus,
+  deleteCategory,
+  getCategoryDeletePreview,
+} from '../api/categories';
 import { getAllStores } from '../api/superAdminStores';
 import { useSuperAdminCategories } from '../hooks/useSuperAdminCategories';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -56,6 +62,8 @@ function SuperAdminCategories({ onNavigateToTasks }: SuperAdminCategoriesProps) 
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  // Names of the tasks that will be removed along with deleteTarget.
+  const [deleteTaskNames, setDeleteTaskNames] = useState<string[]>([]);
   const [assignTasksTarget, setAssignTasksTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -102,6 +110,28 @@ function SuperAdminCategories({ onNavigateToTasks }: SuperAdminCategoriesProps) 
       setCategories((current) => current.map((c) => (c.id === category.id ? category : c)));
       const msg = error instanceof Error ? error.message : 'Failed to update category status';
       setStatusError(msg);
+      nfToast.error(msg);
+    }
+  }
+
+  // Checks what the delete would take with it before asking for confirmation:
+  // a category whose tasks have checklist history can't be deleted at all.
+  async function handleRequestDelete(category: Category) {
+    setDeleteError(null);
+    try {
+      const preview = await getCategoryDeletePreview(category.id);
+      if (preview.hasHistory) {
+        const msg =
+          `"${category.name}" has tasks with checklist history, so it cannot be deleted. Deactivate it instead.`;
+        setDeleteError(msg);
+        nfToast.error(msg);
+        return;
+      }
+      setDeleteTaskNames(preview.taskNames);
+      setDeleteTarget(category);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Failed to check the category before deleting';
+      setDeleteError(msg);
       nfToast.error(msg);
     }
   }
@@ -211,10 +241,7 @@ function SuperAdminCategories({ onNavigateToTasks }: SuperAdminCategoriesProps) 
               setFormError(null);
               setFormModalState({ mode: 'edit', category });
             }}
-            onDelete={(category) => {
-              setDeleteError(null);
-              setDeleteTarget(category);
-            }}
+            onDelete={handleRequestDelete}
             onToggleStatus={handleToggleStatus}
             onAssignTasks={(category) => setAssignTasksTarget(category)}
             footer={
@@ -265,10 +292,15 @@ function SuperAdminCategories({ onNavigateToTasks }: SuperAdminCategoriesProps) 
         isOpen={deleteTarget !== null}
         title="Delete Category"
         message={
-          deleteTarget
-            ? `Are you sure you want to delete ${deleteTarget.name}? This cannot be undone.`
-            : ''
+          !deleteTarget
+            ? ''
+            : deleteTaskNames.length > 0
+              ? `Deleting ${deleteTarget.name} will also delete the following ${
+                  deleteTaskNames.length === 1 ? 'task' : `${deleteTaskNames.length} tasks`
+                }. This cannot be undone.`
+              : `Are you sure you want to delete ${deleteTarget.name}? This cannot be undone.`
         }
+        details={deleteTaskNames}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
       />

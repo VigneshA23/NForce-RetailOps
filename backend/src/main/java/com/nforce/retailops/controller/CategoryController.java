@@ -1,5 +1,6 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.dto.CategoryDeletePreviewResponse;
 import com.nforce.retailops.dto.CategoryReorderRequest;
 import com.nforce.retailops.dto.CategoryRequest;
 import com.nforce.retailops.dto.CategoryResponse;
@@ -82,6 +83,12 @@ public class CategoryController {
         @Valid @RequestBody CategoryReorderRequest request
     ) {
         return ResponseEntity.ok(categoryService.reorderCategories(principal.getUser().getId(), request.orderedIds()));
+    }
+
+    @GetMapping("/{id}/delete-preview")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<CategoryDeletePreviewResponse> deletePreview(@PathVariable Long id) {
+        return ResponseEntity.ok(categoryService.previewDeleteAsSuperAdmin(id));
     }
 
     @DeleteMapping("/{id}")
