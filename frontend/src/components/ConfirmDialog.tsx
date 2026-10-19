@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import Modal from './Modal';
 import ButtonDots from './ButtonDots';
+import './ConfirmDialog.css';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
   title: string;
   message: string;
+  // Optional bulleted list shown under the message (e.g. items a delete will also remove).
+  details?: string[];
   confirmLabel?: string;
   cancelLabel?: string;
   danger?: boolean;
@@ -23,6 +26,7 @@ function ConfirmDialog({
   isOpen,
   title,
   message,
+  details,
   confirmLabel = 'Delete',
   cancelLabel = 'Cancel',
   danger = true,
@@ -67,6 +71,13 @@ function ConfirmDialog({
       }
     >
       <p>{message}</p>
+      {details && details.length > 0 && (
+        <ul className="confirm-dialog__details">
+          {details.map((detail, index) => (
+            <li key={`${index}-${detail}`}>{detail}</li>
+          ))}
+        </ul>
+      )}
     </Modal>
   );
 }
