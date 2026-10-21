@@ -38,6 +38,7 @@ import com.nforce.retailops.service.TaskService;
 import com.nforce.retailops.service.UserProfileService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
@@ -83,13 +84,20 @@ public class MeController {
             List.of(), false, null, sa.getPhone(), sa.getAvatarUrl());
     }
 
+    private AppUserDetails requireAppUser(UserDetails principal) {
+        if (principal instanceof AppUserDetails appUserDetails) {
+            return appUserDetails;
+        }
+        throw new BadCredentialsException("Invalid session");
+    }
+
     // Not role-gated: principal is either AppUserDetails or SuperAdminUserDetails.
     @GetMapping
     public ResponseEntity<MeResponse> getMe(@AuthenticationPrincipal UserDetails principal) {
         if (principal instanceof SuperAdminUserDetails superAdminDetails) {
             return ResponseEntity.ok(superAdminMeResponse(superAdminDetails.getSuperAdmin()));
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(userProfileService.getMe(userDetails.getUser()));
     }
 
@@ -116,7 +124,7 @@ public class MeController {
             superAdminRepository.save(sa);
             return ResponseEntity.ok(superAdminMeResponse(sa));
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(userProfileService.updateMe(userDetails.getUser(), request));
     }
 
@@ -133,7 +141,7 @@ public class MeController {
             superAdminRepository.save(sa);
             return ResponseEntity.noContent().build();
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         userProfileService.updateAvatar(userDetails.getUser(), request.avatarUrl());
         return ResponseEntity.noContent().build();
     }
@@ -146,7 +154,7 @@ public class MeController {
             return ResponseEntity.ok(List.of());
         }
 
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(userProfileService.listMyStores(userDetails.getUser()));
     }
 
@@ -163,7 +171,7 @@ public class MeController {
             throw new StoreNotFoundException("Store not found");
         }
 
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(taskService.getTodayChecklistForEmployee(userDetails.getUser().getId(), storeId));
     }
 
@@ -181,7 +189,7 @@ public class MeController {
             throw new StoreNotFoundException("Store not found");
         }
 
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(taskService.submitResponse(userDetails.getUser().getId(), taskId, request));
     }
 
@@ -198,7 +206,7 @@ public class MeController {
             throw new StoreNotFoundException("Store not found");
         }
 
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(taskService.undoResponse(userDetails.getUser().getId(), taskId, storeId, responseId));
     }
 
@@ -215,7 +223,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(taskMakeupLinkService.getMissedTasks(userDetails.getUser().getId(), storeId, cursor, limit));
     }
 
@@ -234,7 +242,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(taskMakeupLinkService.moveToDate(
             userDetails.getUser().getId(), taskId, storeId, date, request.targetDate()));
     }
@@ -248,7 +256,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(raisedIssueService.listForEmployee(userDetails.getUser().getId(), storeId));
     }
 
@@ -263,7 +271,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
             .body(raisedIssueService.createIssue(userDetails.getUser().getId(), request));
     }
@@ -279,7 +287,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             return ResponseEntity.ok(new EmployeeSearchResponse(List.of(), List.of()));
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(employeeSearchService.search(userDetails.getUser(), storeId, q));
     }
 
@@ -297,7 +305,7 @@ public class MeController {
             throw new StoreNotFoundException("Store not found");
         }
 
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(meHistoryService.getDetail(userDetails.getUser().getId(), storeId, date));
     }
 
@@ -315,7 +323,7 @@ public class MeController {
             throw new StoreNotFoundException("Store not found");
         }
 
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(meHistoryService.getCorrectionHistory(userDetails.getUser().getId(), responseId));
     }
 
@@ -330,7 +338,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(stockCheckService.getTodayChecklist(userDetails.getUser().getId(), storeId));
     }
 
@@ -346,7 +354,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(stockCheckService.listAllItemsForEmployeeStore(userDetails.getUser().getId(), storeId));
     }
 
@@ -360,7 +368,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(stockCheckService.submitCheck(userDetails.getUser().getId(), request));
     }
 
@@ -375,7 +383,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(stockCheckService.answerMissedEndOfDayAsEmployee(userDetails.getUser().getId(), request));
     }
 
@@ -395,7 +403,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(
             stockCheckService.listHistoricalChecksForEmployee(userDetails.getUser().getId(), storeId, startDate, endDate, page, size)
         );
@@ -412,7 +420,7 @@ public class MeController {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
-        AppUserDetails userDetails = (AppUserDetails) principal;
+        AppUserDetails userDetails = requireAppUser(principal);
         stockCheckService.reportAdHocShortage(userDetails.getUser().getId(), storeId, request);
         return ResponseEntity.noContent().build();
     }
