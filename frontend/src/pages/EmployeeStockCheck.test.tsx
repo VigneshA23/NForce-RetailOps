@@ -42,24 +42,24 @@ describe('EmployeeStockCheck item card expand/collapse', () => {
     mockGetTodayStockCheck.mockResolvedValue([{ ...item, currentStock: 2 }]);
 
     render(<EmployeeStockCheck store={store} />);
-    await screen.findByText('6 Nos. Needed');
+    await screen.findAllByText('6 Nos. Needed');
 
     const itemCard = screen.getByText('Milk').closest('.employee-stock-check-page__item');
     const neededGroup = itemCard?.querySelector('.employee-stock-check-page__needed-group');
     expect(neededGroup?.querySelector('.employee-stock-check-page__needed-badge')).toBeInTheDocument();
     expect(neededGroup?.querySelector('.employee-stock-check-page__collapse-toggle')).toBeInTheDocument();
-    expect(itemCard?.querySelector('.employee-stock-check-page__status-badge')).toHaveTextContent('Shortage');
+    expect(itemCard?.querySelector('.employee-stock-check-page__status-badge')).toHaveTextContent('6 Nos. Needed');
   });
 
-  it('marks Par Met as a status badge for the compact card layout', async () => {
+  it('marks Sufficient as a status badge for the compact card layout', async () => {
     mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
     mockGetTodayStockCheck.mockResolvedValue([{ ...item, currentStock: 8 }]);
 
     render(<EmployeeStockCheck store={store} />);
-    await screen.findByText('Par Met');
+    await screen.findByText('Sufficient');
 
     const itemCard = screen.getByText('Milk').closest('.employee-stock-check-page__item');
-    expect(itemCard?.querySelector('.employee-stock-check-page__status-badge')).toHaveTextContent('Par Met');
+    expect(itemCard?.querySelector('.employee-stock-check-page__status-badge')).toHaveTextContent('Sufficient');
     expect(itemCard?.querySelector('.employee-stock-check-page__collapse-toggle')).toBeInTheDocument();
   });
 

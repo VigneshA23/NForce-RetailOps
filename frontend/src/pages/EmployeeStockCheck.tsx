@@ -530,10 +530,12 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                     )}
                   </div>
                   {item.status === 'shortage' && (
-                    <span className="badge badge--danger employee-stock-check-page__status-badge">Shortage</span>
+                    <span className="badge badge--danger employee-stock-check-page__status-badge">
+                      {item.needed} {item.unitOfMeasurement} Needed
+                    </span>
                   )}
                   {item.status === 'optimal' && (
-                    <span className="badge badge--success employee-stock-check-page__status-badge">Par Met</span>
+                    <span className="badge badge--success employee-stock-check-page__status-badge">Sufficient</span>
                   )}
                   <span className="employee-stock-check-page__needed-group">
                     {item.status === 'shortage' && (
