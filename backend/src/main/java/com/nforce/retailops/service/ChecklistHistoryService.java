@@ -123,7 +123,7 @@ public class ChecklistHistoryService {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndActiveTrue(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         List<StoreDayContext> contexts = buildStoreDayContexts(
-            storeOwner.getOwner().getId(), List.of(storeId), startDate, endDate);
+            storeOwner.resolveTaskOwnerId(), List.of(storeId), startDate, endDate);
         return buildOperationsReportResponse(contexts);
     }
 
@@ -454,7 +454,7 @@ public class ChecklistHistoryService {
     public ChecklistHistoryDetailResponse getDetailForSuperAdmin(Long storeId, LocalDate date) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndActiveTrue(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return getDetail(storeOwner.getOwner().getId(), storeId, date);
+        return getDetail(storeOwner.resolveTaskOwnerId(), storeId, date);
     }
 
     @Transactional(readOnly = true)

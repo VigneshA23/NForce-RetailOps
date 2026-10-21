@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,6 +37,13 @@ public class NotificationController {
         this.missedEndOfDayService = missedEndOfDayService;
     }
 
+    private AppUserDetails requireAppUser(Object principal) {
+        if (principal instanceof AppUserDetails appUserDetails) {
+            return appUserDetails;
+        }
+        throw new BadCredentialsException("Invalid session");
+    }
+
     // First load of the day raises the "End of Day missing" notice; it must
     // never stop notifications from loading.
     private void raiseMissedEndOfDayNotices(Long userId) {
@@ -54,7 +62,7 @@ public class NotificationController {
         if (auth.getPrincipal() instanceof SuperAdminUserDetails sa) {
             return ResponseEntity.ok(notificationService.listForSuperAdmin(sa.getSuperAdmin().getId(), page, size));
         }
-        AppUserDetails principal = (AppUserDetails) auth.getPrincipal();
+        AppUserDetails principal = requireAppUser(auth.getPrincipal());
         raiseMissedEndOfDayNotices(principal.getUser().getId());
         return ResponseEntity.ok(notificationService.list(principal.getUser().getId(), page, size));
     }
@@ -64,7 +72,7 @@ public class NotificationController {
         if (auth.getPrincipal() instanceof SuperAdminUserDetails sa) {
             return ResponseEntity.ok(notificationService.unreadCountForSuperAdmin(sa.getSuperAdmin().getId()));
         }
-        AppUserDetails principal = (AppUserDetails) auth.getPrincipal();
+        AppUserDetails principal = requireAppUser(auth.getPrincipal());
         raiseMissedEndOfDayNotices(principal.getUser().getId());
         return ResponseEntity.ok(notificationService.unreadCount(principal.getUser().getId()));
     }
@@ -74,7 +82,7 @@ public class NotificationController {
         if (auth.getPrincipal() instanceof SuperAdminUserDetails sa) {
             return ResponseEntity.ok(notificationService.markReadForSuperAdmin(id, sa.getSuperAdmin().getId()));
         }
-        AppUserDetails principal = (AppUserDetails) auth.getPrincipal();
+        AppUserDetails principal = requireAppUser(auth.getPrincipal());
         return ResponseEntity.ok(notificationService.markRead(id, principal.getUser().getId()));
     }
 
@@ -83,7 +91,7 @@ public class NotificationController {
         if (auth.getPrincipal() instanceof SuperAdminUserDetails sa) {
             notificationService.markAllReadForSuperAdmin(sa.getSuperAdmin().getId());
         } else {
-            AppUserDetails principal = (AppUserDetails) auth.getPrincipal();
+            AppUserDetails principal = requireAppUser(auth.getPrincipal());
             notificationService.markAllRead(principal.getUser().getId());
         }
         return ResponseEntity.noContent().build();
@@ -94,7 +102,7 @@ public class NotificationController {
         if (auth.getPrincipal() instanceof SuperAdminUserDetails sa) {
             notificationService.deleteForSuperAdmin(id, sa.getSuperAdmin().getId());
         } else {
-            AppUserDetails principal = (AppUserDetails) auth.getPrincipal();
+            AppUserDetails principal = requireAppUser(auth.getPrincipal());
             notificationService.delete(id, principal.getUser().getId());
         }
         return ResponseEntity.noContent().build();

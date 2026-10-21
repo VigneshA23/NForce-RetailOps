@@ -59,6 +59,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -343,7 +344,8 @@ public class TaskService {
         task.setActive(active);
         task = taskRepository.save(task);
 
-        List<Store> affectedStores = resolveTaskStoresForLog(task, task.getOwner().getId());
+        Long ownerId = task.getOwner() != null ? task.getOwner().getId() : null;
+        List<Store> affectedStores = resolveTaskStoresForLog(task, ownerId);
         activityLogService.logForStores(
             active ? "TASK_ACTIVATED" : "TASK_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
             affectedStores, "TASK", task.getName(),
@@ -364,7 +366,8 @@ public class TaskService {
             throw new TaskHasHistoryException(
                 "This task has checklist history and cannot be deleted. Deactivate it instead.");
         }
-        List<Store> affectedStores = resolveTaskStoresForLog(task, task.getOwner().getId());
+        Long ownerId = task.getOwner() != null ? task.getOwner().getId() : null;
+        List<Store> affectedStores = resolveTaskStoresForLog(task, ownerId);
         String taskName = task.getName();
         taskRepository.delete(task);
 
@@ -397,8 +400,10 @@ public class TaskService {
         if (losers.size() != Set.copyOf(loserTaskIds).size()) {
             throw new TaskNotFoundException("One or more tasks to merge could not be found");
         }
+        Long survivorOwnerId = survivor.getOwner() != null ? survivor.getOwner().getId() : null;
         for (Task loser : losers) {
-            if (!loser.getOwner().getId().equals(survivor.getOwner().getId())) {
+            Long loserOwnerId = loser.getOwner() != null ? loser.getOwner().getId() : null;
+            if (!Objects.equals(loserOwnerId, survivorOwnerId)) {
                 throw new InvalidTaskConfigurationException("Cannot merge tasks belonging to different owners");
             }
             if (!loser.getName().equalsIgnoreCase(survivor.getName())) {
@@ -424,7 +429,7 @@ public class TaskService {
         taskResponseEntryRepository.reassignTaskForMerge(survivor, loserTaskIds);
         taskMakeupLinkRepository.reassignTaskForMerge(survivor, loserTaskIds);
 
-        List<Store> affectedStores = resolveTaskStoresForLog(survivor, survivor.getOwner().getId());
+        List<Store> affectedStores = resolveTaskStoresForLog(survivor, survivorOwnerId);
         String survivorName = survivor.getName();
         int mergedCount = losers.size();
         taskRepository.deleteAll(losers);
@@ -529,7 +534,7 @@ public class TaskService {
     public List<TaskResponse> updateTaskAsSuperAdmin(Long taskId, TaskRequest request) {
         Task task = taskRepository.findById(taskId)
             .orElseThrow(() -> new TaskNotFoundException("Task not found"));
-        Long currentOwnerId = task.getOwner().getId();
+        Long currentOwnerId = task.getOwner() != null ? task.getOwner().getId() : null;
 
         Set<Store> resolvedStores = resolveAnyStores(request.appliesToAllStores(), request.storeIds());
         Set<Long> targetStoreIds = request.appliesToAllStores()

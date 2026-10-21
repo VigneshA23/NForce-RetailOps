@@ -28,7 +28,9 @@ public record StockCheckEditResponse(
         boolean bySuperAdmin = correction.getCorrectedBySuperAdmin() != null;
         String editedByName = bySuperAdmin
             ? correction.getCorrectedBySuperAdmin().getName()
-            : correction.getCorrectedByUser().getFullName();
+            : correction.getCorrectedByUser() != null
+                ? correction.getCorrectedByUser().getFullName()
+                : "Unknown";
         return new StockCheckEditResponse(
             correction.getSnapshot(),
             correction.getOriginalCount(),
