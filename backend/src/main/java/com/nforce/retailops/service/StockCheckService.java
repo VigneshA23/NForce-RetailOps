@@ -1081,6 +1081,11 @@ public class StockCheckService {
         for (StockCheckReceipt receipt : recentReceipts) {
             events.add(receiptEvent(receipt));
         }
+        // Mid-day shortage reports also move the count and appear in the
+        // history timeline, so the row's change must account for them too.
+        for (StockShortageReport report : stockShortageReportRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2))) {
+            events.add(shortageEvent(report));
+        }
         events.sort(EVENT_ORDER.reversed());
 
         BigDecimal change = null;
