@@ -35,8 +35,9 @@ public record DailyStockCheckItemResponse(
     StartOfDayReview startOfDayReview,
     // The End of Day request still open or turned down for today, if any.
     EndOfDayReview endOfDayReview,
-    // True once the order raised from today's Start of Day is marked Ordered:
-    // Start of Day can no longer be edited today.
+    // True once the order raised from today's Start of Day is marked Ordered,
+    // or a shortage has been reported today: Start of Day can no longer be
+    // edited today.
     boolean startOfDayLocked,
     // Set while yesterday's Start of Day for this item still has no End of Day
     // (counted or explained): today's Start of Day is refused until it is
