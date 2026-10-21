@@ -105,6 +105,9 @@ public class StockCheckService {
     static final String START_OF_DAY_ORDERED_MESSAGE =
         "An order has been placed based on the Start of Day count, so it can't be edited today.";
 
+    static final String START_OF_DAY_SHORTAGE_MESSAGE =
+        "A shortage was reported for this item today, so the Start of Day count can't be edited.";
+
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final StockCheckRepository stockCheckRepository;
     private final StockCheckCorrectionRepository stockCheckCorrectionRepository;
@@ -159,6 +162,8 @@ public class StockCheckService {
             .map(sc -> sc.getStoreInventoryItem().getId())
             .collect(Collectors.toSet());
         java.util.Set<Long> orderedTodayItemIds = orderListService.itemIdsOrderedOn(storeId, today);
+        java.util.Set<Long> shortageReportedTodayItemIds =
+            new java.util.HashSet<>(stockShortageReportRepository.findItemIdsWithReportOn(storeId, today));
         Map<Long, List<OrderListEntry>> orderedByItemId = orderListService.orderedEntriesByItem(storeId);
         List<StockReceiptRequest> pendingRequests = stockReceiptRequestRepository
             .findByStoreIdAndCheckDateAndStatus(storeId, today, StockReceiptRequestStatus.PENDING);
@@ -244,7 +249,8 @@ public class StockCheckService {
                     startOfDayReview(startReviewByItemId.get(item.getId())),
                     endOfDayReview(endReviewByItemId.get(item.getId())),
                     check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
-                        && orderedTodayItemIds.contains(item.getId()),
+                        && (orderedTodayItemIds.contains(item.getId())
+                            || shortageReportedTodayItemIds.contains(item.getId())),
                     unansweredYesterdayItemIds.contains(item.getId())
                         && (check == null || !check.hasSnapshot(StockCheckSnapshot.START_OF_DAY))
                         ? new DailyStockCheckItemResponse.MissedEndOfDay(today.minusDays(1))
@@ -394,6 +400,15 @@ public class StockCheckService {
             && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
             && orderListService.itemIdsOrderedOn(request.storeId(), today).contains(item.getId())) {
             throw new StockCheckLockedException(START_OF_DAY_ORDERED_MESSAGE);
+        }
+
+        // A mid-day shortage report re-bases the day's usage on its own count,
+        // so re-saving Start of Day afterwards would silently overwrite it.
+        // Owner/Admin corrections still go through correctCheck.
+        if (request.snapshot() == StockCheckSnapshot.START_OF_DAY
+            && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
+            && stockShortageReportRepository.existsByStoreInventoryItemIdAndCheckDate(item.getId(), today)) {
+            throw new StockCheckLockedException(START_OF_DAY_SHORTAGE_MESSAGE);
         }
 
         // Reported stock is only a request here: nothing about quantities or

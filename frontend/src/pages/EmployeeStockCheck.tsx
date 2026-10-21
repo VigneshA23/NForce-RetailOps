@@ -608,6 +608,8 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                         disabledReason={
                           snapshot === 'END_OF_DAY' && item.startOfDay == null
                             ? 'Submit the Start of Day count first'
+                            : snapshot === 'START_OF_DAY' && item.startOfDayLocked
+                              ? 'Locked for today: an order or shortage report is based on this count'
                             : snapshot === 'START_OF_DAY' && item.startOfDayReview?.status === 'PENDING'
                               ? 'Waiting for your admin to approve this Start of Day request'
                               : snapshot === 'END_OF_DAY' && item.endOfDayReview?.status === 'PENDING'

@@ -10,6 +10,13 @@ import java.util.List;
 
 public interface StockShortageReportRepository extends JpaRepository<StockShortageReport, Long> {
 
+    boolean existsByStoreInventoryItemIdAndCheckDate(Long itemId, java.time.LocalDate checkDate);
+
+    // Items with at least one shortage report for the store on the given day.
+    @Query("select distinct r.storeInventoryItem.id from StockShortageReport r "
+        + "where r.store.id = :storeId and r.checkDate = :checkDate")
+    List<Long> findItemIdsWithReportOn(@Param("storeId") Long storeId, @Param("checkDate") java.time.LocalDate checkDate);
+
     // One item's most recent reports, newest first -- the "Shortage reported"
     // entries in the Inventory Counts history.
     @Query("select r from StockShortageReport r join fetch r.reportedBy "
