@@ -448,15 +448,6 @@
   }
 }
 
-.employee-stock-check-page__eod-note {
-  margin: 0 0 var(--space-3, 12px);
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: var(--color-surface-muted, rgba(0, 0, 0, 0.04));
-  color: var(--color-text-secondary);
-  font-size: 13px;
-}
-
 .employee-stock-check-page__review {
   margin: 0 0 var(--space-3, 12px);
   padding: 8px 12px;

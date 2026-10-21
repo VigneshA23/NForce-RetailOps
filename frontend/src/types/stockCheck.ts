@@ -138,6 +138,8 @@ export interface DailyStockCheckItem {
   previousEndOfDay?: PreviousEndOfDay | null;
   // Today's Start of Day request that is waiting on, or was turned down by, the admin.
   startOfDayReview?: StartOfDayReview | null;
+  // Today's End of Day request that is waiting on, or was turned down by, the admin.
+  endOfDayReview?: EndOfDayReview | null;
   // The order raised from today's Start of Day has been placed, so it is frozen.
   startOfDayLocked?: boolean;
   // Yesterday's End of Day for this item is still unanswered: today's Start of
@@ -159,6 +161,14 @@ export interface PreviousEndOfDay {
 }
 
 export interface StartOfDayReview {
+  type: 'RESTOCK' | 'LOWER_COUNT';
+  status: 'PENDING' | 'REJECTED';
+  quantity: number;
+  reason: string | null;
+}
+
+// End of Day has no lower-count reason flow, so type is always 'RESTOCK'.
+export interface EndOfDayReview {
   type: 'RESTOCK' | 'LOWER_COUNT';
   status: 'PENDING' | 'REJECTED';
   quantity: number;

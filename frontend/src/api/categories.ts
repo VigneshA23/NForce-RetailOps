@@ -103,6 +103,23 @@ export async function reorderCategories(orderedIds: number[]): Promise<Category[
   return response.json();
 }
 
+export interface CategoryDeletePreview {
+  taskNames: string[];
+  hasHistory: boolean;
+}
+
+export async function getCategoryDeletePreview(id: number): Promise<CategoryDeletePreview> {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/categories/${id}/delete-preview`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error(await parseErrorMessage(response, 'Failed to check the category before deleting'));
+  }
+
+  return response.json();
+}
+
 export async function deleteCategory(id: number): Promise<void> {
   const response = await fetchWithTimeout(`${API_BASE_URL}/categories/${id}`, {
     method: 'DELETE',

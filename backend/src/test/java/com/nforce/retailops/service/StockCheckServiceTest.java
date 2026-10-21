@@ -376,10 +376,13 @@ class StockCheckServiceTest {
         StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID,
             new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), bd(15)));
 
-        // The count is saved but the delivery is not applied: received stays 0
-        // and no receipt row is written until the admin approves.
-        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(20));
+        // The count itself is only trustworthy once the declared delivery is
+        // approved, so it is held on the request rather than saved: End of Day
+        // stays unset, received stays 0, and no receipt row is written yet.
+        assertThat(check.getEndOfDayAvailable()).isNull();
+        assertThat(response.endOfDay()).isNull();
         assertThat(response.quantityReceived()).isEqualByComparingTo(bd(0));
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
         verify(stockCheckReceiptRepository, never()).save(any());
         ArgumentCaptor<StockReceiptRequest> request = ArgumentCaptor.forClass(StockReceiptRequest.class);
         verify(stockReceiptRequestRepository).save(request.capture());
@@ -387,6 +390,8 @@ class StockCheckServiceTest {
         assertThat(request.getValue().getOrderListEntry()).isNull();
         assertThat(request.getValue().isPending()).isTrue();
         assertThat(request.getValue().getRequestedBy()).isEqualTo(employee);
+        assertThat(request.getValue().isHoldsSnapshot()).isTrue();
+        assertThat(request.getValue().getPendingAvailable()).isEqualByComparingTo(bd(20));
         verify(notificationService).notifyOwnerOfStockReceiptRequest(request.getValue(), owner);
     }
 
@@ -437,8 +442,13 @@ class StockCheckServiceTest {
             STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(5), bd(0), null, null,
             List.of(new StockCheckSubmitRequest.ReceivedItem(70L, bd(4)), new StockCheckSubmitRequest.ReceivedItem(74L, bd(1)))));
 
-        verify(stockReceiptRequestRepository, times(2)).save(any(StockReceiptRequest.class));
-        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(5));
+        ArgumentCaptor<StockReceiptRequest> requests = ArgumentCaptor.forClass(StockReceiptRequest.class);
+        verify(stockReceiptRequestRepository, times(2)).save(requests.capture());
+        // Held until approved: the count isn't saved yet.
+        assertThat(check.getEndOfDayAvailable()).isNull();
+        // Exactly one of the two sibling requests carries the held-back count.
+        assertThat(requests.getAllValues()).filteredOn(StockReceiptRequest::isHoldsSnapshot).hasSize(1)
+            .first().satisfies(r -> assertThat(r.getPendingAvailable()).isEqualByComparingTo(bd(5)));
     }
 
     @Test
@@ -461,16 +471,22 @@ class StockCheckServiceTest {
     }
 
     @Test
-    void reSavingEndOfDayWhileAReceiptIsPendingDoesNotAskForReceivedStockAgain() {
+    void reSavingEndOfDayWhileAReceiptIsPendingIsRejected() {
         StockCheck check = existingCheck(LocalDate.now());
         check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
         when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
             .thenReturn(Optional.of(check));
-        when(stockReceiptRequestRepository.pendingQuantityFor(ITEM_ID, LocalDate.now())).thenReturn(bd(15));
+        StockReceiptRequest pending = new StockReceiptRequest();
+        pending.setStatus(com.nforce.retailops.entity.StockReceiptRequestStatus.PENDING);
+        when(stockReceiptRequestRepository.findByStoreInventoryItemIdAndCheckDateAndSnapshotAndStatus(
+            ITEM_ID, LocalDate.now(), StockCheckSnapshot.END_OF_DAY, com.nforce.retailops.entity.StockReceiptRequestStatus.PENDING))
+            .thenReturn(List.of(pending));
 
-        stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 20, 0));
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 20, 0)))
+            .isInstanceOf(com.nforce.retailops.exception.StockCheckReviewPendingException.class);
 
-        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(20));
+        assertThat(check.getEndOfDayAvailable()).isNull();
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
         verify(stockReceiptRequestRepository, never()).save(any());
     }
 
@@ -498,6 +514,66 @@ class StockCheckServiceTest {
         verify(stockCheckReceiptRepository).save(receipt.capture());
         assertThat(receipt.getValue().getQuantity()).isEqualByComparingTo(bd(15));
         assertThat(receipt.getValue().getReceivedByUser()).isEqualTo(employee);
+    }
+
+    @Test
+    void approvingAHeldLowerCountAppliesTheFigureAndWritesACorrectionRow() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(20), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        StockReceiptRequest request = new StockReceiptRequest();
+        request.setStore(store);
+        request.setStoreInventoryItem(milk);
+        request.setCheckDate(LocalDate.now());
+        request.setSnapshot(StockCheckSnapshot.START_OF_DAY);
+        request.setType(com.nforce.retailops.entity.StockReceiptRequestType.LOWER_COUNT);
+        request.setQuantity(bd(5));
+        request.setRequestedBy(employee);
+        request.setHoldsSnapshot(true);
+        request.setPendingAvailable(bd(15));
+        request.setPendingDeadStock(bd(0));
+
+        stockCheckService.applyApprovedSnapshot(request);
+
+        assertThat(check.getStartOfDayAvailable()).isEqualByComparingTo(bd(15));
+        ArgumentCaptor<StockCheckCorrection> captor = ArgumentCaptor.forClass(StockCheckCorrection.class);
+        verify(stockCheckCorrectionRepository).save(captor.capture());
+        assertThat(captor.getValue().getOriginalCount()).isEqualByComparingTo(bd(20));
+        assertThat(captor.getValue().getCorrectedCount()).isEqualByComparingTo(bd(15));
+        verify(orderListService).reconcileStartOfDayShortage(
+            eq(store), eq(milk), any(java.math.BigDecimal.class), anyBoolean(), eq(employee), isNull());
+    }
+
+    @Test
+    void applyingAnOrdinaryDeliveryRequestDoesNotTouchTheSnapshot() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        StockReceiptRequest request = new StockReceiptRequest();
+        request.setStore(store);
+        request.setStoreInventoryItem(milk);
+        request.setCheckDate(LocalDate.now());
+        request.setQuantity(bd(5));
+        request.setRequestedBy(employee);
+
+        stockCheckService.applyApprovedSnapshot(request);
+
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
+        verify(stockCheckCorrectionRepository, never()).save(any());
+        verify(orderListService, never()).reconcileStartOfDayShortage(any(), any(), any(), anyBoolean(), any(), any());
+    }
+
+    @Test
+    void resubmittingStartOfDayWhileAReviewIsPendingIsRejected() {
+        when(stockReceiptRequestRepository.findByStoreInventoryItemIdAndCheckDateAndSnapshotAndStatus(
+            ITEM_ID, LocalDate.now(), StockCheckSnapshot.START_OF_DAY, com.nforce.retailops.entity.StockReceiptRequestStatus.PENDING))
+            .thenReturn(List.of(new StockReceiptRequest()));
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 15, 0)))
+            .isInstanceOf(com.nforce.retailops.exception.StockCheckReviewPendingException.class);
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
     }
 
     @Test
@@ -1496,8 +1572,13 @@ class StockCheckServiceTest {
         assertThat(request.getSnapshot()).isEqualTo(StockCheckSnapshot.START_OF_DAY);
         assertThat(request.getQuantity()).isEqualByComparingTo(bd(5));
         assertThat(request.getReason()).isEqualTo("Spilled overnight");
+        assertThat(request.isHoldsSnapshot()).isTrue();
+        assertThat(request.getPendingAvailable()).isEqualByComparingTo(bd(15));
+        assertThat(request.getPendingDeadStock()).isEqualByComparingTo(bd(0));
         verify(notificationService).notifyOwnerOfStockReceiptRequest(request, owner);
-        verify(stockCheckRepository).save(any(StockCheck.class));
+        // The count is held on the request, not written to stock_checks, until
+        // the admin approves it.
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
     }
 
     @Test

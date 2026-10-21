@@ -214,6 +214,19 @@ public class StockCheck {
         return midDayUsage == null ? BigDecimal.ZERO : midDayUsage;
     }
 
+    // What stockUsed() would be if endAvailable/endDeadStock were saved as End
+    // of Day, without actually saving anything -- lets a submission be checked
+    // for a negative-usage gap before deciding whether to hold it back for
+    // approval. Null before Start of Day (nothing to project against).
+    public BigDecimal projectedStockUsed(BigDecimal endAvailable, BigDecimal endDeadStock) {
+        BigDecimal expected = expectedUsableNow();
+        if (expected == null) {
+            return null;
+        }
+        BigDecimal endUsable = endAvailable.subtract(endDeadStock == null ? BigDecimal.ZERO : endDeadStock);
+        return midDayUsage().add(expected).subtract(endUsable);
+    }
+
     // A mid-day shortage report: banks the usage since the last baseline and
     // makes the reported usable stock the new baseline. Needs Start of Day.
     public void recordMidDayCount(BigDecimal currentUsable, User by) {
