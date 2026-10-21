@@ -538,14 +538,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                     <span className="badge badge--success employee-stock-check-page__status-badge">Sufficient</span>
                   )}
                   <span className="employee-stock-check-page__needed-group">
-                    {item.status === 'shortage' && (
-                      <span className="badge badge--dot badge--danger employee-stock-check-page__needed-badge">
-                        {item.needed} {item.unitOfMeasurement} Needed
-                      </span>
-                    )}
-                    {item.status === 'optimal' && (
-                      <span className="badge badge--dot badge--success">{item.needed ?? 0} Sufficient</span>
-                    )}
                     <span className="employee-stock-check-page__collapse-toggle" aria-hidden="true">
                       {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                     </span>

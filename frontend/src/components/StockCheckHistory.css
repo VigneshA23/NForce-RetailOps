@@ -97,16 +97,30 @@
 }
 
 .stock-check-history__status-filter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-width: 0;
   padding: 8px 16px;
+  border: 1px solid transparent;
   border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-card);
+  background: var(--color-bg-page);
   color: var(--color-text-secondary);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+}
+
+.stock-check-history__status-filter--shortage {
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
+}
+
+.stock-check-history__status-filter--sufficient {
+  background: var(--color-badge-icon-success-bg);
+  color: var(--color-badge-icon-success-fg);
 }
 
 @media (--mobile) {
@@ -117,9 +131,8 @@
 }
 
 .stock-check-history__status-filter--active {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: #ffffff;
+  outline: 2px solid currentColor;
+  outline-offset: -1px;
 }
 
 .stock-check-history__item-cell {

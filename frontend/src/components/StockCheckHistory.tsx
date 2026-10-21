@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Clock3, Download, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
@@ -191,6 +191,9 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
     [items, search, categoryFilter, statusFilter],
   );
 
+  const shortageCount = useMemo(() => items.filter((row) => row.status === 'shortage').length, [items]);
+  const sufficientCount = useMemo(() => items.filter((row) => row.status === 'optimal').length, [items]);
+
   function clearFilters() {
     setSearch('');
     setCategoryFilter('');
@@ -336,17 +339,19 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
         </button>
         <button
           type="button"
-          className={`stock-check-history__status-filter${statusFilter === 'shortage' ? ' stock-check-history__status-filter--active' : ''}`}
+          className={`stock-check-history__status-filter stock-check-history__status-filter--shortage${statusFilter === 'shortage' ? ' stock-check-history__status-filter--active' : ''}`}
           onClick={() => setStatusFilter('shortage')}
         >
-          Shortage
+          <AlertTriangle size={13} />
+          Shortage ({shortageCount})
         </button>
         <button
           type="button"
-          className={`stock-check-history__status-filter${statusFilter === 'sufficient' ? ' stock-check-history__status-filter--active' : ''}`}
+          className={`stock-check-history__status-filter stock-check-history__status-filter--sufficient${statusFilter === 'sufficient' ? ' stock-check-history__status-filter--active' : ''}`}
           onClick={() => setStatusFilter('sufficient')}
         >
-          Sufficient
+          <CheckCircle2 size={13} />
+          Sufficient ({sufficientCount})
         </button>
       </div>
 

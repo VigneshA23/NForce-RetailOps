@@ -205,7 +205,7 @@ describe('StockCheckHistory', () => {
     render(<StockCheckHistory />);
     await screen.findByText('Short Item');
 
-    await user.click(screen.getByRole('button', { name: 'Shortage' }));
+    await user.click(screen.getByRole('button', { name: 'Shortage (1)' }));
 
     expect(screen.getByText('Short Item')).toBeInTheDocument();
     expect(screen.queryByText('Sufficient Item')).not.toBeInTheDocument();

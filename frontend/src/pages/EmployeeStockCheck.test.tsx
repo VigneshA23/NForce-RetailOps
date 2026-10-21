@@ -42,11 +42,10 @@ describe('EmployeeStockCheck item card expand/collapse', () => {
     mockGetTodayStockCheck.mockResolvedValue([{ ...item, currentStock: 2 }]);
 
     render(<EmployeeStockCheck store={store} />);
-    await screen.findAllByText('6 Nos. Needed');
+    await screen.findByText('6 Nos. Needed');
 
     const itemCard = screen.getByText('Milk').closest('.employee-stock-check-page__item');
     const neededGroup = itemCard?.querySelector('.employee-stock-check-page__needed-group');
-    expect(neededGroup?.querySelector('.employee-stock-check-page__needed-badge')).toBeInTheDocument();
     expect(neededGroup?.querySelector('.employee-stock-check-page__collapse-toggle')).toBeInTheDocument();
     expect(itemCard?.querySelector('.employee-stock-check-page__status-badge')).toHaveTextContent('6 Nos. Needed');
   });
