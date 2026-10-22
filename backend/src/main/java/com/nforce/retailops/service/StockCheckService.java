@@ -108,6 +108,9 @@ public class StockCheckService {
     static final String START_OF_DAY_SHORTAGE_MESSAGE =
         "A shortage was reported for this item today, so the Start of Day count can't be edited.";
 
+    static final String END_OF_DAY_APPROVED_MESSAGE =
+        "This End of Day count was approved by your admin and can't be edited today.";
+
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final StockCheckRepository stockCheckRepository;
     private final StockCheckCorrectionRepository stockCheckCorrectionRepository;
@@ -251,6 +254,8 @@ public class StockCheckService {
                     check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
                         && (orderedTodayItemIds.contains(item.getId())
                             || shortageReportedTodayItemIds.contains(item.getId())),
+                    endReviewByItemId.containsKey(item.getId())
+                        && endReviewByItemId.get(item.getId()).getStatus() == StockReceiptRequestStatus.APPROVED,
                     unansweredYesterdayItemIds.contains(item.getId())
                         && (check == null || !check.hasSnapshot(StockCheckSnapshot.START_OF_DAY))
                         ? new DailyStockCheckItemResponse.MissedEndOfDay(today.minusDays(1))
@@ -391,6 +396,19 @@ public class StockCheckService {
             throw new StockCheckReviewPendingException(
                 "This " + (request.snapshot() == StockCheckSnapshot.START_OF_DAY ? "Start of Day" : "End of Day")
                     + " count is waiting for your admin to approve or reject it.");
+        }
+
+        // Once an approved End of Day restock request has applied its held
+        // count, that count is final for employees. Delivery-only approvals do
+        // not hold a snapshot and therefore do not freeze End of Day edits.
+        if (request.snapshot() == StockCheckSnapshot.END_OF_DAY
+            && check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)
+            && stockReceiptRequestRepository
+                .findByStoreInventoryItemIdAndCheckDateAndSnapshotAndStatus(
+                    item.getId(), today, StockCheckSnapshot.END_OF_DAY, StockReceiptRequestStatus.APPROVED)
+                .stream()
+                .anyMatch(StockReceiptRequest::isHoldsSnapshot)) {
+            throw new StockCheckLockedException(END_OF_DAY_APPROVED_MESSAGE);
         }
 
         // Once the admin has marked the order raised from this Start of Day as

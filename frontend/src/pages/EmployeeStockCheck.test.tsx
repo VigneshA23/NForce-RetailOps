@@ -6,6 +6,7 @@ import * as meApi from '../api/me';
 import * as stockCheckApi from '../api/stockChecks';
 import type { DailyStockCheckItem } from '../types/stockCheck';
 import type { StoreSummary } from '../types/store';
+import { nfToast } from '../utils/toast';
 
 vi.mock('../api/me', () => ({ getMe: vi.fn() }));
 vi.mock('../api/stockChecks', () => ({
@@ -49,6 +50,14 @@ const savedSod = {
   edited: false,
 };
 
+const savedEod = {
+  ...savedSod,
+  available: 10,
+  usable: 10,
+  enteredAt: '2026-10-22T17:00:00Z',
+  lastUpdatedAt: '2026-10-22T17:00:00Z',
+};
+
 describe('EmployeeStockCheck item card expand/collapse', () => {
   it('groups the expand caret beside quantity needed and exposes shortage status separately', async () => {
     mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
@@ -61,6 +70,44 @@ describe('EmployeeStockCheck item card expand/collapse', () => {
     const neededGroup = itemCard?.querySelector('.employee-stock-check-page__needed-group');
     expect(neededGroup?.querySelector('.employee-stock-check-page__collapse-toggle')).toBeInTheDocument();
     expect(itemCard?.querySelector('.employee-stock-check-page__status-badge')).toHaveTextContent('6 Nos. Needed');
+  });
+
+  it('keeps the Start of Day order lock but removes its banner message', async () => {
+    const user = userEvent.setup();
+    vi.mocked(nfToast.error).mockClear();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{ ...item, startOfDay: savedSod, startOfDayLocked: true }]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await user.click(await screen.findByText('Milk'));
+    const sodCard = screen.getByRole('region', { name: 'Start of Day Stock Check' });
+    expect(screen.queryByText('An order has been placed based on the Start of Day count, so you cannot edit it.')).not.toBeInTheDocument();
+    expect(within(sodCard).getByLabelText('Total Stock')).toBeDisabled();
+
+    await user.click(within(sodCard).getByLabelText('Locked for today: an order or shortage report is based on this count'));
+    expect(nfToast.error).toHaveBeenCalledWith('Locked for today: an order or shortage report is based on this count');
+  });
+
+  it('locks an End of Day count after its approval and shows the error toast on an edit attempt', async () => {
+    const user = userEvent.setup();
+    vi.mocked(nfToast.error).mockClear();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{
+      ...item,
+      startOfDay: savedSod,
+      endOfDay: savedEod,
+      endOfDayLocked: true,
+    }]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await user.click(await screen.findByText('Milk'));
+    const eodCard = screen.getByRole('region', { name: 'End of Day Stock Check' });
+    const reason = 'This End of Day count was approved by your admin and cannot be edited';
+    expect(within(eodCard).getByLabelText('Total Stock')).toBeDisabled();
+    expect(within(eodCard).queryByRole('button', { name: 'Update Count' })).not.toBeInTheDocument();
+
+    await user.click(within(eodCard).getByLabelText(reason));
+    expect(nfToast.error).toHaveBeenCalledWith(reason);
   });
 
   it('marks Sufficient as a status badge for the compact card layout', async () => {

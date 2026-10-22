@@ -39,6 +39,8 @@ public record DailyStockCheckItemResponse(
     // or a shortage has been reported today: Start of Day can no longer be
     // edited today.
     boolean startOfDayLocked,
+    // True when an approved End of Day restock request applied this count.
+    boolean endOfDayLocked,
     // Set while yesterday's Start of Day for this item still has no End of Day
     // (counted or explained): today's Start of Day is refused until it is
     // answered from the Notifications page.

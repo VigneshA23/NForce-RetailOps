@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List, Lock } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { ApiError } from '../api/client';
 import { getMe } from '../api/me';
@@ -497,11 +497,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                   <AlertTriangle size={14} /> Yesterday&apos;s End of Day is missing. Respond to it in your notifications before taking Start of Day.
                 </p>
               )}
-              {item.startOfDayLocked && (
-                <p className="employee-stock-check-page__review employee-stock-check-page__review--locked" role="status">
-                  <Lock size={14} /> An order has been placed based on the Start of Day count, so you cannot edit it.
-                </p>
-              )}
               <div
                 className="employee-stock-check-page__item-header"
                 role="button"
@@ -596,6 +591,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                           if (snapshot === 'START_OF_DAY' && item.startOfDayLocked) return false;
                           if (snapshot === 'START_OF_DAY' && item.startOfDayReview?.status === 'PENDING') return false;
                           if (snapshot === 'END_OF_DAY' && item.endOfDayReview?.status === 'PENDING') return false;
+                          if (snapshot === 'END_OF_DAY' && item.endOfDayLocked) return false;
                           const saved = snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay;
                           return !saved || saved.enteredById == null || myUserId == null || saved.enteredById === myUserId;
                         })()}
@@ -615,7 +611,9 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                               ? 'Waiting for your admin to approve this Start of Day request'
                               : snapshot === 'END_OF_DAY' && item.endOfDayReview?.status === 'PENDING'
                                 ? 'Waiting for your admin to approve this End of Day request'
-                                : undefined
+                                : snapshot === 'END_OF_DAY' && item.endOfDayLocked
+                                  ? 'This End of Day count was approved by your admin and cannot be edited'
+                                  : undefined
                         }
                         footer={
                           snapshot === 'START_OF_DAY' ? (

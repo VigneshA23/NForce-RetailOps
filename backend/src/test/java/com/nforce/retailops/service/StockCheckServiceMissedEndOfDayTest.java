@@ -6,6 +6,8 @@ import com.nforce.retailops.dto.MissedEndOfDayResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckSnapshot;
+import com.nforce.retailops.entity.StockReceiptRequest;
+import com.nforce.retailops.entity.StockReceiptRequestStatus;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
@@ -36,7 +38,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -223,6 +227,41 @@ class StockCheckServiceMissedEndOfDayTest {
         when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk));
 
         assertThat(stockCheckService.getTodayChecklist(EMPLOYEE_ID, STORE_ID).get(0).missedEndOfDay()).isNull();
+    }
+
+    @Test
+    void checklistLocksEndOfDayAfterItsCountApprovalIsApproved() {
+        StockCheck today = new StockCheck();
+        today.setStore(store);
+        today.setStoreInventoryItem(milk);
+        today.setCheckDate(LocalDate.now());
+        today.recordSnapshot(StockCheckSnapshot.START_OF_DAY, BigDecimal.valueOf(10), BigDecimal.ZERO,
+            employee, OffsetDateTime.now().minusHours(9), false);
+        today.recordSnapshot(StockCheckSnapshot.END_OF_DAY, BigDecimal.valueOf(15), BigDecimal.ZERO,
+            employee, OffsetDateTime.now(), false);
+        StockReceiptRequest approved = new StockReceiptRequest();
+        approved.setStoreInventoryItem(milk);
+        approved.setStatus(StockReceiptRequestStatus.APPROVED);
+        approved.setHoldsSnapshot(true);
+
+        when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findForStoreOnDate(STORE_ID, LocalDate.now())).thenReturn(List.of(today));
+        when(stockCheckRepository.findMissedEndOfDay(STORE_ID, yesterday)).thenReturn(List.of());
+        when(stockReceiptRequestRepository.findByStoreIdAndCheckDateAndSnapshotOrderByIdAsc(
+            STORE_ID, LocalDate.now(), StockCheckSnapshot.END_OF_DAY)).thenReturn(List.of(approved));
+        when(stockReceiptRequestRepository.findByStoreIdAndCheckDateAndStatus(
+            STORE_ID, LocalDate.now(), StockReceiptRequestStatus.PENDING)).thenReturn(List.of());
+        when(orderListService.itemIdsOrderedOn(STORE_ID, LocalDate.now())).thenReturn(Set.of());
+        when(stockShortageReportRepository.findItemIdsWithReportOn(STORE_ID, LocalDate.now())).thenReturn(List.of());
+        when(orderListService.orderedEntriesByItem(STORE_ID)).thenReturn(Map.of());
+        when(stockCheckRepository.findLatestBeforeForStore(STORE_ID, LocalDate.now())).thenReturn(List.of());
+        when(stockCheckReceiptRepository.findUnappliedForStore(STORE_ID)).thenReturn(List.of());
+
+        List<DailyStockCheckItemResponse> checklist = stockCheckService.getTodayChecklist(EMPLOYEE_ID, STORE_ID);
+
+        assertThat(checklist).hasSize(1);
+        assertThat(checklist.get(0).endOfDayLocked()).isTrue();
+        assertThat(checklist.get(0).endOfDayReview()).isNull();
     }
 
     // ---- Answering ----------------------------------------------------------

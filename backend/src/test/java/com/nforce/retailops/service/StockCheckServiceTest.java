@@ -22,6 +22,7 @@ import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.dto.AdHocShortageRequest;
 import com.nforce.retailops.exception.InvalidStockCheckException;
+import com.nforce.retailops.exception.StockCheckLockedException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StockCheckCorrectionRepository;
@@ -488,6 +489,29 @@ class StockCheckServiceTest {
         assertThat(check.getEndOfDayAvailable()).isNull();
         verify(stockCheckRepository, never()).save(any(StockCheck.class));
         verify(stockReceiptRequestRepository, never()).save(any());
+    }
+
+    @Test
+    void approvedHeldEndOfDayCountCannotBeEditedAgain() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(15), bd(0), employee, OffsetDateTime.now(), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        StockReceiptRequest approved = new StockReceiptRequest();
+        approved.setStatus(com.nforce.retailops.entity.StockReceiptRequestStatus.APPROVED);
+        approved.setHoldsSnapshot(true);
+        when(stockReceiptRequestRepository.findByStoreInventoryItemIdAndCheckDateAndSnapshotAndStatus(
+            ITEM_ID, LocalDate.now(), StockCheckSnapshot.END_OF_DAY,
+            com.nforce.retailops.entity.StockReceiptRequestStatus.APPROVED))
+            .thenReturn(List.of(approved));
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 14, 0)))
+            .isInstanceOf(StockCheckLockedException.class)
+            .hasMessage(StockCheckService.END_OF_DAY_APPROVED_MESSAGE);
+
+        assertThat(check.getEndOfDayAvailable()).isEqualByComparingTo(bd(15));
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
     }
 
     @Test

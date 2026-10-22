@@ -142,6 +142,8 @@ export interface DailyStockCheckItem {
   endOfDayReview?: EndOfDayReview | null;
   // The order raised from today's Start of Day has been placed, so it is frozen.
   startOfDayLocked?: boolean;
+  // An approved End of Day request applied this count, so it is frozen.
+  endOfDayLocked?: boolean;
   // Yesterday's End of Day for this item is still unanswered: today's Start of
   // Day is refused until it is answered from the Notifications page.
   missedEndOfDay?: { date: string } | null;
