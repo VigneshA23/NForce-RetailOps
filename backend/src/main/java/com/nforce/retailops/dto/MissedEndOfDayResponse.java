@@ -31,7 +31,8 @@ public record MissedEndOfDayResponse(LocalDate date, List<Item> items) {
         BigDecimal endOfDayDeadStock,
         String answeredByName,
         OffsetDateTime answeredAt,
-        String reason
+        String reason,
+        Long imageId
     ) {
         public static Item from(StockCheck check) {
             boolean counted = check.hasSnapshot(StockCheckSnapshot.END_OF_DAY);
@@ -52,7 +53,8 @@ public record MissedEndOfDayResponse(LocalDate date, List<Item> items) {
                 check.getEndOfDayDeadStock(),
                 by != null ? by.getFullName() : null,
                 at,
-                skipped ? check.getEndOfDaySkippedReason() : null
+                skipped ? check.getEndOfDaySkippedReason() : null,
+                check.getStoreInventoryItem().getImageId()
             );
         }
     }

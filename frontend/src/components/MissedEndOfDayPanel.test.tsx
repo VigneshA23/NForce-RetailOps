@@ -18,6 +18,7 @@ function item(overrides: Partial<MissedEndOfDayItem> = {}): MissedEndOfDayItem {
     answeredByName: null,
     answeredAt: null,
     reason: null,
+    imageId: null,
     ...overrides,
   };
 }

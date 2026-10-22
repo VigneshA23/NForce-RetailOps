@@ -33,6 +33,7 @@ export interface MissedEndOfDayItem {
   answeredAt: string | null;
   // Only for COULD_NOT_COUNT.
   reason: string | null;
+  imageId: number | null;
 }
 
 export interface MissedEndOfDay {

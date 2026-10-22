@@ -85,7 +85,7 @@ function MissedCard({ item, onAnswer, onAnswered }: CardProps) {
     return (
       <li className="meod-card meod-card--counted">
         <div className="meod-card__header">
-          <ItemIcon id={item.storeInventoryItemId} name={item.itemName} size="md" />
+          <ItemIcon id={item.storeInventoryItemId} name={item.itemName} size="md" imageId={item.imageId} />
           <div className="meod-card__title">
             <strong>{item.itemName}</strong>
             {openingStock}
@@ -117,7 +117,7 @@ function MissedCard({ item, onAnswer, onAnswered }: CardProps) {
     return (
       <li className="meod-card meod-card--explained">
         <div className="meod-card__header">
-          <ItemIcon id={item.storeInventoryItemId} name={item.itemName} size="md" />
+          <ItemIcon id={item.storeInventoryItemId} name={item.itemName} size="md" imageId={item.imageId} />
           <div className="meod-card__title">
             <strong>{item.itemName}</strong>
             {openingStock}
@@ -146,7 +146,7 @@ function MissedCard({ item, onAnswer, onAnswered }: CardProps) {
     <li className="meod-card meod-card--pending">
       <form onSubmit={submit} noValidate>
         <div className="meod-card__header">
-          <ItemIcon id={item.storeInventoryItemId} name={item.itemName} size="md" />
+          <ItemIcon id={item.storeInventoryItemId} name={item.itemName} size="md" imageId={item.imageId} />
           <div className="meod-card__title">
             <strong>{item.itemName}</strong>
             {openingStock}

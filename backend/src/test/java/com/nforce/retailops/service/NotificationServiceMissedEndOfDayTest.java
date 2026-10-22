@@ -3,6 +3,7 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.MissedEndOfDayResponse;
 import com.nforce.retailops.dto.NotificationResponse;
 import com.nforce.retailops.dto.StockCheckResponse;
+import com.nforce.retailops.entity.InventoryItemImage;
 import com.nforce.retailops.entity.Notification;
 import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckSnapshot;
@@ -65,6 +66,9 @@ class NotificationServiceMissedEndOfDayTest {
         item.setName(name);
         item.setUnitOfMeasurement("g");
         item.setActive(true);
+        InventoryItemImage image = new InventoryItemImage();
+        ReflectionTestUtils.setField(image, "id", itemId * 100);
+        item.setImage(image);
         StockCheck check = new StockCheck();
         check.setStore(store);
         check.setStoreInventoryItem(item);
@@ -107,6 +111,9 @@ class NotificationServiceMissedEndOfDayTest {
         MissedEndOfDayResponse.Item counted = missed.items().get(2);
         assertThat(counted.endOfDayAvailable()).isEqualByComparingTo("3");
         assertThat(counted.answeredByName()).isEqualTo("Sarah");
+        // Butter is item 1, so its display image is id 100 (see row()).
+        MissedEndOfDayResponse.Item pending = missed.items().get(0);
+        assertThat(pending.imageId()).isEqualTo(100L);
     }
 
     @Test

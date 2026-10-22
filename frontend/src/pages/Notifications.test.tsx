@@ -287,6 +287,7 @@ describe('Notifications missing End of Day notice', () => {
   const pendingItem: MissedEndOfDayItem = {
     storeInventoryItemId: 7, itemName: 'Butter', unitOfMeasurement: 'g', startOfDayUsable: 300, status: 'PENDING',
     endOfDayAvailable: null, endOfDayDeadStock: null, answeredByName: null, answeredAt: null, reason: null,
+    imageId: null,
   };
 
   function missedNotification(items: MissedEndOfDayItem[]): Notification {
