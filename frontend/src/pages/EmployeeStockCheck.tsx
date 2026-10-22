@@ -184,6 +184,10 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
       // Totals, dead stock included: stock going dead overnight is not missing.
       const startUsable = roundQty(available);
       if (startUsable > roundQty(previous.expectedStart + previous.restockCovered)) {
+        if ((item.openOrders ?? []).length === 0) {
+          nfToast.error('Start of Day cannot be greater than EOD of the previous day.');
+          return false;
+        }
         return new Promise<boolean>((resolve) => {
           setReceivedPrompt({
             item, available, deadStock, startUsable: previous.expectedStart, endUsable: startUsable, snapshot: 'START_OF_DAY', resolve,

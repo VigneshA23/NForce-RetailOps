@@ -65,8 +65,13 @@ function ReceivedStockModal({
   const [error, setError] = useState<string | null>(null);
 
   const showNewStockOnly = !hasOrders;
-  const ordersSelected = orderIds.length > 0;
-  const quantityEditable = showNewStockOnly || newStock || orderIds.length === 1;
+  // Start of Day lists every Ordered order as plain details: nothing to pick,
+  // all of them are submitted. End of Day still lets the employee choose.
+  const selectedIds = isStart ? orders.map((o) => o.id) : orderIds;
+  const ordersSelected = selectedIds.length > 0;
+  // Start of Day restocks are only ever confirmed against existing orders, so
+  // there is no new-stock option and the quantity is never typed.
+  const quantityEditable = !isStart && (showNewStockOnly || newStock);
 
   useEffect(() => {
     if (isOpen) {
@@ -96,25 +101,27 @@ function ReceivedStockModal({
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (hasOrders && !newStock && !ordersSelected) {
+    if (!isStart && hasOrders && !newStock && !ordersSelected) {
       setError('Select what was received');
       return;
     }
-    const value = parseQty(quantity, unit);
+    const value = isStart ? orderedTotal(selectedIds) : parseQty(quantity, unit);
     if (value === null || value <= 0) {
       setError(`Enter ${qtyRuleHint(unit)} greater than 0`);
       return;
     }
     const minimum = roundQty(endUsable - startUsable - alreadyReceived);
-    if (roundQty(startUsable + alreadyReceived + value) < endUsable) {
+    // Start of Day ignores the typed count: it becomes the last End of Day plus
+    // the received orders, so there is no gap to cover.
+    if (!isStart && roundQty(startUsable + alreadyReceived + value) < endUsable) {
       setError(`Value should be greater than or equal to ${minimum}`);
       return;
     }
     if (ordersSelected) {
       onConfirm(
-        orderIds.length === 1
-          ? [{ orderId: orderIds[0], quantity: value }]
-          : orderIds.map((id) => ({ orderId: id, quantity: orders.find((o) => o.id === id)!.quantity })),
+        selectedIds.length === 1
+          ? [{ orderId: selectedIds[0], quantity: value }]
+          : selectedIds.map((id) => ({ orderId: id, quantity: orders.find((o) => o.id === id)!.quantity })),
       );
       return;
     }
@@ -129,7 +136,7 @@ function ReceivedStockModal({
       title={isStart ? 'Enter stock restocked' : 'Enter stock received today'}
       subtitle={
         isStart
-          ? `${itemName}: Start of Day (${endUsable} ${unit}) is higher than the last End of Day (${startUsable} ${unit}), so the item must have been restocked. Choose an existing order that was received, or enter new stock. Your admin has to approve it before stock is updated.`
+          ? `${itemName}: Start of Day (${endUsable} ${unit}) is higher than the last End of Day (${startUsable} ${unit}), so the item must have been restocked. Confirm the existing order(s) below that were received. Your admin has to approve it before stock is updated.`
           : `${itemName}: End of Day (${endUsable} ${unit}) is higher than Start of Day (${startUsable} ${unit}), so stock must have been received. Enter the quantity so today's usage is calculated correctly. Your admin has to approve it before stock is updated.`
       }
       footer={
@@ -144,10 +151,23 @@ function ReceivedStockModal({
       }
     >
       <form id="received-stock-form" onSubmit={handleSubmit} noValidate>
-        {hasOrders && (
+        {hasOrders && isStart && (
+          <div className="received-stock-modal__choices">
+            <p className="received-stock-modal__legend">Existing orders received:</p>
+            <ul>
+              {orders.map((order) => (
+                <li key={order.id}>
+                  Order #{order.id} · {order.quantity} {unit}
+                  {order.supplierName ? ` · ${order.supplierName}` : ''}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {hasOrders && !isStart && (
           <fieldset className="received-stock-modal__choices">
             <legend className="received-stock-modal__legend">
-              {isStart ? 'What was restocked?' : 'What was received?'} Choose new stock, or one or more existing orders.
+              What was received? Choose new stock, or one or more existing orders.
             </legend>
             <label className="received-stock-modal__choice">
               <input type="checkbox" checked={newStock} disabled={ordersSelected} onChange={toggleNewStock} />
@@ -169,6 +189,8 @@ function ReceivedStockModal({
             ))}
           </fieldset>
         )}
+        {isStart && error && <p className="form-field__error" role="alert">{error}</p>}
+        {!isStart && (
         <FormField label={isStart ? `Stock restocked (${unit})` : `Stock received today (${unit})`} htmlFor="received-stock-quantity" error={error ?? undefined}>
           <input
             id="received-stock-quantity"
@@ -176,7 +198,7 @@ function ReceivedStockModal({
             inputMode={isWholeNumberUnit(unit) ? 'numeric' : 'decimal'}
             className="input"
             autoFocus={!hasOrders}
-            value={quantity}
+            value={isStart ? String(orderedTotal(selectedIds)) : quantity}
             readOnly={!quantityEditable}
             onChange={(event) => {
               const next = event.target.value;
@@ -186,6 +208,7 @@ function ReceivedStockModal({
             }}
           />
         </FormField>
+        )}
       </form>
     </Modal>
   );
