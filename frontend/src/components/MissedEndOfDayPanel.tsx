@@ -166,7 +166,7 @@ function MissedCard({ item, onAnswer, onAnswered }: CardProps) {
               disabled={busy}
               onChange={() => { setMode('count'); setError(null); }}
             />
-            I counted this item
+            Counted this item
           </label>
           <label className={`meod-card__choice-option${mode === 'skip' ? ' is-selected' : ''}`}>
             <input
@@ -176,7 +176,7 @@ function MissedCard({ item, onAnswer, onAnswered }: CardProps) {
               disabled={busy}
               onChange={() => { setMode('skip'); setError(null); }}
             />
-            I couldn&apos;t count it
+            Couldn&apos;t count it
           </label>
         </div>
 

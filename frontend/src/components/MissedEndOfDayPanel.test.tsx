@@ -96,7 +96,7 @@ describe('MissedEndOfDayPanel', () => {
 
   it('blocks a reason under 15 words and counts the words', async () => {
     const { onAnswer } = renderPanel([item()]);
-    await userEvent.click(screen.getByLabelText(/I couldn.t count it/));
+    await userEvent.click(screen.getByLabelText(/Couldn.t count it/));
     await userEvent.type(screen.getByLabelText(/Why could it not be counted/), 'the freezer failed overnight');
     expect(screen.getByText('4 / 15 words minimum')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Submit reason' }));
@@ -107,7 +107,7 @@ describe('MissedEndOfDayPanel', () => {
   it('sends a reason of 15 words or more', async () => {
     const saved = item({ status: 'COULD_NOT_COUNT', reason: FIFTEEN_WORDS });
     const { onAnswer, onAnswered } = renderPanel([item()], vi.fn().mockResolvedValue(saved));
-    await userEvent.click(screen.getByLabelText(/I couldn.t count it/));
+    await userEvent.click(screen.getByLabelText(/Couldn.t count it/));
     await userEvent.type(screen.getByLabelText(/Why could it not be counted/), FIFTEEN_WORDS);
     await userEvent.click(screen.getByRole('button', { name: 'Submit reason' }));
     await waitFor(() => expect(onAnswered).toHaveBeenCalledWith(saved));
