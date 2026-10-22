@@ -1,99 +1,256 @@
-.nfp-missed {
+.meod {
   margin: 16px 0;
-  padding: 14px 16px;
-  border: 1px solid var(--color-border);
-  border-radius: 10px;
-  background: var(--color-bg-page);
+  display: grid;
+  gap: 14px;
 }
-.nfp-missed__kind {
-  margin: 0 0 4px;
+
+/* ── Progress summary card ── */
+.meod__progress {
+  padding: 16px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
+}
+
+.meod__progress-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.meod__progress-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.meod__progress-count {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-badge-icon-success-fg);
+  white-space: nowrap;
+}
+
+.meod__progress-track {
+  height: 8px;
+  background: var(--color-bg-page);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.meod__progress-fill {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-badge-icon-success-fg);
+  transition: width 0.25s ease;
+}
+
+.meod__progress-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.meod__pstat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.meod__pstat--success { color: var(--color-badge-icon-success-fg); }
+.meod__pstat--info { color: var(--color-badge-icon-info-fg); }
+.meod__pstat--warning { color: var(--color-badge-icon-warning-fg); }
+
+.meod__note {
+  margin: 0;
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--color-badge-icon-warning-fg);
-}
-.nfp-missed__summary {
-  margin: 0 0 12px;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 12.5px;
   color: var(--color-text-secondary);
 }
-.nfp-missed__list {
+
+/* ── Item list ── */
+.meod__list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
-.nfp-missed__item {
-  padding: 12px;
+
+.meod-card {
+  padding: 16px;
   border: 1px solid var(--color-border);
-  border-radius: 8px;
-  background: var(--color-bg-card, var(--color-bg-page));
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-card);
 }
-.nfp-missed__item--done { opacity: 0.85; }
-.nfp-missed__head {
+
+.meod-card--counted { border-color: color-mix(in srgb, var(--color-badge-icon-success-fg) 30%, var(--color-border)); }
+.meod-card--explained { border-color: color-mix(in srgb, var(--color-badge-icon-info-fg) 30%, var(--color-border)); }
+.meod-card--pending { border-color: color-mix(in srgb, var(--color-badge-icon-warning-fg) 35%, var(--color-border)); }
+
+.meod-card__header {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-  margin-bottom: 8px;
-  font-size: 13.5px;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.meod-card__title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.meod-card__title strong {
+  font-size: 14px;
   color: var(--color-text-primary);
 }
-.nfp-missed__item--done .nfp-missed__head { margin-bottom: 2px; color: var(--color-badge-icon-success-fg); }
-.nfp-missed__meta { font-size: 12px; color: var(--color-text-muted); }
-.nfp-missed__done { margin: 0; font-size: 12.5px; color: var(--color-text-secondary); }
-.nfp-missed__reason {
-  margin: 6px 0 0;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--color-text-secondary);
-  overflow-wrap: anywhere;
+
+.meod-card__subtitle {
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
-.nfp-missed__modes { display: inline-flex; gap: 0; margin-bottom: 10px; }
-.nfp-missed__modes button {
-  padding: 6px 12px;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--color-text-secondary);
-  background: transparent;
-  border: 1px solid var(--color-border);
+
+.meod-card__badge {
+  flex-shrink: 0;
+  gap: 5px;
 }
-.nfp-missed__modes button:first-child { border-radius: 8px 0 0 8px; }
-.nfp-missed__modes button:last-child { border-radius: 0 8px 8px 0; border-left: 0; }
-.nfp-missed__modes button.is-active {
-  color: var(--color-text-primary);
-  background: var(--color-border);
-}
-.nfp-missed__fields {
+
+/* ── Read-only fields (Counted) ── */
+.meod-card__fields {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 10px;
 }
-.nfp-missed__fields label,
-.nfp-missed__skip label {
+
+.meod-card__fields--readonly { margin-bottom: 0; }
+
+.meod-card__field {
   display: grid;
-  gap: 4px;
-  font-size: 12px;
+  gap: 5px;
+}
+
+.meod-card__field-label {
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--color-text-muted);
 }
-.nfp-missed__skip { display: grid; gap: 4px; margin-bottom: 10px; }
-.nfp-missed__words { font-size: 12px; color: var(--color-text-muted); }
-.nfp-missed__words.is-enough { color: var(--color-badge-icon-success-fg); }
-.nfp-missed__error { margin: 0 0 8px; font-size: 12.5px; color: var(--color-badge-icon-primary-fg); }
-.nfp-missed__submit {
+
+.meod-card__field-value {
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-page);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+/* ── Explained note ── */
+.meod-card__note {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--color-badge-icon-success-bg);
+}
+
+.meod-card__note-head {
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-badge-icon-success-fg);
+}
+
+.meod-card__note-body {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* ── Shared footer line ── */
+.meod-card__footer {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ── Pending: count-or-skip choice ── */
+.meod-card__choice {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.meod-card__choice-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.meod-card__choice-option input {
+  accent-color: var(--color-badge-icon-primary-fg);
+}
+
+.meod-card__choice-option.is-selected {
+  border-color: var(--color-badge-icon-primary-fg);
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-text-primary);
+}
+
+.meod-card__fields label,
+.meod-card__skip label {
+  display: grid;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.meod-card__skip { display: grid; gap: 5px; margin-bottom: 10px; }
+.meod-card__words { font-size: 12px; color: var(--color-text-muted); }
+.meod-card__words.is-enough { color: var(--color-badge-icon-success-fg); }
+
+.meod-card__hint {
+  margin: 10px 0 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-badge-icon-warning-fg);
+}
+
+.meod-card__error { margin: 10px 0 0; font-size: 12.5px; color: var(--color-badge-icon-primary-fg); }
+
+.meod-card__submit {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  margin-top: 12px;
   padding: 9px 16px;
   border-radius: 8px;
   font: inherit;
@@ -104,8 +261,14 @@
   background: var(--color-badge-icon-primary-fg);
   border: 1px solid var(--color-badge-icon-primary-fg);
 }
-.nfp-missed__submit:disabled { opacity: 0.5; cursor: default; }
+.meod-card__submit:disabled { opacity: 0.5; cursor: default; }
+
+.nfp-spin { animation: nfp-spin 0.8s linear infinite; }
+@keyframes nfp-spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 480px) {
-  .nfp-missed__fields { grid-template-columns: 1fr; }
+  .meod-card__fields,
+  .meod-card__choice {
+    grid-template-columns: 1fr;
+  }
 }

@@ -325,7 +325,8 @@ describe('Notifications missing End of Day notice', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save End of Day' }));
 
     await waitFor(() => expect(stockChecksApi.answerMissedEndOfDay).toHaveBeenCalledWith(1, { storeInventoryItemId: 7, available: 120, deadStock: 0 }));
-    expect(await screen.findByText(/Counted 120 g/)).toBeInTheDocument();
+    expect(await screen.findByText('120')).toBeInTheDocument();
+    expect(screen.getByText(/Counted by Me/)).toBeInTheDocument();
   });
 
   it('answers as the owner through the owner endpoint', async () => {

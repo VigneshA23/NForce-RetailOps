@@ -37,26 +37,39 @@ describe('MissedEndOfDayPanel', () => {
     expect(screen.getByText(/1 of 2 still need an End of Day/)).toBeInTheDocument();
   });
 
+  it('shows the resolved progress and per-status counts', () => {
+    renderPanel([
+      item({ status: 'COUNTED', endOfDayAvailable: 4, answeredByName: 'Rahul' }),
+      item({ storeInventoryItemId: 2, itemName: 'Oranges', status: 'COULD_NOT_COUNT', reason: FIFTEEN_WORDS, answeredByName: 'Sneha' }),
+      item({ storeInventoryItemId: 3, itemName: 'Milk' }),
+    ]);
+    expect(screen.getByText('2 of 3 resolved')).toBeInTheDocument();
+    expect(screen.getByText('1 Counted')).toBeInTheDocument();
+    expect(screen.getByText('1 Explained')).toBeInTheDocument();
+    expect(screen.getByText('1 Pending')).toBeInTheDocument();
+  });
+
   it('shows who answered an item and what they entered', () => {
     renderPanel([item({ status: 'COUNTED', endOfDayAvailable: 120, endOfDayDeadStock: 0, answeredByName: 'Rahul' })]);
-    expect(screen.getByText(/Counted 120 g/)).toBeInTheDocument();
-    expect(screen.getByText(/Rahul/)).toBeInTheDocument();
+    expect(screen.getByText('120')).toBeInTheDocument();
+    expect(screen.getByText(/Counted by Rahul/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save End of Day' })).not.toBeInTheDocument();
   });
 
   it('shows the reason on an item that could not be counted', () => {
     renderPanel([item({ status: 'COULD_NOT_COUNT', reason: FIFTEEN_WORDS, answeredByName: 'Ananya' })]);
-    expect(screen.getByText(/Could not be counted/)).toBeInTheDocument();
+    expect(screen.getByText("Couldn't count")).toBeInTheDocument();
     expect(screen.getByText(FIFTEEN_WORDS)).toBeInTheDocument();
+    expect(screen.getByText(/Submitted by Ananya/)).toBeInTheDocument();
   });
 
   it('sends the count and reports the saved item', async () => {
     const saved = item({ status: 'COUNTED', endOfDayAvailable: 150, endOfDayDeadStock: 10, answeredByName: 'Me' });
     const { onAnswer, onAnswered } = renderPanel([item()], vi.fn().mockResolvedValue(saved));
 
-    await userEvent.type(screen.getByLabelText(/Available/), '150');
-    await userEvent.clear(screen.getByLabelText(/Dead/));
-    await userEvent.type(screen.getByLabelText(/Dead/), '10');
+    await userEvent.type(screen.getByLabelText(/Available stock/), '150');
+    await userEvent.clear(screen.getByLabelText(/Damaged \/ spoiled stock/));
+    await userEvent.type(screen.getByLabelText(/Damaged \/ spoiled stock/), '10');
     await userEvent.click(screen.getByRole('button', { name: 'Save End of Day' }));
 
     await waitFor(() => expect(onAnswered).toHaveBeenCalledWith(saved));
@@ -65,9 +78,9 @@ describe('MissedEndOfDayPanel', () => {
 
   it('refuses dead stock above available without calling the server', async () => {
     const { onAnswer } = renderPanel([item()]);
-    await userEvent.type(screen.getByLabelText(/Available/), '5');
-    await userEvent.clear(screen.getByLabelText(/Dead/));
-    await userEvent.type(screen.getByLabelText(/Dead/), '9');
+    await userEvent.type(screen.getByLabelText(/Available stock/), '5');
+    await userEvent.clear(screen.getByLabelText(/Damaged \/ spoiled stock/));
+    await userEvent.type(screen.getByLabelText(/Damaged \/ spoiled stock/), '9');
     await userEvent.click(screen.getByRole('button', { name: 'Save End of Day' }));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Dead stock cannot be more/);
     expect(onAnswer).not.toHaveBeenCalled();
@@ -82,7 +95,7 @@ describe('MissedEndOfDayPanel', () => {
 
   it('blocks a reason under 15 words and counts the words', async () => {
     const { onAnswer } = renderPanel([item()]);
-    await userEvent.click(screen.getByRole('button', { name: /Couldn.t count/ }));
+    await userEvent.click(screen.getByLabelText(/I couldn.t count it/));
     await userEvent.type(screen.getByLabelText(/Why could it not be counted/), 'the freezer failed overnight');
     expect(screen.getByText('4 / 15 words minimum')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Submit reason' }));
@@ -93,7 +106,7 @@ describe('MissedEndOfDayPanel', () => {
   it('sends a reason of 15 words or more', async () => {
     const saved = item({ status: 'COULD_NOT_COUNT', reason: FIFTEEN_WORDS });
     const { onAnswer, onAnswered } = renderPanel([item()], vi.fn().mockResolvedValue(saved));
-    await userEvent.click(screen.getByRole('button', { name: /Couldn.t count/ }));
+    await userEvent.click(screen.getByLabelText(/I couldn.t count it/));
     await userEvent.type(screen.getByLabelText(/Why could it not be counted/), FIFTEEN_WORDS);
     await userEvent.click(screen.getByRole('button', { name: 'Submit reason' }));
     await waitFor(() => expect(onAnswered).toHaveBeenCalledWith(saved));
@@ -102,7 +115,7 @@ describe('MissedEndOfDayPanel', () => {
 
   it('shows the server message when someone else answered first', async () => {
     const { onAnswered } = renderPanel([item()], vi.fn().mockRejectedValue(new Error('This End of Day was already answered by Rahul.')));
-    await userEvent.type(screen.getByLabelText(/Available/), '5');
+    await userEvent.type(screen.getByLabelText(/Available stock/), '5');
     await userEvent.click(screen.getByRole('button', { name: 'Save End of Day' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('already answered by Rahul');
     expect(onAnswered).not.toHaveBeenCalled();
