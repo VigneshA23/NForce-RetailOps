@@ -170,6 +170,10 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
       // miss that and let the shortage cancel itself out undetected.
       const startUsable = item.currentStock ?? item.startOfDay.usable + (item.quantityReceived ?? 0);
       if (endUsable > startUsable + (item.pendingReceivedQuantity ?? 0)) {
+        if ((item.openOrders ?? []).length === 0) {
+          nfToast.error('End of Day cannot be greater than Start of Day plus the stock received.');
+          return false;
+        }
         return new Promise<boolean>((resolve) => {
           setReceivedPrompt({ item, available, deadStock, startUsable, endUsable, snapshot: 'END_OF_DAY', resolve });
         });
@@ -219,10 +223,11 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
     setLowerPrompt(null);
   }
 
-  async function confirmReceived(received: ReceivedItemInput[]) {
+  async function confirmReceived(received: ReceivedItemInput[], currentStock?: number) {
     if (receivedPrompt == null) return;
     const { item, available, deadStock, snapshot, resolve } = receivedPrompt;
-    const saved = await saveCount(item, snapshot, available, deadStock, received.map((r) => ({ orderEntryId: r.orderId, quantity: r.quantity })));
+    // At End of Day the current stock given in the popup replaces the typed count.
+    const saved = await saveCount(item, snapshot, currentStock ?? available, deadStock, received.map((r) => ({ orderEntryId: r.orderId, quantity: r.quantity })));
     // Keep the prompt open on failure so the employee can retry or cancel.
     if (saved) {
       // The report is only a request until the admin approves it; pick up the
@@ -687,6 +692,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
         unit={receivedPrompt?.item.unitOfMeasurement ?? ''}
         startUsable={receivedPrompt?.startUsable ?? 0}
         endUsable={receivedPrompt?.endUsable ?? 0}
+        deadStock={receivedPrompt?.deadStock ?? 0}
         snapshot={receivedPrompt?.snapshot}
         alreadyReceived={
           receivedPrompt?.snapshot === 'START_OF_DAY'

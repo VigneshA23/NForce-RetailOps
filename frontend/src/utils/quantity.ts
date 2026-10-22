@@ -1,10 +1,10 @@
-// Stock quantities: up to 4 digits before the decimal point and 3 after
-// (e.g. 1234.567 kg), matching the backend's @Digits(integer = 4, fraction = 3)
-// and NUMERIC(12,3) columns. Countable units (Nos., boxes, bottles...) take
-// whole numbers only.
+// Stock quantities: up to 4 digits before the decimal point and 2 after
+// (e.g. 1234.56 kg). The backend's @Digits(integer = 4, fraction = 3) and
+// NUMERIC(12,3) columns are wider, so anything allowed here is accepted there.
+// Countable units (Nos., boxes, bottles...) take whole numbers only.
 
 export const QUANTITY_INTEGER_DIGITS = 4;
-export const QUANTITY_DECIMALS = 3;
+export const QUANTITY_DECIMALS = 2;
 
 const WHOLE_NUMBER_UNITS = new Set([
   'nos', 'no', 'number', 'numbers', 'pcs', 'pc', 'piece', 'pieces',
@@ -37,7 +37,7 @@ export function roundQty(value: number): number {
   return Math.round((value + Number.EPSILON) * factor) / factor;
 }
 
-// Parses typed text into a quantity: >= 0, at most 4 integer digits and 3
+// Parses typed text into a quantity: >= 0, at most 4 integer digits and 2
 // decimals (none for countable units). Returns null for empty / invalid input.
 export function parseQty(text: string, unit?: string | null): number | null {
   const trimmed = text.trim();
@@ -49,10 +49,10 @@ export function parseQty(text: string, unit?: string | null): number | null {
 export function qtyRuleHint(unit?: string | null): string {
   return isWholeNumberUnit(unit)
     ? 'a whole number (up to 4 digits)'
-    : 'a number (up to 4 digits, with up to 3 decimals)';
+    : 'a number (up to 4 digits, with up to 2 decimals)';
 }
 
-// Display form: whole numbers stay "5", fractions show as typed up to three
+// Display form: whole numbers stay "5", fractions show as typed up to two
 // places ("1.25", "1.5") -- no trailing zeros.
 export function formatQty(value: number | null | undefined): string {
   if (value == null) return '';
