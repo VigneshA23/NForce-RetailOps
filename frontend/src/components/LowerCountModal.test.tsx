@@ -72,23 +72,15 @@ describe('ReceivedStockModal at Start of Day', () => {
   }
 
   it('explains the Start of Day is higher than the last End of Day', () => {
-    renderStart();
+    renderStart([{ id: 7, quantity: 10, supplierName: 'Acme', orderedAt: null }]);
     expect(screen.getByText(/Start of Day \(30 Nos\.\) is higher than the last End of Day \(20 Nos\.\)/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Stock restocked/)).toBeInTheDocument();
   });
 
-  it('refuses a restock that does not cover the gap', async () => {
-    const { onConfirm } = renderStart();
-    await userEvent.type(screen.getByLabelText(/Stock restocked/), '4');
-    await userEvent.click(screen.getByRole('button', { name: 'Submit for approval' }));
-    expect(onConfirm).not.toHaveBeenCalled();
-    expect(screen.getByText('Value should be greater than or equal to 10')).toBeInTheDocument();
-  });
-
-  it('fills the quantity from an existing order that was received', async () => {
+  it('shows the existing order as details and submits it without anything to fill in', async () => {
     const { onConfirm } = renderStart([{ id: 7, quantity: 10, supplierName: 'Acme', orderedAt: null }]);
-    await userEvent.click(screen.getByLabelText(/Order #7/));
-    expect(screen.getByLabelText(/Stock restocked/)).toHaveValue('10');
+    expect(screen.getByText(/Order #7 · 10 Nos\. · Acme/)).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Submit for approval' }));
     expect(onConfirm).toHaveBeenCalledWith([{ orderId: 7, quantity: 10 }]);
   });

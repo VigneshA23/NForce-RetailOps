@@ -520,11 +520,17 @@ public class StockCheckService {
         if (request.snapshot() == StockCheckSnapshot.END_OF_DAY) {
             BigDecimal projectedUsed = check.projectedStockUsed(request.available(), request.deadStock());
             if (projectedUsed != null) {
+                if (deliveries.stream().anyMatch(d -> d.order() == null)) {
+                    throw new InvalidStockCheckException(END_OF_DAY_ABOVE_START_OF_DAY_MESSAGE);
+                }
                 BigDecimal alreadyPending = stockReceiptRequestRepository.pendingQuantityFor(item.getId(), today);
                 BigDecimal explained = (alreadyPending == null ? BigDecimal.ZERO : alreadyPending).add(received);
                 if (projectedUsed.add(explained).signum() < 0) {
-                    throw new InvalidStockCheckException(
-                        "End of Day is higher than Start of Day plus stock received. Enter the stock received today");
+                    boolean hasOrdered = !orderListService.orderedEntriesByItem(request.storeId())
+                        .getOrDefault(item.getId(), List.of()).isEmpty();
+                    throw new InvalidStockCheckException(hasOrdered
+                        ? "End of Day is higher than Start of Day plus stock received. Confirm the existing order that was received"
+                        : END_OF_DAY_ABOVE_START_OF_DAY_MESSAGE);
                 }
                 // The gap is only explained because of this call's own, not yet
                 // approved, declared delivery -- hold the count until it's approved.
@@ -692,6 +698,8 @@ public class StockCheckService {
     // ---- Missed End of Day: yesterday's count nobody took ---------------------
 
     static final String START_OF_DAY_ABOVE_END_OF_DAY_MESSAGE = "Start of Day cannot be greater than EOD of the previous day.";
+
+    static final String END_OF_DAY_ABOVE_START_OF_DAY_MESSAGE = "End of Day cannot be greater than Start of Day plus the stock received.";
 
     // Minimum length of the "could not count" explanation.
     static final int MIN_SKIP_REASON_WORDS = 15;

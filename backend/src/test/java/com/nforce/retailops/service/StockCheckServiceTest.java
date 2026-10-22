@@ -363,6 +363,20 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void endOfDayAboveStartOfDayWithNoOrderedOrderIsRefused() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), null)))
+            .isInstanceOf(InvalidStockCheckException.class)
+            .hasMessageContaining("End of Day cannot be greater than Start of Day");
+        verify(stockReceiptRequestRepository, never()).save(any(StockReceiptRequest.class));
+    }
+
+    @Test
     void endOfDayAboveStartOfDayWithReceivedStockOnlyCreatesAPendingRequestAndNotifiesTheOwner() {
         StockCheck check = existingCheck(LocalDate.now());
         check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
@@ -372,9 +386,13 @@ class StockCheckServiceTest {
         StoreOwner activeOwner = new StoreOwner();
         activeOwner.setOwner(owner);
         when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(activeOwner));
+        OrderListEntry order = new OrderListEntry();
+        order.setQuantityNeeded(bd(15));
+        when(orderListService.requireOrderedEntry(STORE_ID, ITEM_ID, 77L)).thenReturn(order);
 
         StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID,
-            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), bd(15)));
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), null, null,
+                List.of(new StockCheckSubmitRequest.ReceivedItem(77L, bd(15)))));
 
         // The count itself is only trustworthy once the declared delivery is
         // approved, so it is held on the request rather than saved: End of Day
@@ -387,7 +405,7 @@ class StockCheckServiceTest {
         ArgumentCaptor<StockReceiptRequest> request = ArgumentCaptor.forClass(StockReceiptRequest.class);
         verify(stockReceiptRequestRepository).save(request.capture());
         assertThat(request.getValue().getQuantity()).isEqualByComparingTo(bd(15));
-        assertThat(request.getValue().getOrderListEntry()).isNull();
+        assertThat(request.getValue().getOrderListEntry()).isSameAs(order);
         assertThat(request.getValue().isPending()).isTrue();
         assertThat(request.getValue().getRequestedBy()).isEqualTo(employee);
         assertThat(request.getValue().isHoldsSnapshot()).isTrue();
