@@ -52,7 +52,14 @@ function toViewItem(item: DailyStockCheckItem): StockCheckViewItem {
   const available =
     item.endOfDay?.usable ?? item.currentStock ?? item.startOfDay?.usable ?? item.previousEndOfDay?.expectedStart ?? null;
   const needed = item.minTarget != null && available != null ? Math.max(0, item.minTarget - available) : null;
-  const status: ItemStatus = needed != null && needed > 0 ? 'shortage' : available != null ? 'optimal' : 'pending';
+  const hasTodayCount = item.startOfDay != null || item.endOfDay != null;
+  const status: ItemStatus = !hasTodayCount
+    ? 'pending'
+    : needed != null && needed > 0
+      ? 'shortage'
+      : available != null
+        ? 'optimal'
+        : 'pending';
   return { ...item, available, needed, status };
 }
 

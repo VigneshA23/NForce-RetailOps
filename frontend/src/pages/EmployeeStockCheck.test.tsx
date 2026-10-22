@@ -36,10 +36,23 @@ const item: DailyStockCheckItem = {
   imageId: null,
 };
 
+const savedSod = {
+  available: 8,
+  deadStock: 0,
+  usable: 8,
+  enteredById: 1,
+  enteredByName: 'Ananya',
+  enteredAt: '2026-10-22T09:00:00Z',
+  lastUpdatedByName: 'Ananya',
+  lastUpdatedByAvatarUrl: null,
+  lastUpdatedAt: '2026-10-22T09:00:00Z',
+  edited: false,
+};
+
 describe('EmployeeStockCheck item card expand/collapse', () => {
   it('groups the expand caret beside quantity needed and exposes shortage status separately', async () => {
     mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
-    mockGetTodayStockCheck.mockResolvedValue([{ ...item, currentStock: 2 }]);
+    mockGetTodayStockCheck.mockResolvedValue([{ ...item, startOfDay: { ...savedSod, available: 2, usable: 2 }, currentStock: 2 }]);
 
     render(<EmployeeStockCheck store={store} />);
     await screen.findByText('6 Nos. Needed');
@@ -52,7 +65,7 @@ describe('EmployeeStockCheck item card expand/collapse', () => {
 
   it('marks Sufficient as a status badge for the compact card layout', async () => {
     mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
-    mockGetTodayStockCheck.mockResolvedValue([{ ...item, currentStock: 8 }]);
+    mockGetTodayStockCheck.mockResolvedValue([{ ...item, startOfDay: savedSod, currentStock: 8 }]);
 
     render(<EmployeeStockCheck store={store} />);
     await screen.findByText('Sufficient');
@@ -60,6 +73,33 @@ describe('EmployeeStockCheck item card expand/collapse', () => {
     const itemCard = screen.getByText('Milk').closest('.employee-stock-check-page__item');
     expect(itemCard?.querySelector('.employee-stock-check-page__status-badge')).toHaveTextContent('Sufficient');
     expect(itemCard?.querySelector('.employee-stock-check-page__collapse-toggle')).toBeInTheDocument();
+  });
+
+  it('keeps the card neutral when only the previous day count is available', async () => {
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{
+      ...item,
+      previousEndOfDay: {
+        date: '2026-10-21',
+        usable: 2,
+        expectedStart: 2,
+        submittedById: 1,
+        submittedByName: 'Ananya',
+        submittedAt: '2026-10-21T17:00:00Z',
+        restockCovered: 0,
+        lowerCovered: 0,
+      },
+    }]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await screen.findByText('Milk');
+
+    const card = screen.getByText('Milk').closest('.employee-stock-check-page__item');
+    expect(card).not.toHaveClass('employee-stock-check-page__item--shortage');
+    expect(card).not.toHaveClass('employee-stock-check-page__item--optimal');
+    expect(card?.querySelector('.employee-stock-check-page__status-badge')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Shortage (0)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sufficient (0)' })).toBeInTheDocument();
   });
 
   it('expands and collapses when the header row itself is clicked, not just the chevron', async () => {
@@ -177,8 +217,8 @@ describe('EmployeeStockCheck status filters', () => {
     const user = userEvent.setup();
     mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
     mockGetTodayStockCheck.mockResolvedValue([
-      { ...item, storeInventoryItemId: 1, itemName: 'Milk', currentStock: 2 },
-      { ...item, storeInventoryItemId: 2, itemName: 'Sugar', currentStock: 8 },
+      { ...item, storeInventoryItemId: 1, itemName: 'Milk', startOfDay: { ...savedSod, available: 2, usable: 2 }, currentStock: 2 },
+      { ...item, storeInventoryItemId: 2, itemName: 'Sugar', startOfDay: savedSod, currentStock: 8 },
       { ...item, storeInventoryItemId: 3, itemName: 'Flour', currentStock: null },
     ]);
 
