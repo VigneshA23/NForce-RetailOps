@@ -147,6 +147,31 @@ describe('ReceivedStockModal exclusivity', () => {
     expect(box).toHaveAttribute('readonly');
     await userEvent.click(screen.getByLabelText(/^Ordered: Order #74/));
     expect(box).toHaveValue('4');
-    expect(box).not.toHaveAttribute('readonly');
+    expect(box).toHaveAttribute('readonly');
+  });
+});
+
+describe('ReceivedStockModal at Start of Day', () => {
+  it('shows the orders as details with no checkboxes and submits them all', async () => {
+    const onConfirm = vi.fn();
+    render(
+      <ReceivedStockModal
+        isOpen
+        itemName="Milk"
+        unit="L"
+        snapshot="START_OF_DAY"
+        startUsable={10}
+        endUsable={14}
+        orders={[{ id: 74, quantity: 5, supplierName: null, orderedAt: null }]}
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />,
+    );
+    expect(screen.queryByLabelText(/New stock, not on an existing order/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByText(/Order #74/)).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Submit for approval' }));
+    expect(onConfirm).toHaveBeenCalledWith([{ orderId: 74, quantity: 5 }]);
   });
 });

@@ -1587,25 +1587,60 @@ class StockCheckServiceTest {
 
         assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 25, 0)))
             .isInstanceOf(InvalidStockCheckException.class)
-            .hasMessageContaining("restocked");
+            .hasMessageContaining("cannot be greater than EOD of the previous day");
 
         verify(stockCheckRepository, never()).save(any(StockCheck.class));
+    }
+
+    @Test
+    void startOfDayRestockCannotBeNewStockOffAnyOrder() {
+        yesterdayEndedAt(20);
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, new StockCheckSubmitRequest(
+            STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd(25), bd(0), null, null,
+            List.of(new StockCheckSubmitRequest.ReceivedItem(null, bd(5))))))
+            .isInstanceOf(InvalidStockCheckException.class)
+            .hasMessageContaining("cannot be greater than EOD of the previous day");
+
+        verify(stockReceiptRequestRepository, never()).save(any(StockReceiptRequest.class));
     }
 
     @Test
     void startOfDayRestockIsSentToTheAdminAsAStartOfDayRequest() {
         yesterdayEndedAt(20);
         when(stockReceiptRequestRepository.save(any(StockReceiptRequest.class))).thenAnswer(i -> i.getArgument(0));
+        OrderListEntry order = new OrderListEntry();
+        order.setQuantityNeeded(bd(5));
+        when(orderListService.requireOrderedEntry(STORE_ID, ITEM_ID, 77L)).thenReturn(order);
 
         stockCheckService.submitCheck(EMPLOYEE_ID, new StockCheckSubmitRequest(
             STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd(25), bd(0), null, null,
-            List.of(new StockCheckSubmitRequest.ReceivedItem(null, bd(5)))));
+            List.of(new StockCheckSubmitRequest.ReceivedItem(77L, bd(5)))));
 
         ArgumentCaptor<StockReceiptRequest> captor = ArgumentCaptor.forClass(StockReceiptRequest.class);
         verify(stockReceiptRequestRepository).save(captor.capture());
         assertThat(captor.getValue().getSnapshot()).isEqualTo(StockCheckSnapshot.START_OF_DAY);
         assertThat(captor.getValue().getType()).isEqualTo(com.nforce.retailops.entity.StockReceiptRequestType.RESTOCK);
         assertThat(captor.getValue().getQuantity()).isEqualByComparingTo(bd(5));
+    }
+
+    @Test
+    void startOfDayAboveEndOfDayHoldsLastEndOfDayPlusTheReceivedOrderNotTheTypedCount() {
+        yesterdayEndedAt(20);
+        when(stockReceiptRequestRepository.save(any(StockReceiptRequest.class))).thenAnswer(i -> i.getArgument(0));
+        OrderListEntry order = new OrderListEntry();
+        order.setQuantityNeeded(bd(5));
+        when(orderListService.requireOrderedEntry(STORE_ID, ITEM_ID, 77L)).thenReturn(order);
+
+        // Typed 40 is ignored: held figure is 20 (last End of Day) + 5 (order).
+        stockCheckService.submitCheck(EMPLOYEE_ID, new StockCheckSubmitRequest(
+            STORE_ID, ITEM_ID, StockCheckSnapshot.START_OF_DAY, bd(40), bd(0), null, null,
+            List.of(new StockCheckSubmitRequest.ReceivedItem(77L, bd(5)))));
+
+        ArgumentCaptor<StockReceiptRequest> captor = ArgumentCaptor.forClass(StockReceiptRequest.class);
+        verify(stockReceiptRequestRepository).save(captor.capture());
+        assertThat(captor.getValue().isHoldsSnapshot()).isTrue();
+        assertThat(captor.getValue().getPendingAvailable()).isEqualByComparingTo(bd(25));
     }
 
     @Test

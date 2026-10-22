@@ -484,14 +484,29 @@ public class StockCheckService {
         // held back too (see mustHold below), not just saved on the strength of
         // an unapproved declaration.
         boolean newRestockRequest = false;
+        // What is held for approval. Normally what the employee typed, but a
+        // Start of Day above the last End of Day ignores the typed figure: on
+        // approval it becomes last End of Day + restock already approved today
+        // + the received orders reported here.
+        BigDecimal heldAvailable = request.available();
         if (startGap != null && startGap.signum() > 0) {
-            BigDecimal covered = stockReceiptRequestRepository.startRestockCoveredFor(item.getId(), today);
-            BigDecimal explainedAtStart = (covered == null ? BigDecimal.ZERO : covered).add(received);
-            if (explainedAtStart.compareTo(startGap) < 0) {
-                throw new InvalidStockCheckException(
-                    "Start of Day is higher than the last End of Day. Enter the stock restocked");
+            // A higher Start of Day can only be explained by an existing
+            // Ordered order, never by stock declared from nowhere.
+            if (deliveries.stream().anyMatch(d -> d.order() == null)) {
+                throw new InvalidStockCheckException(START_OF_DAY_ABOVE_END_OF_DAY_MESSAGE);
             }
-            newRestockRequest = hasDelivery;
+            BigDecimal covered = stockReceiptRequestRepository.startRestockCoveredFor(item.getId(), today);
+            if (!hasDelivery) {
+                boolean hasOrdered = !orderListService.orderedEntriesByItem(request.storeId())
+                    .getOrDefault(item.getId(), List.of()).isEmpty();
+                throw new InvalidStockCheckException(hasOrdered
+                    ? "Start of Day is higher than the last End of Day. Confirm the existing order that was received"
+                    : START_OF_DAY_ABOVE_END_OF_DAY_MESSAGE);
+            }
+            newRestockRequest = true;
+            heldAvailable = request.available().subtract(startGap)
+                .add(covered == null ? BigDecimal.ZERO : covered).add(received);
+            requireDeadStockWithinAvailable(heldAvailable, request.deadStock());
         }
 
         // A closing count above what the opening count plus deliveries can
@@ -560,7 +575,7 @@ public class StockCheckService {
             receiptRequest.setRequestedBy(employee);
             if (i == primaryDeliveryIndex) {
                 receiptRequest.setHoldsSnapshot(true);
-                receiptRequest.setPendingAvailable(request.available());
+                receiptRequest.setPendingAvailable(heldAvailable);
                 receiptRequest.setPendingDeadStock(request.deadStock());
             }
             StockReceiptRequest savedRequest = stockReceiptRequestRepository.save(receiptRequest);
@@ -675,6 +690,8 @@ public class StockCheckService {
     }
 
     // ---- Missed End of Day: yesterday's count nobody took ---------------------
+
+    static final String START_OF_DAY_ABOVE_END_OF_DAY_MESSAGE = "Start of Day cannot be greater than EOD of the previous day.";
 
     // Minimum length of the "could not count" explanation.
     static final int MIN_SKIP_REASON_WORDS = 15;
