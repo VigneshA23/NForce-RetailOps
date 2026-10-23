@@ -98,13 +98,9 @@ function ReceivedStockModal({
     // contradicts it; the count should be corrected on the tile instead.
     const minimum = roundQty(startUsable + alreadyReceived);
     if (roundQty(stock - deadStock) <= minimum) {
-      const floor = roundQty(minimum + deadStock);
-      const basis =
-        alreadyReceived > 0
-          ? `you started the day with ${roundQty(startUsable + deadStock)} ${unit} and ${alreadyReceived} ${unit} was already received today`
-          : `you started the day with ${roundQty(startUsable + deadStock)} ${unit}`;
+      const openingStock = roundQty(startUsable + deadStock);
       setError(
-        `${stock} ${unit} is too low: ${basis}, so after this delivery the store should hold more than ${floor} ${unit}. Check your count and enter the stock you actually have. If your End of Day count was wrong, cancel and re-enter it on the tile.`,
+        `Count cannot be less than opening stock (${openingStock} ${unit}) plus delivery (${orderedTotal} ${unit}). Enter actual store stock, or cancel to fix your End of Day count.`,
       );
       return;
     }
@@ -125,7 +121,7 @@ function ReceivedStockModal({
       subtitle={
         isStart
           ? `${itemName}: Start of Day (${endUsable} ${unit}) is higher than the last End of Day (${startUsable} ${unit}), so the item must have been restocked. Confirm the existing order(s) below that were received. Your admin has to approve it before stock is updated.`
-          : `${itemName}: your End of Day count (${endUsable} ${unit}) is higher than your Start of Day (${startUsable} ${unit}), which usually means an order arrived today. Confirm the order(s) below were received, then enter the total stock now in the store (including the delivery). Today's usage is worked out from this number. Your admin approves it before stock is updated.`
+          : `${itemName}: your End of Day count (${endUsable} ${unit}) exceeds Start of Day (${startUsable} ${unit}). Confirm received deliveries below, then update your on-hand stock. Today's usage is worked out from this number. Your admin approves it before stock is updated.`
       }
       footer={
         <>
@@ -153,7 +149,7 @@ function ReceivedStockModal({
         {isStart ? (
           error && <p className="form-field__error" role="alert">{error}</p>
         ) : (
-          <FormField label={`Current stock in the store (${unit})`} htmlFor="received-stock-current" error={error ?? undefined}>
+          <FormField label={`Current on-hand stock (${unit})`} htmlFor="received-stock-current" error={error ?? undefined}>
             <input
               id="received-stock-current"
               type="text"

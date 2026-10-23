@@ -44,12 +44,12 @@ describe('ReceivedStockModal at End of Day', () => {
 
   it('asks for the current stock, prefilled with the count entered', () => {
     renderEndOfDay();
-    expect(screen.getByLabelText(/Current stock in the store/)).toHaveValue('20');
+    expect(screen.getByLabelText(/Current on-hand stock/)).toHaveValue('20');
   });
 
   it('confirms every order together with the current stock given', async () => {
     const { onConfirm } = renderEndOfDay();
-    const box = screen.getByLabelText(/Current stock in the store/);
+    const box = screen.getByLabelText(/Current on-hand stock/);
     await userEvent.clear(box);
     await userEvent.type(box, '18');
     await submit();
@@ -61,7 +61,7 @@ describe('ReceivedStockModal at End of Day', () => {
 
   it('refuses a current stock the orders cannot explain', async () => {
     const { onConfirm } = renderEndOfDay();
-    const box = screen.getByLabelText(/Current stock in the store/);
+    const box = screen.getByLabelText(/Current on-hand stock/);
     await userEvent.clear(box);
     await userEvent.type(box, '21');
     await submit();
@@ -71,7 +71,7 @@ describe('ReceivedStockModal at End of Day', () => {
 
   it('counts stock already received towards the limit', async () => {
     const { onConfirm } = renderEndOfDay({ alreadyReceived: 3 });
-    const box = screen.getByLabelText(/Current stock in the store/);
+    const box = screen.getByLabelText(/Current on-hand stock/);
     await userEvent.clear(box);
     await userEvent.type(box, '23');
     await submit();
@@ -80,19 +80,18 @@ describe('ReceivedStockModal at End of Day', () => {
 
   it('refuses a current stock not above Start of Day plus stock received today', async () => {
     const { onConfirm } = renderEndOfDay({ alreadyReceived: 3 });
-    const box = screen.getByLabelText(/Current stock in the store/);
+    const box = screen.getByLabelText(/Current on-hand stock/);
     await userEvent.clear(box);
     await userEvent.type(box, '13');
     await submit();
     expect(onConfirm).not.toHaveBeenCalled();
-    expect(screen.getByText(/13 L is too low: you started the day with 10 L and 3 L was already received today/)).toBeInTheDocument();
-    expect(screen.getByText(/should hold more than 13 L/)).toBeInTheDocument();
-    expect(screen.getByText(/cancel and re-enter it on the tile/)).toBeInTheDocument();
+    expect(screen.getByText(/Count cannot be less than opening stock \(10 L\) plus delivery \(10 L\)/)).toBeInTheDocument();
+    expect(screen.getByText(/cancel to fix your End of Day count/)).toBeInTheDocument();
   });
 
   it('refuses a current stock below the dead stock', async () => {
     const { onConfirm } = renderEndOfDay({ deadStock: 5 });
-    const box = screen.getByLabelText(/Current stock in the store/);
+    const box = screen.getByLabelText(/Current on-hand stock/);
     await userEvent.clear(box);
     await userEvent.type(box, '4');
     await submit();
@@ -102,7 +101,7 @@ describe('ReceivedStockModal at End of Day', () => {
 
   it('refuses an empty current stock', async () => {
     const { onConfirm } = renderEndOfDay();
-    await userEvent.clear(screen.getByLabelText(/Current stock in the store/));
+    await userEvent.clear(screen.getByLabelText(/Current on-hand stock/));
     await submit();
     expect(onConfirm).not.toHaveBeenCalled();
   });
