@@ -233,7 +233,7 @@ class OrderListServiceTest {
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
-        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(2));
+        assertThat(captor.getValue().getManualAddition()).isEqualByComparingTo(bd(2));
         assertThat(captor.getValue().isAdHoc()).isTrue();
         assertThat(captor.getValue().getStatus()).isEqualTo(OrderStatus.NEEDS_ORDERING);
     }
@@ -840,7 +840,7 @@ class OrderListServiceTest {
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
-        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(5));
+        assertThat(captor.getValue().getManualAddition()).isEqualByComparingTo(bd(5));
         assertThat(captor.getValue().isAdHoc()).isTrue();
         verify(storeInventoryItemRepository, never()).save(any());
     }
@@ -922,7 +922,7 @@ class OrderListServiceTest {
 
         ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
         verify(orderListEntryRepository).save(captor.capture());
-        assertThat(captor.getValue().getQuantityNeeded()).isEqualByComparingTo(bd(5));
+        assertThat(captor.getValue().getManualAddition()).isEqualByComparingTo(bd(5));
         assertThat(captor.getValue().isAdHoc()).isTrue();
         assertThat(captor.getValue().getRaisedBy()).isNull();
         verify(storeOwnerRepository, never()).findByOwnerId(any());

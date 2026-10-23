@@ -93,6 +93,21 @@ function ReceivedStockModal({
       setError('Current stock cannot be less than the dead stock');
       return;
     }
+    // The popup only opens because End of Day is above Start of Day plus what
+    // was already received, so a current stock at or below that figure
+    // contradicts it; the count should be corrected on the tile instead.
+    const minimum = roundQty(startUsable + alreadyReceived);
+    if (roundQty(stock - deadStock) <= minimum) {
+      const floor = roundQty(minimum + deadStock);
+      const basis =
+        alreadyReceived > 0
+          ? `you started the day with ${roundQty(startUsable + deadStock)} ${unit} and ${alreadyReceived} ${unit} was already received today`
+          : `you started the day with ${roundQty(startUsable + deadStock)} ${unit}`;
+      setError(
+        `${stock} ${unit} is too low: ${basis}, so after this delivery the store should hold more than ${floor} ${unit}. Check your count and enter the stock you actually have. If your End of Day count was wrong, cancel and re-enter it on the tile.`,
+      );
+      return;
+    }
     const maximum = roundQty(startUsable + alreadyReceived + orderedTotal);
     if (roundQty(stock - deadStock) > maximum) {
       setError(`Current stock cannot be more than ${roundQty(maximum + deadStock)} (Start of Day plus the received order)`);
@@ -110,7 +125,7 @@ function ReceivedStockModal({
       subtitle={
         isStart
           ? `${itemName}: Start of Day (${endUsable} ${unit}) is higher than the last End of Day (${startUsable} ${unit}), so the item must have been restocked. Confirm the existing order(s) below that were received. Your admin has to approve it before stock is updated.`
-          : `${itemName}: End of Day (${endUsable} ${unit}) is higher than Start of Day (${startUsable} ${unit}), so stock must have been received. Confirm the existing order(s) below that were received and enter the current stock in the store, which is used to calculate today's usage. Your admin has to approve it before stock is updated.`
+          : `${itemName}: your End of Day count (${endUsable} ${unit}) is higher than your Start of Day (${startUsable} ${unit}), which usually means an order arrived today. Confirm the order(s) below were received, then enter the total stock now in the store (including the delivery). Today's usage is worked out from this number. Your admin approves it before stock is updated.`
       }
       footer={
         <>
