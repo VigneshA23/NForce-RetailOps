@@ -128,15 +128,22 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     setShowActivity(true);
   }
 
-  // Both Recent Activity and Notifications are reached only via "View all"/the
-  // bell, not a sidebar tab, so they have no tab of their own to fall back to
-  // on Back -- send the user to Home explicitly instead.
+  // Recent Activity is reached only via "View all", not a sidebar tab, so it
+  // has no tab of its own to fall back to on Back -- send the user to Home
+  // explicitly instead.
   function goHome() {
     setShowProfile(false);
     setShowHelp(false);
     setShowNotifications(false);
     setShowActivity(false);
     setActiveTab('home');
+  }
+
+  // Notifications is reached from the bell on top of whatever tab the user
+  // was already on -- opening it never changes activeTab, so Back just needs
+  // to close the overlay and land back on that same tab, not Home.
+  function closeNotifications() {
+    setShowNotifications(false);
   }
 
   const [tempPassword, setTempPassword] = useState<{ name: string; password: string | null; emailSent: boolean } | null>(null);
@@ -460,7 +467,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       ) : showHelp ? (
         <Help role={user.role} />
       ) : showNotifications ? (
-        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} onBackToHome={goHome} />
+        <Notifications onUnreadChange={handleNotificationsCountChange} onNavigate={handleNotificationNavigate} onBackToHome={closeNotifications} />
       ) : showActivity ? (
         <SuperAdminActivity onBack={goHome} />
       ) : activeTab === 'checklist' ? (

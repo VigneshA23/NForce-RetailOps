@@ -737,11 +737,20 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
   }, [items, assignedStores, activeStoreId, storeFilter]);
 
   // Opens the notification the admin clicked in the bell, once it has loaded.
+  // If it isn't in the list yet -- e.g. it arrived after this page's initial
+  // load -- reload once to pick it up before giving up.
   const openedFocusId = useRef<number | null>(null);
+  const reloadedForFocusId = useRef<number | null>(null);
   useEffect(() => {
     if (focusNotificationId == null || openedFocusId.current === focusNotificationId) return;
     const target = items.find(n => n.id === focusNotificationId);
-    if (!target) return;
+    if (!target) {
+      if (reloadedForFocusId.current !== focusNotificationId) {
+        reloadedForFocusId.current = focusNotificationId;
+        load(true);
+      }
+      return;
+    }
     openedFocusId.current = focusNotificationId;
     handleSelect(target);
   }, [focusNotificationId, items]);

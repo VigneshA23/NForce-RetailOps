@@ -237,7 +237,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
             activeStoreId={store.id}
             assignedStores={stores}
             answerAs="EMPLOYEE"
-            onBackToHome={() => { setOverlay(null); setActiveTab('today'); }}
+            onBackToHome={() => setOverlay(null)}
           />
         : ALL_EMPLOYEE_TABS.map((tab) =>
             mountedTabs.has(tab) ? (

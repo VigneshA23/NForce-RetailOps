@@ -352,3 +352,24 @@ describe('Notifications missing End of Day notice', () => {
     expect((await screen.findAllByRole('button', { name: /delete/i })).length).toBeGreaterThan(0);
   });
 });
+
+describe('Notifications focusNotificationId', () => {
+  it('reloads once to pick up a notification that arrived after the initial load, then opens it', async () => {
+    const staleList = [makeNotification({ id: 1, title: 'Old one' })];
+    const freshList = [...staleList, makeNotification({ id: 2, title: 'Brand new one', read: false })];
+    mockGetNotifications.mockResolvedValueOnce(staleList).mockResolvedValueOnce(freshList);
+    mockGetUnreadCount.mockResolvedValue(0);
+    const mockMarkRead = vi.mocked(notificationsApi.markNotificationRead);
+    mockMarkRead.mockResolvedValue(undefined);
+
+    const { rerender } = render(<Notifications onUnreadChange={vi.fn()} focusNotificationId={null} />);
+    await screen.findByText('Old one');
+    expect(mockGetNotifications).toHaveBeenCalledTimes(1);
+
+    rerender(<Notifications onUnreadChange={vi.fn()} focusNotificationId={2} />);
+
+    await waitFor(() => expect(mockGetNotifications).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText('Brand new one')).toBeInTheDocument();
+    await waitFor(() => expect(mockMarkRead).toHaveBeenCalledWith(2));
+  });
+});
