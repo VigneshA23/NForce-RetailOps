@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { buildCategoryOptions, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import { buildFixedCategoryOptions, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -18,12 +18,15 @@ interface StoreInventoryItemEditPanelProps {
   isOpen: boolean;
   item: StoreInventoryItem;
   suppliers: Supplier[];
-  // Omitted for Owner/Admin, which only has read access to suppliers now --
-  // the field then offers no way to create one in place.
-  onCreateSupplier?: (name: string) => Promise<Supplier>;
-  // Categories already used by existing items, offered alongside the built-in
-  // ones so a category added once can be picked again.
-  existingCategories?: (string | null)[];
+  // Leaves the item form and opens the Suppliers page to add one there.
+  // Omitted for Owner/Admin, which only has read access to suppliers.
+  onRequestCreateSupplier?: () => void;
+  // The categories usable here -- Owner/Admin's store assignment from Super
+  // Admin, or Super Admin's own catalog filtered to this item's store.
+  restrictedCategories?: string[];
+  // Leaves the item form and opens the Categories page to add one there.
+  // Omitted for Owner/Admin, same reasoning as onRequestCreateSupplier.
+  onRequestCreateCategory?: () => void;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -51,8 +54,9 @@ function StoreInventoryItemEditPanel({
   isOpen,
   item,
   suppliers,
-  onCreateSupplier,
-  existingCategories = [],
+  onRequestCreateSupplier,
+  restrictedCategories = [],
+  onRequestCreateCategory,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -95,7 +99,7 @@ function StoreInventoryItemEditPanel({
     });
   }
 
-  const categoryOptions = buildCategoryOptions(existingCategories, [item.category, values.category]);
+  const categoryOptions = buildFixedCategoryOptions(restrictedCategories, values.category);
   const unitOptions = inventoryUnitOptionsFor(item.unitOfMeasurement);
 
   return (
@@ -144,6 +148,7 @@ function StoreInventoryItemEditPanel({
             value={values.category}
             onChange={(category) => setValues((current) => ({ ...current, category }))}
             ariaLabel="Category"
+            onRequestCreate={onRequestCreateCategory}
           />
           </FormField>
           <FormField label="Unit of Measurement" htmlFor="edit-item-unit" error={errors.unitOfMeasurement}>
@@ -198,7 +203,7 @@ function StoreInventoryItemEditPanel({
             suppliers={suppliers}
             value={values.preferredSupplierId}
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
-            onCreate={onCreateSupplier}
+            onRequestCreate={onRequestCreateSupplier}
             ariaLabel="Preferred supplier"
             isEditingExisting
           />

@@ -11,6 +11,7 @@ import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.exception.InvalidImageUploadException;
+import com.nforce.retailops.exception.InventoryCategoryNotAssignedException;
 import com.nforce.retailops.exception.StoreInventoryItemHasHistoryException;
 import com.nforce.retailops.exception.StoreInventoryItemNameExistsException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
@@ -58,6 +59,7 @@ public class StoreInventoryItemService {
     private final UnsplashService unsplashService;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final NotificationService notificationService;
+    private final InventoryCategoryService inventoryCategoryService;
 
     public StoreInventoryItemService(
         StoreInventoryItemRepository storeInventoryItemRepository,
@@ -69,7 +71,8 @@ public class StoreInventoryItemService {
         InventoryItemImageRepository inventoryItemImageRepository,
         UnsplashService unsplashService,
         StoreEmployeeRepository storeEmployeeRepository,
-        NotificationService notificationService
+        NotificationService notificationService,
+        InventoryCategoryService inventoryCategoryService
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.supplierRepository = supplierRepository;
@@ -81,6 +84,23 @@ public class StoreInventoryItemService {
         this.unsplashService = unsplashService;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.notificationService = notificationService;
+        this.inventoryCategoryService = inventoryCategoryService;
+    }
+
+    // Owner/Admin's picker only ever offers categories Super Admin has
+    // assigned to their store -- this is the server-side backstop. An update
+    // that leaves the item's category exactly as it was is let through even
+    // if that category isn't (or is no longer) assigned, so Super Admin
+    // narrowing the catalog after the fact never blocks an unrelated edit to
+    // an existing item; only an actively chosen, unassigned category is
+    // rejected, and any new item must use an assigned one.
+    private void requireAssignedCategory(Store store, String category, String previousCategory) {
+        if (category == null || category.isBlank()) return;
+        if (previousCategory != null && category.equalsIgnoreCase(previousCategory)) return;
+        if (!inventoryCategoryService.isCategoryAssignedToStore(category, store)) {
+            throw new InventoryCategoryNotAssignedException(
+                "\"" + category + "\" is not a category assigned to your store.");
+        }
     }
 
     // ---------------------------------------------------------------------
@@ -110,6 +130,7 @@ public class StoreInventoryItemService {
     @Transactional
     public StoreInventoryItemResponse createForOwner(Long ownerId, StoreInventoryItemRequest request) {
         Store store = requireOwnerStore(ownerId);
+        requireAssignedCategory(store, request.category(), null);
         return toResponse(createItem(store, request));
     }
 
@@ -118,6 +139,7 @@ public class StoreInventoryItemService {
         Store store = requireOwnerStore(ownerId);
         StoreInventoryItem item = storeInventoryItemRepository.findByIdAndStoreId(itemId, store.getId())
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
+        requireAssignedCategory(store, request.category(), item.getCategory());
         return toResponse(applyUpdate(item, request));
     }
 

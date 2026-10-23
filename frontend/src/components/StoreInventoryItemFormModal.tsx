@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus } from 'lucide-react';
-import { buildCategoryOptions, categoryLabel, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import { buildFixedCategoryOptions, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import { isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint } from '../utils/quantity';
@@ -23,20 +23,28 @@ interface StoreInventoryItemFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
   suppliers: Supplier[];
-  // Backs the supplier field's inline "Add New Supplier" option. Omitted for
-  // Owner/Admin, which only has read access to suppliers now -- the field
-  // then offers no way to create one in place.
-  onCreateSupplier?: (name: string) => Promise<Supplier>;
-  // Categories already used by existing items, offered alongside the built-in
-  // ones so a category added once can be picked again.
-  existingCategories?: (string | null)[];
+  // Leaves the item form and opens the Suppliers page to add one there
+  // (store assignment and all). Omitted for Owner/Admin, which only has read
+  // access to suppliers -- the field then offers no "Add new supplier" at all.
+  onRequestCreateSupplier?: () => void;
+  // The categories usable here -- Owner/Admin's store assignment from Super
+  // Admin. Ignored when getCategoriesForStores is given.
+  restrictedCategories?: string[];
+  // Leaves the item form and opens the Categories page to add one there.
+  // Omitted for Owner/Admin, same reasoning as onRequestCreateSupplier.
+  onRequestCreateCategory?: () => void;
+  // Super Admin's create form only: recomputes the usable categories/
+  // suppliers whenever the selected stores change (a store's assignment can
+  // differ from another's), from the already-loaded catalogs -- no fetch
+  // needed. Owner/Admin and the single-store edit panel use the plain
+  // suppliers/restrictedCategories props instead, since their store can't
+  // change within the form.
+  getCategoriesForStores?: (storeIds: number[]) => string[];
+  getSuppliersForStores?: (storeIds: number[]) => Supplier[];
   // Only Super Admin's page passes stores + true here -- Owner/Admin's own
   // store is derived server-side, so their form never shows this field.
   stores?: StoreOption[];
   showStoreField?: boolean;
-  // With the store field: fetches the categories common to the selected
-  // stores, which then replace the built-in category list.
-  loadCategories?: (storeIds: number[]) => Promise<string[]>;
   initialValues?: StoreInventoryItemFormValues;
   errorMessage?: string | null;
   isSubmitting?: boolean;
@@ -60,25 +68,17 @@ const EMPTY_VALUES: StoreInventoryItemFormValues = {
   removeImage: false,
 };
 
-// Categories shared by the selected stores, plus the one currently chosen so a
-// freshly typed category stays visible in the list.
-function buildStoreCategoryOptions(categories: string[], current: string) {
-  const options = categories.map((c) => ({ value: c, label: categoryLabel(c) }));
-  if (current && !categories.some((c) => c.toLowerCase() === current.toLowerCase())) {
-    options.push({ value: current, label: categoryLabel(current) });
-  }
-  return options;
-}
-
 function StoreInventoryItemFormModal({
   isOpen,
   mode,
   suppliers,
-  onCreateSupplier,
-  existingCategories = [],
+  onRequestCreateSupplier,
+  restrictedCategories = [],
+  onRequestCreateCategory,
+  getCategoriesForStores,
+  getSuppliersForStores,
   stores = [],
   showStoreField = false,
-  loadCategories,
   initialValues,
   errorMessage,
   isSubmitting = false,
@@ -88,9 +88,7 @@ function StoreInventoryItemFormModal({
   const [values, setValues] = useState<StoreInventoryItemFormValues>(initialValues ?? EMPTY_VALUES);
   const [errors, setErrors] = useState<Partial<Record<keyof StoreInventoryItemFormValues, string>>>({});
 
-  const [storeCategories, setStoreCategories] = useState<string[]>([]);
   const selectedStoreIds = values.storeIds ?? [];
-  const storeIdsKey = selectedStoreIds.join(',');
 
   useEffect(() => {
     if (isOpen) {
@@ -99,23 +97,10 @@ function StoreInventoryItemFormModal({
     }
   }, [isOpen, initialValues]);
 
-  // Common categories of whichever stores are currently selected.
-  useEffect(() => {
-    if (!isOpen || !showStoreField || !loadCategories || storeIdsKey === '') {
-      setStoreCategories([]);
-      return;
-    }
-    let cancelled = false;
-    loadCategories(storeIdsKey.split(',').map(Number))
-      .then((categories) => { if (!cancelled) setStoreCategories(categories); })
-      .catch(() => { if (!cancelled) setStoreCategories([]); });
-    return () => { cancelled = true; };
-  }, [isOpen, showStoreField, loadCategories, storeIdsKey]);
-
   function changeStores(ids: number[]) {
-    // The category list depends on the stores, so a category picked for a
-    // different selection is cleared rather than silently kept.
-    setValues((current) => ({ ...current, storeIds: ids, storeId: ids[0] ?? null, category: '' }));
+    // The category and supplier lists depend on the stores, so a choice made
+    // for a different selection is cleared rather than silently kept.
+    setValues((current) => ({ ...current, storeIds: ids, storeId: ids[0] ?? null, category: '', preferredSupplierId: null }));
   }
 
   function handleSubmit(event: FormEvent) {
@@ -143,9 +128,11 @@ function StoreInventoryItemFormModal({
     });
   }
 
-  const categoryOptions = showStoreField
-    ? buildStoreCategoryOptions(storeCategories, values.category)
-    : buildCategoryOptions(existingCategories, [values.category]);
+  const categoryOptions = buildFixedCategoryOptions(
+    getCategoriesForStores ? getCategoriesForStores(selectedStoreIds) : restrictedCategories,
+    values.category,
+  );
+  const effectiveSuppliers = getSuppliersForStores ? getSuppliersForStores(selectedStoreIds) : suppliers;
   const storeOptions = stores.map((s) => ({ id: s.id, label: s.name }));
   const unitOptions = inventoryUnitOptionsFor(initialValues?.unitOfMeasurement ?? '');
 
@@ -206,6 +193,7 @@ function StoreInventoryItemFormModal({
             value={values.category}
             onChange={(category) => setValues((current) => ({ ...current, category }))}
             ariaLabel="Category"
+            onRequestCreate={onRequestCreateCategory}
           />
         </FormField>
         <FormField label="Display Image (optional)" htmlFor="inventory-item-image">
@@ -257,10 +245,10 @@ function StoreInventoryItemFormModal({
         <FormField label="Preferred Supplier" htmlFor="inventory-item-supplier" error={errors.preferredSupplierId}>
           <SupplierCombobox
             id="inventory-item-supplier"
-            suppliers={suppliers}
+            suppliers={effectiveSuppliers}
             value={values.preferredSupplierId}
             onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
-            onCreate={onCreateSupplier}
+            onRequestCreate={onRequestCreateSupplier}
             ariaLabel="Preferred supplier"
             isEditingExisting={mode === 'edit'}
           />

@@ -1,19 +1,20 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ChevronDown, ChevronRight, CircleCheck, ClipboardCheck, Clock, CornerDownRight, FileSpreadsheet, FileText, MapPin, Package, PackageX, Pencil, Plus, Store as StoreIcon, Trash2, Truck } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronRight, CircleCheck, ClipboardCheck, Clock, CornerDownRight, FileSpreadsheet, FileText, MapPin, Package, PackageX, Pencil, Plus, Store as StoreIcon, Tags, Trash2, Truck } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import {
   createInventoryItem,
   deleteInventoryItem,
   getAllInventoryItems,
-  getCommonCategories,
   setInventoryItemActive,
   updateInventoryItem,
 } from '../api/inventoryItems';
-import { createSupplier, deleteSupplier, findOrCreateSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
+import { createSupplier, deleteSupplier, getSuppliers, setSupplierActive, updateSupplier } from '../api/suppliers';
+import { getInventoryCategories } from '../api/inventoryCategories';
 import { getAllStores } from '../api/superAdminStores';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Supplier, SupplierFormValues } from '../types/supplier';
+import type { InventoryCategoryRecord } from '../types/inventoryCategory';
 import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
 import StockLevelComparison from '../components/StockLevelComparison';
@@ -22,6 +23,7 @@ import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormMod
 import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
 import StoreInventoryCardGrid from '../components/StoreInventoryCardGrid';
 import SupplierFormModal from '../components/SupplierFormModal';
+import InventoryCategoriesPanel from '../components/InventoryCategoriesPanel';
 import Toggle from '../components/Toggle';
 import Select from '../components/Select';
 import SearchableSelect from '../components/SearchableSelect';
@@ -40,16 +42,18 @@ import './SuperAdminInventory.css';
 // Mobile breakdown card dots -- purely decorative, cycles by position.
 const SUPPLIER_BREAKDOWN_DOT_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed'];
 
-type SubTab = 'inventory' | 'suppliers' | 'comparison' | 'stock-check-history';
+type SubTab = 'inventory' | 'suppliers' | 'categories' | 'comparison' | 'stock-check-history';
 
-// Icons + live count badges on Inventory/Suppliers/Stock Check History match
-// Owner/Admin's own StoreInventory.tsx sub-tab bar (RTS-304); Stock Comparison
-// has no Owner/Admin equivalent to match, so it stays text-only. Purchasing
-// Report used to live here too -- it's now a sub-tab of the Orders page
-// instead (cross-store, so it fits better there alongside Order List).
+// Icons + live count badges on Inventory/Suppliers/Categories/Stock Check
+// History match Owner/Admin's own StoreInventory.tsx sub-tab bar (RTS-304);
+// Stock Comparison has no Owner/Admin equivalent to match, so it stays
+// text-only. Purchasing Report used to live here too -- it's now a sub-tab
+// of the Orders page instead (cross-store, so it fits better there
+// alongside Order List).
 const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
   { key: 'inventory', label: 'Inventory', icon: Package },
   { key: 'suppliers', label: 'Suppliers', icon: Truck },
+  { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'comparison', label: 'Stock Comparison' },
   { key: 'stock-check-history', label: 'Stock Check History', icon: Clock },
 ];
@@ -71,6 +75,7 @@ function SuperAdminInventory() {
   const [subTab, setSubTab] = useState<SubTab>('inventory');
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categories, setCategories] = useState<InventoryCategoryRecord[]>([]);
   const [stores, setStores] = useState<StoreOption[]>([]);
   // Same shape as SuperAdminOrders.tsx's own store list, so the store-select
   // widget there (SearchableSelect, with search + store code) can be reused
@@ -83,9 +88,10 @@ function SuperAdminInventory() {
   function loadAll() {
     setIsLoading(true);
     setLoadError(null);
-    Promise.all([getSuppliers(), getAllStores(), getAllInventoryItems()])
-      .then(([sups, sts, its]) => {
+    Promise.all([getSuppliers(), getInventoryCategories(), getAllStores(), getAllInventoryItems()])
+      .then(([sups, cats, sts, its]) => {
         setSuppliers(sups);
+        setCategories(cats);
         const activeStores = sts.filter((s) => s.storeActive);
         setStores(activeStores.map((s) => ({ id: s.storeId, name: s.storeName })));
         setStoreSelectOptions(activeStores.map((s) => ({ id: s.storeId, label: s.storeName, sublabel: `#${s.storeCode}` })));
@@ -145,22 +151,37 @@ function SuperAdminInventory() {
     if (fresh && fresh !== editTarget) setEditTarget(fresh);
   }, [items, editTarget]);
 
-  // Inline "Add New Supplier" from the item form: persist it (assigned to
-  // whichever store this item form is for -- the create form's currently
-  // filtered store, or the exact store the item being edited belongs to --
-  // otherwise it was left with no store assignment at all despite being used
-  // by that store's item right away), then merge it into the local directory
-  // so it's selectable for every later item too.
-  async function createSupplierForStore(name: string, storeId: number | null): Promise<Supplier> {
-    const supplier = await findOrCreateSupplier(name, storeId ?? undefined);
-    setSuppliers((current) =>
-      (current.some((s) => s.id === supplier.id)
-        ? current.map((s) => (s.id === supplier.id ? supplier : s))
-        : [...current, supplier]
-      ).sort((a, b) => a.name.localeCompare(b.name)),
-    );
-    nfToast.success(`"${supplier.name}" supplier added.`);
-    return supplier;
+  // The item form's Category/Supplier fields only offer what Super Admin has
+  // actually assigned to every one of the given stores (appliesToAllStores
+  // counts as assigned everywhere) -- same "common to the selected stores"
+  // semantics the old per-store category lookup used. An empty store
+  // selection offers nothing rather than everything, so the fields stay
+  // blank until a store is actually picked.
+  function categoriesForStores(storeIds: number[]): string[] {
+    if (storeIds.length === 0) return [];
+    return categories
+      .filter((c) => c.active && storeIds.every((id) => c.appliesToAllStores || c.stores.some((s) => s.id === id)))
+      .map((c) => c.name);
+  }
+
+  function suppliersForStores(storeIds: number[]): Supplier[] {
+    if (storeIds.length === 0) return [];
+    return suppliers.filter((s) => storeIds.every((id) => s.appliesToAllStores || (s.stores ?? []).some((st) => st.id === id)));
+  }
+
+  // "Add new supplier"/"Add new category" from the item form: rather than
+  // creating one in place with no way to set its store assignment, leave the
+  // item form for the page where that's actually configured.
+  function handleRequestCreateSupplier() {
+    setIsCreateModalOpen(false);
+    setEditTarget(null);
+    setSubTab('suppliers');
+  }
+
+  function handleRequestCreateCategory() {
+    setIsCreateModalOpen(false);
+    setEditTarget(null);
+    setSubTab('categories');
   }
 
   async function handleItemSubmit(values: StoreInventoryItemFormValues) {
@@ -898,6 +919,19 @@ function SuperAdminInventory() {
         </>
       )}
 
+      {subTab === 'categories' && (
+        <InventoryCategoriesPanel
+          stores={stores}
+          items={items}
+          categories={categories}
+          setCategories={setCategories}
+          isLoading={isLoading}
+          loadError={loadError}
+          onRetry={loadAll}
+          onViewStoreItems={(storeId) => { setSelectedStoreId(storeId); setSubTab('inventory'); }}
+        />
+      )}
+
       {subTab === 'comparison' && <StockLevelComparison items={items} />}
       {subTab === 'stock-check-history' && <SuperAdminStockCheckHistory />}
 
@@ -905,10 +939,12 @@ function SuperAdminInventory() {
         isOpen={isCreateModalOpen}
         mode="create"
         suppliers={suppliers}
-        onCreateSupplier={(name) => createSupplierForStore(name, selectedStoreId)}
+        onRequestCreateSupplier={handleRequestCreateSupplier}
+        getSuppliersForStores={suppliersForStores}
+        getCategoriesForStores={categoriesForStores}
+        onRequestCreateCategory={handleRequestCreateCategory}
         stores={stores}
         showStoreField
-        loadCategories={getCommonCategories}
         initialValues={createInitialValues}
         errorMessage={itemFormError}
         isSubmitting={isItemSubmitting}
@@ -920,9 +956,10 @@ function SuperAdminInventory() {
         <StoreInventoryItemEditPanel
           isOpen
           item={editTarget}
-          suppliers={suppliers}
-          onCreateSupplier={(name) => createSupplierForStore(name, editTarget.storeId)}
-              existingCategories={items.map((i) => i.category)}
+          suppliers={suppliersForStores([editTarget.storeId])}
+          onRequestCreateSupplier={handleRequestCreateSupplier}
+          restrictedCategories={categoriesForStores([editTarget.storeId])}
+          onRequestCreateCategory={handleRequestCreateCategory}
           errorMessage={itemFormError}
           isSubmitting={isItemSubmitting}
           onClose={() => setEditTarget(null)}

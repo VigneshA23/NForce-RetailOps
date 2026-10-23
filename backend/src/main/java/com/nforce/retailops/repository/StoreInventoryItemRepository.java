@@ -35,6 +35,11 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
         + "where i.store.id in :storeIds and i.category is not null")
     List<Object[]> findStoreCategories(@Param("storeIds") java.util.Collection<Long> storeIds);
 
+    // Whether any item (any store) still uses this category name -- backs the
+    // Super Admin "deactivate instead of delete a category in use" guard,
+    // same precedent as Supplier's order-history check.
+    boolean existsByCategoryIgnoreCase(String category);
+
     // Detaches a removed/deactivated supplier from every item that preferred it.
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update StoreInventoryItem i set i.preferredSupplier = null where i.preferredSupplier.id = :supplierId")

@@ -43,6 +43,18 @@ export function buildCategoryOptions(
   return options;
 }
 
+// A fixed category list (Super Admin's per-store intersection, or Super
+// Admin's inventory-category assignment to an Owner/Admin's store), plus the
+// one currently chosen so a value no longer in the list stays visible rather
+// than silently disappearing.
+export function buildFixedCategoryOptions(categories: string[], current: string) {
+  const options = categories.map((c) => ({ value: c, label: categoryLabel(c) }));
+  if (current && !categories.some((c) => c.toLowerCase() === current.toLowerCase())) {
+    options.push({ value: current, label: categoryLabel(current) });
+  }
+  return options;
+}
+
 export interface StoreInventoryItem {
   id: number;
   storeId: number;
