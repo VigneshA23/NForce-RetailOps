@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import MissedEndOfDayPanel from './MissedEndOfDayPanel';
 import type { MissedEndOfDay, MissedEndOfDayItem } from '../types/notification';
 
-const FIFTEEN_WORDS = 'the freezer failed overnight and every tub had already melted so nothing could be counted safely';
+const VALID_REASON = 'the freezer failed overnight and every tub had already melted so nothing could be counted safely';
 
 function item(overrides: Partial<MissedEndOfDayItem> = {}): MissedEndOfDayItem {
   return {
@@ -41,7 +41,7 @@ describe('MissedEndOfDayPanel', () => {
   it('shows the resolved progress and per-status counts', () => {
     renderPanel([
       item({ status: 'COUNTED', endOfDayAvailable: 4, answeredByName: 'Rahul' }),
-      item({ storeInventoryItemId: 2, itemName: 'Oranges', status: 'COULD_NOT_COUNT', reason: FIFTEEN_WORDS, answeredByName: 'Sneha' }),
+      item({ storeInventoryItemId: 2, itemName: 'Oranges', status: 'COULD_NOT_COUNT', reason: VALID_REASON, answeredByName: 'Sneha' }),
       item({ storeInventoryItemId: 3, itemName: 'Milk' }),
     ]);
     expect(screen.getByText('2 of 3 resolved')).toBeInTheDocument();
@@ -58,9 +58,9 @@ describe('MissedEndOfDayPanel', () => {
   });
 
   it('shows the reason on an item that could not be counted', () => {
-    renderPanel([item({ status: 'COULD_NOT_COUNT', reason: FIFTEEN_WORDS, answeredByName: 'Ananya' })]);
+    renderPanel([item({ status: 'COULD_NOT_COUNT', reason: VALID_REASON, answeredByName: 'Ananya' })]);
     expect(screen.getByText("Couldn't count")).toBeInTheDocument();
-    expect(screen.getByText(FIFTEEN_WORDS)).toBeInTheDocument();
+    expect(screen.getByText(VALID_REASON)).toBeInTheDocument();
     expect(screen.getByText(/Submitted by Ananya/)).toBeInTheDocument();
   });
 
@@ -94,24 +94,24 @@ describe('MissedEndOfDayPanel', () => {
     expect(onAnswer).not.toHaveBeenCalled();
   });
 
-  it('blocks a reason under 15 words and counts the words', async () => {
+  it('blocks a reason under 5 words and counts the words', async () => {
     const { onAnswer } = renderPanel([item()]);
     await userEvent.click(screen.getByLabelText(/Couldn.t count it/));
-    await userEvent.type(screen.getByLabelText(/Why could it not be counted/), 'the freezer failed overnight');
-    expect(screen.getByText('4 / 15 words minimum')).toBeInTheDocument();
+    await userEvent.type(screen.getByLabelText(/Why could it not be counted/), 'the freezer failed');
+    expect(screen.getByText('3 / 5 words minimum')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Submit reason' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/at least 15 words/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/at least 5 words/);
     expect(onAnswer).not.toHaveBeenCalled();
   });
 
-  it('sends a reason of 15 words or more', async () => {
-    const saved = item({ status: 'COULD_NOT_COUNT', reason: FIFTEEN_WORDS });
+  it('sends a reason of 5 words or more', async () => {
+    const saved = item({ status: 'COULD_NOT_COUNT', reason: VALID_REASON });
     const { onAnswer, onAnswered } = renderPanel([item()], vi.fn().mockResolvedValue(saved));
     await userEvent.click(screen.getByLabelText(/Couldn.t count it/));
-    await userEvent.type(screen.getByLabelText(/Why could it not be counted/), FIFTEEN_WORDS);
+    await userEvent.type(screen.getByLabelText(/Why could it not be counted/), VALID_REASON);
     await userEvent.click(screen.getByRole('button', { name: 'Submit reason' }));
     await waitFor(() => expect(onAnswered).toHaveBeenCalledWith(saved));
-    expect(onAnswer).toHaveBeenCalledWith({ storeInventoryItemId: 1, couldNotCount: true, reason: FIFTEEN_WORDS });
+    expect(onAnswer).toHaveBeenCalledWith({ storeInventoryItemId: 1, couldNotCount: true, reason: VALID_REASON });
   });
 
   it('shows the server message when someone else answered first', async () => {

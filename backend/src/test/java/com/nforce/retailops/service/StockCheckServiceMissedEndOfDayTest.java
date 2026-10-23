@@ -61,7 +61,7 @@ class StockCheckServiceMissedEndOfDayTest {
     private static final Long STORE_ID = 10L;
     private static final Long ITEM_ID = 20L;
 
-    private static final String FIFTEEN_WORDS =
+    private static final String VALID_REASON =
         "the freezer failed overnight and every tub had already melted so nothing could be counted safely";
 
     @Mock private StoreInventoryItemRepository storeInventoryItemRepository;
@@ -162,7 +162,7 @@ class StockCheckServiceMissedEndOfDayTest {
     @Test
     void startOfDayIsAllowedOnceYesterdayWasExplainedAsNotCountable() {
         StockCheck yesterdayRow = yesterdayWithStartOnly(10);
-        yesterdayRow.skipEndOfDay(FIFTEEN_WORDS, owner, OffsetDateTime.now());
+        yesterdayRow.skipEndOfDay(VALID_REASON, owner, OffsetDateTime.now());
         yesterdayRowIs(yesterdayRow);
 
         // Nothing to reconcile against, so any figure goes through.
@@ -331,14 +331,14 @@ class StockCheckServiceMissedEndOfDayTest {
     }
 
     @Test
-    void notCountableNeedsAtLeastFifteenWords() {
+    void notCountableNeedsAtLeastFiveWords() {
         StockCheck row = yesterdayWithStartOnly(10);
         yesterdayRowIs(row);
 
         assertThatThrownBy(() -> stockCheckService.answerMissedEndOfDayAsEmployee(
-            EMPLOYEE_ID, couldNotCount("the freezer failed overnight and everything melted")))
+            EMPLOYEE_ID, couldNotCount("the freezer failed")))
             .isInstanceOf(InvalidStockCheckException.class)
-            .hasMessageContaining("15 words");
+            .hasMessageContaining("5 words");
         assertThat(row.isEndOfDaySkipped()).isFalse();
     }
 
@@ -347,12 +347,12 @@ class StockCheckServiceMissedEndOfDayTest {
         StockCheck row = yesterdayWithStartOnly(10);
         yesterdayRowIs(row);
 
-        MissedEndOfDayResponse.Item item = stockCheckService.answerMissedEndOfDayAsEmployee(EMPLOYEE_ID, couldNotCount("  " + FIFTEEN_WORDS + "  "));
+        MissedEndOfDayResponse.Item item = stockCheckService.answerMissedEndOfDayAsEmployee(EMPLOYEE_ID, couldNotCount("  " + VALID_REASON + "  "));
 
         assertThat(item.status()).isEqualTo(MissedEndOfDayResponse.COULD_NOT_COUNT);
-        assertThat(item.reason()).isEqualTo(FIFTEEN_WORDS);
+        assertThat(item.reason()).isEqualTo(VALID_REASON);
         assertThat(row.getEndOfDayAvailable()).isNull();
-        assertThat(row.getEndOfDaySkippedReason()).isEqualTo(FIFTEEN_WORDS);
+        assertThat(row.getEndOfDaySkippedReason()).isEqualTo(VALID_REASON);
         assertThat(row.getEndOfDaySkippedBy()).isEqualTo(employee);
         assertThat(row.isEndOfDaySkipped()).isTrue();
         verifyNoInteractions(orderListService);
@@ -362,7 +362,7 @@ class StockCheckServiceMissedEndOfDayTest {
     void anExplainedDayCannotBeAnsweredAgain() {
         StockCheck row = yesterdayWithStartOnly(10);
         yesterdayRowIs(row);
-        stockCheckService.answerMissedEndOfDayAsOwner(OWNER_ID, couldNotCount(FIFTEEN_WORDS));
+        stockCheckService.answerMissedEndOfDayAsOwner(OWNER_ID, couldNotCount(VALID_REASON));
 
         assertThatThrownBy(() -> stockCheckService.answerMissedEndOfDayAsEmployee(EMPLOYEE_ID, count(5, 0)))
             .isInstanceOf(StockCheckLockedException.class);
@@ -371,7 +371,7 @@ class StockCheckServiceMissedEndOfDayTest {
     @Test
     void aLaterCorrectionWithARealCountClearsTheNotCountableReason() {
         StockCheck row = yesterdayWithStartOnly(10);
-        row.skipEndOfDay(FIFTEEN_WORDS, owner, OffsetDateTime.now());
+        row.skipEndOfDay(VALID_REASON, owner, OffsetDateTime.now());
 
         row.recordSnapshot(StockCheckSnapshot.END_OF_DAY, BigDecimal.valueOf(5), BigDecimal.ZERO, owner, OffsetDateTime.now(), true);
 
