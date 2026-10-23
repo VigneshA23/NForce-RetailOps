@@ -906,6 +906,7 @@ function SuperAdminInventory() {
         mode="create"
         suppliers={suppliers}
         onCreateSupplier={(name) => createSupplierForStore(name, selectedStoreId)}
+        canAddUnit
         stores={stores}
         showStoreField
         loadCategories={getCommonCategories}
@@ -922,6 +923,7 @@ function SuperAdminInventory() {
           item={editTarget}
           suppliers={suppliers}
           onCreateSupplier={(name) => createSupplierForStore(name, editTarget.storeId)}
+          canAddUnit
               existingCategories={items.map((i) => i.category)}
           errorMessage={itemFormError}
           isSubmitting={isItemSubmitting}

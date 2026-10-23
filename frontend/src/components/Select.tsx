@@ -1,12 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Plus } from 'lucide-react';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import './Select.css';
 
 export interface SelectOption {
   value: string;
   label: string;
+  // Highlighted action entry (e.g. "Add new unit"): accent colour and a plus
+  // icon instead of a selection indicator, like the category picker's.
+  isAction?: boolean;
 }
 
 interface SelectProps {
@@ -126,7 +129,22 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
             role="listbox"
             style={{ top: position.top, left: position.left, width: position.width }}
           >
-            {options.map((option) => (
+            {options.map((option) => option.isAction ? (
+              <button
+                key={option.value}
+                type="button"
+                role="option"
+                aria-selected={false}
+                className="custom-select__option custom-select__option--create"
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+              >
+                <Plus size={14} />
+                {option.label}
+              </button>
+            ) : (
               <button
                 key={option.value}
                 type="button"

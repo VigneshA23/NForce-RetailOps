@@ -12,10 +12,22 @@ const WHOLE_NUMBER_UNITS = new Set([
   'can', 'cans', 'bag', 'bags', 'carton', 'cartons', 'case', 'cases', 'unit', 'units',
 ]);
 
+// Whole-number units Super Admin added at runtime (loaded from the server).
+let customWholeNumberUnits = new Set<string>();
+
+function normalizeUnit(unit: string): string {
+  return unit.trim().toLowerCase().replace(/\.$/, '');
+}
+
+export function registerWholeNumberUnits(units: string[]): void {
+  customWholeNumberUnits = new Set(units.map(normalizeUnit));
+}
+
 // True for countable units, which can't be split: 'Nos.', box, bottle, ...
 export function isWholeNumberUnit(unit?: string | null): boolean {
   if (!unit) return false;
-  return WHOLE_NUMBER_UNITS.has(unit.trim().toLowerCase().replace(/\.$/, ''));
+  const key = normalizeUnit(unit);
+  return WHOLE_NUMBER_UNITS.has(key) || customWholeNumberUnits.has(key);
 }
 
 function patternFor(unit?: string | null): RegExp {

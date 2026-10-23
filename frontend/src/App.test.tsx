@@ -61,6 +61,11 @@ vi.mock('./api/notifications', () => ({
   deleteNotification: vi.fn(),
 }))
 
+vi.mock('./api/inventoryUnits', () => ({
+  getInventoryUnits: vi.fn().mockResolvedValue([]),
+  createInventoryUnit: vi.fn(),
+}))
+
 vi.mock('./api/stockChecks', () => ({
   getTodayStockCheck: vi.fn().mockResolvedValue([]),
   submitStockCheck: vi.fn(),
