@@ -669,7 +669,6 @@ public class OrderListService {
         OrderListEntry entry = orderListEntryRepository
             .findByStoreIdAndStoreInventoryItemIdAndStatusOrderByCreatedAtAsc(store.getId(), item.getId(), OrderStatus.NEEDS_ORDERING)
             .stream().findFirst().orElse(null);
-        boolean topUp = adHoc && entry != null;
         if (entry == null) {
             entry = new OrderListEntry();
             entry.setStore(store);
@@ -679,7 +678,9 @@ public class OrderListService {
             entry.setAdHoc(adHoc);
         }
 
-        if (topUp) {
+        // A manual add always lands in the Manual column -- on the waiting row
+        // or, when there is none, on a fresh row whose Needs column stays 0.
+        if (adHoc) {
             entry.setManualAddition(entry.getManualAddition().add(quantityNeeded));
         } else {
             entry.setQuantityNeeded(quantityNeeded);

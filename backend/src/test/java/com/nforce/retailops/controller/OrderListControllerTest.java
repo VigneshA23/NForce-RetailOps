@@ -266,7 +266,7 @@ class OrderListControllerTest {
                 .content(body))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.itemName").value(milk.getName()))
-            .andExpect(jsonPath("$.quantityNeeded").value(4))
+            .andExpect(jsonPath("$.manualAddition").value(4))
             .andExpect(jsonPath("$.status").value("NEEDS_ORDERING"));
     }
 

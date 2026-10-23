@@ -452,15 +452,24 @@ public class ChecklistHistoryService {
 
     @Transactional(readOnly = true)
     public ChecklistHistoryDetailResponse getDetailForSuperAdmin(Long storeId, LocalDate date) {
-        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndActiveTrue(storeId)
+        // Not findByStoreIdAndActiveTrue / findByStoreIdAndOwnerId: a vacant or
+        // suspended store has no active link (or no owner on it, only lastOwner),
+        // but Super Admin must still be able to open its checklist.
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return getDetail(storeOwner.resolveTaskOwnerId(), storeId, date);
+        return buildDetail(storeOwner, storeOwner.resolveTaskOwnerId(), storeId, date);
     }
 
     @Transactional(readOnly = true)
     public ChecklistHistoryDetailResponse getDetail(Long ownerId, Long storeId, LocalDate date) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return buildDetail(storeOwner, ownerId, storeId, date);
+    }
+
+    // ownerId may be null (a store that never had an owner): no tasks match then,
+    // but any responses recorded against the store are still shown.
+    private ChecklistHistoryDetailResponse buildDetail(StoreOwner storeOwner, Long ownerId, Long storeId, LocalDate date) {
         Store store = storeOwner.getStore();
 
         List<Task> eligibleTasks = taskRepository.findForStoreAndDate(ownerId, storeId, date).stream()
