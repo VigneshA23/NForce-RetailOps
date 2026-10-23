@@ -758,7 +758,7 @@ class SuperAdminOperationsControllerTest {
                 .content(body))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.itemName").value("Milk Order Create B"))
-            .andExpect(jsonPath("$.quantityNeeded").value(5))
+            .andExpect(jsonPath("$.manualAddition").value(5))
             .andExpect(jsonPath("$.status").value("NEEDS_ORDERING"));
     }
 
