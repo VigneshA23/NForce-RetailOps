@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 
 // The answer to one item's missing End of Day from yesterday: either the count
-// (available and deadStock) or couldNotCount with a reason of at least 15
+// (available and deadStock) or couldNotCount with a reason of at least 5
 // words. storeId is only read for employees; an Owner/Admin answers for their
 // own store.
 public record MissedEndOfDayAnswerRequest(

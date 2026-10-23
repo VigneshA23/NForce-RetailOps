@@ -720,7 +720,7 @@ public class StockCheckService {
     static final String END_OF_DAY_ABOVE_START_OF_DAY_MESSAGE = "End of Day cannot be greater than Start of Day plus the stock received.";
 
     // Minimum length of the "could not count" explanation.
-    static final int MIN_SKIP_REASON_WORDS = 15;
+    static final int MIN_SKIP_REASON_WORDS = 5;
 
     @Transactional
     public MissedEndOfDayResponse.Item answerMissedEndOfDayAsEmployee(Long employeeUserId, MissedEndOfDayAnswerRequest request) {

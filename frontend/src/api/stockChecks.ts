@@ -81,7 +81,7 @@ export async function reportAdHocShortage(
 }
 
 // Answers yesterday's missing End of Day for one item: the count, or
-// couldNotCount with a reason (at least 15 words). Only the first answer from
+// couldNotCount with a reason (at least 5 words). Only the first answer from
 // anyone in the store is accepted.
 export interface MissedEndOfDayAnswer {
   storeInventoryItemId: number;

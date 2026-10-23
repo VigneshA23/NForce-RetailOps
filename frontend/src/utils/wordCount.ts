@@ -5,4 +5,4 @@ export function countWords(text: string): number {
 }
 
 // A "could not count" End of Day needs a real explanation, not a token word.
-export const MIN_SKIP_REASON_WORDS = 15;
+export const MIN_SKIP_REASON_WORDS = 5;
