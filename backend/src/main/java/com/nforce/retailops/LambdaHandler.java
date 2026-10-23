@@ -24,6 +24,7 @@ import java.io.OutputStream;
  * This class has zero effect on Railway or local dev — it is only invoked
  * when the JAR is deployed to AWS Lambda.
  */
+@SuppressWarnings("deprecation")
 public class LambdaHandler implements RequestStreamHandler {
 
     private static final SpringBootLambdaContainerHandler<HttpApiV2ProxyRequest, AwsProxyResponse> handler;
