@@ -26,7 +26,6 @@ import com.nforce.retailops.util.DateRangeValidator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -276,7 +275,9 @@ public class SuperAdminOperationsService {
         LocalDate startDate = today.minusDays(cappedDays - 1);
 
         List<StoreOwner> links = storeOwnerRepository.findAllWithStoreAndOwner().stream()
-            .filter(so -> so.getStore().getId() == storeId && so.getOwner() != null)
+            // A vacant store (owner deactivated) has owner == null but still has
+            // history; resolveTaskOwnerId falls back to the last owner.
+            .filter(so -> so.getStore().getId() == storeId && so.resolveTaskOwnerId() != null)
             .toList();
 
         if (links.isEmpty()) {
@@ -293,7 +294,7 @@ public class SuperAdminOperationsService {
             if (!tasksByStore.containsKey(sid)) {
                 tasksByStore.put(sid,
                     taskRepository.findActiveForStoresAndDateRange(
-                        link.getOwner().getId(), List.of(sid), startDate, today
+                        link.resolveTaskOwnerId(), List.of(sid), startDate, today
                     )
                 );
             }

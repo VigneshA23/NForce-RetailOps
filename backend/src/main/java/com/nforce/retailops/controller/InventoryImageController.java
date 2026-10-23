@@ -27,9 +27,8 @@ public class InventoryImageController {
     private final InventoryItemImageRepository inventoryItemImageRepository;
 
     public InventoryImageController(
-        UnsplashService unsplashService,
-        InventoryItemImageRepository inventoryItemImageRepository
-    ) {
+            UnsplashService unsplashService,
+            InventoryItemImageRepository inventoryItemImageRepository) {
         this.unsplashService = unsplashService;
         this.inventoryItemImageRepository = inventoryItemImageRepository;
     }
@@ -37,9 +36,8 @@ public class InventoryImageController {
     @GetMapping("/search")
     @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<List<UnsplashPhotoResponse>> search(
-        @RequestParam String query,
-        @RequestParam(defaultValue = "10") int perPage
-    ) {
+            @RequestParam String query,
+            @RequestParam(defaultValue = "10") int perPage) {
         String trimmed = query.trim();
         if (trimmed.isEmpty()) {
             return ResponseEntity.ok(List.of());
@@ -49,15 +47,16 @@ public class InventoryImageController {
 
     // Image rows are immutable (a new pick gets a new id), so the browser
     // can cache each one indefinitely.
+    @SuppressWarnings("null")
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> image(@PathVariable Long id) {
         InventoryItemImage image = inventoryItemImageRepository.findById(id)
-            .orElseThrow(() -> new InventoryItemImageNotFoundException("Image not found"));
+                .orElseThrow(() -> new InventoryItemImageNotFoundException("Image not found"));
         return ResponseEntity.ok()
-            .contentType(MediaType.parseMediaType(image.getContentType()))
-            .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePrivate().immutable())
-            .body(image.getData());
+                .contentType(MediaType.parseMediaType(image.getContentType()))
+                .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePrivate().immutable())
+                .body(image.getData());
     }
 }

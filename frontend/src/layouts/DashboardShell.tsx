@@ -245,7 +245,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
           onNavigate={handleNotificationNavigate}
           focusNotificationId={focusNotificationId}
           answerAs="OWNER_ADMIN"
-          onBackToHome={() => { setOverlay(null); setActiveTab('home'); }}
+          onBackToHome={() => setOverlay(null)}
         />
       ) : (
         ALL_TABS.map((tab) =>
