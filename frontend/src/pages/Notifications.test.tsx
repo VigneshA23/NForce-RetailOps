@@ -360,7 +360,7 @@ describe('Notifications focusNotificationId', () => {
     mockGetNotifications.mockResolvedValueOnce(staleList).mockResolvedValueOnce(freshList);
     mockGetUnreadCount.mockResolvedValue(0);
     const mockMarkRead = vi.mocked(notificationsApi.markNotificationRead);
-    mockMarkRead.mockResolvedValue(undefined);
+    mockMarkRead.mockResolvedValue(makeNotification({ id: 2, title: 'Brand new one' }));
 
     const { rerender } = render(<Notifications onUnreadChange={vi.fn()} focusNotificationId={null} />);
     await screen.findByText('Old one');
