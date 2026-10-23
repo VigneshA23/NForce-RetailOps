@@ -3,7 +3,7 @@ import { buildFixedCategoryOptions, type StoreInventoryItem, type StoreInventory
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
-import Select from './Select';
+import UnitSelect from './UnitSelect';
 import CategoryCombobox from './CategoryCombobox';
 import SupplierCombobox from './SupplierCombobox';
 import CounterStepper from './CounterStepper';
@@ -11,7 +11,6 @@ import { parseQty, qtyRuleHint } from '../utils/quantity';
 import ItemIcon from './ItemIcon';
 import InventoryImagePicker from './InventoryImagePicker';
 import ButtonDots from './ButtonDots';
-import { inventoryUnitOptionsFor } from '../utils/inventoryUnits';
 import './StoreInventoryItemEditPanel.css';
 
 interface StoreInventoryItemEditPanelProps {
@@ -27,6 +26,8 @@ interface StoreInventoryItemEditPanelProps {
   // Leaves the item form and opens the Categories page to add one there.
   // Omitted for Owner/Admin, same reasoning as onRequestCreateSupplier.
   onRequestCreateCategory?: () => void;
+  // Super Admin only: shows "Add new unit" in the unit dropdown.
+  canAddUnit?: boolean;
   errorMessage?: string | null;
   isSubmitting?: boolean;
   onClose: () => void;
@@ -57,6 +58,7 @@ function StoreInventoryItemEditPanel({
   onRequestCreateSupplier,
   restrictedCategories = [],
   onRequestCreateCategory,
+  canAddUnit = false,
   errorMessage,
   isSubmitting = false,
   onClose,
@@ -100,7 +102,6 @@ function StoreInventoryItemEditPanel({
   }
 
   const categoryOptions = buildFixedCategoryOptions(restrictedCategories, values.category);
-  const unitOptions = inventoryUnitOptionsFor(item.unitOfMeasurement);
 
   return (
     <Modal
@@ -152,13 +153,12 @@ function StoreInventoryItemEditPanel({
           />
           </FormField>
           <FormField label="Unit of Measurement" htmlFor="edit-item-unit" error={errors.unitOfMeasurement}>
-            <Select
+            <UnitSelect
               id="edit-item-unit"
-              options={unitOptions}
               value={values.unitOfMeasurement}
+              savedUnit={item.unitOfMeasurement}
               onChange={(value) => setValues((current) => ({ ...current, unitOfMeasurement: value }))}
-              ariaLabel="Unit"
-              placeholder="Select unit..."
+              canAddUnit={canAddUnit}
             />
           </FormField>
         </div>

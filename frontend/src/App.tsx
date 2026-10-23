@@ -39,6 +39,7 @@ import {
 import { getSessionConfig, getSessionStatus, logout } from './api/auth'
 import { useAssignedStores } from './hooks/useAssignedStores'
 import { useMe } from './hooks/useMe'
+import { loadCustomUnits } from './utils/inventoryUnits'
 
 type View = 'login' | 'set-new-password'
 
@@ -164,6 +165,12 @@ function App() {
       setRestoringSession(false)
     }
   }, [restoringSession, meState.isLoading, meState.me, meState.isUnauthorized, meState.error, meState.reload])
+
+  // Super Admin-added units: every role needs them to know which units take
+  // whole numbers only.
+  useEffect(() => {
+    if (user) void loadCustomUnits()
+  }, [user?.token])
 
   // Fresh-login avatar hydration. The session-restore effect above is gated on
   // restoringSession so it never fires for a normal login. When meState.me

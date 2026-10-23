@@ -943,6 +943,7 @@ function SuperAdminInventory() {
         getSuppliersForStores={suppliersForStores}
         getCategoriesForStores={categoriesForStores}
         onRequestCreateCategory={handleRequestCreateCategory}
+        canAddUnit
         stores={stores}
         showStoreField
         initialValues={createInitialValues}
@@ -960,6 +961,7 @@ function SuperAdminInventory() {
           onRequestCreateSupplier={handleRequestCreateSupplier}
           restrictedCategories={categoriesForStores([editTarget.storeId])}
           onRequestCreateCategory={handleRequestCreateCategory}
+          canAddUnit
           errorMessage={itemFormError}
           isSubmitting={isItemSubmitting}
           onClose={() => setEditTarget(null)}
