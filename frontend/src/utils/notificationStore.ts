@@ -3,6 +3,13 @@ import type { StoreSummary } from '../types/store';
 
 export const STORE_NOT_SPECIFIED = 'Store not specified';
 
+const ACCOUNT_LEVEL_CATEGORIES = new Set([
+  'EMPLOYEE_ACCOUNT_DEACTIVATED',
+  'EMPLOYEE_ACCOUNT_REACTIVATED',
+  'ACCOUNT_DEACTIVATED',
+  'ACCOUNT_REACTIVATED',
+]);
+
 export type NotificationStoreAssociation =
   | { kind: 'assigned'; storeId: number; storeName: string }
   | { kind: 'unspecified'; storeName: string }
@@ -57,6 +64,11 @@ export function getNotificationMessageParts(
   assignedStores?: StoreSummary[],
 ): NotificationMessageParts {
   const message = notification.message?.trim() ?? '';
+  // Account-level notices are sent once per user, not per store, so they never
+  // carry a store prefix (and must not fall back to "Store not specified").
+  if (ACCOUNT_LEVEL_CATEGORIES.has(notification.category)) {
+    return { beforeStoreName: message, storeName: null, afterStoreName: '' };
+  }
   let storeName: string | null = null;
   if (assignedStores) {
     const association = resolveNotificationStore(notification, assignedStores);

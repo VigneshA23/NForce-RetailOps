@@ -260,10 +260,10 @@ public class NotificationService {
     // the owner's own Stock Check History view changed under them.
     @Transactional
     public void notifyOwnerOfSuperAdminStockCheckCorrection(StockCheck check, User owner) {
-        send(owner, "STOCK_CHECK_CORRECTED",
+        sendForStore(owner, "STOCK_CHECK_CORRECTED",
             "A Super Admin corrected a stock count at " + check.getStore().getName(),
             check.getStoreInventoryItem().getName() + " on " + check.getCheckDate(),
-            "/inventory");
+            "/inventory", check.getStore());
     }
 
     // An employee reported a mid-day shortage (RTS-368). Sent whether or not
@@ -286,7 +286,8 @@ public class NotificationService {
         if (note != null && !note.isBlank()) {
             message.append(" Note: ").append(note.trim());
         }
-        send(owner, "STOCK_SHORTAGE_REPORTED", "Shortage reported at " + store, message.toString(), "/orders");
+        sendForStore(owner, "STOCK_SHORTAGE_REPORTED", "Shortage reported at " + store, message.toString(), "/orders",
+            storeItem.getStore());
     }
 
     // An item is completely out of stock (counted zero at Start of Day, or
@@ -298,7 +299,8 @@ public class NotificationService {
         String message = "There is no stock of " + item + " in the store"
             + (employee != null ? " (" + source + " count by " + employee.getFullName() + ")" : "")
             + ". It needs urgent ordering.";
-        send(owner, "STOCK_OUT_URGENT", "Out of stock: " + item + " at " + store, message, "/orders");
+        sendForStore(owner, "STOCK_OUT_URGENT", "Out of stock: " + item + " at " + store, message, "/orders",
+            storeItem.getStore());
     }
 
     // An employee reported received stock at End of Day: asks the admin to
@@ -343,15 +345,16 @@ public class NotificationService {
     public void notifyEmployeeOfStockReceiptDecision(StockReceiptRequest request, boolean approved) {
         String item = request.getStoreInventoryItem().getName();
         String unit = request.getStoreInventoryItem().getUnitOfMeasurement();
+        Store store = request.getStore();
         String countName = request.getSnapshot() == StockCheckSnapshot.START_OF_DAY ? "Start of Day" : "End of Day";
         if (request.getType() == StockReceiptRequestType.LOWER_COUNT) {
             if (approved) {
-                send(request.getRequestedBy(), "STOCK_RECEIPT_APPROVED", "Lower Start of Day approved",
-                    "Your lower Start of Day count for " + item + " was approved.", "/stock-check");
+                sendForStore(request.getRequestedBy(), "STOCK_RECEIPT_APPROVED", "Lower Start of Day approved",
+                    "Your lower Start of Day count for " + item + " was approved.", "/stock-check", store);
             } else {
-                send(request.getRequestedBy(), "STOCK_RECEIPT_REJECTED", "Lower Start of Day rejected",
+                sendForStore(request.getRequestedBy(), "STOCK_RECEIPT_REJECTED", "Lower Start of Day rejected",
                     "Your lower Start of Day count for " + item + " was rejected. Please recount and save "
-                        + "the Start of Day count again.", "/stock-check");
+                        + "the Start of Day count again.", "/stock-check", store);
             }
             return;
         }
@@ -359,16 +362,16 @@ public class NotificationService {
             ? request.getQuantity() + " " + unit + " of " + item
             : "Order #" + request.getOrderListEntry().getId() + " for " + item;
         if (approved) {
-            send(request.getRequestedBy(), "STOCK_RECEIPT_APPROVED",
+            sendForStore(request.getRequestedBy(), "STOCK_RECEIPT_APPROVED",
                 "Received stock approved",
                 "Your report of received stock was approved: " + subject + ". Stock has been updated.",
-                "/stock-check");
+                "/stock-check", store);
         } else {
-            send(request.getRequestedBy(), "STOCK_RECEIPT_REJECTED",
+            sendForStore(request.getRequestedBy(), "STOCK_RECEIPT_REJECTED",
                 "Received stock rejected",
                 "Your report of received stock was rejected: " + subject
                     + ". Stock was not changed. Please review your " + countName + " count for " + item + ".",
-                "/stock-check");
+                "/stock-check", store);
         }
     }
 
@@ -406,12 +409,12 @@ public class NotificationService {
         User employee = entry.getEmployee();
         String taskName = entry.getTask().getName();
         String reason = correction.getReason();
-        send(employee, "RESPONSE_NEEDS_ATTENTION",
+        sendForStore(employee, "RESPONSE_NEEDS_ATTENTION",
             "Your \"" + taskName + "\" response needs correction",
             reason != null && !reason.isBlank()
                 ? "Admin feedback: " + reason
                 : "The store admin has flagged your response for correction.",
-            employeeTaskLinkPath(entry));
+            employeeTaskLinkPath(entry), entry.getStore());
     }
 
     @Transactional
@@ -420,12 +423,12 @@ public class NotificationService {
         User employee = entry.getEmployee();
         String taskName = entry.getTask().getName();
         String reason = correction.getReason();
-        send(employee, "CORRECTION_MADE",
+        sendForStore(employee, "CORRECTION_MADE",
             "Your \"" + taskName + "\" response was corrected",
             reason != null && !reason.isBlank()
                 ? "Reason: " + reason
                 : "Your response was reviewed and corrected by the store admin.",
-            employeeTaskLinkPath(entry));
+            employeeTaskLinkPath(entry), entry.getStore());
     }
 
     @Transactional
