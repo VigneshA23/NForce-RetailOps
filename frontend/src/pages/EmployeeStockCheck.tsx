@@ -303,7 +303,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
         values.storeInventoryItemId,
         Number(values.currentStock),
         values.note,
-        values.orderedAlreadyReceived,
       );
       nfToast.success('Shortage reported to your owner.');
       setIsAdHocOpen(false);

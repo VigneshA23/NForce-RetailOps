@@ -10,7 +10,6 @@ export interface AdHocShortageValues {
   storeInventoryItemId: number;
   currentStock: string;
   note: string;
-  orderedAlreadyReceived: boolean;
 }
 
 interface AdHocShortageModalProps {
@@ -22,7 +21,7 @@ interface AdHocShortageModalProps {
   onSubmit: (values: AdHocShortageValues) => void;
 }
 
-const EMPTY_VALUES: AdHocShortageValues = { storeInventoryItemId: 0, currentStock: '', note: '', orderedAlreadyReceived: false };
+const EMPTY_VALUES: AdHocShortageValues = { storeInventoryItemId: 0, currentStock: '', note: '' };
 
 function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false, onClose, onSubmit }: AdHocShortageModalProps) {
   const [values, setValues] = useState<AdHocShortageValues>(EMPTY_VALUES);
@@ -37,7 +36,6 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
 
   const selectedItem = items.find((item) => item.storeInventoryItemId === values.storeInventoryItemId);
   const selectedUnit = selectedItem?.unitOfMeasurement;
-  const hasOpenOrder = (selectedItem?.openOrders?.length ?? 0) > 0;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -57,7 +55,7 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
       setErrors(nextErrors);
       return;
     }
-    onSubmit({ ...values, orderedAlreadyReceived: hasOpenOrder && values.orderedAlreadyReceived });
+    onSubmit(values);
   }
 
   const itemOptions = items.map((item) => ({
@@ -111,27 +109,6 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
             }}
           />
         </FormField>
-        {hasOpenOrder && (
-          <label style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "4px 0 12px" }} htmlFor="ad-hoc-received">
-            <input
-              id="ad-hoc-received"
-              type="checkbox"
-              style={{ marginTop: 4 }}
-              checked={values.orderedAlreadyReceived}
-              onChange={(event) => setValues((current) => ({ ...current, orderedAlreadyReceived: event.target.checked }))}
-            />
-            <span>
-              An earlier order for this item has already been received
-              {selectedItem?.openOrders?.map((order) => (
-                <span key={order.id} style={{ display: 'block', fontSize: 14, opacity: 0.75 }}>
-                  {order.quantity} {selectedUnit}
-                  {order.supplierName ? ` · ${order.supplierName}` : ''}
-                  {order.orderedAt ? ` · ordered ${new Date(order.orderedAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}` : ''}
-                </span>
-              ))}
-            </span>
-          </label>
-        )}
         <FormField label="Note (optional)" htmlFor="ad-hoc-note">
           <input
             id="ad-hoc-note"
