@@ -121,7 +121,7 @@ function ReceivedStockModal({
       subtitle={
         isStart
           ? `${itemName}: Start of Day (${endUsable} ${unit}) is higher than the last End of Day (${startUsable} ${unit}), so the item must have been restocked. Confirm the existing order(s) below that were received. Your admin has to approve it before stock is updated.`
-          : `${itemName}: your End of Day count (${endUsable} ${unit}) exceeds Start of Day (${startUsable} ${unit}). Confirm received deliveries below, then update your on-hand stock. Today's usage is worked out from this number. Your admin approves it before stock is updated.`
+          : `${itemName}: your EOD count (${endUsable} ${unit}) exceeds SOD (${startUsable} ${unit}). Confirm received deliveries below, then update your on-hand stock.\n\nYour admin approves it before stock is updated.`
       }
       footer={
         <>
