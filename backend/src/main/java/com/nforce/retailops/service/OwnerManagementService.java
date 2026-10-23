@@ -8,7 +8,6 @@ import com.nforce.retailops.dto.ReassignableStoreResponse;
 import com.nforce.retailops.dto.UpdateOwnerRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
-import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;

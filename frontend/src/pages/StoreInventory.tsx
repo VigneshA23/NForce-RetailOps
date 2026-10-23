@@ -10,6 +10,7 @@ import {
 } from '../api/storeInventory';
 import { ApiError } from '../api/client';
 import { getOwnerSuppliers } from '../api/suppliers';
+import { getOwnerInventoryCategories } from '../api/inventoryCategories';
 import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
@@ -56,6 +57,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
   const [subTab, setSubTab] = useState<SubTab>('items');
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -85,10 +87,11 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
   function load() {
     setIsLoading(true);
     setLoadError(null);
-    Promise.all([getStoreInventoryItems(), getOwnerSuppliers()])
-      .then(([its, sups]) => {
+    Promise.all([getStoreInventoryItems(), getOwnerSuppliers(), getOwnerInventoryCategories()])
+      .then(([its, sups, cats]) => {
         setItems(its);
         setSuppliers(sups);
+        setCategoryOptions(cats.map((c) => c.name));
       })
       .catch((error: Error) => setLoadError(error.message))
       .finally(() => setIsLoading(false));
@@ -406,7 +409,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               isOpen={isCreateModalOpen}
               mode="create"
               suppliers={suppliers}
-              existingCategories={items.map((i) => i.category)}
+              restrictedCategories={categoryOptions}
               errorMessage={itemFormError}
               isSubmitting={isItemSubmitting}
               onClose={() => setIsCreateModalOpen(false)}
@@ -418,7 +421,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 isOpen
                 item={editTarget}
                 suppliers={suppliers}
-              existingCategories={items.map((i) => i.category)}
+                restrictedCategories={categoryOptions}
                 errorMessage={itemFormError}
                 isSubmitting={isItemSubmitting}
                 onClose={() => setEditTarget(null)}

@@ -67,6 +67,7 @@
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  transition: opacity var(--transition-fast);
 }
 
 .sidebar__brand-text {
@@ -238,26 +239,54 @@
   max-width: 0;
 }
 
-/* The collapsed rail is sized (see --sidebar-width-collapsed) just wide
-   enough for the logo and toggle to sit snugly together on the left. */
+/* Collapsed: the logo sits centered alone in the brand row, and the toggle
+   button overlays it in the same spot, hidden until hover/focus -- see the
+   swap rules below. Only one of the two is ever visible at a time, so the
+   row no longer needs to fit them side by side. */
 .sidebar--collapsed .sidebar__brand {
-  justify-content: flex-start;
-  gap: 4px;
-  padding: 0 6px;
+  position: relative;
+  justify-content: center;
+  gap: 0;
+  padding: 0;
 }
 
-/* Logo shrinks to 36px in collapsed state so the row fits:
-   36 (logo) + 4 (gap) + 28 (toggle) + 12 (padding) = 80px = collapsed width. */
 .sidebar--collapsed .sidebar__brand-logo {
   width: 36px;
   height: 36px;
 }
 
+.sidebar--collapsed .sidebar__collapse-toggle {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 36px;
+  height: 36px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Opacity (not display:none) keeps the button tab-focusable while hidden, so
+   :focus-within reveals it for keyboard users the same way :hover does for
+   mouse users. */
+.sidebar--collapsed .sidebar__brand:hover .sidebar__brand-logo,
+.sidebar--collapsed .sidebar__brand:focus-within .sidebar__brand-logo {
+  opacity: 0;
+}
+
+.sidebar--collapsed .sidebar__brand:hover .sidebar__collapse-toggle,
+.sidebar--collapsed .sidebar__brand:focus-within .sidebar__collapse-toggle {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* Icons center in the collapsed rail rather than sitting flush left with a
    wide empty margin to their right -- the rail is only as wide as an icon
-   plus comfortable padding, not the expanded row's text-accommodating width. */
+   plus comfortable padding, not the expanded row's text-accommodating width.
+   gap is zeroed too -- the (zero-width) label is still a flex sibling, so a
+   nonzero gap would still reserve space next to it and throw off centering. */
 .sidebar--collapsed .sidebar__item {
   justify-content: center;
+  gap: 0;
   padding-left: 4px;
   padding-right: 4px;
 }
@@ -304,6 +333,30 @@
   .sidebar.sidebar--collapsed .sidebar__label {
     opacity: 1;
     max-width: var(--sidebar-label-max-width, 160px);
+  }
+
+  /* The drawer always renders full-width here regardless of the desktop
+     collapsed preference, so undo the collapsed brand row's centered
+     logo/toggle overlay too -- otherwise a user who left the sidebar
+     collapsed on desktop would see that cramped layout in the mobile
+     drawer instead of the normal logo + title + toggle row. */
+  .sidebar.sidebar--collapsed .sidebar__brand {
+    justify-content: space-between;
+    padding: 0 var(--sidebar-item-padding-x) 0 10px;
+  }
+
+  .sidebar.sidebar--collapsed .sidebar__brand-logo {
+    width: 46px;
+    height: 46px;
+    opacity: 1;
+  }
+
+  .sidebar.sidebar--collapsed .sidebar__collapse-toggle {
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+    width: 28px;
+    height: 28px;
   }
 
   .sidebar.sidebar--mobile-open {

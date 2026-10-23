@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Plus, X } from 'lucide-react';
+import { Check, ChevronDown, Plus } from 'lucide-react';
 import type { Supplier } from '../types/supplier';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import './SupplierCombobox.css';
@@ -12,12 +12,11 @@ interface SupplierComboboxProps {
   suppliers: Supplier[];
   value: number | null;
   onChange: (supplierId: number | null) => void;
-  // Saves a new supplier (or returns the existing one with that name) and
-  // resolves with it. The caller is expected to add it to `suppliers` so it
-  // shows up for future items too. Omitted where the caller has read-only
-  // supplier access (Owner/Admin) -- the "Add new supplier" options below
-  // are then left out entirely instead of being shown and failing.
-  onCreate?: (name: string) => Promise<Supplier>;
+  // Leaves the item form and opens the Suppliers page, where a new supplier
+  // gets its full details and store assignment, same as the Categories field
+  // below. Omitted where the caller has read-only supplier access
+  // (Owner/Admin) -- the "Add new supplier" option is then left out entirely.
+  onRequestCreate?: () => void;
   ariaLabel?: string;
   // True when this field is seeded from an item that already exists (editing,
   // not creating) -- a null `value` there is the item's actual, already-saved
@@ -30,22 +29,17 @@ interface SupplierComboboxProps {
 type ComboOption =
   | { kind: 'none' }
   | { kind: 'supplier'; supplier: Supplier }
-  | { kind: 'create'; name: string }
   | { kind: 'new' };
 
 // Type-to-search supplier picker for the inventory item form. Filters the
-// supplier directory as the user types and, when nothing matches the typed
-// name exactly, offers "Add New Supplier" to create it in place -- so the
-// user never has to leave the item form to set up a supplier first.
-function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel, isEditingExisting }: SupplierComboboxProps) {
+// supplier directory (already scoped to this store by the caller) as the
+// user types; "Add new supplier" leaves the form for the Suppliers page
+// rather than creating one in place, since a supplier's store assignment
+// belongs there.
+function SupplierCombobox({ id, suppliers, value, onChange, onRequestCreate, ariaLabel, isEditingExisting }: SupplierComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlighted, setHighlighted] = useState(0);
-  const [isCreating, setIsCreating] = useState(false);
-  // "Add new supplier" collapses the list and turns the main textbox into a
-  // name field for the new supplier.
-  const [isAdding, setIsAdding] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
   // Distinguishes "never touched, still null" (shows the generic select
   // placeholder) from "explicitly picked No preferred supplier" (shows that
   // as the field's value) -- both are `value === null`, but only the second
@@ -63,16 +57,15 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
     const term = query.trim().toLowerCase();
     const active = suppliers.filter((supplier) => supplier.active);
     const matches = term ? active.filter((supplier) => supplier.name.toLowerCase().includes(term)) : active;
-    const exactMatch = term !== '' && active.some((supplier) => supplier.name.trim().toLowerCase() === term);
 
     const next: ComboOption[] = [];
-    // With nothing typed there is no typed-name create row, so offer an explicit way in.
-    if (!term && onCreate) next.push({ kind: 'new' });
+    // With nothing typed there is no filtered list to steal focus from, so
+    // this is the only time "Add new supplier" is offered.
+    if (!term && onRequestCreate) next.push({ kind: 'new' });
     if (!term) next.push({ kind: 'none' });
     next.push(...matches.map((supplier) => ({ kind: 'supplier' as const, supplier })));
-    if (term && !exactMatch && onCreate) next.push({ kind: 'create', name: query.trim() });
     return next;
-  }, [suppliers, query, onCreate]);
+  }, [suppliers, query, onRequestCreate]);
 
   useEffect(() => {
     setHighlighted(0);
@@ -83,7 +76,6 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
     const rect = wrapperRef.current?.getBoundingClientRect();
     if (rect) setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
     setQuery('');
-    setCreateError(null);
     setIsOpen(true);
   }
 
@@ -123,7 +115,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
 
   useDismissablePanel({ isOpen, onClose: close, refs: [wrapperRef, panelRef] });
 
-  async function choose(option: ComboOption) {
+  function choose(option: ComboOption) {
     if (option.kind === 'none') {
       onChange(null);
       setExplicitlyNone(true);
@@ -131,56 +123,15 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
       return;
     }
     if (option.kind === 'new') {
-      setCreateError(null);
-      setIsOpen(false);
-      setQuery('');
-      setIsAdding(true);
-      inputRef.current?.focus();
+      close();
+      onRequestCreate?.();
       return;
     }
-    if (option.kind === 'supplier') {
-      onChange(option.supplier.id);
-      close();
-      return;
-    }
-    if (!onCreate) return;
-    setIsCreating(true);
-    setCreateError(null);
-    try {
-      const created = await onCreate(option.name);
-      onChange(created.id);
-      setIsAdding(false);
-      close();
-      inputRef.current?.blur();
-    } catch (error) {
-      setCreateError(error instanceof Error ? error.message : 'Failed to add supplier');
-    } finally {
-      setIsCreating(false);
-    }
-  }
-
-  function cancelAdding() {
-    setIsAdding(false);
-    setQuery('');
-    setCreateError(null);
-  }
-
-  function submitNew() {
-    const name = query.trim();
-    if (name && !isCreating) void choose({ kind: 'create', name });
+    onChange(option.supplier.id);
+    close();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (isAdding) {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        submitNew();
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        cancelAdding();
-      }
-      return;
-    }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       if (!isOpen) open();
@@ -191,7 +142,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
     } else if (event.key === 'Enter') {
       // Never let Enter here submit the surrounding item form.
       event.preventDefault();
-      if (isOpen && !isCreating && options[highlighted]) void choose(options[highlighted]);
+      if (isOpen && options[highlighted]) choose(options[highlighted]);
     } else if (event.key === 'Tab') {
       close();
     }
@@ -202,18 +153,15 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
   // default) still shows the generic select placeholder below, not this.
   const noSupplierLabel = 'No preferred supplier';
   const selectedLabel = selected ? selected.name : explicitlyNone ? noSupplierLabel : '';
-  const inputValue = isOpen || isAdding ? query : selectedLabel;
-  // Admin's supplier directory is Super Admin-managed now (read-only here),
-  // so this field is select-only -- only offer "add" wording where it's
-  // actually possible, i.e. where `onCreate` was passed in.
-  const searchPlaceholder = onCreate ? 'Select or add a supplier' : 'Select supplier';
+  const inputValue = isOpen ? query : selectedLabel;
+  const searchPlaceholder = onRequestCreate ? 'Select or add a supplier' : 'Select supplier';
 
   return (
     <div className="supplier-combobox" ref={wrapperRef}>
       <input
         ref={inputRef}
         id={id}
-        className={`input supplier-combobox__input${isAdding ? ' supplier-combobox__input--adding' : ''}`}
+        className="input supplier-combobox__input"
         role="combobox"
         aria-label={ariaLabel}
         aria-expanded={isOpen}
@@ -221,41 +169,16 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
         aria-autocomplete="list"
         autoComplete="off"
         value={inputValue}
-        placeholder={isAdding ? 'Type the new supplier name' : selected ? selected.name : searchPlaceholder}
-        onFocus={() => !isAdding && open()}
-        onClick={() => !isAdding && open()}
+        placeholder={selected ? selected.name : searchPlaceholder}
+        onFocus={open}
+        onClick={open}
         onChange={(event) => {
-          if (!isOpen && !isAdding) open();
+          if (!isOpen) open();
           setQuery(event.target.value);
         }}
         onKeyDown={handleKeyDown}
-        disabled={isCreating}
       />
-      {isAdding ? (
-        <div className="supplier-combobox__adding-actions">
-          <button
-            type="button"
-            className="supplier-combobox__icon-btn supplier-combobox__icon-btn--confirm"
-            aria-label="Add supplier"
-            disabled={isCreating || !query.trim()}
-            onClick={submitNew}
-          >
-            <Check size={16} />
-          </button>
-          <button
-            type="button"
-            className="supplier-combobox__icon-btn"
-            aria-label="Cancel adding supplier"
-            disabled={isCreating}
-            onClick={cancelAdding}
-          >
-            <X size={16} />
-          </button>
-        </div>
-      ) : (
-        <ChevronDown size={16} className="supplier-combobox__chevron" aria-hidden="true" />
-      )}
-      {isAdding && createError && <div className="supplier-combobox__error">{createError}</div>}
+      <ChevronDown size={16} className="supplier-combobox__chevron" aria-hidden="true" />
 
       {isOpen &&
         createPortal(
@@ -267,9 +190,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
             style={{ top: position.top, left: position.left, width: position.width }}
           >
             {options.length === 0 && (
-              <div className="supplier-combobox__state">
-                {onCreate ? 'No suppliers yet. Type a name to add one.' : 'No suppliers match.'}
-              </div>
+              <div className="supplier-combobox__state">No suppliers match.</div>
             )}
             {options.map((option, index) => {
               const isHighlighted = index === highlighted;
@@ -284,30 +205,10 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
                     aria-selected={isHighlighted}
                     className={`${className} supplier-combobox__option--create`}
                     onMouseEnter={() => setHighlighted(index)}
-                    onClick={() => void choose(option)}
+                    onClick={() => choose(option)}
                   >
                     <Plus size={14} />
                     <span>Add new supplier</span>
-                  </button>
-                );
-              }
-
-              if (option.kind === 'create') {
-                return (
-                  <button
-                    key="create"
-                    type="button"
-                    role="option"
-                    aria-selected={isHighlighted}
-                    className={`${className} supplier-combobox__option--create`}
-                    onMouseEnter={() => setHighlighted(index)}
-                    onClick={() => void choose(option)}
-                    disabled={isCreating}
-                  >
-                    <Plus size={14} />
-                    <span>
-                      {isCreating ? 'Adding supplier...' : <>Add New Supplier "<strong>{option.name}</strong>"</>}
-                    </span>
                   </button>
                 );
               }
@@ -321,14 +222,13 @@ function SupplierCombobox({ id, suppliers, value, onChange, onCreate, ariaLabel,
                   aria-selected={isSelected}
                   className={`${className}${option.kind === 'none' ? ' supplier-combobox__option--muted' : ''}`}
                   onMouseEnter={() => setHighlighted(index)}
-                  onClick={() => void choose(option)}
+                  onClick={() => choose(option)}
                 >
                   <span className="supplier-combobox__check">{isSelected && <Check size={14} />}</span>
                   {option.kind === 'none' ? 'No preferred supplier' : option.supplier.name}
                 </button>
               );
             })}
-            {createError && <div className="supplier-combobox__state supplier-combobox__state--error">{createError}</div>}
           </div>,
           document.body,
         )}

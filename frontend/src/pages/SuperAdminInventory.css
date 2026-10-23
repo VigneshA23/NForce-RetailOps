@@ -135,6 +135,13 @@
   color: var(--color-text-secondary);
 }
 
+/* A category row has no second line under its name (unlike a supplier's
+   optional location), so the avatar/chevron align to the name's vertical
+   center instead of the supplier row's flex-start. */
+.inventory-categories-page__name-cell {
+  align-items: center;
+}
+
 .super-admin-inventory-page__supplier-chevron {
   flex-shrink: 0;
   color: var(--color-text-secondary);

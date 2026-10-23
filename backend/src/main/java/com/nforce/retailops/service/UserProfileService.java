@@ -6,7 +6,6 @@ import com.nforce.retailops.dto.UpdateMeRequest;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
-import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.StoreNotFoundException;

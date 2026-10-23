@@ -9,6 +9,7 @@ import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
+import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.exception.StoreInventoryItemNameExistsException;
 import com.nforce.retailops.exception.SupplierInactiveException;
@@ -52,6 +53,7 @@ class StoreInventoryItemServiceTest {
     @Mock private UnsplashService unsplashService;
     @Mock private StoreEmployeeRepository storeEmployeeRepository;
     @Mock private NotificationService notificationService;
+    @Mock private InventoryCategoryService inventoryCategoryService;
 
     private StoreInventoryItemService service;
 
@@ -64,7 +66,7 @@ class StoreInventoryItemServiceTest {
             storeInventoryItemRepository, supplierRepository, storeRepository,
             storeOwnerRepository, stockCheckRepository, orderListEntryRepository,
             inventoryItemImageRepository, unsplashService,
-            storeEmployeeRepository, notificationService
+            storeEmployeeRepository, notificationService, inventoryCategoryService
         );
 
         storeA = new Store();
@@ -385,5 +387,62 @@ class StoreInventoryItemServiceTest {
         service.updateForSuperAdmin(10L, request("Napkins", 7L));
 
         verify(storeInventoryItemRepository).save(existing);
+    }
+
+    // --- Owner/Admin category restricted to Super Admin's assignment list --
+
+    private StoreOwner ownerLinkTo(Store store) {
+        StoreOwner link = new StoreOwner();
+        link.setStore(store);
+        link.setActive(true);
+        return link;
+    }
+
+    @Test
+    void createForOwnerRejectsACategoryNotAssignedToTheStore() {
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(ownerLinkTo(storeA)));
+        when(inventoryCategoryService.isCategoryAssignedToStore("INGREDIENTS", storeA)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.createForOwner(1L, requestForStore(null, "Milk", null)))
+            .isInstanceOf(com.nforce.retailops.exception.InventoryCategoryNotAssignedException.class);
+        verify(storeInventoryItemRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void createForOwnerAllowsACategoryAssignedToTheStore() {
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(ownerLinkTo(storeA)));
+        when(inventoryCategoryService.isCategoryAssignedToStore("INGREDIENTS", storeA)).thenReturn(true);
+        when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createForOwner(1L, requestForStore(null, "Milk", null));
+
+        verify(storeInventoryItemRepository).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void updateForOwnerAllowsAnUnchangedCategoryEvenIfNoLongerAssigned() {
+        StoreInventoryItem existing = existing(10L, storeA, "Milk", "INGREDIENTS");
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(ownerLinkTo(storeA)));
+        when(storeInventoryItemRepository.findByIdAndStoreId(10L, 1L)).thenReturn(java.util.Optional.of(existing));
+        when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateForOwner(1L, 10L, requestForStore(null, "Milk", null));
+
+        verify(storeInventoryItemRepository).save(existing);
+        verify(inventoryCategoryService, never()).isCategoryAssignedToStore(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void updateForOwnerRejectsSwitchingToAnUnassignedCategory() {
+        StoreInventoryItem existing = existing(10L, storeA, "Milk", "Dairy");
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(ownerLinkTo(storeA)));
+        when(storeInventoryItemRepository.findByIdAndStoreId(10L, 1L)).thenReturn(java.util.Optional.of(existing));
+        when(inventoryCategoryService.isCategoryAssignedToStore("INGREDIENTS", storeA)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.updateForOwner(1L, 10L, requestForStore(null, "Milk", null)))
+            .isInstanceOf(com.nforce.retailops.exception.InventoryCategoryNotAssignedException.class);
+        verify(storeInventoryItemRepository, never()).save(existing);
     }
 }

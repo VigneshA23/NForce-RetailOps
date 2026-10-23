@@ -277,6 +277,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(InventoryCategoryNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryCategoryNotFound(InventoryCategoryNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InventoryCategoryNameExistsException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryCategoryNameExists(InventoryCategoryNameExistsException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
+    @ExceptionHandler(InventoryCategoryNotAssignedException.class)
+    public ResponseEntity<Map<String, String>> handleInventoryCategoryNotAssigned(InventoryCategoryNotAssignedException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(InventoryItemImageNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleInventoryItemImageNotFound(InventoryItemImageNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));

@@ -2,6 +2,7 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.AssignStoreOwnerRequest;
 import com.nforce.retailops.dto.CreateStoreRequest;
+import com.nforce.retailops.dto.InventoryCategoryResponse;
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StatusRequest;
 import com.nforce.retailops.dto.StoreResponse;
@@ -11,6 +12,7 @@ import com.nforce.retailops.dto.SupplierRequest;
 import com.nforce.retailops.dto.SupplierResponse;
 import com.nforce.retailops.dto.UpdateStoreStatusRequest;
 import com.nforce.retailops.security.AppUserDetails;
+import com.nforce.retailops.service.InventoryCategoryService;
 import com.nforce.retailops.service.StoreService;
 import com.nforce.retailops.service.SupplierService;
 import jakarta.validation.Valid;
@@ -29,10 +31,12 @@ public class StoreController {
 
     private final StoreService storeService;
     private final SupplierService supplierService;
+    private final InventoryCategoryService inventoryCategoryService;
 
-    public StoreController(StoreService storeService, SupplierService supplierService) {
+    public StoreController(StoreService storeService, SupplierService supplierService, InventoryCategoryService inventoryCategoryService) {
         this.storeService = storeService;
         this.supplierService = supplierService;
+        this.inventoryCategoryService = inventoryCategoryService;
     }
 
     @GetMapping
@@ -98,6 +102,14 @@ public class StoreController {
     public ResponseEntity<Void> hideSupplier(@PathVariable Long id, @AuthenticationPrincipal AppUserDetails principal) {
         supplierService.hideSupplierForStore(principal.getUser().getId(), id);
         return ResponseEntity.noContent().build();
+    }
+
+    // Owner/Admin's own add/edit item form: only the categories Super Admin
+    // has assigned to this store (appliesToAllStores, or this store
+    // explicitly), active only -- mirrors listSuppliers above.
+    @GetMapping("/inventory-categories")
+    public ResponseEntity<List<InventoryCategoryResponse>> listInventoryCategories(@AuthenticationPrincipal AppUserDetails principal) {
+        return ResponseEntity.ok(inventoryCategoryService.listCategoriesForStore(principal.getUser().getId()));
     }
 
     // Read-only, cross-owner directory for the Super Admin's Stores page.
