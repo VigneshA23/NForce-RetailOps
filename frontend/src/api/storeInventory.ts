@@ -92,12 +92,15 @@ export interface InventoryCountsParams {
   level?: string;
   page?: number;
   size?: number;
+  // Narrows the rows to just these items (KPI counts stay store-wide).
+  itemIds?: number[];
 }
 
 // Live per-item stock status for the Inventory Counts tab (page is
 // 1-indexed, matching Pagination.tsx).
 export async function getInventoryCounts(params: InventoryCountsParams = {}): Promise<InventoryCountsPage> {
   const query = new URLSearchParams();
+  if (params.itemIds?.length) query.set('itemIds', params.itemIds.join(','));
   if (params.search) query.set('search', params.search);
   if (params.category) query.set('category', params.category);
   if (params.level) query.set('level', params.level);

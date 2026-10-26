@@ -22,6 +22,7 @@ import { describeStockUpdate } from '../utils/stockUpdateStatus';
 import { describeReceipt } from '../utils/orderReceipt';
 import BulkChangeOrderStatusModal, { type BulkStatusChangeItem } from '../components/BulkChangeOrderStatusModal';
 import OrderAlreadyUpdatedModal from '../components/OrderAlreadyUpdatedModal';
+import Pagination from '../components/Pagination';
 import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
 import FilterClearButton from '../components/FilterClearButton';
@@ -38,6 +39,7 @@ const STATUS_FILTER_OPTIONS: { value: StatusFilter; label: string }[] = [
   { value: 'RECEIVED', label: 'Received Today' },
 ];
 
+const ORDER_PAGE_SIZE = 100;
 const GROUP_ROW_LIMIT = 5;
 const MOBILE_GROUP_ROW_LIMIT = 3;
 const UNASSIGNED_GROUP_LABEL = 'Unassigned Supplier';
@@ -57,6 +59,10 @@ function OrderList({ storeName, seed }: OrderListProps) {
   const [categoryByItemId, setCategoryByItemId] = useState<Map<number, InventoryItemCategory | null>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Bumped whenever the stock figures for the visible page must be re-read
+  // (first load, after a receipt) even though the page's items haven't changed.
+  const [stockNonce, setStockNonce] = useState(0);
+  const [page, setPage] = useState(1);
 
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -92,8 +98,8 @@ function OrderList({ storeName, seed }: OrderListProps) {
   function load() {
     setIsLoading(true);
     setLoadError(null);
-    Promise.all([getOrderList(), getOwnerSuppliers(), getStoreInventoryItems(), getInventoryCounts({ size: 500 })])
-      .then(([list, sups, items, counts]) => {
+    Promise.all([getOrderList(), getOwnerSuppliers(), getStoreInventoryItems()])
+      .then(([list, sups, items]) => {
         setEntries(list);
         setSuppliers(sups);
         setInventoryItems(
@@ -101,7 +107,8 @@ function OrderList({ storeName, seed }: OrderListProps) {
             .filter((item) => item.active)
             .map((item) => ({ id: item.id, name: item.name, unitOfMeasurement: item.unitOfMeasurement, preferredSupplierId: item.preferredSupplierId })),
         );
-        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum, lastUpdatedAt: row.lastUpdatedAt, lastUpdatedByName: row.lastUpdatedByName }])));
+        setStockByItemId(new Map());
+        setStockNonce((n) => n + 1);
         setCategoryByItemId(new Map(items.map((item) => [item.id, item.category])));
       })
       .catch((error: Error) => setLoadError(error.message))
@@ -180,10 +187,10 @@ function OrderList({ storeName, seed }: OrderListProps) {
   // Receiving a delivery changes stock (and may raise a new order for what is
   // still missing), so the list and the stock figures are re-read afterwards.
   function refreshAfterReceipt() {
-    Promise.all([getOrderList(), getInventoryCounts({ size: 500 })])
-      .then(([list, counts]) => {
+    getOrderList()
+      .then((list) => {
         setEntries(list);
-        setStockByItemId(new Map(counts.rows.map((row) => [row.itemId, { current: row.currentStock, minimum: row.minimum, lastUpdatedAt: row.lastUpdatedAt, lastUpdatedByName: row.lastUpdatedByName }])));
+        setStockNonce((n) => n + 1);
       })
       .catch(() => {});
   }
@@ -370,7 +377,47 @@ function OrderList({ storeName, seed }: OrderListProps) {
     };
   }
 
-  const decorated = useMemo(() => filteredEntries.map(decorate), [filteredEntries, stockByItemId, selectedIds]);
+  // Only one page of rows is shown (and has its stock fetched) at a time.
+  const pageCount = Math.max(1, Math.ceil(filteredEntries.length / ORDER_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageEntries = useMemo(
+    () => filteredEntries.slice((currentPage - 1) * ORDER_PAGE_SIZE, currentPage * ORDER_PAGE_SIZE),
+    [filteredEntries, currentPage],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, supplierFilter, statusFilter]);
+
+  // Only rows still waiting to be ordered follow the live count (see decorate),
+  // so those are the only items whose stock is fetched for this page.
+  const stockItemIds = useMemo(
+    () => [...new Set(pageEntries.filter((e) => e.status === 'NEEDS_ORDERING').map((e) => e.storeInventoryItemId))].sort((a, b) => a - b),
+    [pageEntries],
+  );
+  const stockItemKey = stockItemIds.join(',');
+  useEffect(() => {
+    if (stockItemIds.length === 0) return;
+    let cancelled = false;
+    getInventoryCounts({ itemIds: stockItemIds, size: ORDER_PAGE_SIZE })
+      .then((counts) => {
+        if (cancelled) return;
+        setStockByItemId((current) => {
+          const next = new Map(current);
+          counts.rows.forEach((row) => next.set(row.itemId, { current: row.currentStock, minimum: row.minimum, lastUpdatedAt: row.lastUpdatedAt, lastUpdatedByName: row.lastUpdatedByName }));
+          return next;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) nfToast.error('Could not load the latest stock figures for this page.');
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stockItemKey, stockNonce]);
+
+  const decorated = useMemo(() => pageEntries.map(decorate), [pageEntries, stockByItemId, selectedIds]);
 
   // What "Add to order" needs to show its "Already needs N" hint -- at most
   // one active (non-RECEIVED) entry per item, same invariant the backend
@@ -911,6 +958,10 @@ function OrderList({ storeName, seed }: OrderListProps) {
             </table>
           </div>
         </div>
+      )}
+
+      {!isLoading && decorated.length > 0 && (
+        <Pagination page={currentPage} pageCount={pageCount} totalItems={filteredEntries.length} pageSize={ORDER_PAGE_SIZE} onPageChange={setPage} itemLabel="orders" />
       )}
 
       <AddToOrderPanel

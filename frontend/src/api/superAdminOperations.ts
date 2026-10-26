@@ -188,6 +188,8 @@ export interface SuperAdminInventoryCountsParams {
   level?: string;
   page?: number;
   size?: number;
+  // Narrows the rows to just these items (KPI counts stay store-wide).
+  itemIds?: number[];
 }
 
 export async function getSuperAdminInventoryCounts(
@@ -195,6 +197,7 @@ export async function getSuperAdminInventoryCounts(
   params: SuperAdminInventoryCountsParams = {},
 ): Promise<InventoryCountsPage> {
   const query = new URLSearchParams();
+  if (params.itemIds?.length) query.set('itemIds', params.itemIds.join(','));
   if (params.search) query.set('search', params.search);
   if (params.category) query.set('category', params.category);
   if (params.level) query.set('level', params.level);

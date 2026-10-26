@@ -78,10 +78,11 @@ public class SuperAdminStockCheckController {
         @RequestParam(required = false) String category,
         @RequestParam(required = false) String level,
         @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size
+        @RequestParam(required = false) Integer size,
+        @RequestParam(required = false) List<Long> itemIds
     ) {
         return ResponseEntity.ok(
-            stockCheckService.listInventoryCountsForSuperAdmin(storeId, search, category, level, page, size)
+            stockCheckService.listInventoryCountsForSuperAdmin(storeId, search, category, level, page, size, itemIds)
         );
     }
 

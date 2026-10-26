@@ -104,7 +104,12 @@ beforeEach(() => {
 describe('OrderList mark received', () => {
   it('confirms the quantity received, sends it, and refreshes the list and stock', async () => {
     const user = userEvent.setup();
-    mockGetOrderList.mockResolvedValue([entry({ id: 7, itemName: 'Milk', status: 'ORDERED', quantityNeeded: 4, manualAddition: 1 })]);
+    // The waiting Bread row is what makes the page fetch live stock at all --
+    // an Ordered row keeps its own snapshot and needs no count.
+    mockGetOrderList.mockResolvedValue([
+      entry({ id: 7, itemName: 'Milk', status: 'ORDERED', quantityNeeded: 4, manualAddition: 1 }),
+      entry({ id: 8, storeInventoryItemId: 101, itemName: 'Bread', status: 'NEEDS_ORDERING' }),
+    ]);
     mockUpdateOrderListEntry.mockResolvedValue(
       entry({
         id: 7,
@@ -133,6 +138,32 @@ describe('OrderList mark received', () => {
     // Initial load + the refresh after receiving.
     await waitFor(() => expect(mockGetOrderList).toHaveBeenCalledTimes(2));
     expect(mockGetInventoryCounts).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('OrderList paging', () => {
+  it('shows 100 orders per page and fetches stock only for the items on the current page', async () => {
+    const user = userEvent.setup();
+    mockGetOrderList.mockResolvedValue(
+      Array.from({ length: 150 }, (_, i) => entry({ id: i + 1, storeInventoryItemId: 1000 + i, itemName: `Item ${i + 1}`, status: 'NEEDS_ORDERING' })),
+    );
+    render(<OrderList storeName="Downtown" />);
+
+    await screen.findByText('Showing 1-100 of 150 orders');
+    await waitFor(() => expect(mockGetInventoryCounts).toHaveBeenCalledTimes(1));
+    const firstIds = mockGetInventoryCounts.mock.calls[0][0]?.itemIds ?? [];
+    expect(firstIds).toHaveLength(100);
+    expect(firstIds).toContain(1000);
+    expect(firstIds).not.toContain(1100);
+
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+
+    await screen.findByText('Showing 101-150 of 150 orders');
+    await waitFor(() => expect(mockGetInventoryCounts).toHaveBeenCalledTimes(2));
+    const secondIds = mockGetInventoryCounts.mock.calls[1][0]?.itemIds ?? [];
+    expect(secondIds).toHaveLength(50);
+    expect(secondIds).toContain(1100);
+    expect(secondIds).not.toContain(1000);
   });
 });
 

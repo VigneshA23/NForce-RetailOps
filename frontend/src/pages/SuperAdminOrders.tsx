@@ -31,6 +31,7 @@ import { roundQty } from '../utils/quantity';
 import { describeStockUpdate } from '../utils/stockUpdateStatus';
 import { describeReceipt } from '../utils/orderReceipt';
 import BulkChangeOrderStatusModal, { type BulkStatusChangeItem } from '../components/BulkChangeOrderStatusModal';
+import Pagination from '../components/Pagination';
 import SearchableSelect from '../components/SearchableSelect';
 import Select from '../components/Select';
 import SearchInput from '../components/SearchInput';
@@ -63,6 +64,7 @@ const SUB_TABS: { key: SubTab; label: string; shortLabel: string }[] = [
   { key: 'purchasing-report', label: 'Purchasing Report', shortLabel: 'Purchases' },
 ];
 
+const ORDER_PAGE_SIZE = 100;
 const GROUP_ROW_LIMIT = 5;
 const MOBILE_GROUP_ROW_LIMIT = 3;
 const UNASSIGNED_GROUP_LABEL = 'Unassigned Supplier';
@@ -104,6 +106,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [entriesError, setEntriesError] = useState<string | null>(null);
   const [countsByItemId, setCountsByItemId] = useState<Map<number, InventoryCountRow>>(new Map());
+  const [stockNonce, setStockNonce] = useState(0);
+  const [page, setPage] = useState(1);
 
   // Set when a status change is rejected because the Owner/Admin already
   // updated the entry (HTTP 409) -- drives OrderAlreadyUpdatedModal.
@@ -165,18 +169,14 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusStore]);
 
+  // Re-reads the visible page's stock figures (see the effect further down)
+  // even though the page's items haven't changed.
   function loadCounts() {
-    if (selectedStoreId === null) {
-      setCountsByItemId(new Map());
-      return;
-    }
-    const storeId = selectedStoreId;
-    getSuperAdminInventoryCounts(storeId, { size: 500 })
-      .then((page) => setCountsByItemId(new Map(page.rows.map((row) => [row.itemId, row]))))
-      .catch(() => {});
+    setStockNonce((n) => n + 1);
   }
 
   function loadEntries() {
+    setCountsByItemId(new Map());
     loadCounts();
     if (selectedStoreId === null) {
       setEntries([]);
@@ -410,8 +410,54 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entries, search, categoryFilter, categoryByItemId, supplierFilter, statusFilter]);
 
+  // Only one page of rows is shown (and has its stock fetched) at a time.
+  const pageCount = Math.max(1, Math.ceil(filteredEntries.length / ORDER_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageEntries = useMemo(
+    () => filteredEntries.slice((currentPage - 1) * ORDER_PAGE_SIZE, currentPage * ORDER_PAGE_SIZE),
+    [filteredEntries, currentPage],
+  );
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, categoryFilter, supplierFilter, statusFilter, selectedStoreId]);
+
+  // Only rows still waiting to be ordered follow the live count (see decorate),
+  // so those are the only items whose stock is fetched for this page.
+  const stockItemIds = useMemo(
+    () => [...new Set(pageEntries.filter((e) => e.status === 'NEEDS_ORDERING').map((e) => e.storeInventoryItemId))].sort((a, b) => a - b),
+    [pageEntries],
+  );
+  const stockItemKey = stockItemIds.join(',');
+  useEffect(() => {
+    if (selectedStoreId === null || stockItemIds.length === 0) return;
+    let cancelled = false;
+    getSuperAdminInventoryCounts(selectedStoreId, { itemIds: stockItemIds, size: ORDER_PAGE_SIZE })
+      .then((result) => {
+        if (cancelled) return;
+        setCountsByItemId((current) => {
+          const next = new Map(current);
+          result.rows.forEach((row) => next.set(row.itemId, row));
+          return next;
+        });
+      })
+      .catch(() => {
+        if (!cancelled) nfToast.error('Could not load the latest stock figures for this page.');
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStoreId, stockItemKey, stockNonce]);
+
   function decorate(entry: OrderListEntry) {
-    const stock = stockByItemId.get(entry.storeInventoryItemId);
+    // Same rule as OrderList.tsx: a row still waiting follows the item's
+    // current count, but once ordered it keeps the snapshot it was ordered
+    // against (stock, minimum, who/when) rather than a later live figure.
+    const waiting = entry.status === 'NEEDS_ORDERING';
+    const stock = waiting ? stockByItemId.get(entry.storeInventoryItemId) : undefined;
+    const forTomorrow = !!entry.stockForTomorrow && !!entry.stockAtOrderAt
+      && new Date(entry.stockAtOrderAt).toDateString() === new Date().toDateString();
     const category = categoryByItemId.get(entry.storeInventoryItemId) ?? null;
     const meta = STATUS_META[entry.status];
     const categoryLabel = categoryLabelOf(category) || '—';
@@ -421,9 +467,11 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
       entry,
       category,
       categoryLabel,
-      onHand: stock?.current ?? null,
-      par: stock?.minimum ?? null,
-      stockUpdate: describeStockUpdate(stock?.lastUpdatedAt, stock?.lastUpdatedByName),
+      onHand: stock?.current ?? entry.stockAtOrder ?? null,
+      par: (forTomorrow ? entry.minimumAtOrder : stock?.minimum) ?? entry.minimumAtOrder ?? null,
+      stockUpdate: entry.stockAtOrderAt
+        ? describeStockUpdate(entry.stockAtOrderAt, entry.stockAtOrderByName)
+        : describeStockUpdate(stock?.lastUpdatedAt, stock?.lastUpdatedByName),
       needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
       meta: entry.note ? `${raisedBy} · ${raisedAt} · ${entry.note}` : `${raisedBy} · ${raisedAt}`,
       mobileMeta: `${raisedBy} · ${raisedAt}`,
@@ -434,7 +482,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     };
   }
 
-  const decorated = useMemo(() => filteredEntries.map(decorate), [filteredEntries, stockByItemId, selectedIds]);
+  const decorated = useMemo(() => pageEntries.map(decorate), [pageEntries, stockByItemId, selectedIds]);
 
   // What "Add to order" needs to show its "Already needs N" hint -- at most
   // one active (non-RECEIVED) entry per item, same invariant the backend
@@ -1021,6 +1069,10 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                 </table>
               </div>
             </div>
+          )}
+
+          {!entriesLoading && !entriesError && decorated.length > 0 && (
+            <Pagination page={currentPage} pageCount={pageCount} totalItems={filteredEntries.length} pageSize={ORDER_PAGE_SIZE} onPageChange={setPage} itemLabel="orders" />
           )}
 
           <AddToOrderPanel
