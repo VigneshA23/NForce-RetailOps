@@ -191,6 +191,31 @@ describe('EmployeeStockCheck End of Day gating', () => {
     const sodCard = screen.getByRole('region', { name: 'Start of Day Stock Check' });
     expect(within(sodCard).getByRole('button', { name: 'Save Check' })).toBeEnabled();
   });
+
+  it('refuses an End of Day total above Start of Day even when the extra is entered as dead stock', async () => {
+    const user = userEvent.setup();
+    vi.mocked(nfToast.error).mockClear();
+    vi.mocked(stockCheckApi.submitStockCheck).mockClear();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    const sod = { ...savedSod, available: 11, usable: 11 };
+    mockGetTodayStockCheck.mockResolvedValue([{ ...item, startOfDay: sod, currentStock: 11, openOrders: [] }]);
+
+    render(<EmployeeStockCheck store={store} />);
+    await user.click(await screen.findByText('Milk'));
+    const eodCard = screen.getByRole('region', { name: 'End of Day Stock Check' });
+    const total = within(eodCard).getByLabelText('Total Stock');
+    const dead = within(eodCard).getByLabelText('Dead / Spoilage');
+    await user.clear(total);
+    await user.type(total, '12');
+    await user.clear(dead);
+    await user.type(dead, '2');
+    await user.click(within(eodCard).getByRole('button', { name: 'Save Check' }));
+
+    await waitFor(() => expect(nfToast.error).toHaveBeenCalledWith(
+      'End of Day cannot be greater than Start of Day plus the stock received.',
+    ));
+    expect(stockCheckApi.submitStockCheck).not.toHaveBeenCalled();
+  });
 });
 
 describe('EmployeeStockCheck pending-approval lock', () => {
