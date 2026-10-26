@@ -21,8 +21,8 @@ function CheckboxButton({ checked, indeterminate = false, ariaLabel, onClick }: 
       onClick={onClick}
       className="checkbox-button"
       style={{
-        background: active ? '#e11d33' : '#ffffff',
-        borderColor: active ? '#e11d33' : '#a1a1aa',
+        background: active ? '#e11d33' : 'var(--ops-surface)',
+        borderColor: active ? '#e11d33' : 'var(--ops-text-faint)',
       }}
     >
       {checked && (

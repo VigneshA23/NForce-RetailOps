@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import OrderList from './OrderList';
 import InventoryCounts from '../components/InventoryCounts';
 import EodSupplierReport from '../components/EodSupplierReport';
 import SupplierPurchaseReport from '../components/SupplierPurchaseReport';
 import './OrderDashboard.css';
+import { usePersistedState, oneOf } from '../hooks/usePersistedState';
 
 type SubTab = 'orders' | 'counts' | 'eod-report' | 'supplier-report';
 
@@ -25,7 +26,7 @@ interface OrderDashboardProps {
 }
 
 function OrderDashboard({ storeName, seed }: OrderDashboardProps) {
-  const [subTab, setSubTab] = useState<SubTab>('orders');
+  const [subTab, setSubTab] = usePersistedState<SubTab>('owner-orders-subtab', 'orders', oneOf(['orders', 'counts', 'eod-report', 'supplier-report'] as const));
 
   // Arriving from the Home low-stock tile should land on Order List even if
   // another sub-tab was last active -- same nonce-guard pattern as the seed

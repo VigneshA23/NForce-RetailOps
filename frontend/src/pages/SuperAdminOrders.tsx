@@ -41,6 +41,7 @@ import { nfToast } from '../utils/toast';
 import '../pages/OrderList.css';
 import '../pages/OrderDashboard.css';
 import './SuperAdminOrders.css';
+import { usePersistedState, oneOf, nullableNumber, nullableString } from '../hooks/usePersistedState';
 
 type StatusFilter = 'OPEN' | OrderStatus;
 
@@ -99,9 +100,9 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     category: InventoryItemCategory | null; currentAvailable: number | null; requiredToday: number | null;
   }[]>([]);
 
-  const [subTab, setSubTab] = useState<SubTab>('orders');
-  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
-  const [selectedStoreName, setSelectedStoreName] = useState<string | null>(null);
+  const [subTab, setSubTab] = usePersistedState<SubTab>('sa-orders-subtab', 'orders', oneOf(['orders', 'counts', 'eod-report', 'purchasing-report'] as const));
+  const [selectedStoreId, setSelectedStoreId] = usePersistedState<number | null>('sa-orders-store', null, nullableNumber);
+  const [selectedStoreName, setSelectedStoreName] = usePersistedState<string | null>('sa-orders-store-name', null, nullableString);
   const [entries, setEntries] = useState<OrderListEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(false);
   const [entriesError, setEntriesError] = useState<string | null>(null);

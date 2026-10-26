@@ -22,3 +22,9 @@ if (!window.matchMedia) {
     dispatchEvent: () => false,
   }) as unknown as MediaQueryList
 }
+
+// Page-level sub-navigation persists to localStorage (usePersistedState);
+// don't let one test's sub-tab leak into the next.
+afterEach(() => {
+  localStorage.clear()
+})

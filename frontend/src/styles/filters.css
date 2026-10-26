@@ -15,9 +15,12 @@
   margin-bottom: var(--space-md);
 }
 
+/* min-width keeps a short label like "All Statuses" readable once the
+   percentage basis gets small (tablet with the sidebar open); the bar wraps
+   onto a second line instead of squeezing the control. */
 .filter {
   flex: 0 0 15%;
-  min-width: 0;
+  min-width: 140px;
 }
 
 /* SearchInput variant="filter" renders its own styled box; the wrapper div
@@ -51,15 +54,29 @@
    controls just stack full-width inside it instead of sitting in a row,
    everywhere a .filter-bar is used (not container-per-control). */
 @media (--mobile) {
+  /* One control per line, except the clear-filters button, which sits at
+     the end of the last filter's line instead of taking a row of its own. */
   .filter-bar {
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: stretch;
   }
 
-  .filter-bar .filter,
-  .filter-bar .filter--search,
-  .filter-bar .filter--narrow {
-    flex: 1 1 auto;
+  .filter-bar > * {
+    flex: 1 1 100%;
     width: 100%;
+    min-width: 0;
+  }
+
+  .filter-bar > :has(+ .filter-bar__clear) {
+    flex: 1 1 0;
+    width: auto;
+  }
+
+  .filter-bar > .filter-bar__clear {
+    flex: 0 0 40px;
+    width: 40px;
+    height: auto;
+    min-height: 36px;
   }
 }

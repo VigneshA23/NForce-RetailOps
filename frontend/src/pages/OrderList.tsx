@@ -364,7 +364,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
       stockUpdate: entry.stockAtOrderAt
         ? describeStockUpdate(entry.stockAtOrderAt, entry.stockAtOrderByName)
         : describeStockUpdate(stock?.lastUpdatedAt, stock?.lastUpdatedByName),
-      needFg: entry.status === 'NEEDS_ORDERING' ? '#b3162a' : '#18181b',
+      needFg: entry.status === 'NEEDS_ORDERING' ? 'var(--ops-danger-text)' : 'var(--ops-text)',
       meta: entry.note ? `${raisedBy} · ${raisedAt} · ${entry.note}` : `${raisedBy} · ${raisedAt}`,
       // Mobile's card shows category as its own pill below the stats box now,
       // so its sub-line is just who/when, with no room left for a note --
@@ -572,7 +572,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
       <tr
         key={entry.id}
         className={`order-list__row${entry.urgent ? ' order-list__row--urgent' : ''}`}
-        style={row.checked ? { background: '#fff5f6', borderColor: '#f6b9c2' } : undefined}
+        style={row.checked ? { background: 'var(--ops-danger-tint)', borderColor: 'var(--ops-selected-border)' } : undefined}
       >
         <td className="order-list__mobile-card-td">
           <div className="order-list__mobile-card-header">
@@ -634,7 +634,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
     const isFlat = variant === 'flat';
     if (isMobile) return renderMobileCard(row);
     return (
-      <tr key={entry.id} className={`order-list__row${entry.urgent ? ' order-list__row--urgent' : ''}`} style={{ background: row.checked ? '#fff5f6' : undefined }}>
+      <tr key={entry.id} className={`order-list__row${entry.urgent ? ' order-list__row--urgent' : ''}`} style={{ background: row.checked ? 'var(--ops-danger-tint)' : undefined }}>
         <td className="order-list__checkbox-cell">
           <CheckboxButton checked={row.checked} ariaLabel={`Select ${entry.itemName}`} onClick={() => toggleSelected(entry.id)} />
         </td>

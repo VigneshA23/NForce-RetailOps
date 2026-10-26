@@ -140,3 +140,90 @@
 
   --color-surface-hovered: rgba(255, 255, 255, 0.06);
 }
+
+/* Operations screens (Order List, End of Day Report, Inventory Counts).
+   These screens were built with fixed light-mode colours; the light values
+   below are exactly those colours, so light mode is unchanged, and the dark
+   values make the same screens readable in dark mode. */
+:root {
+  --ops-surface: #ffffff;
+  --ops-surface-subtle: #fafafa;
+  --ops-surface-muted: #f4f4f5;
+  --ops-surface-pressed: #ececef;
+  --ops-border: #e4e4e7;
+  --ops-border-strong: #d4d4d8;
+  --ops-divider: #f4f4f5;
+  --ops-text: #18181b;
+  --ops-text-strong: #3f3f46;
+  --ops-text-secondary: #52525b;
+  --ops-text-muted: #71717a;
+  --ops-text-faint: #a1a1aa;
+  --ops-inverse-bg: #18181b;
+  --ops-inverse-bg-hover: #2e2e33;
+  --ops-inverse-text: #ffffff;
+  --ops-danger-text: #b3162a;
+  --ops-danger-tint: #fff5f6;
+  --ops-danger-tint-strong: #fdecea;
+  --ops-danger-tint-stronger: #fbd9d5;
+  --ops-selected-border: #f6b9c2;
+  --ops-success-text: #16794a;
+  --ops-success-tint: #e8f7ee;
+  --ops-purple-text: #6d28d9;
+  --ops-stale-text: #a3620a;
+  --ops-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --ops-status-out-fg: #b3162a;
+  --ops-status-out-bg: #fde8ea;
+  --ops-status-low-fg: #a3620a;
+  --ops-status-low-bg: #fdf1de;
+  --ops-status-stale-fg: #52525b;
+  --ops-status-stale-bg: #f1f1f4;
+  --ops-status-healthy-fg: #15803d;
+  --ops-status-healthy-bg: #e3f6ea;
+  --ops-status-none-fg: #71717a;
+  --ops-status-none-bg: #f4f4f5;
+  /* Mobile segmented sub-page tabs (Orders, Inventory). */
+  --ops-segment-track: #ececef;
+  --ops-segment-active: #ffffff;
+  --ops-segment-active-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+
+:root[data-theme='dark'] {
+  --ops-surface: #1c1c21;
+  --ops-surface-subtle: #212127;
+  --ops-surface-muted: #26262c;
+  --ops-surface-pressed: #2f2f36;
+  --ops-border: #2c2c33;
+  --ops-border-strong: #3a3a42;
+  --ops-divider: #26262c;
+  --ops-text: #f2f2f4;
+  --ops-text-strong: #d4d4d8;
+  --ops-text-secondary: #b3b3ba;
+  --ops-text-muted: #9a9aa3;
+  --ops-text-faint: #7c7c85;
+  --ops-inverse-bg: #2f2f36;
+  --ops-inverse-bg-hover: #3a3a42;
+  --ops-inverse-text: #f2f2f4;
+  --ops-danger-text: #ff6b7f;
+  --ops-danger-tint: #2a1a1e;
+  --ops-danger-tint-strong: #3a1f24;
+  --ops-danger-tint-stronger: #4a2329;
+  --ops-selected-border: #7a2a35;
+  --ops-success-text: #3ddc8b;
+  --ops-success-tint: #1a3327;
+  --ops-purple-text: #b794f6;
+  --ops-stale-text: #f0ab3d;
+  --ops-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --ops-status-out-fg: #ff6b7f;
+  --ops-status-out-bg: #3a1f24;
+  --ops-status-low-fg: #f0ab3d;
+  --ops-status-low-bg: #3a2e14;
+  --ops-status-stale-fg: #c4c4cc;
+  --ops-status-stale-bg: #2a2a31;
+  --ops-status-healthy-fg: #3ddc8b;
+  --ops-status-healthy-bg: #1a3327;
+  --ops-status-none-fg: #9a9aa3;
+  --ops-status-none-bg: #26262c;
+  --ops-segment-track: #1c1c21;
+  --ops-segment-active: #34343c;
+  --ops-segment-active-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
