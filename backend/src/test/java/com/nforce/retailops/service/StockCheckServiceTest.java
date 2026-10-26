@@ -1394,7 +1394,7 @@ class StockCheckServiceTest {
     }
 
     @Test
-    void inventoryCountsNarrowsRowsToTheRequestedItemIdsWithoutChangingKpiCounts() {
+    void inventoryCountsForNamedItemsBuildsOnlyThoseRowsAndSkipsTheChangeLookups() {
         StoreInventoryItem apples = new StoreInventoryItem();
         ReflectionTestUtils.setField(apples, "id", 26L);
         apples.setStore(store);
@@ -1409,7 +1409,9 @@ class StockCheckServiceTest {
 
         assertThat(page.rows()).extracting(InventoryCountRowResponse::itemId).containsExactly(26L);
         assertThat(page.totalElements()).isEqualTo(1);
-        assertThat(page.allCount()).isEqualTo(2);
+        // Totals cover only the named items; nothing is looked up per item.
+        assertThat(page.allCount()).isEqualTo(1);
+        verify(stockCheckRepository, never()).findRecentForItem(any(), any(Pageable.class));
     }
 
     @Test

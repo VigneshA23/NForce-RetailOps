@@ -1197,7 +1197,15 @@ public class StockCheckService {
     ) {
         LocalDate today = LocalDate.now();
 
-        List<StoreInventoryItem> items = storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(storeId);
+        // A caller that names its items (the Orders page) only needs their
+        // current figures, so rows are built for just those items and the
+        // per-item "change vs. previous count" lookups -- three queries per
+        // item -- are skipped. The KPI counts below then cover only them.
+        Set<Long> wantedIds = itemIds == null || itemIds.isEmpty() ? null : new HashSet<>(itemIds);
+        boolean withChange = wantedIds == null;
+        List<StoreInventoryItem> items = storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(storeId).stream()
+            .filter(item -> wantedIds == null || wantedIds.contains(item.getId()))
+            .toList();
         Map<Long, StockCheck> latestByItemId = stockCheckRepository.findLatestPerItemForStore(storeId).stream()
             .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), Function.identity()));
 
@@ -1212,7 +1220,7 @@ public class StockCheckService {
             .map(item -> toCountRow(
                 item, latestByItemId.get(item.getId()), latestReceiptByItemId.get(item.getId()),
                 latestReportByItemId.get(item.getId()),
-                unappliedByItemId.getOrDefault(item.getId(), List.of()), today))
+                unappliedByItemId.getOrDefault(item.getId(), List.of()), today, withChange))
             .toList();
 
         long allCount = allRows.size();
@@ -1221,9 +1229,7 @@ public class StockCheckService {
         long staleCount = allRows.stream().filter(r -> r.status() == InventoryCountStatus.STALE).count();
 
         String needle = search == null ? "" : search.trim().toLowerCase();
-        Set<Long> wantedIds = itemIds == null || itemIds.isEmpty() ? null : new HashSet<>(itemIds);
         List<InventoryCountRowResponse> filtered = allRows.stream()
-            .filter(r -> wantedIds == null || wantedIds.contains(r.itemId()))
             .filter(r -> needle.isEmpty() || r.name().toLowerCase().contains(needle))
             .filter(r -> category == null || category.isBlank() || category.equalsIgnoreCase(r.category()))
             .filter(r -> matchesLevel(r.status(), level))
@@ -1255,7 +1261,7 @@ public class StockCheckService {
 
     private InventoryCountRowResponse toCountRow(
         StoreInventoryItem item, StockCheck latest, StockCheckReceipt latestReceipt, StockShortageReport latestReport,
-        List<StockCheckReceipt> unappliedReceipts, LocalDate today
+        List<StockCheckReceipt> unappliedReceipts, LocalDate today, boolean withChange
     ) {
         BigDecimal minimum = item.requiredMinimumOn(today);
 
@@ -1283,27 +1289,29 @@ public class StockCheckService {
         // case: stock arrives between formal counts) never creates a second
         // StockCheck row, so comparing rows alone left "change" stuck at "--"
         // after every such delivery even though currentStock had moved.
-        List<StockCheck> recent = stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2));
-        List<StockCheckReceipt> recentReceipts = stockCheckReceiptRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2));
-        List<CountEvent> events = new ArrayList<>();
-        for (StockCheck check : recent) {
-            events.addAll(countEvents(check));
-        }
-        for (StockCheckReceipt receipt : recentReceipts) {
-            events.add(receiptEvent(receipt));
-        }
-        // Mid-day shortage reports also move the count and appear in the
-        // history timeline, so the row's change must account for them too.
-        for (StockShortageReport report : stockShortageReportRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2))) {
-            events.add(shortageEvent(report));
-        }
-        events.sort(EVENT_ORDER.reversed());
-
         BigDecimal change = null;
         LocalDate changeFromDate = null;
-        if (events.size() > 1) {
-            change = events.get(0).count().subtract(events.get(1).count());
-            changeFromDate = events.get(1).date();
+        if (withChange) {
+            List<StockCheck> recent = stockCheckRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2));
+            List<StockCheckReceipt> recentReceipts = stockCheckReceiptRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2));
+            List<CountEvent> events = new ArrayList<>();
+            for (StockCheck check : recent) {
+                events.addAll(countEvents(check));
+            }
+            for (StockCheckReceipt receipt : recentReceipts) {
+                events.add(receiptEvent(receipt));
+            }
+            // Mid-day shortage reports also move the count and appear in the
+            // history timeline, so the row's change must account for them too.
+            for (StockShortageReport report : stockShortageReportRepository.findRecentForItem(item.getId(), PageRequest.of(0, 2))) {
+                events.add(shortageEvent(report));
+            }
+            events.sort(EVENT_ORDER.reversed());
+
+            if (events.size() > 1) {
+                change = events.get(0).count().subtract(events.get(1).count());
+                changeFromDate = events.get(1).date();
+            }
         }
 
         // Last update: the most recent count, unless a delivery came after it.
