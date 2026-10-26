@@ -39,6 +39,9 @@
   overflow-y: auto;
   max-height: 220px;
   padding: 4px;
+  /* The inline width matches the trigger; never let that clip an option
+     when the trigger is narrower than its longest label. */
+  min-width: max-content;
 }
 
 .custom-select__option {
