@@ -168,14 +168,23 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
       // currentStock already accounts for a mid-day shortage report rebasing
       // the usable figure; startOfDay.usable + quantityReceived alone would
       // miss that and let the shortage cancel itself out undetected.
-      const startUsable = item.currentStock ?? item.startOfDay.usable + (item.quantityReceived ?? 0);
-      if (endUsable > startUsable + (item.pendingReceivedQuantity ?? 0)) {
+      const usableStart = item.currentStock ?? item.startOfDay.usable + (item.quantityReceived ?? 0);
+      // Totals too, dead stock included: comparing usable alone lets a closing
+      // total above the opening one through when the extra is entered as dead
+      // stock (11 → 12 total with 2 dead still reads as usable 11 → 10).
+      const totalStart = item.startOfDay.available + (item.quantityReceived ?? 0);
+      const usableExcess = endUsable - usableStart;
+      const totalExcess = available - totalStart;
+      const [startUsable, endFigure] = totalExcess > usableExcess
+        ? [totalStart, available]
+        : [usableStart, endUsable];
+      if (endFigure > startUsable + (item.pendingReceivedQuantity ?? 0)) {
         if ((item.openOrders ?? []).length === 0) {
           nfToast.error('End of Day cannot be greater than Start of Day plus the stock received.');
           return false;
         }
         return new Promise<boolean>((resolve) => {
-          setReceivedPrompt({ item, available, deadStock, startUsable, endUsable, snapshot: 'END_OF_DAY', resolve });
+          setReceivedPrompt({ item, available, deadStock, startUsable, endUsable: endFigure, snapshot: 'END_OF_DAY', resolve });
         });
       }
     }
