@@ -378,6 +378,43 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void endOfDayTotalAboveStartOfDayIsRefusedEvenWhenTheExtraIsEnteredAsDeadStock() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(11), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        // Usable 12 - 2 = 10 sits below the opening 11, but the total rose
+        // from 11 to 12 with nothing received.
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID,
+            new StockCheckSubmitRequest(STORE_ID, ITEM_ID, StockCheckSnapshot.END_OF_DAY, bd(12), bd(2), null)))
+            .isInstanceOf(InvalidStockCheckException.class)
+            .hasMessageContaining("End of Day cannot be greater than Start of Day");
+        assertThat(check.getEndOfDayAvailable()).isNull();
+        verify(stockReceiptRequestRepository, never()).save(any(StockReceiptRequest.class));
+    }
+
+    @Test
+    void endOfDayTotalEqualToStartOfDayWithSomeSpoiledIsAccepted() {
+        checkWithStartOfDay(11, 0);
+
+        StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 11, 2));
+
+        // Same 11 on hand, 2 of them spoiled: 11 - 9 = 2 counted as used.
+        assertThat(response.stockUsed()).isEqualByComparingTo(bd(2));
+    }
+
+    @Test
+    void endOfDayTotalAboveStartOfDayIsAcceptedWhenTheDeliveryExplainsIt() {
+        StockCheck check = checkWithStartOfDay(11, 0);
+        check.addReceived(bd(1));
+
+        StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 12, 2));
+
+        assertThat(response.stockUsed()).isEqualByComparingTo(bd(2));
+    }
+
+    @Test
     void endOfDayAboveStartOfDayWithReceivedStockOnlyCreatesAPendingRequestAndNotifiesTheOwner() {
         StockCheck check = existingCheck(LocalDate.now());
         check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);

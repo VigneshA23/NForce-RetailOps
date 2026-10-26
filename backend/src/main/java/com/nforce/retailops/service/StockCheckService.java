@@ -543,7 +543,11 @@ public class StockCheckService {
                 }
                 BigDecimal alreadyPending = stockReceiptRequestRepository.pendingQuantityFor(item.getId(), today);
                 BigDecimal explained = (alreadyPending == null ? BigDecimal.ZERO : alreadyPending).add(received);
-                if (projectedUsed.add(explained).signum() < 0) {
+                // Unexplained stock is the larger of the usable gap and the
+                // total gap -- the total catches a closing count inflated by
+                // entering the extra units as dead stock.
+                BigDecimal excess = projectedUsed.negate().max(check.projectedTotalExcess(request.available()));
+                if (excess.subtract(explained).signum() > 0) {
                     boolean hasOrdered = !orderListService.orderedEntriesByItem(request.storeId())
                         .getOrDefault(item.getId(), List.of()).isEmpty();
                     throw new InvalidStockCheckException(hasOrdered
@@ -770,8 +774,10 @@ public class StockCheckService {
             throw new InvalidStockCheckException("Enter the available and dead stock, or say it could not be counted");
         }
         requireDeadStockWithinAvailable(request.available(), request.deadStock());
+        BigDecimal totalExcess = check.projectedTotalExcess(request.available());
         check = applySnapshot(check, StockCheckSnapshot.END_OF_DAY, request.available(), request.deadStock(), actor, null, null, false);
-        if (check.stockUsed() != null && check.stockUsed().signum() < 0) {
+        if ((check.stockUsed() != null && check.stockUsed().signum() < 0)
+            || (totalExcess != null && totalExcess.signum() > 0)) {
             throw new InvalidStockCheckException(
                 "End of Day is higher than Start of Day plus stock received that day. "
                     + "Ask your admin to correct it from Stock Check History");

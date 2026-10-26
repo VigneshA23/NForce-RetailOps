@@ -227,6 +227,20 @@ public class StockCheck {
         return midDayUsage().add(expected).subtract(endUsable);
     }
 
+    // How far a closing total (dead stock included) would sit above the Start
+    // of Day total plus everything received today; zero or negative when the
+    // stock on hand is explained. Checked alongside projectedStockUsed because
+    // that one compares usable stock only, so moving units into dead stock
+    // could hide a total that grew without a delivery. Mid-day reports never
+    // add stock, so Start of Day stays the cap. Null before Start of Day.
+    public BigDecimal projectedTotalExcess(BigDecimal endAvailable) {
+        BigDecimal start = availableFor(StockCheckSnapshot.START_OF_DAY);
+        if (start == null) {
+            return null;
+        }
+        return endAvailable.subtract(start.add(quantityReceived()));
+    }
+
     // A mid-day shortage report: banks the usage since the last baseline and
     // makes the reported usable stock the new baseline. Needs Start of Day.
     public void recordMidDayCount(BigDecimal currentUsable, User by) {
