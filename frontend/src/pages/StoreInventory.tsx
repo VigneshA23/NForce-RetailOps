@@ -29,6 +29,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
 import './StoreInventory.css';
+import { usePersistedState, oneOf } from '../hooks/usePersistedState';
 
 type SubTab = 'items' | 'suppliers' | 'history';
 
@@ -54,7 +55,7 @@ interface StoreInventoryProps {
 
 function StoreInventory({ historySeed }: StoreInventoryProps) {
   const isMobile = useIsMobile();
-  const [subTab, setSubTab] = useState<SubTab>('items');
+  const [subTab, setSubTab] = usePersistedState<SubTab>('owner-inventory-subtab', 'items', oneOf(['items', 'suppliers', 'history'] as const));
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<string[]>([]);

@@ -40,6 +40,7 @@ import { getSessionConfig, getSessionStatus, logout } from './api/auth'
 import { useAssignedStores } from './hooks/useAssignedStores'
 import { useMe } from './hooks/useMe'
 import { loadCustomUnits } from './utils/inventoryUnits'
+import { clearPersistedPageState } from './hooks/usePersistedState'
 
 type View = 'login' | 'set-new-password'
 
@@ -88,6 +89,7 @@ function App() {
     clearSuperAdminOverlay()
     clearOwnerOverlay()
     clearEmployeeOverlay()
+    clearPersistedPageState()
     setUser(null)
     setNeedsPasswordReset(false)
     setActiveStore(null)
@@ -353,6 +355,7 @@ function App() {
         clearActiveStoreId()
         clearEmployeeTab()
         clearEmployeeOverlay()
+        clearPersistedPageState()
         setActiveStore(null)
       }}
       loggingOut={loggingOut}

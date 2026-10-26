@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -76,5 +77,16 @@ describe('OrderDashboard shell', () => {
 
     expect(await screen.findByPlaceholderText('Search items')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Order List' })).toHaveClass('order-dashboard-page__subtab--active');
+  });
+
+  it('restores the active sub-tab after a remount (page refresh)', async () => {
+    const user = userEvent.setup();
+    const first = render(<StrictMode><OrderDashboard storeName="Downtown" /></StrictMode>);
+    await user.click(screen.getByRole('button', { name: 'Inventory Counts' }));
+    await screen.findByPlaceholderText('Search inventory');
+    first.unmount();
+
+    render(<StrictMode><OrderDashboard storeName="Downtown" /></StrictMode>);
+    expect(screen.getByRole('button', { name: 'Inventory Counts' })).toHaveClass('order-dashboard-page__subtab--active');
   });
 });

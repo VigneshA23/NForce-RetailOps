@@ -26,6 +26,7 @@ import { matchesSearch } from '../utils/search';
 import { getAllStores } from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import './SuperAdminChecklist.css';
+import { usePersistedState, nullableNumber } from '../hooks/usePersistedState';
 
 // No 'OPEN' filter option -- open (no-response) tasks are already surfaced
 // in the Outstanding/Incomplete Tasks section above, so the table below only
@@ -55,7 +56,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [stores, setStores] = useState<SuperAdminStore[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
 
-  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(nav?.storeId ?? null);
+  const [selectedStoreId, setSelectedStoreId] = usePersistedState<number | null>('sa-checklist-store', nav?.storeId ?? null, nullableNumber);
   const appliedNavTs = useRef<number | undefined>(nav?.ts);
 
   const [date, setDate] = useState(todayDate);

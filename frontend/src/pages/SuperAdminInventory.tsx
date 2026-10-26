@@ -38,6 +38,7 @@ import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/i
 import { supplierStoreSummaryLabel } from '../utils/supplierStoreSummary';
 import './StoreInventory.css';
 import './SuperAdminInventory.css';
+import { usePersistedState, oneOf, nullableNumber } from '../hooks/usePersistedState';
 
 // Mobile breakdown card dots -- purely decorative, cycles by position.
 const SUPPLIER_BREAKDOWN_DOT_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed'];
@@ -72,7 +73,7 @@ type SupplierStatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 function SuperAdminInventory() {
   const isMobile = useIsMobile();
-  const [subTab, setSubTab] = useState<SubTab>('inventory');
+  const [subTab, setSubTab] = usePersistedState<SubTab>('sa-inventory-subtab', 'inventory', oneOf(['inventory', 'suppliers', 'categories', 'comparison', 'stock-check-history'] as const));
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<InventoryCategoryRecord[]>([]);
@@ -132,7 +133,7 @@ function SuperAdminInventory() {
   // Like the Checklist tab, nothing on the Inventory sub-tab shows until a
   // store is picked -- every stat, filter and row is scoped to that store.
   // This selector is the one thing that differs from the Owner/Admin page.
-  const [selectedStoreId, setSelectedStoreId] = useState<number | null>(null);
+  const [selectedStoreId, setSelectedStoreId] = usePersistedState<number | null>('sa-inventory-store', null, nullableNumber);
 
   // Switching store resets the view and closes anything open for the old one.
   useEffect(() => {
