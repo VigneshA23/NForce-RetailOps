@@ -322,6 +322,21 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   // (a new `ts`) can retry, but a single click never loops if the task is
   // genuinely gone (wrong store, deleted, etc).
   const focusRefetchedTs = useRef<number | null>(null)
+  // `ts` of the focus click whose refetch has landed -- the highlight waits for
+  // it so a task that was corrected/flagged is scrolled to *after* its fresh
+  // response and admin message render, not flashed over the stale copy.
+  const [focusReadyTs, setFocusReadyTs] = useState<number | null>(null)
+
+  // Always refetch once per notification click: the tab stays mounted, so a
+  // correction made since the last load is otherwise invisible until a manual
+  // refresh. Silent so the checklist doesn't flash a full-page "Loading…".
+  useEffect(() => {
+    if (!focusTaskId || focusRefetchedTs.current === focusTaskId.ts) return
+    focusRefetchedTs.current = focusTaskId.ts
+    const ts = focusTaskId.ts
+    loadChecklist({ silent: true, onSettled: () => setFocusReadyTs(ts) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTaskId])
 
   // Clear any filter/collapse that would hide the targeted task, expand its
   // category, then scroll it into view and flash a highlight once rendered.
@@ -329,15 +344,9 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   // task's own normal unit (originalDueDate == null) when present, else the
   // first moved unit found for that taskId.
   useEffect(() => {
-    if (!focusTaskId) return
+    if (!focusTaskId || focusReadyTs !== focusTaskId.ts) return
     const owningCategory = categories.find((cat) => cat.tasks.some((t) => t.id === focusTaskId.taskId))
-    if (!owningCategory) {
-      if (focusRefetchedTs.current !== focusTaskId.ts) {
-        focusRefetchedTs.current = focusTaskId.ts
-        loadChecklist()
-      }
-      return
-    }
+    if (!owningCategory) return
     const targetTask =
       owningCategory.tasks.find((t) => t.id === focusTaskId.taskId && t.originalDueDate == null) ??
       owningCategory.tasks.find((t) => t.id === focusTaskId.taskId)
@@ -353,14 +362,14 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
     }, 0)
     const clearTimer = window.setTimeout(() => setHighlightedUnitKey(null), 2500)
     return () => { window.clearTimeout(timer); window.clearTimeout(clearTimer) }
-  }, [focusTaskId, categories])
+  }, [focusTaskId, focusReadyTs, categories])
 
   // `silent`: refetch in the background without flashing the full-page
   // "Loading…"/error states -- used when a task on an already-rendered page
   // needs to quietly drop out (e.g. after the employee has seen a "this task
   // is no longer available" message) rather than visibly reloading the whole
   // checklist out from under them.
-  function loadChecklist({ silent = false }: { silent?: boolean } = {}) {
+  function loadChecklist({ silent = false, onSettled }: { silent?: boolean; onSettled?: () => void } = {}) {
     let active = true
     if (!silent) {
       setLoading(true)
@@ -382,9 +391,11 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
           }
           if (Object.keys(seeded).length > 0) setDrafts(seeded)
           setLoading(false)
+          onSettled?.()
         }
       })
       .catch((err) => {
+        if (active) onSettled?.()
         if (!active || silent) return
         const message =
           err instanceof ApiError && err.status === 404

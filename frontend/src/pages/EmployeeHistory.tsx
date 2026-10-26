@@ -47,6 +47,10 @@ function EmployeeHistory({ store, dateSeed, focusTaskId }: EmployeeHistoryProps)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // The focus request is only handed to the view once the refetch it triggered
+  // has landed, so the highlight lands on the corrected row, not the stale one.
+  const [readyFocus, setReadyFocus] = useState<{ taskId: number; ts: number } | undefined>(undefined)
+
   const appliedSeedId = useRef<number | null>(null)
   useEffect(() => {
     if (dateSeed && dateSeed.id !== appliedSeedId.current) {
@@ -65,11 +69,13 @@ function EmployeeHistory({ store, dateSeed, focusTaskId }: EmployeeHistoryProps)
       .then((result) => {
         if (!active) return
         setHistory(result)
+        setReadyFocus(focusTaskId)
       })
       .catch((err: Error) => {
         if (!active) return
         setHistory(null)
         setError(err.message)
+        setReadyFocus(focusTaskId)
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -83,7 +89,10 @@ function EmployeeHistory({ store, dateSeed, focusTaskId }: EmployeeHistoryProps)
     const cancel = loadHistory()
     return cancel
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store.id, selectedDate])
+  // A fresh notification click (new focusTaskId.ts) refetches even when the
+  // date is unchanged -- the tab stays mounted, so it would otherwise show
+  // pre-correction data.
+  }, [store.id, selectedDate, focusTaskId?.ts])
 
   return (
     <ChecklistDayHistoryView
@@ -95,7 +104,7 @@ function EmployeeHistory({ store, dateSeed, focusTaskId }: EmployeeHistoryProps)
       onSelectDate={setSelectedDate}
       maxDate={todayDate()}
       getCorrectionHistory={getCorrectionHistory}
-      focusTaskId={focusTaskId}
+      focusTaskId={readyFocus}
     />
   )
 }
