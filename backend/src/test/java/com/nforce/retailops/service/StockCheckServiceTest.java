@@ -1394,6 +1394,25 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void inventoryCountsNarrowsRowsToTheRequestedItemIdsWithoutChangingKpiCounts() {
+        StoreInventoryItem apples = new StoreInventoryItem();
+        ReflectionTestUtils.setField(apples, "id", 26L);
+        apples.setStore(store);
+        apples.setName("Apples");
+
+        when(storeInventoryItemRepository.findByStoreIdAndActiveTrueOrderById(STORE_ID)).thenReturn(List.of(milk, apples));
+        when(stockCheckRepository.findLatestPerItemForStore(STORE_ID)).thenReturn(List.of());
+        when(stockCheckRepository.findRecentForItem(any(), any(Pageable.class))).thenReturn(List.of());
+
+        InventoryCountsPageResponse page = stockCheckService.listInventoryCounts(
+            OWNER_ID, null, null, null, null, null, List.of(26L));
+
+        assertThat(page.rows()).extracting(InventoryCountRowResponse::itemId).containsExactly(26L);
+        assertThat(page.totalElements()).isEqualTo(1);
+        assertThat(page.allCount()).isEqualTo(2);
+    }
+
+    @Test
     void countHistoryReturnsNewestFirstWithDeltaAgainstTheNextOlderEntry() {
         StockCheck newest = checkWithCount(milk, LocalDate.now(), 30, 0, OffsetDateTime.now());
         StockCheck middle = checkWithCount(milk, LocalDate.now().minusDays(1), 24, 0, OffsetDateTime.now().minusDays(1));

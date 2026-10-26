@@ -111,10 +111,11 @@ public class StoreInventoryController {
         @RequestParam(required = false) String category,
         @RequestParam(required = false) String level,
         @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size
+        @RequestParam(required = false) Integer size,
+        @RequestParam(required = false) List<Long> itemIds
     ) {
         return ResponseEntity.ok(
-            stockCheckService.listInventoryCounts(principal.getUser().getId(), search, category, level, page, size)
+            stockCheckService.listInventoryCounts(principal.getUser().getId(), search, category, level, page, size, itemIds)
         );
     }
 

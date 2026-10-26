@@ -64,9 +64,11 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -1158,25 +1160,40 @@ public class StockCheckService {
     // and the change vs. the previous count on record. KPI counts are over
     // every active item regardless of the search/category/level filters
     // applied to rows (see InventoryCountsPageResponse).
-    @Transactional(readOnly = true)
     public InventoryCountsPageResponse listInventoryCounts(
         Long ownerId, String search, String category, String level, Integer page, Integer size
     ) {
+        return listInventoryCounts(ownerId, search, category, level, page, size, null);
+    }
+
+    // `itemIds` narrows the rows to just those items (the Orders page asks for
+    // only the items on the order-list page it is showing); null or empty means
+    // no narrowing. Like the other row filters it leaves the KPI counts alone.
+    @Transactional(readOnly = true)
+    public InventoryCountsPageResponse listInventoryCounts(
+        Long ownerId, String search, String category, String level, Integer page, Integer size, List<Long> itemIds
+    ) {
         Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
-        return inventoryCountsForStore(storeId, search, category, level, page, size);
+        return inventoryCountsForStore(storeId, search, category, level, page, size, itemIds);
     }
 
     // Super Admin's cross-store mirror -- same storeId-direct pattern as
     // getEodSupplierReportForSuperAdmin above.
-    @Transactional(readOnly = true)
     public InventoryCountsPageResponse listInventoryCountsForSuperAdmin(
         Long storeId, String search, String category, String level, Integer page, Integer size
     ) {
-        return inventoryCountsForStore(storeId, search, category, level, page, size);
+        return listInventoryCountsForSuperAdmin(storeId, search, category, level, page, size, null);
+    }
+
+    @Transactional(readOnly = true)
+    public InventoryCountsPageResponse listInventoryCountsForSuperAdmin(
+        Long storeId, String search, String category, String level, Integer page, Integer size, List<Long> itemIds
+    ) {
+        return inventoryCountsForStore(storeId, search, category, level, page, size, itemIds);
     }
 
     private InventoryCountsPageResponse inventoryCountsForStore(
-        Long storeId, String search, String category, String level, Integer page, Integer size
+        Long storeId, String search, String category, String level, Integer page, Integer size, List<Long> itemIds
     ) {
         LocalDate today = LocalDate.now();
 
@@ -1204,7 +1221,9 @@ public class StockCheckService {
         long staleCount = allRows.stream().filter(r -> r.status() == InventoryCountStatus.STALE).count();
 
         String needle = search == null ? "" : search.trim().toLowerCase();
+        Set<Long> wantedIds = itemIds == null || itemIds.isEmpty() ? null : new HashSet<>(itemIds);
         List<InventoryCountRowResponse> filtered = allRows.stream()
+            .filter(r -> wantedIds == null || wantedIds.contains(r.itemId()))
             .filter(r -> needle.isEmpty() || r.name().toLowerCase().contains(needle))
             .filter(r -> category == null || category.isBlank() || category.equalsIgnoreCase(r.category()))
             .filter(r -> matchesLevel(r.status(), level))
