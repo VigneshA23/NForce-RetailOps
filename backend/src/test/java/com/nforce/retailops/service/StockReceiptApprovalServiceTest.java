@@ -146,6 +146,16 @@ class StockReceiptApprovalServiceTest {
     }
 
     @Test
+    void theOptionalNoteIsTrimmedAndStored_andBlankIsDropped() {
+        service.approve(OWNER_ID, REQUEST_ID, "  Looks right  ");
+        assertThat(request.getDecisionNote()).isEqualTo("Looks right");
+
+        request.setStatus(StockReceiptRequestStatus.PENDING);
+        service.reject(OWNER_ID, REQUEST_ID, "   ");
+        assertThat(request.getDecisionNote()).isNull();
+    }
+
+    @Test
     void aDecidedRequestCannotBeDecidedAgain() {
         request.setStatus(StockReceiptRequestStatus.APPROVED);
 

@@ -345,17 +345,19 @@ public class NotificationService {
     @Transactional
     public void notifyEmployeeOfStockReceiptDecision(StockReceiptRequest request, boolean approved) {
         String item = request.getStoreInventoryItem().getName();
+        String noteSuffix = request.getDecisionNote() == null || request.getDecisionNote().isBlank()
+            ? "" : " Note from admin: " + request.getDecisionNote();
         String unit = request.getStoreInventoryItem().getUnitOfMeasurement();
         Store store = request.getStore();
         String countName = request.getSnapshot() == StockCheckSnapshot.START_OF_DAY ? "Start of Day" : "End of Day";
         if (request.getType() == StockReceiptRequestType.LOWER_COUNT) {
             if (approved) {
                 sendForStore(request.getRequestedBy(), "STOCK_RECEIPT_APPROVED", "Lower Start of Day approved",
-                    "Your lower Start of Day count for " + item + " was approved.", "/stock-check", store);
+                    "Your lower Start of Day count for " + item + " was approved." + noteSuffix, "/stock-check", store);
             } else {
                 sendForStore(request.getRequestedBy(), "STOCK_RECEIPT_REJECTED", "Lower Start of Day rejected",
                     "Your lower Start of Day count for " + item + " was rejected. Please recount and save "
-                        + "the Start of Day count again.", "/stock-check", store);
+                        + "the Start of Day count again." + noteSuffix, "/stock-check", store);
             }
             return;
         }
@@ -365,13 +367,13 @@ public class NotificationService {
         if (approved) {
             sendForStore(request.getRequestedBy(), "STOCK_RECEIPT_APPROVED",
                 "Received stock approved",
-                "Your report of received stock was approved: " + subject + ". Stock has been updated.",
+                "Your report of received stock was approved: " + subject + ". Stock has been updated." + noteSuffix,
                 "/stock-check", store);
         } else {
             sendForStore(request.getRequestedBy(), "STOCK_RECEIPT_REJECTED",
                 "Received stock rejected",
                 "Your report of received stock was rejected: " + subject
-                    + ". Stock was not changed. Please review your " + countName + " count for " + item + ".",
+                    + ". Stock was not changed. Please review your " + countName + " count for " + item + "." + noteSuffix,
                 "/stock-check", store);
         }
     }

@@ -17,6 +17,9 @@ import { useMediaQuery } from '../hooks/useMediaQuery';
 import { ALL_DISPLAY_CATEGORIES, getCategoryMeta, type DisplayCategory } from '../utils/notificationCategoryMeta';
 import { formatNotificationMessage, isNotificationVisibleForStore } from '../utils/notificationStore';
 import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
+import FormField from '../components/FormField';
+import { ISSUE_RESPONSE_MAX_LENGTH } from '../utils/issueStatusMeta';
+import '../components/IssueCard.css';
 import './Notifications.css';
 
 // ── Display metadata per notification category ────────────────────────────────
@@ -333,12 +336,13 @@ interface ReceiptRequestPanelProps {
   request: StockReceiptRequest;
   deciding: 'approve' | 'reject' | null;
   error: string | null;
-  onDecide: (action: 'approve' | 'reject') => void;
+  onDecide: (action: 'approve' | 'reject', note: string) => void;
 }
 
 // Spells out what the employee is asking for, in the two cases the admin has
 // to tell apart, and carries the Approve / Reject buttons while it is pending.
 function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequestPanelProps) {
+  const [note, setNote] = useState('');
   const isOrder = request.kind === 'EXISTING_ORDER';
   const isLower = request.kind === 'LOWER_COUNT';
   const atStart = request.snapshot === 'START_OF_DAY';
@@ -386,11 +390,27 @@ function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequ
       </dl>
 
       {pending ? (
+        <>
+        <FormField label="Comment (optional)" htmlFor={`receipt-note-${request.id}`}>
+          <textarea
+            id={`receipt-note-${request.id}`}
+            className="input"
+            rows={2}
+            value={note}
+            maxLength={ISSUE_RESPONSE_MAX_LENGTH}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Optional note to the employee…"
+            disabled={deciding !== null}
+          />
+          <span className={`issue-text-counter${note.length >= ISSUE_RESPONSE_MAX_LENGTH * 0.9 ? ' issue-text-counter--near-limit' : ''}`} aria-live="polite">
+            {note.length}/{ISSUE_RESPONSE_MAX_LENGTH}
+          </span>
+        </FormField>
         <div className="nfp-receipt__actions">
           <button
             type="button"
             className="nfp-receipt__btn nfp-receipt__btn--approve"
-            onClick={() => onDecide('approve')}
+            onClick={() => onDecide('approve', note.trim())}
             disabled={deciding !== null}
           >
             {deciding === 'approve' ? <Loader2 size={13} className="nfp-spin" /> : <Check size={13} />}
@@ -399,19 +419,23 @@ function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequ
           <button
             type="button"
             className="nfp-receipt__btn nfp-receipt__btn--reject"
-            onClick={() => onDecide('reject')}
+            onClick={() => onDecide('reject', note.trim())}
             disabled={deciding !== null}
           >
             {deciding === 'reject' ? <Loader2 size={13} className="nfp-spin" /> : null}
             Reject
           </button>
         </div>
+        </>
       ) : (
+        <>
         <p className={`nfp-receipt__status nfp-receipt__status--${request.status.toLowerCase()}`}>
           {request.status === 'APPROVED' ? 'Approved' : 'Rejected'}
           {request.decidedByName ? ` by ${request.decidedByName}` : ''}
           {request.decidedAt ? ` on ${new Date(request.decidedAt).toLocaleString()}` : ''}
         </p>
+        {request.decisionNote && <p className="nfp-receipt__note">Comment: {request.decisionNote}</p>}
+        </>
       )}
       {error && <p className="nfp-receipt__error" role="alert">{error}</p>}
     </section>
@@ -427,7 +451,7 @@ interface DetailPaneProps {
   onBack?: () => void;
   onDelete?: (id: number) => void;
   deletingId?: number | null;
-  onDecideReceipt?: (n: Notification, action: 'approve' | 'reject') => void;
+  onDecideReceipt?: (n: Notification, action: 'approve' | 'reject', note: string) => void;
   decidingReceipt?: { id: number; action: 'approve' | 'reject' } | null;
   receiptError?: { id: number; message: string } | null;
   onAnswerMissedEod?: (n: Notification, answer: MissedEndOfDayAnswer) => Promise<MissedEndOfDayItem>;
@@ -493,10 +517,11 @@ function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingI
 
       {n.receiptRequest && (
         <ReceiptRequestPanel
+          key={n.id}
           request={n.receiptRequest}
           deciding={decidingReceipt?.id === n.id ? decidingReceipt.action : null}
           error={receiptError?.id === n.id ? receiptError.message : null}
-          onDecide={(action) => onDecideReceipt?.(n, action)}
+          onDecide={(action, note) => onDecideReceipt?.(n, action, note)}
         />
       )}
 
@@ -649,13 +674,13 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
     setMarking(false);
   }
 
-  async function handleDecideReceipt(n: Notification, action: 'approve' | 'reject') {
+  async function handleDecideReceipt(n: Notification, action: 'approve' | 'reject', note: string) {
     setDecidingReceipt({ id: n.id, action });
     setReceiptError(null);
     try {
       const updated = action === 'approve'
-        ? await approveStockReceiptRequest(n.receiptRequest!.id)
-        : await rejectStockReceiptRequest(n.receiptRequest!.id);
+        ? await approveStockReceiptRequest(n.receiptRequest!.id, note)
+        : await rejectStockReceiptRequest(n.receiptRequest!.id, note);
       setItems(prev => prev.map(item => item.id === n.id ? { ...item, receiptRequest: updated } : item));
     } catch (e) {
       setReceiptError({ id: n.id, message: e instanceof Error ? e.message : 'Could not save your decision. Please try again.' });

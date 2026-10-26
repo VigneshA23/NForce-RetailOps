@@ -28,7 +28,8 @@ public record StockReceiptRequestResponse(
     OffsetDateTime decidedAt,
     String type,
     String snapshot,
-    String reason
+    String reason,
+    String decisionNote
 ) {
     public static StockReceiptRequestResponse from(StockReceiptRequest r) {
         OrderListEntry order = r.getOrderListEntry();
@@ -51,7 +52,8 @@ public record StockReceiptRequestResponse(
             r.getDecidedAt(),
             r.getType().name(),
             r.getSnapshot().name(),
-            r.getReason()
+            r.getReason(),
+            r.getDecisionNote()
         );
     }
 }

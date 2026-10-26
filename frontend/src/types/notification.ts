@@ -64,4 +64,5 @@ export interface StockReceiptRequest {
   type?: 'RESTOCK' | 'LOWER_COUNT';
   snapshot?: 'START_OF_DAY' | 'END_OF_DAY';
   reason?: string | null;
+  decisionNote?: string | null;
 }

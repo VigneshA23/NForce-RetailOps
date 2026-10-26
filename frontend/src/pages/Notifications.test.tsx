@@ -257,7 +257,7 @@ describe('Notifications — received stock requests', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /Approve/ }));
 
-    await waitFor(() => expect(receiptApi.approveStockReceiptRequest).toHaveBeenCalledWith(9));
+    await waitFor(() => expect(receiptApi.approveStockReceiptRequest).toHaveBeenCalledWith(9, ''));
     expect(await screen.findByText(/Approved by Olivia/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Approve/ })).not.toBeInTheDocument();
   });
@@ -268,8 +268,19 @@ describe('Notifications — received stock requests', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /Reject/ }));
 
-    await waitFor(() => expect(receiptApi.rejectStockReceiptRequest).toHaveBeenCalledWith(9));
+    await waitFor(() => expect(receiptApi.rejectStockReceiptRequest).toHaveBeenCalledWith(9, ''));
     expect(await screen.findByText(/Rejected/)).toBeInTheDocument();
+  });
+
+  it('sends the optional comment typed before Reject', async () => {
+    vi.mocked(receiptApi.rejectStockReceiptRequest).mockResolvedValue({ ...request, status: 'REJECTED', decisionNote: 'Recount please' });
+    await openNotification(request);
+
+    await userEvent.type(screen.getByLabelText(/Comment \(optional\)/), '  Recount please ');
+    await userEvent.click(screen.getByRole('button', { name: /Reject/ }));
+
+    await waitFor(() => expect(receiptApi.rejectStockReceiptRequest).toHaveBeenCalledWith(9, 'Recount please'));
+    expect(await screen.findByText(/Comment: Recount please/)).toBeInTheDocument();
   });
 
   it('keeps the buttons and shows the reason when the decision fails', async () => {

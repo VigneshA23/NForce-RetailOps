@@ -86,6 +86,10 @@ public class StockReceiptRequest {
     @Column(name = "decided_at")
     private OffsetDateTime decidedAt;
 
+    // Optional note the Owner/Admin leaves when approving or rejecting.
+    @Column(name = "decision_note")
+    private String decisionNote;
+
     @PrePersist
     protected void onCreate() {
         if (requestedAt == null) {
@@ -140,6 +144,9 @@ public class StockReceiptRequest {
 
     public User getDecidedBy() { return decidedBy; }
     public void setDecidedBy(User decidedBy) { this.decidedBy = decidedBy; }
+
+    public String getDecisionNote() { return decisionNote; }
+    public void setDecisionNote(String decisionNote) { this.decisionNote = decisionNote; }
 
     public OffsetDateTime getDecidedAt() { return decidedAt; }
     public void setDecidedAt(OffsetDateTime decidedAt) { this.decidedAt = decidedAt; }

@@ -48,8 +48,18 @@ public class StockReceiptApprovalService {
         this.notificationService = notificationService;
     }
 
-    @Transactional
+    public static final int MAX_NOTE_LENGTH = 500;
+
     public StockReceiptRequestResponse approve(Long ownerId, Long requestId) {
+        return approve(ownerId, requestId, null);
+    }
+
+    public StockReceiptRequestResponse reject(Long ownerId, Long requestId) {
+        return reject(ownerId, requestId, null);
+    }
+
+    @Transactional
+    public StockReceiptRequestResponse approve(Long ownerId, Long requestId, String note) {
         StockReceiptRequest request = requirePendingRequest(ownerId, requestId);
         // A submission can raise more than one request at once (e.g. two
         // orders received together); only one of them holds the count that
@@ -65,24 +75,24 @@ public class StockReceiptApprovalService {
             }
             stockCheckService.applyApprovedDelivery(request);
         }
-        decide(request, StockReceiptRequestStatus.APPROVED, ownerId);
+        decide(request, StockReceiptRequestStatus.APPROVED, ownerId, note);
         notificationService.notifyEmployeeOfStockReceiptDecision(request, true);
         return StockReceiptRequestResponse.from(request);
     }
 
     @Transactional
-    public StockReceiptRequestResponse reject(Long ownerId, Long requestId) {
+    public StockReceiptRequestResponse reject(Long ownerId, Long requestId, String note) {
         StockReceiptRequest request = requirePendingRequest(ownerId, requestId);
         // Reject the whole group together: if the request holding the count is
         // rejected, the sibling deliveries it was partly justifying no longer
         // make sense left pending, and vice versa.
         for (StockReceiptRequest sibling : groupFor(request)) {
             if (!sibling.getId().equals(request.getId())) {
-                decide(sibling, StockReceiptRequestStatus.REJECTED, ownerId);
+                decide(sibling, StockReceiptRequestStatus.REJECTED, ownerId, note);
                 notificationService.notifyEmployeeOfStockReceiptDecision(sibling, false);
             }
         }
-        decide(request, StockReceiptRequestStatus.REJECTED, ownerId);
+        decide(request, StockReceiptRequestStatus.REJECTED, ownerId, note);
         notificationService.notifyEmployeeOfStockReceiptDecision(request, false);
         return StockReceiptRequestResponse.from(request);
     }
@@ -121,8 +131,11 @@ public class StockReceiptApprovalService {
         return request;
     }
 
-    private void decide(StockReceiptRequest request, StockReceiptRequestStatus status, Long ownerId) {
+    private void decide(StockReceiptRequest request, StockReceiptRequestStatus status, Long ownerId, String note) {
         User owner = userRepository.getReferenceById(ownerId);
+        String trimmed = note == null ? "" : note.trim();
+        request.setDecisionNote(trimmed.isEmpty() ? null
+            : trimmed.length() > MAX_NOTE_LENGTH ? trimmed.substring(0, MAX_NOTE_LENGTH) : trimmed);
         request.setStatus(status);
         request.setDecidedBy(owner);
         request.setDecidedAt(OffsetDateTime.now());
