@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   AlertCircle, ArrowUpRight, Bell, Check, CheckCheck,
@@ -339,6 +339,37 @@ interface ReceiptRequestPanelProps {
   onDecide: (action: 'approve' | 'reject', note: string) => void;
 }
 
+// Long employee-written reasons show ~4 lines, with Read more / Show less
+// only when the text actually overflows. Full text stays in the DOM.
+function ReceiptReason({ text }: { text: string }) {
+  const ref = useRef<HTMLElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      if (!expanded) setOverflows(el.scrollHeight > el.clientHeight + 1);
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [text, expanded]);
+
+  return (
+    <div className="nfp-receipt__reason">
+      <dt>Reason</dt>
+      <dd ref={ref} className={expanded ? undefined : 'nfp-receipt__reason-text--clamped'}>{text}</dd>
+      {(overflows || expanded) && (
+        <button type="button" className="nfp-receipt__more" aria-expanded={expanded} onClick={() => setExpanded(v => !v)}>
+          {expanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Spells out what the employee is asking for, in the two cases the admin has
 // to tell apart, and carries the Approve / Reject buttons while it is pending.
 function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequestPanelProps) {
@@ -355,7 +386,6 @@ function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequ
       ? ['Below last End of Day by', `${request.quantity} ${request.unit}`]
       : [atStart ? 'Quantity reported restocked' : 'Quantity reported received', `${request.quantity} ${request.unit}`],
   ];
-  if (isLower && request.reason) rows.push(['Reason', request.reason]);
   if (isOrder) {
     rows.push(['Order', `Order #${request.orderId}`]);
     if (request.orderedQuantity != null) rows.push(['Quantity ordered', `${request.orderedQuantity} ${request.unit}`]);
@@ -387,6 +417,7 @@ function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequ
             <dd>{value}</dd>
           </div>
         ))}
+        {isLower && request.reason && <ReceiptReason text={request.reason} />}
       </dl>
 
       {pending ? (
@@ -399,6 +430,11 @@ function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequ
             value={note}
             maxLength={ISSUE_RESPONSE_MAX_LENGTH}
             onChange={(e) => setNote(e.target.value)}
+            onFocus={(e) => {
+              // Keep the field (and the buttons below it) clear of the on-screen keyboard.
+              const el = e.currentTarget;
+              window.setTimeout(() => el.scrollIntoView?.({ block: 'center', behavior: 'smooth' }), 300);
+            }}
             placeholder="Optional note to the employee…"
             disabled={deciding !== null}
           />
