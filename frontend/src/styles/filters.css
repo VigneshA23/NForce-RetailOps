@@ -15,9 +15,12 @@
   margin-bottom: var(--space-md);
 }
 
+/* min-width keeps a short label like "All Statuses" readable once the
+   percentage basis gets small (tablet with the sidebar open); the bar wraps
+   onto a second line instead of squeezing the control. */
 .filter {
   flex: 0 0 15%;
-  min-width: 0;
+  min-width: 140px;
 }
 
 /* SearchInput variant="filter" renders its own styled box; the wrapper div

@@ -36,6 +36,7 @@ import com.nforce.retailops.service.StockCheckService;
 import com.nforce.retailops.service.TaskMakeupLinkService;
 import com.nforce.retailops.service.TaskService;
 import com.nforce.retailops.service.UserProfileService;
+import com.nforce.retailops.util.AvatarImageValidator;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -135,6 +136,7 @@ public class MeController {
         @AuthenticationPrincipal UserDetails principal,
         @RequestBody UpdateAvatarRequest request
     ) {
+        AvatarImageValidator.validate(request.avatarUrl());
         if (principal instanceof SuperAdminUserDetails superAdminDetails) {
             SuperAdmin sa = superAdminDetails.getSuperAdmin();
             sa.setAvatarUrl(request.avatarUrl());
