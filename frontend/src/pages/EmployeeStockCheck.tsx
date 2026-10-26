@@ -16,6 +16,7 @@ import StockSnapshotCard from '../components/StockSnapshotCard';
 import ItemIcon from '../components/ItemIcon';
 import SearchInput from '../components/SearchInput';
 import './EmployeeStockCheck.css';
+import { usePersistedState, oneOf } from '../hooks/usePersistedState';
 
 interface EmployeeStockCheckProps {
   store: StoreSummary;
@@ -68,7 +69,7 @@ function toViewItem(item: DailyStockCheckItem): StockCheckViewItem {
 type View = 'today' | 'history';
 
 function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: EmployeeStockCheckProps) {
-  const [view, setView] = useState<View>('today');
+  const [view, setView] = usePersistedState<View>('employee-stockcheck-view', 'today', oneOf(['today', 'history'] as const));
   const [missedBlock, setMissedBlock] = useState<DailyStockCheckItem | null>(null);
   const [myUserId, setMyUserId] = useState<number | null>(null);
 
