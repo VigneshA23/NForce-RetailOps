@@ -223,7 +223,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
     const { item, available, deadStock, resolve } = lowerPrompt;
     const saved = await saveCount(item, 'START_OF_DAY', available, deadStock, undefined, reason);
     if (saved) {
-      getTodayStockCheck(store.id).then(setItems).catch(() => {});
       setLowerPrompt(null);
       resolve(true);
     }
@@ -241,9 +240,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
     const saved = await saveCount(item, snapshot, currentStock ?? available, deadStock, received.map((r) => ({ orderEntryId: r.orderId, quantity: r.quantity })));
     // Keep the prompt open on failure so the employee can retry or cancel.
     if (saved) {
-      // The report is only a request until the admin approves it; pick up the
-      // pending figure the save response doesn't carry.
-      getTodayStockCheck(store.id).then(setItems).catch(() => {});
       setReceivedPrompt(null);
       resolve(true);
     }
@@ -290,6 +286,11 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
       if (lowerCountReason) {
         nfToast.success('Lower Start of Day count sent to your admin for approval.');
       }
+      // The save response doesn't carry the derived figures (currentStock,
+      // pending receipt, ...), and "Available" prefers currentStock over the
+      // snapshot just saved -- so quietly re-read the list rather than show a
+      // stale count until the next manual refresh.
+      getTodayStockCheck(store.id).then(setItems).catch(() => {});
       return true;
     } catch (error) {
       nfToast.error(error instanceof Error ? error.message : 'Failed to save count');

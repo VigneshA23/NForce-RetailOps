@@ -181,6 +181,25 @@ describe('EmployeeDashboard moved units', () => {
     expect(mockGetDailyChecklist).toHaveBeenCalledTimes(2)
   })
 
+  it('refetches on a focusTaskId click even when the task is already loaded, so an admin correction shows without a manual refresh', async () => {
+    mockGetDailyChecklist
+      .mockResolvedValueOnce([category([task({ id: 101, name: 'Sweep the floor' })])])
+      .mockResolvedValueOnce([category([task({ id: 101, name: 'Sweep the floor (corrected)' })])])
+    const { rerender } = render(
+      <EmployeeDashboard store={STORE} onLogout={vi.fn()} employeeId={7} />,
+    )
+
+    await screen.findByText('Sweep the floor')
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <EmployeeDashboard store={STORE} onLogout={vi.fn()} employeeId={7} focusTaskId={{ taskId: 101, ts: 1 }} />,
+    )
+
+    await screen.findByText('Sweep the floor (corrected)')
+    expect(mockGetDailyChecklist).toHaveBeenCalledTimes(2)
+  })
+
   it('renders the Missed Tasks stat tile with the count and navigates on click', async () => {
     mockGetDailyChecklist.mockResolvedValue([category([task()])])
     const onNavigate = vi.fn()

@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -32,17 +33,20 @@ public class InventoryCategoryService {
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
+    private final NotificationService notificationService;
 
     public InventoryCategoryService(
         InventoryCategoryRepository inventoryCategoryRepository,
         StoreInventoryItemRepository storeInventoryItemRepository,
         StoreRepository storeRepository,
-        StoreOwnerRepository storeOwnerRepository
+        StoreOwnerRepository storeOwnerRepository,
+        NotificationService notificationService
     ) {
         this.inventoryCategoryRepository = inventoryCategoryRepository;
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -96,6 +100,7 @@ public class InventoryCategoryService {
         category.setName(name);
         applyDetails(category, request);
         category = inventoryCategoryRepository.save(category);
+        notifyStoresGainingAccess(category, Set.of());
         return InventoryCategoryResponse.from(category);
     }
 
@@ -107,9 +112,11 @@ public class InventoryCategoryService {
         if (inventoryCategoryRepository.existsByNameIgnoreCaseAndIdNot(name, categoryId)) {
             throw new InventoryCategoryNameExistsException("A category with this name already exists.");
         }
+        Set<Long> storesWithAccessBefore = storeIdsWithAccess(category);
         category.setName(name);
         applyDetails(category, request);
         category = inventoryCategoryRepository.save(category);
+        notifyStoresGainingAccess(category, storesWithAccessBefore);
         return InventoryCategoryResponse.from(category);
     }
 
@@ -140,9 +147,50 @@ public class InventoryCategoryService {
     public InventoryCategoryResponse setCategoryActive(Long categoryId, boolean active) {
         InventoryCategory category = inventoryCategoryRepository.findById(categoryId)
             .orElseThrow(() -> new InventoryCategoryNotFoundException("Category not found"));
+        Set<Long> storesWithAccessBefore = storeIdsWithAccess(category);
         category.setActive(active);
         category = inventoryCategoryRepository.save(category);
+        notifyStoresGainingAccess(category, storesWithAccessBefore);
         return InventoryCategoryResponse.from(category);
+    }
+
+    // Active stores that can use this category right now: none while it is
+    // inactive, every active store when it applies to all, else its assigned
+    // stores. Mirrors isCategoryAssignedToStore's rule.
+    private Set<Long> storeIdsWithAccess(InventoryCategory category) {
+        Set<Long> ids = new LinkedHashSet<>();
+        if (!category.isActive()) {
+            return ids;
+        }
+        if (category.isAppliesToAllStores()) {
+            storeRepository.findByActiveTrueOrderByName().forEach(s -> ids.add(s.getId()));
+        } else {
+            category.getStores().stream().filter(Store::isActive).forEach(s -> ids.add(s.getId()));
+        }
+        return ids;
+    }
+
+    // An Owner/Admin is only told when a store goes from "cannot use this
+    // category" to "can" (activated, or the store added / All Stores chosen).
+    // Losing access stays silent here -- they find out from the add-item error.
+    private void notifyStoresGainingAccess(InventoryCategory category, Set<Long> storesWithAccessBefore) {
+        if (!category.isActive()) {
+            return;
+        }
+        List<Store> activeStores = storeRepository.findByActiveTrueOrderByName();
+        Set<Long> after = storeIdsWithAccess(category);
+        for (Store store : activeStores) {
+            if (!after.contains(store.getId()) || storesWithAccessBefore.contains(store.getId())) {
+                continue;
+            }
+            storeOwnerRepository.findByStoreIdAndActiveTrue(store.getId()).ifPresent(link ->
+                notificationService.sendForStore(
+                    link.getOwner(), "INVENTORY_CATEGORY_AVAILABLE",
+                    "Inventory category available: " + category.getName(),
+                    "\"" + category.getName() + "\" is now available for " + store.getName()
+                        + ". You can add new stock items under it.",
+                    "/inventory", store));
+        }
     }
 
     // Items using this category (by name, case-insensitive -- there is no FK,

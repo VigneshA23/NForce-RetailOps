@@ -34,7 +34,9 @@ export async function login(email: string, password: string, rememberMe: boolean
     const message =
       (payload && typeof payload === 'object' && 'message' in payload && String(payload.message)) ||
       'Invalid email or password'
-    throw new Error(message)
+    // The status rides along so the login screen can tell a lockout (429)
+    // apart from a bad password -- this module throws plain Errors (see CLAUDE.md).
+    throw Object.assign(new Error(message), { status: response.status })
   }
 
   return response.json()

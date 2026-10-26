@@ -363,3 +363,36 @@ describe('EmployeeStockCheck missing End of Day from yesterday', () => {
     expect(screen.queryByText(/Yesterday's End of Day is missing/)).not.toBeInTheDocument();
   });
 });
+
+describe('EmployeeStockCheck refresh after save', () => {
+  it('quietly re-reads the day after a Start of Day save so derived figures such as current stock are not stale', async () => {
+    const user = userEvent.setup();
+    mockGetTodayStockCheck.mockReset();
+    vi.mocked(stockCheckApi.submitStockCheck).mockReset();
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    const sod = { ...savedSod, available: 6, deadStock: 1, usable: 5 };
+    mockGetTodayStockCheck
+      .mockResolvedValueOnce([item])
+      .mockResolvedValue([{ ...item, startOfDay: sod, currentStock: 5 }]);
+    vi.mocked(stockCheckApi.submitStockCheck).mockResolvedValue({
+      ...item, startOfDay: sod, endOfDay: null,
+    } as never);
+
+    render(<EmployeeStockCheck store={store} />);
+    await user.click(await screen.findByText('Milk'));
+    await screen.findByText('Shift Stock Reconciliations');
+    expect(mockGetTodayStockCheck).toHaveBeenCalledTimes(1);
+
+    const sodCard = screen.getByRole('region', { name: 'Start of Day Stock Check' });
+    const total = within(sodCard).getByLabelText('Total Stock');
+    const dead = within(sodCard).getByLabelText('Dead / Spoilage');
+    await user.clear(total);
+    await user.type(total, '6');
+    await user.clear(dead);
+    await user.type(dead, '1');
+    await user.click(within(sodCard).getByRole('button', { name: 'Save Check' }));
+
+    await waitFor(() => expect(stockCheckApi.submitStockCheck).toHaveBeenCalled());
+    await waitFor(() => expect(mockGetTodayStockCheck).toHaveBeenCalledTimes(2));
+  });
+});

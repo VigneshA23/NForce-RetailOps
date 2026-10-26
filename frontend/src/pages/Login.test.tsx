@@ -204,6 +204,33 @@ describe('Login — email whitespace handling', () => {
     expect(mockLogin).toHaveBeenCalledWith('sneha.patel@kedsicecream.com', 'wrong-password', false)
     expect(await screen.findByText('Invalid email or password')).toBeInTheDocument()
   })
+
+  it('shows the lockout message from the server when login is rate limited (429)', async () => {
+    const user = userEvent.setup()
+    const lockout = 'Too many login attempts. Please try again in 15 minutes.'
+    mockLogin.mockRejectedValueOnce(Object.assign(new Error(lockout), { status: 429 }))
+    render(<Login onLoginSuccess={vi.fn()} />)
+
+    await user.type(screen.getByLabelText(/email/i), 'sneha.patel@kedsicecream.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'wrong-password')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(await screen.findByText(lockout)).toBeInTheDocument()
+    expect(screen.queryByText('Invalid email or password')).not.toBeInTheDocument()
+  })
+
+  it('keeps the generic error for other server rejections so account existence is not revealed', async () => {
+    const user = userEvent.setup()
+    mockLogin.mockRejectedValueOnce(Object.assign(new Error('Account is disabled'), { status: 401 }))
+    render(<Login onLoginSuccess={vi.fn()} />)
+
+    await user.type(screen.getByLabelText(/email/i), 'sneha.patel@kedsicecream.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'wrong-password')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+
+    expect(await screen.findByText('Invalid email or password')).toBeInTheDocument()
+    expect(screen.queryByText('Account is disabled')).not.toBeInTheDocument()
+  })
 })
 
 describe('Forgot Password — email whitespace handling', () => {
