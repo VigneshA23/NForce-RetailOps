@@ -11,6 +11,7 @@ import Select from '../components/Select';
 import ButtonDots from '../components/ButtonDots';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import { nfToast } from '../utils/toast';
+import { AVATAR_ACCEPT, validateAvatarFile } from '../utils/avatarUpload';
 import { getInitials } from '../utils/initials';
 import './Profile.css';
 
@@ -170,8 +171,9 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
     if (!file) return;
     event.target.value = '';
 
-    if (file.size > 5 * 1024 * 1024) {
-      nfToast.error('Image too large. Please choose a file under 5 MB.');
+    const invalid = validateAvatarFile(file);
+    if (invalid) {
+      nfToast.error(invalid);
       return;
     }
 
@@ -187,6 +189,9 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
       setLocalAvatar(previousAvatar);
       if (err instanceof ApiError && err.status === 403) {
         nfToast.error('Avatar upload is not available for this account type.');
+      } else if (err instanceof ApiError && err.status === 400) {
+        // The server re-validates size and real file type; show its message.
+        nfToast.error(err.message);
       } else {
         nfToast.error('Failed to upload photo. Please try again.');
       }
@@ -412,7 +417,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*"
+            accept={AVATAR_ACCEPT}
             className="profile-avatar-input"
             onChange={handleAvatarFileChange}
             tabIndex={-1}
