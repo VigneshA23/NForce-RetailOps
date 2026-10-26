@@ -21,7 +21,7 @@
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-lg);
-  color: #71717a;
+  color: var(--ops-text-muted);
 }
 
 /* Search + filters + view toggle, inside one bordered card matching
@@ -95,11 +95,11 @@
   display: flex;
   flex-shrink: 0;
   gap: 2px;
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
+  background: var(--ops-surface);
+  border: 1px solid var(--ops-border);
   border-radius: 10px;
   padding: 3px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  box-shadow: var(--ops-shadow);
 }
 
 .order-list__view-btn {
@@ -109,7 +109,7 @@
   height: 32px;
   border: none;
   background: transparent;
-  color: #52525b;
+  color: var(--ops-text-secondary);
   border-radius: 7px;
   padding: 0 12px;
   font-size: 13px;
@@ -119,8 +119,8 @@
 }
 
 .order-list__view-btn--active {
-  background: #ececef;
-  color: #18181b;
+  background: var(--ops-surface-pressed);
+  color: var(--ops-text);
 }
 
 /* No extra margin -- the toggle just sits in the normal 10px flex gap like
@@ -185,11 +185,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
+  background: var(--ops-surface);
+  border: 1px solid var(--ops-border);
   border-radius: 14px;
   padding: 10px 12px 10px 20px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  box-shadow: var(--ops-shadow);
   flex-wrap: wrap;
 }
 
@@ -202,7 +202,7 @@
 .order-list__select-label {
   font-size: 13px;
   font-weight: 600;
-  color: #52525b;
+  color: var(--ops-text-secondary);
 }
 
 .order-list__clear-selection {
@@ -230,19 +230,19 @@
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
-  border: 1px solid #e4e4e7;
-  background: #ffffff;
-  color: #18181b;
+  border: 1px solid var(--ops-border);
+  background: var(--ops-surface);
+  color: var(--ops-text);
   cursor: pointer;
 }
 
 .order-list__action-btn:hover:not(:disabled) {
-  background: #f7f7f8;
-  border-color: #d4d4d8;
+  background: var(--ops-surface-subtle);
+  border-color: var(--ops-border-strong);
 }
 
 .order-list__action-btn:disabled {
-  color: #a1a1aa;
+  color: var(--ops-text-faint);
   cursor: default;
 }
 
@@ -264,8 +264,8 @@
 }
 
 .order-list__no-results {
-  background: #ffffff;
-  border: 1px dashed #d4d4d8;
+  background: var(--ops-surface);
+  border: 1px dashed var(--ops-border-strong);
   border-radius: 14px;
   padding: 40px;
   display: flex;
@@ -278,18 +278,18 @@
 .order-list__no-results-title {
   font-size: 15px;
   font-weight: 700;
-  color: #18181b;
+  color: var(--ops-text);
 }
 
 .order-list__no-results-sub {
   font-size: 13px;
-  color: #71717a;
+  color: var(--ops-text-muted);
 }
 
 .order-list__loading {
   padding: 40px;
   text-align: center;
-  color: #71717a;
+  color: var(--ops-text-muted);
 }
 
 .order-list__groups {
@@ -299,10 +299,10 @@
 }
 
 .order-list__group {
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
+  background: var(--ops-surface);
+  border: 1px solid var(--ops-border);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  box-shadow: var(--ops-shadow);
 }
 
 /* Same 16px side padding as the table cells below it, so this row's left
@@ -327,7 +327,7 @@
   text-align: left;
   cursor: pointer;
   border-radius: 10px;
-  color: #71717a;
+  color: var(--ops-text-muted);
 }
 
 .order-list__group-chevron--collapsed {
@@ -343,12 +343,12 @@
 .order-list__group-name {
   font-size: 15px;
   font-weight: 800;
-  color: #18181b;
+  color: var(--ops-text);
 }
 
 .order-list__group-summary {
   font-size: 12px;
-  color: #71717a;
+  color: var(--ops-text-muted);
 }
 
 .order-list__group-progress {
@@ -362,7 +362,7 @@
 .order-list__progress-track {
   flex-grow: 1;
   height: 6px;
-  background: #f1f1f3;
+  background: var(--ops-surface-muted);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -375,7 +375,7 @@
 .order-list__progress-label {
   font-size: 12px;
   font-weight: 600;
-  color: #52525b;
+  color: var(--ops-text-secondary);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -389,8 +389,8 @@
 .order-list__dark-btn {
   height: 34px;
   border: none;
-  background: #18181b;
-  color: #ffffff;
+  background: var(--ops-inverse-bg);
+  color: var(--ops-inverse-text);
   border-radius: 8px;
   padding: 0 12px;
   font-size: 13px;
@@ -400,7 +400,7 @@
 }
 
 .order-list__dark-btn:hover {
-  background: #2e2e33;
+  background: var(--ops-inverse-bg-hover);
 }
 
 .order-list__all-ordered {
@@ -410,8 +410,8 @@
   height: 34px;
   padding: 0 12px;
   border-radius: 8px;
-  background: #e8f7ee;
-  color: #15803d;
+  background: var(--ops-success-tint);
+  color: var(--ops-success-text);
   font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
@@ -493,7 +493,7 @@
 }
 
 .order-list__row {
-  border-top: 1px solid #f4f4f5;
+  border-top: 1px solid var(--ops-divider);
 }
 
 /* No !important: a selected row's pink background is inline (only present
@@ -506,7 +506,7 @@
    cleared that hover state -- the inconsistent/delayed highlight this was
    reported as. */
 .order-list__row:hover {
-  background: #fafafb;
+  background: var(--ops-surface-subtle);
 }
 
 /* Qualified with the table class so this outranks the generic td/th padding
@@ -550,7 +550,7 @@
   min-width: 0;
   font-size: 14px;
   font-weight: 700;
-  color: #18181b;
+  color: var(--ops-text);
 }
 
 /* Truncates with an ellipsis instead of wrapping onto a second line, so a
@@ -574,7 +574,7 @@
 .order-list__stock-update-when {
   font-size: 12px;
   font-weight: 600;
-  color: #16794a;
+  color: var(--ops-success-text);
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -583,10 +583,10 @@
   display: inline-block;
   margin-left: 8px;
   padding: 1px 8px;
-  border: 1px solid #b3162a;
+  border: 1px solid var(--ops-danger-text);
   border-radius: 6px;
-  color: #b3162a;
-  background: #fff5f6;
+  color: var(--ops-danger-text);
+  background: var(--ops-danger-tint);
   font-size: 11px;
   font-weight: 700;
   line-height: 1.5;
@@ -595,12 +595,12 @@
 
 .order-list__stock-update--stale .order-list__stock-update-name,
 .order-list__stock-update--stale .order-list__stock-update-when {
-  color: #b3162a;
+  color: var(--ops-danger-text);
 }
 
 .order-list__item-meta {
   font-size: 12px;
-  color: #71717a;
+  color: var(--ops-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -613,7 +613,7 @@
 .order-list__item-mobile-meta {
   display: none;
   font-size: 12px;
-  color: #71717a;
+  color: var(--ops-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -621,7 +621,7 @@
 
 .order-list__category-cell {
   font-size: 13px;
-  color: #52525b;
+  color: var(--ops-text-secondary);
   white-space: nowrap;
 }
 
@@ -646,27 +646,27 @@
 
 .order-list__on-hand {
   font-weight: 800;
-  color: #18181b;
+  color: var(--ops-text);
 }
 
 .order-list__par {
-  color: #a1a1aa;
+  color: var(--ops-text-faint);
   font-weight: 600;
 }
 
 .order-list__unit {
   font-weight: 600;
-  color: #71717a;
+  color: var(--ops-text-muted);
   font-size: 12px;
 }
 
 .order-list__manual-value {
   font-weight: 800;
-  color: #6d28d9;
+  color: var(--ops-purple-text);
 }
 
 .order-list__manual-empty {
-  color: #a1a1aa;
+  color: var(--ops-text-faint);
   font-weight: 600;
 }
 
@@ -681,8 +681,8 @@
 
 .order-list__group-table thead tr,
 .order-list__flat-table thead tr {
-  background: #fafafa;
-  color: #71717a;
+  background: var(--ops-surface-subtle);
+  color: var(--ops-text-muted);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -691,7 +691,7 @@
 .order-list__group-table thead th,
 .order-list__flat-table thead th {
   font-weight: 700;
-  border-bottom: 1px solid #ececef;
+  border-bottom: 1px solid var(--ops-divider);
 }
 
 .order-list__status-cell {
@@ -703,8 +703,8 @@
   width: 100%;
   height: 42px;
   border: none;
-  border-top: 1px solid #f4f4f5;
-  background: #ffffff;
+  border-top: 1px solid var(--ops-divider);
+  background: var(--ops-surface);
   color: #e11d33;
   font-size: 13px;
   font-weight: 700;
@@ -713,10 +713,10 @@
 }
 
 .order-list__flat-card {
-  background: #ffffff;
-  border: 1px solid #e4e4e7;
+  background: var(--ops-surface);
+  border: 1px solid var(--ops-border);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  box-shadow: var(--ops-shadow);
   overflow: hidden;
 }
 
@@ -789,7 +789,7 @@
     border: none;
     background: none;
     padding: 2px;
-    color: #71717a;
+    color: var(--ops-text-muted);
     cursor: pointer;
   }
 
@@ -803,13 +803,13 @@
   .order-list__group-mobile-progress {
     font-size: 12px;
     font-weight: 600;
-    color: #52525b;
+    color: var(--ops-text-secondary);
     white-space: nowrap;
   }
 
   .order-list__group-mobile-summary {
     font-size: 12px;
-    color: #71717a;
+    color: var(--ops-text-muted);
     white-space: nowrap;
   }
 
@@ -900,10 +900,10 @@
      the flat list and each supplier group. */
   .order-list__group-table .order-list__row,
   .order-list__flat-table .order-list__row {
-    background: #ffffff;
-    border: 1px solid #e4e4e7;
+    background: var(--ops-surface);
+    border: 1px solid var(--ops-border);
     border-radius: 14px;
-    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    box-shadow: var(--ops-shadow);
   }
 
   /* "Show all N items" sits inside the grey tray's margin gap now, not
@@ -914,7 +914,7 @@
   .order-list__more-btn {
     margin: 0 16px;
     width: auto;
-    border: 1px solid #e4e4e7;
+    border: 1px solid var(--ops-border);
     border-radius: 14px;
   }
 
@@ -965,7 +965,7 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 8px;
-    background: #f4f4f5;
+    background: var(--ops-surface-muted);
     border-radius: 10px;
     padding: 12px 14px;
     margin-bottom: 12px;
@@ -981,7 +981,7 @@
   .order-list__mobile-stat-label {
     font-size: 10px;
     font-weight: 700;
-    color: #a1a1aa;
+    color: var(--ops-text-faint);
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
@@ -1207,12 +1207,12 @@
 /* Out-of-stock items: highlighted red until ordered. */
 .order-list__row--urgent,
 .order-list__row--urgent > td {
-  background: #fdecea;
+  background: var(--ops-danger-tint-strong);
 }
 
 .order-list__row--urgent:hover,
 .order-list__row--urgent:hover > td {
-  background: #fbd9d5;
+  background: var(--ops-danger-tint-stronger);
 }
 
 .order-list__row--urgent {

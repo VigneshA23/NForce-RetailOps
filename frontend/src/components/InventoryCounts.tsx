@@ -219,7 +219,7 @@ function InventoryCounts() {
             <span>
               {row.currentStock != null ? (
                 <>
-                  <span className="inventory-counts__num" style={{ color: row.status === 'HEALTHY' ? '#18181b' : meta.fg }}>{row.currentStock}</span>
+                  <span className="inventory-counts__num" style={{ color: row.status === 'HEALTHY' ? 'var(--ops-text)' : meta.fg }}>{row.currentStock}</span>
                   <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                 </>
               ) : (
@@ -276,7 +276,7 @@ function InventoryCounts() {
           <span>
             {row.lastUpdatedAt ? (
               <>
-                <span style={{ color: row.status === 'STALE' ? '#a3620a' : '#18181b', fontWeight: 600 }}>{formatCardTimestamp(row.lastUpdatedAt)}</span>
+                <span style={{ color: row.status === 'STALE' ? 'var(--ops-stale-text)' : 'var(--ops-text)', fontWeight: 600 }}>{formatCardTimestamp(row.lastUpdatedAt)}</span>
                 <span className="inventory-counts__muted"> · {row.lastUpdatedByName}{countSourceLabel(row.lastUpdatedSource) && ` · ${countSourceLabel(row.lastUpdatedSource)}`}</span>
               </>
             ) : (
@@ -385,7 +385,7 @@ function InventoryCounts() {
                       <td data-label="Current Stock">
                         {row.currentStock != null ? (
                           <>
-                            <span className="inventory-counts__num" style={{ color: row.status === 'HEALTHY' ? '#18181b' : meta.fg }}>{row.currentStock}</span>
+                            <span className="inventory-counts__num" style={{ color: row.status === 'HEALTHY' ? 'var(--ops-text)' : meta.fg }}>{row.currentStock}</span>
                             <span className="inventory-counts__unit"> {row.unitOfMeasurement}</span>
                           </>
                         ) : (
@@ -411,7 +411,7 @@ function InventoryCounts() {
                       <td data-label="Last Updated">
                         {row.lastUpdatedAt ? (
                           <>
-                            <span style={{ color: row.status === 'STALE' ? '#a3620a' : '#18181b', fontWeight: 600 }}>{formatTimeLabel(row.lastUpdatedAt)}</span>
+                            <span style={{ color: row.status === 'STALE' ? 'var(--ops-stale-text)' : 'var(--ops-text)', fontWeight: 600 }}>{formatTimeLabel(row.lastUpdatedAt)}</span>
                             <span className="inventory-counts__muted"> {row.lastUpdatedByName}{countSourceLabel(row.lastUpdatedSource) && ` · ${countSourceLabel(row.lastUpdatedSource)}`}</span>
                           </>
                         ) : (

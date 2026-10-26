@@ -353,7 +353,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
             </div>
           </div>
           <div className="order-list__mobile-footer">
-            <span className="order-list__mobile-pill" style={{ background: '#f4f4f5', color: '#52525b' }}>
+            <span className="order-list__mobile-pill" style={{ background: 'var(--ops-surface-muted)', color: 'var(--ops-text-secondary)' }}>
               {row.categoryLabel}
             </span>
             {renderStatusBadge(row)}
