@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -40,6 +41,7 @@ class InventoryCategoryServiceTest {
     @Mock private StoreInventoryItemRepository storeInventoryItemRepository;
     @Mock private StoreRepository storeRepository;
     @Mock private StoreOwnerRepository storeOwnerRepository;
+    @Mock private NotificationService notificationService;
     @InjectMocks private InventoryCategoryService inventoryCategoryService;
 
     private Store store(long id) {
@@ -171,5 +173,82 @@ class InventoryCategoryServiceTest {
     void deleteUnknownCategoryThrowsNotFound() {
         when(inventoryCategoryRepository.findById(9L)).thenReturn(Optional.empty());
         assertThrows(InventoryCategoryNotFoundException.class, () -> inventoryCategoryService.deleteCategory(9L));
+    }
+
+    private Store activeStore(long id, String name) {
+        Store store = store(id);
+        store.setName(name);
+        store.setActive(true);
+        return store;
+    }
+
+    private StoreOwner ownerLink(Store store, long ownerId) {
+        com.nforce.retailops.entity.User owner = new com.nforce.retailops.entity.User();
+        ReflectionTestUtils.setField(owner, "id", ownerId);
+        StoreOwner link = new StoreOwner();
+        link.setStore(store);
+        link.setOwner(owner);
+        return link;
+    }
+
+    @Test
+    void activatingCategoryNotifiesOwnerOfEachStoreWithItsName() {
+        Store downtown = activeStore(10L, "Downtown");
+        InventoryCategory category = new InventoryCategory();
+        category.setName("Dairy");
+        category.setActive(false);
+        category.setAppliesToAllStores(false);
+        category.setStores(new java.util.HashSet<>(List.of(downtown)));
+        StoreOwner link = ownerLink(downtown, 1L);
+        when(inventoryCategoryRepository.findById(5L)).thenReturn(Optional.of(category));
+        when(inventoryCategoryRepository.save(any(InventoryCategory.class))).thenAnswer(i -> i.getArgument(0));
+        when(storeRepository.findByActiveTrueOrderByName()).thenReturn(List.of(downtown));
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(10L)).thenReturn(Optional.of(link));
+
+        inventoryCategoryService.setCategoryActive(5L, true);
+
+        verify(notificationService).sendForStore(
+            eq(link.getOwner()), eq("INVENTORY_CATEGORY_AVAILABLE"),
+            eq("Inventory category available: Dairy"),
+            eq("\"Dairy\" is now available for Downtown. You can add new stock items under it."),
+            eq("/inventory"), eq(downtown));
+    }
+
+    @Test
+    void deactivatingCategoryDoesNotNotify() {
+        Store downtown = activeStore(10L, "Downtown");
+        InventoryCategory category = new InventoryCategory();
+        category.setName("Dairy");
+        category.setAppliesToAllStores(true);
+        when(inventoryCategoryRepository.findById(5L)).thenReturn(Optional.of(category));
+        when(inventoryCategoryRepository.save(any(InventoryCategory.class))).thenAnswer(i -> i.getArgument(0));
+        when(storeRepository.findByActiveTrueOrderByName()).thenReturn(List.of(downtown));
+
+        inventoryCategoryService.setCategoryActive(5L, false);
+
+        verify(notificationService, never()).sendForStore(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void addingStoreNotifiesOnlyTheNewStore() {
+        Store downtown = activeStore(10L, "Downtown");
+        Store uptown = activeStore(20L, "Uptown");
+        InventoryCategory category = new InventoryCategory();
+        category.setName("Dairy");
+        category.setAppliesToAllStores(false);
+        category.setStores(new java.util.HashSet<>(List.of(downtown)));
+        StoreOwner uptownOwner = ownerLink(uptown, 2L);
+        when(inventoryCategoryRepository.findById(5L)).thenReturn(Optional.of(category));
+        when(inventoryCategoryRepository.existsByNameIgnoreCaseAndIdNot("Dairy", 5L)).thenReturn(false);
+        when(inventoryCategoryRepository.save(any(InventoryCategory.class))).thenAnswer(i -> i.getArgument(0));
+        when(storeRepository.findAllById(List.of(10L, 20L))).thenReturn(List.of(downtown, uptown));
+        when(storeRepository.findByActiveTrueOrderByName()).thenReturn(List.of(downtown, uptown));
+        when(storeOwnerRepository.findByStoreIdAndActiveTrue(20L)).thenReturn(Optional.of(uptownOwner));
+
+        inventoryCategoryService.updateCategory(5L, new InventoryCategoryDetailsRequest("Dairy", false, List.of(10L, 20L)));
+
+        verify(notificationService).sendForStore(
+            eq(uptownOwner.getOwner()), eq("INVENTORY_CATEGORY_AVAILABLE"), any(), any(), eq("/inventory"), eq(uptown));
+        verify(notificationService, never()).sendForStore(any(), any(), any(), any(), any(), eq(downtown));
     }
 }
