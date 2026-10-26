@@ -299,8 +299,9 @@ describe('StockCheckHistory', () => {
     await user.click(within(tableRow).getByRole('button', { name: 'Correct count for Paper Towels' }));
 
     expect(await screen.findByText('Correct Start of Day count: Paper Towels')).toBeInTheDocument();
-    const availableInput = screen.getAllByRole('spinbutton')[0];
-    expect(availableInput).toHaveValue(48);
+    // QuantityStepper's field is a text input, so it has no spinbutton role.
+    const availableInput = document.querySelector<HTMLInputElement>('input.quantity-stepper__input');
+    expect(availableInput).toHaveValue('48');
   });
 
   it('submits a correction and updates the row in place without a full refetch', async () => {
