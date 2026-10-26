@@ -93,8 +93,12 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
         const pending = pendingLoginRef.current
         if (pending) onLoginSuccess(pending.result, pending.remember, pending.mustReset)
       }, 500)
-    } catch {
-      setError('Invalid email or password')
+    } catch (err) {
+      // Only the rate-limit (429) message is shown as-is: it tells the user
+      // they are locked out. Every other failure stays the generic message so
+      // a login error never reveals whether the account exists.
+      const isLockout = err instanceof Error && (err as { status?: number }).status === 429
+      setError(isLockout ? err.message : 'Invalid email or password')
     } finally {
       setLoading(false)
     }
