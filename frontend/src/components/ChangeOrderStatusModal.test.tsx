@@ -87,7 +87,9 @@ describe('ChangeOrderStatusModal', () => {
     expect(onConfirm).toHaveBeenCalledWith(5.25);
   });
 
-  it.each(['', '0', 'abc', '1.234', '-2'])('blocks confirming with an invalid quantity (%j)', async (text) => {
+  // 'abc' can't be typed at all (the field only accepts quantity characters),
+  // so it ends up as empty as '' does.
+  it.each(['', '0', 'abc'])('blocks confirming with an invalid quantity (%j)', async (text) => {
     const user = userEvent.setup();
     const onConfirm = renderModal('ORDERED', 'RECEIVED');
 
@@ -97,7 +99,21 @@ describe('ChangeOrderStatusModal', () => {
     await user.click(screen.getByRole('button', { name: 'Confirm received' }));
 
     expect(onConfirm).not.toHaveBeenCalled();
-    expect(screen.getByText('Enter a quantity greater than 0 (up to 2 decimals)')).toBeInTheDocument();
+    expect(screen.getByText('Enter a number (up to 4 digits, with up to 2 decimals) greater than 0')).toBeInTheDocument();
+  });
+
+  // Characters past the rule are refused as they're typed: a third decimal
+  // and a minus sign never reach the field.
+  it.each([['1.234', 1.23], ['-2', 2]])('drops keystrokes that break the rule (%j)', async (text, expected) => {
+    const user = userEvent.setup();
+    const onConfirm = renderModal('ORDERED', 'RECEIVED');
+
+    const input = screen.getByLabelText('Quantity received (L)');
+    await user.clear(input);
+    await user.type(input, text);
+    await user.click(screen.getByRole('button', { name: 'Confirm received' }));
+
+    expect(onConfirm).toHaveBeenCalledWith(expected);
   });
 
   it('shows no quantity box for other transitions', async () => {

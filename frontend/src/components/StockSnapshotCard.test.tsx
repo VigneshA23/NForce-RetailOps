@@ -60,7 +60,8 @@ describe('StockSnapshotCard', () => {
     expect(screen.getByText(/Verified by John/)).toBeInTheDocument();
 
     const available = screen.getByLabelText('Total Stock');
-    expect(available).toHaveValue(50);
+    // CounterStepper's field is a text input, so its value is a string.
+    expect(available).toHaveValue('50');
     await user.clear(available);
     await user.type(available, '48');
     await user.click(screen.getByRole('button', { name: 'Update Count' }));
