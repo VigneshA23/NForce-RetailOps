@@ -15,7 +15,8 @@ interface ReceivedStockModalProps {
   isOpen: boolean;
   itemName: string;
   unit: string;
-  // End of Day mode: today's Start of Day and End of Day usable stock. Start
+  // End of Day mode: the most the closing total may be without a delivery and
+  // the closing total typed, both dead stock included. Start
   // of Day mode: what Start of Day should be (the last End of Day plus
   // deliveries since) and the Start of Day total counted.
   startUsable: number;
@@ -66,7 +67,7 @@ function ReceivedStockModal({
 
   useEffect(() => {
     if (isOpen) {
-      setCurrentStock(isStart ? '' : String(roundQty(endUsable + deadStock)));
+      setCurrentStock(isStart ? '' : String(roundQty(endUsable)));
       setError(null);
     }
     // Reset only when the popup opens, not as the figures behind it refresh.
@@ -97,16 +98,16 @@ function ReceivedStockModal({
     // was already received, so a current stock at or below that figure
     // contradicts it; the count should be corrected on the tile instead.
     const minimum = roundQty(startUsable + alreadyReceived);
-    if (roundQty(stock - deadStock) <= minimum) {
-      const openingStock = roundQty(startUsable + deadStock);
+    if (roundQty(stock) <= minimum) {
+      const openingStock = roundQty(startUsable);
       setError(
         `Count cannot be less than opening stock (${openingStock} ${unit}) plus delivery (${orderedTotal} ${unit}). Enter actual store stock, or cancel to fix your End of Day count.`,
       );
       return;
     }
     const maximum = roundQty(startUsable + alreadyReceived + orderedTotal);
-    if (roundQty(stock - deadStock) > maximum) {
-      setError(`Current stock cannot be more than ${roundQty(maximum + deadStock)} (Start of Day plus the received order)`);
+    if (roundQty(stock) > maximum) {
+      setError(`Current stock cannot be more than ${maximum} (Start of Day plus the received order)`);
       return;
     }
     onConfirm(items, stock);

@@ -173,18 +173,20 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
       // total above the opening one through when the extra is entered as dead
       // stock (11 → 12 total with 2 dead still reads as usable 11 → 10).
       const totalStart = item.startOfDay.available + (item.quantityReceived ?? 0);
-      const usableExcess = endUsable - usableStart;
-      const totalExcess = available - totalStart;
-      const [startUsable, endFigure] = totalExcess > usableExcess
-        ? [totalStart, available]
-        : [usableStart, endUsable];
-      if (endFigure > startUsable + (item.pendingReceivedQuantity ?? 0)) {
+      const usableExcess = roundQty(endUsable - usableStart);
+      const totalExcess = roundQty(available - totalStart);
+      // Whichever gap is larger decides. The popup works in totals (dead stock
+      // included): startTotal is the most the closing total may be without a
+      // delivery, so the excess shown is always available - startTotal.
+      const excess = Math.max(totalExcess, usableExcess);
+      const startTotal = available - excess;
+      if (excess > (item.pendingReceivedQuantity ?? 0)) {
         if ((item.openOrders ?? []).length === 0) {
           nfToast.error('End of Day cannot be greater than Start of Day plus the stock received.');
           return false;
         }
         return new Promise<boolean>((resolve) => {
-          setReceivedPrompt({ item, available, deadStock, startUsable, endUsable: endFigure, snapshot: 'END_OF_DAY', resolve });
+          setReceivedPrompt({ item, available, deadStock, startUsable: startTotal, endUsable: available, snapshot: 'END_OF_DAY', resolve });
         });
       }
     }

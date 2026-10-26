@@ -47,6 +47,11 @@ describe('ReceivedStockModal at End of Day', () => {
     expect(screen.getByLabelText(/Current on-hand stock/)).toHaveValue('20');
   });
 
+  it('prefills the typed total without adding the dead stock again', () => {
+    renderEndOfDay({ deadStock: 3 });
+    expect(screen.getByLabelText(/Current on-hand stock/)).toHaveValue('20');
+  });
+
   it('confirms every order together with the current stock given', async () => {
     const { onConfirm } = renderEndOfDay();
     const box = screen.getByLabelText(/Current on-hand stock/);
