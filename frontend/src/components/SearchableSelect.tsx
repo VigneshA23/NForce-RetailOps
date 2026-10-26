@@ -254,8 +254,10 @@ function SearchableSelect({
                         type="button"
                         className="searchable-select__option"
                         onClick={() => {
+                          const turningOn = !allActive;
                           allOption.onToggle();
-                          setIsOpen(false);
+                          // Unticking "All" leaves the panel open so the user can pick stores.
+                          if (turningOn) setIsOpen(false);
                         }}
                       >
                         <span className={`searchable-select__box${allActive ? ' searchable-select__box--checked' : ''}`}>

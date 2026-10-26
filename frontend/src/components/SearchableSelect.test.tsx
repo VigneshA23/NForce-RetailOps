@@ -83,6 +83,48 @@ describe('SearchableSelect', () => {
     expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
+  it('ticking "All" closes the panel', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SearchableSelect
+        id="category-stores"
+        multiple
+        options={OPTIONS}
+        selectedIds={[]}
+        onChange={vi.fn()}
+        placeholder="Select store(s)"
+        allOption={{ label: 'All Stores', selected: false, onToggle: vi.fn() }}
+      />,
+    );
+
+    await openTrigger(user, 'category-stores');
+    await user.click(within(panel()).getByText('All Stores'));
+    expect(screen.queryByRole('listbox')).toBeNull();
+  });
+
+  it('unticking "All" keeps the panel open so stores can be picked', async () => {
+    const user = userEvent.setup();
+    const onToggle = vi.fn();
+
+    render(
+      <SearchableSelect
+        id="category-stores"
+        multiple
+        options={OPTIONS}
+        selectedIds={[]}
+        onChange={vi.fn()}
+        placeholder="Select store(s)"
+        allOption={{ label: 'All Stores', selected: true, onToggle }}
+      />,
+    );
+
+    await openTrigger(user, 'category-stores');
+    await user.click(within(panel()).getByText('All Stores'));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('listbox')).toBeTruthy();
+  });
+
   // Existing multi-select "applies to all" behavior (CategoryFormModal and
   // friends) must be unchanged: once "All" is active, individual options
   // stay disabled until "All" is toggled off.
