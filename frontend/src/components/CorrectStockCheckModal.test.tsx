@@ -41,15 +41,20 @@ const ROW: StockCheckResponse = {
   }],
 };
 
+
+// QuantityStepper's field is a text input (so a half-typed "1." isn't wiped), not a
+// number input, so it has no spinbutton role -- find it by its class instead.
+const stepperInputs = () => Array.from(document.querySelectorAll<HTMLInputElement>('input.quantity-stepper__input'));
+
 describe('CorrectStockCheckModal', () => {
   it('pre-fills available and dead stock from the chosen snapshot', () => {
     render(
       <CorrectStockCheckModal isOpen row={ROW} snapshot="START_OF_DAY" onClose={vi.fn()} onSubmit={vi.fn()} />,
     );
 
-    const [available, deadStock] = screen.getAllByRole('spinbutton');
-    expect(available).toHaveValue(48);
-    expect(deadStock).toHaveValue(2);
+    const [available, deadStock] = stepperInputs();
+    expect(available).toHaveValue('48');
+    expect(deadStock).toHaveValue('2');
   });
 
   it('shows the full correction history for the row, labelled by snapshot, regardless of the active toggle', () => {
@@ -86,9 +91,9 @@ describe('CorrectStockCheckModal', () => {
       />,
     );
 
-    const [available, deadStock] = screen.getAllByRole('spinbutton');
-    expect(available).toHaveValue(0);
-    expect(deadStock).toHaveValue(0);
+    const [available, deadStock] = stepperInputs();
+    expect(available).toHaveValue('0');
+    expect(deadStock).toHaveValue('0');
     expect(screen.getByText(/Start of Day not yet recorded/)).toBeInTheDocument();
     // The toggle is always available, even though the row has only one snapshot.
     expect(screen.getByRole('button', { name: 'Snapshot' })).toBeInTheDocument();

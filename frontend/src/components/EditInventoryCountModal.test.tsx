@@ -24,13 +24,18 @@ const ROW: InventoryCountRow = {
   imageId: null,
 };
 
+
+// QuantityStepper's field is a text input (so a half-typed "1." isn't wiped), not a
+// number input, so it has no spinbutton role -- find it by its class instead.
+const stepperInputs = () => Array.from(document.querySelectorAll<HTMLInputElement>('input.quantity-stepper__input'));
+
 describe('EditInventoryCountModal', () => {
   it('seeds the stepper with the latest available count and submits the default reason unchanged', async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(<EditInventoryCountModal isOpen row={ROW} onClose={vi.fn()} onSubmit={onSubmit} />);
 
-    expect(screen.getByRole('spinbutton')).toHaveValue(30);
+    expect(stepperInputs()[0]).toHaveValue('30');
     expect(screen.getByRole('button', { name: 'Save count' })).toBeDisabled();
     await user.click(screen.getByLabelText('Increase'));
     await user.click(screen.getByRole('button', { name: 'Save count' }));
@@ -43,7 +48,7 @@ describe('EditInventoryCountModal', () => {
     const onSubmit = vi.fn();
     render(<EditInventoryCountModal isOpen row={ROW} onClose={vi.fn()} onSubmit={onSubmit} />);
 
-    const input = screen.getByRole('spinbutton');
+    const [input] = stepperInputs();
     await user.clear(input);
     await user.type(input, '30.25');
     expect(screen.getByText('+0.25 L vs. last count')).toBeInTheDocument();

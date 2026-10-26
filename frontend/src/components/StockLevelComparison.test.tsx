@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import StockLevelComparison from './StockLevelComparison';
@@ -97,10 +97,13 @@ describe('StockLevelComparison', () => {
     await userEvent.selectOptions(screen.getByLabelText('Select an item to compare…'), 'Napkins');
 
     await waitFor(() => expect(mockCompareStockLevels).toHaveBeenCalledWith('Napkins'));
-    expect(await screen.findByText('Store A')).toBeInTheDocument();
-    expect(screen.getByText('Below Minimum')).toBeInTheDocument();
-    expect(screen.getByText('Store B')).toBeInTheDocument();
-    expect(screen.getByText('Not Assigned')).toBeInTheDocument();
+    // The desktop table and the mobile card list are both rendered (CSS picks
+    // one), so check the table only.
+    const table = within(await screen.findByRole('table'));
+    expect(await table.findByText('Store A')).toBeInTheDocument();
+    expect(table.getByText('Below Minimum')).toBeInTheDocument();
+    expect(table.getByText('Store B')).toBeInTheDocument();
+    expect(table.getByText('Not Assigned')).toBeInTheDocument();
   });
 
   it('renders dashes rather than zeros for a not-assigned store', async () => {
@@ -112,7 +115,7 @@ describe('StockLevelComparison', () => {
 
     await userEvent.selectOptions(screen.getByLabelText('Select an item to compare…'), 'Napkins');
 
-    const storeBCell = await screen.findByText('Store B');
+    const storeBCell = await within(await screen.findByRole('table')).findByText('Store B');
     const cells = storeBCell.closest('tr')!.querySelectorAll('td');
     expect(cells[1].textContent).toBe('—');
     expect(cells[2].textContent).toBe('—');
