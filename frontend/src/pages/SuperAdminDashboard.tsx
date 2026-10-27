@@ -406,8 +406,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     [owners],
   );
   const inactiveOwnerCount = uniqueOwnerCount - activeOwnerCount;
-  // Owners/Stores move off the mobile bottom nav into the profile menu below --
-  // desktop/tablet Sidebar keeps the full SUPER_ADMIN_NAV_ITEMS list untouched.
+  // Owners/Stores/etc. move off the mobile bottom nav into the profile menu below;
+  // the desktop/tablet Sidebar keeps SUPER_ADMIN_NAV_ITEMS (which no longer lists Issues).
   const isMobile = useIsMobile();
   return (
     <AppShell<SuperAdminNavTabKey>
@@ -447,7 +447,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onStoresClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('stores'); } : undefined}
       onEmployeesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('employees'); } : undefined}
       onCategoriesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('categories'); } : undefined}
-      onIssuesClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('issues'); } : undefined}
+      // Issues has no sidebar entry, so the profile menu offers it on every screen size.
+      onIssuesClick={() => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('issues'); }}
       onInventoryClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('inventory'); } : undefined}
       onOrdersClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('orders'); } : undefined}
       onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowActivity(false); setShowHelp(true); }}
