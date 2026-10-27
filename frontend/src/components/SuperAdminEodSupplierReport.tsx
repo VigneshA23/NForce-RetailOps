@@ -30,10 +30,7 @@ const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
 
 const STATUS_FILTER_OPTIONS: { value: 'all' | EodReportStatus; label: string }[] = [
   { value: 'all', label: 'All statuses' },
-  { value: 'NEEDS_TO_ORDER', label: 'Needs to Order' },
-  { value: 'SUFFICIENT', label: 'Sufficient' },
-  { value: 'END_OF_DAY_PENDING', label: 'EOD Pending' },
-  { value: 'NO_MINIMUM_SET', label: 'No Minimum Set' },
+  ...(Object.keys(STATUS_META) as EodReportStatus[]).map((value) => ({ value, label: STATUS_META[value].label })),
 ];
 
 const GROUP_ROW_LIMIT = 5;
@@ -67,8 +64,26 @@ interface DecoratedRow {
   // count supersedes Start of Day's once it's been taken (same day, later
   // and more current), rather than showing both as separate columns.
   deadStock: number | null;
+  // Need column: quantity short / the minimum it is judged against. Today's
+  // minimum against the Start of Day count until End of Day is in, then
+  // tomorrow's minimum against the End of Day count. Nulls where unknown.
+  need: number | null;
+  needMinimum: number | null;
   statusLabel: string;
   statusTone: string;
+}
+
+function needFor(item: EodReportRow, startUsable: number | null): { need: number | null; minimum: number | null } {
+  // Units already ordered or received count against the shortfall, so the
+  // need drops as soon as an order is placed (or arrives). max(), not a sum:
+  // an order placed and received the same day appears in both figures.
+  const covered = Math.max(item.orderedQuantity ?? 0, item.receivedQuantity ?? 0);
+  if (item.quantityToOrder != null) {
+    return { need: Math.max(item.quantityToOrder - covered, 0), minimum: item.requiredTomorrow };
+  }
+  const minimum = item.requiredToday ?? null;
+  if (startUsable == null || minimum == null) return { need: null, minimum };
+  return { need: Math.max(minimum - startUsable - covered, 0), minimum };
 }
 
 interface SuperAdminEodSupplierReportProps {
@@ -140,14 +155,18 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
 
   function decorate(item: EodReportRow, supplierId: number | null, supplierName: string): DecoratedRow {
     const status = STATUS_META[item.status];
+    const startUsable = usableStock(item.startOfDayAvailable, item.startOfDayDeadStock);
+    const { need, minimum } = needFor(item, startUsable);
     return {
       item,
       supplierId,
       supplierName,
       categoryLabel: categoryLabelOf(item.category) || '—',
-      startUsable: usableStock(item.startOfDayAvailable, item.startOfDayDeadStock),
+      startUsable,
       endUsable: usableStock(item.endOfDayAvailable, item.endOfDayDeadStock),
       deadStock: item.endOfDayDeadStock ?? item.startOfDayDeadStock,
+      need,
+      needMinimum: minimum,
       statusLabel: status.label,
       statusTone: status.tone,
     };
@@ -264,6 +283,15 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
     return badge;
   }
 
+  function renderNeed(row: DecoratedRow) {
+    return (
+      <>
+        <strong className={row.need ? 'eod-report__order-qty' : undefined}>{value(row.need)}</strong>
+        <span className="eod-report__unit">/ {value(row.needMinimum)}</span>
+      </>
+    );
+  }
+
   function renderMobileCard(row: DecoratedRow) {
     const { item } = row;
     return (
@@ -296,15 +324,8 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
               <span className="order-list__cell-value">{value(item.stockUsed)}</span>
             </div>
             <div className="order-list__mobile-stat">
-              <span className="order-list__mobile-stat-label">Req. Tomorrow</span>
-              <span className="order-list__cell-value">{value(item.requiredTomorrow)}</span>
-            </div>
-            <div className="order-list__mobile-stat">
-              <span className="order-list__mobile-stat-label">Order Qty</span>
-              <span className="order-list__cell-value">
-                <strong className={item.quantityToOrder ? 'eod-report__order-qty' : undefined}>{value(item.quantityToOrder)}</strong>
-                <span className="eod-report__unit">{item.unitOfMeasurement}</span>
-              </span>
+              <span className="order-list__mobile-stat-label">Need</span>
+              <span className="order-list__cell-value">{renderNeed(row)}</span>
             </div>
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Manual</span>
@@ -320,9 +341,13 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
                 )}
               </span>
             </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Received</span>
+              <span className="order-list__cell-value">{value(item.receivedQuantity ?? null)}</span>
+            </div>
           </div>
           <div className="order-list__mobile-footer">
-            <span className="order-list__mobile-pill" style={{ background: '#f4f4f5', color: '#52525b' }}>
+            <span className="order-list__mobile-pill" style={{ background: 'var(--ops-surface-muted)', color: 'var(--ops-text-secondary)' }}>
               {row.categoryLabel}
             </span>
             {renderStatusBadge(row)}
@@ -346,27 +371,24 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
                 <span className="order-list__item-name-text">{item.itemName}</span>
                 <span className="eod-report__unit">{item.unitOfMeasurement}</span>
               </div>
+              <div className="eod-report__ordered-on">{row.categoryLabel}</div>
             </div>
           </div>
         </td>
-        {!isFlat && <td className="order-list__category-cell">{row.categoryLabel}</td>}
-        <td className="order-list__num-cell" data-label="Start Usable">
+        <td className="order-list__num-cell" data-label="SOD">
           <span className="order-list__cell-value">{value(row.startUsable)}</span>
         </td>
         <td className="order-list__num-cell" data-label="Dead">
           <span className={row.deadStock ? 'eod-report__dead' : undefined}>{value(row.deadStock)}</span>
         </td>
-        <td className="order-list__num-cell" data-label="End Usable">
+        <td className="order-list__num-cell" data-label="EOD">
           <span className="order-list__cell-value">{value(row.endUsable)}</span>
         </td>
         <td className="order-list__num-cell" data-label="Used">
           <span className="order-list__cell-value">{value(item.stockUsed)}</span>
         </td>
-        <td className="order-list__num-cell" data-label="Required Tomorrow">
-          <span className="order-list__cell-value">{value(item.requiredTomorrow)}</span>
-        </td>
-        <td className="order-list__num-cell" data-label="Order Qty">
-          <strong className={item.quantityToOrder ? 'eod-report__order-qty' : undefined}>{value(item.quantityToOrder)}</strong>
+        <td className="order-list__num-cell" data-label="Need">
+          {renderNeed(row)}
         </td>
         <td className="order-list__num-cell" data-label="Manual">
           <strong className={item.manualQuantity != null ? 'eod-report__order-qty' : undefined}>{value(item.manualQuantity ?? null)}</strong>
@@ -374,7 +396,9 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
         <td className="order-list__num-cell" data-label="Ordered">
           <strong className={item.orderedQuantity != null ? 'eod-report__order-qty' : undefined}>{value(item.orderedQuantity)}</strong>
         </td>
-        {isFlat && <td className="order-list__mobile-hide">{row.supplierName}</td>}
+        <td className="order-list__num-cell" data-label="Received">
+          <strong className={item.receivedQuantity != null ? 'eod-report__order-qty' : undefined}>{value(item.receivedQuantity ?? null)}</strong>
+        </td>
         <td className="order-list__status-cell">{renderStatusBadge(row)}</td>
       </tr>
     );
@@ -520,30 +544,28 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
                               this table has 7, which at 10% apiece would squeeze
                               Item/Category down to nothing. */}
                           <colgroup>
-                            <col style={{ width: '18%' }} />
+                            <col style={{ width: '22%' }} />
                             <col style={{ width: '8%' }} />
                             <col style={{ width: '8%' }} />
-                            <col style={{ width: '7%' }} />
                             <col style={{ width: '8%' }} />
-                            <col style={{ width: '7%' }} />
-                            <col style={{ width: '9%' }} />
-                            <col style={{ width: '7%' }} />
-                            <col style={{ width: '7%' }} />
                             <col style={{ width: '8%' }} />
-                            <col style={{ width: '13%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '14%' }} />
                           </colgroup>
                           <thead>
                             <tr>
                               <th>Item</th>
-                              <th className="order-list__category-cell">Category</th>
-                              <th className="order-list__num-header">Start Usable</th>
+                              <th className="order-list__num-header">SOD</th>
                               <th className="order-list__num-header">Dead</th>
-                              <th className="order-list__num-header">End Usable</th>
+                              <th className="order-list__num-header">EOD</th>
                               <th className="order-list__num-header">Used</th>
-                              <th className="order-list__num-header">Required Tomorrow</th>
-                              <th className="order-list__num-header">Order Qty</th>
+                              <th className="order-list__num-header">Need</th>
                               <th className="order-list__num-header">Manual</th>
                               <th className="order-list__num-header">Ordered</th>
+                              <th className="order-list__num-header">Received</th>
                               <th>Status</th>
                             </tr>
                           </thead>
@@ -567,30 +589,28 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
               <div className="table-scroll">
                 <table className="order-list__flat-table">
                   <colgroup>
-                    <col style={{ width: '18%' }} />
-                    <col style={{ width: '7%' }} />
-                    <col style={{ width: '6%' }} />
-                    <col style={{ width: '7%' }} />
-                    <col style={{ width: '6%' }} />
-                    <col style={{ width: '9%' }} />
-                    <col style={{ width: '7%' }} />
-                    <col style={{ width: '7%' }} />
-                    <col style={{ width: '7%' }} />
-                    <col style={{ width: '13%' }} />
-                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '14%' }} />
                   </colgroup>
                   <thead>
                     <tr>
                       <th>Item</th>
-                      <th className="order-list__num-header">Start Usable</th>
+                      <th className="order-list__num-header">SOD</th>
                       <th className="order-list__num-header">Dead</th>
-                      <th className="order-list__num-header">End Usable</th>
+                      <th className="order-list__num-header">EOD</th>
                       <th className="order-list__num-header">Used</th>
-                      <th className="order-list__num-header">Required Tomorrow</th>
-                      <th className="order-list__num-header">Order Qty</th>
+                      <th className="order-list__num-header">Need</th>
                       <th className="order-list__num-header">Manual</th>
                       <th className="order-list__num-header">Ordered</th>
-                      <th>Supplier</th>
+                      <th className="order-list__num-header">Received</th>
                       <th className="order-list__status-header">Status</th>
                     </tr>
                   </thead>
