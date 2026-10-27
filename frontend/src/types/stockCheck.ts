@@ -143,6 +143,9 @@ export interface DailyStockCheckItem {
   quantityReceived?: number;
   // Usable stock now (latest count + deliveries since); null before Start of Day.
   currentStock?: number | null;
+  // Deliveries received after End of Day was saved; stock on hand is End of Day
+  // usable plus this.
+  deliveredAfterEndOfDay?: number;
   stockUsed: number | null;
   quantityToOrder: number | null;
   imageId: number | null;

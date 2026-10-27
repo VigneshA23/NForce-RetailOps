@@ -55,6 +55,16 @@ class InventoryCountStatusCalculatorTest {
     }
 
     @Test
+    void statusIsJudgedOnTheStockOnHandNotTheBareCount() {
+        // Closing count 1, then 5 delivered after it: 6 on hand against a minimum of 5.
+        StockCheck today = checkWithCount(LocalDate.now(), 1);
+        assertThat(InventoryCountStatusCalculator.calculate(today, LocalDate.now(), bd(5)))
+            .isEqualTo(InventoryCountStatus.LOW);
+        assertThat(InventoryCountStatusCalculator.calculate(today, LocalDate.now(), bd(5), bd(6)))
+            .isEqualTo(InventoryCountStatus.HEALTHY);
+    }
+
+    @Test
     void nullMinimumNeverProducesLow() {
         StockCheck todayLowCount = checkWithCount(LocalDate.now(), 1);
         assertThat(InventoryCountStatusCalculator.calculate(todayLowCount, LocalDate.now(), null))

@@ -17,10 +17,19 @@ public final class InventoryCountStatusCalculator {
     }
 
     public static InventoryCountStatus calculate(StockCheck latest, LocalDate today, BigDecimal minimum) {
+        return calculate(latest, today, minimum, latest == null ? null : latest.getCurrentCount());
+    }
+
+    // currentStock is the stock on hand the row displays: the latest count plus
+    // deliveries received after it (see StockCheckReceipt.latestKnownStock). The
+    // status must be judged on that same figure, or a row can read "6 on hand"
+    // yet "below minimum" because it was tiered on the count alone.
+    public static InventoryCountStatus calculate(
+        StockCheck latest, LocalDate today, BigDecimal minimum, BigDecimal currentStock
+    ) {
         if (latest == null || !latest.getCheckDate().isEqual(today)) {
             return InventoryCountStatus.STALE;
         }
-        BigDecimal currentStock = latest.getCurrentCount();
         if (currentStock.signum() <= 0) {
             return InventoryCountStatus.OUT_OF_STOCK;
         }
