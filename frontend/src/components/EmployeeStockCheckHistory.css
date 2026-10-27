@@ -73,9 +73,12 @@
   justify-content: center;
   gap: 6px;
   padding: 6px 14px;
-  border: 1px solid transparent;
+  /* Neutral pills (All Records, Not Counted) sit on the page background, so
+     they take the card surface plus an outline border to stay visible in both
+     themes. Shortage/Sufficient override the fill. */
+  border: 1px solid var(--color-badge-outline-border);
   border-radius: var(--radius-pill);
-  background: var(--color-bg-page);
+  background: var(--color-surface-card);
   font-size: 12px;
   font-weight: 600;
   color: var(--color-text-secondary);
@@ -83,11 +86,13 @@
 }
 
 .employee-stock-history__filter-pill--shortage {
+  border-color: transparent;
   background: var(--color-badge-icon-primary-bg);
   color: var(--color-badge-icon-primary-fg);
 }
 
 .employee-stock-history__filter-pill--sufficient {
+  border-color: transparent;
   background: var(--color-badge-icon-success-bg);
   color: var(--color-badge-icon-success-fg);
 }
@@ -95,6 +100,13 @@
 .employee-stock-history__filter-pill--active {
   outline: 2px solid currentColor;
   outline-offset: -1px;
+}
+
+/* "All Records" reuses the daily stock check pill class, whose fill is the page
+   background; give it the same card surface + outline as the other neutral pill. */
+.employee-stock-history .employee-stock-check-page__filters .employee-stock-check-page__filter-pill {
+  border-color: var(--color-badge-outline-border);
+  background: var(--color-surface-card);
 }
 
 .employee-stock-history .employee-stock-check-page__toolbar-row {
