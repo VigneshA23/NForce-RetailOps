@@ -25,7 +25,10 @@ const OWNER_KEYS_REACHED_WITHOUT_A_NAV_ENTRY: NavTabKey[] = [
   // Profile menu, plus the Home page's Active Issues tile -- see DashboardShell.
   'issues',
 ];
-const SUPER_ADMIN_KEYS_REACHED_WITHOUT_A_NAV_ENTRY: SuperAdminNavTabKey[] = [];
+const SUPER_ADMIN_KEYS_REACHED_WITHOUT_A_NAV_ENTRY: SuperAdminNavTabKey[] = [
+  // Profile menu on every screen size, plus the Home page's issues tile.
+  'issues',
+];
 
 const ownerNavKeys = OWNER_NAV_ITEMS.map((item) => item.key);
 const superAdminNavKeys = SUPER_ADMIN_NAV_ITEMS.map((item) => item.key);
@@ -69,6 +72,10 @@ describe('super admin navigation', () => {
       expect(reachable).toBe(true);
     },
   );
+
+  it('keeps Issues out of the sidebar, since the profile menu offers it on every screen size', () => {
+    expect(superAdminNavKeys).not.toContain('issues');
+  });
 
   it('has a sidebar entry for the inventory catalogue', () => {
     // Regression pin: this entry was missing while SuperAdminDashboard could

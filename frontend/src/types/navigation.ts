@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Boxes, Building2, CheckSquare, ClipboardList, LayoutGrid, MessageSquareWarning, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
+import { Boxes, Building2, CheckSquare, ClipboardList, LayoutGrid, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -68,15 +68,15 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
-  { key: 'issues', label: 'Issues', icon: MessageSquareWarning },
   { key: 'inventory', label: 'Inventory', icon: Boxes },
   { key: 'orders', label: 'Orders', icon: ShoppingCart },
 ];
 
+// Issues is not a sidebar entry on any screen size: it is reached from the
+// profile menu (desktop, tablet and mobile) and the Home page's issues tile.
 // Mobile bottom tab bar: home, tasks, daily checklist. Owners, Stores,
-// Employees, Categories, Issues, Inventory and Orders are all accessible via
-// the profile menu instead (mobile only) -- 10 tabs doesn't fit comfortably
-// at phone width.
+// Employees, Categories, Inventory and Orders are accessible via the profile
+// menu on mobile only -- 10 tabs doesn't fit comfortably at phone width.
 const SUPER_ADMIN_BOTTOM_NAV_ORDER: SuperAdminNavTabKey[] = ['home', 'tasks', 'checklist'];
 export const SUPER_ADMIN_BOTTOM_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = SUPER_ADMIN_BOTTOM_NAV_ORDER.map(
   (key) => SUPER_ADMIN_NAV_ITEMS.find((i) => i.key === key)!,
