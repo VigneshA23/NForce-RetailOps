@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, BellOff, Building2, Calendar, Clock, ListChecks, Percent, ShieldCheck, Store as StoreIcon, Tags, Users } from 'lucide-react';
+import { AlertTriangle, BellOff, Building2, Calendar, CalendarClock, ChevronRight, Clock, ListChecks, Percent, ShieldCheck, Store as StoreIcon, Tags, Users } from 'lucide-react';
 import { getPlatformStats, getOperationsOverview, getPlatformTrend, getOutstandingOrders } from '../api/superAdminOperations';
 import type { PlatformStats, StoreOperationsSummary, TrendDataPoint, OutstandingOrdersOverview } from '../api/superAdminOperations';
 import type { OwnerSummary } from '../types/owner';
@@ -20,6 +20,14 @@ const ACTIVITY_COLLAPSED_LIMIT = 8;
 // date is easier to act on.
 function formatOldest(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+const OVERDUE_AFTER_DAYS = 3;
+
+// A store's count turns red once its oldest outstanding order has waited
+// OVERDUE_AFTER_DAYS or more -- the age, not the size, is what needs chasing.
+function isOverdue(iso: string): boolean {
+  return Date.now() - new Date(iso).getTime() >= OVERDUE_AFTER_DAYS * 24 * 60 * 60 * 1000;
 }
 
 interface SuperAdminHomeProps {
@@ -128,6 +136,15 @@ function SuperAdminHome({
       .filter((s) => s.lastActivityAt === null)
       .sort((a, b) => (b.totalTasks > 0 ? 1 : 0) - (a.totalTasks > 0 ? 1 : 0)),
     [overview],
+  );
+
+  const hasOutstandingOrders = outstandingOrders !== null && outstandingOrders.platformOutstandingCount > 0;
+  // Longest-waiting store first, so the one most in need of a chase leads.
+  const outstandingStores = useMemo(
+    () => [...(outstandingOrders?.stores ?? [])].sort(
+      (a, b) => new Date(a.oldestOutstandingAt).getTime() - new Date(b.oldestOutstandingAt).getTime(),
+    ),
+    [outstandingOrders],
   );
 
   const healthRows = useMemo(() => {
@@ -285,69 +302,90 @@ function SuperAdminHome({
         </div>
       </div>
 
-      {needsAttention.length > 0 && (
-        <div className="sa-home__attention">
-          <h3 className="sa-home__attention-title">Needs Attention</h3>
-          <div className="sa-home__attention-list">
-            {needsAttention.map((s) => (
-              <div key={s.storeId} className="sa-home__attention-item">
-                <span className="sa-home__attention-store">{s.storeName}</span>
-                <span className="sa-home__attention-detail">
-                  {s.totalTasks === 0
-                    ? 'No tasks assigned'
-                    : `No activity today · ${s.totalTasks} task${s.totalTasks === 1 ? '' : 's'}`}
-                </span>
+      {(needsAttention.length > 0 || hasOutstandingOrders) && (
+        <div className="sa-home__follow-up-row">
+          {needsAttention.length > 0 && (
+            <div className="sa-home__attention">
+              <h3 className="sa-home__attention-title">Needs Attention</h3>
+              <div className="sa-home__attention-list">
+                {needsAttention.map((s) => (
+                  <div key={s.storeId} className="sa-home__attention-item">
+                    <span className="sa-home__attention-store">{s.storeName}</span>
+                    <span className="sa-home__attention-detail">
+                      {s.totalTasks === 0
+                        ? 'No tasks assigned'
+                        : `No activity today · ${s.totalTasks} task${s.totalTasks === 1 ? '' : 's'}`}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {outstandingOrders !== null && outstandingOrders.platformOutstandingCount > 0 && (
-        <div className="sa-home__orders">
-          <div className="sa-home__orders-head">
-            <h3 className="sa-home__attention-title">Outstanding Orders</h3>
-            <span className="sa-home__orders-total">
-              {outstandingOrders.platformOutstandingCount} item
-              {outstandingOrders.platformOutstandingCount === 1 ? '' : 's'} across{' '}
-              {outstandingOrders.storesWithOutstanding} store
-              {outstandingOrders.storesWithOutstanding === 1 ? '' : 's'}
-            </span>
-            {onOrdersClick && (
-              <button type="button" className="sa-home__orders-view-all" onClick={onOrdersClick}>
-                View all
-              </button>
-            )}
-          </div>
-          <div className="sa-home__orders-list">
-            {outstandingOrders.stores.map((store) => (
-              <button
-                key={store.storeId}
-                type="button"
-                className="sa-home__orders-item"
-                style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: 'none', border: 'none', padding: 0, font: 'inherit' }}
-                onClick={() => onViewStoreOrders?.(store.storeId, store.storeName)}
-              >
-                <div className="sa-home__orders-store">
-                  <span className="sa-home__attention-store">{store.storeName}</span>
-                  <span className="sa-home__orders-meta">
-                    #{store.storeCode} · {store.ownerName}
-                  </span>
+          {outstandingOrders !== null && hasOutstandingOrders && (
+            <div className="sa-home__orders">
+              <div className="sa-home__orders-head">
+                <div>
+                  <h3 className="sa-home__orders-title">Outstanding Orders</h3>
+                  <p className="sa-home__orders-subtitle">Orders requiring follow-up across your stores</p>
                 </div>
-                <div className="sa-home__orders-figures">
-                  <span className="sa-home__orders-count">{store.outstandingCount}</span>
-                  <span className="sa-home__orders-meta">
-                    oldest {formatOldest(store.oldestOutstandingAt)}
-                  </span>
-                </div>
-              </button>
-            ))}
-          </div>
-          {outstandingOrders.truncated && (
-            <p className="sa-home__orders-truncated">
-              Showing the {outstandingOrders.stores.length} stores with the most outstanding items,
-              of {outstandingOrders.storesWithOutstanding}.
-            </p>
+                <button
+                  type="button"
+                  className="sa-home__orders-total"
+                  onClick={onOrdersClick}
+                  disabled={!onOrdersClick}
+                  aria-label={`View all ${outstandingOrders.platformOutstandingCount} outstanding orders`}
+                >
+                  <span className="sa-home__orders-total-count">{outstandingOrders.platformOutstandingCount}</span>
+                  <span className="sa-home__orders-total-label">Outstanding</span>
+                </button>
+              </div>
+              <div className="sa-home__orders-summary">
+                <span>
+                  {outstandingOrders.storesWithOutstanding} store
+                  {outstandingOrders.storesWithOutstanding === 1 ? '' : 's'} affected
+                </span>
+                <span>Sorted by oldest order</span>
+              </div>
+              <div className="sa-home__orders-list">
+                {outstandingStores.map((store) => (
+                  <button
+                    key={store.storeId}
+                    type="button"
+                    className="sa-home__orders-item"
+                    onClick={() => onViewStoreOrders?.(store.storeId, store.storeName)}
+                  >
+                    <div className="sa-home__orders-store">
+                      <span className="sa-home__orders-store-name">{store.storeName}</span>
+                      <span className="sa-home__orders-meta">
+                        #{store.storeCode} · {store.ownerName}
+                      </span>
+                      <span className="sa-home__orders-oldest">
+                        <CalendarClock size={13} aria-hidden="true" />
+                        Oldest outstanding: {formatOldest(store.oldestOutstandingAt)}
+                      </span>
+                    </div>
+                    <div className="sa-home__orders-figures">
+                      <span
+                        className={`sa-home__orders-count${isOverdue(store.oldestOutstandingAt) ? ' sa-home__orders-count--overdue' : ''}`}
+                      >
+                        {store.outstandingCount}
+                      </span>
+                      <span className="sa-home__orders-meta">
+                        {store.outstandingCount === 1 ? 'order' : 'orders'}
+                      </span>
+                    </div>
+                    <ChevronRight size={16} className="sa-home__orders-chevron" aria-hidden="true" />
+                  </button>
+                ))}
+              </div>
+              {outstandingOrders.truncated && (
+                <p className="sa-home__orders-truncated">
+                  Showing the {outstandingOrders.stores.length} stores with the most outstanding items,
+                  of {outstandingOrders.storesWithOutstanding}.
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}
