@@ -83,7 +83,8 @@ describe('SuperAdminHome outstanding orders', () => {
     renderPage();
 
     expect(await screen.findByText('Outstanding Orders')).toBeInTheDocument();
-    expect(screen.getByText('3 items across 1 store')).toBeInTheDocument();
+    expect(screen.getByText('1 store affected')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'View all 3 outstanding orders' })).toBeInTheDocument();
     expect(screen.getByText('Downtown')).toBeInTheDocument();
     expect(screen.getByText(/#10001 · Sam Owner/)).toBeInTheDocument();
   });
@@ -151,10 +152,31 @@ describe('SuperAdminHome outstanding orders', () => {
     const onOrdersClick = vi.fn();
 
     renderPage({ onOrdersClick });
-    const ordersHeading = await screen.findByText('Outstanding Orders');
-    const ordersCard = ordersHeading.closest('.sa-home__orders') as HTMLElement;
-    await userEvent.click(within(ordersCard).getByRole('button', { name: 'View all' }));
+    await screen.findByText('Outstanding Orders');
+    await userEvent.click(screen.getByRole('button', { name: 'View all 3 outstanding orders' }));
 
     expect(onOrdersClick).toHaveBeenCalled();
+  });
+
+  it('lists stores oldest-first, counting red only once the oldest order is 3+ days old', async () => {
+    const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    mockGetOutstandingOrders.mockResolvedValue(
+      overview({
+        platformOutstandingCount: 8,
+        storesWithOutstanding: 2,
+        stores: [
+          row({ storeId: 1, storeName: 'Fresh', outstandingCount: 2, oldestOutstandingAt: daysAgo(0) }),
+          row({ storeId: 2, storeName: 'Stale', outstandingCount: 6, oldestOutstandingAt: daysAgo(5) }),
+        ],
+      }),
+    );
+
+    renderPage();
+    await screen.findByText('Stale');
+
+    const rows = screen.getAllByRole('button', { name: /Oldest outstanding/ });
+    expect(rows.map((r) => within(r).getByText(/Fresh|Stale/).textContent)).toEqual(['Stale', 'Fresh']);
+    expect(within(rows[0]).getByText('6')).toHaveClass('sa-home__orders-count--overdue');
+    expect(within(rows[1]).getByText('2')).not.toHaveClass('sa-home__orders-count--overdue');
   });
 });

@@ -77,8 +77,20 @@
   color: var(--color-text-secondary);
 }
 
+/* Needs Attention and Outstanding Orders sit side by side; either one fills
+   the row on its own when the other has nothing to show. */
+.sa-home__follow-up-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+}
+
 /* Outstanding orders: same card treatment as Needs Attention, in the accent
-   tone rather than amber, since a shortage is a harder signal than idleness. */
+   tone rather than amber, since a shortage is a harder signal than idleness.
+   The store cards and total sit on a translucent surface so the tint shows
+   through in both themes. */
 .sa-home__orders {
   background: rgba(225, 29, 51, 0.06);
   border: 1px solid rgba(225, 29, 51, 0.22);
@@ -86,70 +98,140 @@
   padding: var(--space-md) var(--space-lg);
 }
 
-.sa-home__orders .sa-home__attention-title {
+.sa-home__orders-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding-bottom: var(--space-md);
+  border-bottom: 1px solid rgba(225, 29, 51, 0.18);
+}
+
+.sa-home__orders-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--color-accent);
 }
 
-.sa-home__orders-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-}
-
-.sa-home__orders-total {
-  font-size: 12px;
-  font-weight: 600;
+.sa-home__orders-subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
   color: var(--color-text-secondary);
 }
 
-.sa-home__orders-view-all {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-accent);
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-.sa-home__orders-list {
+.sa-home__orders-total {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.sa-home__orders-item {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-sm);
-  font-size: 13px;
-}
-
-.sa-home__orders-store {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.sa-home__orders-figures {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-sm);
+  align-items: center;
   flex-shrink: 0;
+  min-width: 82px;
+  padding: 8px 10px;
+  background: var(--color-surface-card);
+  border: 1px solid rgba(225, 29, 51, 0.22);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  cursor: pointer;
 }
 
-.sa-home__orders-count {
+.sa-home__orders-total:disabled {
+  cursor: default;
+}
+
+.sa-home__orders-total-count {
+  font-size: 18px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--color-accent);
 }
 
+.sa-home__orders-total-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.sa-home__orders-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin: var(--space-md) 0 var(--space-sm);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.sa-home__orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.sa-home__orders-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: 12px 14px;
+  background: color-mix(in srgb, var(--color-surface-card) 75%, transparent);
+  border: 1px solid rgba(225, 29, 51, 0.14);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sa-home__orders-item:hover {
+  border-color: rgba(225, 29, 51, 0.4);
+}
+
+.sa-home__orders-store {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.sa-home__orders-store-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.sa-home__orders-oldest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.sa-home__orders-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.sa-home__orders-count {
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.sa-home__orders-count--overdue {
+  color: var(--color-accent);
+}
+
 .sa-home__orders-meta {
   font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.sa-home__orders-chevron {
+  flex-shrink: 0;
   color: var(--color-text-secondary);
 }
 
@@ -341,6 +423,10 @@
 @media (max-width: 900px) {
   .sa-home__insights-row {
     grid-template-columns: 1fr;
+  }
+
+  .sa-home__follow-up-row {
+    grid-auto-flow: row;
   }
 }
 
