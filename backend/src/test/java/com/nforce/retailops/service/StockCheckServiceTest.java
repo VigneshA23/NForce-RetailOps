@@ -733,19 +733,17 @@ class StockCheckServiceTest {
 
         assertThatThrownBy(() ->
             stockCheckService.listHistoricalChecks(
-                OWNER_ID, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 7), null, null
+                OWNER_ID, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 7), null, null, null
             )
         ).isInstanceOf(StoreNotFoundException.class);
     }
 
     @Test
     void listHistoricalChecksForEmployeeChecksStoreAssignmentBeforeQuerying() {
-        org.springframework.data.domain.Page<StockCheck> emptyPage =
-            new org.springframework.data.domain.PageImpl<>(List.of());
-        when(stockCheckRepository.findForStoreInRange(eq(STORE_ID), any(), any(), any())).thenReturn(emptyPage);
+        when(stockCheckRepository.findAllForStoreInRange(eq(STORE_ID), any(), any())).thenReturn(List.of());
 
         stockCheckService.listHistoricalChecksForEmployee(
-            EMPLOYEE_ID, STORE_ID, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 7), null, null
+            EMPLOYEE_ID, STORE_ID, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 7), null, null, null
         );
 
         verify(userProfileService).requireAssignedStore(EMPLOYEE_ID, STORE_ID);
@@ -758,10 +756,10 @@ class StockCheckServiceTest {
 
         assertThatThrownBy(() ->
             stockCheckService.listHistoricalChecksForEmployee(
-                EMPLOYEE_ID, STORE_ID, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 7), null, null
+                EMPLOYEE_ID, STORE_ID, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 7), null, null, null
             )
         ).isInstanceOf(StoreNotFoundException.class);
-        verify(stockCheckRepository, never()).findForStoreInRange(any(), any(), any(), any());
+        verify(stockCheckRepository, never()).findAllForStoreInRange(any(), any(), any());
     }
 
     @Test

@@ -1,4 +1,19 @@
-import type { StockCheckResponse, SuperAdminStockCheckResponse } from '../types/stockCheck';
+import type {
+  StockCheckHistoryStatusFilter,
+  StockCheckResponse,
+  StockCheckStatusCounts,
+  SuperAdminStockCheckResponse,
+} from '../types/stockCheck';
+
+// The history chips: "all" plus the three server-side filters.
+export type StockCheckHistoryStatusChoice = 'all' | StockCheckHistoryStatusFilter;
+
+// "all" is the absence of the ?status= param.
+export function statusChoiceToParam(choice: StockCheckHistoryStatusChoice): StockCheckHistoryStatusFilter | undefined {
+  return choice === 'all' ? undefined : choice;
+}
+
+export const EMPTY_STATUS_COUNTS: StockCheckStatusCounts = { all: 0, shortage: 0, sufficient: 0, notCounted: 0 };
 
 // 'skipped': End of Day was explained as not countable instead of counted.
 export type StockCheckHistoryRowStatus = 'shortage' | 'optimal' | 'pending' | 'skipped';

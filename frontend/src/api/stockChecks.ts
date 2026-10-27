@@ -3,6 +3,7 @@ import type { MissedEndOfDayItem } from '../types/notification';
 import type {
   DailyStockCheckItem,
   StockCheckHistoryPage,
+  StockCheckHistoryStatusFilter,
   StockCheckResponse,
   StockCheckSnapshotKey,
   StoreInventoryItemOption,
@@ -56,6 +57,7 @@ export async function getEmployeeStockCheckHistory(
   endDate: string,
   page: number,
   size: number,
+  status?: StockCheckHistoryStatusFilter,
 ): Promise<StockCheckHistoryPage> {
   const params = new URLSearchParams({
     storeId: String(storeId),
@@ -64,6 +66,7 @@ export async function getEmployeeStockCheckHistory(
     page: String(page),
     size: String(size),
   });
+  if (status) params.set('status', status);
   return apiRequest<StockCheckHistoryPage>(`/me/inventory/stock-checks?${params.toString()}`);
 }
 

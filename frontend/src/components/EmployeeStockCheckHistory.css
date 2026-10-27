@@ -108,7 +108,7 @@
 
 .employee-stock-history .employee-stock-check-page__filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   flex: 1 1 100%;
   gap: 6px;
 }
@@ -122,6 +122,11 @@
 }
 
 @media (--mobile) {
+  /* Four pills don't fit one row on a phone: two per row. */
+  .employee-stock-history .employee-stock-check-page__filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .employee-stock-history .employee-stock-check-page__filters .employee-stock-check-page__filter-pill,
   .employee-stock-history__filter-pill {
     padding: 7px 4px;

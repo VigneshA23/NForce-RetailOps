@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import EmployeeStockCheckHistory from './EmployeeStockCheckHistory';
 import * as stockChecksApi from '../api/stockChecks';
-import type { StockCheckHistoryPage, StockCheckResponse, StockSnapshot } from '../types/stockCheck';
+import type { StockCheckHistoryPage, StockCheckResponse, StockCheckStatusCounts, StockSnapshot } from '../types/stockCheck';
+import { toStockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
 
 vi.mock('../api/stockChecks', () => ({
   getEmployeeStockCheckHistory: vi.fn(),
@@ -46,6 +47,17 @@ function row(overrides: Partial<StockCheckResponse>): StockCheckResponse {
   };
 }
 
+// Mirrors what the server returns: counts over the whole (mocked) range.
+function countsFor(items: StockCheckResponse[]): StockCheckStatusCounts {
+  const statuses = items.map((item) => toStockCheckHistoryRowView(item).status);
+  return {
+    all: items.length,
+    shortage: statuses.filter((s) => s === 'shortage').length,
+    sufficient: statuses.filter((s) => s === 'optimal').length,
+    notCounted: statuses.filter((s) => s === 'pending').length,
+  };
+}
+
 function page(overrides: Partial<StockCheckHistoryPage>): StockCheckHistoryPage {
   return {
     items: [],
@@ -53,6 +65,7 @@ function page(overrides: Partial<StockCheckHistoryPage>): StockCheckHistoryPage 
     pageSize: 50,
     pageCount: 1,
     totalItems: 0,
+    statusCounts: countsFor(overrides.items ?? []),
     ...overrides,
   };
 }
@@ -85,33 +98,27 @@ describe('EmployeeStockCheckHistory', () => {
     expect(await screen.findByText('+4 EA needed')).toBeInTheDocument();
   });
 
-  it('uses the Sufficient filter only for optimal records, excluding not-counted and shortage items', async () => {
+  it('filters by status server-side, including Not Counted, and keeps whole-range chip counts', async () => {
     const user = userEvent.setup();
-    mockGetEmployeeStockCheckHistory.mockResolvedValue(page({
-      items: [
-        row({ id: 1, itemName: 'Pending Item' }),
-        row({
-          id: 2,
-          itemName: 'Sufficient Item',
-          endOfDay: snapshot({ available: 20, usable: 20 }),
-        }),
-        row({
-          id: 3,
-          itemName: 'Shortage Item',
-          endOfDay: snapshot({ available: 16, usable: 16 }),
-        }),
-      ],
-      totalItems: 3,
-    }));
+    const pendingRow = row({ id: 1, itemName: 'Pending Item' });
+    const sufficientRow = row({ id: 2, itemName: 'Sufficient Item', endOfDay: snapshot({ available: 20, usable: 20 }) });
+    const counts = { all: 120, shortage: 40, sufficient: 60, notCounted: 20 };
+    mockGetEmployeeStockCheckHistory.mockImplementation(async (_store, _start, _end, _page, _size, status) =>
+      status === 'not_counted'
+        ? page({ items: [pendingRow], totalItems: 20, statusCounts: counts })
+        : page({ items: [pendingRow, sufficientRow], totalItems: 120, statusCounts: counts }));
 
     render(<EmployeeStockCheckHistory storeId={1} />);
 
-    await user.click(await screen.findByRole('button', { name: /Sufficient/ }));
+    await user.click(await screen.findByRole('button', { name: /Not Counted \(20\)/ }));
 
-    expect(screen.queryByText('Pending Item')).not.toBeInTheDocument();
-    expect(screen.getByText('Sufficient Item')).toBeInTheDocument();
-    expect(screen.queryByText('Shortage Item')).not.toBeInTheDocument();
-    expect(screen.getByText('Sufficient')).toBeInTheDocument();
+    await waitFor(() => expect(mockGetEmployeeStockCheckHistory).toHaveBeenLastCalledWith(
+      1, expect.any(String), expect.any(String), 1, 50, 'not_counted',
+    ));
+    await waitFor(() => expect(screen.queryByText('Sufficient Item')).not.toBeInTheDocument());
+    expect(screen.getByText('Pending Item')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /All Records \(120\)/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Shortage \(40\)/ })).toBeInTheDocument();
   });
 
   it('shows the shared row fields without correction actions for employees', async () => {

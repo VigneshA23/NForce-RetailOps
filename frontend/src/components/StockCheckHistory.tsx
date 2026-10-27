@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, CircleSlash, Download, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
@@ -12,8 +12,14 @@ import ButtonDots from './ButtonDots';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { correctStockCheck, getStockCheckHistory } from '../api/storeInventory';
 import { categoryLabel } from '../types/storeInventory';
-import type { StockCheckResponse, StockCheckSnapshotKey } from '../types/stockCheck';
-import { toStockCheckHistoryRowView, type StockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
+import type { StockCheckResponse, StockCheckSnapshotKey, StockCheckStatusCounts } from '../types/stockCheck';
+import {
+  EMPTY_STATUS_COUNTS,
+  statusChoiceToParam,
+  toStockCheckHistoryRowView,
+  type StockCheckHistoryRowView,
+  type StockCheckHistoryStatusChoice,
+} from '../utils/stockCheckHistoryStatus';
 import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
 import { buildAndDownloadStockCheckHistoryPdf, buildStockCheckHistoryWorkbook } from '../utils/stockCheckHistoryExport';
 import { downloadWorkbook } from '../utils/xlsx';
@@ -41,12 +47,16 @@ function widestAllowedRange(): { startDate: string; endDate: string } {
 // page on screen -- there's no unbounded "give me everything" endpoint (by
 // design: a 92-day range times a full item list can be thousands of rows),
 // so this pages through at the server's own max page size and concatenates.
-async function fetchAllStockCheckHistory(startDate: string, endDate: string): Promise<StockCheckResponse[]> {
+async function fetchAllStockCheckHistory(
+  startDate: string,
+  endDate: string,
+  statusFilter: StockCheckHistoryStatusChoice,
+): Promise<StockCheckResponse[]> {
   const all: StockCheckResponse[] = [];
   let page = 1;
   let pageCount = 1;
   do {
-    const result = await getStockCheckHistory(startDate, endDate, page, MAX_EXPORT_PAGE_SIZE);
+    const result = await getStockCheckHistory(startDate, endDate, page, MAX_EXPORT_PAGE_SIZE, statusChoiceToParam(statusFilter));
     all.push(...result.items);
     pageCount = result.pageCount;
     page += 1;
@@ -54,12 +64,11 @@ async function fetchAllStockCheckHistory(startDate: string, endDate: string): Pr
   return all;
 }
 
-type StatusFilter = 'all' | 'shortage' | 'sufficient';
-
 // Shared by the on-screen table (visibleItems below) and the export path, so
 // "export everything the current filters match" can't drift from what the
-// table itself is showing.
-function matchesFilters(row: StockCheckHistoryRowView, search: string, categoryFilter: string, statusFilter: StatusFilter): boolean {
+// table itself is showing. The status filter is applied server-side (so it
+// covers every page), not here.
+function matchesFilters(row: StockCheckHistoryRowView, search: string, categoryFilter: string): boolean {
   const term = search.trim().toLowerCase();
   const recordedBy = row.endOfDay?.lastUpdatedByName ?? row.startOfDay?.lastUpdatedByName ?? '';
   const matchesSearch =
@@ -67,11 +76,7 @@ function matchesFilters(row: StockCheckHistoryRowView, search: string, categoryF
     row.itemName.toLowerCase().includes(term) ||
     recordedBy.toLowerCase().includes(term);
   const matchesCategory = !categoryFilter || row.category === categoryFilter;
-  const matches =
-    statusFilter === 'all' ||
-    (statusFilter === 'shortage' && row.status === 'shortage') ||
-    (statusFilter === 'sufficient' && row.status === 'optimal');
-  return matchesSearch && matchesCategory && matches;
+  return matchesSearch && matchesCategory;
 }
 
 function initialsFor(name: string): string {
@@ -112,11 +117,12 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
   const [items, setItems] = useState<StockCheckHistoryRowView[]>([]);
   const [pageCount, setPageCount] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [statusCounts, setStatusCounts] = useState<StockCheckStatusCounts>(EMPTY_STATUS_COUNTS);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StockCheckHistoryStatusChoice>('all');
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [isPdfExporting, setIsPdfExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -135,18 +141,24 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
     setPage(1);
   }
 
+  function handleStatusChange(next: StockCheckHistoryStatusChoice) {
+    setStatusFilter(next);
+    setPage(1);
+  }
+
   useEffect(() => {
     let cancelled = false;
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange();
     setIsLoading(true);
     setLoadError(null);
-    getStockCheckHistory(resolved.startDate, resolved.endDate, page, PAGE_SIZE)
+    getStockCheckHistory(resolved.startDate, resolved.endDate, page, PAGE_SIZE, statusChoiceToParam(statusFilter))
       .then((result) => {
         if (cancelled) return;
         setItems(result.items.map(toStockCheckHistoryRowView));
         setPageCount(result.pageCount);
         setTotalItems(result.totalItems);
-        onTotalChange?.(result.totalItems);
+        setStatusCounts(result.statusCounts);
+        onTotalChange?.(result.statusCounts.all);
       })
       .catch((error: Error) => {
         if (cancelled) return;
@@ -159,7 +171,7 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange, page]);
+  }, [dateRange, page, statusFilter]);
 
   // 60-second silent refresh of the current page, same pattern as the Items
   // tab's own poll. A failed poll keeps the last list rather than surfacing
@@ -167,17 +179,18 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
   useEffect(() => {
     const id = window.setInterval(() => {
       const resolved = resolveDateRange(dateRange) ?? widestAllowedRange();
-      getStockCheckHistory(resolved.startDate, resolved.endDate, page, PAGE_SIZE)
+      getStockCheckHistory(resolved.startDate, resolved.endDate, page, PAGE_SIZE, statusChoiceToParam(statusFilter))
         .then((result) => {
           setItems(result.items.map(toStockCheckHistoryRowView));
           setPageCount(result.pageCount);
           setTotalItems(result.totalItems);
-          onTotalChange?.(result.totalItems);
+          setStatusCounts(result.statusCounts);
+          onTotalChange?.(result.statusCounts.all);
         })
         .catch(() => {});
     }, 60_000);
     return () => window.clearInterval(id);
-  }, [dateRange, page]);
+  }, [dateRange, page, statusFilter]);
 
   const distinctCategories = useMemo(
     () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
@@ -187,17 +200,14 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
   );
 
   const visibleItems = useMemo(
-    () => items.filter((row) => matchesFilters(row, search, categoryFilter, statusFilter)),
-    [items, search, categoryFilter, statusFilter],
+    () => items.filter((row) => matchesFilters(row, search, categoryFilter)),
+    [items, search, categoryFilter],
   );
-
-  const shortageCount = useMemo(() => items.filter((row) => row.status === 'shortage').length, [items]);
-  const sufficientCount = useMemo(() => items.filter((row) => row.status === 'optimal').length, [items]);
 
   function clearFilters() {
     setSearch('');
     setCategoryFilter('');
-    setStatusFilter('all');
+    handleStatusChange('all');
   }
 
   // Exports every record matching the current filters across ALL pages, not
@@ -206,10 +216,10 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
   // which only ever hold the current page.
   async function buildExportRows(): Promise<StockCheckHistoryRowView[]> {
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange();
-    const all = await fetchAllStockCheckHistory(resolved.startDate, resolved.endDate);
+    const all = await fetchAllStockCheckHistory(resolved.startDate, resolved.endDate, statusFilter);
     return all
       .map(toStockCheckHistoryRowView)
-      .filter((row) => matchesFilters(row, search, categoryFilter, statusFilter));
+      .filter((row) => matchesFilters(row, search, categoryFilter));
   }
 
   async function handleExportExcel() {
@@ -333,25 +343,33 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
         <button
           type="button"
           className={`stock-check-history__status-filter${statusFilter === 'all' ? ' stock-check-history__status-filter--active' : ''}`}
-          onClick={() => setStatusFilter('all')}
+          onClick={() => handleStatusChange('all')}
         >
-          All Records ({totalItems})
+          All Records ({statusCounts.all})
         </button>
         <button
           type="button"
           className={`stock-check-history__status-filter stock-check-history__status-filter--shortage${statusFilter === 'shortage' ? ' stock-check-history__status-filter--active' : ''}`}
-          onClick={() => setStatusFilter('shortage')}
+          onClick={() => handleStatusChange('shortage')}
         >
           <AlertTriangle size={13} />
-          Shortage ({shortageCount})
+          Shortage ({statusCounts.shortage})
         </button>
         <button
           type="button"
           className={`stock-check-history__status-filter stock-check-history__status-filter--sufficient${statusFilter === 'sufficient' ? ' stock-check-history__status-filter--active' : ''}`}
-          onClick={() => setStatusFilter('sufficient')}
+          onClick={() => handleStatusChange('sufficient')}
         >
           <CheckCircle2 size={13} />
-          Sufficient ({sufficientCount})
+          Sufficient ({statusCounts.sufficient})
+        </button>
+        <button
+          type="button"
+          className={`stock-check-history__status-filter stock-check-history__status-filter--not-counted${statusFilter === 'not_counted' ? ' stock-check-history__status-filter--active' : ''}`}
+          onClick={() => handleStatusChange('not_counted')}
+        >
+          <CircleSlash size={13} />
+          Not Counted ({statusCounts.notCounted})
         </button>
       </div>
 

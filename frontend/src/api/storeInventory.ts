@@ -11,6 +11,7 @@ import type {
 import type {
   EodSupplierReport,
   StockCheckHistoryPage,
+  StockCheckHistoryStatusFilter,
   StockCheckResponse,
   StockCheckSnapshotKey,
 } from '../types/stockCheck';
@@ -58,6 +59,7 @@ export async function getStockCheckHistory(
   endDate: string,
   page: number,
   size: number,
+  status?: StockCheckHistoryStatusFilter,
 ): Promise<StockCheckHistoryPage> {
   const params = new URLSearchParams({
     startDate,
@@ -65,6 +67,7 @@ export async function getStockCheckHistory(
     page: String(page),
     size: String(size),
   });
+  if (status) params.set('status', status);
   return apiRequest<StockCheckHistoryPage>(`/stores/inventory/stock-checks?${params.toString()}`);
 }
 

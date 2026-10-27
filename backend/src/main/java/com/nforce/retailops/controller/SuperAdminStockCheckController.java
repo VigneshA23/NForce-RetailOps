@@ -46,10 +46,11 @@ public class SuperAdminStockCheckController {
         @RequestParam(required = false) LocalDate startDate,
         @RequestParam(required = false) LocalDate endDate,
         @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size
+        @RequestParam(required = false) Integer size,
+        @RequestParam(required = false) String status
     ) {
         return ResponseEntity.ok(
-            stockCheckService.listHistoricalChecksForSuperAdmin(storeId, startDate, endDate, page, size)
+            stockCheckService.listHistoricalChecksForSuperAdmin(storeId, startDate, endDate, page, size, status)
         );
     }
 

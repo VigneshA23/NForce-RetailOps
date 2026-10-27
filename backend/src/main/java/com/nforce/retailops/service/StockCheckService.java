@@ -14,6 +14,7 @@ import com.nforce.retailops.dto.OrderListEntryResponse;
 import com.nforce.retailops.dto.StockCheckCorrectionRequest;
 import com.nforce.retailops.dto.StockCheckEditResponse;
 import com.nforce.retailops.dto.StockCheckHistoryPageResponse;
+import com.nforce.retailops.dto.StockCheckStatusCounts;
 import com.nforce.retailops.dto.StockCheckResponse;
 import com.nforce.retailops.dto.StockCheckSubmitRequest;
 import com.nforce.retailops.dto.StockSnapshotResponse;
@@ -53,7 +54,7 @@ import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.util.DateRangeValidator;
 import com.nforce.retailops.util.InventoryCountStatusCalculator;
-import org.springframework.data.domain.Page;
+import com.nforce.retailops.util.StockCheckHistoryStatus;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -888,10 +889,10 @@ public class StockCheckService {
 
     @Transactional(readOnly = true)
     public StockCheckHistoryPageResponse listHistoricalChecks(
-        Long ownerId, LocalDate startDate, LocalDate endDate, Integer page, Integer size
+        Long ownerId, LocalDate startDate, LocalDate endDate, Integer page, Integer size, String status
     ) {
         StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
-        return historicalChecksForStore(storeOwner.getStore().getId(), startDate, endDate, page, size);
+        return historicalChecksForStore(storeOwner.getStore().getId(), startDate, endDate, page, size, status);
     }
 
     // Employee-facing mirror of the Owner/Admin history above, scoped to one
@@ -900,41 +901,86 @@ public class StockCheckService {
     // Owner/Admin-only via correctCheck below.
     @Transactional(readOnly = true)
     public StockCheckHistoryPageResponse listHistoricalChecksForEmployee(
-        Long employeeUserId, Long storeId, LocalDate startDate, LocalDate endDate, Integer page, Integer size
+        Long employeeUserId, Long storeId, LocalDate startDate, LocalDate endDate, Integer page, Integer size, String status
     ) {
         userProfileService.requireAssignedStore(employeeUserId, storeId);
-        return historicalChecksForStore(storeId, startDate, endDate, page, size);
+        return historicalChecksForStore(storeId, startDate, endDate, page, size, status);
     }
 
     private StockCheckHistoryPageResponse historicalChecksForStore(
-        Long storeId, LocalDate startDate, LocalDate endDate, Integer page, Integer size
+        Long storeId, LocalDate startDate, LocalDate endDate, Integer page, Integer size, String status
     ) {
         DateRangeValidator.validate(startDate, endDate, MAX_DATE_RANGE_DAYS);
+        StockCheckHistoryStatus filter = StockCheckHistoryStatus.parseFilter(status);
 
-        int requestedPage = page == null ? 1 : page;
-        int clampedPage = Math.max(requestedPage, 1);
+        HistorySlice slice = sliceHistory(
+            stockCheckRepository.findAllForStoreInRange(storeId, startDate, endDate), filter, page, size
+        );
+        Map<Long, List<StockCheckEditResponse>> editsByCheckId = editsFor(slice.rows());
+
+        List<StockCheckResponse> items = slice.rows().stream()
+            .map(check -> StockCheckResponse.from(check, editsByCheckId.getOrDefault(check.getId(), List.of())))
+            .toList();
+
+        return new StockCheckHistoryPageResponse(
+            items, slice.page(), slice.pageSize(), slice.pageCount(), slice.totalItems(), slice.counts()
+        );
+    }
+
+    // The status filter and its chip counts need every row in the range (the
+    // par each row is compared with varies by weekday/weekend), so the range
+    // is loaded and classified here, then the requested page is cut from the
+    // filtered list. Ranges are already capped (92 days, or 31 across all
+    // stores), and the export path loads them whole anyway.
+    private HistorySlice sliceHistory(
+        List<StockCheck> all, StockCheckHistoryStatus filter, Integer page, Integer size
+    ) {
+        int clampedPage = Math.max(page == null ? 1 : page, 1);
         int clampedSize = size == null ? DEFAULT_PAGE_SIZE : Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
 
-        Page<StockCheck> resultPage = stockCheckRepository.findForStoreInRange(
-            storeId, startDate, endDate, PageRequest.of(clampedPage - 1, clampedSize)
-        );
+        long shortage = 0;
+        long sufficient = 0;
+        long notCounted = 0;
+        List<StockCheck> matching = new ArrayList<>();
+        for (StockCheck check : all) {
+            StockCheckHistoryStatus status = StockCheckHistoryStatus.classify(check);
+            switch (status) {
+                case SHORTAGE -> shortage++;
+                case SUFFICIENT -> sufficient++;
+                case NOT_COUNTED -> notCounted++;
+                case SKIPPED -> { }
+            }
+            if (filter == null || filter == status) {
+                matching.add(check);
+            }
+        }
 
-        List<Long> checkIds = resultPage.getContent().stream().map(StockCheck::getId).toList();
-        Map<Long, List<StockCheckEditResponse>> editsByCheckId = checkIds.isEmpty()
+        int pageCount = (int) Math.ceil(matching.size() / (double) clampedSize);
+        long offset = (long) (clampedPage - 1) * clampedSize;
+        List<StockCheck> rows = offset >= matching.size()
+            ? List.of()
+            : matching.subList((int) offset, (int) Math.min(matching.size(), offset + clampedSize));
+
+        return new HistorySlice(
+            rows, clampedPage, clampedSize, pageCount, matching.size(),
+            new StockCheckStatusCounts(all.size(), shortage, sufficient, notCounted)
+        );
+    }
+
+    private Map<Long, List<StockCheckEditResponse>> editsFor(List<StockCheck> checks) {
+        List<Long> checkIds = checks.stream().map(StockCheck::getId).toList();
+        return checkIds.isEmpty()
             ? Map.of()
             : stockCheckCorrectionRepository.findWithEditorByStockCheckIds(checkIds).stream()
                 .collect(Collectors.groupingBy(
                     c -> c.getStockCheck().getId(),
                     Collectors.mapping(StockCheckEditResponse::from, Collectors.toList())
                 ));
+    }
 
-        List<StockCheckResponse> items = resultPage.getContent().stream()
-            .map(check -> StockCheckResponse.from(check, editsByCheckId.getOrDefault(check.getId(), List.of())))
-            .toList();
-
-        return new StockCheckHistoryPageResponse(
-            items, clampedPage, clampedSize, resultPage.getTotalPages(), resultPage.getTotalElements()
-        );
+    private record HistorySlice(
+        List<StockCheck> rows, int page, int pageSize, int pageCount, long totalItems, StockCheckStatusCounts counts
+    ) {
     }
 
     // Super Admin's cross-store history (RTS-305): storeId == null means
@@ -946,40 +992,27 @@ public class StockCheckService {
     // handle regardless of scope.
     @Transactional(readOnly = true)
     public SuperAdminStockCheckHistoryPageResponse listHistoricalChecksForSuperAdmin(
-        Long storeId, LocalDate startDate, LocalDate endDate, Integer page, Integer size
+        Long storeId, LocalDate startDate, LocalDate endDate, Integer page, Integer size, String status
     ) {
         if (storeId != null) {
-            StockCheckHistoryPageResponse scoped = historicalChecksForStore(storeId, startDate, endDate, page, size);
+            StockCheckHistoryPageResponse scoped = historicalChecksForStore(storeId, startDate, endDate, page, size, status);
             Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new StoreNotFoundException("Store not found"));
             List<SuperAdminStockCheckResponse> items = scoped.items().stream()
                 .map(check -> new SuperAdminStockCheckResponse(store.getId(), store.getName(), check))
                 .toList();
             return new SuperAdminStockCheckHistoryPageResponse(
-                items, scoped.page(), scoped.pageSize(), scoped.pageCount(), scoped.totalItems()
+                items, scoped.page(), scoped.pageSize(), scoped.pageCount(), scoped.totalItems(), scoped.statusCounts()
             );
         }
 
         DateRangeValidator.validate(startDate, endDate, MAX_DATE_RANGE_DAYS_ALL_STORES);
+        StockCheckHistoryStatus filter = StockCheckHistoryStatus.parseFilter(status);
 
-        int requestedPage = page == null ? 1 : page;
-        int clampedPage = Math.max(requestedPage, 1);
-        int clampedSize = size == null ? DEFAULT_PAGE_SIZE : Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        HistorySlice slice = sliceHistory(stockCheckRepository.findAllInRange(startDate, endDate), filter, page, size);
+        Map<Long, List<StockCheckEditResponse>> editsByCheckId = editsFor(slice.rows());
 
-        Page<StockCheck> resultPage = stockCheckRepository.findInRange(
-            startDate, endDate, PageRequest.of(clampedPage - 1, clampedSize)
-        );
-
-        List<Long> checkIds = resultPage.getContent().stream().map(StockCheck::getId).toList();
-        Map<Long, List<StockCheckEditResponse>> editsByCheckId = checkIds.isEmpty()
-            ? Map.of()
-            : stockCheckCorrectionRepository.findWithEditorByStockCheckIds(checkIds).stream()
-                .collect(Collectors.groupingBy(
-                    c -> c.getStockCheck().getId(),
-                    Collectors.mapping(StockCheckEditResponse::from, Collectors.toList())
-                ));
-
-        List<SuperAdminStockCheckResponse> items = resultPage.getContent().stream()
+        List<SuperAdminStockCheckResponse> items = slice.rows().stream()
             .map(check -> new SuperAdminStockCheckResponse(
                 check.getStore().getId(), check.getStore().getName(),
                 StockCheckResponse.from(check, editsByCheckId.getOrDefault(check.getId(), List.of()))
@@ -987,7 +1020,7 @@ public class StockCheckService {
             .toList();
 
         return new SuperAdminStockCheckHistoryPageResponse(
-            items, clampedPage, clampedSize, resultPage.getTotalPages(), resultPage.getTotalElements()
+            items, slice.page(), slice.pageSize(), slice.pageCount(), slice.totalItems(), slice.counts()
         );
     }
 

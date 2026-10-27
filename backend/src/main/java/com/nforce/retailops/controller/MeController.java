@@ -400,14 +400,15 @@ public class MeController {
         @RequestParam(required = false) LocalDate startDate,
         @RequestParam(required = false) LocalDate endDate,
         @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size
+        @RequestParam(required = false) Integer size,
+        @RequestParam(required = false) String status
     ) {
         if (principal instanceof SuperAdminUserDetails) {
             throw new StoreNotFoundException("Store not found");
         }
         AppUserDetails userDetails = requireAppUser(principal);
         return ResponseEntity.ok(
-            stockCheckService.listHistoricalChecksForEmployee(userDetails.getUser().getId(), storeId, startDate, endDate, page, size)
+            stockCheckService.listHistoricalChecksForEmployee(userDetails.getUser().getId(), storeId, startDate, endDate, page, size, status)
         );
     }
 

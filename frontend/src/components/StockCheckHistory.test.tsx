@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import StockCheckHistory from './StockCheckHistory';
 import * as storeInventoryApi from '../api/storeInventory';
 import * as stockCheckHistoryExportUtil from '../utils/stockCheckHistoryExport';
-import type { StockCheckHistoryPage, StockCheckResponse, StockSnapshot } from '../types/stockCheck';
+import type { StockCheckHistoryPage, StockCheckResponse, StockCheckStatusCounts, StockSnapshot } from '../types/stockCheck';
+import { toStockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
 
 vi.mock('../api/storeInventory', () => ({
   getStockCheckHistory: vi.fn(),
@@ -67,6 +68,17 @@ function row(overrides: Partial<StockCheckResponse>): StockCheckResponse {
   };
 }
 
+// Mirrors what the server returns: counts over the whole (mocked) range.
+function countsFor(items: StockCheckResponse[]): StockCheckStatusCounts {
+  const statuses = items.map((item) => toStockCheckHistoryRowView(item).status);
+  return {
+    all: items.length,
+    shortage: statuses.filter((s) => s === 'shortage').length,
+    sufficient: statuses.filter((s) => s === 'optimal').length,
+    notCounted: statuses.filter((s) => s === 'pending').length,
+  };
+}
+
 function page(overrides: Partial<StockCheckHistoryPage>): StockCheckHistoryPage {
   return {
     items: [],
@@ -74,6 +86,7 @@ function page(overrides: Partial<StockCheckHistoryPage>): StockCheckHistoryPage 
     pageSize: 10,
     pageCount: 1,
     totalItems: 0,
+    statusCounts: countsFor(overrides.items ?? []),
     ...overrides,
   };
 }
@@ -192,23 +205,53 @@ describe('StockCheckHistory', () => {
     expect(screen.getByText('Whole Milk')).toBeInTheDocument();
   });
 
-  it('filters rows by status chip', async () => {
+  it('filters by status server-side so every page is covered, and keeps the chip counts for the whole range', async () => {
     const user = userEvent.setup();
-    mockGetStockCheckHistory.mockResolvedValue(page({
-      items: [
-        row({ id: 1, itemName: 'Short Item', requiredPar: 10, endOfDay: snapshot({ available: 2, usable: 2 }) }),
-        row({ id: 2, itemName: 'Sufficient Item', requiredPar: 10, endOfDay: snapshot({ available: 10, usable: 10 }) }),
-      ],
-      totalItems: 2,
-    }));
+    const shortRow = row({ id: 1, itemName: 'Short Item', requiredPar: 10, endOfDay: snapshot({ available: 2, usable: 2 }) });
+    const sufficientRow = row({ id: 2, itemName: 'Sufficient Item', requiredPar: 10, endOfDay: snapshot({ available: 10, usable: 10 }) });
+    // 25 shortages in the range, of 40 records: more than one 10-row page.
+    const counts = { all: 40, shortage: 25, sufficient: 10, notCounted: 5 };
+    mockGetStockCheckHistory.mockImplementation(async (_start, _end, requestedPage, _size, status) =>
+      status === 'shortage'
+        ? page({ items: [shortRow], page: requestedPage, pageCount: 3, totalItems: 25, statusCounts: counts })
+        : page({ items: [shortRow, sufficientRow], pageCount: 4, totalItems: 40, statusCounts: counts }));
 
     render(<StockCheckHistory />);
-    await screen.findByText('Short Item');
+    await screen.findByText('Sufficient Item');
+    expect(screen.getByRole('button', { name: 'All Records (40)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Shortage (25)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sufficient (10)' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Not Counted (5)' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Shortage (1)' }));
+    await user.click(screen.getByRole('button', { name: 'Shortage (25)' }));
 
+    await waitFor(() => expect(mockGetStockCheckHistory).toHaveBeenLastCalledWith(
+      expect.any(String), expect.any(String), 1, 10, 'shortage',
+    ));
+    await waitFor(() => expect(screen.queryByText('Sufficient Item')).not.toBeInTheDocument());
     expect(screen.getByText('Short Item')).toBeInTheDocument();
-    expect(screen.queryByText('Sufficient Item')).not.toBeInTheDocument();
+    // Counts still describe the whole range, not the filtered page.
+    expect(screen.getByRole('button', { name: 'All Records (40)' })).toBeInTheDocument();
+  });
+
+  it('offers a Not Counted filter that asks the server for not_counted records', async () => {
+    const user = userEvent.setup();
+    const pendingRow = row({ id: 3, itemName: 'Pending Item' });
+    mockGetStockCheckHistory.mockImplementation(async (_start, _end, _page, _size, status) =>
+      status === 'not_counted'
+        ? page({ items: [pendingRow], totalItems: 1, statusCounts: { all: 2, shortage: 0, sufficient: 1, notCounted: 1 } })
+        : page({ items: [pendingRow, row({ id: 4, itemName: 'Counted Item', requiredPar: 5, endOfDay: snapshot({ available: 9, usable: 9 }) })], totalItems: 2 }));
+
+    render(<StockCheckHistory />);
+    await screen.findByText('Counted Item');
+
+    await user.click(screen.getByRole('button', { name: 'Not Counted (1)' }));
+
+    await waitFor(() => expect(mockGetStockCheckHistory).toHaveBeenLastCalledWith(
+      expect.any(String), expect.any(String), 1, 10, 'not_counted',
+    ));
+    await waitFor(() => expect(screen.queryByText('Counted Item')).not.toBeInTheDocument());
+    expect(screen.getByText('Pending Item')).toBeInTheDocument();
   });
 
   it('clears search and status filters via the reset-filter button', async () => {
@@ -413,7 +456,7 @@ describe('StockCheckHistory', () => {
 
     // Fetched at the server's max page size (200), not the UI's page size of
     // 10 -- the fewest possible round trips to get every matching record.
-    expect(mockGetStockCheckHistory).toHaveBeenCalledWith(expect.any(String), expect.any(String), 1, 200);
-    expect(mockGetStockCheckHistory).toHaveBeenCalledWith(expect.any(String), expect.any(String), 2, 200);
+    expect(mockGetStockCheckHistory).toHaveBeenCalledWith(expect.any(String), expect.any(String), 1, 200, undefined);
+    expect(mockGetStockCheckHistory).toHaveBeenCalledWith(expect.any(String), expect.any(String), 2, 200, undefined);
   });
 });

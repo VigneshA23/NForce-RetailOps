@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, CircleSlash, Clock3, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
@@ -8,8 +8,14 @@ import ItemIcon from './ItemIcon';
 import UserAvatar from './UserAvatar';
 import ButtonDots from './ButtonDots';
 import { getEmployeeStockCheckHistory } from '../api/stockChecks';
-import type { StockCheckResponse } from '../types/stockCheck';
-import { toStockCheckHistoryRowView, type StockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
+import type { StockCheckResponse, StockCheckStatusCounts } from '../types/stockCheck';
+import {
+  EMPTY_STATUS_COUNTS,
+  statusChoiceToParam,
+  toStockCheckHistoryRowView,
+  type StockCheckHistoryRowView,
+  type StockCheckHistoryStatusChoice,
+} from '../utils/stockCheckHistoryStatus';
 import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
 import { categoryLabel } from '../types/storeInventory';
 import { getInitials } from '../utils/initials';
@@ -28,8 +34,6 @@ const PAGE_SIZE = 50;
 function widestAllowedRange(): { startDate: string; endDate: string } {
   return { startDate: daysAgo(91), endDate: todayDate() };
 }
-
-type StatusFilter = 'all' | 'shortage' | 'sufficient';
 
 function QtyNeededBadge({ row }: { row: StockCheckHistoryRowView }) {
   if (row.status === 'shortage') {
@@ -63,10 +67,11 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
   const [rows, setRows] = useState<StockCheckResponse[]>([]);
   const [pageCount, setPageCount] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [statusCounts, setStatusCounts] = useState<StockCheckStatusCounts>(EMPTY_STATUS_COUNTS);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StockCheckHistoryStatusChoice>('all');
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [isPdfExporting, setIsPdfExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -83,18 +88,25 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
     setPage(1);
   }
 
+  // Applied server-side, so it filters every page rather than just this one.
+  function handleStatusChange(next: StockCheckHistoryStatusChoice) {
+    setStatusFilter(next);
+    setPage(1);
+  }
+
   useEffect(() => {
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange();
     let cancelled = false;
     setIsLoading(true);
     setLoadError(null);
-    getEmployeeStockCheckHistory(storeId, resolved.startDate, resolved.endDate, page, PAGE_SIZE)
+    getEmployeeStockCheckHistory(storeId, resolved.startDate, resolved.endDate, page, PAGE_SIZE, statusChoiceToParam(statusFilter))
       .then((result) => {
         if (cancelled) return;
         setRows(result.items);
         setPageCount(result.pageCount);
         setTotalItems(result.totalItems);
-        onTotalChange?.(result.totalItems);
+        setStatusCounts(result.statusCounts);
+        onTotalChange?.(result.statusCounts.all);
       })
       .catch((error: Error) => {
         if (cancelled) return;
@@ -107,22 +119,17 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeId, dateRange, page]);
+  }, [storeId, dateRange, page, statusFilter]);
 
   const viewRows = useMemo(() => rows.map(toStockCheckHistoryRowView), [rows]);
-
-  const shortageCount = useMemo(() => viewRows.filter((r) => r.status === 'shortage').length, [viewRows]);
-  const sufficientCount = useMemo(() => viewRows.filter((r) => r.status === 'optimal').length, [viewRows]);
 
   const visibleRows = useMemo(() => {
     const query = search.trim().toLowerCase();
     return viewRows.filter((row) => {
-      if (statusFilter === 'shortage' && row.status !== 'shortage') return false;
-      if (statusFilter === 'sufficient' && row.status !== 'optimal') return false;
       if (query === '') return true;
       return row.itemName.toLowerCase().includes(query) || row.unitOfMeasurement.toLowerCase().includes(query);
     });
-  }, [viewRows, search, statusFilter]);
+  }, [viewRows, search]);
 
   // Reuses the same ExcelJS + downloadWorkbook pipeline the daily checklist's
   // own Export menu (ExportMenu.tsx) is built on, styled with the same report
@@ -227,25 +234,33 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
               <button
                 type="button"
                 className={`employee-stock-check-page__filter-pill${statusFilter === 'all' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
-                onClick={() => setStatusFilter('all')}
+                onClick={() => handleStatusChange('all')}
               >
-                All Records ({viewRows.length})
+                All Records ({statusCounts.all})
               </button>
               <button
                 type="button"
                 className={`employee-stock-history__filter-pill employee-stock-history__filter-pill--shortage${statusFilter === 'shortage' ? ' employee-stock-history__filter-pill--active' : ''}`}
-                onClick={() => setStatusFilter('shortage')}
+                onClick={() => handleStatusChange('shortage')}
               >
                 <AlertTriangle size={13} />
-                Shortage ({shortageCount})
+                Shortage ({statusCounts.shortage})
               </button>
               <button
                 type="button"
                 className={`employee-stock-history__filter-pill employee-stock-history__filter-pill--sufficient${statusFilter === 'sufficient' ? ' employee-stock-history__filter-pill--active' : ''}`}
-                onClick={() => setStatusFilter('sufficient')}
+                onClick={() => handleStatusChange('sufficient')}
               >
                 <CheckCircle2 size={13} />
-                Sufficient ({sufficientCount})
+                Sufficient ({statusCounts.sufficient})
+              </button>
+              <button
+                type="button"
+                className={`employee-stock-history__filter-pill${statusFilter === 'not_counted' ? ' employee-stock-history__filter-pill--active' : ''}`}
+                onClick={() => handleStatusChange('not_counted')}
+              >
+                <CircleSlash size={13} />
+                Not Counted ({statusCounts.notCounted})
               </button>
             </div>
           </div>

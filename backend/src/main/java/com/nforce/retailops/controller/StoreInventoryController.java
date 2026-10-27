@@ -87,10 +87,11 @@ public class StoreInventoryController {
         @RequestParam(required = false) LocalDate startDate,
         @RequestParam(required = false) LocalDate endDate,
         @RequestParam(required = false) Integer page,
-        @RequestParam(required = false) Integer size
+        @RequestParam(required = false) Integer size,
+        @RequestParam(required = false) String status
     ) {
         return ResponseEntity.ok(
-            stockCheckService.listHistoricalChecks(principal.getUser().getId(), startDate, endDate, page, size)
+            stockCheckService.listHistoricalChecks(principal.getUser().getId(), startDate, endDate, page, size, status)
         );
     }
 

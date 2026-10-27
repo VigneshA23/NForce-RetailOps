@@ -9,6 +9,7 @@ public record SuperAdminStockCheckHistoryPageResponse(
     int page,
     int pageSize,
     int pageCount,
-    long totalItems
+    long totalItems,
+    StockCheckStatusCounts statusCounts
 ) {
 }

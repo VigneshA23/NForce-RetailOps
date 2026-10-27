@@ -76,7 +76,22 @@ export interface StockCheckHistoryPage {
   page: number;
   pageSize: number;
   pageCount: number;
+  // Describes the filtered set when a status filter is applied.
   totalItems: number;
+  statusCounts: StockCheckStatusCounts;
+}
+
+// Server-side filter for the history chips: shortage | sufficient | not_counted
+// (omitted = all records).
+export type StockCheckHistoryStatusFilter = 'shortage' | 'sufficient' | 'not_counted';
+
+// Counts over every record in the requested date range, not just the page, so
+// the chips always agree with the total.
+export interface StockCheckStatusCounts {
+  all: number;
+  shortage: number;
+  sufficient: number;
+  notCounted: number;
 }
 
 // Super Admin's cross-store history (RTS-305) -- same StockCheckResponse,
@@ -94,6 +109,7 @@ export interface SuperAdminStockCheckHistoryPage {
   pageSize: number;
   pageCount: number;
   totalItems: number;
+  statusCounts: StockCheckStatusCounts;
 }
 
 // One item on the employee's "Report Shortage" picker -- the full store

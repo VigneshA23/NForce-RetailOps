@@ -1,6 +1,6 @@
 import { apiRequest } from './client';
 import type { CreateOrderListEntryValues, OrderHistoryPage, OrderListEntry, OrderStatus, StoreSupplierPurchaseMetric } from '../types/orderList';
-import type { StockCheckSnapshotKey, StockCheckResponse, SuperAdminStockCheckHistoryPage, EodSupplierReport } from '../types/stockCheck';
+import type { StockCheckSnapshotKey, StockCheckResponse, SuperAdminStockCheckHistoryPage, StockCheckHistoryStatusFilter, EodSupplierReport } from '../types/stockCheck';
 import type { InventoryCountHistoryEntry, InventoryCountsPage, InventoryItemCategory } from '../types/storeInventory';
 
 export interface StoreOperationsSummary {
@@ -153,9 +153,11 @@ export async function getSuperAdminStockCheckHistory(
   endDate: string,
   page: number,
   size: number,
+  status?: StockCheckHistoryStatusFilter,
 ): Promise<SuperAdminStockCheckHistoryPage> {
   const params = new URLSearchParams({ startDate, endDate, page: String(page), size: String(size) });
   if (storeId != null) params.set('storeId', String(storeId));
+  if (status) params.set('status', status);
   return apiRequest<SuperAdminStockCheckHistoryPage>(`/super-admin/stock-checks?${params.toString()}`);
 }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Download, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, CircleSlash, Download, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
@@ -14,9 +14,12 @@ import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectS
 import { getAllStores } from '../api/superAdminStores';
 import { getSuperAdminStockCheckHistory, correctSuperAdminStockCheck } from '../api/superAdminOperations';
 import { categoryLabel } from '../types/storeInventory';
-import type { SuperAdminStockCheckResponse, StockCheckSnapshotKey } from '../types/stockCheck';
+import type { SuperAdminStockCheckResponse, StockCheckSnapshotKey, StockCheckStatusCounts } from '../types/stockCheck';
 import {
+  EMPTY_STATUS_COUNTS,
+  statusChoiceToParam,
   toSuperAdminStockCheckHistoryRowView,
+  type StockCheckHistoryStatusChoice,
   type SuperAdminStockCheckHistoryRowView,
 } from '../utils/stockCheckHistoryStatus';
 import { daysAgo, formatDateLabel, formatTimeLabel, todayDate } from '../utils/checklistHistoryOptions';
@@ -45,12 +48,17 @@ function widestAllowedRange(storeId: number | null): { startDate: string; endDat
 // Export can run store-scoped or across "All Stores" (storeId null) --
 // getSuperAdminStockCheckHistory already supports both (see its own
 // storeId != null check), same as the on-screen table's own query.
-async function fetchAllSuperAdminStockCheckHistory(storeId: number | null, startDate: string, endDate: string): Promise<SuperAdminStockCheckResponse[]> {
+async function fetchAllSuperAdminStockCheckHistory(
+  storeId: number | null,
+  startDate: string,
+  endDate: string,
+  statusFilter: StockCheckHistoryStatusChoice,
+): Promise<SuperAdminStockCheckResponse[]> {
   const all: SuperAdminStockCheckResponse[] = [];
   let page = 1;
   let pageCount = 1;
   do {
-    const result = await getSuperAdminStockCheckHistory(storeId, startDate, endDate, page, MAX_EXPORT_PAGE_SIZE);
+    const result = await getSuperAdminStockCheckHistory(storeId, startDate, endDate, page, MAX_EXPORT_PAGE_SIZE, statusChoiceToParam(statusFilter));
     all.push(...result.items);
     pageCount = result.pageCount;
     page += 1;
@@ -58,10 +66,9 @@ async function fetchAllSuperAdminStockCheckHistory(storeId: number | null, start
   return all;
 }
 
-type StatusFilter = 'all' | 'shortage' | 'sufficient';
-
+// The status filter is applied server-side (so it covers every page).
 function matchesFilters(
-  row: SuperAdminStockCheckHistoryRowView, search: string, categoryFilter: string, statusFilter: StatusFilter,
+  row: SuperAdminStockCheckHistoryRowView, search: string, categoryFilter: string,
 ): boolean {
   const term = search.trim().toLowerCase();
   const recordedBy = row.endOfDay?.lastUpdatedByName ?? row.startOfDay?.lastUpdatedByName ?? '';
@@ -71,11 +78,7 @@ function matchesFilters(
     row.storeName.toLowerCase().includes(term) ||
     recordedBy.toLowerCase().includes(term);
   const matchesCategory = !categoryFilter || row.category === categoryFilter;
-  const matches =
-    statusFilter === 'all' ||
-    (statusFilter === 'shortage' && row.status === 'shortage') ||
-    (statusFilter === 'sufficient' && row.status === 'optimal');
-  return matchesSearch && matchesCategory && matches;
+  return matchesSearch && matchesCategory;
 }
 
 function QtyNeededBadge({ row }: { row: SuperAdminStockCheckHistoryRowView }) {
@@ -113,11 +116,12 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
   const [items, setItems] = useState<SuperAdminStockCheckHistoryRowView[]>([]);
   const [pageCount, setPageCount] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [statusCounts, setStatusCounts] = useState<StockCheckStatusCounts>(EMPTY_STATUS_COUNTS);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StockCheckHistoryStatusChoice>('all');
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [isPdfExporting, setIsPdfExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -139,6 +143,11 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
     setPage(1);
   }
 
+  function handleStatusChange(next: StockCheckHistoryStatusChoice) {
+    setStatusFilter(next);
+    setPage(1);
+  }
+
   function handleStoreChange(storeId: number | null) {
     setSelectedStoreId(storeId);
     setPage(1);
@@ -149,13 +158,14 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange(selectedStoreId);
     setIsLoading(true);
     setLoadError(null);
-    getSuperAdminStockCheckHistory(selectedStoreId, resolved.startDate, resolved.endDate, page, PAGE_SIZE)
+    getSuperAdminStockCheckHistory(selectedStoreId, resolved.startDate, resolved.endDate, page, PAGE_SIZE, statusChoiceToParam(statusFilter))
       .then((result) => {
         if (cancelled) return;
         setItems(result.items.map(toSuperAdminStockCheckHistoryRowView));
         setPageCount(result.pageCount);
         setTotalItems(result.totalItems);
-        onTotalChange?.(result.totalItems);
+        setStatusCounts(result.statusCounts);
+        onTotalChange?.(result.statusCounts.all);
       })
       .catch((error: Error) => {
         if (cancelled) return;
@@ -168,7 +178,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateRange, page, selectedStoreId]);
+  }, [dateRange, page, selectedStoreId, statusFilter]);
 
   const distinctCategories = useMemo(
     () => [...new Set(items.map((i) => i.category).filter((c): c is NonNullable<typeof c> => !!c))].sort((a, b) =>
@@ -178,18 +188,15 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
   );
 
   const visibleItems = useMemo(
-    () => items.filter((row) => matchesFilters(row, search, categoryFilter, statusFilter)),
-    [items, search, categoryFilter, statusFilter],
+    () => items.filter((row) => matchesFilters(row, search, categoryFilter)),
+    [items, search, categoryFilter],
   );
-
-  const shortageCount = useMemo(() => items.filter((row) => row.status === 'shortage').length, [items]);
-  const sufficientCount = useMemo(() => items.filter((row) => row.status === 'optimal').length, [items]);
 
   function clearFilters() {
     setSearch('');
     setCategoryFilter('');
     setStatusFilter('all');
-    handleStoreChange(null);
+    handleStoreChange(null); // also resets to page 1
   }
 
   // Exports every record matching the current filters across ALL pages, not
@@ -197,10 +204,10 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
   // StockCheckHistory (RTS-316). storeId null means "All Stores".
   async function buildExportRows(storeId: number | null): Promise<SuperAdminStockCheckHistoryRowView[]> {
     const resolved = resolveDateRange(dateRange) ?? widestAllowedRange(storeId);
-    const all = await fetchAllSuperAdminStockCheckHistory(storeId, resolved.startDate, resolved.endDate);
+    const all = await fetchAllSuperAdminStockCheckHistory(storeId, resolved.startDate, resolved.endDate, statusFilter);
     return all
       .map(toSuperAdminStockCheckHistoryRowView)
-      .filter((row) => matchesFilters(row, search, categoryFilter, statusFilter));
+      .filter((row) => matchesFilters(row, search, categoryFilter));
   }
 
   async function handleExportExcel() {
@@ -349,25 +356,33 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
         <button
           type="button"
           className={`stock-check-history__status-filter${statusFilter === 'all' ? ' stock-check-history__status-filter--active' : ''}`}
-          onClick={() => setStatusFilter('all')}
+          onClick={() => handleStatusChange('all')}
         >
-          All Records ({totalItems})
+          All Records ({statusCounts.all})
         </button>
         <button
           type="button"
           className={`stock-check-history__status-filter stock-check-history__status-filter--shortage${statusFilter === 'shortage' ? ' stock-check-history__status-filter--active' : ''}`}
-          onClick={() => setStatusFilter('shortage')}
+          onClick={() => handleStatusChange('shortage')}
         >
           <AlertTriangle size={13} />
-          Shortage ({shortageCount})
+          Shortage ({statusCounts.shortage})
         </button>
         <button
           type="button"
           className={`stock-check-history__status-filter stock-check-history__status-filter--sufficient${statusFilter === 'sufficient' ? ' stock-check-history__status-filter--active' : ''}`}
-          onClick={() => setStatusFilter('sufficient')}
+          onClick={() => handleStatusChange('sufficient')}
         >
           <CheckCircle2 size={13} />
-          Sufficient ({sufficientCount})
+          Sufficient ({statusCounts.sufficient})
+        </button>
+        <button
+          type="button"
+          className={`stock-check-history__status-filter stock-check-history__status-filter--not-counted${statusFilter === 'not_counted' ? ' stock-check-history__status-filter--active' : ''}`}
+          onClick={() => handleStatusChange('not_counted')}
+        >
+          <CircleSlash size={13} />
+          Not Counted ({statusCounts.notCounted})
         </button>
       </div>
 

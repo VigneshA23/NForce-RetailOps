@@ -6,7 +6,8 @@ import * as superAdminStoresApi from '../api/superAdminStores';
 import * as superAdminOperationsApi from '../api/superAdminOperations';
 import * as stockCheckHistoryExportUtil from '../utils/stockCheckHistoryExport';
 import type { SuperAdminStore } from '../types/superAdminStore';
-import type { SuperAdminStockCheckHistoryPage, SuperAdminStockCheckResponse, StockCheckResponse, StockSnapshot } from '../types/stockCheck';
+import type { SuperAdminStockCheckHistoryPage, SuperAdminStockCheckResponse, StockCheckResponse, StockCheckStatusCounts, StockSnapshot } from '../types/stockCheck';
+import { toStockCheckHistoryRowView } from '../utils/stockCheckHistoryStatus';
 
 vi.mock('../api/superAdminStores', () => ({
   getAllStores: vi.fn(),
@@ -108,6 +109,17 @@ function entry(storeId: number, storeName: string, checkOverrides: Partial<Stock
   return { storeId, storeName, check: check(checkOverrides) };
 }
 
+// Mirrors what the server returns: counts over the whole (mocked) range.
+function countsFor(items: StockCheckResponse[]): StockCheckStatusCounts {
+  const statuses = items.map((item) => toStockCheckHistoryRowView(item).status);
+  return {
+    all: items.length,
+    shortage: statuses.filter((s) => s === 'shortage').length,
+    sufficient: statuses.filter((s) => s === 'optimal').length,
+    notCounted: statuses.filter((s) => s === 'pending').length,
+  };
+}
+
 function page(overrides: Partial<SuperAdminStockCheckHistoryPage> = {}): SuperAdminStockCheckHistoryPage {
   return {
     items: [],
@@ -115,6 +127,7 @@ function page(overrides: Partial<SuperAdminStockCheckHistoryPage> = {}): SuperAd
     pageSize: 10,
     pageCount: 1,
     totalItems: 0,
+    statusCounts: countsFor((overrides.items ?? []).map((entry) => entry.check)),
     ...overrides,
   };
 }
@@ -151,7 +164,7 @@ describe('SuperAdminStockCheckHistory', () => {
     expect(downtownRow.querySelector('.stock-check-history__timestamp svg')).toBeInTheDocument();
 
     // storeId omitted entirely for the all-stores query.
-    expect(mockGetHistory).toHaveBeenCalledWith(null, expect.any(String), expect.any(String), 1, 10);
+    expect(mockGetHistory).toHaveBeenCalledWith(null, expect.any(String), expect.any(String), 1, 10, undefined);
   });
 
   it('selecting a store narrows the results and hides the Store column', async () => {
@@ -170,7 +183,7 @@ describe('SuperAdminStockCheckHistory', () => {
     }));
     await user.selectOptions(screen.getByLabelText('All Stores'), '1');
 
-    await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(1, expect.any(String), expect.any(String), 1, 10));
+    await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(1, expect.any(String), expect.any(String), 1, 10, undefined));
     expect(await screen.findByText('Paper Towels')).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Store' })).not.toBeInTheDocument();
     const row = screen.getByText('Paper Towels').closest('tr')!;
@@ -187,7 +200,7 @@ describe('SuperAdminStockCheckHistory', () => {
 
     mockGetHistory.mockResolvedValueOnce(page({ items: [entry(1, 'Downtown', { itemName: 'Paper Towels' })], totalItems: 1 }));
     await user.selectOptions(screen.getByLabelText('All Stores'), '1');
-    await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(1, expect.any(String), expect.any(String), 1, 10));
+    await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(1, expect.any(String), expect.any(String), 1, 10, undefined));
 
     mockGetHistory.mockResolvedValueOnce(page({
       items: [entry(1, 'Downtown', { itemName: 'Paper Towels' }), entry(2, 'Uptown', { itemName: 'Whole Milk' })],
@@ -195,7 +208,7 @@ describe('SuperAdminStockCheckHistory', () => {
     }));
     await user.selectOptions(screen.getByLabelText('All Stores'), '');
 
-    await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(null, expect.any(String), expect.any(String), 1, 10));
+    await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(null, expect.any(String), expect.any(String), 1, 10, undefined));
     expect(await screen.findByRole('columnheader', { name: 'Store' })).toBeInTheDocument();
   });
 
@@ -223,7 +236,7 @@ describe('SuperAdminStockCheckHistory', () => {
     expect(exportedRows.map((row) => row.itemName)).toEqual(['Paper Towels', 'Whole Milk']);
     expect(options).toEqual({ includeStore: true });
     // storeId omitted for the all-stores export, same as the on-screen query.
-    expect(mockGetHistory).toHaveBeenCalledWith(null, expect.any(String), expect.any(String), 1, 200);
+    expect(mockGetHistory).toHaveBeenCalledWith(null, expect.any(String), expect.any(String), 1, 200, undefined);
   });
 
   it('exporting a single selected store does not request a Store column', async () => {
@@ -234,7 +247,7 @@ describe('SuperAdminStockCheckHistory', () => {
     await screen.findByText('Paper Towels');
 
     await user.selectOptions(screen.getByLabelText('All Stores'), '1');
-    await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(1, expect.any(String), expect.any(String), 1, 10));
+    await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(1, expect.any(String), expect.any(String), 1, 10, undefined));
 
     await user.click(screen.getByRole('button', { name: /Export/ }));
     await user.click(screen.getByRole('menuitem', { name: /Download Excel/ }));
@@ -242,7 +255,7 @@ describe('SuperAdminStockCheckHistory', () => {
     await waitFor(() => expect(mockBuildWorkbook).toHaveBeenCalled());
     const [, , , options] = mockBuildWorkbook.mock.calls[0];
     expect(options).toEqual({ includeStore: false });
-    expect(mockGetHistory).toHaveBeenCalledWith(1, expect.any(String), expect.any(String), 1, 200);
+    expect(mockGetHistory).toHaveBeenCalledWith(1, expect.any(String), expect.any(String), 1, 200, undefined);
   });
 
   it('a correction updates the row in place without a full refetch', async () => {

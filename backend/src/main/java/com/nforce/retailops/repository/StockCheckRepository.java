@@ -82,6 +82,29 @@ public interface StockCheckRepository extends JpaRepository<StockCheck, Long> {
         Pageable pageable
     );
 
+    // Same rows and order as findForStoreInRange, unpaged: the history status
+    // filter (Shortage / Sufficient / Not Counted) depends on each item's
+    // weekday/weekend par, so it is classified in the service, and the chip
+    // counts must cover the whole range rather than one page.
+    @Query("select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS
+        + "where sc.store.id = :storeId "
+        + "and sc.checkDate between :startDate and :endDate "
+        + "order by sc.checkDate desc, sii.name asc, sc.id desc")
+    List<StockCheck> findAllForStoreInRange(
+        @Param("storeId") Long storeId,
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+
+    // Unpaged twin of findInRange, for the same reason.
+    @Query("select sc from StockCheck sc " + FETCH_SNAPSHOT_USERS + "join fetch sc.store st "
+        + "where sc.checkDate between :startDate and :endDate "
+        + "order by st.name asc, sc.checkDate desc, sii.name asc, sc.id desc")
+    List<StockCheck> findAllInRange(
+        @Param("startDate") LocalDate startDate,
+        @Param("endDate") LocalDate endDate
+    );
+
     Optional<StockCheck> findByIdAndStoreId(Long id, Long storeId);
 
     // Super Admin's cross-store historical review (RTS-305): same shape as
