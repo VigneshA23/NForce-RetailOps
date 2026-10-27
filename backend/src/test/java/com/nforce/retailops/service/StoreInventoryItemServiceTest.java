@@ -6,6 +6,7 @@ import com.nforce.retailops.dto.CreateStoreInventoryItemsResponse;
 import com.nforce.retailops.dto.StockLevelComparisonRowResponse;
 import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.entity.StockCheck;
+import com.nforce.retailops.entity.StockCheckReceipt;
 import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
@@ -15,6 +16,7 @@ import com.nforce.retailops.exception.StoreInventoryItemNameExistsException;
 import com.nforce.retailops.exception.SupplierInactiveException;
 import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
+import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
@@ -48,6 +50,7 @@ class StoreInventoryItemServiceTest {
     @Mock private StoreRepository storeRepository;
     @Mock private StoreOwnerRepository storeOwnerRepository;
     @Mock private StockCheckRepository stockCheckRepository;
+    @Mock private StockCheckReceiptRepository stockCheckReceiptRepository;
     @Mock private OrderListEntryRepository orderListEntryRepository;
     @Mock private InventoryItemImageRepository inventoryItemImageRepository;
     @Mock private UnsplashService unsplashService;
@@ -64,7 +67,7 @@ class StoreInventoryItemServiceTest {
     void setUp() {
         service = new StoreInventoryItemService(
             storeInventoryItemRepository, supplierRepository, storeRepository,
-            storeOwnerRepository, stockCheckRepository, orderListEntryRepository,
+            storeOwnerRepository, stockCheckRepository, stockCheckReceiptRepository, orderListEntryRepository,
             inventoryItemImageRepository, unsplashService,
             storeEmployeeRepository, notificationService, inventoryCategoryService
         );
@@ -396,6 +399,47 @@ class StoreInventoryItemServiceTest {
         link.setStore(store);
         link.setActive(true);
         return link;
+    }
+
+    private StockCheckReceipt receipt(StoreInventoryItem item, int quantity, OffsetDateTime receivedAt) {
+        StockCheckReceipt receipt = new StockCheckReceipt();
+        receipt.setStoreInventoryItem(item);
+        receipt.setQuantity(bd(quantity));
+        receipt.setReceivedAt(receivedAt);
+        return receipt;
+    }
+
+    @Test
+    void ownerListCarriesYesterdaysCountForwardAndAddsOnlyLaterDeliveries() {
+        StoreInventoryItem milk = item(10L, storeA, 5);
+        StockCheck yesterday = checkWithCount(milk, LocalDate.now().minusDays(1), 12);
+        ReflectionTestUtils.setField(yesterday, "createdAt", OffsetDateTime.now().minusHours(20));
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(ownerLinkTo(storeA)));
+        when(storeInventoryItemRepository.findByStoreIdOrderById(1L)).thenReturn(List.of(milk));
+        when(stockCheckRepository.findLatestPerItemForItemIds(List.of(10L))).thenReturn(List.of(yesterday));
+        when(stockCheckReceiptRepository.findUnappliedForItemIds(List.of(10L))).thenReturn(List.of(
+            receipt(milk, 5, OffsetDateTime.now().minusHours(2)),
+            // Arrived before that count was taken, so the count already includes it.
+            receipt(milk, 3, OffsetDateTime.now().minusHours(30))
+        ));
+
+        assertThat(service.listForOwner(1L))
+            .singleElement()
+            .satisfies(response -> assertThat(response.currentAvailable()).isEqualByComparingTo(bd(17)));
+    }
+
+    @Test
+    void ownerListLeavesAnItemThatWasNeverCountedWithoutAStockFigure() {
+        StoreInventoryItem bread = item(11L, storeA, 5);
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(ownerLinkTo(storeA)));
+        when(storeInventoryItemRepository.findByStoreIdOrderById(1L)).thenReturn(List.of(bread));
+        when(stockCheckRepository.findLatestPerItemForItemIds(List.of(11L))).thenReturn(List.of());
+        when(stockCheckReceiptRepository.findUnappliedForItemIds(List.of(11L)))
+            .thenReturn(List.of(receipt(bread, 4, OffsetDateTime.now())));
+
+        assertThat(service.listForOwner(1L))
+            .singleElement()
+            .satisfies(response -> assertThat(response.currentAvailable()).isNull());
     }
 
     @Test

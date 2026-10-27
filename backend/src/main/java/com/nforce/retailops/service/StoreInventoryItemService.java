@@ -6,6 +6,7 @@ import com.nforce.retailops.dto.StoreInventoryItemRequest;
 import com.nforce.retailops.dto.StoreInventoryItemResponse;
 import com.nforce.retailops.entity.InventoryItemImage;
 import com.nforce.retailops.entity.StockCheck;
+import com.nforce.retailops.entity.StockCheckReceipt;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.StoreOwner;
@@ -20,6 +21,7 @@ import com.nforce.retailops.exception.SupplierInactiveException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
 import com.nforce.retailops.repository.InventoryItemImageRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
+import com.nforce.retailops.repository.StockCheckReceiptRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
@@ -54,6 +56,7 @@ public class StoreInventoryItemService {
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final StockCheckRepository stockCheckRepository;
+    private final StockCheckReceiptRepository stockCheckReceiptRepository;
     private final OrderListEntryRepository orderListEntryRepository;
     private final InventoryItemImageRepository inventoryItemImageRepository;
     private final UnsplashService unsplashService;
@@ -67,6 +70,7 @@ public class StoreInventoryItemService {
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         StockCheckRepository stockCheckRepository,
+        StockCheckReceiptRepository stockCheckReceiptRepository,
         OrderListEntryRepository orderListEntryRepository,
         InventoryItemImageRepository inventoryItemImageRepository,
         UnsplashService unsplashService,
@@ -79,6 +83,7 @@ public class StoreInventoryItemService {
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.stockCheckRepository = stockCheckRepository;
+        this.stockCheckReceiptRepository = stockCheckReceiptRepository;
         this.orderListEntryRepository = orderListEntryRepository;
         this.inventoryItemImageRepository = inventoryItemImageRepository;
         this.unsplashService = unsplashService;
@@ -346,28 +351,40 @@ public class StoreInventoryItemService {
     // Shared helpers
     // ---------------------------------------------------------------------
 
-    // "Current available" is today's usable stock (available - dead) from the
-    // latest snapshot -- End of Day once counted, else Start of Day -- which
-    // StockCheck keeps in currentCount. One query for the whole list.
+    // "Current available" is the stock on hand right now, not just today's
+    // count: the item's latest usable count (available - dead, any date --
+    // End of Day once counted, else Start of Day, which StockCheck keeps in
+    // currentCount) plus deliveries received since. So a card shows yesterday's
+    // End of Day figure before today's Start of Day is in, then moves with
+    // Start of Day, End of Day and restocks -- the same figure the Inventory
+    // Counts view and the Employee stock check card show. Null only for an
+    // item that has never been counted. Two queries for the whole list.
     private List<StoreInventoryItemResponse> toResponses(List<StoreInventoryItem> items) {
         LocalDate today = LocalDate.now();
-        Map<Long, BigDecimal> todaysCounts = stockCheckRepository
-            .findByStoreInventoryItemIdInAndCheckDate(items.stream().map(StoreInventoryItem::getId).toList(), today)
-            .stream()
-            .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), StockCheck::getCurrentCount));
+        List<Long> itemIds = items.stream().map(StoreInventoryItem::getId).toList();
+        Map<Long, StockCheck> latestByItemId = itemIds.isEmpty()
+            ? Map.of()
+            : stockCheckRepository.findLatestPerItemForItemIds(itemIds).stream()
+                .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), sc -> sc));
+        Map<Long, List<StockCheckReceipt>> unappliedByItemId = itemIds.isEmpty()
+            ? Map.of()
+            : stockCheckReceiptRepository.findUnappliedForItemIds(itemIds).stream()
+                .collect(Collectors.groupingBy(r -> r.getStoreInventoryItem().getId()));
         return items.stream()
-            .map(item -> StoreInventoryItemResponse.from(item, today, todaysCounts.get(item.getId())))
+            .map(item -> StoreInventoryItemResponse.from(
+                item, today,
+                StockCheckReceipt.latestKnownStock(
+                    latestByItemId.get(item.getId()), unappliedByItemId.getOrDefault(item.getId(), List.of())
+                )
+            ))
             .toList();
     }
 
     private StoreInventoryItemResponse toResponse(StoreInventoryItem item) {
-        LocalDate today = LocalDate.now();
-        BigDecimal currentAvailable = item.getId() == null
-            ? null
-            : stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
-                .map(StockCheck::getCurrentCount)
-                .orElse(null);
-        return StoreInventoryItemResponse.from(item, today, currentAvailable);
+        if (item.getId() == null) {
+            return StoreInventoryItemResponse.from(item, LocalDate.now(), null);
+        }
+        return toResponses(List.of(item)).get(0);
     }
 
     private StoreInventoryItem createItem(Store store, StoreInventoryItemRequest request) {

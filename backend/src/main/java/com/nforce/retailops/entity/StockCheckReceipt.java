@@ -95,6 +95,17 @@ public class StockCheckReceipt {
         return total;
     }
 
+    // The stock on hand right now: the latest count (usable, any date) plus
+    // deliveries that arrived after it and were not added to any row. Null when
+    // the item has never been counted. Shared by the Inventory Counts view and
+    // the Inventory item cards so the two can't drift apart.
+    public static BigDecimal latestKnownStock(StockCheck latest, Iterable<StockCheckReceipt> unapplied) {
+        if (latest == null) {
+            return null;
+        }
+        return latest.getCurrentCount().add(pendingTotal(unapplied, latest));
+    }
+
     // Name of whoever received the delivery.
     public String receivedByName() {
         if (receivedByUser != null) {

@@ -22,7 +22,9 @@ public record StoreInventoryItemResponse(
     boolean active,
     // Today's minimum (weekday or weekend, per requiredMinimumOn).
     BigDecimal requiredToday,
-    // The count from today's employee stock check; null until one is submitted.
+    // Stock on hand right now: the latest usable count (carried over from
+    // an earlier day until today's Start of Day is in) plus deliveries since;
+    // null only for an item that has never been counted.
     BigDecimal currentAvailable,
     // Stored display image, served by GET /api/inventory-images/{imageId};
     // null when none has been picked.

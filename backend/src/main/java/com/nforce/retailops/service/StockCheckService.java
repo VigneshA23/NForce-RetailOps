@@ -1311,7 +1311,7 @@ public class StockCheckService {
             : StockCheckSnapshot.START_OF_DAY;
         // The latest count, plus deliveries that arrived after it and were not
         // added to any row (no row existed that day).
-        BigDecimal currentStock = latest.getCurrentCount().add(StockCheckReceipt.pendingTotal(unappliedReceipts, latest));
+        BigDecimal currentStock = StockCheckReceipt.latestKnownStock(latest, unappliedReceipts);
 
         InventoryCountStatus status = InventoryCountStatusCalculator.calculate(latest, today, minimum);
 

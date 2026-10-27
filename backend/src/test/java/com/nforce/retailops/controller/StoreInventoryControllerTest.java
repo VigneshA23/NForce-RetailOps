@@ -173,7 +173,7 @@ class StoreInventoryControllerTest {
 
     @Test
     @Transactional
-    void inventoryListShowsTodaysRequiredMinimumAndTodaysCountedStock() throws Exception {
+    void inventoryListShowsTodaysRequiredMinimumAndTheLatestKnownStock() throws Exception {
         User owner = owner("inventory-required-owner@nforce.test");
         Store store = store("Inventory Required Store", 9301L);
         linkOwnerToStore(owner, store);
@@ -186,7 +186,8 @@ class StoreInventoryControllerTest {
         // is the latest snapshot's usable stock, 3.
         check(counted, owner, today, 10, 2, 4, 1);
 
-        // Yesterday's count must not be reported as today's.
+        // No count today yet: the card carries yesterday's figure forward
+        // instead of showing "not counted" until Start of Day is submitted.
         check(storeInventoryItemRepository.findByStoreIdOrderById(store.getId()).get(1), owner, today.minusDays(1), 40, 0, null, null);
 
         boolean weekend = today.getDayOfWeek() == DayOfWeek.SATURDAY || today.getDayOfWeek() == DayOfWeek.SUNDAY;
@@ -201,7 +202,22 @@ class StoreInventoryControllerTest {
             .andExpect(jsonPath("$[1].name").value("Uncounted Bread"))
             // No weekend minimum set, so the weekday one applies every day.
             .andExpect(jsonPath("$[1].requiredToday").value(5))
-            .andExpect(jsonPath("$[1].currentAvailable").doesNotExist());
+            .andExpect(jsonPath("$[1].currentAvailable").value(40));
+    }
+
+    @Test
+    @Transactional
+    void inventoryListLeavesAnItemThatWasNeverCountedWithoutAStockFigure() throws Exception {
+        User owner = owner("inventory-never-counted-owner@nforce.test");
+        Store store = store("Never Counted Store", 9302L);
+        linkOwnerToStore(owner, store);
+        item(store, "Never Counted Bread", 5, null);
+        String token = login("inventory-never-counted-owner@nforce.test");
+
+        mockMvc.perform(get("/api/stores/inventory")
+                .header("Authorization", "Bearer " + token))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[0].currentAvailable").doesNotExist());
     }
 
     @Test

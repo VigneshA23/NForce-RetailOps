@@ -31,6 +31,11 @@ public interface StockCheckReceiptRepository extends JpaRepository<StockCheckRec
     @Query("select r from StockCheckReceipt r where r.store.id = :storeId and r.stockCheck is null")
     List<StockCheckReceipt> findUnappliedForStore(@Param("storeId") Long storeId);
 
+    // Same, for a set of items (callers must not pass an empty list -- an
+    // empty "in ()" is invalid JPQL).
+    @Query("select r from StockCheckReceipt r where r.storeInventoryItem.id in :itemIds and r.stockCheck is null")
+    List<StockCheckReceipt> findUnappliedForItemIds(@Param("itemIds") List<Long> itemIds);
+
     // Same, for one item.
     @Query("select r from StockCheckReceipt r where r.storeInventoryItem.id = :itemId and r.stockCheck is null")
     List<StockCheckReceipt> findUnappliedForItem(@Param("itemId") Long itemId);
