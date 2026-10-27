@@ -16,6 +16,7 @@ import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 import Notifications from '../pages/Notifications';
 import { getInitials } from '../utils/initials';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { useOwnerStores } from '../hooks/useOwnerStores';
 import { useOwnerCategories } from '../hooks/useOwnerCategories';
 import { useOwnerEmployees } from '../hooks/useOwnerEmployees';
@@ -38,6 +39,7 @@ type Overlay = 'profile' | 'help' | 'notifications' | null;
 function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate }: DashboardShellProps) {
   // Restores the tab across a refresh, since there's no router to reflect it
   // in the URL -- see navigationStorage.ts for why.
+  const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState<NavTabKey>(() => getOwnerTab() ?? 'home');
   useEffect(() => setOwnerTab(activeTab), [activeTab]);
   const [mobileSearchActive, setMobileSearchActive] = useState(false);
@@ -217,11 +219,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
       onIssuesClick={() => { setOverlay(null); setActiveTab('issues'); }}
-      // Inventory and Orders are sidebar tabs on desktop, but the mobile bottom
-      // bar has no room for a sixth and seventh entry -- the profile menu is the
-      // same escape hatch Issues already uses.
-      onInventoryClick={() => { setOverlay(null); setActiveTab('inventory'); }}
-      onOrdersClick={() => { setOverlay(null); setActiveTab('orders'); }}
+      // Inventory and Orders are sidebar tabs on tablet and desktop, so the
+      // profile menu only offers them on mobile, where the bottom bar has no
+      // room for a sixth and seventh entry (the same escape hatch Issues uses).
+      onInventoryClick={isMobile ? () => { setOverlay(null); setActiveTab('inventory'); } : undefined}
+      onOrdersClick={isMobile ? () => { setOverlay(null); setActiveTab('orders'); } : undefined}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}
