@@ -570,6 +570,39 @@ class StockCheckServiceTest {
     }
 
     @Test
+    void startOfDayCannotBeEditedOnceEndOfDayIsSubmitted() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        check.recordSnapshot(StockCheckSnapshot.END_OF_DAY, bd(4), bd(0), employee, OffsetDateTime.now(), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 12, 0)))
+            .isInstanceOf(StockCheckLockedException.class)
+            .hasMessage(StockCheckService.START_OF_DAY_ENDED_MESSAGE);
+
+        assertThat(check.getStartOfDayAvailable()).isEqualByComparingTo(bd(10));
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
+    }
+
+    @Test
+    void startOfDayCannotBeEditedAfterAShortageIsReported() {
+        StockCheck check = existingCheck(LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
+        when(stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(Optional.of(check));
+        when(stockShortageReportRepository.existsByStoreInventoryItemIdAndCheckDate(ITEM_ID, LocalDate.now()))
+            .thenReturn(true);
+
+        assertThatThrownBy(() -> stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.START_OF_DAY, 12, 0)))
+            .isInstanceOf(StockCheckLockedException.class)
+            .hasMessage(StockCheckService.START_OF_DAY_SHORTAGE_MESSAGE);
+
+        assertThat(check.getStartOfDayAvailable()).isEqualByComparingTo(bd(10));
+        verify(stockCheckRepository, never()).save(any(StockCheck.class));
+    }
+
+    @Test
     void approvingARequestAppliesTheDeliveryToTheDaysRow() {
         StockCheck check = existingCheck(LocalDate.now());
         check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(10), bd(0), employee, OffsetDateTime.now().minusHours(9), false);
