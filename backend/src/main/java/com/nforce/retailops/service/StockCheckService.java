@@ -108,6 +108,9 @@ public class StockCheckService {
     static final String START_OF_DAY_ORDERED_MESSAGE =
         "An order has been placed based on the Start of Day count, so it can't be edited today.";
 
+    static final String START_OF_DAY_ENDED_MESSAGE =
+        "End of Day has been submitted for this item, so the Start of Day count can't be edited.";
+
     static final String START_OF_DAY_SHORTAGE_MESSAGE =
         "A shortage was reported for this item today, so the Start of Day count can't be edited.";
 
@@ -255,7 +258,8 @@ public class StockCheckService {
                     startOfDayReview(startReviewByItemId.get(item.getId())),
                     endOfDayReview(endReviewByItemId.get(item.getId())),
                     check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
-                        && (orderedTodayItemIds.contains(item.getId())
+                        && (check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)
+                            || orderedTodayItemIds.contains(item.getId())
                             || shortageReportedTodayItemIds.contains(item.getId())),
                     endReviewByItemId.containsKey(item.getId())
                         && endReviewByItemId.get(item.getId()).getStatus() == StockReceiptRequestStatus.APPROVED,
@@ -421,6 +425,15 @@ public class StockCheckService {
             && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
             && orderListService.itemIdsOrderedOn(request.storeId(), today).contains(item.getId())) {
             throw new StockCheckLockedException(START_OF_DAY_ORDERED_MESSAGE);
+        }
+
+        // End of Day settles the day's usage against Start of Day, so Start of
+        // Day is final for employees once End of Day exists. Owner/Admin
+        // corrections still go through correctCheck.
+        if (request.snapshot() == StockCheckSnapshot.START_OF_DAY
+            && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
+            && check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)) {
+            throw new StockCheckLockedException(START_OF_DAY_ENDED_MESSAGE);
         }
 
         // A mid-day shortage report re-bases the day's usage on its own count,
