@@ -206,6 +206,7 @@ export type EodReportStatus =
   | 'END_OF_DAY_SKIPPED'
   | 'NEEDS_TO_ORDER'
   | 'ORDERED'
+  | 'RECEIVED'
   | 'NOT_ORDERED'
   | 'SUFFICIENT'
   | 'NO_MINIMUM_SET';
@@ -236,6 +237,12 @@ export interface EodReportRow {
   orderedOn: string | null;
   // Why End of Day has no count (status END_OF_DAY_SKIPPED).
   endOfDaySkippedReason?: string | null;
+  // Stock received (Ordered -> Received) on the report's own day.
+  receivedQuantity?: number | null;
+  // Minimum for the report's own day (the Need column's basis before End of Day).
+  requiredToday?: number | null;
+  // Quantity an admin added by hand for the day.
+  manualQuantity?: number | null;
 }
 
 // GET /api/stores/inventory/eod-report?date= -- grouped by preferred

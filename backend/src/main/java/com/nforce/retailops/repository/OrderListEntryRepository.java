@@ -17,6 +17,12 @@ public interface OrderListEntryRepository extends JpaRepository<OrderListEntry, 
     // Entries marked Ordered within [from, to), whatever status they've reached since.
     List<OrderListEntry> findByStoreIdAndOrderedAtGreaterThanEqualAndOrderedAtLessThan(Long storeId, OffsetDateTime from, OffsetDateTime to);
 
+    // Entries whose delivery was confirmed within [from, to). Rows the system
+    // auto-withdrew (RECEIVED with no receivedAt) never match.
+    List<OrderListEntry> findByStoreIdAndReceivedAtGreaterThanEqualAndReceivedAtLessThan(Long storeId, OffsetDateTime from, OffsetDateTime to);
+
+    List<OrderListEntry> findByStoreIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(Long storeId, OffsetDateTime from, OffsetDateTime to);
+
     List<OrderListEntry> findByStoreIdAndStatusNotOrderByCreatedAtDesc(Long storeId, OrderStatus status);
 
     Optional<OrderListEntry> findByIdAndStoreId(Long id, Long storeId);

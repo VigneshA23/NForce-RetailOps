@@ -45,7 +45,15 @@ public record EodSupplierReportResponse(
         // this report's own date (yesterday's shortage ordered today).
         LocalDate orderedOn,
         // Why End of Day has no count (status END_OF_DAY_SKIPPED), else null.
-        String endOfDaySkippedReason
+        String endOfDaySkippedReason,
+        // Stock received (Order List Ordered -> Received) on the report's own
+        // day; null when nothing was received that day.
+        BigDecimal receivedQuantity,
+        // The item's minimum for the report's own day -- the Need column's
+        // basis until End of Day is in (after that it is requiredTomorrow).
+        BigDecimal requiredToday,
+        // Quantity an admin added by hand for the day; null when none.
+        BigDecimal manualQuantity
     ) {
     }
 
@@ -63,6 +71,8 @@ public record EodSupplierReportResponse(
         END_OF_DAY_SKIPPED,
         NEEDS_TO_ORDER,
         ORDERED,
+        // Everything ordered for the day has since been received.
+        RECEIVED,
         NOT_ORDERED,
         SUFFICIENT,
         NO_MINIMUM_SET

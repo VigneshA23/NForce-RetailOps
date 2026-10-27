@@ -11,7 +11,9 @@ import java.util.List;
 
 public record UpdateOrderListEntryRequest(
     @NotNull(message = "Quantity is required")
-    @DecimalMin(value = "0.01", message = "Quantity must be greater than 0")
+    // 0 is valid here: a manually added row keeps its Needs column at 0 and
+    // carries the quantity in Manual. The service checks needed + manual > 0.
+    @DecimalMin(value = "0", message = "Quantity cannot be negative")
     @Digits(integer = 10, fraction = 2, message = "Use at most 2 decimal places")
     BigDecimal quantityNeeded,
 
