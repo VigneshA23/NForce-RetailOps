@@ -183,7 +183,7 @@ class StockCheckServiceTest {
         // Reconciled with no shortage: nothing raised.
         verify(orderListService).reconcileStartOfDayShortage(
             eq(store), eq(milk), org.mockito.ArgumentMatchers.argThat(q -> q.signum() == 0), eq(false), eq(employee), isNull());
-        verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), any(), any());
+        verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), anyBoolean(), any(), any(), any());
     }
 
     @Test
@@ -702,7 +702,7 @@ class StockCheckServiceTest {
         assertThat(response.requiredTomorrow()).isEqualByComparingTo(bd(40));
         assertThat(response.quantityToOrder()).isEqualByComparingTo(bd(6));
         assertThat(check.getCurrentCount()).isEqualByComparingTo(bd(34));
-        verify(orderListService).upsertShortage(eq(store), eq(milk), eq(bd(6)), isNull(), eq(false), eq(employee), isNull());
+        verify(orderListService).upsertShortage(eq(store), eq(milk), eq(bd(6)), isNull(), eq(false), eq(false), eq(employee), isNull(), any());
         // SOD was untouched and EOD was a first entry -- nothing to audit.
         verify(stockCheckCorrectionRepository, never()).save(any());
     }
@@ -1079,7 +1079,7 @@ class StockCheckServiceTest {
         StockCheckResponse response = stockCheckService.submitCheck(EMPLOYEE_ID, submit(StockCheckSnapshot.END_OF_DAY, 25, 0));
 
         assertThat(response.quantityToOrder()).isEqualByComparingTo(bd(0));
-        verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), any(), any());
+        verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), anyBoolean(), any(), any(), any());
         verify(orderListService).resolveShortageIfPresent(store, milk);
     }
 
@@ -1134,7 +1134,7 @@ class StockCheckServiceTest {
             new StockCheckCorrectionRequest(StockCheckSnapshot.END_OF_DAY, bd(20), bd(0), "Recounted"));
 
         verify(orderListService).resolveShortageIfPresent(store, milk);
-        verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), any(), any());
+        verify(orderListService, never()).upsertShortage(any(), any(), any(java.math.BigDecimal.class), any(), anyBoolean(), anyBoolean(), any(), any(), any());
     }
 
     @Test
@@ -1572,7 +1572,7 @@ class StockCheckServiceTest {
         assertThat(response.quantityToOrder()).isEqualByComparingTo("1.75");
         verify(orderListService).upsertShortage(eq(store), eq(milk),
             org.mockito.ArgumentMatchers.argThat(q -> q != null && q.compareTo(bd("1.75")) == 0),
-            isNull(), eq(false), eq(employee), isNull());
+            isNull(), eq(false), eq(false), eq(employee), isNull(), any());
     }
 
     @Test

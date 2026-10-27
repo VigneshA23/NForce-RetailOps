@@ -622,7 +622,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                         snapshot={snapshot === 'START_OF_DAY' ? item.startOfDay : item.endOfDay}
                         isSubmitting={pendingKey === `${item.storeInventoryItemId}:${snapshot}`}
                         onSave={(available, deadStock) => handleSave(item, snapshot, available, deadStock)}
-                        savedLabel={snapshot === 'END_OF_DAY' ? 'Completed' : 'Editable Count'}
+                        savedLabel={snapshot === 'END_OF_DAY' ? 'Completed' : item.startOfDayLocked ? 'Locked' : 'Editable Count'}
                         disabledReason={
                           snapshot === 'END_OF_DAY' && item.startOfDay == null
                             ? 'Submit the Start of Day count first'

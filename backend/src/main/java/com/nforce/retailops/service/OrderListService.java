@@ -554,10 +554,18 @@ public class OrderListService {
     // zero clears it; a manual top-up never changes it.
     @Transactional
     public OrderListEntry upsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier) {
+        return upsertShortage(store, item, quantityNeeded, note, adHoc, urgent, raisedBy, defaultSupplier, LocalDate.now());
+    }
+
+    // countDate: the day whose stock check the row's stock snapshot is taken
+    // from. Today for a normal count; yesterday when a missed End of Day is
+    // answered late.
+    @Transactional
+    public OrderListEntry upsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier, LocalDate countDate) {
         try {
-            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, urgent, raisedBy, defaultSupplier);
+            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, urgent, raisedBy, defaultSupplier, countDate);
         } catch (DataIntegrityViolationException raceLostInsert) {
-            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, urgent, raisedBy, defaultSupplier);
+            return doUpsertShortage(store, item, quantityNeeded, note, adHoc, urgent, raisedBy, defaultSupplier, countDate);
         }
     }
 
@@ -630,11 +638,16 @@ public class OrderListService {
     // Ordered the system never touches a row, so its figures stay as they were.
     // No count today (a manual "Add to order") leaves the row without a snapshot.
     private void stampStockSnapshot(OrderListEntry entry, StoreInventoryItem item, User actor) {
+        stampStockSnapshot(entry, item, actor, LocalDate.now());
+    }
+
+    private void stampStockSnapshot(OrderListEntry entry, StoreInventoryItem item, User actor, LocalDate countDate) {
         LocalDate today = LocalDate.now();
-        stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), today)
+        stockCheckRepository.findByStoreInventoryItemIdAndCheckDate(item.getId(), countDate)
             .filter(c -> c.getCurrentCount() != null)
             .ifPresent(c -> {
-                boolean forTomorrow = c.hasSnapshot(StockCheckSnapshot.END_OF_DAY);
+                // A late End of Day (for yesterday) sets the requirement for today, not tomorrow.
+                boolean forTomorrow = c.hasSnapshot(StockCheckSnapshot.END_OF_DAY) && countDate.equals(today);
                 entry.setStockSnapshot(
                     c.getCurrentCount(),
                     forTomorrow ? c.getRequiredTomorrow() : item.requiredMinimumOn(today),
@@ -644,7 +657,7 @@ public class OrderListService {
             });
     }
 
-    private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier) {
+    private OrderListEntry doUpsertShortage(Store store, StoreInventoryItem item, BigDecimal quantityNeeded, String note, boolean adHoc, boolean urgent, User raisedBy, Supplier defaultSupplier, LocalDate countDate) {
         // A manual add tops up the Manual column of the item's row that is
         // still waiting to be ordered; only when every active row is already
         // Ordered (or there is none) does it become a row of its own.
@@ -686,7 +699,7 @@ public class OrderListService {
             entry.setQuantityNeeded(quantityNeeded);
             entry.setUrgent(urgent);
         }
-        stampStockSnapshot(entry, item, raisedBy);
+        stampStockSnapshot(entry, item, raisedBy, countDate);
         if (note != null) {
             entry.setNote(note);
         }
