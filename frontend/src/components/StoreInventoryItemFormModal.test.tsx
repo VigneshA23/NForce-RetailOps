@@ -51,7 +51,7 @@ function renderModal(overrides: Partial<React.ComponentProps<typeof StoreInvento
 
 async function fillRequired(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Item Name'), 'Milk');
-  await user.type(screen.getByLabelText('Min Par Level (Weekday)'), '5');
+  await user.type(screen.getByLabelText('MINIMUM REQUIRED (WEEKDAY)'), '5');
   await user.click(screen.getByRole('combobox', { name: 'Category' }));
   await user.click(screen.getByRole('option', { name: 'Dairy' }));
 }

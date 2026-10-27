@@ -215,7 +215,7 @@ function StoreInventoryItemFormModal({
           />
         </FormField>
         <div className="store-inventory-item-form__row">
-          <FormField label="Min Par Level (Weekday)" htmlFor="inventory-item-min-weekday" error={errors.minWeekday}>
+          <FormField label="MINIMUM REQUIRED (WEEKDAY)" htmlFor="inventory-item-min-weekday" error={errors.minWeekday}>
             <input
               id="inventory-item-min-weekday"
               type="text"
@@ -228,7 +228,7 @@ function StoreInventoryItemFormModal({
               placeholder="e.g. 5"
             />
           </FormField>
-          <FormField label="Weekend Par Cushion" htmlFor="inventory-item-min-weekend" error={errors.minWeekend}>
+          <FormField label="MINIMUM REQUIRED (WEEKEND)" htmlFor="inventory-item-min-weekend" error={errors.minWeekend}>
             <input
               id="inventory-item-min-weekend"
               type="text"
