@@ -1159,6 +1159,8 @@ public class StockCheckService {
         // Permanent record of orders (kept after Received), so a past day's
         // report still shows what was ordered and when.
         Map<Long, OrderListService.OrderedInfo> orderedByItemId = orderListService.orderedInfoByItemFor(storeId, reportDate);
+        Map<Long, BigDecimal> receivedByItemId = orderListService.receivedQuantityByItemFor(storeId, reportDate);
+        Map<Long, BigDecimal> manualByItemId = orderListService.manualQuantityByItemFor(storeId, reportDate);
 
         Map<Long, List<EodSupplierReportResponse.Row>> rowsBySupplierId = new LinkedHashMap<>();
         Map<Long, Supplier> suppliersById = new LinkedHashMap<>();
@@ -1181,7 +1183,8 @@ public class StockCheckService {
                 && todaysCheck.hasSnapshot(StockCheckSnapshot.START_OF_DAY)
                 && !todaysCheck.hasSnapshot(StockCheckSnapshot.END_OF_DAY);
             EodSupplierReportResponse.Row row = toReportRow(
-                item, check, reportDate, activeOrderByItemId.get(item.getId()), orderedByItemId.get(item.getId()), reconciledBySod);
+                item, check, reportDate, activeOrderByItemId.get(item.getId()), orderedByItemId.get(item.getId()), reconciledBySod,
+                receivedByItemId.get(item.getId()), manualByItemId.get(item.getId()));
             if (row.status() == EodSupplierReportResponse.Status.NEEDS_TO_ORDER) needingOrder++;
             if (row.status() == EodSupplierReportResponse.Status.END_OF_DAY_PENDING) pendingEod++;
 
@@ -1619,7 +1622,7 @@ public class StockCheckService {
 
     private static EodSupplierReportResponse.Row toReportRow(
         StoreInventoryItem item, StockCheck check, LocalDate date, OrderListEntryResponse activeOrder, OrderListService.OrderedInfo ordered,
-        boolean reconciledBySod
+        boolean reconciledBySod, BigDecimal receivedQuantity, BigDecimal manualQuantity
     ) {
         BigDecimal required = requiredTomorrow(item, check, date);
         BigDecimal toOrder = quantityToOrder(check);
@@ -1654,7 +1657,13 @@ public class StockCheckService {
                     ? EodSupplierReportResponse.Status.END_OF_DAY_PENDING
                     : EodSupplierReportResponse.Status.START_OF_DAY_PENDING;
         } else if (shortOnThisDay) {
-            status = orderCounts
+            // Received once the day's whole ordered quantity has arrived; a
+            // partial delivery (or another order still outstanding) stays Ordered.
+            boolean fullyReceived = orderCounts && orderedQuantity != null && receivedQuantity != null
+                && receivedQuantity.compareTo(orderedQuantity) >= 0;
+            status = fullyReceived
+                ? EodSupplierReportResponse.Status.RECEIVED
+                : orderCounts
                 ? EodSupplierReportResponse.Status.ORDERED
                 : canStillOrder
                     ? EodSupplierReportResponse.Status.NEEDS_TO_ORDER
@@ -1682,7 +1691,10 @@ public class StockCheckService {
             orderedQuantity,
             orderEntryId,
             orderedOn,
-            check != null && check.isEndOfDaySkipped() ? check.getEndOfDaySkippedReason() : null
+            check != null && check.isEndOfDaySkipped() ? check.getEndOfDaySkippedReason() : null,
+            receivedQuantity,
+            item.requiredMinimumOn(date),
+            manualQuantity
         );
     }
 }

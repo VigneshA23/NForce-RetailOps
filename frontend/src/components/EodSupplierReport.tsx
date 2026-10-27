@@ -3,12 +3,8 @@ import { Calendar, ChevronDown, ChevronLeft, ChevronRight, Clipboard, List } fro
 import CalendarPopover from './CalendarPopover';
 import CategoryIcon from './CategoryIcon';
 import Select from './Select';
-import StatusDotMenu from './StatusDotMenu';
-import { STATUS_META as ORDER_STATUS_META } from '../utils/orderListStatus';
 import SearchInput from './SearchInput';
 import FilterClearButton from './FilterClearButton';
-import { ApiError } from '../api/client';
-import { markOrderListEntryOrdered } from '../api/orderList';
 import { getEodSupplierReport } from '../api/storeInventory';
 import type { EodReportRow, EodReportStatus, EodSupplierReport as EodSupplierReportData } from '../types/stockCheck';
 import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
@@ -26,6 +22,7 @@ const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
   END_OF_DAY_SKIPPED: { label: 'EOD Not Counted', tone: 'outline' },
   NEEDS_TO_ORDER: { label: 'Needs to Order', tone: 'danger' },
   ORDERED: { label: 'Ordered', tone: 'purple' },
+  RECEIVED: { label: 'Received', tone: 'success' },
   NOT_ORDERED: { label: 'Not Ordered', tone: 'outline' },
   SUFFICIENT: { label: 'Sufficient', tone: 'success' },
   NO_MINIMUM_SET: { label: 'No Minimum Set', tone: 'info' },
@@ -34,12 +31,6 @@ const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
 const STATUS_FILTER_OPTIONS: { value: 'all' | EodReportStatus; label: string }[] = [
   { value: 'all', label: 'All statuses' },
   ...(Object.keys(STATUS_META) as EodReportStatus[]).map((value) => ({ value, label: STATUS_META[value].label })),
-];
-
-// The one status Owner/Admin changes from this report; every other is derived.
-const ORDER_STATUS_OPTIONS = [
-  { value: 'NEEDS_TO_ORDER', label: STATUS_META.NEEDS_TO_ORDER.label, dot: ORDER_STATUS_META.NEEDS_ORDERING.fg },
-  { value: 'ORDERED', label: STATUS_META.ORDERED.label, dot: ORDER_STATUS_META.ORDERED.fg },
 ];
 
 const GROUP_ROW_LIMIT = 5;
@@ -73,8 +64,26 @@ interface DecoratedRow {
   // count supersedes Start of Day's once it's been taken (same day, later
   // and more current), rather than showing both as separate columns.
   deadStock: number | null;
+  // Need column: quantity short / the minimum it is judged against. Today's
+  // minimum against the Start of Day count until End of Day is in, then
+  // tomorrow's minimum against the End of Day count. Nulls where unknown.
+  need: number | null;
+  needMinimum: number | null;
   statusLabel: string;
   statusTone: string;
+}
+
+function needFor(item: EodReportRow, startUsable: number | null): { need: number | null; minimum: number | null } {
+  // Units already ordered or received count against the shortfall, so the
+  // need drops as soon as an order is placed (or arrives). max(), not a sum:
+  // an order placed and received the same day appears in both figures.
+  const covered = Math.max(item.orderedQuantity ?? 0, item.receivedQuantity ?? 0);
+  if (item.quantityToOrder != null) {
+    return { need: Math.max(item.quantityToOrder - covered, 0), minimum: item.requiredTomorrow };
+  }
+  const minimum = item.requiredToday ?? null;
+  if (startUsable == null || minimum == null) return { need: null, minimum };
+  return { need: Math.max(minimum - startUsable - covered, 0), minimum };
 }
 
 // Owner/Admin's End of Day supplier report: same supplier-grouped card UI and
@@ -91,8 +100,6 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [markingEntryId, setMarkingEntryId] = useState<number | null>(null);
   const dateTriggerRef = useRef<HTMLButtonElement>(null);
 
   const [search, setSearch] = useState('');
@@ -120,39 +127,10 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
     return () => {
       cancelled = true;
     };
-  }, [date, reloadKey]);
+  }, [date]);
 
   const isToday = date >= todayDate();
   const hasItems = (report?.groups.length ?? 0) > 0;
-
-  async function markOrdered(item: EodReportRow) {
-    if (item.orderEntryId == null) return;
-    setMarkingEntryId(item.orderEntryId);
-    try {
-      const entry = await markOrderListEntryOrdered(item.orderEntryId);
-      setReport((current) =>
-        current && {
-          ...current,
-          itemsNeedingOrder: Math.max(0, current.itemsNeedingOrder - 1),
-          groups: current.groups.map((g) => ({
-            ...g,
-            items: g.items.map((r) =>
-              r.storeInventoryItemId === item.storeInventoryItemId
-                ? { ...r, status: 'ORDERED', orderEntryId: null, orderedQuantity: entry.quantityNeeded + entry.manualAddition, orderedOn: todayDate() }
-                : r,
-            ),
-          })),
-        },
-      );
-      nfToast.success(`"${item.itemName}" marked as ordered.`);
-    } catch (error) {
-      nfToast.error(error instanceof Error ? error.message : 'Failed to update status');
-      // Someone else already moved it -- pull the current state.
-      if (error instanceof ApiError && error.status === 409) setReloadKey((k) => k + 1);
-    } finally {
-      setMarkingEntryId(null);
-    }
-  }
 
   async function handleCopy() {
     if (!report) return;
@@ -161,14 +139,18 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
 
   function decorate(item: EodReportRow, supplierId: number | null, supplierName: string): DecoratedRow {
     const status = STATUS_META[item.status];
+    const startUsable = usableStock(item.startOfDayAvailable, item.startOfDayDeadStock);
+    const { need, minimum } = needFor(item, startUsable);
     return {
       item,
       supplierId,
       supplierName,
       categoryLabel: categoryLabelOf(item.category) || '—',
-      startUsable: usableStock(item.startOfDayAvailable, item.startOfDayDeadStock),
+      startUsable,
       endUsable: usableStock(item.endOfDayAvailable, item.endOfDayDeadStock),
       deadStock: item.endOfDayDeadStock ?? item.startOfDayDeadStock,
+      need,
+      needMinimum: minimum,
       statusLabel: status.label,
       statusTone: status.tone,
     };
@@ -269,20 +251,6 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
   }
 
   function renderStatusBadge(row: DecoratedRow) {
-    // Needs to Order is the only editable status, and only while it has an
-    // Order List entry to move (today's report).
-    if (row.item.status === 'NEEDS_TO_ORDER' && row.item.orderEntryId != null) {
-      return (
-        <StatusDotMenu
-          options={ORDER_STATUS_OPTIONS}
-          value="NEEDS_TO_ORDER"
-          onChange={(next) => {
-            if (next === 'ORDERED' && markingEntryId == null) void markOrdered(row.item);
-          }}
-          ariaLabel={`Change status for ${row.item.itemName}`}
-        />
-      );
-    }
     const badge = row.item.status === 'END_OF_DAY_SKIPPED'
       ? <EndOfDaySkippedBadge reason={row.item.endOfDaySkippedReason} className={`badge badge--${row.statusTone}`} />
       : <span className={`badge badge--${row.statusTone}`}>{row.statusLabel}</span>;
@@ -297,6 +265,15 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
       );
     }
     return badge;
+  }
+
+  function renderNeed(row: DecoratedRow) {
+    return (
+      <>
+        <strong className={row.need ? 'eod-report__order-qty' : undefined}>{value(row.need)}</strong>
+        <span className="eod-report__unit">/ {value(row.needMinimum)}</span>
+      </>
+    );
   }
 
   function renderMobileCard(row: DecoratedRow) {
@@ -331,15 +308,12 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
               <span className="order-list__cell-value">{value(item.stockUsed)}</span>
             </div>
             <div className="order-list__mobile-stat">
-              <span className="order-list__mobile-stat-label">Req. Tomorrow</span>
-              <span className="order-list__cell-value">{value(item.requiredTomorrow)}</span>
+              <span className="order-list__mobile-stat-label">Need</span>
+              <span className="order-list__cell-value">{renderNeed(row)}</span>
             </div>
             <div className="order-list__mobile-stat">
-              <span className="order-list__mobile-stat-label">Order Qty</span>
-              <span className="order-list__cell-value">
-                <strong className={item.quantityToOrder ? 'eod-report__order-qty' : undefined}>{value(item.quantityToOrder)}</strong>
-                <span className="eod-report__unit">{item.unitOfMeasurement}</span>
-              </span>
+              <span className="order-list__mobile-stat-label">Manual</span>
+              <span className="order-list__cell-value">{value(item.manualQuantity ?? null)}</span>
             </div>
             <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Ordered</span>
@@ -350,6 +324,10 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
                   value(null)
                 )}
               </span>
+            </div>
+            <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Received</span>
+              <span className="order-list__cell-value">{value(item.receivedQuantity ?? null)}</span>
             </div>
           </div>
           <div className="order-list__mobile-footer">
@@ -377,32 +355,34 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
                 <span className="order-list__item-name-text">{item.itemName}</span>
                 <span className="eod-report__unit">{item.unitOfMeasurement}</span>
               </div>
+              <div className="eod-report__ordered-on">{row.categoryLabel}</div>
             </div>
           </div>
         </td>
-        {!isFlat && <td className="order-list__category-cell">{row.categoryLabel}</td>}
-        <td className="order-list__num-cell" data-label="Start Usable">
+        <td className="order-list__num-cell" data-label="SOD">
           <span className="order-list__cell-value">{value(row.startUsable)}</span>
         </td>
         <td className="order-list__num-cell" data-label="Dead">
           <span className={row.deadStock ? 'eod-report__dead' : undefined}>{value(row.deadStock)}</span>
         </td>
-        <td className="order-list__num-cell" data-label="End Usable">
+        <td className="order-list__num-cell" data-label="EOD">
           <span className="order-list__cell-value">{value(row.endUsable)}</span>
         </td>
         <td className="order-list__num-cell" data-label="Used">
           <span className="order-list__cell-value">{value(item.stockUsed)}</span>
         </td>
-        <td className="order-list__num-cell" data-label="Required Tomorrow">
-          <span className="order-list__cell-value">{value(item.requiredTomorrow)}</span>
+        <td className="order-list__num-cell" data-label="Need">
+          {renderNeed(row)}
         </td>
-        <td className="order-list__num-cell" data-label="Order Qty">
-          <strong className={item.quantityToOrder ? 'eod-report__order-qty' : undefined}>{value(item.quantityToOrder)}</strong>
+        <td className="order-list__num-cell" data-label="Manual">
+          <strong className={item.manualQuantity != null ? 'eod-report__order-qty' : undefined}>{value(item.manualQuantity ?? null)}</strong>
         </td>
         <td className="order-list__num-cell" data-label="Ordered">
           <strong className={item.orderedQuantity != null ? 'eod-report__order-qty' : undefined}>{value(item.orderedQuantity)}</strong>
         </td>
-        {isFlat && <td className="order-list__mobile-hide">{row.supplierName}</td>}
+        <td className="order-list__num-cell" data-label="Received">
+          <strong className={item.receivedQuantity != null ? 'eod-report__order-qty' : undefined}>{value(item.receivedQuantity ?? null)}</strong>
+        </td>
         <td className="order-list__status-cell">{renderStatusBadge(row)}</td>
       </tr>
     );
@@ -548,28 +528,28 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
                               this table has 7, which at 10% apiece would squeeze
                               Item/Category down to nothing. */}
                           <colgroup>
-                            <col style={{ width: '20%' }} />
-                            <col style={{ width: '9%' }} />
+                            <col style={{ width: '22%' }} />
                             <col style={{ width: '8%' }} />
-                            <col style={{ width: '7%' }} />
                             <col style={{ width: '8%' }} />
-                            <col style={{ width: '7%' }} />
-                            <col style={{ width: '10%' }} />
                             <col style={{ width: '8%' }} />
-                            <col style={{ width: '9%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '8%' }} />
                             <col style={{ width: '14%' }} />
                           </colgroup>
                           <thead>
                             <tr>
                               <th>Item</th>
-                              <th className="order-list__category-cell">Category</th>
-                              <th className="order-list__num-header">Start Usable</th>
+                              <th className="order-list__num-header">SOD</th>
                               <th className="order-list__num-header">Dead</th>
-                              <th className="order-list__num-header">End Usable</th>
+                              <th className="order-list__num-header">EOD</th>
                               <th className="order-list__num-header">Used</th>
-                              <th className="order-list__num-header">Required Tomorrow</th>
-                              <th className="order-list__num-header">Order Qty</th>
+                              <th className="order-list__num-header">Need</th>
+                              <th className="order-list__num-header">Manual</th>
                               <th className="order-list__num-header">Ordered</th>
+                              <th className="order-list__num-header">Received</th>
                               <th>Status</th>
                             </tr>
                           </thead>
@@ -593,28 +573,28 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
               <div className="table-scroll">
                 <table className="order-list__flat-table">
                   <colgroup>
-                    <col style={{ width: '20%' }} />
-                    <col style={{ width: '7%' }} />
-                    <col style={{ width: '6%' }} />
-                    <col style={{ width: '7%' }} />
-                    <col style={{ width: '6%' }} />
-                    <col style={{ width: '10%' }} />
-                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '22%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
+                    <col style={{ width: '8%' }} />
                     <col style={{ width: '8%' }} />
                     <col style={{ width: '14%' }} />
-                    <col style={{ width: '15%' }} />
                   </colgroup>
                   <thead>
                     <tr>
                       <th>Item</th>
-                      <th className="order-list__num-header">Start Usable</th>
+                      <th className="order-list__num-header">SOD</th>
                       <th className="order-list__num-header">Dead</th>
-                      <th className="order-list__num-header">End Usable</th>
+                      <th className="order-list__num-header">EOD</th>
                       <th className="order-list__num-header">Used</th>
-                      <th className="order-list__num-header">Required Tomorrow</th>
-                      <th className="order-list__num-header">Order Qty</th>
+                      <th className="order-list__num-header">Need</th>
+                      <th className="order-list__num-header">Manual</th>
                       <th className="order-list__num-header">Ordered</th>
-                      <th>Supplier</th>
+                      <th className="order-list__num-header">Received</th>
                       <th className="order-list__status-header">Status</th>
                     </tr>
                   </thead>

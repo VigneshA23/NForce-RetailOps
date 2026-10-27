@@ -169,6 +169,10 @@ public class OrderListService {
                     + ". Orders must go Needs Ordering → Ordered → Received, one step at a time.");
         }
 
+        if (request.quantityNeeded().add(entry.getManualAddition()).signum() <= 0) {
+            throw new InvalidOrderListEntryException("Quantity must be greater than 0");
+        }
+
         if (currentStatus != targetStatus) {
             entry.setStatusChangedByRole(ROLE_OWNER_ADMIN);
         }
@@ -289,6 +293,46 @@ public class OrderListService {
                 a.quantity().add(b.quantity()),
                 a.orderedAt().isBefore(b.orderedAt()) ? a.orderedAt() : b.orderedAt())
         ));
+    }
+
+    // What was added by hand ("Add to order") for the given day, summed per
+    // item -- the EOD report's Manual column. Rows raised on the day, ordered
+    // or received on it, and (for today) any still open, each counted once.
+    @Transactional(readOnly = true)
+    public Map<Long, BigDecimal> manualQuantityByItemFor(Long storeId, LocalDate date) {
+        Map<Long, OrderListEntry> byEntryId = new java.util.LinkedHashMap<>();
+        OffsetDateTime from = rangeStart(date);
+        OffsetDateTime to = rangeEndExclusive(date);
+        orderListEntryRepository.findByStoreIdAndCreatedAtGreaterThanEqualAndCreatedAtLessThan(storeId, from, to)
+            .forEach(e -> byEntryId.put(e.getId(), e));
+        orderListEntryRepository.findByStoreIdAndOrderedAtGreaterThanEqualAndOrderedAtLessThan(storeId, from, to)
+            .forEach(e -> byEntryId.put(e.getId(), e));
+        orderListEntryRepository.findByStoreIdAndReceivedAtGreaterThanEqualAndReceivedAtLessThan(storeId, from, to)
+            .forEach(e -> byEntryId.put(e.getId(), e));
+        if (date.equals(LocalDate.now())) {
+            orderListEntryRepository.findByStoreIdAndStatusNotOrderByCreatedAtDesc(storeId, OrderStatus.RECEIVED)
+                .forEach(e -> byEntryId.put(e.getId(), e));
+        }
+        return byEntryId.values().stream()
+            .filter(e -> e.getManualAddition().signum() > 0)
+            .collect(java.util.stream.Collectors.toMap(
+                e -> e.getStoreInventoryItem().getId(),
+                OrderListEntry::getManualAddition,
+                BigDecimal::add));
+    }
+
+    // What was actually received on the given day, summed per item -- the EOD
+    // report's Received column. Day of the receipt itself, not of the order.
+    @Transactional(readOnly = true)
+    public Map<Long, BigDecimal> receivedQuantityByItemFor(Long storeId, LocalDate date) {
+        return orderListEntryRepository
+            .findByStoreIdAndReceivedAtGreaterThanEqualAndReceivedAtLessThan(storeId, rangeStart(date), rangeEndExclusive(date))
+            .stream()
+            .filter(e -> e.getQuantityReceived() != null)
+            .collect(java.util.stream.Collectors.toMap(
+                e -> e.getStoreInventoryItem().getId(),
+                OrderListEntry::getQuantityReceived,
+                BigDecimal::add));
     }
 
     // Needs Ordering -> Ordered with nothing else changed, for the EOD report's

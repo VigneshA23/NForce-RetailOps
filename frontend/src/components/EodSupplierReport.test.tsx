@@ -3,23 +3,17 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import EodSupplierReport from './EodSupplierReport';
 import * as storeInventoryApi from '../api/storeInventory';
-import * as orderListApi from '../api/orderList';
-import { formatDateLabel, todayDate } from '../utils/checklistHistoryOptions';
-import type { OrderListEntry } from '../types/orderList';
+import { formatDateLabel } from '../utils/checklistHistoryOptions';
 import type { EodSupplierReport as EodSupplierReportData } from '../types/stockCheck';
 
 vi.mock('../api/storeInventory', () => ({
   getEodSupplierReport: vi.fn(),
-}));
-vi.mock('../api/orderList', () => ({
-  markOrderListEntryOrdered: vi.fn(),
 }));
 vi.mock('../utils/toast', () => ({
   nfToast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 const mockGetEodSupplierReport = vi.mocked(storeInventoryApi.getEodSupplierReport);
-const mockMarkOrdered = vi.mocked(orderListApi.markOrderListEntryOrdered);
 
 const report: EodSupplierReportData = {
   date: '2026-09-30',
@@ -107,7 +101,7 @@ describe('EodSupplierReport', () => {
     expect(within(breadRow).getByText('EOD Pending')).toBeInTheDocument();
   });
 
-  it('switches to the flat List view, showing each row\'s supplier as its own column', async () => {
+  it('switches to the flat List view without a supplier column', async () => {
     const user = userEvent.setup();
     mockGetEodSupplierReport.mockResolvedValue(report);
 
@@ -116,10 +110,9 @@ describe('EodSupplierReport', () => {
 
     await user.click(screen.getByRole('button', { name: 'List' }));
 
+    expect(screen.queryByRole('columnheader', { name: 'Supplier' })).not.toBeInTheDocument();
     const milkRow = screen.getByText('Milk').closest('tr')!;
-    expect(within(milkRow).getByText('Supplier A')).toBeInTheDocument();
-    const breadRow = screen.getByText('Bread').closest('tr')!;
-    expect(within(breadRow).getByText('No Supplier')).toBeInTheDocument();
+    expect(within(milkRow).queryByText('Supplier A')).not.toBeInTheDocument();
   });
 
   it('filters rows by search text', async () => {
@@ -185,23 +178,6 @@ describe('EodSupplierReport', () => {
     expect(within(milkRow).queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('dates an item ordered from the report as today', async () => {
-    const user = userEvent.setup();
-    mockGetEodSupplierReport.mockResolvedValue({
-      ...report,
-      groups: [{ ...report.groups[0], items: [{ ...report.groups[0].items[0], orderEntryId: 99 }] }, report.groups[1]],
-    });
-    mockMarkOrdered.mockResolvedValue({ quantityNeeded: 6, manualAddition: 0 } as OrderListEntry);
-
-    render(<EodSupplierReport />);
-    await user.click(await screen.findByRole('button', { name: 'List' }));
-    await user.click(screen.getByRole('button', { name: 'Change status for Milk' }));
-    await user.click(await screen.findByRole('option', { name: 'Ordered' }));
-
-    const milkRow = screen.getByText('Milk').closest('tr')!;
-    expect(await within(milkRow).findByText(`Ordered on ${formatDateLabel(todayDate())}`)).toBeInTheDocument();
-  });
-
   it('labels an item with no Start of Day count as Not Updated Today', async () => {
     const user = userEvent.setup();
     mockGetEodSupplierReport.mockResolvedValue({
@@ -215,27 +191,18 @@ describe('EodSupplierReport', () => {
     expect(within(screen.getByText('Bread').closest('tr')!).getByText('Not Updated Today')).toBeInTheDocument();
   });
 
-  it('lets Needs to Order be changed to Ordered, and nothing else be edited', async () => {
+  it('is read-only: Needs to Order is a plain badge with no controls', async () => {
     const user = userEvent.setup();
     mockGetEodSupplierReport.mockResolvedValue({
       ...report,
       groups: [{ ...report.groups[0], items: [{ ...report.groups[0].items[0], orderEntryId: 99 }] }, report.groups[1]],
     });
-    mockMarkOrdered.mockResolvedValue({ quantityNeeded: 6, manualAddition: 2 } as OrderListEntry);
 
     render(<EodSupplierReport />);
     await user.click(await screen.findByRole('button', { name: 'List' }));
 
-    // Bread (EOD Pending) is a plain badge, not a control.
-    expect(within(screen.getByText('Bread').closest('tr')!).queryByRole('button')).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Change status for Milk' }));
-    await user.click(await screen.findByRole('option', { name: 'Ordered' }));
-
-    expect(mockMarkOrdered).toHaveBeenCalledWith(99);
     const milkRow = screen.getByText('Milk').closest('tr')!;
-    expect(await within(milkRow).findByText('Ordered')).toBeInTheDocument();
-    expect(within(milkRow).getByText('8')).toBeInTheDocument();
+    expect(within(milkRow).getByText('Needs to Order')).toBeInTheDocument();
     expect(within(milkRow).queryByRole('button')).not.toBeInTheDocument();
   });
 

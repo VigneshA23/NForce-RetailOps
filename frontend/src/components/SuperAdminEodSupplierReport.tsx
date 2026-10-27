@@ -22,6 +22,7 @@ const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
   END_OF_DAY_SKIPPED: { label: 'EOD Not Counted', tone: 'outline' },
   NEEDS_TO_ORDER: { label: 'Needs to Order', tone: 'danger' },
   ORDERED: { label: 'Ordered', tone: 'purple' },
+  RECEIVED: { label: 'Received', tone: 'success' },
   NOT_ORDERED: { label: 'Not Ordered', tone: 'outline' },
   SUFFICIENT: { label: 'Sufficient', tone: 'success' },
   NO_MINIMUM_SET: { label: 'No Minimum Set', tone: 'info' },
@@ -306,6 +307,10 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
               </span>
             </div>
             <div className="order-list__mobile-stat">
+              <span className="order-list__mobile-stat-label">Manual</span>
+              <span className="order-list__cell-value">{value(item.manualQuantity ?? null)}</span>
+            </div>
+            <div className="order-list__mobile-stat">
               <span className="order-list__mobile-stat-label">Ordered</span>
               <span className="order-list__cell-value">
                 {item.orderedQuantity != null ? (
@@ -362,6 +367,9 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
         </td>
         <td className="order-list__num-cell" data-label="Order Qty">
           <strong className={item.quantityToOrder ? 'eod-report__order-qty' : undefined}>{value(item.quantityToOrder)}</strong>
+        </td>
+        <td className="order-list__num-cell" data-label="Manual">
+          <strong className={item.manualQuantity != null ? 'eod-report__order-qty' : undefined}>{value(item.manualQuantity ?? null)}</strong>
         </td>
         <td className="order-list__num-cell" data-label="Ordered">
           <strong className={item.orderedQuantity != null ? 'eod-report__order-qty' : undefined}>{value(item.orderedQuantity)}</strong>
@@ -512,16 +520,17 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
                               this table has 7, which at 10% apiece would squeeze
                               Item/Category down to nothing. */}
                           <colgroup>
-                            <col style={{ width: '20%' }} />
-                            <col style={{ width: '9%' }} />
+                            <col style={{ width: '18%' }} />
+                            <col style={{ width: '8%' }} />
                             <col style={{ width: '8%' }} />
                             <col style={{ width: '7%' }} />
                             <col style={{ width: '8%' }} />
                             <col style={{ width: '7%' }} />
-                            <col style={{ width: '10%' }} />
-                            <col style={{ width: '8%' }} />
                             <col style={{ width: '9%' }} />
-                            <col style={{ width: '14%' }} />
+                            <col style={{ width: '7%' }} />
+                            <col style={{ width: '7%' }} />
+                            <col style={{ width: '8%' }} />
+                            <col style={{ width: '13%' }} />
                           </colgroup>
                           <thead>
                             <tr>
@@ -533,6 +542,7 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
                               <th className="order-list__num-header">Used</th>
                               <th className="order-list__num-header">Required Tomorrow</th>
                               <th className="order-list__num-header">Order Qty</th>
+                              <th className="order-list__num-header">Manual</th>
                               <th className="order-list__num-header">Ordered</th>
                               <th>Status</th>
                             </tr>
@@ -557,16 +567,17 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
               <div className="table-scroll">
                 <table className="order-list__flat-table">
                   <colgroup>
-                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '18%' }} />
                     <col style={{ width: '7%' }} />
                     <col style={{ width: '6%' }} />
                     <col style={{ width: '7%' }} />
                     <col style={{ width: '6%' }} />
-                    <col style={{ width: '10%' }} />
+                    <col style={{ width: '9%' }} />
                     <col style={{ width: '7%' }} />
-                    <col style={{ width: '8%' }} />
-                    <col style={{ width: '14%' }} />
-                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '7%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '13%' }} />
                   </colgroup>
                   <thead>
                     <tr>
@@ -577,6 +588,7 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
                       <th className="order-list__num-header">Used</th>
                       <th className="order-list__num-header">Required Tomorrow</th>
                       <th className="order-list__num-header">Order Qty</th>
+                      <th className="order-list__num-header">Manual</th>
                       <th className="order-list__num-header">Ordered</th>
                       <th>Supplier</th>
                       <th className="order-list__status-header">Status</th>
