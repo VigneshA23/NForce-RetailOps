@@ -238,6 +238,9 @@ public class StockCheckService {
                     StockSnapshotResponse.from(check, StockCheckSnapshot.END_OF_DAY),
                     check != null ? check.getQuantityReceived() : BigDecimal.ZERO,
                     check != null && check.hasSnapshot(StockCheckSnapshot.START_OF_DAY) ? check.getCurrentCount() : null,
+                    check != null && check.hasSnapshot(StockCheckSnapshot.END_OF_DAY)
+                        ? StockCheckReceipt.pendingTotal(unappliedByItemId.getOrDefault(item.getId(), List.of()), check)
+                        : BigDecimal.ZERO,
                     // Hidden while reported received stock awaits approval: until
                     // then the usage would come out negative.
                     check != null && pendingByItemId.getOrDefault(item.getId(), BigDecimal.ZERO).signum() == 0
@@ -1329,7 +1332,7 @@ public class StockCheckService {
         // added to any row (no row existed that day).
         BigDecimal currentStock = StockCheckReceipt.latestKnownStock(latest, unappliedReceipts);
 
-        InventoryCountStatus status = InventoryCountStatusCalculator.calculate(latest, today, minimum);
+        InventoryCountStatus status = InventoryCountStatusCalculator.calculate(latest, today, minimum, currentStock);
 
         // Change vs. the immediately preceding count-or-delivery event -- the
         // same merge of StockCheck snapshots and receipts the Change History

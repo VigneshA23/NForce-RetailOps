@@ -42,16 +42,18 @@ interface StockCheckViewItem extends DailyStockCheckItem {
   status: ItemStatus;
 }
 
-// "Available" is the latest known count (End of Day once saved, else the
-// running current stock: Start of Day plus deliveries, or the last mid-day
-// shortage report), so a live shortage/optimal indicator can show before End of Day is
-// saved. Before Start of Day is entered today, it falls back to the expected
+// "Available" is the latest known count (End of Day once saved, plus any
+// delivery received after it; else the running current stock: Start of Day plus
+// deliveries, or the last mid-day shortage report), so a live shortage/optimal
+// indicator can show before End of Day is saved. Before Start of Day is entered today, it falls back to the expected
 // start-of-day stock (last End of Day plus deliveries since) instead of
 // showing nothing. This is a display-only estimate -- it never feeds
 // quantityToOrder, which the backend only finalizes once End of Day is saved.
 function toViewItem(item: DailyStockCheckItem): StockCheckViewItem {
   const available =
-    item.endOfDay?.usable ?? item.currentStock ?? item.startOfDay?.usable ?? item.previousEndOfDay?.expectedStart ?? null;
+    item.endOfDay != null
+      ? item.endOfDay.usable + (item.deliveredAfterEndOfDay ?? 0)
+      : item.currentStock ?? item.startOfDay?.usable ?? item.previousEndOfDay?.expectedStart ?? null;
   const needed = item.minTarget != null && available != null ? Math.max(0, item.minTarget - available) : null;
   const hasTodayCount = item.startOfDay != null || item.endOfDay != null;
   const status: ItemStatus = !hasTodayCount

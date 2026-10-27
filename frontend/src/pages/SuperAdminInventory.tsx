@@ -17,7 +17,6 @@ import type { Supplier, SupplierFormValues } from '../types/supplier';
 import type { InventoryCategoryRecord } from '../types/inventoryCategory';
 import { categoryLabel, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { StoreOption } from '../components/StoreInventoryItemFormModal';
-import StockLevelComparison from '../components/StockLevelComparison';
 import SuperAdminStockCheckHistory from '../components/SuperAdminStockCheckHistory';
 import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormModal';
 import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
@@ -43,19 +42,18 @@ import { usePersistedState, oneOf, nullableNumber } from '../hooks/usePersistedS
 // Mobile breakdown card dots -- purely decorative, cycles by position.
 const SUPPLIER_BREAKDOWN_DOT_COLORS = ['#2563eb', '#dc2626', '#16a34a', '#ca8a04', '#7c3aed'];
 
-type SubTab = 'inventory' | 'suppliers' | 'categories' | 'comparison' | 'stock-check-history';
+type SubTab = 'inventory' | 'suppliers' | 'categories' | 'stock-check-history';
 
 // Icons + live count badges on Inventory/Suppliers/Categories/Stock Check
-// History match Owner/Admin's own StoreInventory.tsx sub-tab bar (RTS-304);
-// Stock Comparison has no Owner/Admin equivalent to match, so it stays
-// text-only. Purchasing Report used to live here too -- it's now a sub-tab
-// of the Orders page instead (cross-store, so it fits better there
-// alongside Order List).
+// History match Owner/Admin's own StoreInventory.tsx sub-tab bar (RTS-304).
+// Stock Comparison is hidden from this page (its component and endpoint are
+// kept, just not reachable). Purchasing Report used to live here too -- it's
+// now a sub-tab of the Orders page instead (cross-store, so it fits better
+// there alongside Order List).
 const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
   { key: 'inventory', label: 'Inventory', icon: Package },
   { key: 'suppliers', label: 'Suppliers', icon: Truck },
   { key: 'categories', label: 'Categories', icon: Tags },
-  { key: 'comparison', label: 'Stock Comparison' },
   { key: 'stock-check-history', label: 'Stock Check History', icon: Clock },
 ];
 
@@ -73,7 +71,7 @@ type SupplierStatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 function SuperAdminInventory() {
   const isMobile = useIsMobile();
-  const [subTab, setSubTab] = usePersistedState<SubTab>('sa-inventory-subtab', 'inventory', oneOf(['inventory', 'suppliers', 'categories', 'comparison', 'stock-check-history'] as const));
+  const [subTab, setSubTab] = usePersistedState<SubTab>('sa-inventory-subtab', 'inventory', oneOf(['inventory', 'suppliers', 'categories', 'stock-check-history'] as const));
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<InventoryCategoryRecord[]>([]);
@@ -933,7 +931,6 @@ function SuperAdminInventory() {
         />
       )}
 
-      {subTab === 'comparison' && <StockLevelComparison items={items} />}
       {subTab === 'stock-check-history' && <SuperAdminStockCheckHistory />}
 
       <StoreInventoryItemFormModal

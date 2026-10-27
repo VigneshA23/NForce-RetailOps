@@ -20,6 +20,10 @@ public record DailyStockCheckItemResponse(
     // Usable stock now: the latest count (End of Day, else the last mid-day
     // report, else Start of Day) plus deliveries since; null before Start of Day.
     BigDecimal currentStock,
+    // Deliveries received after today's End of Day was saved. The saved count is
+    // a locked record, so these sit beside it as pending receipts; the stock on
+    // hand is End of Day usable plus this. Zero when End of Day isn't saved.
+    BigDecimal deliveredAfterEndOfDay,
     BigDecimal stockUsed,
     BigDecimal quantityToOrder,
     Long imageId,

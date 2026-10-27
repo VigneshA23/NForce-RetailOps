@@ -322,28 +322,38 @@ public class StoreInventoryItemService {
             ? Map.of()
             : stockCheckRepository.findLatestPerItemForItemIds(itemIds).stream()
                 .collect(Collectors.toMap(sc -> sc.getStoreInventoryItem().getId(), sc -> sc));
+        // Deliveries received after each latest count are part of the stock on
+        // hand, same as on the Inventory cards and Inventory Counts.
+        Map<Long, List<StockCheckReceipt>> unappliedByItemId = itemIds.isEmpty()
+            ? Map.of()
+            : stockCheckReceiptRepository.findUnappliedForItemIds(itemIds).stream()
+                .collect(Collectors.groupingBy(r -> r.getStoreInventoryItem().getId()));
 
         LocalDate today = LocalDate.now();
         List<StockLevelComparisonRowResponse> rows = activeStores.stream()
-            .map(store -> toComparisonRow(store, itemByStoreId.get(store.getId()), latestByItemId, today))
+            .map(store -> toComparisonRow(store, itemByStoreId.get(store.getId()), latestByItemId, unappliedByItemId, today))
             .toList();
 
         return rows;
     }
 
     private StockLevelComparisonRowResponse toComparisonRow(
-        Store store, StoreInventoryItem item, Map<Long, StockCheck> latestByItemId, LocalDate today
+        Store store, StoreInventoryItem item, Map<Long, StockCheck> latestByItemId,
+        Map<Long, List<StockCheckReceipt>> unappliedByItemId, LocalDate today
     ) {
         if (item == null) {
             return new StockLevelComparisonRowResponse(store.getId(), store.getName(), false, null, null, null, null);
         }
         BigDecimal minimum = item.requiredMinimumOn(today);
         StockCheck latest = latestByItemId.get(item.getId());
+        BigDecimal currentStock = StockCheckReceipt.latestKnownStock(
+            latest, unappliedByItemId.getOrDefault(item.getId(), List.of())
+        );
         return new StockLevelComparisonRowResponse(
             store.getId(), store.getName(), true, minimum,
-            latest == null ? null : latest.getCurrentCount(),
+            currentStock,
             latest == null ? null : latest.getCheckDate(),
-            InventoryCountStatusCalculator.calculate(latest, today, minimum)
+            InventoryCountStatusCalculator.calculate(latest, today, minimum, currentStock)
         );
     }
 

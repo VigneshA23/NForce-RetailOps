@@ -58,6 +58,44 @@ const savedEod = {
   lastUpdatedAt: '2026-10-22T17:00:00Z',
 };
 
+describe('EmployeeStockCheck available count after End of Day', () => {
+  it('adds a delivery received after End of Day to the available count and drops the shortage', async () => {
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{
+      ...item,
+      itemName: 'Strawberry',
+      minTarget: 9,
+      startOfDay: savedSod,
+      endOfDay: { ...savedEod, available: 4, usable: 4 },
+      deliveredAfterEndOfDay: 20,
+    }]);
+
+    render(<EmployeeStockCheck store={store} />);
+
+    expect(await screen.findByText('Strawberry')).toBeInTheDocument();
+    expect(screen.getByText('24')).toBeInTheDocument();
+    expect(screen.queryByText(/Nos. Needed/)).not.toBeInTheDocument();
+    expect(screen.getByText('Sufficient')).toBeInTheDocument();
+  });
+
+  it('still shows the shortage when no delivery came after End of Day', async () => {
+    mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
+    mockGetTodayStockCheck.mockResolvedValue([{
+      ...item,
+      itemName: 'Strawberry',
+      minTarget: 9,
+      startOfDay: savedSod,
+      endOfDay: { ...savedEod, available: 4, usable: 4 },
+      deliveredAfterEndOfDay: 0,
+    }]);
+
+    render(<EmployeeStockCheck store={store} />);
+
+    expect(await screen.findByText('Strawberry')).toBeInTheDocument();
+    expect(screen.getByText('5 Nos. Needed')).toBeInTheDocument();
+  });
+});
+
 describe('EmployeeStockCheck item card expand/collapse', () => {
   it('groups the expand caret beside quantity needed and exposes shortage status separately', async () => {
     mockGetMe.mockResolvedValue({ id: 1, name: 'Ananya', email: 'a@a.com', role: 'EMPLOYEE' } as never);
