@@ -18,6 +18,10 @@ interface StoreInventoryCardGridProps {
   onToggleStatus: (item: StoreInventoryItem, active: boolean) => void;
 }
 
+// With fewer items than this the cards don't fill a row, so they keep their
+// normal width with a fixed gap between them instead of stretching apart.
+const FEW_ITEMS_THRESHOLD = 4;
+
 function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, onEdit, onDelete, onToggleStatus }: StoreInventoryCardGridProps) {
   if (!isLoading && items.length === 0) {
     return <div className="store-inventory-card-grid__empty">No inventory items match your filters.</div>;
@@ -28,7 +32,7 @@ function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, o
   }
 
   return (
-    <div className="store-inventory-card-grid">
+    <div className={`store-inventory-card-grid${items.length < FEW_ITEMS_THRESHOLD ? ' store-inventory-card-grid--few' : ''}`}>
       {items.map((item) => {
         const status = getStockStatus(item);
         const statusMeta = STOCK_STATUS_META[status];

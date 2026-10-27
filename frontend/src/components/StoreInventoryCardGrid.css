@@ -7,6 +7,18 @@
   gap: var(--space-md);
 }
 
+/* Fewer than 4 cards: keep cards at their normal width and a fixed 100px
+   between them, rather than letting the columns stretch the cards apart.
+   Phones keep the compact grid above. */
+@media (--tablet-up) {
+  .store-inventory-card-grid--few {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 280px));
+    justify-content: start;
+    column-gap: 100px;
+    row-gap: var(--space-md);
+  }
+}
+
 @media (--mobile) {
   .store-inventory-card-grid {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
