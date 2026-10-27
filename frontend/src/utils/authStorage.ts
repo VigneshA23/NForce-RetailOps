@@ -15,21 +15,34 @@ export function setAuthToken(token: string, remember: boolean): void {
   }
 }
 
+// This tab's own sessionStorage token wins over the shared localStorage one.
+// sessionStorage is per tab, so a tab that signed in without "Remember me"
+// keeps its own account even after another tab signs in as someone else with
+// "Remember me" ticked -- otherwise it would silently start sending that
+// other account's token.
 export function getAuthToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY) ?? sessionStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY) ?? localStorage.getItem(TOKEN_KEY);
 }
 
+// Clears only this tab's token. The shared localStorage copy is removed only
+// when it is this tab's own; if it belongs to another account signed in from
+// another tab, logging out here must not log that tab out too.
 export function clearAuthToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+  const own = getAuthToken();
   sessionStorage.removeItem(TOKEN_KEY);
+  if (own !== null && localStorage.getItem(TOKEN_KEY) === own) {
+    localStorage.removeItem(TOKEN_KEY);
+  }
 }
 
 // Derives whether the current session was started with "Remember me" from
 // which storage actually holds the token, rather than persisting that choice
 // separately -- there is exactly one source of truth for it (the storage
 // location itself), so a second copy could never drift out of sync with it.
+// A token in this tab's sessionStorage means it was not remembered, even if
+// another tab has since put a remembered one in localStorage.
 export function wasRememberedLogin(): boolean {
-  return localStorage.getItem(TOKEN_KEY) !== null;
+  return sessionStorage.getItem(TOKEN_KEY) === null && localStorage.getItem(TOKEN_KEY) !== null;
 }
 
 export const ACTIVE_STORE_STORAGE_KEY = 'nforce-retailops-active-store';
@@ -54,16 +67,39 @@ export function clearActiveStoreId(): void {
 
 const AVATAR_KEY = 'nforce-retailops-avatar-url';
 
+// The cached avatar is shared by every tab, so it is tagged with a hash of the
+// token it was saved under and only returned to that same session. A tab that
+// signs in as a different account must never start with someone else's photo.
+// A hash rather than the token itself, so a non-remembered token is never
+// copied into storage that outlives the tab.
+function tokenFingerprint(token: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < token.length; i++) {
+    hash ^= token.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16);
+}
+
 export function setStoredAvatarUrl(url: string | null): void {
-  if (url === null) {
+  const token = getAuthToken();
+  if (url === null || token === null) {
     localStorage.removeItem(AVATAR_KEY);
   } else {
-    localStorage.setItem(AVATAR_KEY, url);
+    localStorage.setItem(AVATAR_KEY, JSON.stringify({ owner: tokenFingerprint(token), url }));
   }
 }
 
 export function getStoredAvatarUrl(): string | null {
-  return localStorage.getItem(AVATAR_KEY);
+  const token = getAuthToken();
+  const raw = localStorage.getItem(AVATAR_KEY);
+  if (token === null || raw === null) return null;
+  try {
+    const parsed = JSON.parse(raw) as { owner?: unknown; url?: unknown };
+    return parsed.owner === tokenFingerprint(token) && typeof parsed.url === 'string' ? parsed.url : null;
+  } catch {
+    return null;
+  }
 }
 
 export function clearStoredAvatarUrl(): void {

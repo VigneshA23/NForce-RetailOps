@@ -293,6 +293,48 @@ describe('cross-tab session sync', () => {
     await screen.findByText(/you have been logged out/i)
     expect(screen.queryByLabelText(/signed in as/i)).not.toBeInTheDocument()
   })
+
+  it('signs this tab out, without touching the new token, when another tab signs in as a different account', async () => {
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
+    render(<App />)
+
+    await loginAsEmployee(user) // remembered: the token is in shared localStorage
+    await selectFirstOpenStore(user)
+
+    localStorage.setItem(TOKEN_KEY, 'other-account-token')
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: TOKEN_KEY,
+      oldValue: 'test-token',
+      newValue: 'other-account-token',
+      storageArea: localStorage,
+    }))
+
+    await screen.findByText(/signed in with another account in a different tab/i)
+    expect(screen.queryByLabelText(/signed in as/i)).not.toBeInTheDocument()
+    expect(localStorage.getItem(TOKEN_KEY)).toBe('other-account-token')
+  })
+
+  it('keeps a tab signed in without Remember Me on its own account when another tab signs in as someone else', async () => {
+    const user = userEvent.setup(USER_EVENT_OPTIONS)
+    mockLogin.mockResolvedValueOnce({ token: 'test-token', role: 'EMPLOYEE', fullName: 'Jane Doe', mustResetPassword: false, sessionTimeoutMinutes: 30 })
+    render(<App />)
+
+    await user.type(screen.getByLabelText(/email/i), 'jane@nforceone.com')
+    await user.type(screen.getByLabelText(/^password$/i), 'password123')
+    await user.click(screen.getByRole('button', { name: /sign in/i }))
+    await selectFirstOpenStore(user)
+
+    localStorage.setItem(TOKEN_KEY, 'other-account-token')
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: TOKEN_KEY,
+      oldValue: null,
+      newValue: 'other-account-token',
+      storageArea: localStorage,
+    }))
+
+    expect(screen.getByLabelText(/signed in as jane doe/i)).toBeInTheDocument()
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBe('test-token')
+  })
 })
 
 describe('session countdown accuracy after refresh', () => {
