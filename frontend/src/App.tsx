@@ -47,6 +47,7 @@ type View = 'login' | 'set-new-password'
 const INACTIVITY_MESSAGE = 'Your session has expired due to inactivity. Please log in again.'
 const INVALID_SESSION_MESSAGE = 'Your session has expired or is invalid. Please log in again.'
 const SIGNED_OUT_ELSEWHERE_MESSAGE = 'You have been logged out.'
+const SWITCHED_ACCOUNT_ELSEWHERE_MESSAGE = 'You signed in with another account in a different tab. Please log in again.'
 
 function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -79,17 +80,23 @@ function App() {
   // logout, inactivity timeout, or a 401 from any API call. Every protected
   // page renders conditionally on `user`, so clearing it here is sufficient
   // to fall back to Login from anywhere in the app.
-  const endSession = useCallback((message: string | null) => {
-    clearAuthToken()
-    clearActiveStoreId()
-    clearStoredAvatarUrl()
-    clearSuperAdminTab()
-    clearOwnerTab()
-    clearEmployeeTab()
-    clearSuperAdminOverlay()
-    clearOwnerOverlay()
-    clearEmployeeOverlay()
-    clearPersistedPageState()
+  //
+  // `leaveStorage` is for a session another tab has already ended or taken
+  // over: the shared storage now belongs to that tab (or is already cleared),
+  // so only this tab's in-memory state is reset.
+  const endSession = useCallback((message: string | null, leaveStorage = false) => {
+    if (!leaveStorage) {
+      clearAuthToken()
+      clearActiveStoreId()
+      clearStoredAvatarUrl()
+      clearSuperAdminTab()
+      clearOwnerTab()
+      clearEmployeeTab()
+      clearSuperAdminOverlay()
+      clearOwnerOverlay()
+      clearEmployeeOverlay()
+      clearPersistedPageState()
+    }
     setUser(null)
     setNeedsPasswordReset(false)
     setActiveStore(null)
@@ -113,6 +120,8 @@ function App() {
 
   function handleLoginSuccess(authUser: AuthUser, remember: boolean, mustResetPassword: boolean) {
     setAuthToken(authUser.token, remember)
+    // Drop whatever avatar this tab was showing; /me supplies this account's own.
+    setAvatarUrl(getStoredAvatarUrl())
     setSessionMessage(null)
     setUser(authUser)
     setNeedsPasswordReset(mustResetPassword)
@@ -255,13 +264,16 @@ function App() {
     })
   }, [isEmployee, stores, storesLoading, storesError])
 
-  // Cross-tab sync: another tab clearing the shared auth token (logout or
-  // expiration there) ends this tab's session too.
+  // Cross-tab sync: another tab clearing or replacing the shared auth token
+  // ends this tab's session if that token was this tab's own (logout or
+  // expiration there, or a different account signing in there). A tab
+  // signed in without "Remember me" holds its own token and is unaffected.
   useEffect(() => {
     function handleStorageChange(event: StorageEvent) {
-      if (event.key === AUTH_TOKEN_STORAGE_KEY && event.newValue === null && user) {
-        endSession(SIGNED_OUT_ELSEWHERE_MESSAGE)
-      }
+      if (event.key !== AUTH_TOKEN_STORAGE_KEY || !user) return
+      const current = getAuthToken()
+      if (current === user.token) return
+      endSession(current === null ? SIGNED_OUT_ELSEWHERE_MESSAGE : SWITCHED_ACCOUNT_ELSEWHERE_MESSAGE, true)
     }
 
     window.addEventListener('storage', handleStorageChange)
