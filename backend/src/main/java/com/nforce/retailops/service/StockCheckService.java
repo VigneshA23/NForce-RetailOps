@@ -745,8 +745,8 @@ public class StockCheckService {
     }
 
     // Yesterday only, and only the first answer is accepted: either the count
-    // itself (saved as End of Day, entered-by = whoever answers; no order list
-    // change, today's Start of Day settles that) or a recorded reason with End
+    // itself (saved as End of Day, entered-by = whoever answers; the order list is
+    // re-synced as for a normal End of Day) or a recorded reason with End
     // of Day left empty.
     private MissedEndOfDayResponse.Item answerMissedEndOfDay(User actor, Long storeId, MissedEndOfDayAnswerRequest request) {
         LocalDate yesterday = LocalDate.now().minusDays(1);
@@ -785,6 +785,9 @@ public class StockCheckService {
                 "End of Day is higher than Start of Day plus stock received that day. "
                     + "Ask your admin to correct it from Stock Check History");
         }
+        // The late count settles the order against the requirement it was
+        // meant for, exactly as an on-time End of Day would have.
+        syncOrderList(check, StockCheckSnapshot.END_OF_DAY, actor);
         return MissedEndOfDayResponse.Item.from(check);
     }
 
@@ -1556,7 +1559,7 @@ public class StockCheckService {
         }
         orderListService.upsertShortage(
             item.getStore(), item, check.getQuantityNeeded(),
-            null, false, raisedBy, item.getPreferredSupplier()
+            null, false, false, raisedBy, item.getPreferredSupplier(), check.getCheckDate()
         );
     }
 
