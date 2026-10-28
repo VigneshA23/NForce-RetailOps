@@ -86,13 +86,11 @@
 }
 
 .employee-stock-history__filter-pill--shortage {
-  border-color: transparent;
   background: var(--color-badge-icon-primary-bg);
   color: var(--color-badge-icon-primary-fg);
 }
 
 .employee-stock-history__filter-pill--sufficient {
-  border-color: transparent;
   background: var(--color-badge-icon-success-bg);
   color: var(--color-badge-icon-success-fg);
 }
@@ -147,7 +145,7 @@
 
   .table-card.stock-check-history-table-card.employee-stock-history__table-card .data-table tbody tr {
     grid-template-areas:
-      'item date'
+      'item item'
       'count qty'
       'by by';
   }

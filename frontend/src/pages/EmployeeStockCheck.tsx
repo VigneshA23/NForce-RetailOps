@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, Info, List } from 'lucide-react';
+import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, List } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { ApiError } from '../api/client';
 import { getMe } from '../api/me';
@@ -466,37 +466,31 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                 placeholder="Search stock items, SKUs, categories..."
               />
             </div>
-            <p className="employee-stock-check-page__formula-hint">
-              <Info size={13} />
-              <span>
-                <strong>Formula:</strong> Qty Needed = Min Target − Available
-              </span>
-            </p>
-          </div>
-          <div className="employee-stock-check-page__filters" role="group" aria-label="Filter by status">
-            <button
-              type="button"
-              className={`employee-stock-check-page__filter-pill${statusFilter === 'all' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
-              onClick={() => setStatusFilter('all')}
-            >
-              All Records ({viewItems.length})
-            </button>
-            <button
-              type="button"
-              className={`employee-stock-check-page__filter-pill employee-stock-check-page__filter-pill--shortage${statusFilter === 'shortage' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
-              onClick={() => setStatusFilter('shortage')}
-            >
-              <AlertTriangle size={13} />
-              Shortage ({shortageCount})
-            </button>
-            <button
-              type="button"
-              className={`employee-stock-check-page__filter-pill employee-stock-check-page__filter-pill--sufficient${statusFilter === 'sufficient' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
-              onClick={() => setStatusFilter('sufficient')}
-            >
-              <CheckCircle2 size={13} />
-              Sufficient ({sufficientCount})
-            </button>
+            <div className="employee-stock-check-page__filters" role="group" aria-label="Filter by status">
+              <button
+                type="button"
+                className={`employee-stock-check-page__filter-pill${statusFilter === 'all' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
+                onClick={() => setStatusFilter('all')}
+              >
+                All Records ({viewItems.length})
+              </button>
+              <button
+                type="button"
+                className={`employee-stock-check-page__filter-pill employee-stock-check-page__filter-pill--shortage${statusFilter === 'shortage' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
+                onClick={() => setStatusFilter('shortage')}
+              >
+                <AlertTriangle size={13} />
+                Shortage ({shortageCount})
+              </button>
+              <button
+                type="button"
+                className={`employee-stock-check-page__filter-pill employee-stock-check-page__filter-pill--sufficient${statusFilter === 'sufficient' ? ' employee-stock-check-page__filter-pill--active' : ''}`}
+                onClick={() => setStatusFilter('sufficient')}
+              >
+                <CheckCircle2 size={13} />
+                Sufficient ({sufficientCount})
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -509,7 +503,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
         {visibleItems.map((item) => {
           const idPrefix = `stock-${item.storeInventoryItemId}`;
           const expanded = isExpanded(item);
-          const shiftsActive = (item.startOfDay != null ? 1 : 0) + (item.endOfDay != null ? 1 : 0);
           return (
             <article
               key={item.storeInventoryItemId}
@@ -574,10 +567,7 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                 <>
                   <div className="employee-stock-check-page__shift-header">
                     <span className="employee-stock-check-page__shift-label">
-                      Shift Stock Reconciliations
-                      <span className={`badge ${shiftsActive === 0 ? 'badge--outline' : item.status === 'optimal' ? 'badge--success' : 'badge--danger'}`}>
-                        {shiftsActive} Shifts Active
-                      </span>
+                      Stock Reconciliation
                     </span>
                     <span className="employee-stock-check-page__shift-target">
                       Reconciliation Target: {item.minTarget ?? '—'} {item.unitOfMeasurement} / day

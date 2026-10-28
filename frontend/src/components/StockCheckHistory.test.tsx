@@ -125,7 +125,7 @@ describe('StockCheckHistory', () => {
 
     const tableRow = (await screen.findByText('Paper Towels')).closest('tr')!;
     expect(within(tableRow).getByText('16 EA')).toBeInTheDocument();
-    expect(within(tableRow).getByText('+4 EA needed')).toBeInTheDocument();
+    expect(within(tableRow).getByText('+4 EA')).toBeInTheDocument();
     expect(within(tableRow).getByText('Owner Olivia')).toBeInTheDocument();
     expect(tableRow.querySelector('.user-avatar--img')).toHaveAttribute('src', 'data:image/png;base64,avatar');
     await waitFor(() => expect(tableRow.querySelector('.item-icon--image')).toHaveAttribute('src', 'blob:inventory-image'));
@@ -158,7 +158,7 @@ describe('StockCheckHistory', () => {
 
     render(<StockCheckHistory />);
 
-    expect(await screen.findByText('+1.52 EA needed')).toBeInTheDocument();
+    expect(await screen.findByText('+1.52 EA')).toBeInTheDocument();
   });
 
   it('falls back to the Start of Day count when End of Day was never taken, but still badges it Not Counted', async () => {
@@ -173,7 +173,7 @@ describe('StockCheckHistory', () => {
     expect(within(tableRow).getByText('12 EA')).toBeInTheDocument();
     // The Qty Needed badge is still "Not Counted", since reconciliation
     // specifically needs the End of Day figure.
-    expect(within(tableRow).getByText('— (Not Counted)')).toBeInTheDocument();
+    expect(within(tableRow).getByText('Not counted')).toBeInTheDocument();
   });
 
   it('shows no count at all when neither snapshot has been taken', async () => {

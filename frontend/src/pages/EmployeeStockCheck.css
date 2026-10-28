@@ -105,37 +105,13 @@
 }
 
 .employee-stock-check-page__search {
-  flex: 1 1 420px;
-  min-width: 0;
-}
-
-.employee-stock-check-page__formula-hint {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-  padding: 7px 14px;
-  background: var(--color-bg-page);
-  border-radius: var(--radius-pill);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-  flex: 0 0 auto;
-  box-sizing: border-box;
-}
-
-.employee-stock-check-page__formula-hint strong {
-  color: var(--color-text-primary);
-}
-
-.employee-stock-check-page__formula-hint span {
+  flex: 1 1 240px;
   min-width: 0;
 }
 
 .employee-stock-check-page__filters {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex: 0 0 auto;
   gap: var(--space-sm);
 }
 
@@ -172,7 +148,12 @@
 }
 
 @media (--mobile) {
+  .employee-stock-check-page__filters {
+    flex: 1 1 100%;
+  }
+
   .employee-stock-check-page__filter-pill {
+    flex: 1 1 0;
     padding: 7px 4px;
     font-size: 11px;
   }

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { buildFixedCategoryOptions, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import { buildFixedCategoryOptions, NOTE_MAX_LENGTH, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -164,7 +164,7 @@ function StoreInventoryItemEditPanel({
         </div>
 
         <div className="item-edit-panel__section">
-          <h3 className="item-edit-panel__section-title">Store Parity &amp; Minimum Quantities</h3>
+          <h3 className="item-edit-panel__section-title">Store Min Quantities</h3>
           <div className="item-edit-panel__store-row">
             <span className="item-edit-panel__store-dot" aria-hidden="true" />
             <span className="item-edit-panel__store-name">{item.storeName}</span>
@@ -214,10 +214,12 @@ function StoreInventoryItemEditPanel({
             id="edit-item-note"
             className="input"
             rows={2}
+            maxLength={NOTE_MAX_LENGTH}
             value={values.note}
             onChange={(event) => setValues((current) => ({ ...current, note: event.target.value }))}
             placeholder="Add internal notes, handling instructions, or supplier caveats..."
           />
+          <p className="form-field__char-count">{values.note.length} / {NOTE_MAX_LENGTH}</p>
         </FormField>
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>

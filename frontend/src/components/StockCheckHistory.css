@@ -117,13 +117,11 @@
 }
 
 .stock-check-history__status-filter--shortage {
-  border-color: transparent;
   background: var(--color-badge-icon-primary-bg);
   color: var(--color-badge-icon-primary-fg);
 }
 
 .stock-check-history__status-filter--sufficient {
-  border-color: transparent;
   background: var(--color-badge-icon-success-bg);
   color: var(--color-badge-icon-success-fg);
 }
@@ -143,6 +141,23 @@
 .stock-check-history__status-filter--active {
   outline: 2px solid currentColor;
   outline-offset: -1px;
+}
+
+.stock-check-history__required {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stock-check-history__required--shortage {
+  color: var(--color-badge-icon-primary-fg);
+}
+
+.stock-check-history__required--sufficient {
+  color: var(--color-badge-icon-success-fg);
+}
+
+.stock-check-history__required--muted {
+  color: var(--color-text-secondary);
 }
 
 .stock-check-history__item-cell {
@@ -275,7 +290,7 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
-      'item date'
+      'item item'
       'count qty'
       'by actions';
     row-gap: 10px;
@@ -291,7 +306,7 @@
   .table-card.stock-check-history-table-card--with-store .data-table tbody tr {
     grid-template-areas:
       'store store'
-      'item date'
+      'item item'
       'count qty'
       'by actions';
   }
@@ -335,6 +350,7 @@
   }
 
   .stock-check-history__item-cell > div {
+    flex: 1 1 auto;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -343,10 +359,13 @@
   }
 
   .stock-check-history__item-name {
+    flex: 1 1 100%;
     min-width: 0;
-    font-size: 16px;
-    font-weight: 700;
-    overflow-wrap: anywhere;
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .stock-check-history__item-category {
@@ -387,8 +406,10 @@
   }
 
   .table-card.stock-check-history-table-card .data-table tbody td[data-label='Date & Timestamp'] {
-    grid-area: date;
-    align-self: center;
+    /* Shares the item cell's area and sits at its bottom-right, so the
+       timestamp lines up with the category chip beside the item icon. */
+    grid-area: item;
+    align-self: end;
     justify-self: end;
     min-width: 0;
   }
@@ -399,10 +420,6 @@
     justify-content: center;
     gap: 5px;
     max-width: 100%;
-    padding: 8px;
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    background: var(--color-bg-page);
     color: var(--color-text-secondary);
     font-size: 11px;
     font-weight: 600;
@@ -427,12 +444,12 @@
     grid-area: count;
   }
 
-  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Qty Needed (Par Reconciled)'] {
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Required'] {
     grid-area: qty;
   }
 
   .table-card.stock-check-history-table-card .data-table tbody td[data-label='Count Entered'] .stock-check-history__metric,
-  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Qty Needed (Par Reconciled)'] .stock-check-history__metric {
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Required'] .stock-check-history__metric {
     padding: 8px 12px;
     border: 1px solid var(--color-border);
     border-radius: 16px;
@@ -440,7 +457,7 @@
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
   }
 
-  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Qty Needed (Par Reconciled)'] .stock-check-history__metric {
+  .table-card.stock-check-history-table-card .data-table tbody td[data-label='Required'] .stock-check-history__metric {
     align-items: flex-start;
   }
 
@@ -502,7 +519,7 @@
     background: var(--color-surface-card);
     color: var(--color-text-primary);
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 600;
   }
 
   .stock-check-history__metric-label {

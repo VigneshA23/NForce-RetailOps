@@ -95,7 +95,7 @@ describe('EmployeeStockCheckHistory', () => {
 
     render(<EmployeeStockCheckHistory storeId={1} />);
 
-    expect(await screen.findByText('+4 EA needed')).toBeInTheDocument();
+    expect(await screen.findByText('+4 EA')).toBeInTheDocument();
   });
 
   it('filters by status server-side, including Not Counted, and keeps whole-range chip counts', async () => {
@@ -151,6 +151,6 @@ describe('EmployeeStockCheckHistory', () => {
     expect(tableRow.querySelector('[data-label="Recorded By"]')).toHaveTextContent('Owner Olivia');
     expect(tableRow.querySelector('[data-label="Actions"]')).not.toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Count Entered' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Qty Needed (Par Reconciled)' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Required' })).toBeInTheDocument();
   });
 });

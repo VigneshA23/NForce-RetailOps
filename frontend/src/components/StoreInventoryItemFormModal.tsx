@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Plus } from 'lucide-react';
-import { buildFixedCategoryOptions, type StoreInventoryItemFormValues } from '../types/storeInventory';
+import { buildFixedCategoryOptions, NOTE_MAX_LENGTH, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
 import { isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint } from '../utils/quantity';
@@ -258,10 +258,12 @@ function StoreInventoryItemFormModal({
             id="inventory-item-note"
             className="input"
             rows={2}
+            maxLength={NOTE_MAX_LENGTH}
             value={values.note}
             onChange={(event) => setValues((current) => ({ ...current, note: event.target.value }))}
             placeholder="e.g. Special storage requirements, vendor batch minimums, seasonal variations..."
           />
+          <p className="form-field__char-count">{values.note.length} / {NOTE_MAX_LENGTH}</p>
         </FormField>
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>

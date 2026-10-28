@@ -156,3 +156,6 @@ export interface InventoryCountHistoryEntry {
   updatedAt: string;
   source: InventoryCountSource;
 }
+
+// Mirrors the backend @Size(max = 500) on StoreInventoryItemRequest.note.
+export const NOTE_MAX_LENGTH = 500;

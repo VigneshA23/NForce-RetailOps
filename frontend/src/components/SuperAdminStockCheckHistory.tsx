@@ -83,15 +83,15 @@ function matchesFilters(
 
 function QtyNeededBadge({ row }: { row: SuperAdminStockCheckHistoryRowView }) {
   if (row.status === 'shortage') {
-    return <span className="badge badge--danger">+{row.deficit} {row.unitOfMeasurement} needed</span>;
+    return <span className="stock-check-history__required stock-check-history__required--shortage">+{row.deficit} {row.unitOfMeasurement}</span>;
   }
   if (row.status === 'skipped') {
-    return <EndOfDaySkippedBadge reason={row.endOfDaySkipped?.reason} byName={row.endOfDaySkipped?.byName} />;
+    return <EndOfDaySkippedBadge reason={row.endOfDaySkipped?.reason} byName={row.endOfDaySkipped?.byName} className="stock-check-history__required stock-check-history__required--muted" />;
   }
   if (row.status === 'pending') {
-    return <span className="badge badge--outline">— (Not Counted)</span>;
+    return <span className="stock-check-history__required stock-check-history__required--muted">Not counted</span>;
   }
-  return <span className="badge badge--success">Sufficient</span>;
+  return <span className="stock-check-history__required stock-check-history__required--sufficient">Sufficient</span>;
 }
 
 // Super Admin's cross-store stock-check audit trail (RTS-305) and correction
@@ -395,7 +395,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
                 <th scope="col">Item &amp; Category</th>
                 <th scope="col">Date &amp; Timestamp</th>
                 <th scope="col">Count Entered</th>
-                <th scope="col">Qty Needed (Par Reconciled)</th>
+                <th scope="col">Required</th>
                 <th scope="col">Recorded By</th>
                 <th scope="col">Actions</th>
               </tr>
@@ -446,9 +446,9 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
                         <span>{countEntered != null ? `${countEntered} ${row.unitOfMeasurement}` : '—'}</span>
                       </div>
                     </td>
-                    <td data-label="Qty Needed (Par Reconciled)">
+                    <td data-label="Required">
                       <div className="stock-check-history__metric">
-                        <span className="stock-check-history__metric-label">Qty Needed (Par)</span>
+                        <span className="stock-check-history__metric-label">Required</span>
                         <QtyNeededBadge row={row} />
                       </div>
                     </td>

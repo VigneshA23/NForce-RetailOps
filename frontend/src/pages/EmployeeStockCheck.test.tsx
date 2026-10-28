@@ -194,21 +194,20 @@ describe('EmployeeStockCheck item card expand/collapse', () => {
 
     render(<EmployeeStockCheck store={store} />);
     await screen.findByText('Milk');
-    expect(screen.getByText('Qty Needed = Min Target − Available')).toBeInTheDocument();
     const itemCard = screen.getByText('Milk').closest('.employee-stock-check-page__item');
     const neededGroup = itemCard?.querySelector('.employee-stock-check-page__needed-group');
     expect(neededGroup?.contains(itemCard?.querySelector('.employee-stock-check-page__collapse-toggle') ?? null)).toBe(true);
 
     // Pending status (no counts yet) starts collapsed.
-    expect(screen.queryByText('Shift Stock Reconciliations')).not.toBeInTheDocument();
+    expect(screen.queryByText('Stock Reconciliation')).not.toBeInTheDocument();
 
     // Click the item name -- not the chevron -- and it should still expand.
     await user.click(screen.getByText('Milk'));
-    await waitFor(() => expect(screen.getByText('Shift Stock Reconciliations')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Stock Reconciliation')).toBeInTheDocument());
 
     // Click empty space on the header (the target text) to collapse again.
     await user.click(screen.getByText(/Today's target/));
-    await waitFor(() => expect(screen.queryByText('Shift Stock Reconciliations')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Stock Reconciliation')).not.toBeInTheDocument());
   });
 });
 
@@ -220,7 +219,7 @@ describe('EmployeeStockCheck End of Day gating', () => {
 
     render(<EmployeeStockCheck store={store} />);
     await user.click(await screen.findByText('Milk'));
-    await screen.findByText('Shift Stock Reconciliations');
+    await screen.findByText('Stock Reconciliation');
 
     const eodCard = screen.getByRole('region', { name: 'End of Day Stock Check' });
     expect(within(eodCard).getByText('Submit the Start of Day count first')).toBeInTheDocument();
@@ -265,7 +264,7 @@ describe('EmployeeStockCheck pending-approval lock', () => {
   async function expand(user: ReturnType<typeof userEvent.setup>) {
     await screen.findByText('Milk');
     await user.click(screen.getByText('Milk'));
-    await waitFor(() => expect(screen.getByText('Shift Stock Reconciliations')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Stock Reconciliation')).toBeInTheDocument());
   }
 
   it('locks Start of Day and shows the waiting banner while a request is pending', async () => {
@@ -357,7 +356,7 @@ describe('EmployeeStockCheck missing End of Day from yesterday', () => {
   async function expandMilk(user: ReturnType<typeof userEvent.setup>) {
     await screen.findByText('Milk');
     await user.click(screen.getByText('Milk'));
-    await waitFor(() => expect(screen.getByText('Shift Stock Reconciliations')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Stock Reconciliation')).toBeInTheDocument());
   }
 
   it('flags the item on its card', async () => {
@@ -418,7 +417,7 @@ describe('EmployeeStockCheck refresh after save', () => {
 
     render(<EmployeeStockCheck store={store} />);
     await user.click(await screen.findByText('Milk'));
-    await screen.findByText('Shift Stock Reconciliations');
+    await screen.findByText('Stock Reconciliation');
     expect(mockGetTodayStockCheck).toHaveBeenCalledTimes(1);
 
     const sodCard = screen.getByRole('region', { name: 'Start of Day Stock Check' });
