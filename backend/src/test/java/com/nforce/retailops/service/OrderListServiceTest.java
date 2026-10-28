@@ -27,6 +27,7 @@ import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SupplierRepository;
 import com.nforce.retailops.repository.UserRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -71,6 +72,11 @@ class OrderListServiceTest {
 
     @InjectMocks
     private OrderListService orderListService;
+
+    @BeforeEach
+    void itemsAreCountedByDefault() {
+        when(stockCheckRepository.existsByStoreInventoryItemId(ITEM_ID)).thenReturn(true);
+    }
 
     private Store store() {
         Store store = new Store();
@@ -843,6 +849,34 @@ class OrderListServiceTest {
         assertThat(captor.getValue().getManualAddition()).isEqualByComparingTo(bd(5));
         assertThat(captor.getValue().isAdHoc()).isTrue();
         verify(storeInventoryItemRepository, never()).save(any());
+    }
+
+    @Test
+    void createEntryForAnItemNoOneHasStockCheckedIsRefused() {
+        stubActiveStoreOwner(store());
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
+        when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(item()));
+        when(stockCheckRepository.existsByStoreInventoryItemId(ITEM_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> orderListService.createEntry(OWNER_ID,
+            new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, bd(5), null, null)))
+            .isInstanceOf(com.nforce.retailops.exception.ItemNotCountedException.class);
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void markingReceivedAnItemNoOneHasStockCheckedIsRefusedAndChangesNothing() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
+        OrderListEntry entry = entryWithStatus(OrderStatus.ORDERED);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(stockCheckRepository.existsByStoreInventoryItemId(ITEM_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(bd(5), null, null, OrderStatus.RECEIVED)))
+            .isInstanceOf(com.nforce.retailops.exception.ItemNotCountedException.class);
+        verify(stockReceiptService, never()).applyReceipt(any(), any(), any(), any());
+        verify(orderListEntryRepository, never()).save(any());
     }
 
     @Test

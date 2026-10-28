@@ -3,6 +3,8 @@ package com.nforce.retailops.controller;
 import static com.nforce.retailops.TestDecimals.bd;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nforce.retailops.entity.StockCheck;
+import com.nforce.retailops.entity.StockCheckSnapshot;
 import com.nforce.retailops.entity.StoreInventoryItem;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
@@ -11,6 +13,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.Supplier;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.RoleRepository;
@@ -55,6 +58,7 @@ class OrderListControllerTest {
     @Autowired private StoreOwnerRepository storeOwnerRepository;
     @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
     @Autowired private OrderListEntryRepository orderListEntryRepository;
+    @Autowired private StockCheckRepository stockCheckRepository;
     @Autowired private SupplierRepository supplierRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
@@ -96,8 +100,21 @@ class OrderListControllerTest {
 
     // A distinct item per entry: V49's partial unique index forbids two
     // non-RECEIVED entries for the same store+item in production.
+    // Counted by default: orders and receipts are refused for an item no
+    // employee has stock-checked (see uncountedInventoryItem).
     private StoreInventoryItem inventoryItem(Store store) {
+        StoreInventoryItem item = uncountedInventoryItem(store);
+        StockCheck check = new StockCheck();
+        check.setStore(store);
+        check.setStoreInventoryItem(item);
+        check.setCheckDate(LocalDate.now());
+        User counter = user("ord-counter-" + itemSeq + "@nforce.test", "EMPLOYEE", "Counter " + itemSeq);
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, bd(5), bd(0), counter, OffsetDateTime.now(), false);
+        stockCheckRepository.save(check);
+        return item;
+    }
 
+    private StoreInventoryItem uncountedInventoryItem(Store store) {
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
         item.setName("Item " + ++itemSeq);
@@ -243,6 +260,23 @@ class OrderListControllerTest {
         mockMvc.perform(get("/api/stores/order-list/needs-ordering-count")
                 .header("Authorization", "Bearer " + token))
             .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Transactional
+    void createEntryForAnItemNoOneHasStockCheckedIsRefused() throws Exception {
+        User owner = user("ord-create-owner-u@nforce.test", "OWNER_ADMIN", "Owner Create U");
+        Store store = store("Store Create U", 8299L);
+        linkOwnerToStore(owner, store);
+        StoreInventoryItem uncounted = uncountedInventoryItem(store);
+
+        mockMvc.perform(post("/api/stores/order-list")
+                .header("Authorization", "Bearer " + login("ord-create-owner-u@nforce.test"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "storeInventoryItemId", uncounted.getId(), "quantityNeeded", 4))))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("has not been stock-checked yet")));
     }
 
     @Test

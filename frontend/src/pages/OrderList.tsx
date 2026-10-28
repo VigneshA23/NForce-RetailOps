@@ -105,7 +105,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
         setInventoryItems(
           items
             .filter((item) => item.active)
-            .map((item) => ({ id: item.id, name: item.name, unitOfMeasurement: item.unitOfMeasurement, preferredSupplierId: item.preferredSupplierId })),
+            .map((item) => ({ id: item.id, name: item.name, unitOfMeasurement: item.unitOfMeasurement, preferredSupplierId: item.preferredSupplierId, counted: item.currentAvailable != null })),
         );
         setStockByItemId(new Map());
         setStockNonce((n) => n + 1);

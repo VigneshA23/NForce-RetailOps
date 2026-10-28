@@ -17,6 +17,7 @@ import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidOrderEntryTransitionException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
+import com.nforce.retailops.exception.ItemNotCountedException;
 import com.nforce.retailops.exception.OrderEntryAlreadyUpdatedException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
 import com.nforce.retailops.exception.StoreInventoryItemNotFoundException;
@@ -181,6 +182,9 @@ public class OrderListService {
         // before this entry gained ordered/received attribution.
         boolean movingToOrdered = targetStatus == OrderStatus.ORDERED && currentStatus != OrderStatus.ORDERED;
         boolean receivedNow = currentStatus == OrderStatus.ORDERED && targetStatus == OrderStatus.RECEIVED;
+        if (receivedNow) {
+            requireCounted(entry.getStoreInventoryItem());
+        }
         User owner = movingToOrdered || receivedNow ? userRepository.getReferenceById(ownerId) : null;
 
         if (movingToOrdered) {
@@ -480,6 +484,9 @@ public class OrderListService {
                     + ". Orders must go Needs Ordering → Ordered → Received, one step at a time.");
         }
 
+        if (currentStatus == OrderStatus.ORDERED && targetStatus == OrderStatus.RECEIVED) {
+            requireCounted(entry.getStoreInventoryItem());
+        }
         if (currentStatus != targetStatus) {
             entry.setStatusChangedByRole(ROLE_SUPER_ADMIN);
         }
@@ -536,9 +543,27 @@ public class OrderListService {
         }
 
         StoreInventoryItem item = resolveOrderItem(store, request, supplier);
+        if (request.storeInventoryItemId() != null) {
+            requireCounted(item);
+        }
         Supplier defaultSupplier = supplier != null ? supplier : item.getPreferredSupplier();
         OrderListEntry entry = upsertShortage(store, item, request.quantityNeeded(), request.note(), true, raisedBy, defaultSupplier);
         return OrderListEntryResponse.from(entry);
+    }
+
+    // An item nobody has stock-checked has no count to order against and nothing
+    // for a delivery to be added to, so manual orders (and receiving them) wait
+    // for the first Start/End of Day count. A throwaway "Other item" kept out of
+    // the inventory (inactive) is never counted, so it is exempt.
+    private void requireCounted(StoreInventoryItem item) {
+        if (!item.isActive()) {
+            return;
+        }
+        if (!stockCheckRepository.existsByStoreInventoryItemId(item.getId())) {
+            throw new ItemNotCountedException(
+                "\"" + item.getName() + "\" has not been stock-checked yet. An employee must submit its "
+                    + "stock check before it can be ordered or received.");
+        }
     }
 
     // Either an existing catalog item (storeInventoryItemId set) or a

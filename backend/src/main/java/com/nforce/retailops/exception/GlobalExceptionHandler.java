@@ -267,6 +267,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(ItemNotCountedException.class)
+    public ResponseEntity<Map<String, String>> handleItemNotCounted(ItemNotCountedException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(StoreInventoryItemHasHistoryException.class)
     public ResponseEntity<Map<String, String>> handleStoreInventoryItemHasHistory(StoreInventoryItemHasHistoryException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));

@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nforce.retailops.entity.Category;
 import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.StoreInventoryItem;
+import com.nforce.retailops.repository.StockCheckRepository;
+import com.nforce.retailops.entity.StockCheckSnapshot;
+import com.nforce.retailops.entity.StockCheck;
 import com.nforce.retailops.entity.OrderListEntry;
 import com.nforce.retailops.entity.OrderStatus;
 import com.nforce.retailops.entity.RaisedIssue;
@@ -72,6 +75,7 @@ class SuperAdminOperationsControllerTest {
     @Autowired private RaisedIssueRepository raisedIssueRepository;
     @Autowired private SuperAdminRepository superAdminRepository;
     @Autowired private StoreInventoryItemRepository storeInventoryItemRepository;
+    @Autowired private StockCheckRepository stockCheckRepository;
     @Autowired private OrderListEntryRepository orderListEntryRepository;
     @Autowired private SupplierRepository supplierRepository;
     @Autowired private PasswordEncoder passwordEncoder;
@@ -95,6 +99,18 @@ class SuperAdminOperationsControllerTest {
         user.setFullName("Test Owner");
         user.getRoles().add(ownerRole);
         return userRepository.save(user);
+    }
+
+    // Marks the item as stock-checked: orders and receipts are refused for an
+    // item no employee has counted.
+    private void countItem(StoreInventoryItem item, String employeeEmail) {
+        StockCheck check = new StockCheck();
+        check.setStore(item.getStore());
+        check.setStoreInventoryItem(item);
+        check.setCheckDate(java.time.LocalDate.now());
+        check.recordSnapshot(StockCheckSnapshot.START_OF_DAY, new java.math.BigDecimal("5"), java.math.BigDecimal.ZERO,
+            employeeUser(employeeEmail), java.time.OffsetDateTime.now(), false);
+        stockCheckRepository.save(check);
     }
 
     private User employeeUser(String email) {
@@ -743,6 +759,7 @@ class SuperAdminOperationsControllerTest {
         superAdmin("sa-orc-admin-b@nforce.test");
         Store store = store("Store Order Create B", 9271L);
         StoreInventoryItem item = inventoryItem(store, "Milk Order Create B");
+        countItem(item, "sa-orc-counter-b@nforce.test");
 
         String token = login("sa-orc-admin-b@nforce.test");
         String body = objectMapper.writeValueAsString(Map.of(
@@ -760,6 +777,21 @@ class SuperAdminOperationsControllerTest {
             .andExpect(jsonPath("$.itemName").value("Milk Order Create B"))
             .andExpect(jsonPath("$.manualAddition").value(5))
             .andExpect(jsonPath("$.status").value("NEEDS_ORDERING"));
+    }
+
+    @Test
+    @Transactional
+    void createOrderListEntryForAnItemNoOneHasStockCheckedIsRefused() throws Exception {
+        superAdmin("sa-orc-admin-u@nforce.test");
+        Store store = store("Store Order Create U", 9279L);
+        StoreInventoryItem item = inventoryItem(store, "Milk Order Create U");
+
+        mockMvc.perform(post("/api/super-admin/stores/" + store.getId() + "/order-list")
+                .header("Authorization", "Bearer " + login("sa-orc-admin-u@nforce.test"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "storeInventoryItemId", item.getId(), "saveToInventory", false, "quantityNeeded", 5))))
+            .andExpect(status().isConflict());
     }
 
     @Test
