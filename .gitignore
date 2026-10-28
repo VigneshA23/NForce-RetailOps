@@ -53,3 +53,8 @@ skills-lock.json
 frontend/test-results/
 docs/NForce_Regression_Scenarios_Phase1_Phase2.xlsx
 load_test.sql
+
+# --- Local MCP tooling (not tracked) ---
+/node_modules/
+/package.json
+/.mcp.json
