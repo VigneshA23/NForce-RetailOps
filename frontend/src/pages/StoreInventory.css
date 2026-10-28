@@ -196,7 +196,9 @@
      above) squeezes each label down to a couple of ellipsized characters,
      unreadable. Scrolling instead keeps every label fully legible at its
      natural width; swiping/scrolling to reach the last two is an acceptable
-     trade-off a 3-4 tab bar doesn't have to make. */
+     trade-off a 3-4 tab bar doesn't have to make. Owner/Admin's bar uses it
+     too: "Stock Check History" alone is too long to share a phone-width row
+     evenly, and was being cut off with an ellipsis. */
   .store-inventory-page__subtab-list--scroll {
     justify-content: flex-start;
     overflow-x: auto;
