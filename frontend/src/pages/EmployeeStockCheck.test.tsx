@@ -242,7 +242,7 @@ describe('EmployeeStockCheck End of Day gating', () => {
     await user.click(await screen.findByText('Milk'));
     const eodCard = screen.getByRole('region', { name: 'End of Day Stock Check' });
     const total = within(eodCard).getByLabelText('Total Stock');
-    const dead = within(eodCard).getByLabelText('Dead / Spoilage');
+    const dead = within(eodCard).getByLabelText('Damaged / Spoilage');
     await user.clear(total);
     await user.type(total, '12');
     await user.clear(dead);
@@ -423,7 +423,7 @@ describe('EmployeeStockCheck refresh after save', () => {
 
     const sodCard = screen.getByRole('region', { name: 'Start of Day Stock Check' });
     const total = within(sodCard).getByLabelText('Total Stock');
-    const dead = within(sodCard).getByLabelText('Dead / Spoilage');
+    const dead = within(sodCard).getByLabelText('Damaged / Spoilage');
     await user.clear(total);
     await user.type(total, '6');
     await user.clear(dead);

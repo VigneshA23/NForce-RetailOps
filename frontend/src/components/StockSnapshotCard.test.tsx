@@ -30,8 +30,8 @@ describe('StockSnapshotCard', () => {
 
     expect(screen.getByText('In Progress')).toHaveClass('badge--warning');
     await user.type(screen.getByLabelText('Total Stock'), '50');
-    await user.clear(screen.getByLabelText('Dead / Spoilage'));
-    await user.type(screen.getByLabelText('Dead / Spoilage'), '2');
+    await user.clear(screen.getByLabelText('Damaged / Spoilage'));
+    await user.type(screen.getByLabelText('Damaged / Spoilage'), '2');
     await user.click(screen.getByRole('button', { name: 'Save Check' }));
 
     expect(onSave).toHaveBeenCalledWith(50, 2);
@@ -43,8 +43,8 @@ describe('StockSnapshotCard', () => {
     render(<StockSnapshotCard title="End of Day" idPrefix="milk-eod" snapshot={null} onSave={onSave} />);
 
     await user.type(screen.getByLabelText('Total Stock'), '3');
-    await user.clear(screen.getByLabelText('Dead / Spoilage'));
-    await user.type(screen.getByLabelText('Dead / Spoilage'), '5');
+    await user.clear(screen.getByLabelText('Damaged / Spoilage'));
+    await user.type(screen.getByLabelText('Damaged / Spoilage'), '5');
     await user.click(screen.getByRole('button', { name: 'Save Check' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Dead stock cannot be more than available stock.');
@@ -84,7 +84,7 @@ describe('StockSnapshotCard', () => {
     expect(screen.getByText('Submit the Start of Day count first')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Save Check' })).not.toBeInTheDocument();
     expect(screen.getByLabelText('Total Stock')).toBeDisabled();
-    expect(screen.getByLabelText('Dead / Spoilage')).toBeDisabled();
+    expect(screen.getByLabelText('Damaged / Spoilage')).toBeDisabled();
   });
 
   it('shows a toast with the reason when the disabled End of Day area is tapped', async () => {

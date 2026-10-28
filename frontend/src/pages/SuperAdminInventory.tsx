@@ -51,7 +51,7 @@ type SubTab = 'inventory' | 'suppliers' | 'categories' | 'stock-check-history';
 // now a sub-tab of the Orders page instead (cross-store, so it fits better
 // there alongside Order List).
 const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
-  { key: 'inventory', label: 'Inventory', icon: Package },
+  { key: 'inventory', label: 'Items', icon: Package },
   { key: 'suppliers', label: 'Suppliers', icon: Truck },
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'stock-check-history', label: 'Stock Check History', icon: Clock },

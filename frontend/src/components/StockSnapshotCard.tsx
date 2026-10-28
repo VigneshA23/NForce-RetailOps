@@ -123,7 +123,7 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
               />
             </div>
             <div className="stock-snapshot-card__field">
-              <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-dead`}>Dead / Spoilage</label>
+              <label className="stock-snapshot-card__label" htmlFor={`${idPrefix}-dead`}>Damaged / Spoilage</label>
               <CounterStepper
                 id={`${idPrefix}-dead`}
                 value={deadStock}
