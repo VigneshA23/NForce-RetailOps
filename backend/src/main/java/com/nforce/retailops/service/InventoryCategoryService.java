@@ -183,9 +183,12 @@ public class InventoryCategoryService {
             if (!after.contains(store.getId()) || storesWithAccessBefore.contains(store.getId())) {
                 continue;
             }
-            storeOwnerRepository.findByStoreIdAndActiveTrue(store.getId()).ifPresent(link ->
+            // A vacant store's link can be active with no owner (see
+            // StoreOwner.resolveTaskOwnerId); .map drops that null, so there
+            // is nobody to notify rather than a null recipient.
+            storeOwnerRepository.findByStoreIdAndActiveTrue(store.getId()).map(StoreOwner::getOwner).ifPresent(owner ->
                 notificationService.sendForStore(
-                    link.getOwner(), "INVENTORY_CATEGORY_AVAILABLE",
+                    owner, "INVENTORY_CATEGORY_AVAILABLE",
                     "Inventory category available: " + category.getName(),
                     "\"" + category.getName() + "\" is now available for " + store.getName()
                         + ". You can add new stock items under it.",
