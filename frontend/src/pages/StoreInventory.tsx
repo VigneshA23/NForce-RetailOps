@@ -292,7 +292,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
   return (
     <div className="store-inventory-page">
       <div className="store-inventory-page__subtabs">
-        <div className="store-inventory-page__subtab-list">
+        <div className="store-inventory-page__subtab-list store-inventory-page__subtab-list--scroll">
           {SUB_TABS.map((tab) => {
             const Icon = tab.icon;
             return (
