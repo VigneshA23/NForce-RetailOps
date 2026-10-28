@@ -2,6 +2,7 @@ package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.PasswordResetToken;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,4 +16,11 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
 
     @Query("SELECT COUNT(t) FROM PasswordResetToken t WHERE t.email = :email AND t.createdAt > :since")
     long countByEmailSince(@Param("email") String email, @Param("since") OffsetDateTime since);
+
+    // Tokens are keyed by email, so when an account's email changes the links
+    // issued to the old address are removed -- otherwise they would work for
+    // whoever is later given that address.
+    @Modifying
+    @Query("DELETE FROM PasswordResetToken t WHERE lower(t.email) = lower(:email)")
+    void deleteByEmailIgnoreCase(@Param("email") String email);
 }

@@ -2,9 +2,11 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerResponse;
+import com.nforce.retailops.dto.UpdateOwnerRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.OwnerStoreConflictException;
 import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -28,6 +30,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,6 +60,8 @@ class OwnerManagementServiceTest {
     private ActivityLogService activityLogService;
     @Mock
     private PasswordResetService passwordResetService;
+    @Mock
+    private AccountEmailChangeService accountEmailChangeService;
 
     private OwnerManagementService ownerManagementService;
 
@@ -65,7 +70,7 @@ class OwnerManagementServiceTest {
         ownerManagementService = new OwnerManagementService(
             userRepository, storeRepository, storeOwnerRepository,
             mailService, storeCodeGenerator, ownerProvisioningService, notificationService, superAdminAlertService, sessionService,
-            activityLogService, passwordResetService, "http://localhost:5173"
+            activityLogService, passwordResetService, accountEmailChangeService, "http://localhost:5173"
         );
     }
 
@@ -244,5 +249,49 @@ class OwnerManagementServiceTest {
         List<OwnerResponse> result = ownerManagementService.listOwners();
 
         assertThat(result).hasSize(500);
+    }
+
+    @Test
+    void updateOwnerWithANewEmailSavesItTrimmedAndHandsOffToTheEmailChangeFlow() {
+        User owner = user(5L, "Sam Owner");
+        String previousEmail = owner.getEmail();
+        when(userRepository.findById(5L)).thenReturn(Optional.of(owner));
+        when(userRepository.findByEmailWithRoles("sam.new@nforce.test")).thenReturn(Optional.empty());
+        when(storeOwnerRepository.findByOwnerId(5L)).thenReturn(List.of());
+
+        ownerManagementService.updateOwner(5L, new UpdateOwnerRequest("Sam Owner", " sam.new@nforce.test "));
+
+        assertThat(owner.getEmail()).isEqualTo("sam.new@nforce.test");
+        verify(accountEmailChangeService).emailChanged(owner, previousEmail);
+        verify(activityLogService).logPlatform(
+            "OWNER_UPDATED", "Super Admin", "SUPER_ADMIN", "OWNER", "Sam Owner", "Updated admin \"Sam Owner\"");
+    }
+
+    @Test
+    void updateOwnerRefusesAnEmailAlreadyInUseWithoutChangingAnything() {
+        User owner = user(5L, "Sam Owner");
+        String previousEmail = owner.getEmail();
+        when(userRepository.findById(5L)).thenReturn(Optional.of(owner));
+        when(userRepository.findByEmailWithRoles("taken@nforce.test")).thenReturn(Optional.of(new User()));
+
+        assertThatThrownBy(() ->
+            ownerManagementService.updateOwner(5L, new UpdateOwnerRequest("Sam Owner", "taken@nforce.test")))
+            .isInstanceOf(EmailAlreadyExistsException.class);
+
+        assertThat(owner.getEmail()).isEqualTo(previousEmail);
+        verify(userRepository, never()).save(any());
+        verify(accountEmailChangeService, never()).emailChanged(any(), any());
+    }
+
+    @Test
+    void updateOwnerWithTheSameEmailSendsNothing() {
+        User owner = user(5L, "Sam Owner");
+        when(userRepository.findById(5L)).thenReturn(Optional.of(owner));
+        when(storeOwnerRepository.findByOwnerId(5L)).thenReturn(List.of());
+
+        ownerManagementService.updateOwner(5L, new UpdateOwnerRequest("Samuel Owner", owner.getEmail().toUpperCase()));
+
+        assertThat(owner.getFullName()).isEqualTo("Samuel Owner");
+        verify(accountEmailChangeService, never()).emailChanged(any(), any());
     }
 }

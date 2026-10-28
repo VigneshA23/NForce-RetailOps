@@ -9,6 +9,7 @@ import com.nforce.retailops.dto.UpdateOwnerRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
@@ -52,6 +53,7 @@ public class OwnerManagementService {
     private final SessionService sessionService;
     private final ActivityLogService activityLogService;
     private final PasswordResetService passwordResetService;
+    private final AccountEmailChangeService accountEmailChangeService;
     private final String appBaseUrl;
 
     public OwnerManagementService(
@@ -66,6 +68,7 @@ public class OwnerManagementService {
         SessionService sessionService,
         ActivityLogService activityLogService,
         PasswordResetService passwordResetService,
+        AccountEmailChangeService accountEmailChangeService,
         @Value("${app.base-url}") String appBaseUrl
     ) {
         this.userRepository = userRepository;
@@ -79,6 +82,7 @@ public class OwnerManagementService {
         this.sessionService = sessionService;
         this.activityLogService = activityLogService;
         this.passwordResetService = passwordResetService;
+        this.accountEmailChangeService = accountEmailChangeService;
         this.appBaseUrl = appBaseUrl;
     }
 
@@ -236,9 +240,26 @@ public class OwnerManagementService {
     public List<OwnerResponse> updateOwner(Long ownerId, UpdateOwnerRequest request) {
         User owner = userRepository.findById(ownerId)
             .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
-        owner.setFullName(request.ownerName());
-        owner.setEmail(request.ownerEmail());
+
+        String email = request.ownerEmail().trim();
+        String previousEmail = owner.getEmail();
+        boolean emailChanged = AccountEmailChangeService.isChange(previousEmail, email);
+        if (emailChanged && userRepository.findByEmailWithRoles(email).isPresent()) {
+            throw new EmailAlreadyExistsException("A user with this email already exists");
+        }
+
+        owner.setFullName(request.ownerName().trim());
+        owner.setEmail(email);
         userRepository.save(owner);
+        if (emailChanged) {
+            accountEmailChangeService.emailChanged(owner, previousEmail);
+        }
+
+        activityLogService.logPlatform(
+            "OWNER_UPDATED", "Super Admin", "SUPER_ADMIN",
+            "OWNER", owner.getFullName(),
+            "Updated admin \"" + owner.getFullName() + "\""
+        );
 
         List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
         if (storeOwners.isEmpty()) {
