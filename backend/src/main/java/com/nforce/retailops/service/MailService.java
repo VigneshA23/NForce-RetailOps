@@ -195,6 +195,42 @@ public class MailService {
         send(toEmail, "Reset your NForce RetailOps password", html);
     }
 
+    // Sent to both the old and the new address when an admin changes the login
+    // email of an account that is already set up, so the owner of the old
+    // address learns of the change rather than just finding their login gone.
+    public void sendLoginEmailChangedEmail(String toEmail, String fullName, String newEmail) {
+        String html = """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+            <body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+              <table width="100%%" cellpadding="0" cellspacing="0" role="presentation" style="background:#f1f5f9;padding:40px 16px;">
+                <tr><td align="center">
+                  <table width="560" cellpadding="0" cellspacing="0" role="presentation" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                    <tr><td style="background:#10A3A8;padding:28px 40px;text-align:center;">
+                      <div style="font-size:20px;font-weight:800;color:#ffffff;letter-spacing:-0.3px;">NForce RetailOps</div>
+                      <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px;">Your stores. One checklist.</div>
+                    </td></tr>
+                    <tr><td style="padding:36px 40px 28px;">
+                      <p style="margin:0 0 6px;font-size:20px;font-weight:700;color:#0f172a;">Your login email was changed</p>
+                      <p style="margin:0 0 16px;font-size:14px;color:#64748b;line-height:1.7;">Hi %s, an administrator changed the email you use to sign in to NForce RetailOps.</p>
+                      <p style="margin:0 0 16px;font-size:14px;color:#0f172a;line-height:1.7;">New login email: <strong>%s</strong></p>
+                      <p style="margin:0 0 28px;font-size:13px;color:#64748b;line-height:1.7;">Your password is unchanged. You have been signed out and can sign in again with the new email. If you did not expect this change, contact your administrator.</p>
+                      <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.7;">This is an automated message from NForce RetailOps — please do not reply.</p>
+                    </td></tr>
+                    <tr><td style="background:#f8fafc;border-top:1px solid #e2e8f0;padding:16px 40px;text-align:center;">
+                      <p style="margin:0;font-size:11px;color:#94a3b8;">&copy; 2026 NForce RetailOps &middot; All rights reserved</p>
+                    </td></tr>
+                  </table>
+                </td></tr>
+              </table>
+            </body>
+            </html>
+            """.formatted(escapeHtml(fullName), escapeHtml(newEmail));
+
+        send(toEmail, "Your NForce RetailOps login email was changed", html);
+    }
+
     private static String escapeHtml(String value) {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }

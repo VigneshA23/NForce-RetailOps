@@ -54,6 +54,7 @@ public class EmployeeService {
     private final NotificationService notificationService;
     private final ActivityLogService activityLogService;
     private final PasswordResetService passwordResetService;
+    private final AccountEmailChangeService accountEmailChangeService;
     private final String appBaseUrl;
 
     public EmployeeService(
@@ -69,6 +70,7 @@ public class EmployeeService {
         NotificationService notificationService,
         ActivityLogService activityLogService,
         PasswordResetService passwordResetService,
+        AccountEmailChangeService accountEmailChangeService,
         @Value("${app.base-url}") String appBaseUrl
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
@@ -83,6 +85,7 @@ public class EmployeeService {
         this.notificationService = notificationService;
         this.activityLogService = activityLogService;
         this.passwordResetService = passwordResetService;
+        this.accountEmailChangeService = accountEmailChangeService;
         this.appBaseUrl = appBaseUrl;
     }
 
@@ -342,9 +345,13 @@ public class EmployeeService {
             throw new EmailAlreadyExistsException("A user with this email already exists");
         }
 
+        String previousEmail = employee.getEmail();
         employee.setFullName(request.name().trim());
         employee.setEmail(email);
         userRepository.save(employee);
+        if (AccountEmailChangeService.isChange(previousEmail, email)) {
+            accountEmailChangeService.emailChanged(employee, previousEmail);
+        }
 
         storeEmployee.setPhone(request.phone().trim());
         storeEmployee.setEmployeeType(request.employeeType());
@@ -395,9 +402,13 @@ public class EmployeeService {
             throw new EmailAlreadyExistsException("A user with this email already exists");
         }
 
+        String previousEmail = employee.getEmail();
         employee.setFullName(request.name().trim());
         employee.setEmail(email);
         userRepository.save(employee);
+        if (AccountEmailChangeService.isChange(previousEmail, email)) {
+            accountEmailChangeService.emailChanged(employee, previousEmail);
+        }
 
         storeEmployee.setPhone(request.phone().trim());
         storeEmployee.setEmployeeType(request.employeeType());
