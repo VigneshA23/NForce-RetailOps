@@ -357,7 +357,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     [allInventoryItems, selectedStoreId],
   );
   const inventoryItems: OrderableInventoryItem[] = useMemo(
-    () => storeInventoryItems.map((i) => ({ id: i.id, name: i.name, unitOfMeasurement: i.unitOfMeasurement, preferredSupplierId: i.preferredSupplierId })),
+    () => storeInventoryItems.map((i) => ({ id: i.id, name: i.name, unitOfMeasurement: i.unitOfMeasurement, preferredSupplierId: i.preferredSupplierId, counted: i.currentAvailable != null })),
     [storeInventoryItems],
   );
   // Same source as Owner/Admin's order list (the Inventory Counts endpoint):

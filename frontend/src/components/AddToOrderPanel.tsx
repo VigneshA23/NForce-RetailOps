@@ -14,6 +14,9 @@ export interface OrderableInventoryItem {
   name: string;
   unitOfMeasurement: string;
   preferredSupplierId: number | null;
+  // False for an item no employee has stock-checked yet; it can't be ordered
+  // until then. Omitted means no restriction.
+  counted?: boolean;
 }
 
 // At most one active (non-RECEIVED) order-list entry per item, keyed by
@@ -107,7 +110,10 @@ function AddToOrderPanel({
     });
   }
 
-  const inventoryOptions = inventoryItems.map((item) => ({ value: String(item.id), label: item.name }));
+  const inventoryOptions = inventoryItems
+    .filter((item) => item.counted !== false)
+    .map((item) => ({ value: String(item.id), label: item.name }));
+  const uncountedCount = inventoryItems.filter((item) => item.counted === false).length;
   const selectedItem = inventoryItems.find((item) => item.id === values.storeInventoryItemId);
   const unit = selectedItem?.unitOfMeasurement ?? '';
   const existingNeed = values.storeInventoryItemId != null ? activeNeedByItemId?.get(values.storeInventoryItemId) : undefined;
@@ -141,6 +147,11 @@ function AddToOrderPanel({
             placeholder={inventoryOptions.length === 0 ? 'No inventory items yet' : 'Select an item'}
             disabled={inventoryOptions.length === 0}
           />
+          {uncountedCount > 0 && (
+            <p className="add-to-order-panel__need-hint">
+              {uncountedCount === 1 ? '1 item is' : `${uncountedCount} items are`} not listed because no employee has submitted a stock check for {uncountedCount === 1 ? 'it' : 'them'} yet.
+            </p>
+          )}
           {existingNeed && (
             <p className="add-to-order-panel__need-hint">
               Already needs <b>{roundQty(existingNeed.quantityNeeded + existingNeed.manualAddition)} {unit}</b> -- this adds extra on top.

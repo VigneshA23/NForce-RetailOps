@@ -278,10 +278,12 @@ function TaskFormModal({
             <FormField label="Order (optional)" htmlFor="task-display-order" error={errors.displayOrder}>
               <input
                 id="task-display-order"
-                type="number"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 className="input"
                 value={values.displayOrder}
-                onChange={(event) => updateField('displayOrder', event.target.value)}
+                onChange={(event) => updateField('displayOrder', event.target.value.replace(/\D/g, ''))}
                 placeholder="Auto"
               />
             </FormField>
