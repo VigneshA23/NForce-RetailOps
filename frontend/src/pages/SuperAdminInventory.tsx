@@ -27,6 +27,7 @@ import Toggle from '../components/Toggle';
 import Select from '../components/Select';
 import SearchableSelect from '../components/SearchableSelect';
 import SearchInput from '../components/SearchInput';
+import Pagination from '../components/Pagination';
 import FilterClearButton from '../components/FilterClearButton';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
@@ -56,6 +57,8 @@ const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
   { key: 'categories', label: 'Categories', icon: Tags },
   { key: 'stock-check-history', label: 'Stock Check History', icon: Clock },
 ];
+
+const SUPPLIER_PAGE_SIZE = 10;
 
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
 
@@ -390,6 +393,19 @@ function SuperAdminInventory() {
     });
   }, [suppliers, supplierSearch, supplierStatusFilter]);
 
+  const [supplierPage, setSupplierPage] = useState(1);
+
+  useEffect(() => {
+    setSupplierPage(1);
+  }, [supplierSearch, supplierStatusFilter]);
+
+  const supplierPageCount = Math.max(1, Math.ceil(visibleSuppliers.length / SUPPLIER_PAGE_SIZE));
+  const currentSupplierPage = Math.min(supplierPage, supplierPageCount);
+  const pagedSuppliers = visibleSuppliers.slice(
+    (currentSupplierPage - 1) * SUPPLIER_PAGE_SIZE,
+    currentSupplierPage * SUPPLIER_PAGE_SIZE,
+  );
+
   // Items Count column: total items per supplier, plus a per-store breakdown
   // for the expand row -- computed client-side from the already-loaded items
   // list, no extra fetch needed.
@@ -669,7 +685,7 @@ function SuperAdminInventory() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleSuppliers.map((supplier) => {
+                  {pagedSuppliers.map((supplier) => {
                     const byStore = itemsBySupplier.get(supplier.id);
                     const storeBreakdown = byStore
                       ? [...byStore.entries()]
@@ -806,7 +822,7 @@ function SuperAdminInventory() {
               no table semantics to fight with. */}
           {isMobile && (
             <div className="supplier-mobile-list">
-              {visibleSuppliers.map((supplier) => {
+              {pagedSuppliers.map((supplier) => {
                 const byStore = itemsBySupplier.get(supplier.id);
                 const storeBreakdown = byStore
                   ? [...byStore.entries()]
@@ -914,6 +930,17 @@ function SuperAdminInventory() {
                 </div>
               )}
             </div>
+          )}
+
+          {!isLoading && (
+            <Pagination
+              page={currentSupplierPage}
+              pageCount={supplierPageCount}
+              totalItems={visibleSuppliers.length}
+              pageSize={SUPPLIER_PAGE_SIZE}
+              onPageChange={setSupplierPage}
+              itemLabel="suppliers"
+            />
           )}
         </>
       )}

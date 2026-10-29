@@ -19,6 +19,7 @@ import StoreInventoryCardGrid from '../components/StoreInventoryCardGrid';
 import ConfirmDialog from '../components/ConfirmDialog';
 import StockCheckHistory from '../components/StockCheckHistory';
 import SearchInput from '../components/SearchInput';
+import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
 import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
@@ -38,6 +39,8 @@ const SUB_TABS: { key: SubTab; label: string; icon: typeof Package }[] = [
   { key: 'suppliers', label: 'Suppliers', icon: Truck },
   { key: 'history', label: 'Stock Check History', icon: Clock },
 ];
+
+const SUPPLIER_PAGE_SIZE = 10;
 
 // Mirrors Super Admin Inventory's own Suppliers status-filter options exactly.
 const SUPPLIER_STATUS_FILTER_OPTIONS = [
@@ -152,6 +155,19 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
       return true;
     });
   }, [suppliers, supplierSearch, supplierStatusFilter]);
+
+  const [supplierPage, setSupplierPage] = useState(1);
+
+  useEffect(() => {
+    setSupplierPage(1);
+  }, [supplierSearch, supplierStatusFilter]);
+
+  const supplierPageCount = Math.max(1, Math.ceil(visibleSuppliers.length / SUPPLIER_PAGE_SIZE));
+  const currentSupplierPage = Math.min(supplierPage, supplierPageCount);
+  const pagedSuppliers = visibleSuppliers.slice(
+    (currentSupplierPage - 1) * SUPPLIER_PAGE_SIZE,
+    currentSupplierPage * SUPPLIER_PAGE_SIZE,
+  );
 
   // A 409 means the chosen supplier was deactivated after this page loaded
   // (e.g. by Super Admin in another tab): pull the fresh list so the dropdown
@@ -497,7 +513,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleSuppliers.map((supplier) => (
+                    {pagedSuppliers.map((supplier) => (
                       <tr key={supplier.id}>
                         <td className="supplier-table__cell-name" data-label="Supplier Name">
                           <div className="store-inventory-page__supplier-name-cell">
@@ -541,7 +557,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 (SuperAdminInventory.tsx). */}
             {isMobile && (
               <div className="supplier-mobile-list">
-                {visibleSuppliers.map((supplier) => (
+                {pagedSuppliers.map((supplier) => (
                   <div className="supplier-mobile-card" key={supplier.id}>
                     <div className="supplier-mobile-card__top">
                       <UserAvatar initials={supplier.name.charAt(0).toUpperCase()} size={44} />
@@ -571,6 +587,17 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                   </div>
                 )}
               </div>
+            )}
+
+            {!isLoading && (
+              <Pagination
+                page={currentSupplierPage}
+                pageCount={supplierPageCount}
+                totalItems={visibleSuppliers.length}
+                pageSize={SUPPLIER_PAGE_SIZE}
+                onPageChange={setSupplierPage}
+                itemLabel="suppliers"
+              />
             )}
           </>
         )
