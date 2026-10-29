@@ -425,9 +425,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
       <div className="employee-stock-check-page__header">
         <div>
           <h1 className="employee-stock-check-page__title">Daily Stock Check</h1>
-          <p className="employee-stock-check-page__subtitle">
-            Enter on-hand shelf counts. System will automatically compute orders against store par levels.
-          </p>
           <p className="employee-stock-check-page__summary">
             {isLoading
               ? 'Loading...'
@@ -568,9 +565,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
                   <div className="employee-stock-check-page__shift-header">
                     <span className="employee-stock-check-page__shift-label">
                       Stock Reconciliation
-                    </span>
-                    <span className="employee-stock-check-page__shift-target">
-                      Reconciliation Target: {item.minTarget ?? '—'} {item.unitOfMeasurement} / day
                     </span>
                   </div>
 
