@@ -22,10 +22,11 @@
    Inventory/Orders/Daily Checklist pages it left the store-select (and the
    tab labels themselves) sitting low with a tall, uneven gap above them.
    Scoped to .super-admin-inventory-page so Owner/Admin's StoreInventory.tsx
-   (no such class on its root) is untouched; smaller, equal padding both
-   centers everything properly and trims the bar's overall height. */
+   (no such class on its root) is untouched. The top padding stays the same
+   var(--space-lg) as Owner/Admin's so the bar starts at the same height on
+   both; only the bottom padding is added. */
 .super-admin-inventory-page .store-inventory-page__subtabs {
-  padding-top: var(--space-sm);
+  padding-top: var(--space-lg);
   padding-bottom: var(--space-sm);
 }
 

@@ -307,13 +307,6 @@
   gap: var(--space-xs);
 }
 
-.employee-stock-check-page__shift-target {
-  text-transform: none;
-  letter-spacing: normal;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-}
-
 .employee-stock-check-page__item-name {
   margin: 0;
   font-size: 15px;
