@@ -167,69 +167,74 @@ function AppShell<Key extends string = NavTabKey>({
 
   return (
     <div className="app-shell">
-      <Sidebar<Key>
-        items={navItems}
-        activeKey={activeTab}
-        onSelect={onSelectTab}
-        collapsed={collapsed}
-        onToggleCollapsed={() => setCollapsed((current) => !current)}
-        mobileOpen={isMobile && mobileDrawerOpen}
-        onClose={() => setMobileDrawerOpen(false)}
-        user={user}
-        tabBadges={tabBadges}
-      />
-      <div className="app-shell__content">
-        <div className="app-shell__header">
-          <Header
-            title={title}
-            subtitle={subtitle}
-            logoSrc={logoSrc}
-            hideLogoOnDesktop={hideLogoOnDesktop}
-            centeredModals={centeredModals}
-            showSearch={showSearch}
-            searchValue={searchValue}
-            onSearchChange={setSearchValue}
-            isDarkTheme={isDarkTheme}
-            onToggleTheme={toggleTheme}
-            userName={user.fullName}
-            avatarUrl={avatarUrl}
-            onProfileClick={onProfileClick}
-            onOwnersClick={onOwnersClick}
-            onStoresClick={onStoresClick}
-            onEmployeesClick={onEmployeesClick}
-            onCategoriesClick={onCategoriesClick}
-            onHelpClick={onHelpClick}
-            onSettingsClick={onSettingsClick}
-            onIssuesClick={onIssuesClick}
-            onInventoryClick={onInventoryClick}
-            onOrdersClick={onOrdersClick}
-            onNotificationsClick={onNotificationsClick}
-            onNotificationNavigate={onNotificationNavigate}
-            notificationStoreId={notificationStoreId}
-            notificationStores={notificationStores}
-            notificationUnreadCount={notificationUnreadCount}
-            onNotificationsCountChange={onNotificationsCountChange}
-            onLogout={onLogout}
-            loggingOut={loggingOut}
-            onMenuClick={isMobile && !useBottomTabs ? () => setMobileDrawerOpen(true) : undefined}
-            actions={headerActions}
-          />
+      {/* Header spans the full width; the sidebar and the page sit
+          side by side underneath it (on phones the sidebar is a
+          slide-in drawer instead). */}
+      <div className="app-shell__header">
+        <Header
+          title={title}
+          subtitle={subtitle}
+          logoSrc={logoSrc}
+          hideLogoOnDesktop={hideLogoOnDesktop}
+          centeredModals={centeredModals}
+          showSearch={showSearch}
+          searchValue={searchValue}
+          onSearchChange={setSearchValue}
+          isDarkTheme={isDarkTheme}
+          onToggleTheme={toggleTheme}
+          userName={user.fullName}
+          avatarUrl={avatarUrl}
+          onProfileClick={onProfileClick}
+          onOwnersClick={onOwnersClick}
+          onStoresClick={onStoresClick}
+          onEmployeesClick={onEmployeesClick}
+          onCategoriesClick={onCategoriesClick}
+          onHelpClick={onHelpClick}
+          onSettingsClick={onSettingsClick}
+          onIssuesClick={onIssuesClick}
+          onInventoryClick={onInventoryClick}
+          onOrdersClick={onOrdersClick}
+          onNotificationsClick={onNotificationsClick}
+          onNotificationNavigate={onNotificationNavigate}
+          notificationStoreId={notificationStoreId}
+          notificationStores={notificationStores}
+          notificationUnreadCount={notificationUnreadCount}
+          onNotificationsCountChange={onNotificationsCountChange}
+          onLogout={onLogout}
+          loggingOut={loggingOut}
+          onMenuClick={isMobile && !useBottomTabs ? () => setMobileDrawerOpen(true) : undefined}
+          actions={headerActions}
+        />
+      </div>
+      <div className="app-shell__body">
+        <Sidebar<Key>
+          items={navItems}
+          activeKey={activeTab}
+          onSelect={onSelectTab}
+          collapsed={collapsed}
+          onToggleCollapsed={() => setCollapsed((current) => !current)}
+          mobileOpen={isMobile && mobileDrawerOpen}
+          onClose={() => setMobileDrawerOpen(false)}
+          user={user}
+          tabBadges={tabBadges}
+        />
+        <div className="app-shell__content">
+          <main className={`app-shell__main${useBottomTabs ? ' app-shell__main--bottom-nav' : ''}`}>
+            <AnimatePresence mode="sync">
+              <motion.div
+                ref={pageRef}
+                key={contentKey ?? 'static'}
+                className="app-shell__page"
+                initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.992 }}
+                animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
+                exit={prefersReducedMotion ? {} : { opacity: 0, scale: 1.008 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              >
+                {children}
+              </motion.div>
+            </AnimatePresence>
+          </main>
         </div>
-        <main className={`app-shell__main${useBottomTabs ? ' app-shell__main--bottom-nav' : ''}`}>
-          <AnimatePresence mode="sync">
-            <motion.div
-              ref={pageRef}
-              key={contentKey ?? 'static'}
-              className="app-shell__page"
-              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.992 }}
-              animate={prefersReducedMotion ? {} : { opacity: 1, scale: 1 }}
-              exit={prefersReducedMotion ? {} : { opacity: 0, scale: 1.008 }}
-              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
-        </main>
       </div>
       {showBottomNav && (
         <BottomNav<Key> items={bottomNavItems ?? navItems} activeKey={activeTab} onSelect={onSelectTab} tabBadges={tabBadges} />

@@ -119,6 +119,17 @@ function Header({
             className={`header__logo${hideLogoOnDesktop ? ' header__logo--hide-desktop' : ''}`}
           />
         )}
+        {/* Platform logo + name, desktop/tablet only: the header spans the
+            full width above the dock sidebar, which is too narrow to carry
+            them. On mobile the logoSrc image above and the drawer cover it. */}
+        <div className="header__platform">
+          <img src="/nforce-logo.png" alt="NForce logo" className="header__platform-logo" />
+          <div className="header__platform-text">
+            <span className="header__platform-name">NForce RetailOps</span>
+            <span className="header__platform-tagline">Store Ops Platform</span>
+          </div>
+        </div>
+        <span className="header__platform-divider" aria-hidden="true" />
         <div className="header__brand">
           <h1 className="header__title">{title}</h1>
           {subtitle && <span className="header__subtitle">{subtitle}</span>}

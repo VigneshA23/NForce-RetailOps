@@ -1,65 +1,44 @@
 @import '../styles/breakpoints.css';
 
+/* Black rail carrying a floating "dock" pill of round icons. Values come
+   from the Super Admin black-sidebar design (dark-rail variant). */
 .sidebar {
   flex-shrink: 0;
   width: var(--sidebar-width-expanded);
   position: sticky;
-  top: 0;
+  top: var(--header-height);
   align-self: flex-start;
-  height: 100dvh;
+  /* Sits under the full-width header (AppShell.tsx). */
+  height: calc(100dvh - var(--header-height));
+  /* Scrolls on short screens rather than cutting the last items off. */
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   background: var(--color-nav-bg);
+  border-right: 1px solid rgba(196, 38, 126, 0.25);
   color: var(--color-header-text);
   z-index: var(--z-sidebar);
-  transition: width var(--transition-fast);
+  transition: width 0.25s;
 }
 
 .sidebar--collapsed {
   width: var(--sidebar-width-collapsed);
 }
 
-.sidebar__top {
-  display: flex;
-  flex-direction: column;
-}
-
+/* Desktop: the logo and platform name live in the header (Header.tsx), so
+   this row only shows in the mobile drawer. */
 .sidebar__brand {
-  display: flex;
+  display: none;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   height: var(--header-height);
-  padding: 0 var(--sidebar-item-padding-x) 0 10px;
+  padding: 0 10px;
   box-sizing: border-box;
   border-bottom: 1px solid var(--color-nav-divider);
   flex-shrink: 0;
 }
-
-.sidebar__collapse-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
-  cursor: pointer;
-}
-
-.sidebar__collapse-toggle:hover,
-.sidebar__collapse-toggle:focus-visible {
-  background: color-mix(in srgb, var(--color-header-text) 8%, transparent);
-  color: var(--color-header-text);
-}
-
 
 .sidebar__brand-logo {
   width: 46px;
@@ -67,7 +46,6 @@
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
-  transition: opacity var(--transition-fast);
 }
 
 .sidebar__brand-text {
@@ -76,11 +54,6 @@
   line-height: 1.25;
   min-width: 0;
   flex: 1 1 auto;
-  /* Overrides the generic 160px cap from .sidebar__label below -- the brand
-     row has its own available width (varies by breakpoint, since the
-     collapse toggle isn't always present), so it shouldn't share a fixed
-     cap with nav-item/profile labels. */
-  --sidebar-label-max-width: none;
 }
 
 .sidebar__brand-title {
@@ -97,214 +70,283 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
-  /* The full subtitle doesn't fit the brand row on one line at any
-     breakpoint -- wrap it instead of the parent's inherited nowrap, so the
-     whole thing stays visible (in expanded mode) rather than being clipped. */
   white-space: normal;
 }
 
 .sidebar__nav {
-  padding: var(--space-md) 0;
-}
-
-.sidebar__list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  flex: 1 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--sidebar-list-gap);
-}
-
-.sidebar__item {
-  position: relative;
-  display: flex;
   align-items: center;
-  gap: var(--sidebar-item-gap);
-  width: 100%;
-  min-height: 44px;
-  padding: var(--sidebar-item-padding-y) var(--sidebar-item-padding-x);
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: color-mix(in srgb, var(--color-header-text) 70%, transparent);
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-align: left;
+  padding: 14px 0;
   box-sizing: border-box;
 }
 
-.sidebar-tooltip-portal {
-  position: fixed;
-  transform: translateY(-50%);
-  padding: 3px 9px;
-  border-radius: 4px;
-  background: var(--color-accent);
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1.4;
-  white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
-  pointer-events: none;
-  z-index: var(--z-modal);
-}
+/* ---- The dock pill ------------------------------------------------------ */
 
-.sidebar__item:hover,
-.sidebar__item:focus-visible {
-  background: color-mix(in srgb, var(--color-header-text) 8%, transparent);
-  color: var(--color-header-text);
-}
-
-.sidebar__item--active {
-  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-  color: var(--color-accent);
-  box-shadow: inset 3px 0 0 var(--color-accent);
-}
-
-.sidebar__icon {
+.sidebar__dock {
   position: relative;
+  z-index: 1;
+  flex: 1 0 auto;
+  width: 130px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 8px;
+  border-radius: 30px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 60%, rgba(255, 255, 255, 0.06) 100%);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.sidebar--collapsed .sidebar__dock {
+  width: auto;
+  gap: 8px;
+  padding: 12px 10px;
+  border-radius: 999px;
+}
+
+.sidebar__dock-item {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sidebar__dock-item:hover {
+  z-index: 3;
+}
+
+.sidebar__dock-item:focus-visible {
+  outline: none;
+}
+
+.sidebar__dock-icon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #d4d3dc;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  transform-origin: left center;
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.sidebar__dock-icon svg {
+  display: block;
+}
+
+.sidebar__dock-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #a9a8b3;
+  text-align: center;
+  line-height: 1.15;
+  max-width: 112px;
+  transition: color 0.2s, transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sidebar--collapsed .sidebar__dock-label {
+  display: none;
+}
+
+/* Active item: pink circle with a ring, pink label, and a dot on the left. */
+.sidebar__dock-item--active .sidebar__dock-icon {
+  background: #f9dce9;
+  color: #d92378;
+  box-shadow: 0 0 0 3px rgba(217, 35, 120, 0.35);
+}
+
+.sidebar__dock-item--active .sidebar__dock-label {
+  color: #f06aa9;
+}
+
+.sidebar__dock-dot {
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  margin-top: -2px;
+  border-radius: 50%;
+  background: #f06aa9;
 }
 
 .sidebar__badge {
   position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 8px;
-  height: 8px;
+  top: 0;
+  right: 0;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: #ef4444;
   border: 2px solid var(--color-nav-bg);
   pointer-events: none;
 }
 
-.sidebar__icon svg {
-  display: block;
+/* ---- Dock magnification ------------------------------------------------- */
+/* The hovered icon grows most; the next one or two on either side grow a
+   little and shift away from it, like the macOS dock. */
+
+.sidebar__dock-item:hover .sidebar__dock-icon,
+.sidebar__dock-item:focus-visible .sidebar__dock-icon {
+  transform: translateX(4px) scale(1.65);
+  background: #ffffff;
+  color: #d92378;
+  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.16);
 }
 
-.sidebar__label {
-  white-space: nowrap;
-  overflow: hidden;
-  opacity: 1;
-  max-width: var(--sidebar-label-max-width, 160px);
-  transition: opacity var(--transition-fast), max-width var(--transition-fast);
+.sidebar__dock-item:hover .sidebar__dock-label,
+.sidebar__dock-item:focus-visible .sidebar__dock-label {
+  transform: translateY(14px);
+  font-weight: 700;
+  color: #ffffff;
 }
 
-.sidebar__footer {
-  padding: var(--space-sm) 0;
-  border-top: 1px solid var(--color-nav-divider);
+.sidebar__dock-item:hover + .sidebar__dock-item {
+  transform: translateY(14px);
 }
 
-.sidebar__profile {
+.sidebar__dock-item:hover + .sidebar__dock-item .sidebar__dock-icon {
+  transform: translateX(2px) scale(1.3);
+}
+
+.sidebar__dock-item:hover + .sidebar__dock-item + .sidebar__dock-item {
+  transform: translateY(6px);
+}
+
+.sidebar__dock-item:hover + .sidebar__dock-item + .sidebar__dock-item .sidebar__dock-icon {
+  transform: scale(1.12);
+}
+
+.sidebar__dock-item:has(+ .sidebar__dock-item:hover) {
+  transform: translateY(-8px);
+}
+
+.sidebar__dock-item:has(+ .sidebar__dock-item:hover) .sidebar__dock-icon {
+  transform: translateX(2px) scale(1.3);
+}
+
+.sidebar__dock-item:has(+ .sidebar__dock-item + .sidebar__dock-item:hover) {
+  transform: translateY(-3px);
+}
+
+.sidebar__dock-item:has(+ .sidebar__dock-item + .sidebar__dock-item:hover) .sidebar__dock-icon {
+  transform: scale(1.12);
+}
+
+/* The collapsed rail is only 96px wide and clips anything past its edge, so
+   the hovered icon grows in place instead of also sliding right. */
+.sidebar--collapsed .sidebar__dock-item:hover .sidebar__dock-icon,
+.sidebar--collapsed .sidebar__dock-item:focus-visible .sidebar__dock-icon {
+  transform: scale(1.65);
+}
+
+/* ---- Collapse toggle ---------------------------------------------------- */
+
+.sidebar__dock-toggle {
+  margin-top: 6px;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid #2e2c31;
+  background: #1a181b;
+  color: #d4d3dc;
   display: flex;
   align-items: center;
-  gap: var(--sidebar-item-gap);
-  min-height: 44px;
-  padding: var(--sidebar-item-padding-y) var(--sidebar-item-padding-x);
-  box-sizing: border-box;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(16, 24, 40, 0.06);
+  transition: background 0.2s, color 0.2s;
 }
 
-.sidebar__profile-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.25;
-  min-width: 0;
+.sidebar__dock-toggle:hover,
+.sidebar__dock-toggle:focus-visible {
+  background: #26232a;
+  color: #ffffff;
 }
 
-.sidebar__profile-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-header-text);
+.sidebar__dock-toggle-icon {
+  transition: transform 0.25s;
+}
+
+.sidebar--collapsed .sidebar__dock-toggle-icon {
+  transform: rotate(180deg);
+}
+
+/* ---- Tooltip (icon-only rail) ------------------------------------------- */
+
+.sidebar-tooltip-portal {
+  position: fixed;
+  transform: translateY(-50%);
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.sidebar__profile-role {
-  font-size: 11px;
-  font-weight: 500;
-  color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
-}
-
-.sidebar--collapsed .sidebar__label {
-  opacity: 0;
-  max-width: 0;
-}
-
-/* Collapsed: the logo sits centered alone in the brand row, and the toggle
-   button overlays it in the same spot, hidden until hover/focus -- see the
-   swap rules below. Only one of the two is ever visible at a time, so the
-   row no longer needs to fit them side by side. */
-.sidebar--collapsed .sidebar__brand {
-  position: relative;
-  justify-content: center;
-  gap: 0;
-  padding: 0;
-}
-
-.sidebar--collapsed .sidebar__brand-logo {
-  width: 36px;
-  height: 36px;
-}
-
-.sidebar--collapsed .sidebar__collapse-toggle {
-  position: absolute;
-  inset: 0;
-  margin: auto;
-  width: 36px;
-  height: 36px;
-  opacity: 0;
+  background: #ffffff;
+  color: #3f3f46;
+  border: 1px solid #ececef;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  box-shadow: 0 6px 16px rgba(16, 24, 40, 0.1);
   pointer-events: none;
+  z-index: var(--z-modal);
 }
 
-/* Opacity (not display:none) keeps the button tab-focusable while hidden, so
-   :focus-within reveals it for keyboard users the same way :hover does for
-   mouse users. */
-.sidebar--collapsed .sidebar__brand:hover .sidebar__brand-logo,
-.sidebar--collapsed .sidebar__brand:focus-within .sidebar__brand-logo {
-  opacity: 0;
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar__dock-item,
+  .sidebar__dock-icon,
+  .sidebar__dock-label,
+  .sidebar__dock-toggle-icon {
+    transition: none;
+  }
 }
 
-.sidebar--collapsed .sidebar__brand:hover .sidebar__collapse-toggle,
-.sidebar--collapsed .sidebar__brand:focus-within .sidebar__collapse-toggle {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-/* Icons center in the collapsed rail rather than sitting flush left with a
-   wide empty margin to their right -- the rail is only as wide as an icon
-   plus comfortable padding, not the expanded row's text-accommodating width.
-   gap is zeroed too -- the (zero-width) label is still a flex sibling, so a
-   nonzero gap would still reserve space next to it and throw off centering. */
-.sidebar--collapsed .sidebar__item {
-  justify-content: center;
-  gap: 0;
-  padding-left: 4px;
-  padding-right: 4px;
-}
+/* ---- Tablet-narrow: always the icon-only rail ---------------------------- */
 
 @media (--tablet-narrow) {
   .sidebar:not(.sidebar--collapsed) {
     width: var(--sidebar-width-collapsed);
   }
 
-  .sidebar:not(.sidebar--collapsed) .sidebar__label {
-    opacity: 0;
-    max-width: 0;
+  .sidebar:not(.sidebar--collapsed) .sidebar__dock {
+    width: auto;
+    gap: 8px;
+    padding: 12px 10px;
+    border-radius: 999px;
   }
 
-  .sidebar__collapse-toggle {
+  .sidebar:not(.sidebar--collapsed) .sidebar__dock-label {
     display: none;
   }
+
+  .sidebar:not(.sidebar--collapsed) .sidebar__dock-item:hover .sidebar__dock-icon,
+  .sidebar:not(.sidebar--collapsed) .sidebar__dock-item:focus-visible .sidebar__dock-icon {
+    transform: scale(1.65);
+  }
 }
+
+/* ---- Mobile: full-width slide-in drawer ---------------------------------- */
 
 .sidebar-scrim {
   position: fixed;
@@ -314,52 +356,39 @@
 }
 
 @media (--mobile) {
-  /* Specificity must match or beat the --tablet-down rule above
-     (.sidebar:not(.sidebar--collapsed), two classes' worth) so phone-width
-     screens -- which also fall inside the tablet-down range -- always get
-     the full-width slide-in drawer instead of the icon-only tablet rail. */
+  /* Two classes' worth so it beats the tablet-narrow rule above, which phone
+     widths also fall inside. */
   .sidebar.sidebar,
   .sidebar.sidebar--collapsed {
     position: fixed;
     top: 0;
     left: 0;
-    width: var(--sidebar-width-expanded);
+    height: 100dvh;
+    width: var(--sidebar-width-drawer);
     transform: translateX(-100%);
     transition: transform var(--transition-fast);
     z-index: var(--z-modal);
   }
 
-  .sidebar.sidebar .sidebar__label,
-  .sidebar.sidebar--collapsed .sidebar__label {
-    opacity: 1;
-    max-width: var(--sidebar-label-max-width, 160px);
-  }
-
-  /* The drawer always renders full-width here regardless of the desktop
-     collapsed preference, so undo the collapsed brand row's centered
-     logo/toggle overlay too -- otherwise a user who left the sidebar
-     collapsed on desktop would see that cramped layout in the mobile
-     drawer instead of the normal logo + title + toggle row. */
-  .sidebar.sidebar--collapsed .sidebar__brand {
-    justify-content: space-between;
-    padding: 0 var(--sidebar-item-padding-x) 0 10px;
-  }
-
-  .sidebar.sidebar--collapsed .sidebar__brand-logo {
-    width: 46px;
-    height: 46px;
-    opacity: 1;
-  }
-
-  .sidebar.sidebar--collapsed .sidebar__collapse-toggle {
-    position: static;
-    opacity: 1;
-    pointer-events: auto;
-    width: 28px;
-    height: 28px;
-  }
-
   .sidebar.sidebar--mobile-open {
     transform: translateX(0);
+  }
+
+  /* The drawer has no header above it, so it carries the logo + name. */
+  .sidebar .sidebar__brand {
+    display: flex;
+  }
+
+  /* Always the labelled dock in the drawer, whatever the desktop
+     collapsed preference. */
+  .sidebar.sidebar .sidebar__dock {
+    width: 130px;
+    gap: 12px;
+    padding: 14px 8px;
+    border-radius: 30px;
+  }
+
+  .sidebar.sidebar .sidebar__dock-label {
+    display: block;
   }
 }
