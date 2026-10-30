@@ -49,7 +49,7 @@
    and .order-list__filter-card's real card at mobile, below, without
    duplicating it per breakpoint. */
 .order-list__filter-card .select {
-  background: var(--color-bg-page);
+  background: var(--color-filter-field-bg);
   border-radius: 6px;
   padding: 7px 10px;
   font-size: 13px;
@@ -59,7 +59,7 @@
    read against the plain page background when there was no card -- now that
    one always wraps it, it needs overriding back to recessed grey to match. */
 .order-list__filter-card .search-input--filter--surface {
-  background: var(--color-bg-page);
+  background: var(--color-filter-field-bg);
 }
 
 .order-list__filter-select {

@@ -44,7 +44,7 @@
 .filter-bar .select,
 .filter-bar .multi-select__trigger,
 .filter-bar .searchable-select__trigger {
-  background: var(--color-bg-page);
+  background: var(--color-filter-field-bg);
   border-radius: 6px;
   padding: 7px 10px;
   font-size: 13px;

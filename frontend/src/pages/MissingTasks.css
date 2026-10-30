@@ -5,6 +5,11 @@
   background: var(--color-bg-page);
 }
 
+/* Let the shell-wide sky background (AppShell.css) show through. */
+:root:not([data-theme='dark']) .missing-tasks-page {
+  background: transparent;
+}
+
 .missing-tasks-page__body {
   padding: var(--space-xl) var(--space-lg) 120px;
 }
