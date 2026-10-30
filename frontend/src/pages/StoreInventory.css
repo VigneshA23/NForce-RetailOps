@@ -43,6 +43,56 @@
   background: var(--color-bg-page);
 }
 
+/* Trial: sky blue page background with three soft waves along the bottom (from
+   the Super Admin "Sky blue background with soft waves" mockup) on
+   Inventory only (Owner/Admin and Super Admin), light theme only. The grey
+   comes from <body>, so the tint goes on the shell's scroll container while
+   this page is the visible tab -- DashboardShell keeps visited tabs mounted
+   under a display:none wrapper, which the second :has() excludes. The sticky
+   sub-tab bar paints its own background to hide content scrolling beneath
+   it; both are pinned to the viewport (fixed) so the bar shows exactly the
+   slice of gradient behind it and the seam stays invisible. */
+:root:not([data-theme='dark']) {
+  /* Sky glows + base, no waves: the sticky sub-tab bar uses this alone so it
+     doesn't repaint a strip of the waves across the top of the page. */
+  --store-inventory-page-sky:
+    radial-gradient(70% 60% at 45% 30%, #ffffff 0%, rgba(255, 255, 255, 0) 70%) fixed,
+    radial-gradient(55% 70% at 100% 20%, #d3e6fa 0%, rgba(211, 230, 250, 0) 70%) fixed,
+    radial-gradient(45% 60% at 0% 0%, #e3effc 0%, rgba(227, 239, 252, 0) 70%) fixed,
+    linear-gradient(180deg, #f3f8fe 0%, #e8f2fd 100%) fixed;
+  --store-inventory-page-tint:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 560' preserveAspectRatio='none'%3E%3Cpath d='M0 330 C 260 250 470 420 760 340 S 1220 210 1440 290 L1440 560 L0 560Z' fill='%23d6e8fb' fill-opacity='0.45'/%3E%3Cpath d='M0 420 C 300 340 560 500 860 420 S 1260 330 1440 400 L1440 560 L0 560Z' fill='%23c7dff8' fill-opacity='0.5'/%3E%3Cpath d='M0 490 C 340 440 620 560 940 500 S 1300 450 1440 480 L1440 560 L0 560Z' fill='%23b9d6f5' fill-opacity='0.55'/%3E%3C/svg%3E") left bottom / 100% 62% no-repeat fixed,
+    var(--store-inventory-page-sky);
+}
+
+:root:not([data-theme='dark']) .app-shell__page:has(.store-inventory-page):not(:has([style*='display: none'] .store-inventory-page)) {
+  background: var(--store-inventory-page-tint);
+}
+
+:root:not([data-theme='dark']) .store-inventory-page__subtabs {
+  background: var(--store-inventory-page-sky);
+  /* Pink active tab + underline (the sub-tab rule reads --color-accent). */
+  --color-accent: #c4267e;
+}
+
+/* Soft blue-grey search box + dropdowns in the Inventory filter bars (the
+   shared .filter-bar paints them with the page-grey --color-bg-page). */
+:root:not([data-theme='dark']) :is(.store-inventory-page__filter-bar, .store-inventory-page__supplier-filter-bar) :is(.search-input--filter, .select, .multi-select__trigger, .searchable-select__trigger) {
+  background: #f1f5fa;
+}
+
+/* Pink Export button, matching the sky-wave mockup. */
+:root:not([data-theme='dark']) .store-inventory-page__export > :is(.btn--secondary, .btn--danger) {
+  background: #c4267e;
+  border-color: #c4267e;
+  color: #ffffff;
+}
+
+:root:not([data-theme='dark']) .store-inventory-page__export > :is(.btn--secondary, .btn--danger):hover {
+  background: #a81f6a;
+  border-color: #a81f6a;
+}
+
 .store-inventory-page__subtab-list {
   display: flex;
   align-items: center;

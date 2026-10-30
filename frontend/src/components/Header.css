@@ -6,7 +6,8 @@
   justify-content: space-between;
   gap: var(--space-md);
   height: var(--header-height);
-  padding: 0 var(--space-lg);
+  /* Tighter on the left so the platform logo lines up over the sidebar. */
+  padding: 0 28px 0 18px;
   box-sizing: border-box;
   background: #0b090a;
   color: var(--color-header-text);
@@ -46,6 +47,52 @@
    the logo at every width. */
 .header__logo--hide-desktop {
   display: none;
+}
+
+.header__platform {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.header__platform-logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  box-shadow: 0 0 0 2px #26262b;
+}
+
+.header__platform-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.header__platform-name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.header__platform-tagline {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: #a1a1aa;
+}
+
+.header__platform-divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 34px;
+  background: #2e2e33;
+  margin: 0 6px;
 }
 
 .header__brand {
@@ -159,6 +206,11 @@
 
   .header__logo--hide-desktop {
     display: block;
+  }
+
+  .header__platform,
+  .header__platform-divider {
+    display: none;
   }
 
   .header__title {
