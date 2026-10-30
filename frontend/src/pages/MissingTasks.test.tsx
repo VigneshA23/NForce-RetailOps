@@ -220,17 +220,17 @@ describe('MissingTasks page', () => {
     await screen.findByText('Sweep A')
     expect(screen.getByText('Mop B')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /filter missed tasks by category/i }))
+    await user.click(screen.getByRole('combobox', { name: /filter missed tasks by category/i }))
     await user.click(await screen.findByRole('option', { name: 'Opening Checks' }))
 
     expect(screen.queryByText('Sweep A')).not.toBeInTheDocument()
     expect(screen.getByText('Mop B')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /filter missed tasks by category/i }))
+    await user.click(screen.getByRole('combobox', { name: /filter missed tasks by category/i }))
     await user.click(await screen.findByRole('option', { name: 'All categories' }))
     await screen.findByText('Sweep A')
 
-    await user.click(screen.getByRole('button', { name: /filter missed tasks by date/i }))
+    await user.click(screen.getByRole('combobox', { name: /filter missed tasks by date/i }))
     await user.click(await screen.findByRole('option', { name: formatDate('2026-09-20') }))
 
     expect(screen.getByText('Sweep A')).toBeInTheDocument()

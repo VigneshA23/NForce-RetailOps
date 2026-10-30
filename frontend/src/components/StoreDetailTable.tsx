@@ -4,7 +4,12 @@ import { CheckCircle2, Flag, MoreVertical, Pencil } from 'lucide-react';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
 import { hasActiveResponse, responseDisplayValue, respondedOfTotalLabel, taskFrequencyLabel, taskStatus, formatTimeLabel, formatDateLabel, TASK_STATUS_LABELS, type ChecklistTaskStatus } from '../utils/checklistHistoryOptions';
 import { useIsMobile } from '../hooks/useMediaQuery';
-import useDismissablePanel from '../hooks/useDismissablePanel';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import CorrectionModal from './CorrectionModal';
 import FlagResponseModal from './FlagResponseModal';
 import UserAvatar from './UserAvatar';
@@ -253,87 +258,48 @@ function CorrectedBadge({ responseEntry, task }: { responseEntry: ChecklistHisto
 }
 
 const ROW_MENU_WIDTH = 190;
-const ROW_MENU_MARGIN = 8;
 
 // Mobile-only ("outstanding" variant): collapses the Correct/Flag actions
 // that are otherwise always-visible icons (see renderManagerActions below)
 // into a single "⋮" trigger, matching the compact card design for the
 // Outstanding/Incomplete Tasks list. Same underlying handlers either way.
+// Built on shadcn DropdownMenu -- Radix's Popper collision detection replaces
+// the old manual right-edge clamp.
 function TaskRowMenu({ onCorrect, onFlag }: { onCorrect?: () => void; onFlag?: () => void }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  function openPanel() {
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) {
-      const left = Math.max(
-        ROW_MENU_MARGIN,
-        Math.min(rect.right - ROW_MENU_WIDTH, window.innerWidth - ROW_MENU_WIDTH - ROW_MENU_MARGIN),
-      );
-      setPosition({ top: rect.bottom + 4, left });
-    }
-    setIsOpen(true);
-  }
-
-  useDismissablePanel({ isOpen, onClose: () => setIsOpen(false), refs: [triggerRef, panelRef] });
-
   if (!onCorrect && !onFlag) return null;
 
   return (
-    <span className="store-detail-table__row-menu">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="store-detail-table__row-menu-trigger"
-        aria-label="Task actions"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        onClick={() => (isOpen ? setIsOpen(false) : openPanel())}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="store-detail-table__row-menu-trigger"
+          aria-label="Task actions"
+        >
+          <MoreVertical size={16} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={4}
+        collisionPadding={8}
+        className="store-detail-table__row-menu-panel border-border bg-[var(--color-surface-card)] p-1"
+        style={{ width: ROW_MENU_WIDTH }}
       >
-        <MoreVertical size={16} />
-      </button>
-      {isOpen &&
-        createPortal(
-          <div
-            ref={panelRef}
-            className="store-detail-table__row-menu-panel"
-            role="menu"
-            style={{ top: position.top, left: position.left, width: ROW_MENU_WIDTH }}
-          >
-            {onCorrect && (
-              <button
-                type="button"
-                role="menuitem"
-                className="store-detail-table__row-menu-item"
-                onClick={() => {
-                  setIsOpen(false);
-                  onCorrect();
-                }}
-              >
-                <Pencil size={13} />
-                Correct response
-              </button>
-            )}
-            {onFlag && (
-              <button
-                type="button"
-                role="menuitem"
-                className="store-detail-table__row-menu-item"
-                onClick={() => {
-                  setIsOpen(false);
-                  onFlag();
-                }}
-              >
-                <Flag size={13} />
-                Flag for correction
-              </button>
-            )}
-          </div>,
-          document.body,
+        {onCorrect && (
+          <DropdownMenuItem className="store-detail-table__row-menu-item" onSelect={onCorrect}>
+            <Pencil size={13} />
+            Correct response
+          </DropdownMenuItem>
         )}
-    </span>
+        {onFlag && (
+          <DropdownMenuItem className="store-detail-table__row-menu-item" onSelect={onFlag}>
+            <Flag size={13} />
+            Flag for correction
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

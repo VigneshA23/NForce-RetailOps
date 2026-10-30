@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ChevronDown, CircleSlash, Clock3, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
@@ -22,7 +22,12 @@ import { getInitials } from '../utils/initials';
 import { buildAndDownloadStockCheckHistoryPdf, buildStockCheckHistoryWorkbook } from '../utils/stockCheckHistoryExport';
 import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
-import useDismissablePanel from '../hooks/useDismissablePanel';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import EndOfDaySkippedBadge from './EndOfDaySkippedBadge';
 import './StockCheckHistory.css';
 import './EmployeeStockCheckHistory.css';
@@ -75,13 +80,6 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
   const [isExcelExporting, setIsExcelExporting] = useState(false);
   const [isPdfExporting, setIsPdfExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
-
-  useDismissablePanel({
-    isOpen: isExportMenuOpen,
-    onClose: () => setIsExportMenuOpen(false),
-    refs: [exportMenuRef],
-  });
 
   function handleRangeChange(next: DateRangeSelection) {
     setDateRange(next);
@@ -178,42 +176,47 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
         </div>
         <div className="employee-stock-history__header-actions">
           <DateRangePicker value={dateRange} onChange={handleRangeChange} />
-          <div ref={exportMenuRef} className="employee-stock-history__export">
-            <button
-              type="button"
-              className="btn btn--danger employee-stock-history__export-trigger"
-              disabled={visibleRows.length === 0}
-              onClick={() => setIsExportMenuOpen((v) => !v)}
-              aria-expanded={isExportMenuOpen}
-              aria-haspopup="menu"
-            >
-              <Download size={16} />
-              Export
-              <ChevronDown size={13} />
-            </button>
-
-            {isExportMenuOpen && (
-              <div className="employee-stock-history__export-menu" role="menu">
+          <div className="employee-stock-history__export">
+            <DropdownMenu open={isExportMenuOpen} onOpenChange={setIsExportMenuOpen}>
+              <DropdownMenuTrigger asChild>
                 <button
                   type="button"
+                  className="btn btn--danger employee-stock-history__export-trigger"
+                  disabled={visibleRows.length === 0}
+                >
+                  <Download size={16} />
+                  Export
+                  <ChevronDown size={13} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={4}
+                collisionPadding={8}
+                className="employee-stock-history__export-menu w-auto border-none bg-transparent p-0 shadow-none"
+              >
+                <DropdownMenuItem
                   className="employee-stock-history__export-item"
-                  role="menuitem"
-                  onClick={handleExportExcel}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    handleExportExcel();
+                  }}
                   disabled={isExcelExporting || isPdfExporting}
                 >
                   {isExcelExporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} />Download Excel</>)}
-                </button>
-                <button
-                  type="button"
+                </DropdownMenuItem>
+                <DropdownMenuItem
                   className="employee-stock-history__export-item"
-                  role="menuitem"
-                  onClick={handleExportPdf}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    handleExportPdf();
+                  }}
                   disabled={isExcelExporting || isPdfExporting}
                 >
                   {isPdfExporting ? <ButtonDots label="Generating" /> : (<><FileText size={14} />Download PDF</>)}
-                </button>
-              </div>
-            )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

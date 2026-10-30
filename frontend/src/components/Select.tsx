@@ -1,8 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Plus } from 'lucide-react';
-import useDismissablePanel from '../hooks/useDismissablePanel';
-import './Select.css';
+import { Check, Plus } from 'lucide-react';
+import { Select as SelectPrimitive } from 'radix-ui';
+import { cn } from 'cn';
+import { Select, SelectContent, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export interface SelectOption {
   value: string;
@@ -34,146 +33,88 @@ interface SelectProps {
   indicator?: 'check' | 'radio';
 }
 
-const VIEWPORT_MARGIN = 8;
-
-function Select({ id, options, value, onChange, ariaLabel, className, placeholder, disabled, align = 'left', indicator = 'check' }: SelectProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  function openPanel() {
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) {
-      // Placeholder position for the very first paint -- the panel's real
-      // (possibly wider) rendered width isn't known until repositionPanel
-      // measures it just after, via useLayoutEffect below.
-      setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    }
-    setIsOpen(true);
+// Built on shadcn/Radix's Select instead of a hand-rolled portal + manual
+// viewport-clamping (createPortal/useDismissablePanel) -- Radix's Popper
+// already solves collision detection (flipping/clamping near a screen edge,
+// which matters most on mobile table cells) and focus/keyboard handling
+// natively. Item content is composed directly from the raw Radix primitives
+// (not the generated ui/select.tsx SelectItem) so the indicator can stay
+// left-aligned before the label, matching this app's existing look, and so
+// the 'radio' variant and the accent "action" row (e.g. "+ Add new unit")
+// can render their own leading glyph instead of Radix's built-in trailing
+// checkmark.
+function CustomSelectItem({
+  option,
+  isSelected,
+  indicator,
+}: {
+  option: SelectOption;
+  isSelected: boolean;
+  indicator: 'check' | 'radio';
+}) {
+  if (option.isAction) {
+    return (
+      <SelectPrimitive.Item
+        value={option.value}
+        className="relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm font-semibold text-primary outline-hidden select-none focus:bg-accent data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+      >
+        <Plus size={14} className="shrink-0" />
+        <SelectPrimitive.ItemText>{option.label}</SelectPrimitive.ItemText>
+      </SelectPrimitive.Item>
+    );
   }
-
-  // Native <select> popups render as a browser-chrome overlay that can
-  // overlap the fields below it - fine on a real phone (native OS picker),
-  // but on a narrow desktop viewport (or emulated mobile view) it visibly
-  // spills over surrounding form content. Rendering our own portaled,
-  // viewport-clamped panel avoids that everywhere, same as MultiSelect.
-  //
-  // Uses visualViewport's height, not window.innerHeight -- opening this
-  // panel can happen while the on-screen keyboard is already up (e.g. a
-  // filter row above a focused text field), and iOS Safari shrinks
-  // visualViewport without firing a window 'resize' event for it.
-  function repositionPanel() {
-    const trigger = triggerRef.current;
-    const panel = panelRef.current;
-    if (!trigger || !panel) return;
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
-
-    let top = triggerRect.bottom + 4;
-    if (top + panelRect.height > viewportHeight - VIEWPORT_MARGIN) {
-      top = triggerRect.top - panelRect.height - 4;
-    }
-    top = Math.max(VIEWPORT_MARGIN, top);
-
-    // Clamp horizontally too -- a narrow trigger near the right edge of a
-    // mobile viewport can otherwise leave the (wider) option panel rendered
-    // partly off-screen.
-    let left = align === 'right' ? triggerRect.right - panelRect.width : triggerRect.left;
-    left = Math.min(left, viewportWidth - panelRect.width - VIEWPORT_MARGIN);
-    left = Math.max(VIEWPORT_MARGIN, left);
-
-    setPosition((current) => (top !== current.top || left !== current.left ? { ...current, top, left } : current));
-  }
-
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    repositionPanel();
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen || !window.visualViewport) return;
-    const viewport = window.visualViewport;
-    viewport.addEventListener('resize', repositionPanel);
-    return () => viewport.removeEventListener('resize', repositionPanel);
-  }, [isOpen]);
-
-  useDismissablePanel({ isOpen, onClose: () => setIsOpen(false), refs: [triggerRef, panelRef] });
-
-  const selected = options.find((option) => option.value === value);
 
   return (
-    <div className={`custom-select${className ? ` ${className}` : ''}`}>
-      <button
-        ref={triggerRef}
-        type="button"
-        id={id}
-        className={`select custom-select__trigger${isOpen ? ' custom-select__trigger--open' : ''}`}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-        aria-label={ariaLabel}
-        disabled={disabled}
-        onClick={() => (isOpen ? setIsOpen(false) : openPanel())}
-      >
-        <span>{selected?.label ?? placeholder ?? ''}</span>
-        <ChevronDown size={16} className="custom-select__chevron" />
-      </button>
-      {isOpen &&
-        createPortal(
-          <div
-            ref={panelRef}
-            className="custom-select__panel"
-            role="listbox"
-            style={{ top: position.top, left: position.left, width: position.width }}
-          >
-            {options.map((option) => option.isAction ? (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={false}
-                className="custom-select__option custom-select__option--create"
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
-              >
-                <Plus size={14} />
-                {option.label}
-              </button>
-            ) : (
-              <button
-                key={option.value}
-                type="button"
-                role="option"
-                aria-selected={option.value === value}
-                className={`custom-select__option${option.value === value ? ' custom-select__option--selected' : ''}`}
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
-              >
-                {indicator === 'radio' ? (
-                  <span
-                    className={`custom-select__option-radio${option.value === value ? ' custom-select__option-radio--checked' : ''}`}
-                    aria-hidden="true"
-                  />
-                ) : (
-                  <span className="custom-select__option-check">
-                    {option.value === value && <Check size={14} />}
-                  </span>
-                )}
-                {option.label}
-              </button>
-            ))}
-          </div>,
-          document.body,
-        )}
-    </div>
+    <SelectPrimitive.Item
+      value={option.value}
+      className="relative flex w-full cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+    >
+      {indicator === 'radio' ? (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'relative size-4 shrink-0 rounded-full border border-border',
+            isSelected && 'border-primary',
+          )}
+        >
+          {isSelected && <span className="absolute inset-[3px] rounded-full bg-primary" />}
+        </span>
+      ) : (
+        <span className="flex size-3.5 shrink-0 items-center justify-center text-primary">
+          <SelectPrimitive.ItemIndicator>
+            <Check size={14} />
+          </SelectPrimitive.ItemIndicator>
+        </span>
+      )}
+      <SelectPrimitive.ItemText className={cn(isSelected && 'font-semibold')}>{option.label}</SelectPrimitive.ItemText>
+    </SelectPrimitive.Item>
   );
 }
 
-export default Select;
+function CustomSelect({
+  id,
+  options,
+  value,
+  onChange,
+  ariaLabel,
+  className,
+  placeholder,
+  disabled,
+  align = 'left',
+  indicator = 'check',
+}: SelectProps) {
+  return (
+    <Select value={value} onValueChange={onChange} disabled={disabled}>
+      <SelectTrigger id={id} aria-label={ariaLabel} className={cn('w-full', className)}>
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent position="popper" align={align === 'right' ? 'end' : 'start'} className="min-w-[8rem]">
+        {options.map((option) => (
+          <CustomSelectItem key={option.value} option={option} isSelected={option.value === value} indicator={indicator} />
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+export default CustomSelect;

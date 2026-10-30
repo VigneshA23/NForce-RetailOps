@@ -1,10 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import useDismissablePanel from '../hooks/useDismissablePanel'
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover'
 import './CalendarPopover.css'
-
-const VIEWPORT_MARGIN = 8
 
 interface CalendarPopoverProps {
   // YYYY-MM-DD, local calendar -- matches the rest of EmployeeHistory's date
@@ -32,55 +29,19 @@ function toDateKey(date: Date): string {
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
+// The trigger button lives in the CALLER (date nav, DateRangePicker, etc.),
+// not in this component -- `anchorRef` points at it. shadcn/Radix Popover
+// normally wants its Trigger/Content as siblings under one Root, but
+// PopoverAnchor's `virtualRef` lets it anchor to an arbitrary external
+// element instead, which keeps every caller's existing anchorRef/isOpen API
+// unchanged. Radix's Popper also replaces the old manual
+// viewport-clamping/reposition math with built-in collision detection.
 function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef, onClear, onToday }: CalendarPopoverProps) {
-  const [position, setPosition] = useState({ top: 0, left: 0 })
   const [viewDate, setViewDate] = useState(() => new Date(`${value}T00:00:00`))
-  const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (isOpen) setViewDate(new Date(`${value}T00:00:00`))
   }, [isOpen, value])
-
-  // Portal + measure-after-render, same pattern as SearchableSelect -- but
-  // this panel also clamps horizontally (SearchableSelect never needs to,
-  // since its panel is always sized to match its trigger's width). A native
-  // <input type="date"> picker anchored near a trigger close to the screen
-  // edge has no such clamp, which is what let it run off-screen on mobile.
-  useLayoutEffect(() => {
-    if (!isOpen) return
-    const anchor = anchorRef.current
-    const panel = panelRef.current
-    if (!anchor || !panel) return
-
-    const anchorRect = anchor.getBoundingClientRect()
-    const panelRect = panel.getBoundingClientRect()
-
-    let top = anchorRect.bottom + 8
-    if (top + panelRect.height > window.innerHeight - VIEWPORT_MARGIN) {
-      top = anchorRect.top - panelRect.height - 8
-    }
-    top = Math.max(VIEWPORT_MARGIN, top)
-
-    // Left-align with the trigger by default (the panel grows rightward,
-    // same as a typical dropdown) -- only right-align instead (grow
-    // leftward) when that would push it past the right edge. Right-aligning
-    // unconditionally used to push a wide panel's left edge past its own
-    // trigger's left edge for any trigger near the screen's left side (e.g.
-    // Daily Checklist's date nav, right next to the sidebar), overlapping
-    // whatever sits there.
-    let left = anchorRect.left
-    if (left + panelRect.width > window.innerWidth - VIEWPORT_MARGIN) {
-      left = anchorRect.right - panelRect.width
-    }
-    left = Math.min(left, window.innerWidth - panelRect.width - VIEWPORT_MARGIN)
-    left = Math.max(VIEWPORT_MARGIN, left)
-
-    setPosition((current) => (current.top === top && current.left === left ? current : { top, left }))
-  }, [isOpen, anchorRef, viewDate])
-
-  useDismissablePanel({ isOpen, onClose, refs: [anchorRef, panelRef], closeOnScrollOrResize: false })
-
-  if (!isOpen) return null
 
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
@@ -102,88 +63,97 @@ function CalendarPopover({ value, min, max, isOpen, onClose, onSelect, anchorRef
   ]
   while (cells.length % 7 !== 0) cells.push(null)
 
-  return createPortal(
-    <div ref={panelRef} className="calendar-popover" role="dialog" aria-label="Choose a date" style={position}>
-      <div className="calendar-popover__header">
-        <button
-          type="button"
-          className="calendar-popover__nav"
-          aria-label="Previous month"
-          disabled={isPrevDisabled}
-          onClick={() => setViewDate(new Date(year, month - 1, 1))}
-        >
-          <ChevronLeft size={16} />
-        </button>
-        <span className="calendar-popover__label">
-          {firstOfMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-        </span>
-        <button
-          type="button"
-          className="calendar-popover__nav"
-          aria-label="Next month"
-          disabled={isNextDisabled}
-          onClick={() => setViewDate(new Date(year, month + 1, 1))}
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
-
-      <div className="calendar-popover__weekdays">
-        {WEEKDAY_LABELS.map((label, index) => (
-          <span key={index}>{label}</span>
-        ))}
-      </div>
-
-      <div className="calendar-popover__grid">
-        {cells.map((day, index) => {
-          if (day == null) return <span key={index} className="calendar-popover__cell calendar-popover__cell--empty" />
-          const cellDate = new Date(year, month, day)
-          const dateKey = toDateKey(cellDate)
-          const isDisabled = (maxDate != null && cellDate > maxDate) || (minDate != null && cellDate < minDate)
-          const isSelected = dateKey === value
-          const isToday = dateKey === todayKey
-          return (
-            <button
-              key={index}
-              type="button"
-              className={`calendar-popover__cell${isSelected ? ' calendar-popover__cell--selected' : ''}${isToday && !isSelected ? ' calendar-popover__cell--today' : ''}`}
-              disabled={isDisabled}
-              onClick={() => {
-                onSelect(dateKey)
-                onClose()
-              }}
-            >
-              {day}
-            </button>
-          )
-        })}
-      </div>
-
-      {(onClear || onToday) && (
-        <div className="calendar-popover__footer">
-          {onClear ? (
-            <button
-              type="button"
-              className="calendar-popover__footer-action"
-              onClick={() => { onClear(); onClose() }}
-            >
-              Clear
-            </button>
-          ) : <span />}
-          {onToday ? (
-            <button
-              type="button"
-              className="calendar-popover__footer-action calendar-popover__footer-action--today"
-              disabled={isTodayDisabled}
-              onClick={() => { onToday(); onClose() }}
-            >
-              Today
-            </button>
-          ) : <span />}
+  return (
+    <Popover open={isOpen} onOpenChange={(open) => { if (!open) onClose() }}>
+      <PopoverAnchor virtualRef={anchorRef} />
+      <PopoverContent
+        align="start"
+        sideOffset={8}
+        collisionPadding={8}
+        aria-label="Choose a date"
+        className="calendar-popover w-[272px] border-none bg-transparent p-[var(--space-md)] shadow-none"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
+        <div className="calendar-popover__header">
+          <button
+            type="button"
+            className="calendar-popover__nav"
+            aria-label="Previous month"
+            disabled={isPrevDisabled}
+            onClick={() => setViewDate(new Date(year, month - 1, 1))}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="calendar-popover__label">
+            {firstOfMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+          </span>
+          <button
+            type="button"
+            className="calendar-popover__nav"
+            aria-label="Next month"
+            disabled={isNextDisabled}
+            onClick={() => setViewDate(new Date(year, month + 1, 1))}
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
-      )}
-    </div>,
-    document.body,
+
+        <div className="calendar-popover__weekdays">
+          {WEEKDAY_LABELS.map((label, index) => (
+            <span key={index}>{label}</span>
+          ))}
+        </div>
+
+        <div className="calendar-popover__grid">
+          {cells.map((day, index) => {
+            if (day == null) return <span key={index} className="calendar-popover__cell calendar-popover__cell--empty" />
+            const cellDate = new Date(year, month, day)
+            const dateKey = toDateKey(cellDate)
+            const isDisabled = (maxDate != null && cellDate > maxDate) || (minDate != null && cellDate < minDate)
+            const isSelected = dateKey === value
+            const isToday = dateKey === todayKey
+            return (
+              <button
+                key={index}
+                type="button"
+                className={`calendar-popover__cell${isSelected ? ' calendar-popover__cell--selected' : ''}${isToday && !isSelected ? ' calendar-popover__cell--today' : ''}`}
+                disabled={isDisabled}
+                onClick={() => {
+                  onSelect(dateKey)
+                  onClose()
+                }}
+              >
+                {day}
+              </button>
+            )
+          })}
+        </div>
+
+        {(onClear || onToday) && (
+          <div className="calendar-popover__footer">
+            {onClear ? (
+              <button
+                type="button"
+                className="calendar-popover__footer-action"
+                onClick={() => { onClear(); onClose() }}
+              >
+                Clear
+              </button>
+            ) : <span />}
+            {onToday ? (
+              <button
+                type="button"
+                className="calendar-popover__footer-action calendar-popover__footer-action--today"
+                disabled={isTodayDisabled}
+                onClick={() => { onToday(); onClose() }}
+              >
+                Today
+              </button>
+            ) : <span />}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
   )
 }
 

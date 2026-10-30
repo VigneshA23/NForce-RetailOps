@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ClipboardList, Layers, Search, Users } from 'lucide-react';
 import { adminSearch, type AdminSearchItem, type AdminSearchResponse } from '../api/adminSearch';
-import useDismissablePanel from '../hooks/useDismissablePanel';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import './AdminSearchDropdown.css';
 
 interface AdminSearchDropdownProps {
@@ -164,16 +164,6 @@ function AdminSearchDropdown({ onNavigate, onMobileOpenChange }: AdminSearchDrop
     onMobileOpenChange?.(mobileOpen);
   }, [mobileOpen, onMobileOpenChange]);
 
-  useDismissablePanel({
-    isOpen: open,
-    onClose: () => {
-      setOpen(false);
-      inputRef.current?.blur();
-    },
-    refs: [containerRef],
-    closeOnScrollOrResize: false,
-  });
-
   useEffect(() => {
     if (!mobileOpen) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -196,33 +186,42 @@ function AdminSearchDropdown({ onNavigate, onMobileOpenChange }: AdminSearchDrop
   return (
     <>
       {/* Desktop: full inline search bar */}
-      <div className="adrop" ref={containerRef}>
-        <div className="adrop__input-wrap">
-          <Search className="adrop__search-icon" size={14} aria-hidden="true" />
-          <input
-            ref={inputRef}
-            type="search"
-            className="adrop__input"
-            placeholder="Search tasks, categories, employees…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setOpen(true)}
-            aria-label="Store search"
-            autoComplete="off"
-          />
-        </div>
+      <Popover open={showDropdown} onOpenChange={(next) => { if (!next) { setOpen(false); inputRef.current?.blur(); } }}>
+        <div className="adrop" ref={containerRef}>
+          <div className="adrop__input-wrap">
+            <Search className="adrop__search-icon" size={14} aria-hidden="true" />
+            <PopoverAnchor asChild>
+              <input
+                ref={inputRef}
+                type="search"
+                className="adrop__input"
+                placeholder="Search tasks, categories, employees…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setOpen(true)}
+                aria-label="Store search"
+                autoComplete="off"
+              />
+            </PopoverAnchor>
+          </div>
 
-        {showDropdown && (
-          <div className="adrop__dropdown" role="listbox" aria-label="Search results">
+          <PopoverContent
+            role="listbox"
+            aria-label="Search results"
+            align="start"
+            sideOffset={8}
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            className="adrop__dropdown w-(--radix-popper-anchor-width)"
+          >
             <SearchResults
               query={query}
               results={results}
               loading={loading}
               onNavigate={handleNavigate}
             />
-          </div>
-        )}
-      </div>
+          </PopoverContent>
+        </div>
+      </Popover>
 
       {/* Mobile: lens icon only */}
       <button

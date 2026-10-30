@@ -1,10 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Search, X } from 'lucide-react';
-import useDismissablePanel from '../hooks/useDismissablePanel';
+import { useMemo, useState } from 'react';
+import { Check, ChevronDown, X } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import './SearchableSelect.css';
-
-const VIEWPORT_MARGIN = 8;
 
 export interface SearchableSelectOption {
   id: number;
@@ -34,6 +32,14 @@ interface SearchableSelectProps {
   disabled?: boolean;
 }
 
+// Built on shadcn/Radix's Popover + Command (cmdk) instead of a hand-rolled
+// portal -- viewport flipping/clamping (including the on-screen-keyboard
+// case this used to special-case via visualViewport) comes from Radix's
+// Popper, and arrow-key navigation through options comes for free from cmdk,
+// which this never had before. `shouldFilter={false}` on Command keeps this
+// component's own exact-substring filter (`filteredOptions` below) instead
+// of switching to cmdk's fuzzy command-score matching, so search behavior is
+// unchanged.
 function SearchableSelect({
   id,
   options,
@@ -51,80 +57,11 @@ function SearchableSelect({
 }: SearchableSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
 
-  function openPanel() {
-    const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) {
-      setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
-    }
-    setIsOpen(true);
+  function setOpen(next: boolean) {
+    setIsOpen(next);
+    if (!next) setQuery('');
   }
-
-  // Same fix as MultiSelect/RowActionsMenu: this panel used to render inline
-  // via `position: absolute`, so a modal's `overflow-y: auto` body clipped it
-  // whenever the trigger sat anywhere but the very top of the form. Portal it
-  // to <body> and measure it post-render, flipping above the trigger if
-  // opening below would push it past the bottom of the viewport.
-  //
-  // Uses visualViewport's height, not window.innerHeight -- this panel
-  // autofocuses a search input on open, which raises the on-screen keyboard
-  // on a real phone. iOS Safari shrinks visualViewport (not the layout
-  // viewport) when that happens and does NOT fire a window 'resize' event
-  // for it, so a flip computed off window.innerHeight stays sized for the
-  // pre-keyboard viewport and the panel ends up rendered under the keyboard.
-  function repositionPanel() {
-    const trigger = triggerRef.current;
-    const panel = panelRef.current;
-    if (!trigger || !panel) return;
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-
-    let top = triggerRect.bottom + 4;
-    if (top + panelRect.height > viewportHeight - VIEWPORT_MARGIN) {
-      top = triggerRect.top - panelRect.height - 4;
-    }
-    top = Math.max(VIEWPORT_MARGIN, top);
-
-    setPosition((current) => (top !== current.top ? { ...current, top } : current));
-  }
-
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    repositionPanel();
-  }, [isOpen]);
-
-  // Re-run the same flip logic when the on-screen keyboard opens/closes,
-  // instead of just closing the panel -- visualViewport is what actually
-  // changes size in that case, and only some browsers also fire a window
-  // 'resize' for it.
-  useEffect(() => {
-    if (!isOpen || !window.visualViewport) return;
-    const viewport = window.visualViewport;
-    viewport.addEventListener('resize', repositionPanel);
-    return () => viewport.removeEventListener('resize', repositionPanel);
-  }, [isOpen]);
-
-  // Escape closes via capture phase + stopPropagation: when this dropdown is
-  // rendered inside a Modal, Modal's own bubble-phase Escape listener on
-  // `document` would otherwise also fire and close the modal underneath us.
-  useDismissablePanel({ isOpen, onClose: () => setIsOpen(false), refs: [wrapperRef, panelRef] });
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const focusTimer = window.setTimeout(() => searchRef.current?.focus(), 0);
-    return () => window.clearTimeout(focusTimer);
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) setQuery('');
-  }, [isOpen]);
 
   const filteredOptions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -149,7 +86,7 @@ function SearchableSelect({
       onChange(next);
     } else {
       onChange([optionId]);
-      setIsOpen(false);
+      setOpen(false);
     }
   }
 
@@ -174,60 +111,30 @@ function SearchableSelect({
     : [];
 
   return (
-    <div className="searchable-select" ref={wrapperRef}>
-      <button
-        ref={triggerRef}
-        type="button"
-        id={id}
-        className={`searchable-select__trigger${isOpen ? ' searchable-select__trigger--open' : ''}`}
-        onClick={() => {
-          if (disabled) return;
-          isOpen ? setIsOpen(false) : openPanel();
-        }}
-        disabled={disabled || isLoading}
-        aria-haspopup="listbox"
-        aria-expanded={isOpen}
-      >
-        <span className={selectedIds.length === 0 && !allActive ? 'searchable-select__placeholder' : undefined}>
-          {isLoading ? 'Loading...' : triggerLabel}
-        </span>
-        <ChevronDown size={16} />
-      </button>
-
-      {selectedChips.length > 0 && (
-        <div className="searchable-select__chips">
-          {selectedChips.map((option) => (
-            <span key={option.id} className="searchable-select__chip">
-              {option.label}
-              <button type="button" aria-label={`Remove ${option.label}`} onClick={(event) => removeChip(option.id, event)}>
-                <X size={12} />
-              </button>
-            </span>
-          ))}
-        </div>
-      )}
-
-      {isOpen &&
-        !disabled &&
-        createPortal(
-          <div
-            ref={panelRef}
-            className="searchable-select__panel"
-            role="listbox"
-            style={{ top: position.top, left: position.left, width: position.width }}
+    <div className="searchable-select">
+      <Popover open={isOpen && !disabled} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            id={id}
+            className={`searchable-select__trigger${isOpen ? ' searchable-select__trigger--open' : ''}`}
+            disabled={disabled || isLoading}
           >
-            <label className="searchable-select__search">
-              <Search size={14} />
-              <input
-                ref={searchRef}
-                type="text"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search..."
-              />
-            </label>
-
-            <div className="searchable-select__options">
+            <span className={selectedIds.length === 0 && !allActive ? 'searchable-select__placeholder' : undefined}>
+              {isLoading ? 'Loading...' : triggerLabel}
+            </span>
+            <ChevronDown size={16} />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          className="w-(--radix-popover-trigger-width) p-0"
+        >
+          <Command shouldFilter={false}>
+            <CommandInput placeholder="Search..." value={query} onValueChange={setQuery} />
+            <CommandList className="max-h-[220px] py-1">
               {error ? (
                 <div className="searchable-select__state searchable-select__state--error">
                   {error}
@@ -250,57 +157,67 @@ function SearchableSelect({
                 <>
                   {allOption && (
                     <>
-                      <button
-                        type="button"
+                      <CommandItem
                         className="searchable-select__option"
-                        onClick={() => {
+                        onSelect={() => {
                           const turningOn = !allActive;
                           allOption.onToggle();
                           // Unticking "All" leaves the panel open so the user can pick stores.
-                          if (turningOn) setIsOpen(false);
+                          if (turningOn) setOpen(false);
                         }}
                       >
                         <span className={`searchable-select__box${allActive ? ' searchable-select__box--checked' : ''}`}>
                           {allActive && <Check size={12} />}
                         </span>
                         {allOption.label}
-                      </button>
+                      </CommandItem>
                       <div className="searchable-select__divider" />
                     </>
                   )}
-                  {filteredOptions.length === 0 ? (
-                    <div className="searchable-select__state">No matches</div>
-                  ) : (
-                    filteredOptions.map((option) => {
-                      // "Every row ticked" only makes sense for the multi-select
-                      // "applies to all" flag; a single-select All/one filter has
-                      // nothing selected individually while "All" is active.
-                      const checked = (multiple && allActive) || selectedSet.has(option.id);
-                      return (
-                        <button
-                          type="button"
-                          key={option.id}
-                          className="searchable-select__option"
-                          disabled={multiple && allActive}
-                          onClick={() => toggleOption(option.id)}
-                        >
-                          <span className={`searchable-select__box${checked ? ' searchable-select__box--checked' : ''}${multiple ? '' : ' searchable-select__box--round'}`}>
-                            {checked && <Check size={12} />}
-                          </span>
-                          <span>
-                            {option.label}
-                            {option.sublabel && <span className="searchable-select__sublabel"> · {option.sublabel}</span>}
-                          </span>
-                        </button>
-                      );
-                    })
-                  )}
+                  <CommandEmpty className="searchable-select__state">No matches</CommandEmpty>
+                  {filteredOptions.map((option) => {
+                    // "Every row ticked" only makes sense for the multi-select
+                    // "applies to all" flag; a single-select All/one filter has
+                    // nothing selected individually while "All" is active.
+                    const checked = (multiple && allActive) || selectedSet.has(option.id);
+                    const optionDisabled = multiple && allActive;
+                    return (
+                      <CommandItem
+                        key={option.id}
+                        value={`${option.id}`}
+                        disabled={optionDisabled}
+                        className="searchable-select__option"
+                        onSelect={() => toggleOption(option.id)}
+                      >
+                        <span className={`searchable-select__box${checked ? ' searchable-select__box--checked' : ''}${multiple ? '' : ' searchable-select__box--round'}`}>
+                          {checked && <Check size={12} />}
+                        </span>
+                        <span>
+                          {option.label}
+                          {option.sublabel && <span className="searchable-select__sublabel"> · {option.sublabel}</span>}
+                        </span>
+                      </CommandItem>
+                    );
+                  })}
                 </>
               )}
-            </div>
-          </div>,
-          document.body,
-        )}
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {selectedChips.length > 0 && (
+        <div className="searchable-select__chips">
+          {selectedChips.map((option) => (
+            <span key={option.id} className="searchable-select__chip">
+              {option.label}
+              <button type="button" aria-label={`Remove ${option.label}`} onClick={(event) => removeChip(option.id, event)}>
+                <X size={12} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

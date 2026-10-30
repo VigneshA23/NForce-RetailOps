@@ -138,7 +138,7 @@ describe('EodSupplierReport', () => {
     await screen.findByText('Milk');
     await user.click(screen.getByRole('button', { name: 'List' }));
 
-    await user.click(screen.getByRole('button', { name: 'Status' }));
+    await user.click(screen.getByRole('combobox', { name: 'Status' }));
     await user.click(await screen.findByRole('option', { name: 'EOD Pending' }));
 
     expect(screen.queryByText('Milk')).not.toBeInTheDocument();
@@ -214,7 +214,7 @@ describe('EodSupplierReport', () => {
     await screen.findByText('Milk');
     await user.click(screen.getByRole('button', { name: 'List' }));
 
-    await user.click(screen.getByRole('button', { name: 'Supplier' }));
+    await user.click(screen.getByRole('combobox', { name: 'Supplier' }));
     expect(await screen.findByRole('option', { name: 'Supplier A' })).toBeInTheDocument();
     await user.click(screen.getByRole('option', { name: 'No Supplier' }));
 

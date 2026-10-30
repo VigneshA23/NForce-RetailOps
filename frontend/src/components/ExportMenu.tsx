@@ -1,6 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
 import { Calendar, ChevronDown, FileSpreadsheet, FileText } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { getChecklistHistoryOperationsReport } from '../api/checklistHistory';
 import { buildOperationsReportWorkbook, summarizeByStore } from '../utils/operationsReportExport';
 import { buildAndDownloadOperationsReportPdf } from '../utils/operationsReportPdfExport';
@@ -9,7 +15,6 @@ import { nfToast } from '../utils/toast';
 import ButtonDots from './ButtonDots';
 import CalendarPopover from './CalendarPopover';
 import { MAX_RANGE_DAYS, formatDateLabel, todayDate } from '../utils/checklistHistoryOptions';
-import useDismissablePanel from '../hooks/useDismissablePanel';
 import './ExportMenu.css';
 
 interface ExportMenuProps {
@@ -21,8 +26,6 @@ interface ExportMenuProps {
   // matches what's on screen -- see StoreDetail.tsx/SuperAdminChecklist.tsx.
   rangeOverride?: { start: string; end: string };
 }
-
-const VIEWPORT_MARGIN = 12;
 
 // Shared by the single-day and date-range PDF exports -- deliberately a richer,
 // more human subtitle style (weekday spelled out) than Excel's own formatLongDate,
@@ -52,13 +55,9 @@ function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps
   const [pdfExporting, setPdfExporting] = useState(false);
   const [pdfRangeExporting, setPdfRangeExporting] = useState(false);
   const [rangeError, setRangeError] = useState<string | null>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
   // Which of the two inline date pickers (if either) is open -- mutually
   // exclusive, same pattern as DateRangePicker's From/To calendars.
   const [openCalendar, setOpenCalendar] = useState<'from' | 'to' | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const fromTriggerRef = useRef<HTMLButtonElement>(null);
   const toTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -79,45 +78,6 @@ function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps
     setRangeError(null);
     setOpenCalendar(null);
   }
-
-  useDismissablePanel({
-    isOpen: menuOpen,
-    onClose: closeMenu,
-    refs: [menuRef, dropdownRef],
-    closeOnEscape: false,
-    // CalendarPopover portals its own panel straight to document.body, so
-    // it's never a descendant of menuRef/dropdownRef -- without this,
-    // clicking a day in the inline From/To calendar would register as
-    // "outside" and close the whole Export menu before the click could land.
-    ignoreSelector: '.calendar-popover',
-  });
-
-  // Anchored absolute positioning (right: 0 on the dropdown, relative to the
-  // trigger's own small wrapper) ran the panel off the left edge on mobile
-  // whenever the trigger itself sat close to the screen edge -- same failure
-  // mode CalendarPopover already had to solve. Portal + measure-after-render
-  // and clamp to the viewport instead, same pattern as CalendarPopover/Select.
-  useLayoutEffect(() => {
-    if (!menuOpen) return;
-    const trigger = triggerRef.current;
-    const dropdown = dropdownRef.current;
-    if (!trigger || !dropdown) return;
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const dropdownRect = dropdown.getBoundingClientRect();
-
-    let top = triggerRect.bottom + 6;
-    if (top + dropdownRect.height > window.innerHeight - VIEWPORT_MARGIN) {
-      top = triggerRect.top - dropdownRect.height - 6;
-    }
-    top = Math.max(VIEWPORT_MARGIN, top);
-
-    let left = triggerRect.right - dropdownRect.width;
-    left = Math.min(left, window.innerWidth - dropdownRect.width - VIEWPORT_MARGIN);
-    left = Math.max(VIEWPORT_MARGIN, left);
-
-    setPosition((current) => (current.top === top && current.left === left ? current : { top, left }));
-  }, [menuOpen, mode, rangeError]);
 
   async function handleExportToday() {
     if (!storeId) return;
@@ -212,44 +172,50 @@ function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps
   }
 
   return (
-    <div ref={menuRef} className="export-menu">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="btn btn--danger export-menu__trigger"
-        onClick={() => { setMenuOpen((v) => !v); setMode('idle'); setRangeError(null); }}
-        aria-expanded={menuOpen}
-        aria-haspopup="menu"
+    <DropdownMenu open={menuOpen} onOpenChange={(open) => (open ? setMenuOpen(true) : closeMenu())}>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="btn btn--danger export-menu__trigger"
+          onClick={() => { setMode('idle'); setRangeError(null); }}
+        >
+          Export
+          <ChevronDown size={13} />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={6}
+        collisionPadding={12}
+        className="export-menu__dropdown w-auto border-none bg-transparent p-0 shadow-none"
       >
-        Export
-        <ChevronDown size={13} />
-      </button>
-
-      {menuOpen && createPortal(
-        <div ref={dropdownRef} className="export-menu__dropdown" role="menu" style={{ top: position.top, left: position.left }}>
           {!rangeOverride && (
-            <button
-              type="button"
+            <DropdownMenuItem
               className={`export-menu__item${exporting ? ' btn--loading' : ''}`}
-              role="menuitem"
-              onClick={handleExportToday}
+              onSelect={(event) => {
+                event.preventDefault();
+                handleExportToday();
+              }}
               disabled={exporting || !storeId}
             >
               {exporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} />Export this day (Excel)</>)}
-            </button>
+            </DropdownMenuItem>
           )}
 
           {!rangeOverride && (
-            <button
-              type="button"
+            <DropdownMenuItem
               className="export-menu__item"
-              role="menuitem"
-              onClick={() => { setMode((m) => (m === 'range' ? 'idle' : 'range')); setRangeError(null); setOpenCalendar(null); }}
+              onSelect={(event) => {
+                event.preventDefault();
+                setMode((m) => (m === 'range' ? 'idle' : 'range'));
+                setRangeError(null);
+                setOpenCalendar(null);
+              }}
               aria-expanded={mode === 'range'}
             >
               <Calendar size={14} />
               Export date range…
-            </button>
+            </DropdownMenuItem>
           )}
 
           {showRangeForm && (
@@ -323,23 +289,19 @@ function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps
 
           {!rangeOverride && (
             <>
-              <div className="export-menu__divider" role="separator" />
+              <DropdownMenuSeparator className="export-menu__divider" />
 
-              <button
-                type="button"
+              <DropdownMenuItem
                 className={`export-menu__item${pdfExporting ? ' btn--loading' : ''}`}
-                role="menuitem"
-                onClick={handleExportPdf}
+                onSelect={handleExportPdf}
                 disabled={pdfExporting || !storeId}
               >
                 {pdfExporting ? <ButtonDots label="Generating PDF" /> : (<><FileText size={14} />Export as PDF</>)}
-              </button>
+              </DropdownMenuItem>
             </>
           )}
-        </div>,
-        document.body,
-      )}
-    </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

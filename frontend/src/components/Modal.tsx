@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { Dialog as DialogPrimitive } from 'radix-ui';
 import { X } from 'lucide-react';
 import './Modal.css';
 
@@ -17,7 +17,7 @@ interface ModalProps {
   size?: 'md' | 'lg' | 'panel';
   // Keeps the dialog centered on mobile instead of the default bottom-sheet
   // layout. Off by default; the logout confirmation dialog opts in across
-  // all three shells (Employee, Owner/Admin, Super Admin).
+  // all three shells.
   centered?: boolean;
   // Small icon rendered ahead of the title text (e.g. a UserPlus glyph on
   // "Add New Owner"). Purely decorative -- omitted entirely by default so
@@ -31,11 +31,23 @@ interface ModalProps {
   className?: string;
 }
 
+// Built on shadcn/Radix's Dialog for the parts it already solves properly --
+// focus trap, inert background (aria-hidden on the rest of the app), Escape
+// to close, dismiss on an outside click, and returning focus to whatever
+// triggered the modal on close. That's exactly what the old manual
+// focus/keydown/triggerElementRef logic was hand-rolling, so it's gone.
+//
+// Deliberately NOT using Radix's <Dialog.Overlay> -- Dialog.Content's own
+// modal behavior (focus trap, aria-hidden siblings) doesn't depend on it,
+// and Overlay is the one piece that comes with its own scroll-lock
+// (react-remove-scroll) baked in. Running that alongside this file's own
+// hand-tested iOS scroll-lock (see below) risked two independent scroll
+// locks fighting over the same body/html styles. Skipping Overlay keeps
+// this file the single source of truth for scroll locking, exactly as
+// before, while still getting everything else Dialog.Content provides.
 function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md', centered = false, titleIcon, titleExtra, className }: ModalProps) {
-  const titleId = useRef(`modal-title-${Math.random().toString(36).slice(2)}`).current;
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const triggerElementRef = useRef<Element | null>(null);
 
   // Callers (e.g. an inline onClose={() => ...}) rarely memoize this, so it's
   // a fresh function on every render. Reading it via a ref keeps the effects
@@ -156,72 +168,57 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
     return () => document.removeEventListener('focusin', handleFocusIn);
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    triggerElementRef.current = document.activeElement;
-
-    const firstField = modalRef.current?.querySelector<HTMLElement>(
-      'input, select, textarea, button:not(.modal__close)',
-    );
-    firstField?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        onCloseRef.current();
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-      if (triggerElementRef.current instanceof HTMLElement) {
-        triggerElementRef.current.focus();
-      }
-    };
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  return createPortal(
-    <div
-      ref={overlayRef}
-      className={`modal-overlay${centered ? ' modal-overlay--centered' : ''}${size === 'panel' ? ' modal-overlay--panel' : ''}`}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) onClose();
-      }}
-    >
-      <div
-        className={`modal${size === 'lg' ? ' modal--lg' : ''}${size === 'panel' ? ' modal--panel' : ''}${className ? ` ${className}` : ''}`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        ref={modalRef}
-      >
-        <div className="modal__header">
-          <div>
-            <div className="modal__title-row">
-              <h2 className="modal__title" id={titleId}>
-                {titleIcon && (
-                  <span className="modal__title-icon" aria-hidden="true">
-                    {titleIcon}
-                  </span>
+  return (
+    <DialogPrimitive.Root open={isOpen} onOpenChange={(next) => { if (!next) onCloseRef.current(); }}>
+      <DialogPrimitive.Portal>
+        <div
+          ref={overlayRef}
+          className={`modal-overlay${centered ? ' modal-overlay--centered' : ''}${size === 'panel' ? ' modal-overlay--panel' : ''}`}
+        >
+          <DialogPrimitive.Content
+            ref={modalRef}
+            className={`modal${size === 'lg' ? ' modal--lg' : ''}${size === 'panel' ? ' modal--panel' : ''}${className ? ` ${className}` : ''}`}
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              const firstField = modalRef.current?.querySelector<HTMLElement>(
+                'input, select, textarea, button:not(.modal__close)',
+              );
+              firstField?.focus();
+            }}
+          >
+            <div className="modal__header">
+              <div>
+                <div className="modal__title-row">
+                  <DialogPrimitive.Title asChild>
+                    <h2 className="modal__title">
+                      {titleIcon && (
+                        <span className="modal__title-icon" aria-hidden="true">
+                          {titleIcon}
+                        </span>
+                      )}
+                      {title}
+                    </h2>
+                  </DialogPrimitive.Title>
+                  {titleExtra}
+                </div>
+                {subtitle && (
+                  <DialogPrimitive.Description asChild>
+                    <p className="modal__subtitle">{subtitle}</p>
+                  </DialogPrimitive.Description>
                 )}
-                {title}
-              </h2>
-              {titleExtra}
+              </div>
+              <DialogPrimitive.Close asChild>
+                <button type="button" className="modal__close" aria-label="Close dialog">
+                  <X size={18} />
+                </button>
+              </DialogPrimitive.Close>
             </div>
-            {subtitle && <p className="modal__subtitle">{subtitle}</p>}
-          </div>
-          <button type="button" className="modal__close" aria-label="Close dialog" onClick={onClose}>
-            <X size={18} />
-          </button>
+            <div className="modal__body">{children}</div>
+            {footer && <div className="modal__footer">{footer}</div>}
+          </DialogPrimitive.Content>
         </div>
-        <div className="modal__body">{children}</div>
-        {footer && <div className="modal__footer">{footer}</div>}
-      </div>
-    </div>,
-    document.body,
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
 

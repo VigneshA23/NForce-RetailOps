@@ -61,7 +61,7 @@ describe('StoreInventoryItemFormModal', () => {
     const user = userEvent.setup();
     renderModal();
 
-    await user.click(screen.getByRole('button', { name: 'Unit' }));
+    await user.click(screen.getByRole('combobox', { name: 'Unit' }));
     const listbox = screen.getByRole('listbox');
     const labels = within(listbox).getAllByRole('option').map((option) => option.textContent);
     expect(labels).toEqual([
@@ -73,12 +73,12 @@ describe('StoreInventoryItemFormModal', () => {
     ]);
 
     await user.click(screen.getByRole('option', { name: 'kg — Kilograms' }));
-    expect(screen.getByRole('button', { name: 'Unit' })).toHaveTextContent('kg — Kilograms');
+    expect(screen.getByRole('combobox', { name: 'Unit' })).toHaveTextContent('kg — Kilograms');
 
     // Picking another replaces the first -- only one unit at a time.
-    await user.click(screen.getByRole('button', { name: 'Unit' }));
+    await user.click(screen.getByRole('combobox', { name: 'Unit' }));
     await user.click(screen.getByRole('option', { name: 'L — Liters' }));
-    expect(screen.getByRole('button', { name: 'Unit' })).toHaveTextContent('L — Liters');
+    expect(screen.getByRole('combobox', { name: 'Unit' })).toHaveTextContent('L — Liters');
   });
 
   it('requires a unit', async () => {
@@ -111,7 +111,7 @@ describe('StoreInventoryItemFormModal', () => {
       },
     });
 
-    expect(screen.getByRole('button', { name: 'Unit' })).toHaveTextContent('box');
+    expect(screen.getByRole('combobox', { name: 'Unit' })).toHaveTextContent('box');
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ unitOfMeasurement: 'box' }));
   });
@@ -121,7 +121,7 @@ describe('StoreInventoryItemFormModal', () => {
     const { onSubmit } = renderModal();
 
     await fillRequired(user);
-    await user.click(screen.getByRole('button', { name: 'Unit' }));
+    await user.click(screen.getByRole('combobox', { name: 'Unit' }));
     await user.click(screen.getByRole('option', { name: 'ml — Milliliters' }));
     await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
 
@@ -144,7 +144,7 @@ describe('StoreInventoryItemFormModal', () => {
     expect(supplierInput).toHaveValue('Metro Wholesale');
 
     await fillRequired(user);
-    await user.click(screen.getByRole('button', { name: 'Unit' }));
+    await user.click(screen.getByRole('combobox', { name: 'Unit' }));
     await user.click(screen.getByRole('option', { name: 'ml — Milliliters' }));
     await user.click(screen.getByRole('button', { name: 'Add to Catalog' }));
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ preferredSupplierId: 2, unitOfMeasurement: 'ml' }));

@@ -24,7 +24,12 @@ import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
 import Select from '../components/Select';
 import FilterClearButton from '../components/FilterClearButton';
-import useDismissablePanel from '../hooks/useDismissablePanel';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { getStockStatus } from '../utils/storeInventoryStatus';
 import { exportInventoryCatalogCsv, exportInventoryCatalogPdf } from '../utils/inventoryCatalogExport';
@@ -65,8 +70,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [supplierFilter, setSupplierFilter] = useState('all');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
-  const exportMenuRef = useRef<HTMLDivElement>(null);
-  useDismissablePanel({ isOpen: isExportMenuOpen, onClose: () => setIsExportMenuOpen(false), refs: [exportMenuRef] });
 
   // Add uses a centered modal; Edit opens the item in a right-side sliding
   // panel instead -- different enough UIs (see mockups) to keep as separate
@@ -323,32 +326,33 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
             <div className="store-inventory-page__title-row">
               <h1 className="store-inventory-page__title">Inventory Master</h1>
               <div className="store-inventory-page__header-actions">
-                <div className="store-inventory-page__export" ref={exportMenuRef}>
-                  <button
-                    type="button"
-                    className="btn btn--secondary"
-                    onClick={() => setIsExportMenuOpen((open) => !open)}
-                  >
-                    <FileText size={14} /> Export
-                  </button>
-                  {isExportMenuOpen && (
-                    <div className="store-inventory-page__export-menu">
-                      <button
-                        type="button"
+                <div className="store-inventory-page__export">
+                  <DropdownMenu open={isExportMenuOpen} onOpenChange={setIsExportMenuOpen}>
+                    <DropdownMenuTrigger asChild>
+                      <button type="button" className="btn btn--secondary">
+                        <FileText size={14} /> Export
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      align="end"
+                      sideOffset={4}
+                      collisionPadding={8}
+                      className="store-inventory-page__export-menu w-auto border-none bg-transparent p-0 shadow-none"
+                    >
+                      <DropdownMenuItem
                         className="store-inventory-page__export-item"
-                        onClick={() => { exportInventoryCatalogCsv(filteredItems); setIsExportMenuOpen(false); }}
+                        onSelect={() => { exportInventoryCatalogCsv(filteredItems); setIsExportMenuOpen(false); }}
                       >
                         <FileSpreadsheet size={14} /> Export as CSV
-                      </button>
-                      <button
-                        type="button"
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         className="store-inventory-page__export-item"
-                        onClick={() => { exportInventoryCatalogPdf(filteredItems); setIsExportMenuOpen(false); }}
+                        onSelect={() => { exportInventoryCatalogPdf(filteredItems); setIsExportMenuOpen(false); }}
                       >
                         <FileText size={14} /> Export as PDF
-                      </button>
-                    </div>
-                  )}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
                 {!isMobile && addItemButton}
               </div>

@@ -96,7 +96,7 @@ describe('CorrectStockCheckModal', () => {
     expect(deadStock).toHaveValue('0');
     expect(screen.getByText(/Start of Day not yet recorded/)).toBeInTheDocument();
     // The toggle is always available, even though the row has only one snapshot.
-    expect(screen.getByRole('button', { name: 'Snapshot' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Snapshot' })).toBeInTheDocument();
   });
 
   it('shows no-corrections-yet when the snapshot has never been edited', () => {

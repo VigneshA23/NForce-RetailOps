@@ -140,19 +140,37 @@
 
 /* Scaled down from Toggle's default 44x24 to roughly match the status
    pill's own height (~18px) on this card's top row, without changing the
-   shared Toggle component used elsewhere (tables, Suppliers list, etc). */
+   shared Toggle component used elsewhere (tables, Suppliers list, etc).
+   Toggle's own sizing comes from Tailwind utility classes living in
+   Tailwind's `utilities` layer -- !important is required here (same
+   pattern as EmployeeCards.css's avatar override) since an unscoped
+   specificity bump isn't enough to beat a layered utility's matching
+   data-[state=checked] variant at the same specificity. */
 .store-inventory-card__top-actions .toggle {
-  width: 32px;
-  height: 18px;
+  width: 32px !important;
+  height: 18px !important;
+  /* This app deliberately skips Tailwind's Preflight reset (see
+     shadcn.css), so <button>'s browser-default padding (Chrome: 1px 6px)
+     is still in effect on Toggle's root and eats into this shrunk track's
+     content box, where the thumb is flex-positioned -- zero it so the
+     thumb's travel distance below is predictable. */
+  padding: 0 !important;
 }
 
 .store-inventory-card__top-actions .toggle__thumb {
-  width: 14px;
-  height: 14px;
+  width: 14px !important;
+  height: 14px !important;
 }
 
+/* Tailwind v4's translate-x-* utilities compile to the native CSS
+   `translate` property, not `transform` -- the two compose (translate
+   applies, then transform on top of it) rather than one replacing the
+   other. Overriding `transform` here left Tailwind's own
+   data-[state=checked]:translate-x-[22px] (the full-size travel distance)
+   still in effect underneath, stacking with ours and pushing the thumb
+   past the shrunk track. Override the same `translate` property instead. */
 .store-inventory-card__top-actions .toggle--on .toggle__thumb {
-  transform: translateX(14px);
+  translate: 15px 0 !important;
 }
 
 .store-inventory-card__status {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Building2, Search, Store, Users } from 'lucide-react';
 import { superAdminSearch, type SASearchItem, type SASearchResponse } from '../api/superAdminSearch';
-import useDismissablePanel from '../hooks/useDismissablePanel';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import './SACommandPalette.css';
 
 interface SACommandPaletteProps {
@@ -122,7 +122,6 @@ function SACommandPalette({ onNavigate, onMobileOpenChange }: SACommandPalettePr
   const [mobileOpen, setMobileOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const debouncedQuery = useDebounce(query, 300);
 
   useEffect(() => {
@@ -152,16 +151,6 @@ function SACommandPalette({ onNavigate, onMobileOpenChange }: SACommandPalettePr
     onMobileOpenChange?.(mobileOpen);
   }, [mobileOpen, onMobileOpenChange]);
 
-  useDismissablePanel({
-    isOpen: open,
-    onClose: () => {
-      setOpen(false);
-      inputRef.current?.blur();
-    },
-    refs: [containerRef],
-    closeOnScrollOrResize: false,
-  });
-
   useEffect(() => {
     if (!mobileOpen) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -184,33 +173,50 @@ function SACommandPalette({ onNavigate, onMobileOpenChange }: SACommandPalettePr
   return (
     <>
       {/* Desktop: full inline search bar */}
-      <div className="sacp" ref={containerRef}>
-        <div className="sacp__input-wrap">
-          <Search className="sacp__search-icon" size={14} aria-hidden="true" />
-          <input
-            ref={inputRef}
-            type="search"
-            className="sacp__input"
-            placeholder="Search owners, stores, employees…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setOpen(true)}
-            aria-label="Platform search"
-            autoComplete="off"
-          />
-        </div>
+      <Popover
+        open={showDropdown}
+        onOpenChange={(next) => {
+          if (next) return;
+          setOpen(false);
+          inputRef.current?.blur();
+        }}
+      >
+        <div className="sacp">
+          <PopoverAnchor asChild>
+            <div className="sacp__input-wrap">
+              <Search className="sacp__search-icon" size={14} aria-hidden="true" />
+              <input
+                ref={inputRef}
+                type="search"
+                className="sacp__input"
+                placeholder="Search owners, stores, employees…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setOpen(true)}
+                aria-label="Platform search"
+                autoComplete="off"
+              />
+            </div>
+          </PopoverAnchor>
 
-        {showDropdown && (
-          <div className="sacp__dropdown" role="listbox" aria-label="Search results">
+          <PopoverContent
+            role="listbox"
+            aria-label="Search results"
+            align="start"
+            sideOffset={8}
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            onCloseAutoFocus={(event) => event.preventDefault()}
+            className="sacp__dropdown w-(--radix-popover-trigger-width) border-none bg-transparent p-0 shadow-none"
+          >
             <SearchResults
               query={query}
               results={results}
               loading={loading}
               onSelect={handleSelect}
             />
-          </div>
-        )}
-      </div>
+          </PopoverContent>
+        </div>
+      </Popover>
 
       {/* Mobile: lens icon only */}
       <button

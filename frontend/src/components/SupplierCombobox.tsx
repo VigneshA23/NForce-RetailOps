@@ -1,11 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { Check, ChevronDown, Plus } from 'lucide-react';
 import type { Supplier } from '../types/supplier';
-import useDismissablePanel from '../hooks/useDismissablePanel';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import './SupplierCombobox.css';
-
-const VIEWPORT_MARGIN = 8;
 
 interface SupplierComboboxProps {
   id: string;
@@ -36,6 +33,11 @@ type ComboOption =
 // user types; "Add new supplier" leaves the form for the Suppliers page
 // rather than creating one in place, since a supplier's store assignment
 // belongs there.
+//
+// Built on shadcn/Radix's Popover for positioning/outside-click-dismiss
+// instead of a hand-rolled portal + visualViewport reposition effect -- see
+// CategoryCombobox.tsx (same pattern, same reasoning for not using
+// Command/cmdk here: this field is its own trigger and its own search box).
 function SupplierCombobox({ id, suppliers, value, onChange, onRequestCreate, ariaLabel, isEditingExisting }: SupplierComboboxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -45,10 +47,7 @@ function SupplierCombobox({ id, suppliers, value, onChange, onRequestCreate, ari
   // as the field's value) -- both are `value === null`, but only the second
   // should read as an actual answer.
   const [explicitlyNone, setExplicitlyNone] = useState(() => !!isEditingExisting && value === null);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
   const listboxId = `${id}-listbox`;
 
   const selected = suppliers.find((supplier) => supplier.id === value) ?? null;
@@ -73,8 +72,6 @@ function SupplierCombobox({ id, suppliers, value, onChange, onRequestCreate, ari
 
   function open() {
     if (isOpen) return;
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (rect) setPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
     setQuery('');
     setIsOpen(true);
   }
@@ -83,37 +80,6 @@ function SupplierCombobox({ id, suppliers, value, onChange, onRequestCreate, ari
     setIsOpen(false);
     setQuery('');
   }
-
-  // Same portal + flip-above-when-no-room positioning as SearchableSelect,
-  // so a modal's scrolling body can't clip the list.
-  function repositionPanel() {
-    const wrapper = wrapperRef.current;
-    const panel = panelRef.current;
-    if (!wrapper || !panel) return;
-    const wrapperRect = wrapper.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-    const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-
-    let top = wrapperRect.bottom + 4;
-    if (top + panelRect.height > viewportHeight - VIEWPORT_MARGIN) {
-      top = wrapperRect.top - panelRect.height - 4;
-    }
-    top = Math.max(VIEWPORT_MARGIN, top);
-    setPosition((current) => (top !== current.top ? { ...current, top } : current));
-  }
-
-  useLayoutEffect(() => {
-    if (isOpen) repositionPanel();
-  }, [isOpen, options.length]);
-
-  useEffect(() => {
-    if (!isOpen || !window.visualViewport) return;
-    const viewport = window.visualViewport;
-    viewport.addEventListener('resize', repositionPanel);
-    return () => viewport.removeEventListener('resize', repositionPanel);
-  }, [isOpen]);
-
-  useDismissablePanel({ isOpen, onClose: close, refs: [wrapperRef, panelRef] });
 
   function choose(option: ComboOption) {
     if (option.kind === 'none') {
@@ -157,82 +123,84 @@ function SupplierCombobox({ id, suppliers, value, onChange, onRequestCreate, ari
   const searchPlaceholder = onRequestCreate ? 'Select or add a supplier' : 'Select supplier';
 
   return (
-    <div className="supplier-combobox" ref={wrapperRef}>
-      <input
-        ref={inputRef}
-        id={id}
-        className="input supplier-combobox__input"
-        role="combobox"
-        aria-label={ariaLabel}
-        aria-expanded={isOpen}
-        aria-controls={listboxId}
-        aria-autocomplete="list"
-        autoComplete="off"
-        value={inputValue}
-        placeholder={selected ? selected.name : searchPlaceholder}
-        onFocus={open}
-        onClick={open}
-        onChange={(event) => {
-          if (!isOpen) open();
-          setQuery(event.target.value);
-        }}
-        onKeyDown={handleKeyDown}
-      />
-      <ChevronDown size={16} className="supplier-combobox__chevron" aria-hidden="true" />
+    <Popover open={isOpen} onOpenChange={(next) => (next ? open() : close())}>
+      <div className="supplier-combobox">
+        <PopoverAnchor asChild>
+          <input
+            ref={inputRef}
+            id={id}
+            className="input supplier-combobox__input"
+            role="combobox"
+            aria-label={ariaLabel}
+            aria-expanded={isOpen}
+            aria-controls={listboxId}
+            aria-autocomplete="list"
+            autoComplete="off"
+            value={inputValue}
+            placeholder={selected ? selected.name : searchPlaceholder}
+            onFocus={open}
+            onClick={open}
+            onChange={(event) => {
+              if (!isOpen) open();
+              setQuery(event.target.value);
+            }}
+            onKeyDown={handleKeyDown}
+          />
+        </PopoverAnchor>
+        <ChevronDown size={16} className="supplier-combobox__chevron" aria-hidden="true" />
 
-      {isOpen &&
-        createPortal(
-          <div
-            ref={panelRef}
-            id={listboxId}
-            className="supplier-combobox__panel"
-            role="listbox"
-            style={{ top: position.top, left: position.left, width: position.width }}
-          >
-            {options.length === 0 && (
-              <div className="supplier-combobox__state">No suppliers match.</div>
-            )}
-            {options.map((option, index) => {
-              const isHighlighted = index === highlighted;
-              const className = `supplier-combobox__option${isHighlighted ? ' supplier-combobox__option--highlighted' : ''}`;
+        <PopoverContent
+          id={listboxId}
+          role="listbox"
+          align="start"
+          sideOffset={4}
+          collisionPadding={8}
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          className="w-(--radix-popper-anchor-width) max-h-[220px] overflow-y-auto p-1"
+        >
+          {options.length === 0 && (
+            <div className="supplier-combobox__state">No suppliers match.</div>
+          )}
+          {options.map((option, index) => {
+            const isHighlighted = index === highlighted;
+            const className = `supplier-combobox__option${isHighlighted ? ' supplier-combobox__option--highlighted' : ''}`;
 
-              if (option.kind === 'new') {
-                return (
-                  <button
-                    key="new"
-                    type="button"
-                    role="option"
-                    aria-selected={isHighlighted}
-                    className={`${className} supplier-combobox__option--create`}
-                    onMouseEnter={() => setHighlighted(index)}
-                    onClick={() => choose(option)}
-                  >
-                    <Plus size={14} />
-                    <span>Add new supplier</span>
-                  </button>
-                );
-              }
-
-              const isSelected = option.kind === 'none' ? value == null : option.supplier.id === value;
+            if (option.kind === 'new') {
               return (
                 <button
-                  key={option.kind === 'none' ? 'none' : option.supplier.id}
+                  key="new"
                   type="button"
                   role="option"
-                  aria-selected={isSelected}
-                  className={`${className}${option.kind === 'none' ? ' supplier-combobox__option--muted' : ''}`}
+                  aria-selected={isHighlighted}
+                  className={`${className} supplier-combobox__option--create`}
                   onMouseEnter={() => setHighlighted(index)}
                   onClick={() => choose(option)}
                 >
-                  <span className="supplier-combobox__check">{isSelected && <Check size={14} />}</span>
-                  {option.kind === 'none' ? 'No preferred supplier' : option.supplier.name}
+                  <Plus size={14} />
+                  <span>Add new supplier</span>
                 </button>
               );
-            })}
-          </div>,
-          document.body,
-        )}
-    </div>
+            }
+
+            const isSelected = option.kind === 'none' ? value == null : option.supplier.id === value;
+            return (
+              <button
+                key={option.kind === 'none' ? 'none' : option.supplier.id}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                className={`${className}${option.kind === 'none' ? ' supplier-combobox__option--muted' : ''}`}
+                onMouseEnter={() => setHighlighted(index)}
+                onClick={() => choose(option)}
+              >
+                <span className="supplier-combobox__check">{isSelected && <Check size={14} />}</span>
+                {option.kind === 'none' ? 'No preferred supplier' : option.supplier.name}
+              </button>
+            );
+          })}
+        </PopoverContent>
+      </div>
+    </Popover>
   );
 }
 

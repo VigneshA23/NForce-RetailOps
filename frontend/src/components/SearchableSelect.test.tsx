@@ -129,7 +129,11 @@ describe('SearchableSelect', () => {
   // friends) must be unchanged: once "All" is active, individual options
   // stay disabled until "All" is toggled off.
   it('multi-select: individual options stay blocked while "All" is active', async () => {
-    const user = userEvent.setup();
+    // Disabled cmdk items are marked via `aria-disabled`/`data-disabled` plus
+    // a `pointer-events: none` utility class, not the native `disabled`
+    // attribute -- user-event's default pointer-events check would otherwise
+    // refuse to dispatch the click this test needs to confirm is a no-op.
+    const user = userEvent.setup({ pointerEventsCheck: 0 });
     const onChange = vi.fn();
 
     render(
@@ -145,8 +149,8 @@ describe('SearchableSelect', () => {
     );
 
     await openTrigger(user, 'category-stores');
-    const downtownOption = within(panel()).getByText('Downtown').closest('button')!;
-    expect(downtownOption).toBeDisabled();
+    const downtownOption = within(panel()).getByRole('option', { name: /Downtown/ });
+    expect(downtownOption).toHaveAttribute('aria-disabled', 'true');
     await user.click(downtownOption);
     expect(onChange).not.toHaveBeenCalled();
   });

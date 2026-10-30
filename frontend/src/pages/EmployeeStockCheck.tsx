@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Tabs as TabsPrimitive } from 'radix-ui';
 import { AlertCircle, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, History, List } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { ApiError } from '../api/client';
@@ -386,30 +387,20 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
 
   return (
     <div className="employee-stock-check-page">
-      <div className="employee-stock-check-page__tabs" role="tablist" aria-label="Stock check view">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'today'}
-          className={`employee-stock-check-page__tab${view === 'today' ? ' employee-stock-check-page__tab--active' : ''}`}
-          onClick={() => setView('today')}
-        >
-          <List size={14} />
-          Daily Stock Entry
-          {!isLoading && <span className="employee-stock-check-page__tab-count">{items.length}</span>}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={view === 'history'}
-          className={`employee-stock-check-page__tab${view === 'history' ? ' employee-stock-check-page__tab--active' : ''}`}
-          onClick={() => setView('history')}
-        >
-          <History size={14} />
-          Stock Check History
-          {historyTotal != null && <span className="employee-stock-check-page__tab-count">{historyTotal}</span>}
-        </button>
-      </div>
+      <TabsPrimitive.Root value={view} onValueChange={(next) => setView(next as View)}>
+        <TabsPrimitive.List aria-label="Stock check view" className="employee-stock-check-page__tabs">
+          <TabsPrimitive.Trigger value="today" className="employee-stock-check-page__tab">
+            <List size={14} />
+            Daily Stock Entry
+            {!isLoading && <span className="employee-stock-check-page__tab-count">{items.length}</span>}
+          </TabsPrimitive.Trigger>
+          <TabsPrimitive.Trigger value="history" className="employee-stock-check-page__tab">
+            <History size={14} />
+            Stock Check History
+            {historyTotal != null && <span className="employee-stock-check-page__tab-count">{historyTotal}</span>}
+          </TabsPrimitive.Trigger>
+        </TabsPrimitive.List>
+      </TabsPrimitive.Root>
 
       {view === 'history' ? (
         <EmployeeStockCheckHistory storeId={store.id} onTotalChange={setHistoryTotal} />

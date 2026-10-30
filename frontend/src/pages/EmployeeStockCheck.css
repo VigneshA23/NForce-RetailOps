@@ -26,7 +26,7 @@
   cursor: pointer;
 }
 
-.employee-stock-check-page__tab--active {
+.employee-stock-check-page__tab[data-state='active'] {
   color: var(--color-badge-icon-primary-fg);
   border-bottom-color: var(--color-badge-icon-primary-fg);
 }

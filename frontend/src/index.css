@@ -1,5 +1,6 @@
 @import './styles/breakpoints.css';
 @import './styles/tokens.css';
+@import './styles/shadcn.css';
 @import './styles/base.css';
 @import './styles/buttons.css';
 @import './styles/forms.css';

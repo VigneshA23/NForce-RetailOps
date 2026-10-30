@@ -1,11 +1,9 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useRef, useState } from 'react';
 import { Calendar, ChevronDown } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import CalendarPopover from './CalendarPopover';
 import { MAX_RANGE_DAYS, daysAgo, formatDateLabel, todayDate, yesterday } from '../utils/checklistHistoryOptions';
 import './DateRangePicker.css';
-
-const VIEWPORT_MARGIN = 12;
 
 export type DateRangePreset =
   | 'ALL_TIME' | 'TODAY' | 'YESTERDAY' | 'LAST_7_DAYS' | 'LAST_30_DAYS'
@@ -110,12 +108,9 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   const [draftStart, setDraftStart] = useState(value.customStart);
   const [draftEnd, setDraftEnd] = useState(value.customEnd);
   const [error, setError] = useState<string | null>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0 });
   // Which of the two inline date pickers (if either) is open -- mutually
   // exclusive so only one small calendar shows at a time.
   const [openCalendar, setOpenCalendar] = useState<'from' | 'to' | null>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
   const fromTriggerRef = useRef<HTMLButtonElement>(null);
   const toTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -128,62 +123,6 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       setOpenCalendar(null);
     }
   }, [isOpen, value]);
-
-  useLayoutEffect(() => {
-    if (!isOpen) return;
-    const trigger = triggerRef.current;
-    const panel = panelRef.current;
-    if (!trigger || !panel) return;
-
-    const triggerRect = trigger.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-
-    let top = triggerRect.bottom + 6;
-    if (top + panelRect.height > window.innerHeight - VIEWPORT_MARGIN) {
-      top = triggerRect.top - panelRect.height - 6;
-    }
-    top = Math.max(VIEWPORT_MARGIN, top);
-
-    // Left-anchored by default (same preference as CalendarPopover), only
-    // flipping to right-align against the trigger when left-aligning would
-    // overflow the viewport's right edge. Right-aligning unconditionally (as
-    // this used to) pushed the panel further left than the trigger itself --
-    // fine near the right edge of the screen, but on a toolbar button sitting
-    // just right of the app's sidebar, a panel wider than the trigger would
-    // extend back underneath the sidebar.
-    let left = triggerRect.left;
-    if (left + panelRect.width > window.innerWidth - VIEWPORT_MARGIN) {
-      left = triggerRect.right - panelRect.width;
-    }
-    left = Math.min(left, window.innerWidth - panelRect.width - VIEWPORT_MARGIN);
-    left = Math.max(VIEWPORT_MARGIN, left);
-
-    setPosition((current) => (current.top === top && current.left === left ? current : { top, left }));
-  }, [isOpen, draftPreset, draftStart, draftEnd, error]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    function handlePointerDown(event: MouseEvent) {
-      const target = event.target as Node;
-      if (triggerRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      // CalendarPopover portals its own panel straight to document.body, so
-      // it's never a descendant of panelRef -- without this, clicking a day
-      // in the inline From/To calendar would register as "outside" and close
-      // the whole Date Range popover before Apply could even be pressed.
-      if (target instanceof Element && target.closest('.calendar-popover')) return;
-      setIsOpen(false);
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setIsOpen(false);
-    }
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen]);
 
   function handleApply() {
     if (draftPreset === 'CUSTOM') {
@@ -201,22 +140,25 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   }
 
   return (
-    <>
-      <button
-        ref={triggerRef}
-        type="button"
-        className="date-range-picker__trigger"
-        onClick={() => setIsOpen((v) => !v)}
-        aria-expanded={isOpen}
-        aria-haspopup="dialog"
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="date-range-picker__trigger"
+          aria-haspopup="dialog"
+        >
+          <Calendar size={14} />
+          <span>{triggerLabel(value)}</span>
+          <ChevronDown size={14} />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        collisionPadding={12}
+        aria-label="Choose a date range"
+        className="date-range-picker__panel w-[240px] max-w-[calc(100vw-24px)] border-none bg-transparent p-[14px] shadow-none"
       >
-        <Calendar size={14} />
-        <span>{triggerLabel(value)}</span>
-        <ChevronDown size={14} />
-      </button>
-
-      {isOpen && createPortal(
-        <div ref={panelRef} className="date-range-picker__panel" role="dialog" aria-label="Choose a date range" style={position}>
           <div className="date-range-picker__panel-title">Date Range</div>
 
           <div className="date-range-picker__options">
@@ -295,10 +237,8 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
               Apply
             </button>
           </div>
-        </div>,
-        document.body,
-      )}
-    </>
+      </PopoverContent>
+    </Popover>
   );
 }
 

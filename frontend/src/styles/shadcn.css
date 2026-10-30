@@ -1,0 +1,89 @@
+/* Tailwind for shadcn/ui components only. Preflight (Tailwind's base reset)
+   is deliberately NOT imported here -- base.css already resets box-sizing /
+   margins for the whole app, and pulling in Preflight too would re-reset
+   headings, lists, buttons, etc. across the 150+ existing hand-built
+   components that were never designed against it. Only shadcn's own
+   components (which set every visual property explicitly via utility
+   classes) need Tailwind at all. */
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+@import 'tw-animate-css';
+
+/* The app toggles dark mode via `document.documentElement.dataset.theme`
+   (see useTheme.ts), not a `.dark` class -- match that so `dark:` utilities
+   in shadcn components respond to the same toggle as the rest of the app. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+/* Every shadcn semantic token is aliased straight to this app's existing
+   design tokens (src/styles/tokens.css) instead of new literal colors. Those
+   tokens already flip under `:root[data-theme='dark']`, and a CSS variable
+   reference re-resolves live, so light/dark both work here with no separate
+   dark block needed. New shadcn components therefore match the current
+   theme automatically instead of introducing a second, parallel palette. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* --radius-sm/md/lg are deliberately NOT redeclared here: Tailwind's own
+     default theme already defines those same names (in its `theme` layer),
+     and tokens.css's identically-named `:root` values are unlayered, so by
+     CSS layer precedence (unlayered always beats a layered declaration)
+     tokens.css's own 6px/10px/16px win automatically -- every `rounded-md`
+     etc. a shadcn component uses already matches this app's existing corner
+     radii with no mapping needed. --radius-xl has no tokens.css counterpart,
+     so it's aliased explicitly below. */
+  --radius-xl: var(--radius-lg);
+}
+
+:root {
+  --background: var(--color-bg-page);
+  --foreground: var(--color-text-primary);
+
+  --card: var(--color-surface-card);
+  --card-foreground: var(--color-text-primary);
+
+  --popover: var(--color-surface-card);
+  --popover-foreground: var(--color-text-primary);
+
+  /* Brand red -- same color `.btn--danger` already uses, and what
+     tokens.css's own `--color-primary` alias points to. */
+  --primary: var(--color-accent);
+  --primary-foreground: var(--color-accent-contrast);
+
+  --secondary: var(--color-badge-outline-bg);
+  --secondary-foreground: var(--color-badge-outline-text);
+
+  --muted: var(--color-surface-hovered);
+  --muted-foreground: var(--color-text-muted);
+
+  /* NOTE: this is Tailwind/shadcn's "accent" (a subtle hover/highlight
+     surface for menu items, selected rows, etc.) -- unrelated to this app's
+     own `--color-accent` (brand red). Mapping it to the brand red would turn
+     every dropdown item hover red; a quiet surface tint is what shadcn means. */
+  --accent: var(--color-surface-hovered);
+  --accent-foreground: var(--color-text-primary);
+
+  --destructive: var(--color-accent);
+  --destructive-foreground: var(--color-accent-contrast);
+
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --ring: var(--color-focus-ring);
+}

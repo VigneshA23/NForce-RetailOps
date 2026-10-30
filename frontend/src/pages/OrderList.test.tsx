@@ -124,7 +124,7 @@ describe('OrderList mark received', () => {
     await screen.findByText('Milk');
 
     await user.click(screen.getByLabelText('Change status for Milk'));
-    await user.click(screen.getByRole('option', { name: 'Received' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Received' }));
 
     const input = await screen.findByLabelText('Quantity received (L)');
     expect(input).toHaveValue('5');
@@ -429,7 +429,7 @@ describe('OrderList inline status change', () => {
     await screen.findByText('Milk');
 
     await user.click(screen.getByLabelText('Change status for Milk'));
-    await user.click(screen.getByRole('option', { name: 'Ordered' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Ordered' }));
 
     expect(mockUpdateOrderListEntry).not.toHaveBeenCalled();
     expect(await screen.findByText('Change status?')).toBeInTheDocument();
@@ -450,7 +450,7 @@ describe('OrderList inline status change', () => {
     mockGetOrderList.mockClear();
 
     await user.click(screen.getByLabelText('Change status for Milk'));
-    await user.click(screen.getByRole('option', { name: 'Ordered' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Ordered' }));
     await user.click(await screen.findByRole('button', { name: 'Yes, change' }));
 
     expect(await screen.findByText(/already been updated by Super Admin/)).toBeInTheDocument();
@@ -463,7 +463,7 @@ describe('OrderList inline status change', () => {
     await screen.findByText('Milk');
 
     await user.click(screen.getByLabelText('Change status for Milk'));
-    await user.click(screen.getByRole('option', { name: 'Ordered' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Ordered' }));
     await screen.findByText('Change status?');
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));

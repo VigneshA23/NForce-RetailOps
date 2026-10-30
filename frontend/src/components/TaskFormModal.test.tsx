@@ -79,7 +79,7 @@ describe('TaskFormModal Response Type default', () => {
 
 async function selectShortTextResponseType(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByLabelText(/Response Type/i));
-  await user.click(screen.getByRole('button', { name: 'Short Text' }));
+  await user.click(screen.getByRole('option', { name: 'Short Text' }));
   return screen.getByLabelText(/Short Text/i) as HTMLInputElement;
 }
 
@@ -196,7 +196,7 @@ describe('TaskFormModal create-mode store selection', () => {
 
     await user.type(screen.getByLabelText('Task Name *'), 'Prepare Waffle Cones');
     await user.click(screen.getByLabelText('Store *'));
-    await user.click(screen.getByRole('button', { name: 'Store 2' }));
+    await user.click(screen.getByRole('option', { name: 'Store 2' }));
 
     await waitFor(() => expect(screen.getByLabelText('Store *')).toHaveTextContent('Store 2'));
     expect(screen.getByLabelText('Task Name *')).toHaveValue('Prepare Waffle Cones');
@@ -213,7 +213,7 @@ describe('TaskFormModal store-scope change preserves a still-valid category', ()
     expect(screen.getByLabelText('Category *')).toHaveTextContent('Cleaning');
 
     await user.click(screen.getByLabelText('Store *'));
-    await user.click(screen.getByRole('button', { name: 'Store 2' }));
+    await user.click(screen.getByRole('option', { name: 'Store 2' }));
 
     await waitFor(() => expect(screen.getByLabelText('Category *')).toHaveTextContent('Cleaning'));
   });
@@ -225,7 +225,7 @@ describe('TaskFormModal store-scope change preserves a still-valid category', ()
     expect(screen.getByLabelText('Category *')).toHaveTextContent('Cleaning');
 
     await user.click(screen.getByLabelText('Store *'));
-    await user.click(screen.getByRole('button', { name: 'Store 2' }));
+    await user.click(screen.getByRole('option', { name: 'Store 2' }));
 
     await waitFor(() => expect(screen.getByLabelText('Category *')).toHaveTextContent('Select Category'));
   });
@@ -249,7 +249,7 @@ describe('TaskFormModal Short Text response', () => {
       renderModal();
 
       await user.click(document.getElementById('task-completion-type')!);
-      await user.click(await screen.findByRole('button', { name: 'Multiple Completions' }));
+      await user.click(await screen.findByRole('option', { name: 'Multiple Completions' }));
 
       expect(document.getElementById('task-completion-type')).toHaveTextContent('Multiple Completions');
     });

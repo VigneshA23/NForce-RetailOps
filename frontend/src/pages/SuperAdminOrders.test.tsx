@@ -191,7 +191,7 @@ describe('SuperAdminOrders', () => {
     await screen.findByText('Milk');
 
     await userEvent.click(screen.getByRole('button', { name: 'Change status for Milk' }));
-    await userEvent.click(screen.getByRole('option', { name: 'Ordered' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Ordered' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Yes, change' }));
 
     await waitFor(() => expect(mockUpdateSuperAdminOrderStatus).toHaveBeenCalledWith(10, 1, 'ORDERED', 'NEEDS_ORDERING', undefined));
@@ -212,7 +212,7 @@ describe('SuperAdminOrders', () => {
     await screen.findByText('Milk');
 
     await userEvent.click(screen.getByRole('button', { name: 'Change status for Milk' }));
-    await userEvent.click(screen.getByRole('option', { name: 'Ordered' }));
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Ordered' }));
     await userEvent.click(await screen.findByRole('button', { name: 'Yes, change' }));
 
     expect(await screen.findByText(/already been updated by Admin/)).toBeInTheDocument();
@@ -259,7 +259,7 @@ describe('SuperAdminOrders inline status change', () => {
     await screen.findByText('Milk');
 
     await user.click(screen.getByLabelText('Change status for Milk'));
-    await user.click(screen.getByRole('option', { name: 'Ordered' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Ordered' }));
 
     expect(mockUpdateSuperAdminOrderStatus).not.toHaveBeenCalled();
     expect(await screen.findByText('Change status?')).toBeInTheDocument();
@@ -277,7 +277,7 @@ describe('SuperAdminOrders inline status change', () => {
     await screen.findByText('Milk');
 
     await user.click(screen.getByLabelText('Change status for Milk'));
-    await user.click(screen.getByRole('option', { name: 'Ordered' }));
+    await user.click(screen.getByRole('menuitem', { name: 'Ordered' }));
     await screen.findByText('Change status?');
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));

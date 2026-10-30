@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ClipboardList, MessageSquareWarning, Search } from 'lucide-react';
 import { employeeSearch, type EmployeeSearchItem, type EmployeeSearchResponse } from '../api/employeeSearch';
-import useDismissablePanel from '../hooks/useDismissablePanel';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import './EmployeeSearchDropdown.css';
 
 interface EmployeeSearchDropdownProps {
@@ -146,16 +146,6 @@ function EmployeeSearchDropdown({ storeId, onNavigate, onMobileOpenChange }: Emp
     onMobileOpenChange?.(mobileOpen);
   }, [mobileOpen, onMobileOpenChange]);
 
-  useDismissablePanel({
-    isOpen: open,
-    onClose: () => {
-      setOpen(false);
-      inputRef.current?.blur();
-    },
-    refs: [containerRef],
-    closeOnScrollOrResize: false,
-  });
-
   useEffect(() => {
     if (!mobileOpen) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -178,32 +168,41 @@ function EmployeeSearchDropdown({ storeId, onNavigate, onMobileOpenChange }: Emp
   return (
     <>
       {/* Desktop: full inline search */}
-      <div className="edrop" ref={containerRef}>
-        <div className="edrop__input-wrap">
-          <Search className="edrop__search-icon" size={14} aria-hidden="true" />
-          <input
-            ref={inputRef}
-            type="search"
-            className="edrop__input"
-            placeholder="Search tasks or issues…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setOpen(true)}
-            aria-label="Search tasks and issues"
-            autoComplete="off"
-          />
-        </div>
-        {showDropdown && (
-          <div className="edrop__dropdown" role="listbox" aria-label="Search results">
+      <Popover open={showDropdown} onOpenChange={(next) => { if (!next) { setOpen(false); inputRef.current?.blur(); } }}>
+        <div className="edrop" ref={containerRef}>
+          <div className="edrop__input-wrap">
+            <Search className="edrop__search-icon" size={14} aria-hidden="true" />
+            <PopoverAnchor asChild>
+              <input
+                ref={inputRef}
+                type="search"
+                className="edrop__input"
+                placeholder="Search tasks or issues…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setOpen(true)}
+                aria-label="Search tasks and issues"
+                autoComplete="off"
+              />
+            </PopoverAnchor>
+          </div>
+          <PopoverContent
+            role="listbox"
+            aria-label="Search results"
+            align="start"
+            sideOffset={8}
+            onOpenAutoFocus={(event) => event.preventDefault()}
+            className="edrop__dropdown w-(--radix-popper-anchor-width)"
+          >
             <SearchResults
               query={query}
               results={results}
               loading={loading}
               onNavigate={handleNavigate}
             />
-          </div>
-        )}
-      </div>
+          </PopoverContent>
+        </div>
+      </Popover>
 
       {/* Mobile: lens icon */}
       <button

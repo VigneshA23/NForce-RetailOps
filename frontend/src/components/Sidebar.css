@@ -25,6 +25,66 @@
 .sidebar__top {
   display: flex;
   flex-direction: column;
+  /* Stacks above .sidebar__snow regardless of DOM order -- establishes its
+     own stacking context so the decorative layer behind it can never end up
+     visually on top, or (since it's pointer-events: none anyway) merely
+     distracting in front of the nav. */
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Decorative winter atmosphere (Ice Blue), sidebar-only ──────────────
+   Absolutely positioned within .sidebar (already `position: sticky` on
+   desktop / `fixed` on mobile, so this is contained correctly in both) and
+   clipped by its own overflow: hidden -- never .sidebar's, which still needs
+   overflow-y: auto for nav scrolling. Decorative only: aria-hidden and
+   pointer-events: none so it can never be focused, clicked, or announced. */
+.sidebar__snow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sidebar__snowflake {
+  position: absolute;
+  top: -16px;
+  animation-name: sidebar-snow-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  /* transform + opacity only -- no layout/paint cost beyond compositing. */
+  will-change: transform, opacity;
+}
+
+.sidebar__snowflake--glow {
+  filter: drop-shadow(0 0 3px rgba(191, 239, 255, 0.5));
+}
+
+@keyframes sidebar-snow-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: var(--snow-opacity, 0.45);
+  }
+  85% {
+    opacity: var(--snow-opacity, 0.45);
+  }
+  100% {
+    /* 115vh comfortably clears .sidebar's tallest possible height (100dvh)
+       so every flake fully exits the bottom before looping, regardless of
+       viewport size -- the overflow: hidden wrapper clips the rest. */
+    transform: translate3d(var(--snow-drift, 10px), 115vh, 0) rotate(var(--snow-spin, 120deg));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar__snow {
+    display: none;
+  }
 }
 
 .sidebar__brand {
