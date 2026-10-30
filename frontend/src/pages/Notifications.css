@@ -129,7 +129,7 @@
   align-items: center;
   gap: 7px;
   flex: 1 1 180px;
-  background: var(--color-bg-page);
+  background: var(--color-filter-field-bg);
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 6px 10px;
@@ -156,7 +156,7 @@
 
 .nfp-toolbar__select {
   padding: 7px 10px;
-  background: var(--color-bg-page);
+  background: var(--color-filter-field-bg);
   border: 1px solid var(--color-border);
   border-radius: 6px;
   color: var(--color-text-primary);

@@ -33,6 +33,11 @@
   margin-bottom: var(--space-sm);
 }
 
+/* Repaint the sky (AppShell.css) rather than a grey strip over it. */
+:root:not([data-theme='dark']) .employee-history-filters {
+  background: var(--page-bg-sky);
+}
+
 .employee-history-date-trigger-wrap {
   display: flex;
   align-items: center;

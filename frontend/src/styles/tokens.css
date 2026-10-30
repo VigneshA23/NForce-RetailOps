@@ -2,6 +2,8 @@
 
 :root {
   --color-bg-page: #f2f2f4;
+  /* Search boxes and dropdowns in page filter bars. */
+  --color-filter-field-bg: #f1f5fa;
   --color-surface-card: #ffffff;
   --color-header-bg: #0b090a;
   --color-header-border: rgba(155, 20, 25, 0.38);
@@ -101,6 +103,7 @@
 
 :root[data-theme='dark'] {
   --color-bg-page: #131316;
+  --color-filter-field-bg: var(--color-bg-page);
   --color-surface-card: #1c1c21;
   --color-header-bg: #0b090a;
   --color-header-border: rgba(155, 20, 25, 0.38);
