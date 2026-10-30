@@ -203,9 +203,12 @@
 
 /* ---- Dock magnification ------------------------------------------------- */
 /* The hovered icon grows most; the next one or two on either side grow a
-   little and shift away from it, like the macOS dock. */
+   little and shift away from it, like the macOS dock.
 
-.sidebar__dock-item:hover .sidebar__dock-icon,
+   Mouse/trackpad only: touch browsers leave :hover stuck on the last tapped
+   item, which kept it magnified after navigating on tablets. Keyboard focus
+   gets the same look below. */
+
 .sidebar__dock-item:focus-visible .sidebar__dock-icon {
   transform: translateX(4px) scale(1.65);
   background: #ffffff;
@@ -213,50 +216,67 @@
   box-shadow: 0 6px 16px rgba(16, 24, 40, 0.16);
 }
 
-.sidebar__dock-item:hover .sidebar__dock-label,
 .sidebar__dock-item:focus-visible .sidebar__dock-label {
   transform: translateY(14px);
   font-weight: 700;
   color: #ffffff;
 }
 
-.sidebar__dock-item:hover + .sidebar__dock-item {
-  transform: translateY(14px);
-}
-
-.sidebar__dock-item:hover + .sidebar__dock-item .sidebar__dock-icon {
-  transform: translateX(2px) scale(1.3);
-}
-
-.sidebar__dock-item:hover + .sidebar__dock-item + .sidebar__dock-item {
-  transform: translateY(6px);
-}
-
-.sidebar__dock-item:hover + .sidebar__dock-item + .sidebar__dock-item .sidebar__dock-icon {
-  transform: scale(1.12);
-}
-
-.sidebar__dock-item:has(+ .sidebar__dock-item:hover) {
-  transform: translateY(-8px);
-}
-
-.sidebar__dock-item:has(+ .sidebar__dock-item:hover) .sidebar__dock-icon {
-  transform: translateX(2px) scale(1.3);
-}
-
-.sidebar__dock-item:has(+ .sidebar__dock-item + .sidebar__dock-item:hover) {
-  transform: translateY(-3px);
-}
-
-.sidebar__dock-item:has(+ .sidebar__dock-item + .sidebar__dock-item:hover) .sidebar__dock-icon {
-  transform: scale(1.12);
-}
-
-/* The collapsed rail is only 96px wide and clips anything past its edge, so
-   the hovered icon grows in place instead of also sliding right. */
-.sidebar--collapsed .sidebar__dock-item:hover .sidebar__dock-icon,
 .sidebar--collapsed .sidebar__dock-item:focus-visible .sidebar__dock-icon {
   transform: scale(1.65);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sidebar__dock-item:hover .sidebar__dock-icon {
+    transform: translateX(4px) scale(1.65);
+    background: #ffffff;
+    color: #d92378;
+    box-shadow: 0 6px 16px rgba(16, 24, 40, 0.16);
+  }
+
+  .sidebar__dock-item:hover .sidebar__dock-label {
+    transform: translateY(14px);
+    font-weight: 700;
+    color: #ffffff;
+  }
+
+  .sidebar__dock-item:hover + .sidebar__dock-item {
+    transform: translateY(14px);
+  }
+
+  .sidebar__dock-item:hover + .sidebar__dock-item .sidebar__dock-icon {
+    transform: translateX(2px) scale(1.3);
+  }
+
+  .sidebar__dock-item:hover + .sidebar__dock-item + .sidebar__dock-item {
+    transform: translateY(6px);
+  }
+
+  .sidebar__dock-item:hover + .sidebar__dock-item + .sidebar__dock-item .sidebar__dock-icon {
+    transform: scale(1.12);
+  }
+
+  .sidebar__dock-item:has(+ .sidebar__dock-item:hover) {
+    transform: translateY(-8px);
+  }
+
+  .sidebar__dock-item:has(+ .sidebar__dock-item:hover) .sidebar__dock-icon {
+    transform: translateX(2px) scale(1.3);
+  }
+
+  .sidebar__dock-item:has(+ .sidebar__dock-item + .sidebar__dock-item:hover) {
+    transform: translateY(-3px);
+  }
+
+  .sidebar__dock-item:has(+ .sidebar__dock-item + .sidebar__dock-item:hover) .sidebar__dock-icon {
+    transform: scale(1.12);
+  }
+
+  /* The collapsed rail is only 96px wide and clips anything past its edge, so
+     the hovered icon grows in place instead of also sliding right. */
+  .sidebar--collapsed .sidebar__dock-item:hover .sidebar__dock-icon {
+    transform: scale(1.65);
+  }
 }
 
 /* ---- Collapse toggle ---------------------------------------------------- */
@@ -340,9 +360,14 @@
     display: none;
   }
 
-  .sidebar:not(.sidebar--collapsed) .sidebar__dock-item:hover .sidebar__dock-icon,
   .sidebar:not(.sidebar--collapsed) .sidebar__dock-item:focus-visible .sidebar__dock-icon {
     transform: scale(1.65);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .sidebar:not(.sidebar--collapsed) .sidebar__dock-item:hover .sidebar__dock-icon {
+      transform: scale(1.65);
+    }
   }
 }
 
