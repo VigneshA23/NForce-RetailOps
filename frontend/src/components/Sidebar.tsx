@@ -110,6 +110,8 @@ function Sidebar<Key extends string = NavTabKey>({
                   type="button"
                   className={`sidebar__dock-item${isActive ? ' sidebar__dock-item--active' : ''}`}
                   onClick={() => {
+                    // Touch never fires mouseleave, so drop the tooltip here.
+                    hideTooltip();
                     onSelect(item.key);
                     onClose?.();
                   }}
