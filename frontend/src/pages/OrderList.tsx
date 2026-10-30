@@ -29,6 +29,7 @@ import FilterClearButton from '../components/FilterClearButton';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import './OrderList.css';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 
 type StatusFilter = 'OPEN' | OrderStatus;
 
@@ -828,7 +829,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
         </div>
       )}
 
-      {isLoading && <div className="order-list__loading">Loading...</div>}
+      {isLoading && <LoadingSkeleton label="Loading..." variant="list" />}
 
       {!isLoading && decorated.length > 0 && grouped && (
         <div className="order-list__groups">

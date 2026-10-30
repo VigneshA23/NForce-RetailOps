@@ -13,6 +13,7 @@ import type { ActivityLogEntry } from '../types/activity';
 import { matchesSearch } from '../utils/search';
 import { formatTimeLabel, todayDate, yesterday } from '../utils/checklistHistoryOptions';
 import './SuperAdminActivity.css';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 
 // Server caps `limit` at 100 (ActivityLogController.MAX_LIMIT) -- this is
 // the largest single page the API can return for a given date range.
@@ -162,7 +163,7 @@ function SuperAdminActivity({ onBack }: SuperAdminActivityProps) {
       </div>
 
       <div className="card sa-activity__list-card">
-        {entries === null && <p className="sa-activity__empty">Loading…</p>}
+        {entries === null && <LoadingSkeleton label="Loading…" variant="list" />}
         {entries !== null && dayGroups.length === 0 && (
           <p className="sa-activity__empty">No activity in this range.</p>
         )}

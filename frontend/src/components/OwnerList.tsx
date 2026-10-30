@@ -3,6 +3,7 @@ import type { OwnerSummary } from '../types/owner';
 import type { GroupedOwner } from './OwnerCard';
 import OwnerCard from './OwnerCard';
 import './OwnerList.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 interface OwnerListProps {
   owners: OwnerSummary[];
@@ -37,7 +38,7 @@ function OwnerList({ owners, isLoading = false, onToggleStatus, onAddStore, onTo
   const groupedOwners = useMemo(() => groupOwnersByStores(owners), [owners]);
 
   if (isLoading) {
-    return <div className="owner-list__empty">Loading owners...</div>;
+    return <LoadingSkeleton label="Loading owners..." variant="list" />;
   }
 
   if (groupedOwners.length === 0) {

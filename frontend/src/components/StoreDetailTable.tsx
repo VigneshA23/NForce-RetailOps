@@ -10,6 +10,7 @@ import FlagResponseModal from './FlagResponseModal';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './StoreDetailTable.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 export interface StoreDetailRow {
   key: string;
@@ -509,7 +510,7 @@ function StoreDetailTable({ rows, isLoading = false, hasChecklist, onResponseCor
               : 'No checklist template was in effect for this store on this day.'}
           </div>
         )}
-        {isLoading && <div className="table-card__empty">Loading checklist…</div>}
+        {isLoading && <LoadingSkeleton label="Loading checklist…" variant="table" />}
       </div>
 
       {correctionTarget && (

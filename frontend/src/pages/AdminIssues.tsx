@@ -20,6 +20,7 @@ import {
   type IssueStatusFilter,
 } from '../utils/issueStatusMeta';
 import './AdminIssues.css';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 
 const CARD_ID_PREFIX = 'admin-issue-row';
 
@@ -206,7 +207,7 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
             })
           )}
         </div>
-        {(isLoading || storesLoading) && <div className="issue-card-list__empty">Loading issues…</div>}
+        {(isLoading || storesLoading) && <LoadingSkeleton label="Loading issues…" variant="list" />}
         {!isLoading && !storesLoading && !error && filtered.length === 0 && (
           <div className="issue-card-list__empty">
             {issues.length === 0 ? 'No issues have been raised yet.'

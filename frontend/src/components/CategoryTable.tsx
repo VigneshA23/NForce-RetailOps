@@ -27,6 +27,7 @@ import type { Category } from '../types/category';
 import { formatDateLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
 import Toggle from './Toggle';
 import './CategoryTable.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 interface CategoryTableProps {
   categories: Category[];
@@ -307,7 +308,7 @@ function CategoryTable({
       {!isLoading && categories.length === 0 && (
         <div className="category-table__empty">No categories match your filters.</div>
       )}
-      {isLoading && <div className="category-table__empty">Loading categories...</div>}
+      {isLoading && <LoadingSkeleton label="Loading categories..." variant="table" />}
       {footer && <div className="category-table__footer">{footer}</div>}
     </div>
   );

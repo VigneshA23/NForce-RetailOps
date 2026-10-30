@@ -4,6 +4,7 @@ import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './EmployeeTable.css';
 import './EmployeeCards.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 interface EmployeeTableProps {
   /** Already searched, filtered and paged by the page. */
@@ -136,7 +137,7 @@ function EmployeeTable({
       {!isLoading && employees.length === 0 && (
         <div className="table-card__empty">{emptyMessage}</div>
       )}
-      {isLoading && <div className="table-card__empty">Loading employees...</div>}
+      {isLoading && <LoadingSkeleton label="Loading employees..." variant="table" />}
     </div>
   );
 }

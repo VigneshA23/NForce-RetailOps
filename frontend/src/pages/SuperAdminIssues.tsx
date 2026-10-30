@@ -20,6 +20,7 @@ import {
   type IssueStatusFilter,
 } from '../utils/issueStatusMeta';
 import './SuperAdminIssues.css';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 
 const CARD_ID_PREFIX = 'sa-issue-row';
 
@@ -238,7 +239,7 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
             })
           )}
         </div>
-        {isLoading && <div className="issue-card-list__empty">Loading issues…</div>}
+        {isLoading && <LoadingSkeleton label="Loading issues…" variant="list" />}
         {!isLoading && !error && filtered.length === 0 && (
           <div className="issue-card-list__empty">
             {issues.length === 0 ? 'No issues have been raised yet.'

@@ -4,6 +4,7 @@ import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './EmployeeTable.css';
 import './EmployeeCards.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 interface SuperAdminEmployeeTableProps {
   employees: SuperAdminEmployee[];
@@ -141,7 +142,7 @@ function SuperAdminEmployeeTable({
         </table>
       </div>
       {!isLoading && employees.length === 0 && <div className="table-card__empty">{emptyMessage}</div>}
-      {isLoading && <div className="table-card__empty">Loading employees...</div>}
+      {isLoading && <LoadingSkeleton label="Loading employees..." variant="table" />}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Eye } from 'lucide-react';
 import type { ChecklistHistorySummaryRow } from '../types/checklistHistory';
 import { formatDateLabel } from '../utils/checklistHistoryOptions';
 import './ChecklistHistoryTable.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 interface ChecklistHistoryTableProps {
   rows: ChecklistHistorySummaryRow[];
@@ -61,7 +62,7 @@ function ChecklistHistoryTable({ rows, isLoading = false, onView }: ChecklistHis
       {!isLoading && rows.length === 0 && (
         <div className="table-card__empty">No results for the selected stores and date range.</div>
       )}
-      {isLoading && <div className="table-card__empty">Loading checklist history...</div>}
+      {isLoading && <LoadingSkeleton label="Loading checklist history..." variant="table" />}
     </div>
   );
 }

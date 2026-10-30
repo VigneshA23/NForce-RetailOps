@@ -4,6 +4,7 @@ import { STOCK_STATUS_META, getStockStatus } from '../utils/storeInventoryStatus
 import ItemIcon from './ItemIcon';
 import Toggle from './Toggle';
 import './StoreInventoryCardGrid.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 
 interface StoreInventoryCardGridProps {
@@ -28,7 +29,7 @@ function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, o
   }
 
   if (isLoading) {
-    return <div className="store-inventory-card-grid__empty">Loading inventory...</div>;
+    return <LoadingSkeleton label="Loading inventory..." variant="list" />;
   }
 
   return (

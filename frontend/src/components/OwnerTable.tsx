@@ -5,6 +5,7 @@ import { nfToast } from '../utils/toast';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './OwnerTable.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 async function copyEmail(email: string) {
   try {
@@ -307,7 +308,7 @@ function OwnerTable({
       {!isLoading && grouped.length === 0 && (
         <div className="table-card__empty">{emptyMessage}</div>
       )}
-      {isLoading && <div className="table-card__empty">Loading owners...</div>}
+      {isLoading && <LoadingSkeleton label="Loading owners..." variant="table" />}
     </div>
   );
 }

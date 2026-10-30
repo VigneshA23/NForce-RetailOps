@@ -25,6 +25,7 @@ import {
   type IssueStatusFilter,
 } from '../utils/issueStatusMeta'
 import './EmployeeIssues.css'
+import LoadingSkeleton from '../components/LoadingSkeleton'
 
 const CARD_ID_PREFIX = 'emp-issue-row'
 
@@ -112,7 +113,7 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
         </p>
       </div>
 
-      {isLoading && <p className="emp-issues-page__loading">Loading your issues…</p>}
+      {isLoading && <LoadingSkeleton label="Loading your issues…" variant="list" />}
 
       {!isLoading && error && (
         <div className="emp-issues-page__error">

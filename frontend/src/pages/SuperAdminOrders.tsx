@@ -42,6 +42,7 @@ import '../pages/OrderList.css';
 import '../pages/OrderDashboard.css';
 import './SuperAdminOrders.css';
 import { usePersistedState, oneOf, nullableNumber, nullableString } from '../hooks/usePersistedState';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 
 type StatusFilter = 'OPEN' | OrderStatus;
 
@@ -940,7 +941,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
             </div>
           )}
 
-          {entriesLoading && <div className="order-list__loading">Loading...</div>}
+          {entriesLoading && <LoadingSkeleton label="Loading..." variant="list" />}
 
           {!entriesLoading && !entriesError && decorated.length > 0 && grouped && (
             <div className="order-list__groups">

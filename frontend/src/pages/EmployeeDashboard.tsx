@@ -28,6 +28,7 @@ import MissedTasksBanner from '../components/MissedTasksBanner'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import './EmployeeDashboard.css'
 import '../styles/filters.css'
+import LoadingSkeleton from '../components/LoadingSkeleton'
 
 interface EmployeeDashboardProps {
   store: StoreSummary
@@ -647,7 +648,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
 
         <MissedTasksBanner count={missedTasksCount} onClick={() => onNavigate?.('missing')} />
 
-        {loading && <p className="employee-dashboard-loading">Loading today's checklist…</p>}
+        {loading && <LoadingSkeleton label="Loading today's checklist…" variant="list" />}
 
         {!loading && error && (
           <div className="employee-dashboard-empty">

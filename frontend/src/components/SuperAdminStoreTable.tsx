@@ -3,6 +3,7 @@ import type { SuperAdminStore } from '../types/superAdminStore';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './SuperAdminStoreTable.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 interface SuperAdminStoreTableProps {
   stores: SuperAdminStore[];
@@ -234,7 +235,7 @@ function SuperAdminStoreTable({
       </div>
 
       {!isLoading && stores.length === 0 && <div className="table-card__empty">{emptyMessage}</div>}
-      {isLoading && <div className="table-card__empty">Loading stores...</div>}
+      {isLoading && <LoadingSkeleton label="Loading stores..." variant="table" />}
     </div>
   );
 }

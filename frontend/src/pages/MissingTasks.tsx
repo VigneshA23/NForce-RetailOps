@@ -11,6 +11,7 @@ import Select from '../components/Select'
 import FilterClearButton from '../components/FilterClearButton'
 import SearchInput from '../components/SearchInput'
 import './MissingTasks.css'
+import LoadingSkeleton from '../components/LoadingSkeleton'
 
 interface MissingTasksProps {
   store: StoreSummary
@@ -243,7 +244,7 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
           )}
         </div>
 
-        {loading && <p className="missing-tasks-page__loading">Loading missed tasks…</p>}
+        {loading && <LoadingSkeleton label="Loading missed tasks…" variant="list" />}
 
         {!loading && error && (
           <div className="missing-tasks-page__empty">

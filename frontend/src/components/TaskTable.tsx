@@ -3,6 +3,7 @@ import { CalendarDays, CircleCheck, Pencil, Store as StoreIcon, Trash2 } from 'l
 import type { AdminTask } from '../types/adminTask';
 import { completionTypeLabel, responseTypeBadgeClass, responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions';
 import './TaskTable.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 interface TaskTableProps {
   tasks: AdminTask[];
@@ -247,7 +248,7 @@ function TaskTable({ tasks, isLoading = false, showStoreColumn = false, onRowCli
       {!isLoading && tasks.length === 0 && (
         <div className="table-card__empty">No tasks match your filters.</div>
       )}
-      {isLoading && <div className="table-card__empty">Loading tasks...</div>}
+      {isLoading && <LoadingSkeleton label="Loading tasks..." variant="table" />}
     </div>
   );
 }

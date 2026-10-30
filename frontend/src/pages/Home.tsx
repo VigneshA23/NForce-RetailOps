@@ -16,6 +16,7 @@ import CompletionRateCard from '../components/CompletionRateCard';
 import { getInitials, firstName } from '../utils/initials';
 import { formatTrendDayLabel } from '../utils/checklistHistoryOptions';
 import './Home.css';
+import LoadingSkeleton from '../components/LoadingSkeleton';
 
 // Cycled by row position so each contributor gets a visually distinct avatar
 // color -- there's no per-user color stored anywhere to draw from instead.
@@ -541,7 +542,7 @@ function Home({
         <RecentActivityCard onViewAll={onViewStoreDetail} />
       </div>
 
-      {isLoading && <p className="home-page__loading">Loading dashboard…</p>}
+      {isLoading && <LoadingSkeleton label="Loading dashboard…" variant="list" />}
 
     </div>
   );

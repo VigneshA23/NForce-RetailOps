@@ -3,6 +3,7 @@ import type { StoreOperationsSummary } from '../api/superAdminOperations';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './StoreComparisonTable.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 interface StoreComparisonTableProps {
   stores: StoreOperationsSummary[];
@@ -34,7 +35,7 @@ function openIssuesLabel(count: number): string {
 
 function StoreComparisonTable({ stores, isLoading, onStoreClick, onViewDetail }: StoreComparisonTableProps) {
   if (isLoading) {
-    return <div className="sct__loading">Loading stores…</div>;
+    return <LoadingSkeleton label="Loading stores…" variant="table" />;
   }
 
   if (stores.length === 0) {

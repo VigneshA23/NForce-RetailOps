@@ -13,6 +13,7 @@ import {
 import type { ActivityLogEntry } from '../types/activity';
 import { formatRelativeTime } from '../utils/relativeTime';
 import './ActivityFeedList.css';
+import LoadingSkeleton from './LoadingSkeleton';
 
 // Keyed by the actionType prefix (before the first underscore) so new action
 // types added later fall back to a sensible default instead of needing a
@@ -71,7 +72,7 @@ export function ActivityFeedRow({ entry, timeLabel }: { entry: ActivityLogEntry;
 function ActivityFeedList({ entries }: ActivityFeedListProps) {
   return (
     <div className="activity-feed">
-      {entries === null && <p className="activity-feed__empty">Loading…</p>}
+      {entries === null && <LoadingSkeleton label="Loading…" variant="list" />}
       {entries !== null && entries.length === 0 && (
         <p className="activity-feed__empty">No activity yet.</p>
       )}
