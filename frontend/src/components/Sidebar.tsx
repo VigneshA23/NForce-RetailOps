@@ -4,6 +4,7 @@ import { ChevronLeft } from 'lucide-react';
 import type { NavItem, NavTabKey } from '../types/navigation';
 import type { AuthUser } from '../types/auth';
 import { useIsMobile, useIsTabletNarrow } from '../hooks/useMediaQuery';
+import SidebarSnowfall from './SidebarSnowfall';
 import './Sidebar.css';
 
 interface HoveredTooltip {
@@ -101,6 +102,7 @@ function Sidebar<Key extends string = NavTabKey>({
               selectors, so the items must stay direct siblings -- no <li>
               wrappers. */}
           <div className="sidebar__dock">
+            <SidebarSnowfall />
             {items.map((item) => {
               const Icon = item.icon;
               const isActive = item.key === activeKey;

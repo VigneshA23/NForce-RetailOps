@@ -1,0 +1,57 @@
+/* Ice Blue snowfall layer, confined to the dock pill (.sidebar__dock) rather
+   than the whole rail, so it stays visible through the pill's frosted-glass
+   background instead of hiding behind it. Negative z-index places it above
+   the pill's own background but behind the nav buttons (position: relative,
+   z-index: 1) within .sidebar__dock's stacking context, so it never overlaps
+   clicks/focus. border-radius: inherit clips it to the pill's current shape
+   (round pill expanded, fully round when collapsed). */
+.sidebar__snowfall {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.sidebar__snowflake {
+  position: absolute;
+  top: -10%;
+  left: 0;
+  line-height: 1;
+  font-family: Arial, sans-serif;
+  opacity: 0;
+  animation-name: sidebar-snowfall-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform, opacity;
+}
+
+.sidebar__snowflake--glow {
+  text-shadow: 0 0 5px var(--snowflake-glow-color, #a7dff2);
+}
+
+@keyframes sidebar-snowfall-fall {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: var(--snowflake-opacity);
+  }
+  85% {
+    opacity: var(--snowflake-opacity);
+  }
+  100% {
+    transform: translate3d(var(--snowflake-drift), 100vh, 0) rotate(var(--snowflake-rotation));
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar__snowflake {
+    animation: none;
+    opacity: 0.12;
+    top: 6%;
+  }
+}
