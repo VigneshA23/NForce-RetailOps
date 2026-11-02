@@ -195,7 +195,7 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
         </div>
       )}
 
-      <div className="filter-bar">
+      <div className="filter-bar filter-bar--row-pair">
         <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search store, employee, or issue…" variant="filter" />
         </div>

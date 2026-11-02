@@ -488,7 +488,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               {isLoading ? 'Loading...' : `${activeSupplierCount} active of ${suppliers.length} total. New suppliers are added from the item form.`}
             </p>
 
-            <div className="filter-bar store-inventory-page__supplier-filter-bar">
+            <div className="filter-bar filter-bar--row-pair store-inventory-page__supplier-filter-bar">
               <div className="filter filter--search">
                 <SearchInput value={supplierSearch} onChange={setSupplierSearch} placeholder="Search suppliers" variant="filter" />
               </div>

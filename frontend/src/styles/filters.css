@@ -80,3 +80,43 @@
     min-height: 36px;
   }
 }
+
+/* Phones: opt-in via .filter-bar--row-pair -- search on its own full-width
+   row, then the remaining dropdowns share the next row equally with the
+   clear (funnel) button at the right edge (same layout as the Inventory
+   sub-tab's Category / Level filters). Search and dropdowns get one fixed
+   height so they line up. */
+@media (--mobile) {
+  .filter-bar.filter-bar--row-pair > .filter--search {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filter-bar.filter-bar--row-pair > .filter:not(.filter--search) {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+
+  .filter-bar.filter-bar--row-pair .select,
+  .filter-bar.filter-bar--row-pair .search-input--filter {
+    box-sizing: border-box;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .filter-bar.filter-bar--row-pair .search-input--filter {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .filter-bar.filter-bar--row-pair .search-input--filter__field {
+    min-height: 0;
+    height: 100%;
+  }
+
+  .filter-bar.filter-bar--row-pair > .filter-bar__clear {
+    min-height: 34px;
+  }
+}
