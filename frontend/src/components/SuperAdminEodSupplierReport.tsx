@@ -432,11 +432,6 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
             <ChevronRight size={16} />
           </button>
         </div>
-        {report && !isLoading && (
-          <p className="eod-report__summary">
-            {report.itemsNeedingOrder} to order · {report.itemsPendingEndOfDay} awaiting End of Day count
-          </p>
-        )}
         <button type="button" className="btn btn--secondary" onClick={handleCopy} disabled={isLoading || !hasItems}>
           <Clipboard size={16} />
           Copy Report

@@ -190,9 +190,6 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
         <StatCard icon={CircleCheck} label="Active" value={activeCount} tone="success" />
       </div>
       <div className="super-admin-inventory-page__header">
-        <p className="super-admin-inventory-page__summary">
-          {isLoading ? 'Loading...' : `${activeCount} active of ${categories.length} total`}
-        </p>
         <SpecularButton
           size="sm"
           radius={10}

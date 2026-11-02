@@ -183,11 +183,6 @@ function SuperAdminCategories({ onNavigateToTasks }: SuperAdminCategoriesProps) 
       {statusError && <div className="categories-page__error">{statusError}</div>}
 
       <div className="categories-page__header">
-        <p className="categories-page__summary">
-          {isLoading
-            ? 'Loading categories...'
-            : `${activeCount} active categor${activeCount === 1 ? 'y' : 'ies'} of ${categories.length} total`}
-        </p>
         <SpecularButton
           size="sm"
           radius={10}

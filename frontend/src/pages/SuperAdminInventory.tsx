@@ -635,9 +635,6 @@ function SuperAdminInventory() {
             <StatCard icon={CircleCheck} label="Active" value={activeSupplierCount} tone="success" />
           </div>
           <div className="super-admin-inventory-page__header">
-            <p className="super-admin-inventory-page__summary">
-              {isLoading ? 'Loading...' : `${activeSupplierCount} active of ${suppliers.length} total`}
-            </p>
             <SpecularButton
               size="sm"
               radius={10}

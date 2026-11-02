@@ -179,17 +179,6 @@ function Tasks({
   // equivalent array on every store pick, wiping the form (RTS-314).
   const activeStores = useMemo(() => stores.filter((store) => store.active), [stores]);
 
-  const storeCoverageCount = useMemo(() => {
-    if (tasks.some((task) => task.appliesToAllStores)) return stores.length;
-    const storeIds = new Set<number>();
-    tasks.forEach((task) => task.stores.forEach((store) => storeIds.add(store.id)));
-    return storeIds.size;
-  }, [tasks, stores]);
-
-  const summaryText = isLoading
-    ? 'Loading tasks...'
-    : `${activeTaskCount} active task${activeTaskCount === 1 ? '' : 's'} across ${storeCoverageCount} store${storeCoverageCount === 1 ? '' : 's'}`;
-
   function openCreateForm() {
     setFormError(null);
     // Admin tasks are implicitly scoped to the owner's active store; only
@@ -294,8 +283,6 @@ function Tasks({
       </div>
 
       <div className="tasks-page__header">
-        <p className="tasks-page__summary">{summaryText}</p>
-
         <SpecularButton
           size="sm"
           radius={10}
