@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .inventory-counts {
   display: flex;
   flex-direction: column;
@@ -306,4 +308,21 @@
 
 .inventory-counts__card-history .inventory-counts__history-table {
   border: none;
+}
+
+/* Phones: search on its own full-width row, then Category and Level side by
+   side with the clear-filters (funnel) button at the right edge. */
+@media (--mobile) {
+  /* The base rule above gives search a 25% basis, which let Category sit beside
+     it instead of wrapping to the second row. */
+  .filter-bar.inventory-counts__filter-bar > .filter--search {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .filter-bar.inventory-counts__filter-bar > .inventory-counts__filter {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
 }

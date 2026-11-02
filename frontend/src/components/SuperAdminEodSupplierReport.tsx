@@ -463,9 +463,10 @@ function SuperAdminEodSupplierReport({ storeId, storeName }: SuperAdminEodSuppli
                 <Select className="order-list__filter-select order-list__filter-select--status" options={STATUS_FILTER_OPTIONS} value={statusFilter} onChange={(v) => setStatusFilter(v as 'all' | EodReportStatus)} ariaLabel="Status" />
                 <Select className="order-list__filter-select order-list__filter-select--supplier" options={supplierFilterOptions} value={supplierFilter} onChange={setSupplierFilter} ariaLabel="Supplier" />
                 <span className="order-list__row-break" aria-hidden="true" />
+                {/* On phones the funnel always sits right of Status, so its slot is never collapsed there. */}
                 <div
-                  className={`order-list__clear-slot${hasActiveFilters ? '' : ' order-list__clear-slot--empty'}`}
-                  style={hasActiveFilters ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
+                  className={`order-list__clear-slot${hasActiveFilters || isMobile ? '' : ' order-list__clear-slot--empty'}`}
+                  style={hasActiveFilters || isMobile ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
                 >
                   <FilterClearButton onClick={clearFilters} />
                 </div>

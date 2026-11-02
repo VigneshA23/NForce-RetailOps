@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 /* Card, group-header and modal styles live in components/IssueCard.css. */
 
 .sa-issues-page {
@@ -5,4 +7,18 @@
   flex-direction: column;
   gap: var(--space-lg);
   padding: var(--space-lg);
+}
+
+/* Phones: .filter-bar's own bottom margin stacked on the page's flex gap (and
+   the group header's top padding) left roughly twice the space under the
+   filters that sits between the stat cards and the filters. Collapse it to
+   the page gap so both spacings match. */
+@media (--mobile) {
+  .sa-issues-page .filter-bar {
+    margin-bottom: 0;
+  }
+
+  .sa-issues-page .issues-group-header-cell {
+    padding-top: 0;
+  }
 }

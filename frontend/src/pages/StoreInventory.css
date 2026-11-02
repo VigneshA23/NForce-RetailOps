@@ -284,9 +284,8 @@
     flex-wrap: wrap;
   }
 
-  /* Add Item moves below the stat cards on mobile (see isMobile branch in
-     StoreInventory.tsx), so header-actions holds only the Export button
-     here and sits right next to the title on one line. An auto left
+  /* header-actions holds Export and Add Item side by side (Export on the
+     left) and sits right next to the title on one line. An auto left
      margin (rather than the title-row's own space-between, which has
      nothing to distribute once header-actions is the sole item on its
      line) keeps it pinned to the right edge even on the rare viewport
@@ -552,4 +551,21 @@
 
 [data-theme='dark'] .store-inventory-page .stat-card-row .stat-card__icon {
   background: rgba(var(--inventory-card-rgb), 0.22);
+}
+
+/* Phones, Items tab (Admin and Super Admin): search stays on its own full-width row, then
+   Category and Supplier share the next row with the clear (funnel) button at
+   the right edge. */
+@media (--mobile) {
+  .filter-bar.store-inventory-page__filter-bar > .filter--search {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .filter-bar.store-inventory-page__filter-bar > .filter:not(.filter--search) {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
 }

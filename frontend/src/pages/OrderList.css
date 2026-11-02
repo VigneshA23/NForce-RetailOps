@@ -1218,3 +1218,34 @@
 .order-list__row--urgent {
   box-shadow: inset 4px 0 0 #d32f2f;
 }
+
+/* Phones, Order List + End of Day Report tabs: the search box (the shared
+   "surface" variant, with its own larger padding and font) sat taller than the
+   Category/Status/Supplier dropdowns in the same card. Both get one fixed
+   height so they line up. */
+@media (--mobile) {
+  .order-list__filter-card .select,
+  .order-list__filter-card .search-input--filter--surface {
+    box-sizing: border-box;
+    height: 38px;
+    min-height: 38px;
+  }
+
+  .order-list__filter-card .search-input--filter--surface {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .order-list__filter-card .search-input--filter--surface .search-input--filter__field {
+    font-size: 13px;
+  }
+}
+
+/* Phones: Status fills its whole row, with the clear (funnel) button at the
+   right edge -- same as the Daily Checklist's category filter row. */
+@media (--mobile) {
+  .order-list__filter-fields .order-list__filter-select--status {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}

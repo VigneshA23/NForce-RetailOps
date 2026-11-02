@@ -253,23 +253,25 @@
    an avatar. Boosted specificity (.table-card.stock-check-history-table-card)
    so these win over table.css's generic rules. */
 @media (--mobile) {
+  /* Store and search share the first row equally; Category takes the second
+     beside the clear (funnel) button at the right edge. */
   .super-admin-stock-check-history__filter-bar {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    padding-bottom: 4px;
+    flex-wrap: wrap;
   }
 
-  .super-admin-stock-check-history__filter-bar > .filter {
-    flex: 0 0 140px;
-  }
-
+  .super-admin-stock-check-history__filter-bar > .filter,
   .super-admin-stock-check-history__filter-bar > .filter--search {
-    flex-basis: 210px;
+    flex: 1 1 calc(50% - 4px);
+    width: auto;
+    min-width: 0;
+  }
+
+  .super-admin-stock-check-history__filter-bar > .filter:has(+ .filter-bar__clear) {
+    flex: 1 1 0;
   }
 
   .super-admin-stock-check-history__filter-bar > .filter-bar__clear {
-    flex: 0 0 auto;
+    flex: 0 0 40px;
   }
 
   .table-card.stock-check-history-table-card {

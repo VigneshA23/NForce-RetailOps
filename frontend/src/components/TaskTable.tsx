@@ -186,20 +186,14 @@ function TaskTable({ tasks, isLoading = false, showStoreColumn = false, onRowCli
                 <div className="task-mobile-card__metrics">
                   <div className="task-mobile-card__metric">
                     <CalendarDays size={16} aria-hidden="true" />
-                    <div>
-                      <span className="task-mobile-card__label">Schedule</span>
-                      <span className="task-mobile-card__value">
-                        {scheduleSummary(task.scheduleType, task.selectedDays, task.startDate, task.endDate)}
-                      </span>
-                    </div>
+                    <span className="task-mobile-card__value">
+                      {scheduleSummary(task.scheduleType, task.selectedDays, task.startDate, task.endDate)}
+                    </span>
                   </div>
 
                   <div className="task-mobile-card__metric">
                     <CircleCheck size={16} aria-hidden="true" />
-                    <div>
-                      <span className="task-mobile-card__label">Completion</span>
-                      <span className="task-mobile-card__value">{completionTypeLabel(task.completionType)}</span>
-                    </div>
+                    <span className="task-mobile-card__value">{completionTypeLabel(task.completionType)}</span>
                   </div>
                 </div>
               </div>

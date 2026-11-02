@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import { Building2, MapPin, Truck } from 'lucide-react';
 import type { SupplierFormValues, SupplierStoreOption } from '../types/supplier';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
@@ -118,7 +119,7 @@ function SupplierFormModal({
               value={values.name}
               onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
               placeholder="e.g. Walmart, Sam's Club"
-              autoFocus
+              autoFocus={shouldAutoFocus()}
             />
           </div>
         </FormField>

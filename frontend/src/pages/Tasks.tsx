@@ -321,7 +321,7 @@ function Tasks({
         </div>
 
         <Select
-          className="filter"
+          className="filter filter--row-start"
           options={categoryFilterOptions}
           value={categoryFilter === 'ALL' ? 'ALL' : String(categoryFilter)}
           onChange={(value) => setCategoryFilter(value === 'ALL' ? 'ALL' : Number(value))}

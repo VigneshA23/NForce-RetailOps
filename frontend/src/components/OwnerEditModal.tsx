@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import type { UpdateOwnerValues } from '../types/owner';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -76,7 +77,7 @@ function OwnerEditModal({ isOpen, initialValues, errorMessage, isSubmitting = fa
               className="input"
               value={values.ownerName}
               onChange={(event) => updateField('ownerName', event.target.value)}
-              autoFocus
+              autoFocus={shouldAutoFocus()}
             />
           </FormField>
 

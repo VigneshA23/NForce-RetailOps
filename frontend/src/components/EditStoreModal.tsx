@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import type { CreateStoreValues } from '../types/superAdminStore';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -67,7 +68,7 @@ function EditStoreModal({ isOpen, initialValues, errorMessage, isSubmitting = fa
             value={values.name}
             onChange={(event) => updateField('name', event.target.value)}
             placeholder="e.g. Downtown Ice Cream Co."
-            autoFocus
+            autoFocus={shouldAutoFocus()}
           />
         </FormField>
 

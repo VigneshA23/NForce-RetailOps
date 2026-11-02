@@ -838,8 +838,8 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                 <Select className="order-list__filter-select order-list__filter-select--supplier" options={supplierFilterOptions} value={supplierFilter} onChange={setSupplierFilter} ariaLabel="Supplier" />
                 <span className="order-list__row-break" aria-hidden="true" />
                 <div
-                  className={`order-list__clear-slot${hasActiveFilters ? '' : ' order-list__clear-slot--empty'}`}
-                  style={hasActiveFilters ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
+                  className={`order-list__clear-slot${hasActiveFilters || isMobile ? '' : ' order-list__clear-slot--empty'}`}
+                  style={hasActiveFilters || isMobile ? undefined : { visibility: 'hidden', pointerEvents: 'none' }}
                 >
                   <FilterClearButton onClick={clearFilters} />
                 </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import { getNextStoreCode, getReassignableStores } from '../api/owners';
 import type { AssignStoreValues, ReassignableStore } from '../types/owner';
 import Modal from './Modal';
@@ -134,7 +135,7 @@ function AssignStoreModal({
                 value={values.storeName}
                 onChange={(event) => updateField('storeName', event.target.value)}
                 placeholder="e.g. Downtown Ice Cream Co."
-                autoFocus
+                autoFocus={shouldAutoFocus()}
               />
             </FormField>
 

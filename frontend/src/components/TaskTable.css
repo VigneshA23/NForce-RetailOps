@@ -114,25 +114,22 @@
   }
 
   .task-mobile-card__store-pill {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    min-height: 44px;
-    padding: 8px 12px;
+    align-self: flex-start;
+    gap: 6px;
+    max-width: 100%;
+    padding: 6px 12px;
     border: 1px solid color-mix(in srgb, var(--color-badge-icon-info-fg) 20%, transparent);
-    border-radius: 14px;
+    border-radius: 999px;
     background: var(--color-badge-icon-info-bg);
     color: var(--color-badge-icon-info-fg);
-    font-size: 14px;
-    font-weight: 500;
+    font-size: 13px;
+    font-weight: 600;
   }
 
   .task-mobile-card__store-pill svg {
     flex-shrink: 0;
-    box-sizing: content-box;
-    padding: 6px;
-    border-radius: 9px;
-    background: color-mix(in srgb, var(--color-badge-icon-info-fg) 10%, transparent);
   }
 
   .task-mobile-card__store-pill span {
@@ -140,6 +137,7 @@
     overflow-wrap: anywhere;
   }
 
+  /* Schedule / Completion: plain icon + value, no box and no caption. */
   .task-mobile-card__metrics {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -148,30 +146,15 @@
 
   .task-mobile-card__metric {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 8px;
     min-width: 0;
-    min-height: 60px;
-    padding: 8px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: 14px;
-    background: var(--color-bg-page);
+    color: var(--color-text-secondary);
   }
 
   .task-mobile-card__metric > svg {
     flex-shrink: 0;
-    box-sizing: content-box;
-    padding: 7px;
-    border-radius: 10px;
-    background: var(--color-badge-icon-slate-bg);
-    color: var(--color-badge-icon-slate-fg);
-  }
-
-  .task-mobile-card__metric > div {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
+    color: var(--color-text-muted);
   }
 
   .task-mobile-card__label {

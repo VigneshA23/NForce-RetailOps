@@ -464,7 +464,7 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
                         <div className="table-row-actions">
                           <button
                             type="button"
-                            className="stock-check-history__icon-btn"
+                            className="table-icon-btn"
                             aria-label={`Correct count for ${row.itemName}`}
                             title="Correct this count"
                             onClick={() => {
@@ -472,7 +472,7 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
                               setCorrectionTarget({ row, snapshot: defaultSnapshot });
                             }}
                           >
-                            <Pencil size={14} />
+                            <Pencil size={16} />
                           </button>
                         </div>
                       )}

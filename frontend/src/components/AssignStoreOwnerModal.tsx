@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { OwnerSummary } from '../types/owner';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import Modal from './Modal';
+import Select from './Select';
 import ButtonDots from './ButtonDots';
 
 interface AssignStoreOwnerModalProps {
@@ -34,6 +35,10 @@ function AssignStoreOwnerModal({
   }
 
   const hasOwners = availableOwners.length > 0;
+  const ownerOptions = availableOwners.map((owner) => ({
+    value: String(owner.ownerId),
+    label: `${owner.adminCode} — ${owner.ownerName}`,
+  }));
 
   return (
     <Modal
@@ -67,20 +72,14 @@ function AssignStoreOwnerModal({
             <label className="form-label" htmlFor="assign-owner-select">
               Select Owner
             </label>
-            <select
+            <Select
               id="assign-owner-select"
-              className="select"
+              options={ownerOptions}
               value={selectedOwnerId}
-              onChange={(e) => setSelectedOwnerId(e.target.value)}
-              required
-            >
-              <option value="">Choose an owner…</option>
-              {availableOwners.map((owner) => (
-                <option key={owner.ownerId} value={String(owner.ownerId)}>
-                  {owner.adminCode} — {owner.ownerName}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedOwnerId}
+              placeholder="Choose an owner…"
+              ariaLabel="Select owner"
+            />
           </div>
         )}
 

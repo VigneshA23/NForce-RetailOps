@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Tag } from 'lucide-react';
+import { shouldAutoFocus } from '../utils/autoFocus';
+import { Building2, Tag } from 'lucide-react';
 import type { InventoryCategoryFormValues, InventoryCategoryStoreOption } from '../types/inventoryCategory';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -96,13 +97,14 @@ function InventoryCategoryFormModal({
               value={values.name}
               onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
               placeholder="e.g. Dairy, Packaging"
-              autoFocus
+              autoFocus={shouldAutoFocus()}
             />
           </div>
         </FormField>
 
         <FormField label="Select Store" htmlFor="inventory-category-stores">
           <div className="supplier-form__input-wrap supplier-form__input-wrap--select">
+            <Building2 size={15} className="supplier-form__input-icon" aria-hidden="true" />
             <SearchableSelect
               id="inventory-category-stores"
               placeholder="Select store(s)"

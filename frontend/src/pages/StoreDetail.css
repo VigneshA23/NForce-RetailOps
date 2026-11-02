@@ -994,3 +994,30 @@
     rgba(255, 255, 255, 0.06) 0%
   );
 }
+
+/* Phones: the Outstanding / Completed & Flagged search boxes were taller than
+   the dropdowns beside them (the input's own min-height stacked on the box's
+   padding). One shared fixed height lines every control up. */
+@media (--mobile) {
+  .store-detail-outstanding__filter-bar .select,
+  .store-detail-outstanding__filter-bar .search-input--filter {
+    box-sizing: border-box;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .store-detail-outstanding__filter-bar .search-input--filter {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .store-detail-outstanding__filter-bar .search-input--filter__field {
+    min-height: 0;
+    height: 100%;
+    font-size: 11px;
+  }
+
+  .store-detail-outstanding__filter-bar .filter-bar__clear {
+    min-height: 34px;
+  }
+}

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import { Mail, User, UserPlus } from 'lucide-react';
 import { getNextStoreCode, getReassignableStores } from '../api/owners';
 import type { AddOwnerValues, OwnerStoreMode, ReassignableStore } from '../types/owner';
@@ -162,7 +163,7 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
                   className="input"
                   value={values.ownerName}
                   onChange={(event) => updateField('ownerName', event.target.value)}
-                  autoFocus
+                  autoFocus={shouldAutoFocus()}
                 />
               </div>
             </FormField>
