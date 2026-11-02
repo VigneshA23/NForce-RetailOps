@@ -239,7 +239,7 @@ function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
         <Select
           className="filter filter--narrow"
           options={[
-            { value: 'ALL', label: 'All Statuses' },
+            { value: 'ALL', label: 'All Status' },
             { value: 'ACTIVE', label: 'Active' },
             { value: 'INACTIVE', label: 'Inactive' },
           ]}

@@ -747,7 +747,7 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
               <Select
                 className="filter"
                 options={[
-                  { value: 'ALL', label: 'All statuses' },
+                  { value: 'ALL', label: 'All Status' },
                   { value: 'COMPLETE', label: 'Completed' },
                   { value: 'ISSUE', label: 'Issues' },
                 ]}

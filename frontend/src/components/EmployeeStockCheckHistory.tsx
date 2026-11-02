@@ -172,9 +172,6 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
       <div className="employee-stock-check-page__header">
         <div>
           <h1 className="employee-stock-check-page__title">Stock Check History</h1>
-          <p className="employee-stock-check-page__subtitle">
-            Audit records across dates. Select any daily audit session to inspect par variances and automated replenishment.
-          </p>
         </div>
         <div className="employee-stock-history__header-actions">
           <DateRangePicker value={dateRange} onChange={handleRangeChange} />

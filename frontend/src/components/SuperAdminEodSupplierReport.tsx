@@ -29,7 +29,7 @@ const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
 };
 
 const STATUS_FILTER_OPTIONS: { value: 'all' | EodReportStatus; label: string }[] = [
-  { value: 'all', label: 'All statuses' },
+  { value: 'all', label: 'All Status' },
   ...(Object.keys(STATUS_META) as EodReportStatus[]).map((value) => ({ value, label: STATUS_META[value].label })),
 ];
 

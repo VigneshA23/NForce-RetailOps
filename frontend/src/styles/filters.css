@@ -15,7 +15,7 @@
   margin-bottom: var(--space-md);
 }
 
-/* min-width keeps a short label like "All Statuses" readable once the
+/* min-width keeps a short label like "All Status" readable once the
    percentage basis gets small (tablet with the sidebar open); the bar wraps
    onto a second line instead of squeezing the control. */
 .filter {
@@ -100,6 +100,7 @@
   }
 
   .filter-bar.filter-bar--row-pair .select,
+  .filter-bar.filter-bar--row-pair .multi-select__trigger,
   .filter-bar.filter-bar--row-pair .search-input--filter {
     box-sizing: border-box;
     height: 34px;
@@ -114,6 +115,27 @@
   .filter-bar.filter-bar--row-pair .search-input--filter__field {
     min-height: 0;
     height: 100%;
+  }
+
+  /* Custom multi-select / single-select triggers (e.g. Employee Checklist):
+     let the label truncate instead of pushing the field past its column, which
+     made neighbouring borders overlap. */
+  .filter-bar.filter-bar--row-pair .multi-select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .filter-bar.filter-bar--row-pair .multi-select__trigger {
+    padding: 0 10px;
+    font-size: 13px;
+    overflow: hidden;
+  }
+
+  .filter-bar.filter-bar--row-pair .multi-select__trigger > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .filter-bar.filter-bar--row-pair > .filter-bar__clear {
