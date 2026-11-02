@@ -578,26 +578,6 @@
   color: #4338ca;
 }
 
-/* Calmer controls on Inventory (every sub-tab, both roles): an "off" toggle
-   is a neutral grey rather than the app-wide red, so green alone signals
-   "on" and inactive no longer reads as an error; delete icons sit grey and
-   only turn red on hover (the buttons' own red hover), when a click is
-   imminent. */
-.store-inventory-page .toggle:not(.toggle--on) {
-  background: #cbd5e1;
-  border-color: #cbd5e1;
-}
-
-[data-theme='dark'] .store-inventory-page .toggle:not(.toggle--on) {
-  background: #3f3f46;
-  border-color: #3f3f46;
-}
-
-.store-inventory-page :is(.table-icon-btn--danger, .store-inventory-card__icon-btn--danger):not(:hover):not(:focus-visible) {
-  /* Same grey as the pencil (edit) icon beside it. */
-  color: var(--color-text-secondary);
-}
-
 /* Suppliers and Categories sub-tab cards (both roles): Sky Blue count card
    and Pistachio Green Active, reusing the Inventory card rules above via their colour
    variables. */

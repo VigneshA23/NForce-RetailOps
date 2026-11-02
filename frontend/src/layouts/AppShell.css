@@ -51,7 +51,12 @@
    sticky bars that repaint --page-bg-sky to hide content scrolling beneath
    them show exactly the slice behind them, with no visible seam. Dark mode
    gets its own night-sky palette below rather than the light values dimmed,
-   since a literal dim of pale blues reads muddy against the dark tokens. */
+   since a literal dim of pale blues reads muddy against the dark tokens.
+
+   The wave layer is never narrower than the 1440px it was drawn for: on
+   tablets and phones it is cropped at the sides (centred) instead of being
+   squeezed into the narrow width, which turned the long swells into steep,
+   bumpy hills. */
 :root {
   /* Sky glows + base, no waves: what sticky bars use, so they don't repaint
      a strip of the waves across the top of the page. */
@@ -61,7 +66,7 @@
     radial-gradient(45% 60% at 0% 0%, #e3effc 0%, rgba(227, 239, 252, 0) 70%) fixed,
     linear-gradient(180deg, #f3f8fe 0%, #e8f2fd 100%) fixed;
   --page-bg:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 560' preserveAspectRatio='none'%3E%3Cpath d='M0 330 C 260 250 470 420 760 340 S 1220 210 1440 290 L1440 560 L0 560Z' fill='%23d6e8fb' fill-opacity='0.45'/%3E%3Cpath d='M0 420 C 300 340 560 500 860 420 S 1260 330 1440 400 L1440 560 L0 560Z' fill='%23c7dff8' fill-opacity='0.5'/%3E%3Cpath d='M0 490 C 340 440 620 560 940 500 S 1300 450 1440 480 L1440 560 L0 560Z' fill='%23b9d6f5' fill-opacity='0.55'/%3E%3C/svg%3E") left bottom / 100% 62% no-repeat fixed,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 560' preserveAspectRatio='none'%3E%3Cpath d='M0 330 C 260 250 470 420 760 340 S 1220 210 1440 290 L1440 560 L0 560Z' fill='%23d6e8fb' fill-opacity='0.45'/%3E%3Cpath d='M0 420 C 300 340 560 500 860 420 S 1260 330 1440 400 L1440 560 L0 560Z' fill='%23c7dff8' fill-opacity='0.5'/%3E%3Cpath d='M0 490 C 340 440 620 560 940 500 S 1300 450 1440 480 L1440 560 L0 560Z' fill='%23b9d6f5' fill-opacity='0.55'/%3E%3C/svg%3E") center bottom / max(100%, 1440px) 62% no-repeat fixed,
     var(--page-bg-sky);
 }
 
@@ -72,7 +77,7 @@
     radial-gradient(45% 60% at 0% 0%, #17213a 0%, rgba(23, 33, 58, 0) 70%) fixed,
     linear-gradient(180deg, #0e1526 0%, #0a0f1c 100%) fixed;
   --page-bg:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 560' preserveAspectRatio='none'%3E%3Cpath d='M0 330 C 260 250 470 420 760 340 S 1220 210 1440 290 L1440 560 L0 560Z' fill='%23233655' fill-opacity='0.5'/%3E%3Cpath d='M0 420 C 300 340 560 500 860 420 S 1260 330 1440 400 L1440 560 L0 560Z' fill='%231b2a47' fill-opacity='0.55'/%3E%3Cpath d='M0 490 C 340 440 620 560 940 500 S 1300 450 1440 480 L1440 560 L0 560Z' fill='%2315213a' fill-opacity='0.6'/%3E%3C/svg%3E") left bottom / 100% 62% no-repeat fixed,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 560' preserveAspectRatio='none'%3E%3Cpath d='M0 330 C 260 250 470 420 760 340 S 1220 210 1440 290 L1440 560 L0 560Z' fill='%23233655' fill-opacity='0.5'/%3E%3Cpath d='M0 420 C 300 340 560 500 860 420 S 1260 330 1440 400 L1440 560 L0 560Z' fill='%231b2a47' fill-opacity='0.55'/%3E%3Cpath d='M0 490 C 340 440 620 560 940 500 S 1300 450 1440 480 L1440 560 L0 560Z' fill='%2315213a' fill-opacity='0.6'/%3E%3C/svg%3E") center bottom / max(100%, 1440px) 62% no-repeat fixed,
     var(--page-bg-sky);
 }
 
