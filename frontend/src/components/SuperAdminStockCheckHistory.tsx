@@ -10,6 +10,7 @@ import FilterClearButton from './FilterClearButton';
 import ItemIcon from './ItemIcon';
 import UserAvatar from './UserAvatar';
 import ButtonDots from './ButtonDots';
+import SpecularButton from './SpecularButton';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { getAllStores } from '../api/superAdminStores';
 import { getSuperAdminStockCheckHistory, correctSuperAdminStockCheck } from '../api/superAdminOperations';
@@ -281,17 +282,26 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
         <div className="stock-check-history__header-actions">
           <DateRangePicker value={dateRange} onChange={handleRangeChange} />
           <div className="stock-check-history__export" ref={exportMenuRef}>
-            <button
-              type="button"
-              className="btn btn--danger"
+            <SpecularButton
+              size="sm"
+              radius={10}
+              tint="#14141a"
+              tintOpacity={0.85}
+              textColor="#f5f5f5"
+              lineColor="#ffffff"
+              baseColor="#525252"
+              followMouse
+              proximity={180}
               disabled={visibleItems.length === 0}
               title={visibleItems.length === 0 ? 'No records to export' : undefined}
               onClick={() => setIsExportMenuOpen((open) => !open)}
               aria-expanded={isExportMenuOpen}
               aria-haspopup="menu"
             >
-              <Download size={14} /> Export <ChevronDown size={13} />
-            </button>
+              <span className="stock-check-history__export-trigger-label">
+                <Download size={14} /> Export <ChevronDown size={13} />
+              </span>
+            </SpecularButton>
             {isExportMenuOpen && (
               <div className="stock-check-history__export-menu" role="menu">
                 <button

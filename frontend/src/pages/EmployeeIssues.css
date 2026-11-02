@@ -83,10 +83,15 @@
   justify-content: flex-end;
 }
 
+.emp-issues-page__raise-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 @media (--mobile) {
-  .emp-issues-page__actions .btn {
+  .emp-issues-page__actions .specular-button {
     width: 100%;
-    justify-content: center;
   }
 }
 

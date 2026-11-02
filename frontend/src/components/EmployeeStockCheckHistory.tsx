@@ -7,6 +7,7 @@ import SearchInput from './SearchInput';
 import ItemIcon from './ItemIcon';
 import UserAvatar from './UserAvatar';
 import ButtonDots from './ButtonDots';
+import SpecularButton from './SpecularButton';
 import { getEmployeeStockCheckHistory } from '../api/stockChecks';
 import type { StockCheckResponse, StockCheckStatusCounts } from '../types/stockCheck';
 import {
@@ -176,18 +177,28 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
         <div className="employee-stock-history__header-actions">
           <DateRangePicker value={dateRange} onChange={handleRangeChange} />
           <div ref={exportMenuRef} className="employee-stock-history__export">
-            <button
-              type="button"
-              className="btn btn--danger employee-stock-history__export-trigger"
+            <SpecularButton
+              size="sm"
+              radius={10}
+              tint="#14141a"
+              tintOpacity={0.85}
+              textColor="#f5f5f5"
+              lineColor="#ffffff"
+              baseColor="#525252"
+              followMouse
+              proximity={180}
+              className="employee-stock-history__export-trigger"
               disabled={visibleRows.length === 0}
               onClick={() => setIsExportMenuOpen((v) => !v)}
               aria-expanded={isExportMenuOpen}
               aria-haspopup="menu"
             >
-              <Download size={16} />
-              Export
-              <ChevronDown size={13} />
-            </button>
+              <span className="employee-stock-history__export-trigger-label">
+                <Download size={16} />
+                Export
+                <ChevronDown size={13} />
+              </span>
+            </SpecularButton>
 
             {isExportMenuOpen && (
               <div className="employee-stock-history__export-menu" role="menu">

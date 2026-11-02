@@ -3,12 +3,11 @@
   display: inline-flex;
 }
 
-.export-menu__trigger {
+.export-menu__trigger-label {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 13px;
-  padding: 6px 10px;
   white-space: nowrap;
 }
 
