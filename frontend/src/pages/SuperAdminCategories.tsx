@@ -191,11 +191,11 @@ function SuperAdminCategories({ onNavigateToTasks }: SuperAdminCategoriesProps) 
         <SpecularButton
           size="sm"
           radius={999}
-          tint="var(--color-badge-solid-bg)"
+          tint="#14141a"
           tintOpacity={1}
-          textColor="var(--color-badge-solid-text)"
-          lineColor="#e11d33"
-          baseColor="#e4e4e7"
+          textColor="#f5f5f5"
+          lineColor="#ffffff"
+          baseColor="#525252"
           followMouse
           proximity={180}
           onClick={() => {
