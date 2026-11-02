@@ -7,15 +7,18 @@
   gap: var(--space-md);
 }
 
-/* Fewer than 4 cards: keep cards at their normal width and a fixed 100px
-   between them, rather than letting the columns stretch the cards apart.
-   Phones keep the compact grid above. */
+/* Tablet and desktop: cards fill their grid column (see .store-inventory-card
+   below), so the space between cards is always the 16px grid gap and no
+   column is left wider than its card.
+
+   With only a few cards (2-5) the 1fr columns used to stretch far past a
+   card's natural width. Columns here are at least 310px instead, so each row
+   holds as many cards as fit at that width and they stretch only to absorb
+   the leftover space -- any empty space left on the right is at least a full
+   column wide, never an odd sliver. Phones keep the compact grid below. */
 @media (--tablet-up) {
   .store-inventory-card-grid--few {
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 280px));
-    justify-content: start;
-    column-gap: 100px;
-    row-gap: var(--space-md);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr));
   }
 }
 
@@ -39,7 +42,6 @@
   flex-direction: column;
   gap: 8px;
   width: 100%;
-  max-width: 320px;
   min-width: 0;
   height: 100%;
   min-height: 0;
@@ -291,4 +293,28 @@
   font-weight: 600;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+/* Tablet and desktop: card image is 140 x 140 (phones keep the 120px cap above). */
+@media (--tablet-up) {
+  .store-inventory-card__image .item-icon--xl {
+    width: min(100%, 140px);
+  }
+}
+
+/* Tablet and desktop: cards sized around the larger 140px image -- a slightly wider
+   minimum column and more padding so the 140px image has comfortable room. */
+@media (--tablet-up) {
+  .store-inventory-card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  }
+
+  .store-inventory-card-grid--few {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr));
+  }
+
+  .store-inventory-card {
+    padding: 16px;
+    gap: 10px;
+  }
 }
