@@ -16,6 +16,9 @@
 .super-admin-orders .order-dashboard-page__subtabs {
   padding-top: 0;
   padding-bottom: var(--space-sm);
+  /* The page's flex gap already separates the tab bar from the content below;
+     the shared margin-bottom doubled it into a large empty band. */
+  margin-bottom: calc(-1 * var(--space-sm));
 }
 
 /* Non-heading section label for the selected store's name, since this page

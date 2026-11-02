@@ -373,7 +373,7 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
         </button>
       </div>
 
-      <div className={`table-card stock-check-history-table-card${storeName ? ' stock-check-history-table-card--with-store' : ''}`}>
+      <div className={`table-card stock-check-history-table-card stock-check-history-table-card--curved${storeName ? ' stock-check-history-table-card--with-store' : ''}`}>
         <div className="table-scroll">
           <table className="data-table">
             <thead>
@@ -489,16 +489,17 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
           </div>
         )}
         {isLoading && <div className="table-card__empty">Loading...</div>}
+        <div className="stock-check-history__card-footer">
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            totalItems={totalItems}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+            itemLabel="audit records"
+          />
+        </div>
       </div>
-
-      <Pagination
-        page={page}
-        pageCount={pageCount}
-        totalItems={totalItems}
-        pageSize={PAGE_SIZE}
-        onPageChange={setPage}
-        itemLabel="audit records"
-      />
 
       <CorrectStockCheckModal
         isOpen={correctionTarget !== null}

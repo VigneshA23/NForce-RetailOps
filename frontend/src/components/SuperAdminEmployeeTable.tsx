@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Eye, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
 import type { SuperAdminEmployee } from '../types/superAdminEmployee';
 import UserAvatar from './UserAvatar';
@@ -14,6 +15,8 @@ interface SuperAdminEmployeeTableProps {
   onEdit: (employee: SuperAdminEmployee) => void;
   onToggleStatus: (employee: SuperAdminEmployee) => void;
   onDelete: (employee: SuperAdminEmployee) => void;
+  /** Rendered inside the card, below the rows (the page's pagination). */
+  footer?: ReactNode;
 }
 
 function SuperAdminEmployeeTable({
@@ -24,9 +27,10 @@ function SuperAdminEmployeeTable({
   onEdit,
   onToggleStatus,
   onDelete,
+  footer,
 }: SuperAdminEmployeeTableProps) {
   return (
-    <div className="table-card employee-cards">
+    <div className="table-card employee-table__card employee-cards">
       <div className="table-scroll">
         <table className="data-table">
           <thead>
@@ -143,6 +147,7 @@ function SuperAdminEmployeeTable({
       </div>
       {!isLoading && employees.length === 0 && <div className="table-card__empty">{emptyMessage}</div>}
       {isLoading && <LoadingSkeleton label="Loading employees..." variant="table" />}
+      {footer && <div className="employee-table__footer">{footer}</div>}
     </div>
   );
 }

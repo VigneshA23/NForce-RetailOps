@@ -164,7 +164,7 @@ function SupplierPurchaseReport({ storeName }: SupplierPurchaseReportProps) {
   if (detailSupplier !== null) {
     return (
       <div className="supplier-purchase-report">
-        <div className="supplier-purchase-report__toolbar">
+        <div className="supplier-purchase-report__toolbar supplier-purchase-report__toolbar--between">
           <button type="button" className="btn btn--secondary" onClick={() => setDetailSupplier(null)}>
             <ArrowLeft size={14} /> Back to Summary
           </button>
@@ -183,14 +183,19 @@ function SupplierPurchaseReport({ storeName }: SupplierPurchaseReportProps) {
           <StatCard icon={PackageCheck} label="Received" value={detailReceived} tone="success" />
         </div>
 
-        <OrderHistoryTable rows={detailRows} isLoading={isDetailLoading} />
-        <Pagination
-          page={detailPage}
-          pageCount={detailPageCount}
-          totalItems={detailTotal}
-          pageSize={DETAIL_PAGE_SIZE}
-          onPageChange={setDetailPage}
-          itemLabel="records"
+        <OrderHistoryTable
+          rows={detailRows}
+          isLoading={isDetailLoading}
+          footer={
+            <Pagination
+              page={detailPage}
+              pageCount={detailPageCount}
+              totalItems={detailTotal}
+              pageSize={DETAIL_PAGE_SIZE}
+              onPageChange={setDetailPage}
+              itemLabel="records"
+            />
+          }
         />
       </div>
     );
@@ -199,7 +204,7 @@ function SupplierPurchaseReport({ storeName }: SupplierPurchaseReportProps) {
   return (
     <div className="supplier-purchase-report">
 
-      <div className="supplier-purchase-report__toolbar">
+      <div className="supplier-purchase-report__toolbar supplier-purchase-report__toolbar--end">
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <div className="supplier-purchase-report__export" ref={exportMenuRef}>
           <button

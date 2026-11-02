@@ -6,6 +6,7 @@ import { MAX_RANGE_DAYS, daysAgo, formatDateLabel, todayDate, yesterday } from '
 import './DateRangePicker.css';
 
 const VIEWPORT_MARGIN = 12;
+const RIGHT_CONTENT_GUTTER = 48;
 
 export type DateRangePreset =
   | 'ALL_TIME' | 'TODAY' | 'YESTERDAY' | 'LAST_7_DAYS' | 'LAST_30_DAYS'
@@ -152,7 +153,10 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     // just right of the app's sidebar, a panel wider than the trigger would
     // extend back underneath the sidebar.
     let left = triggerRect.left;
-    if (left + panelRect.width > window.innerWidth - VIEWPORT_MARGIN) {
+    // Flip a little earlier than the bare viewport edge: a trigger near the
+    // page's right gutter (e.g. a right-aligned toolbar) would otherwise open
+    // its panel past the content area, over the page scrollbar/frame.
+    if (left + panelRect.width > window.innerWidth - RIGHT_CONTENT_GUTTER) {
       left = triggerRect.right - panelRect.width;
     }
     left = Math.min(left, window.innerWidth - panelRect.width - VIEWPORT_MARGIN);

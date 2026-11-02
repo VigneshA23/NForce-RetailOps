@@ -199,7 +199,7 @@ function SuperAdminSupplierPurchaseReport({ selectedStoreId }: SuperAdminSupplie
   if (detail !== null) {
     return (
       <div className="sa-supplier-purchase-report">
-        <div className="sa-supplier-purchase-report__toolbar">
+        <div className="sa-supplier-purchase-report__toolbar sa-supplier-purchase-report__toolbar--between">
           <button type="button" className="btn btn--secondary" onClick={() => setDetail(null)}>
             <ArrowLeft size={14} /> Back to Summary
           </button>
@@ -218,14 +218,19 @@ function SuperAdminSupplierPurchaseReport({ selectedStoreId }: SuperAdminSupplie
           <StatCard icon={PackageCheck} label="Received" value={detailReceived} tone="success" />
         </div>
 
-        <OrderHistoryTable rows={detailRows} isLoading={isDetailLoading} />
-        <Pagination
-          page={detailPage}
-          pageCount={detailPageCount}
-          totalItems={detailTotal}
-          pageSize={DETAIL_PAGE_SIZE}
-          onPageChange={setDetailPage}
-          itemLabel="records"
+        <OrderHistoryTable
+          rows={detailRows}
+          isLoading={isDetailLoading}
+          footer={
+            <Pagination
+              page={detailPage}
+              pageCount={detailPageCount}
+              totalItems={detailTotal}
+              pageSize={DETAIL_PAGE_SIZE}
+              onPageChange={setDetailPage}
+              itemLabel="records"
+            />
+          }
         />
       </div>
     );
@@ -234,7 +239,7 @@ function SuperAdminSupplierPurchaseReport({ selectedStoreId }: SuperAdminSupplie
   return (
     <div className="sa-supplier-purchase-report">
 
-      <div className="sa-supplier-purchase-report__toolbar">
+      <div className="sa-supplier-purchase-report__toolbar sa-supplier-purchase-report__toolbar--end">
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <div className="sa-supplier-purchase-report__export" ref={exportMenuRef}>
           <button

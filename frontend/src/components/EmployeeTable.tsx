@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Eye, MapPin, Pencil, Trash2 } from 'lucide-react';
 import type { Employee } from '../types/employee';
 import UserAvatar from './UserAvatar';
@@ -16,6 +17,8 @@ interface EmployeeTableProps {
   onEdit: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
   onToggleStatus: (employee: Employee) => void;
+  /** Rendered inside the card, below the rows (the page's pagination). */
+  footer?: ReactNode;
 }
 
 function EmployeeTable({
@@ -26,6 +29,7 @@ function EmployeeTable({
   onEdit,
   onDelete,
   onToggleStatus,
+  footer,
 }: EmployeeTableProps) {
   return (
     <div className="table-card employee-table__card employee-cards">
@@ -138,6 +142,7 @@ function EmployeeTable({
         <div className="table-card__empty">{emptyMessage}</div>
       )}
       {isLoading && <LoadingSkeleton label="Loading employees..." variant="table" />}
+      {footer && <div className="employee-table__footer">{footer}</div>}
     </div>
   );
 }

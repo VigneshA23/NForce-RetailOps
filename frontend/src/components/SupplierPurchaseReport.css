@@ -6,6 +6,16 @@
   margin-bottom: var(--space-md);
 }
 
+/* Summary view: date range + Export at the right edge. Detail view: "Back to
+   Summary" left, date range right. */
+.supplier-purchase-report__toolbar--end {
+  justify-content: flex-end;
+}
+
+.supplier-purchase-report__toolbar--between {
+  justify-content: space-between;
+}
+
 .supplier-purchase-report__export {
   position: relative;
 }

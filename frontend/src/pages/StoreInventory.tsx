@@ -503,7 +503,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
             </div>
 
             {!isMobile && (
-            <div className="table-card supplier-table-card">
+            <div className="table-card supplier-table-card supplier-table-card--curved">
               <div className="table-scroll">
                 <table className="data-table">
                   {/* Fixed layout (see StoreInventory.css) so the Supplier
@@ -554,6 +554,18 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                   {suppliers.length === 0 ? 'No suppliers yet.' : 'No suppliers match these filters.'}
                 </div>
               )}
+              {!isLoading && (
+                <div className="supplier-table-card__footer">
+                  <Pagination
+                    page={currentSupplierPage}
+                    pageCount={supplierPageCount}
+                    totalItems={visibleSuppliers.length}
+                    pageSize={SUPPLIER_PAGE_SIZE}
+                    onPageChange={setSupplierPage}
+                    itemLabel="suppliers"
+                  />
+                </div>
+              )}
             </div>
             )}
 
@@ -599,7 +611,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               </div>
             )}
 
-            {!isLoading && (
+            {isMobile && !isLoading && (
               <Pagination
                 page={currentSupplierPage}
                 pageCount={supplierPageCount}

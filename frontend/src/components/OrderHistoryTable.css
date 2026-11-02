@@ -131,3 +131,24 @@
 .order-history-table__card-timeline-value {
   text-align: right;
 }
+
+/* Curved outer corners, matching the Categories table. The pagination footer
+   lives inside the card (desktop). */
+.order-history-table__card {
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.order-history-table__card .data-table thead th:first-child {
+  border-top-left-radius: 16px;
+}
+
+.order-history-table__card .data-table thead th:last-child {
+  border-top-right-radius: 16px;
+}
+
+.order-history-table__footer {
+  border-top: 1px solid var(--color-border);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}

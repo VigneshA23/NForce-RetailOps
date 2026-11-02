@@ -386,7 +386,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
         </button>
       </div>
 
-      <div className="table-card stock-check-history-table-card stock-check-history-table-card--with-store">
+      <div className="table-card stock-check-history-table-card stock-check-history-table-card--with-store stock-check-history-table-card--curved">
         <div className="table-scroll">
           <table className="data-table">
             <thead>
@@ -492,16 +492,17 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
           </div>
         )}
         {isLoading && <div className="table-card__empty">Loading...</div>}
+        <div className="stock-check-history__card-footer">
+          <Pagination
+            page={page}
+            pageCount={pageCount}
+            totalItems={totalItems}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+            itemLabel="audit records"
+          />
+        </div>
       </div>
-
-      <Pagination
-        page={page}
-        pageCount={pageCount}
-        totalItems={totalItems}
-        pageSize={PAGE_SIZE}
-        onPageChange={setPage}
-        itemLabel="audit records"
-      />
 
       <CorrectStockCheckModal
         isOpen={correctionTarget !== null}

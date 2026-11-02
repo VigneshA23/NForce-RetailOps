@@ -370,13 +370,17 @@ function Tasks({
               setDeleteTarget(task);
             }}
             onToggleStatus={handleToggleStatus}
-          />
-          <Pagination
-            page={currentPage}
-            pageCount={pageCount}
-            totalItems={filteredTasks.length}
-            pageSize={PAGE_SIZE}
-            onPageChange={setPage}
+            footer={
+              !isLoading && filteredTasks.length > 0 ? (
+                <Pagination
+                  page={currentPage}
+                  pageCount={pageCount}
+                  totalItems={filteredTasks.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              ) : null
+            }
           />
         </>
       )}

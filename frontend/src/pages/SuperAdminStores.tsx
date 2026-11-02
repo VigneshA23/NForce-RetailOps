@@ -311,13 +311,18 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
               setDeleteError(null);
               setDeleteTarget(store);
             }}
-          />
-          <Pagination
-            page={currentPage}
-            pageCount={pageCount}
-            totalItems={filteredStores.length}
-            pageSize={PAGE_SIZE}
-            onPageChange={setPage}
+            footer={
+              !isLoading && filteredStores.length > 0 ? (
+                <Pagination
+                  page={currentPage}
+                  pageCount={pageCount}
+                  totalItems={filteredStores.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                  itemLabel="stores"
+                />
+              ) : null
+            }
           />
         </>
       )}

@@ -1,4 +1,4 @@
-import type { MouseEvent } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { CalendarDays, CircleCheck, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
 import type { AdminTask } from '../types/adminTask';
 import { completionTypeLabel, responseTypeBadgeClass, responseTypeLabel, scheduleSummary } from '../utils/adminTaskOptions';
@@ -19,6 +19,8 @@ interface TaskTableProps {
   onEdit?: (task: AdminTask) => void;
   onDelete: (task: AdminTask) => void;
   onToggleStatus: (task: AdminTask) => void;
+  /** Rendered inside the card, below the rows (the page's pagination). */
+  footer?: ReactNode;
 }
 
 function stopRowClick(event: MouseEvent) {
@@ -42,7 +44,7 @@ function taskStoresLabel(task: AdminTask): string {
   return task.stores.map((store) => store.name).join(', ');
 }
 
-function TaskTable({ tasks, isLoading = false, showStoreColumn = false, onRowClick, onEdit, onDelete, onToggleStatus }: TaskTableProps) {
+function TaskTable({ tasks, isLoading = false, showStoreColumn = false, onRowClick, onEdit, onDelete, onToggleStatus, footer }: TaskTableProps) {
   return (
     <div className="table-card task-table-card">
       <div className="table-scroll task-table__desktop">
@@ -243,6 +245,7 @@ function TaskTable({ tasks, isLoading = false, showStoreColumn = false, onRowCli
         <div className="table-card__empty">No tasks match your filters.</div>
       )}
       {isLoading && <LoadingSkeleton label="Loading tasks..." variant="table" />}
+      {footer && <div className="task-table__footer">{footer}</div>}
     </div>
   );
 }

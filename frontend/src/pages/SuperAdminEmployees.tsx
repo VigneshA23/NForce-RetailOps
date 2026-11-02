@@ -277,13 +277,17 @@ function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
               setDeleteError(null);
               setDeleteTarget(employee);
             }}
-          />
-          <Pagination
-            page={currentPage}
-            pageCount={pageCount}
-            totalItems={filteredEmployees.length}
-            pageSize={PAGE_SIZE}
-            onPageChange={setPage}
+            footer={
+              !isLoading && filteredEmployees.length > 0 ? (
+                <Pagination
+                  page={currentPage}
+                  pageCount={pageCount}
+                  totalItems={filteredEmployees.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              ) : null
+            }
           />
         </>
       )}

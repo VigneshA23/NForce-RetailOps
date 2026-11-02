@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Eye, Pencil, Store as StoreIcon, Trash2, User, UserRoundCog, Users } from 'lucide-react';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import UserAvatar from './UserAvatar';
@@ -14,6 +15,7 @@ interface SuperAdminStoreTableProps {
   onEdit: (store: SuperAdminStore) => void;
   onAssignOwner: (store: SuperAdminStore) => void;
   onDelete: (store: SuperAdminStore) => void;
+  footer?: ReactNode;
 }
 
 function SuperAdminStoreTable({
@@ -25,6 +27,7 @@ function SuperAdminStoreTable({
   onEdit,
   onAssignOwner,
   onDelete,
+  footer,
 }: SuperAdminStoreTableProps) {
   return (
     <div className="table-card super-admin-store-table">
@@ -236,6 +239,7 @@ function SuperAdminStoreTable({
 
       {!isLoading && stores.length === 0 && <div className="table-card__empty">{emptyMessage}</div>}
       {isLoading && <LoadingSkeleton label="Loading stores..." variant="table" />}
+      {footer && <div className="super-admin-store-table__footer">{footer}</div>}
     </div>
   );
 }

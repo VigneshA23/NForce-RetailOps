@@ -1,11 +1,14 @@
 import { Copy, Eye, Mail, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { OwnerSummary } from '../types/owner';
 import { nfToast } from '../utils/toast';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './OwnerTable.css';
 import LoadingSkeleton from './LoadingSkeleton';
+import Pagination from './Pagination';
+
+const PAGE_SIZE = 10;
 
 async function copyEmail(email: string) {
   try {
@@ -74,7 +77,16 @@ function OwnerTable({
   onAddStore,
   onView,
 }: OwnerTableProps) {
-  const grouped = useMemo(() => groupOwners(owners), [owners]);
+  const allGrouped = useMemo(() => groupOwners(owners), [owners]);
+  const [page, setPage] = useState(1);
+  // A new search/filter result set starts back on page 1.
+  useEffect(() => setPage(1), [allGrouped.length]);
+  const pageCount = Math.max(1, Math.ceil(allGrouped.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const grouped = useMemo(
+    () => allGrouped.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [allGrouped, currentPage],
+  );
 
   return (
     <div className="table-card owner-table-card">
@@ -304,6 +316,19 @@ function OwnerTable({
           );
         })}
       </div>
+
+      {!isLoading && allGrouped.length > 0 && (
+        <div className="owner-table__footer">
+          <Pagination
+            page={currentPage}
+            pageCount={pageCount}
+            totalItems={allGrouped.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setPage}
+            itemLabel="owners"
+          />
+        </div>
+      )}
 
       {!isLoading && grouped.length === 0 && (
         <div className="table-card__empty">{emptyMessage}</div>

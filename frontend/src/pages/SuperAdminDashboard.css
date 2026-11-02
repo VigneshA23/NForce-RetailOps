@@ -76,3 +76,12 @@
     padding: 0;
   }
 }
+
+/* Owners table: drop the outer padded card so the table card itself is the
+   single curved surface, matching the Categories table. */
+.card.owners-page__table-wrap {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 16px;
+}

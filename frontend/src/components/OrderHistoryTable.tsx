@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import CategoryIcon from './CategoryIcon';
 import { categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import type { OrderHistoryEntry } from '../types/orderList';
@@ -9,6 +10,8 @@ import './OrderHistoryTable.css';
 interface OrderHistoryTableProps {
   rows: OrderHistoryEntry[];
   isLoading: boolean;
+  /** Rendered inside the card below the rows on desktop (below the cards on mobile). */
+  footer?: ReactNode;
 }
 
 // Ordered-at/received-at are full timestamps (unlike the date-only strings
@@ -82,23 +85,26 @@ function renderCard(row: OrderHistoryEntry) {
 // instead of the generic data-table-to-list-of-label/value-pairs fallback
 // (styles/table.css), which reads fine for a 2-3 column table but not for
 // this one's 7 columns.
-function OrderHistoryTable({ rows, isLoading }: OrderHistoryTableProps) {
+function OrderHistoryTable({ rows, isLoading, footer }: OrderHistoryTableProps) {
   const isMobile = useIsMobile();
 
   if (isMobile) {
     return (
-      <div className="order-history-table__cards">
-        {rows.map(renderCard)}
-        {!isLoading && rows.length === 0 && (
-          <div className="table-card__empty">No ordered or received records found for the selected filters.</div>
-        )}
-        {isLoading && <div className="table-card__empty">Loading...</div>}
-      </div>
+      <>
+        <div className="order-history-table__cards">
+          {rows.map(renderCard)}
+          {!isLoading && rows.length === 0 && (
+            <div className="table-card__empty">No ordered or received records found for the selected filters.</div>
+          )}
+          {isLoading && <div className="table-card__empty">Loading...</div>}
+        </div>
+        {footer}
+      </>
     );
   }
 
   return (
-    <div className="table-card">
+    <div className="table-card order-history-table__card">
       <div className="table-scroll">
         <table className="data-table order-history-table">
           <thead>
@@ -156,6 +162,7 @@ function OrderHistoryTable({ rows, isLoading }: OrderHistoryTableProps) {
         <div className="table-card__empty">No ordered or received records found for the selected filters.</div>
       )}
       {isLoading && <div className="table-card__empty">Loading...</div>}
+      {footer && <div className="order-history-table__footer">{footer}</div>}
     </div>
   );
 }

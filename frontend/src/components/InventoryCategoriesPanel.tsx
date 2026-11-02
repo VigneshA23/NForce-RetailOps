@@ -227,7 +227,7 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
       </div>
 
       {!isMobile && (
-        <div className="table-card supplier-table-card">
+        <div className="table-card supplier-table-card supplier-table-card--curved">
           <div className="table-scroll">
             <table className="data-table">
               <colgroup>

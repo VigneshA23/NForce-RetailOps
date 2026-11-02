@@ -363,7 +363,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
       )}
 
       {!isMobile && (
-      <div className="table-card">
+      <div className="table-card inventory-counts__card--curved">
         <div className="table-scroll">
           <table className="data-table inventory-counts__table">
             <thead>
@@ -482,10 +482,15 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
           </div>
         )}
         {isLoading && <div className="inventory-counts__empty">Loading...</div>}
+        <div className="inventory-counts__card-footer">
+          <Pagination page={page} pageCount={pageCount} totalItems={totalItems} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="items" />
+        </div>
       </div>
       )}
 
-      <Pagination page={page} pageCount={pageCount} totalItems={totalItems} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="items" />
+      {isMobile && (
+        <Pagination page={page} pageCount={pageCount} totalItems={totalItems} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="items" />
+      )}
 
       <EditInventoryCountModal
         isOpen={editTarget !== null}

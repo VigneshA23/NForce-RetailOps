@@ -251,13 +251,17 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
               setStatusError(null);
               setStatusTarget(employee);
             }}
-          />
-          <Pagination
-            page={currentPage}
-            pageCount={pageCount}
-            totalItems={filteredEmployees.length}
-            pageSize={PAGE_SIZE}
-            onPageChange={setPage}
+            footer={
+              !isLoading && filteredEmployees.length > 0 ? (
+                <Pagination
+                  page={currentPage}
+                  pageCount={pageCount}
+                  totalItems={filteredEmployees.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              ) : null
+            }
           />
         </>
       )}

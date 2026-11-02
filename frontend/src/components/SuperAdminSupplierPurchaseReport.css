@@ -6,6 +6,16 @@
   margin-bottom: var(--space-md);
 }
 
+/* Summary view: the date range + Export controls sit at the right edge. */
+.sa-supplier-purchase-report__toolbar--end {
+  justify-content: flex-end;
+}
+
+/* Detail view: "Back to Summary" stays left, the date range goes right. */
+.sa-supplier-purchase-report__toolbar--between {
+  justify-content: space-between;
+}
+
 .sa-supplier-purchase-report__export {
   position: relative;
 }
