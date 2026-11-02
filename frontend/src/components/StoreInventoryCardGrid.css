@@ -124,7 +124,13 @@
   background: var(--color-badge-icon-primary-bg);
 }
 
+/* Grey like the pencil until hover/focus, matching .table-icon-btn--danger. */
 .store-inventory-card__icon-btn--danger {
+  color: var(--color-text-secondary);
+}
+
+.store-inventory-card__icon-btn--danger:hover,
+.store-inventory-card__icon-btn--danger:focus-visible {
   color: var(--color-badge-icon-primary-fg);
 }
 

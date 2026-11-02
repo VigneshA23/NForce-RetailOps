@@ -82,7 +82,9 @@
   --color-badge-icon-slate-fg: #5b6b82;
 
   --color-toggle-on-bg: #1a9c5c;
-  --color-toggle-off-bg: #e0384a;
+  /* Neutral grey, not red: green alone signals "on", and inactive is not an
+     error. */
+  --color-toggle-off-bg: #cbd5e1;
 
   /* Aliases used by components built after initial token set. */
   --color-surface: var(--color-bg-page);
@@ -140,7 +142,7 @@
   --color-badge-icon-slate-fg: #9aa8bc;
 
   --color-toggle-on-bg: #3ddc8b;
-  --color-toggle-off-bg: #ff5a6a;
+  --color-toggle-off-bg: #3f3f46;
 
   --color-surface-hovered: rgba(255, 255, 255, 0.06);
 }

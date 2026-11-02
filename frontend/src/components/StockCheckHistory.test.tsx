@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest';
 import StockCheckHistory from './StockCheckHistory';
 import * as storeInventoryApi from '../api/storeInventory';
 import * as stockCheckHistoryExportUtil from '../utils/stockCheckHistoryExport';
@@ -270,6 +270,15 @@ describe('StockCheckHistory', () => {
   });
 
   it('rejects an inverted custom range with an inline error and never calls the API for it', async () => {
+    // The calendar won't pick a day after today, so pin "today" to the 28th:
+    // otherwise the 25th below is disabled for most of every month. It stays
+    // in the real current month because DateRangePicker's default custom
+    // dates (which the calendar opens on) are computed when the module loads.
+    // Only Date is faked, so userEvent and waitFor still run on real timers.
+    const now = new Date();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(now.getFullYear(), now.getMonth(), 28, 12));
+    onTestFinished(() => { vi.useRealTimers(); });
     const user = userEvent.setup();
     mockGetStockCheckHistory.mockResolvedValue(page({}));
 
