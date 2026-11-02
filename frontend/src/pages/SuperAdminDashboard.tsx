@@ -545,11 +545,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
           ) : (
             <>
               <div className="owners-page__header">
-                <p className="owners-page__summary">
-                  {isLoading
-                    ? 'Loading owners...'
-                    : `${uniqueOwnerCount} owner${uniqueOwnerCount === 1 ? '' : 's'} · ${totalStoreCount ?? 0} store${(totalStoreCount ?? 0) === 1 ? '' : 's'}`}
-                </p>
                 <SpecularButton
                   size="sm"
                   radius={999}
