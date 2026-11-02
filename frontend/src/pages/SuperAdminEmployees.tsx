@@ -220,7 +220,7 @@ function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
         </SpecularButton>
       </div>
 
-      <div className="filter-bar">
+      <div className="filter-bar filter-bar--row-pair">
         <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search employees or owners" variant="filter" />
         </div>

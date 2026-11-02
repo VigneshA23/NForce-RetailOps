@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Info, Plus, UserPen, UserPlus } from 'lucide-react';
+import { Building2, Info, Plus, UserPen, UserPlus } from 'lucide-react';
 import type { EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
 import { validateEmployeeForm } from '../utils/employeeUtils';
 import EmployeeFormFields, {
@@ -10,6 +10,7 @@ import EmployeeFormFields, {
 import Modal from './Modal';
 import ButtonDots from './ButtonDots';
 import SearchableSelect from './SearchableSelect';
+import './SupplierFormModal.css';
 import './EmployeeFormModal.css';
 
 interface EmployeeFormModalProps {
@@ -126,26 +127,29 @@ function EmployeeFormModal({
           {availableStores && availableStores.length > 0 && (
             <div className="form-field--full employee-form__store-section">
               <span className="form-field__label">Assign to Stores <span className="form-field__required">*</span></span>
-              <SearchableSelect
-                id="employee-stores"
-                placeholder="Select store(s)"
-                multiple
-                options={availableStores.map((store) => ({ id: store.id, label: store.name }))}
-                selectedIds={selectedStoreIds}
-                // Employees don't have a persisted "applies to all stores" concept
-                // (unlike Tasks/Categories) -- this is a pure select-all/clear-all
-                // convenience, not a separate stored flag.
-                allOption={{
-                  label: 'All Stores',
-                  selected: availableStores.every((store) => selectedStoreIds.includes(store.id)),
-                  onToggle: () => setSelectedStoreIds((current) =>
-                    availableStores.every((store) => current.includes(store.id))
-                      ? []
-                      : availableStores.map((store) => store.id),
-                  ),
-                }}
-                onChange={setSelectedStoreIds}
-              />
+              <div className="supplier-form__input-wrap supplier-form__input-wrap--select">
+                <Building2 size={15} className="supplier-form__input-icon" aria-hidden="true" />
+                <SearchableSelect
+                  id="employee-stores"
+                  placeholder="Select store(s)"
+                  multiple
+                  options={availableStores.map((store) => ({ id: store.id, label: store.name }))}
+                  selectedIds={selectedStoreIds}
+                  // Employees don't have a persisted "applies to all stores" concept
+                  // (unlike Tasks/Categories) -- this is a pure select-all/clear-all
+                  // convenience, not a separate stored flag.
+                  allOption={{
+                    label: 'All Stores',
+                    selected: availableStores.every((store) => selectedStoreIds.includes(store.id)),
+                    onToggle: () => setSelectedStoreIds((current) =>
+                      availableStores.every((store) => current.includes(store.id))
+                        ? []
+                        : availableStores.map((store) => store.id),
+                    ),
+                  }}
+                  onChange={setSelectedStoreIds}
+                />
+              </div>
               {errors.storeIds && <p className="form-field__error">{errors.storeIds}</p>}
             </div>
           )}

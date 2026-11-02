@@ -8,6 +8,7 @@ import FormField from './FormField';
 import SearchableSelect from './SearchableSelect';
 import ButtonDots from './ButtonDots';
 import Toggle from './Toggle';
+import './SupplierFormModal.css';
 import './CategoryFormModal.css';
 
 interface CategoryFormModalProps {
@@ -123,8 +124,8 @@ function CategoryFormModal({
           </div>
         </FormField>
         <FormField label="Applies To *" htmlFor="category-stores">
-          <div className="category-form__input-wrap category-form__input-wrap--select">
-            <Building2 size={15} className="category-form__input-icon" aria-hidden="true" />
+          <div className="supplier-form__input-wrap supplier-form__input-wrap--select">
+            <Building2 size={15} className="supplier-form__input-icon" aria-hidden="true" />
             <SearchableSelect
               id="category-stores"
               placeholder="Select store(s)"

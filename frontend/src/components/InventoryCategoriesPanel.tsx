@@ -212,7 +212,7 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
         </SpecularButton>
       </div>
 
-      <div className="filter-bar store-inventory-page__supplier-filter-bar">
+      <div className="filter-bar filter-bar--row-pair store-inventory-page__supplier-filter-bar">
         <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search categories" variant="filter" />
         </div>
