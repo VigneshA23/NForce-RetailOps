@@ -200,9 +200,9 @@ function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
       <div className="super-admin-employees-page__header">
         <SpecularButton
           size="sm"
-          radius={999}
+          radius={10}
           tint="#14141a"
-          tintOpacity={1}
+          tintOpacity={0.85}
           textColor="#f5f5f5"
           lineColor="#ffffff"
           baseColor="#525252"
