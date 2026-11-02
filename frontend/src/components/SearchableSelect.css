@@ -148,9 +148,19 @@
   border-radius: 999px;
 }
 
+/* Pink, not the red accent, for the picked option: the checkbox/radio and a
+   soft tint across its row. */
 .searchable-select__box--checked {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
+  background: #c4267e;
+  border-color: #c4267e;
+}
+
+.searchable-select__option:has(.searchable-select__box--checked) {
+  background: rgba(196, 38, 126, 0.08);
+}
+
+.searchable-select__option:hover:not(:disabled):has(.searchable-select__box--checked) {
+  background: rgba(196, 38, 126, 0.12);
 }
 
 .searchable-select__divider {
