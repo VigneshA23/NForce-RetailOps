@@ -103,3 +103,18 @@
   border-color: rgba(239, 68, 68, 0.25);
   color: #f87171;
 }
+
+/* Phones: .stat-card-row and .filter-bar each carry their own bottom margin,
+   which stacked on the page's flex gap and doubled the space between the stat
+   cards, Raise Issue, the filters and the first card. Let the page gap alone
+   (tightened a little) do the spacing. */
+@media (--mobile) {
+  .emp-issues-page {
+    gap: 12px;
+  }
+
+  .emp-issues-page .stat-card-row,
+  .emp-issues-page .filter-bar {
+    margin-bottom: 0;
+  }
+}

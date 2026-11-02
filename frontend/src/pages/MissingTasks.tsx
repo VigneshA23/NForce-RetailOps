@@ -264,7 +264,7 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
 
         {!loading && !error && groups.length > 0 && (
           <>
-            <div className="filter-bar">
+            <div className="filter-bar filter-bar--row-pair">
               <div className="filter filter--search">
                 <SearchInput value={taskSearch} onChange={setTaskSearch} placeholder="Search tasks…" variant="filter" />
               </div>
