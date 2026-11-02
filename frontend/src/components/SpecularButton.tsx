@@ -18,6 +18,7 @@ export interface SpecularButtonProps {
   shineSize?: number;
   shineFade?: number;
   thickness?: number;
+  glow?: number;
   speed?: number;
   followMouse?: boolean;
   proximity?: number;
@@ -36,6 +37,7 @@ interface ShaderProps {
   shineSize: number;
   shineFade: number;
   thickness: number;
+  glow: number;
   speed: number;
   followMouse: boolean;
   proximity: number;
@@ -57,15 +59,16 @@ precision highp float;
 uniform vec2 uCenter;
 uniform vec2 uHalfSize;
 uniform float uRadius;
-uniform float uAngle;
 uniform float uPx;
+uniform float uSpot;
+uniform vec2 uEntry;
 uniform vec3 uLineColor;
 uniform vec3 uBaseColor;
 uniform float uIntensity;
 uniform float uShineSize;
 uniform float uShineFade;
 uniform float uThickness;
-uniform float uBaseWidth;
+uniform float uGlow;
 
 out vec4 fragColor;
 
@@ -76,35 +79,125 @@ float sdRoundedRect(vec2 p, vec2 b, float r) {
 
 float shapeSDF(vec2 p) { return sdRoundedRect(p, uHalfSize, uRadius); }
 
-float gaussianLine(float d, float sigma) {
-  float x = d / (sigma + 1e-6);
-  float k = mix(1.0, 1.6, smoothstep(0.0, 1.5, x));
-  return exp(-k * x * x);
+// Parameterizes the whole rounded-rect border as a single looped coordinate
+// in [0, 1), so the highlight can travel continuously around every edge and
+// corner instead of only brightening whichever side faces the light.
+float loopPosition(vec2 p, vec2 b, float r) {
+  vec2 inner = b - r;
+  float arc = 1.5707963 * r;
+  float quarter = inner.x + inner.y + arc;
+  vec2 a = abs(p);
+  vec2 q = a - inner;
+  float s = q.x > 0.0 && q.y > 0.0
+    ? inner.y + atan(q.y, q.x) * r
+    : (q.x > q.y ? min(a.y, inner.y) : inner.y + arc + inner.x - min(a.x, inner.x));
+  if (p.x < 0.0) s = p.y >= 0.0 ? 2.0 * quarter - s : 2.0 * quarter + s;
+  else if (p.y < 0.0) s = 4.0 * quarter - s;
+  return s / max(4.0 * quarter, 0.0001);
+}
+
+float lobe(float position, float center) {
+  float gap = abs(fract(position - center + 0.5) - 0.5);
+  return 1.0 - smoothstep(uShineSize, uShineSize + uShineFade, gap);
 }
 
 void main() {
   vec2 p = gl_FragCoord.xy - uCenter;
   float d = shapeSDF(p);
-  vec2 L = vec2(cos(uAngle), sin(uAngle));
+  float position = loopPosition(p, uHalfSize, uRadius);
+  float key = lobe(position, uSpot);
+  float back = lobe(position, uSpot + 0.5);
+  float streak = key + back * 0.45;
+  float width = max(uThickness * uPx * mix(1.0, max(key, back), 0.6), 0.35);
+  float band = smoothstep(-width - 0.6, -width + 0.6, d) * (1.0 - smoothstep(-0.6, 0.6, d));
+  float hair = smoothstep(-uPx - 0.6, -uPx + 0.6, d) * (1.0 - smoothstep(-0.6, 0.6, d));
+  float inside = 1.0 - smoothstep(-0.6, 0.6, d);
+  vec2 pool = (p - uEntry) / (uHalfSize.y * vec2(1.6, 1.1));
+  float glow = streak * 0.2 * exp(-abs(d + width * 0.5) / (5.0 * uPx)) + inside * 0.08 * exp(-dot(pool, pool));
+  float light = clamp((band * streak + glow * uGlow) * uIntensity, 0.0, 1.0);
 
-  // Dark base stroke hugging the edge for a sense of thickness
-  float base = (1.0 - smoothstep(0.0, uBaseWidth, abs(d))) * 0.45;
-
-  // Symmetric specular: the edges facing toward/away from the light both
-  // catch a streak. The angular window (size + fade) is measured with an
-  // elliptical normal so it varies continuously along straight edges.
-  vec2 nEll = normalize(p / (uHalfSize * uHalfSize) + 1e-6);
-  float phi = acos(clamp(abs(dot(nEll, L)), 0.0, 1.0));
-  float rim = 1.0 - smoothstep(uShineSize - uShineFade, uShineSize + uShineFade + 1e-4, phi);
-  float line = gaussianLine(d, uThickness);
-  float edgeClamp = 1.0 - smoothstep(0.5 * uPx, 3.0 * uPx, abs(d));
-  float hi = line * rim * edgeClamp * uIntensity;
-
-  vec3 col = uBaseColor * base + uLineColor * hi;
-  float a = clamp(base + hi, 0.0, 1.0);
-  fragColor = vec4(col, a);
+  // Premultiplied, and only non-zero near the rim/glow — the interior stays
+  // fully transparent away from the highlight instead of filling solid.
+  vec4 base = vec4(uBaseColor, 1.0) * hair * 0.6;
+  fragColor = vec4(uLineColor, 1.0) * light + base * (1.0 - light);
 }
 `;
+
+const wrap = (value: number) => value - Math.floor(value);
+
+const loopPosition = (x: number, y: number, halfX: number, halfY: number, r: number) => {
+  const innerX = halfX - r;
+  const innerY = halfY - r;
+  const arc = (Math.PI / 2) * r;
+  const quarter = innerX + innerY + arc;
+  const ax = Math.abs(x);
+  const ay = Math.abs(y);
+  const qx = ax - innerX;
+  const qy = ay - innerY;
+  let s: number;
+  if (qx > 0 && qy > 0) s = innerY + Math.atan2(qy, qx) * r;
+  else if (qx > qy) s = Math.min(ay, innerY);
+  else s = innerY + arc + innerX - Math.min(ax, innerX);
+  if (x < 0) s = y >= 0 ? 2 * quarter - s : 2 * quarter + s;
+  else if (y < 0) s = 4 * quarter - s;
+  return wrap(s / Math.max(4 * quarter, 0.0001));
+};
+
+const rimPoint = (position: number, halfX: number, halfY: number, r: number): [number, number] => {
+  const innerX = halfX - r;
+  const innerY = halfY - r;
+  const arc = (Math.PI / 2) * r;
+  const quarter = innerX + innerY + arc;
+  let s = wrap(position) * 4 * quarter;
+  let signX = 1;
+  let signY = 1;
+  if (s > 3 * quarter) {
+    s = 4 * quarter - s;
+    signY = -1;
+  } else if (s > 2 * quarter) {
+    s -= 2 * quarter;
+    signX = -1;
+    signY = -1;
+  } else if (s > quarter) {
+    s = 2 * quarter - s;
+    signX = -1;
+  }
+  let x = innerX - (s - innerY - arc);
+  let y = halfY;
+  if (s <= innerY) {
+    x = halfX;
+    y = s;
+  } else if (s <= innerY + arc) {
+    const angle = (s - innerY) / Math.max(r, 0.0001);
+    x = innerX + Math.cos(angle) * r;
+    y = innerY + Math.sin(angle) * r;
+  }
+  return [x * signX, y * signY];
+};
+
+const restSpot = (radius: number, w: number, h: number) => {
+  const r = Math.min(radius, w / 2, h / 2);
+  const inset = r * (1 - Math.SQRT1_2);
+  return loopPosition(inset - w / 2, h / 2 - inset, w / 2, h / 2, r);
+};
+
+const aimSpot = (radius: number, proximity: number, w: number, h: number, px: number, py: number) => {
+  const halfX = w / 2;
+  const halfY = h / 2;
+  const r = Math.min(radius, halfX, halfY);
+  const dx = Math.max(Math.abs(px) - halfX, 0);
+  const dy = Math.max(Math.abs(py) - halfY, 0);
+  const distance = Math.hypot(dx, dy);
+  const t = Math.max(0, 1 - distance / Math.max(proximity, 1));
+  const near = t * t * (3 - 2 * t);
+  const nearest = loopPosition(px, py, halfX, halfY, r);
+  if (distance > 0) return { spot: nearest, near };
+  const depth = Math.max(0, Math.min(1, Math.min(halfX - Math.abs(px), halfY - Math.abs(py)) / (halfY * 0.8)));
+  const sway = restSpot(radius, w, h) - (px / halfX) * 0.06 - (py / halfY) * 0.02;
+  const offset = sway - nearest - Math.round(sway - nearest);
+  const smoothDepth = depth * depth * (3 - 2 * depth);
+  return { spot: wrap(nearest + offset * smoothDepth), near };
+};
 
 const SpecularButton = ({
   children = 'Get Started',
@@ -120,6 +213,7 @@ const SpecularButton = ({
   shineSize = 10,
   shineFade = 40,
   thickness = 1,
+  glow = 1,
   speed = 0.35,
   followMouse = true,
   proximity = 250,
@@ -133,7 +227,7 @@ const SpecularButton = ({
   const fxRef = useRef<HTMLSpanElement>(null);
   const propsRef = useRef<ShaderProps>({} as ShaderProps);
 
-  propsRef.current = { radius, lineColor, baseColor, intensity, shineSize, shineFade, thickness, speed, followMouse, proximity, autoAnimate };
+  propsRef.current = { radius, lineColor, baseColor, intensity, shineSize, shineFade, thickness, glow, speed, followMouse, proximity, autoAnimate };
 
   useEffect(() => {
     const btn = btnRef.current;
@@ -169,16 +263,16 @@ const SpecularButton = ({
         uCenter: { value: [0, 0] },
         uHalfSize: { value: [1, 1] },
         uRadius: { value: 0 },
-        uAngle: { value: 2.4 },
         uPx: { value: dpr },
+        uSpot: { value: 0 },
+        uEntry: { value: [0, 0] },
         uLineColor: { value: [1, 1, 1] },
         uBaseColor: { value: [0.32, 0.32, 0.32] },
         uIntensity: { value: 1 },
-        uShineSize: { value: 0.17 },
-        uShineFade: { value: 0.7 },
+        uShineSize: { value: 0.03 },
+        uShineFade: { value: 0.11 },
         uThickness: { value: 1 },
-
-        uBaseWidth: { value: dpr }
+        uGlow: { value: 1 }
       }
     });
 
@@ -202,33 +296,22 @@ const SpecularButton = ({
     ro.observe(btn);
     resize();
 
-    // Light angle steers toward the pointer (anywhere on the page) and falls
-    // back to a slow sweep when the pointer hasn't moved yet.
-    let pointerAngle: number | null = null;
-    let proximityT = 0;
+    // The highlight's target position travels around the full rim (as a
+    // loop fraction) toward the pointer's nearest point on the border,
+    // and falls back to a slow sweep around the loop when idle.
+    let pointerX = 0;
+    let pointerY = 0;
+    let pointerKnown = false;
     const onPointerMove = (e: PointerEvent) => {
       const rect = btn.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dx = Math.max(rect.left - e.clientX, 0, e.clientX - rect.right);
-      const dy = Math.max(rect.top - e.clientY, 0, e.clientY - rect.bottom);
-      const dist = Math.hypot(dx, dy);
-      // Over the button itself the light settles on the diagonal (framing the
-      // corners) and gently sways with the cursor position within the button.
-      if (dist === 0) {
-        const nx = (e.clientX - cx) / (rect.width / 2);
-        const ny = (cy - e.clientY) / (rect.height / 2);
-        pointerAngle = Math.atan2(2 / rect.height, -2 / rect.width) + nx * 0.3 + ny * 0.15;
-      } else {
-        pointerAngle = Math.atan2(cy - e.clientY, e.clientX - cx);
-      }
-      const t = Math.max(0, 1 - dist / Math.max(propsRef.current.proximity, 1));
-      proximityT = t * t * (3 - 2 * t);
+      const scale = rect.width / sizeRef.w || 1;
+      pointerX = (e.clientX - rect.left - rect.width / 2) / scale;
+      pointerY = (rect.top + rect.height / 2 - e.clientY) / scale;
+      pointerKnown = true;
     };
     window.addEventListener('pointermove', onPointerMove);
 
-    let angle = 2.4;
-    let idleAngle = 2.4;
+    let spot = restSpot(propsRef.current.radius, sizeRef.w, sizeRef.h);
     let bright = 0;
     let last = performance.now();
     let raf = 0;
@@ -242,26 +325,45 @@ const SpecularButton = ({
       last = now;
       const p = propsRef.current;
 
-      idleAngle += p.speed * dt;
-      const steer = p.followMouse && pointerAngle != null && (!p.autoAnimate || proximityT > 0);
-      const target = steer ? (pointerAngle as number) : idleAngle;
-      const diff = ((target - angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-      angle += diff * (1 - Math.exp(-dt * 7));
+      const halfX = sizeRef.w / 2;
+      const halfY = sizeRef.h / 2;
+      const r = Math.min(p.radius, halfX, halfY);
+
+      const target =
+        p.followMouse && pointerKnown ? aimSpot(p.radius, p.proximity, sizeRef.w, sizeRef.h, pointerX, pointerY) : null;
+      const steering = !!target && target.near > 0;
+      const spinning = p.autoAnimate && !steering;
+
+      if (spinning) {
+        spot = wrap(spot + (p.speed / (Math.PI * 2)) * dt);
+      } else {
+        const aimed = steering ? (target as { spot: number }).spot : restSpot(p.radius, sizeRef.w, sizeRef.h);
+        let diff = aimed - spot;
+        diff -= Math.round(diff);
+        spot = wrap(spot + diff * (1 - Math.exp(-dt * 8)));
+      }
 
       // Shine fades in with pointer proximity unless autoAnimate keeps it on
-      const brightTarget = p.autoAnimate ? 1 : proximityT;
-      bright += (brightTarget - bright) * (1 - Math.exp(-dt * 8));
+      const brightTarget = p.autoAnimate ? 1 : steering ? (target as { near: number }).near : 0;
+      bright += (brightTarget - bright) * (1 - Math.exp(-dt * 7));
 
       lineC.set(p.lineColor);
       baseC.set(p.baseColor);
-      program.uniforms.uAngle.value = angle;
-      program.uniforms.uRadius.value = Math.min(p.radius, Math.min(sizeRef.w, sizeRef.h) / 2) * dpr;
+
+      const [rimX, rimY] = rimPoint(spot, halfX, halfY, r);
+      const rimDist = Math.hypot(rimX, rimY);
+      const pull = 1 - Math.min(0.35 * halfY, rimDist) / Math.max(rimDist, 0.0001);
+
+      program.uniforms.uRadius.value = r * dpr;
+      program.uniforms.uSpot.value = spot;
+      program.uniforms.uEntry.value = [rimX * pull * dpr, rimY * pull * dpr];
       program.uniforms.uLineColor.value = [lineC.r, lineC.g, lineC.b];
       program.uniforms.uBaseColor.value = [baseC.r, baseC.g, baseC.b];
       program.uniforms.uIntensity.value = p.intensity * bright;
-      program.uniforms.uShineSize.value = (p.shineSize * Math.PI) / 180;
-      program.uniforms.uShineFade.value = (p.shineFade * Math.PI) / 180;
+      program.uniforms.uShineSize.value = p.shineSize / 360 + 0.0001;
+      program.uniforms.uShineFade.value = p.shineFade / 360 + 0.0001;
       program.uniforms.uThickness.value = p.thickness * dpr;
+      program.uniforms.uGlow.value = p.glow;
       renderer.render({ scene: mesh });
     };
     raf = requestAnimationFrame(update);
