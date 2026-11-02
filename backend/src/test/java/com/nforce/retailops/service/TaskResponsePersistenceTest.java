@@ -1,6 +1,5 @@
 package com.nforce.retailops.service;
 
-import com.nforce.retailops.dto.CategoryChecklistResponse;
 import com.nforce.retailops.dto.TaskChecklistItemResponse;
 import com.nforce.retailops.dto.TaskRequest;
 import com.nforce.retailops.dto.TaskResponse;

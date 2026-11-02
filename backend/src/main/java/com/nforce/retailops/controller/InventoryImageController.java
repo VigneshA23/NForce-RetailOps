@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 // Inventory item display images: Unsplash search for the add/edit form's
@@ -47,15 +48,15 @@ public class InventoryImageController {
 
     // Image rows are immutable (a new pick gets a new id), so the browser
     // can cache each one indefinitely.
-    @SuppressWarnings("null")
     @GetMapping("/{id}")
     @PreAuthorize("isAuthenticated()")
     @Transactional(readOnly = true)
     public ResponseEntity<byte[]> image(@PathVariable Long id) {
         InventoryItemImage image = inventoryItemImageRepository.findById(id)
                 .orElseThrow(() -> new InventoryItemImageNotFoundException("Image not found"));
+        // content_type is NOT NULL in the schema (V78); requireNonNull documents that invariant.
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(image.getContentType()))
+                .contentType(MediaType.parseMediaType(Objects.requireNonNull(image.getContentType())))
                 .cacheControl(CacheControl.maxAge(365, TimeUnit.DAYS).cachePrivate().immutable())
                 .body(image.getData());
     }

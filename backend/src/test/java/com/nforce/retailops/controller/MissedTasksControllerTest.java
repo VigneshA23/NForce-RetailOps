@@ -25,7 +25,6 @@ import com.nforce.retailops.repository.TaskMakeupLinkRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
 import com.nforce.retailops.repository.UserRepository;
-import com.nforce.retailops.service.TaskMakeupLinkService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.Test;
@@ -74,8 +73,6 @@ class MissedTasksControllerTest {
     private TaskResponseEntryRepository taskResponseEntryRepository;
     @Autowired
     private TaskMakeupLinkRepository taskMakeupLinkRepository;
-    @Autowired
-    private TaskMakeupLinkService taskMakeupLinkService;
     @Autowired
     private PasswordEncoder passwordEncoder;
     @PersistenceContext

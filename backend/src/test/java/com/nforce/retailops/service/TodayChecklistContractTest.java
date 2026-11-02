@@ -8,7 +8,6 @@ import com.nforce.retailops.entity.CompletionType;
 import com.nforce.retailops.entity.ResponseType;
 import com.nforce.retailops.entity.ScheduleType;
 import com.nforce.retailops.entity.StoreOwner;
-import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.Task;
 import com.nforce.retailops.entity.TimeMode;
 import com.nforce.retailops.entity.User;

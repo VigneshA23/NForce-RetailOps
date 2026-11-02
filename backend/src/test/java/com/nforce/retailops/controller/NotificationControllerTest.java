@@ -234,7 +234,7 @@ class NotificationControllerTest {
         Role ownerRole = role("OWNER_ADMIN");
         Role empRole = role("EMPLOYEE");
         User ownerA = user("notif-owner-e@nforce.test", ownerRole);
-        User ownerB = user("notif-owner-f@nforce.test", ownerRole);
+        user("notif-owner-f@nforce.test", ownerRole);
         User employee = user("notif-emp-e@nforce.test", empRole);
         Store store = store();
         linkOwner(ownerA, store);
@@ -266,7 +266,7 @@ class NotificationControllerTest {
     @Transactional
     void employeeCanAccessTheirNotifications() throws Exception {
         Role empRole = role("EMPLOYEE");
-        User employee = user("notif-emp-only@nforce.test", empRole);
+        user("notif-emp-only@nforce.test", empRole);
 
         String token = login("notif-emp-only@nforce.test");
         mockMvc.perform(get("/api/notifications")
@@ -317,7 +317,7 @@ class NotificationControllerTest {
         Role ownerRole = role("OWNER_ADMIN");
         Role empRole = role("EMPLOYEE");
         User ownerA = user("notif-owner-del-b@nforce.test", ownerRole);
-        User ownerB = user("notif-owner-del-c@nforce.test", ownerRole);
+        user("notif-owner-del-c@nforce.test", ownerRole);
         User employee = user("notif-emp-del-b@nforce.test", empRole);
         Store store = store();
         linkOwner(ownerA, store);

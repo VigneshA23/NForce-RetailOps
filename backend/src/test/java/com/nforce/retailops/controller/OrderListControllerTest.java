@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.Map;
+import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -341,7 +342,8 @@ class OrderListControllerTest {
             }
         }
         assertThat(candlesNode).isNotNull();
-        assertThat(candlesNode.get("active").asBoolean()).isFalse();
+        JsonNode candles = Objects.requireNonNull(candlesNode);
+        assertThat(candles.get("active").asBoolean()).isFalse();
     }
 
     @Test
@@ -510,9 +512,10 @@ class OrderListControllerTest {
             if (row.get("status").asText().equals("RECEIVED")) receivedRow = row;
         }
         assertThat(receivedRow).isNotNull();
-        assertThat(receivedRow.get("orderedByName").asText()).isEqualTo("Owner History A");
-        assertThat(receivedRow.get("receivedByName").asText()).isEqualTo("Owner History A");
-        assertThat(receivedRow.get("receivedAt").isNull()).isFalse();
+        JsonNode received = Objects.requireNonNull(receivedRow);
+        assertThat(received.get("orderedByName").asText()).isEqualTo("Owner History A");
+        assertThat(received.get("receivedByName").asText()).isEqualTo("Owner History A");
+        assertThat(received.get("receivedAt").isNull()).isFalse();
     }
 
     @Test

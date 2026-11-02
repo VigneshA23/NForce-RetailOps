@@ -269,7 +269,7 @@ class SuperAdminOperationsControllerTest {
     @Test
     @Transactional
     void operationsOverviewRequiresSuperAdminRole() throws Exception {
-        User owner = ownerUser("sa-ops-owner-a@nforce.test");
+        ownerUser("sa-ops-owner-a@nforce.test");
         String ownerToken = login("sa-ops-owner-a@nforce.test");
 
         mockMvc.perform(get("/api/super-admin/operations-overview")
@@ -291,7 +291,7 @@ class SuperAdminOperationsControllerTest {
     @Test
     @Transactional
     void operationsOverviewReturnsSummaryForEachStore() throws Exception {
-        SuperAdmin sa = superAdmin("sa-ops-admin-c@nforce.test");
+        superAdmin("sa-ops-admin-c@nforce.test");
         User owner = ownerUser("sa-ops-owner-c@nforce.test");
         Store storeA = store("Store Alpha", 9200L);
         Store storeB = store("Store Beta", 9201L);

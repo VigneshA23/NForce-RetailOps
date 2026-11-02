@@ -59,7 +59,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
@@ -310,7 +309,7 @@ class StockCheckServiceTest {
     void endOfDayAddsUsageSinceTheMidDayReportToTheBankedUsage() {
         milk.setMinWeekday(bd(40));
         milk.setMinWeekend(bd(40));
-        StockCheck check = checkWithStartOfDay(50, 2);
+        checkWithStartOfDay(50, 2);
         stockCheckService.reportAdHocShortage(EMPLOYEE_ID, STORE_ID, new AdHocShortageRequest(ITEM_ID, bd(20), null, null));
 
         // 15 of the 20 were sold after the report, none delivered.

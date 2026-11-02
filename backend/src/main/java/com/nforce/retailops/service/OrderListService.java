@@ -42,6 +42,7 @@ import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 // Owner/Admin's Order Dashboard, plus the shared "raise or bump a shortage"
@@ -188,7 +189,7 @@ public class OrderListService {
         User owner = movingToOrdered || receivedNow ? userRepository.getReferenceById(ownerId) : null;
 
         if (movingToOrdered) {
-            stampOrderedAt(entry, currentStatus, targetStatus, owner.getFullName());
+            stampOrderedAt(entry, currentStatus, targetStatus, Objects.requireNonNull(owner).getFullName());
         }
         entry.setQuantityNeeded(request.quantityNeeded());
         entry.setNote(request.note());
@@ -206,12 +207,12 @@ public class OrderListService {
             entry.setQuantityReceived(request.quantityReceived() != null
                 ? request.quantityReceived()
                 : entry.totalQuantityOrdered());
-            stampReceived(entry, owner.getFullName());
+            stampReceived(entry, Objects.requireNonNull(owner).getFullName());
         }
 
         entry = orderListEntryRepository.save(entry);
         if (receivedNow) {
-            closeAlsoReceived(entry, request.alsoReceivedEntryIds(), owner.getFullName());
+            closeAlsoReceived(entry, request.alsoReceivedEntryIds(), Objects.requireNonNull(owner).getFullName());
             return OrderListEntryResponse.from(entry, applyReceivedStock(entry, owner, null));
         }
         return OrderListEntryResponse.from(entry);

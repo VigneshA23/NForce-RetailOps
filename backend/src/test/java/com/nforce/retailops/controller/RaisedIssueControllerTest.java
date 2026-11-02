@@ -232,7 +232,7 @@ class RaisedIssueControllerTest {
     @Transactional
     void employeeCannotRaiseIssueForUnassignedStore() throws Exception {
         Role empRole = role("EMPLOYEE");
-        User employee = user("issue-emp-g@nforce.test", empRole);
+        user("issue-emp-g@nforce.test", empRole);
         Store otherStore = store("Issue Store G");
         // Employee NOT linked to otherStore
 

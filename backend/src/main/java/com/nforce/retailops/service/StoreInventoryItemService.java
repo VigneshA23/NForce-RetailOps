@@ -261,10 +261,12 @@ public class StoreInventoryItemService {
                 byStore.get((Long) row[0]).putIfAbsent(category.toLowerCase(), category);
             }
         }
-        Map<String, String> common = null;
+        Map<String, String> common = new LinkedHashMap<>();
+        boolean first = true;
         for (Map<String, String> categories : byStore.values()) {
-            if (common == null) {
-                common = new LinkedHashMap<>(categories);
+            if (first) {
+                common.putAll(categories);
+                first = false;
             } else {
                 common.keySet().retainAll(categories.keySet());
             }

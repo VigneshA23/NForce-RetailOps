@@ -233,7 +233,7 @@ class MeHistoryServiceTest {
     @Test
     @Transactional
     void detailReturnsEmptyHistoryInsteadOfFailingWhenStoreHasNoActiveOwner() {
-        Task task = saveTask(storeRepository.getReferenceById(storeId));
+        saveTask(storeRepository.getReferenceById(storeId));
         LocalDate today = LocalDate.now();
 
         StoreOwner link = storeOwnerRepository.findByStoreId(storeId).orElseThrow();

@@ -69,6 +69,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -508,7 +509,8 @@ public class StockCheckService {
                     item.getId(), today, StockReceiptRequestType.LOWER_COUNT,
                     List.of(StockReceiptRequestStatus.PENDING, StockReceiptRequestStatus.APPROVED))
                 .orElse(null);
-            boolean alreadyCovered = coveringLower != null && coveringLower.getQuantity().compareTo(startGap.negate()) >= 0;
+            boolean alreadyCovered = coveringLower != null
+                && coveringLower.getQuantity().compareTo(Objects.requireNonNull(startGap).negate()) >= 0;
             if (lowerReason.isEmpty() && !alreadyCovered) {
                 throw new InvalidStockCheckException(
                     "Start of Day is lower than the last End of Day. Give a reason and request approval from your admin");
@@ -607,7 +609,7 @@ public class StockCheckService {
         }
 
         if (lowerStartHeld) {
-            raiseLowerCountRequest(item, today, startGap.negate(), lowerReason, coveringLower, employee,
+            raiseLowerCountRequest(item, today, Objects.requireNonNull(startGap).negate(), lowerReason, coveringLower, employee,
                 request.available(), request.deadStock());
         }
         for (int i = 0; i < deliveries.size(); i++) {
@@ -1522,13 +1524,13 @@ public class StockCheckService {
         StockCheck check, StockCheckSnapshot snapshot, BigDecimal available, BigDecimal deadStock,
         User userActor, SuperAdmin superAdminActor, String reason, boolean isCorrection
     ) {
-        boolean hadValue = check.hasSnapshot(snapshot);
-        BigDecimal previousAvailable = hadValue ? check.availableFor(snapshot) : null;
+        BigDecimal previousAvailable = check.availableFor(snapshot);
+        boolean hadValue = previousAvailable != null;
         BigDecimal previousDeadStock = hadValue ? check.deadStockFor(snapshot) : null;
 
         // Re-saving identical figures changes nothing, so reject it rather than
         // bumping "last updated" and appending a no-op audit row.
-        if (hadValue
+        if (previousAvailable != null
             && previousAvailable.compareTo(available) == 0
             && (previousDeadStock == null ? BigDecimal.ZERO : previousDeadStock).compareTo(deadStock) == 0) {
             throw new InvalidStockCheckException("No changes to save - the values are the same as the current ones");
@@ -1644,9 +1646,9 @@ public class StockCheckService {
         boolean orderCounts = ordered != null
             && (shortOnThisDay || ordered.orderedOn().equals(date))
             && !(date.equals(today) && orderPending);
-        BigDecimal orderedQuantity = orderCounts ? ordered.quantity() : null;
-        LocalDate orderedOn = orderCounts ? ordered.orderedOn() : null;
-        Long orderEntryId = orderPending && !orderCounts ? activeOrder.id() : null;
+        BigDecimal orderedQuantity = orderCounts ? Objects.requireNonNull(ordered).quantity() : null;
+        LocalDate orderedOn = orderCounts ? Objects.requireNonNull(ordered).orderedOn() : null;
+        Long orderEntryId = orderPending && !orderCounts ? Objects.requireNonNull(activeOrder).id() : null;
 
         EodSupplierReportResponse.Status status;
         if (toOrder == null) {
