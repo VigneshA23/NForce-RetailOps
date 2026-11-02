@@ -58,14 +58,15 @@
   background: var(--color-filter-field-bg);
 }
 
-/* Pink Export button, matching the sky-wave mockup. */
-:root:not([data-theme='dark']) .store-inventory-page__export > :is(.btn--secondary, .btn--danger) {
+/* Pink Export button, matching the sky-wave mockup -- on Items and on
+   Stock Check History (both roles). */
+:root:not([data-theme='dark']) :is(.store-inventory-page__export, .store-inventory-page .stock-check-history__export) > :is(.btn--secondary, .btn--danger) {
   background: #c4267e;
   border-color: #c4267e;
   color: #ffffff;
 }
 
-:root:not([data-theme='dark']) .store-inventory-page__export > :is(.btn--secondary, .btn--danger):hover {
+:root:not([data-theme='dark']) :is(.store-inventory-page__export, .store-inventory-page .stock-check-history__export) > :is(.btn--secondary, .btn--danger):hover {
   background: #a81f6a;
   border-color: #a81f6a;
 }
@@ -485,4 +486,66 @@
     font-size: 12px;
     color: var(--color-text-secondary);
   }
+}
+
+/* Trial: Inventory stat-card colours (Owner/Admin and Super Admin) -- Pink
+   Total Items, Sky Blue Active Items, Warm Yellow Low Stock, Slate Blue Out
+   of Stock. Each tone just sets its colour; the shared rules below paint the
+   left stripe, border, glow, tint and icon from it, mirroring StatCard.css.
+   Delete this block to go back to the shared StatCard tones. */
+.store-inventory-page .stat-card-row .stat-card--primary {
+  --inventory-card-color: #d0178e;
+  --inventory-card-rgb: 208, 23, 142;
+}
+
+.store-inventory-page .stat-card-row .stat-card--success {
+  --inventory-card-color: #3fa8f4;
+  --inventory-card-rgb: 63, 168, 244;
+}
+
+.store-inventory-page .stat-card-row .stat-card--warning {
+  --inventory-card-color: #e5a52e;
+  --inventory-card-rgb: 229, 165, 46;
+}
+
+.store-inventory-page .stat-card-row .stat-card--info {
+  --inventory-card-color: #425873;
+  --inventory-card-rgb: 66, 88, 115;
+}
+
+.store-inventory-page .stat-card-row .stat-card {
+  background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(var(--inventory-card-rgb), 0.1) 100%);
+  border-color: rgba(var(--inventory-card-rgb), 0.2);
+  box-shadow:
+    inset 4px 0 0 var(--inventory-card-color),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 14px rgba(var(--inventory-card-rgb), 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.store-inventory-page .stat-card-row .stat-card:hover {
+  box-shadow:
+    inset 4px 0 0 var(--inventory-card-color),
+    0 3px 6px rgba(0, 0, 0, 0.07),
+    0 10px 28px rgba(var(--inventory-card-rgb), 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.store-inventory-page .stat-card-row .stat-card__icon {
+  background: rgba(var(--inventory-card-rgb), 0.14);
+  color: var(--inventory-card-color);
+}
+
+[data-theme='dark'] .store-inventory-page .stat-card-row .stat-card {
+  background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(var(--inventory-card-rgb), 0.16) 100%);
+  border-color: rgba(var(--inventory-card-rgb), 0.28);
+  box-shadow:
+    inset 4px 0 0 var(--inventory-card-color),
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 4px 14px rgba(var(--inventory-card-rgb), 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme='dark'] .store-inventory-page .stat-card-row .stat-card__icon {
+  background: rgba(var(--inventory-card-rgb), 0.22);
 }
