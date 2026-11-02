@@ -447,3 +447,17 @@
   background: var(--color-badge-danger-bg, #fde8ea);
   color: var(--color-badge-danger-fg, #b3162a);
 }
+
+/* Phones: the heading and Start / End of Day progress line stack above the
+   Report Shortage button. */
+@media (--mobile) {
+  .employee-stock-check-page__header--daily {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .employee-stock-check-page__header--daily .btn {
+    align-self: flex-start;
+  }
+
+}

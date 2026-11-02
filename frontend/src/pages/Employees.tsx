@@ -24,7 +24,7 @@ const TYPE_FILTER_OPTIONS = [
 ];
 
 const STATUS_FILTER_OPTIONS = [
-  { value: 'ALL', label: 'All Statuses' },
+  { value: 'ALL', label: 'All Status' },
   { value: 'ACTIVE', label: 'Active' },
   { value: 'INACTIVE', label: 'Inactive' },
 ];
