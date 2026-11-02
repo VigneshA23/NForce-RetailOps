@@ -569,3 +569,58 @@
     min-width: 0;
   }
 }
+
+/* Supplier avatar colour on Inventory's Suppliers list (table and
+   mobile cards, both roles) instead of the red accent:
+   Periwinkle with an indigo letter. */
+.store-inventory-page :is(.supplier-table__cell-name, .supplier-mobile-card__top) .user-avatar {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+/* Calmer controls on Inventory (every sub-tab, both roles): an "off" toggle
+   is a neutral grey rather than the app-wide red, so green alone signals
+   "on" and inactive no longer reads as an error; delete icons sit grey and
+   only turn red on hover (the buttons' own red hover), when a click is
+   imminent. */
+.store-inventory-page .toggle:not(.toggle--on) {
+  background: #cbd5e1;
+  border-color: #cbd5e1;
+}
+
+[data-theme='dark'] .store-inventory-page .toggle:not(.toggle--on) {
+  background: #3f3f46;
+  border-color: #3f3f46;
+}
+
+.store-inventory-page :is(.table-icon-btn--danger, .store-inventory-card__icon-btn--danger):not(:hover):not(:focus-visible) {
+  /* Same grey as the pencil (edit) icon beside it. */
+  color: var(--color-text-secondary);
+}
+
+/* Suppliers and Categories sub-tab cards (both roles): Sky Blue count card
+   and Pistachio Green Active, reusing the Inventory card rules above via their colour
+   variables. */
+.store-inventory-page :is(.store-inventory-page__supplier-stats, .store-inventory-page__category-stats) .stat-card--primary {
+  --inventory-card-color: #3fa8f4;
+  --inventory-card-rgb: 63, 168, 244;
+}
+
+.store-inventory-page :is(.store-inventory-page__supplier-stats, .store-inventory-page__category-stats) .stat-card--success {
+  --inventory-card-color: #93c572;
+  --inventory-card-rgb: 147, 197, 114;
+}
+
+/* Pistachio is pale and muted, so at the shared card strengths (20% border,
+   10% tint, 14% icon fill) it washes out against the sky background where
+   the saturated Sky Blue doesn't. Lift this card's border, tint and icon,
+   and draw the tick in a deeper pistachio so it reads. */
+.store-inventory-page :is(.store-inventory-page__supplier-stats, .store-inventory-page__category-stats) .stat-card--success {
+  background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(147, 197, 114, 0.2) 100%);
+  border-color: rgba(147, 197, 114, 0.5);
+}
+
+.store-inventory-page :is(.store-inventory-page__supplier-stats, .store-inventory-page__category-stats) .stat-card--success .stat-card__icon {
+  background: rgba(147, 197, 114, 0.26);
+  color: #5e9a3a;
+}
