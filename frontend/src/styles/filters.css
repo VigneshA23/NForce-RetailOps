@@ -126,6 +126,10 @@
   }
 
   .filter-bar.filter-bar--row-pair .multi-select__trigger {
+    /* EmployeeDashboard.css gives this trigger a 160px min-width, which pushed
+       it past its half-row column and into its neighbours. */
+    width: 100%;
+    min-width: 0;
     padding: 0 10px;
     font-size: 13px;
     overflow: hidden;
