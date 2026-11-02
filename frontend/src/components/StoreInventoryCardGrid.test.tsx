@@ -26,14 +26,14 @@ function item(overrides: Partial<StoreInventoryItem>): StoreInventoryItem {
 }
 
 describe('StoreInventoryCardGrid', () => {
-  it('keeps cards at a fixed gap instead of stretching them when there are fewer than 4', () => {
+  it('uses the wider-column grid when there are fewer than 6', () => {
     const { container, rerender } = render(
       <StoreInventoryCardGrid items={[item({ id: 1 }), item({ id: 2, name: 'Bread' }), item({ id: 3, name: 'Eggs' })]} onEdit={vi.fn()} onDelete={vi.fn()} onToggleStatus={vi.fn()} />,
     );
     expect(container.querySelector('.store-inventory-card-grid')).toHaveClass('store-inventory-card-grid--few');
 
     rerender(
-      <StoreInventoryCardGrid items={[1, 2, 3, 4].map((id) => item({ id, name: `Item ${id}` }))} onEdit={vi.fn()} onDelete={vi.fn()} onToggleStatus={vi.fn()} />,
+      <StoreInventoryCardGrid items={[1, 2, 3, 4, 5, 6].map((id) => item({ id, name: `Item ${id}` }))} onEdit={vi.fn()} onDelete={vi.fn()} onToggleStatus={vi.fn()} />,
     );
     expect(container.querySelector('.store-inventory-card-grid')).not.toHaveClass('store-inventory-card-grid--few');
   });
