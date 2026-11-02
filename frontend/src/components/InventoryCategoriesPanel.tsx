@@ -185,7 +185,7 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
 
   return (
     <>
-      <div className="stat-card-row">
+      <div className="stat-card-row store-inventory-page__category-stats">
         <StatCard icon={Tags} label="Categories" value={categories.length} tone="primary" />
         <StatCard icon={CircleCheck} label="Active" value={activeCount} tone="success" />
       </div>

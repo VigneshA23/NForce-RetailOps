@@ -630,7 +630,7 @@ function SuperAdminInventory() {
 
       {subTab === 'suppliers' && (
         <>
-          <div className="stat-card-row">
+          <div className="stat-card-row store-inventory-page__supplier-stats">
             <StatCard icon={Truck} label="Suppliers" value={suppliers.length} tone="primary" />
             <StatCard icon={CircleCheck} label="Active" value={activeSupplierCount} tone="success" />
           </div>
