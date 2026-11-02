@@ -34,7 +34,7 @@
 }
 
 /* Repaint the sky (AppShell.css) rather than a grey strip over it. */
-:root:not([data-theme='dark']) .employee-history-filters {
+.employee-history-filters {
   background: var(--page-bg-sky);
 }
 

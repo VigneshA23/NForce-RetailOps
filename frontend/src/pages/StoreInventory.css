@@ -46,9 +46,13 @@
 /* The sky page background itself is shell-wide (AppShell.css); the sticky
    sub-tab bar repaints its sky layer so content scrolling beneath stays
    hidden without a grey strip. */
-:root:not([data-theme='dark']) .store-inventory-page__subtabs {
+.store-inventory-page__subtabs {
   background: var(--page-bg-sky);
-  /* Pink active tab + underline (the sub-tab rule reads --color-accent). */
+}
+
+/* Pink active tab + underline (the sub-tab rule reads --color-accent),
+   light theme only -- the mockup's pink accent, not a themed token. */
+:root:not([data-theme='dark']) .store-inventory-page__subtabs {
   --color-accent: #c4267e;
 }
 
