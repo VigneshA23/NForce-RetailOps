@@ -485,7 +485,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               <StatCard icon={CircleCheck} label="Active" value={activeSupplierCount} tone="success" />
             </div>
             <p className="store-inventory-page__catalog-line">
-              {isLoading ? 'Loading...' : `${activeSupplierCount} active of ${suppliers.length} total. New suppliers are added from the item form.`}
+              {isLoading ? 'Loading...' : 'New suppliers are added from the item form.'}
             </p>
 
             <div className="filter-bar filter-bar--row-pair store-inventory-page__supplier-filter-bar">

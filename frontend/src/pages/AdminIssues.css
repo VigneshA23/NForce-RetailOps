@@ -9,15 +9,19 @@
   padding: var(--space-lg);
 }
 
-/* Phones: .filter-bar's own bottom margin stacked on the page gap (and the
-   group header's top padding) doubled the space under the filters; collapse it
-   to the page gap so it matches the stat-cards-to-filters spacing. */
-@media (--mobile) {
-  .admin-issues-page .filter-bar {
-    margin-bottom: 0;
-  }
+/* Tighter vertical rhythm: .stat-card-row and .filter-bar each carry their own
+   bottom margin, which stacked on the page's flex gap. Drop those margins and
+   the group header's top padding and let one smaller page gap space the stat
+   cards, the filters and the first "Open" label evenly. */
+.admin-issues-page {
+  gap: 12px;
+}
 
-  .admin-issues-page .issues-group-header-cell {
-    padding-top: 0;
-  }
+.admin-issues-page .stat-card-row,
+.admin-issues-page .filter-bar {
+  margin-bottom: 0;
+}
+
+.admin-issues-page .issues-group-header-cell {
+  padding-top: 0;
 }

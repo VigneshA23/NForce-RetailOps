@@ -85,14 +85,6 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry, 
         <StatCard icon={CircleSlash} label="Inactive" value={categories.length - activeCount} tone="warning" />
       </div>
 
-      <div className="categories-page__header">
-        <p className="categories-page__summary">
-          {isLoading
-            ? 'Loading categories...'
-            : `${activeCount} active categor${activeCount === 1 ? 'y' : 'ies'} of ${categories.length} total`}
-        </p>
-      </div>
-
       {loadError ? (
         <div className="categories-page__error">
           {loadError}

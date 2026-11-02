@@ -169,18 +169,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
     [employees],
   );
 
-  const storeCoverageCount = useMemo(() => {
-    const storeIds = new Set<number>();
-    employees.forEach((employee) => employee.stores.forEach((store) => storeIds.add(store.id)));
-    return storeIds.size;
-  }, [employees]);
-
-  const activeCount = employees.length - inactiveCount;
-
-  const summaryText = isLoading
-    ? 'Loading employees...'
-    : `${activeCount} active employee${activeCount === 1 ? '' : 's'} across ${storeCoverageCount} store${storeCoverageCount === 1 ? '' : 's'}`;
-
   const emptyMessage =
     employees.length === 0
       ? 'No employees assigned to your store yet. Assign one to get started.'
@@ -193,11 +181,6 @@ function Employees({ employees, setEmployees, employeesLoading, employeesError, 
         <StatCard icon={UserCheck} label="Full Time" value={fullTimeCount} tone="success" />
         <StatCard icon={UserCog} label="Part Time" value={employees.length - fullTimeCount} tone="info" />
         <StatCard icon={UserX} label="Inactive" value={inactiveCount} tone="warning" />
-      </div>
-
-      <div className="employees-page__header">
-        <p className="employees-page__summary">{summaryText}</p>
-
       </div>
 
       <div className="filter-bar filter-bar--row-pair">
