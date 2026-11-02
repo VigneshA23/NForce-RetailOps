@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import { Building2, Check, Plus, Tag } from 'lucide-react';
 import type { CategoryFormValues, CategoryStoreOption } from '../types/category';
 import { CATEGORY_BADGE_COLORS, DEFAULT_CATEGORY_BADGE_COLOR } from '../utils/categoryBadge';
@@ -117,7 +118,7 @@ function CategoryFormModal({
               value={values.name}
               onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
               placeholder="e.g. Opening, Cleaning, Closing"
-              autoFocus
+              autoFocus={shouldAutoFocus()}
             />
           </div>
         </FormField>

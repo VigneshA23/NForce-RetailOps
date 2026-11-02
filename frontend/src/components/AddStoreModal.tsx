@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import { getNextStoreCode } from '../api/owners';
 import type { CreateStoreValues } from '../types/superAdminStore';
 import Modal from './Modal';
@@ -75,7 +76,7 @@ function AddStoreModal({ isOpen, errorMessage, isSubmitting = false, onClose, on
             value={values.name}
             onChange={(event) => updateField('name', event.target.value)}
             placeholder="e.g. Downtown Ice Cream Co."
-            autoFocus
+            autoFocus={shouldAutoFocus()}
           />
         </FormField>
 

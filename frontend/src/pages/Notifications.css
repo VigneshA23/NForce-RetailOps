@@ -875,3 +875,34 @@
   .nfp-receipt__btn { width: 100%; min-height: 48px; justify-content: center; font-size: 14px; }
   .nfp-receipt textarea { font-size: 16px; } /* avoids iOS zoom-on-focus */
 }
+
+/* Narrow toolbar: the app's own Select replaces the native one (see
+   Notifications.tsx). Two dropdowns per row, funnel at the end of the last. */
+@media (max-width: 600px) {
+  .nfp-toolbar--narrow .nfp-toolbar__select-wrap {
+    flex: 1 1 calc(50% - 3px);
+    min-width: 0;
+  }
+
+  .nfp-toolbar--narrow .nfp-toolbar__select-wrap--full {
+    flex-basis: 100%;
+  }
+
+  /* Read-status and sort share the last row equally, funnel at its right. */
+  .nfp-toolbar--narrow .nfp-toolbar__select-wrap--status,
+  .nfp-toolbar--narrow .nfp-toolbar__select-wrap--last {
+    flex: 1 1 0;
+  }
+
+  .nfp-toolbar--narrow .select {
+    background: var(--color-filter-field-bg);
+    border-radius: 6px;
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
+  .nfp-toolbar--narrow .filter-bar__clear {
+    height: auto;
+    min-height: 32px;
+  }
+}

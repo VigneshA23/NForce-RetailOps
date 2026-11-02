@@ -1,3 +1,5 @@
+@import '../styles/breakpoints.css';
+
 .super-admin-orders {
   padding: var(--space-lg);
   display: flex;
@@ -68,4 +70,34 @@
 .super-admin-orders__hint {
   font-size: 14px;
   color: var(--color-text-secondary);
+}
+
+/* Phones, Order List + End of Day Report tabs: the search box (the shared
+   "surface" variant, with its own larger padding and font) sat taller than the
+   Category/Status/Supplier dropdowns in the same card. Both get one fixed
+   height so they line up. */
+@media (--mobile) {
+  .super-admin-orders .order-list__filter-card .select,
+  .super-admin-orders .order-list__filter-card .search-input--filter--surface {
+    box-sizing: border-box;
+    height: 38px;
+    min-height: 38px;
+  }
+
+  .super-admin-orders .order-list__filter-card .search-input--filter--surface {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .super-admin-orders .order-list__filter-card .search-input--filter--surface .search-input--filter__field {
+    font-size: 13px;
+  }
+
+  /* Inventory tab: search on its own full-width row, then Category and Level
+     side by side with the clear-filters (funnel) button at the right edge. */
+  .super-admin-orders .filter-bar.inventory-counts__filter-bar > .inventory-counts__filter {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
 }

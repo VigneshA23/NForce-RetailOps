@@ -116,3 +116,31 @@
     display: none;
   }
 }
+
+/* Phones: the Outstanding / Completed & Flagged search boxes used to be taller
+   than the dropdowns beside them (the input's own min-height was stacked on
+   top of the box's padding). Give the search box and the selects one shared
+   fixed height so every control in the filter bar lines up. */
+@media (max-width: 480px) {
+  .sa-checklist .store-detail-outstanding__filter-bar .select,
+  .sa-checklist .store-detail-outstanding__filter-bar .search-input--filter {
+    box-sizing: border-box;
+    height: 34px;
+    min-height: 34px;
+  }
+
+  .sa-checklist .store-detail-outstanding__filter-bar .search-input--filter {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  .sa-checklist .store-detail-outstanding__filter-bar .search-input--filter__field {
+    min-height: 0;
+    height: 100%;
+    font-size: 11px;
+  }
+
+  .sa-checklist .store-detail-outstanding__filter-bar .filter-bar__clear {
+    min-height: 34px;
+  }
+}

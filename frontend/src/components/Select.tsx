@@ -35,10 +35,11 @@ interface SelectProps {
 }
 
 const VIEWPORT_MARGIN = 8;
+const PANEL_MAX_HEIGHT = 220; // keep in sync with .custom-select__panel max-height
 
 function Select({ id, options, value, onChange, ariaLabel, className, placeholder, disabled, align = 'left', indicator = 'check' }: SelectProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
+  const [position, setPosition] = useState<{ top: number; left: number; width: number; maxHeight?: number }>({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -73,11 +74,18 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
     const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
     const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
 
-    let top = triggerRect.bottom + 4;
-    if (top + panelRect.height > viewportHeight - VIEWPORT_MARGIN) {
-      top = triggerRect.top - panelRect.height - 4;
-    }
-    top = Math.max(VIEWPORT_MARGIN, top);
+    // Open below the trigger when the list fits there, above it when it fits
+    // there instead; with room for neither (short viewport, keyboard up) take
+    // the roomier side and cap the list's height so it scrolls rather than
+    // spilling off-screen.
+    const naturalHeight = Math.min(panel.scrollHeight, PANEL_MAX_HEIGHT);
+    const spaceBelow = viewportHeight - triggerRect.bottom - 4 - VIEWPORT_MARGIN;
+    const spaceAbove = triggerRect.top - 4 - VIEWPORT_MARGIN;
+    const openBelow = naturalHeight <= spaceBelow || (naturalHeight > spaceAbove && spaceBelow >= spaceAbove);
+    const availableHeight = Math.max(0, openBelow ? spaceBelow : spaceAbove);
+    const maxHeight = naturalHeight > availableHeight ? availableHeight : undefined;
+    const renderedHeight = maxHeight ?? naturalHeight;
+    const top = openBelow ? triggerRect.bottom + 4 : Math.max(VIEWPORT_MARGIN, triggerRect.top - renderedHeight - 4);
 
     // Clamp horizontally too -- a narrow trigger near the right edge of a
     // mobile viewport can otherwise leave the (wider) option panel rendered
@@ -86,7 +94,7 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
     left = Math.min(left, viewportWidth - panelRect.width - VIEWPORT_MARGIN);
     left = Math.max(VIEWPORT_MARGIN, left);
 
-    setPosition((current) => (top !== current.top || left !== current.left ? { ...current, top, left } : current));
+    setPosition((current) => (top !== current.top || left !== current.left || maxHeight !== current.maxHeight ? { ...current, top, left, maxHeight } : current));
   }
 
   useLayoutEffect(() => {
@@ -127,7 +135,7 @@ function Select({ id, options, value, onChange, ariaLabel, className, placeholde
             ref={panelRef}
             className="custom-select__panel"
             role="listbox"
-            style={{ top: position.top, left: position.left, width: position.width }}
+            style={{ top: position.top, left: position.left, width: position.width, maxHeight: position.maxHeight }}
           >
             {options.map((option) => option.isAction ? (
               <button

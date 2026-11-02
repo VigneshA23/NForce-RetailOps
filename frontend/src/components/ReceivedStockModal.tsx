@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
@@ -156,7 +157,7 @@ function ReceivedStockModal({
               type="text"
               inputMode={isWholeNumberUnit(unit) ? 'numeric' : 'decimal'}
               className="input"
-              autoFocus
+              autoFocus={shouldAutoFocus()}
               value={currentStock}
               onChange={(event) => {
                 const next = event.target.value;

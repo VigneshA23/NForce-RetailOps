@@ -334,7 +334,7 @@ function InventoryCounts() {
           onChange={(value) => { setLevel(value as LevelFilter); setPage(1); }}
           ariaLabel="Stock level"
         />
-        {hasActiveFilters && <FilterClearButton onClick={clearFilters} />}
+        {(hasActiveFilters || isMobile) && <FilterClearButton onClick={clearFilters} />}
       </div>
 
       {isMobile && (

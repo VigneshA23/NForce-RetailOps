@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import type { Issue } from '../types/issue';
 import { ISSUE_RESPONSE_MAX_LENGTH } from '../utils/issueStatusMeta';
 import Modal from './Modal';
@@ -78,7 +79,7 @@ function IssueResponseModal({ issue, action, busy, onCancel, onConfirm }: IssueR
           maxLength={ISSUE_RESPONSE_MAX_LENGTH}
           onChange={(e) => setText(e.target.value)}
           placeholder={copy.placeholder}
-          autoFocus
+          autoFocus={shouldAutoFocus()}
         />
         <span className={`issue-text-counter${nearLimit ? ' issue-text-counter--near-limit' : ''}`} aria-live="polite">
           {text.length}/{ISSUE_RESPONSE_MAX_LENGTH}

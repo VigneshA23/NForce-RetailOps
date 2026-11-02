@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { shouldAutoFocus } from '../utils/autoFocus';
 import { AlertTriangle, MessageSquareWarning, Plus } from 'lucide-react'
 import { getMyIssues, raiseIssue } from '../api/issues'
 import { ApiError } from '../api/client'
@@ -233,7 +234,7 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
             maxLength={ISSUE_NOTE_MAX_LENGTH}
             onChange={(e) => setIssueNote(e.target.value)}
             placeholder="Describe what needs the owner's attention..."
-            autoFocus
+            autoFocus={shouldAutoFocus()}
           />
           <span className={`issue-text-counter${noteNearLimit ? ' issue-text-counter--near-limit' : ''}`} aria-live="polite">
             {issueNote.length}/{ISSUE_NOTE_MAX_LENGTH}

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import type { Category } from '../types/category';
 import type { AdminTask, AdminTaskFormValues, CompletionType, DayCode, ResponseType, ScheduleType } from '../types/adminTask';
 import { emptyTaskFormValues, getTodayDateString, validateTaskForm, type AdminTaskFormErrors } from '../utils/adminTaskValidation';
@@ -7,6 +8,7 @@ import Modal from './Modal';
 import FormField from './FormField';
 import SearchableSelect from './SearchableSelect';
 import ButtonDots from './ButtonDots';
+import PopoverDateField from './PopoverDateField';
 import './TaskFormModal.css';
 
 interface TaskFormModalProps {
@@ -201,7 +203,7 @@ function TaskFormModal({
               value={values.name}
               onChange={(event) => updateField('name', event.target.value)}
               placeholder="Enter task name"
-              autoFocus
+              autoFocus={shouldAutoFocus()}
             />
           </FormField>
           <FormField label="Description / Instructions" htmlFor="task-description">
@@ -397,9 +399,9 @@ function TaskFormModal({
           {values.scheduleType === 'ONE_TIME' ? (
             <div className="task-form__conditional">
               <FormField label="Date *" htmlFor="task-one-time-date" error={errors.oneTimeDate}>
-                <input id="task-one-time-date" type="date" className="input" value={values.oneTimeDate}
+                <PopoverDateField id="task-one-time-date" value={values.oneTimeDate}
                   min={mode === 'create' ? getTodayDateString() : undefined}
-                  onChange={(event) => updateField('oneTimeDate', event.target.value)} />
+                  onChange={(date) => updateField('oneTimeDate', date)} />
               </FormField>
               <p className="task-form__hint">Appears only on the selected date.</p>
             </div>
@@ -407,13 +409,13 @@ function TaskFormModal({
             <div className="task-form__conditional">
               <div className="task-form__grid-2">
                 <FormField label="Start Date *" htmlFor="task-start-date" error={errors.startDate}>
-                  <input id="task-start-date" type="date" className="input" value={values.startDate}
+                  <PopoverDateField id="task-start-date" value={values.startDate}
                     min={mode === 'create' ? getTodayDateString() : undefined}
-                    onChange={(event) => updateField('startDate', event.target.value)} />
+                    onChange={(date) => updateField('startDate', date)} />
                 </FormField>
                 <FormField label="End Date" htmlFor="task-end-date" error={errors.endDate}>
-                  <input id="task-end-date" type="date" className="input" value={values.endDate}
-                    onChange={(event) => updateField('endDate', event.target.value)} />
+                  <PopoverDateField id="task-end-date" value={values.endDate} clearable
+                    onChange={(date) => updateField('endDate', date)} />
                 </FormField>
               </div>
               <p className="task-form__hint">Leave End Date empty for an ongoing task.</p>

@@ -1,0 +1,13 @@
+.popover-date-field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.popover-date-field__placeholder {
+  color: var(--color-text-muted);
+}

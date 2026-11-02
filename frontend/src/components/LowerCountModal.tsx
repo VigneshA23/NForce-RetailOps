@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
@@ -76,7 +77,7 @@ function LowerCountModal({
             rows={3}
             maxLength={500}
             value={reason}
-            autoFocus
+            autoFocus={shouldAutoFocus()}
             onChange={(event) => {
               setReason(event.target.value);
               setError(null);

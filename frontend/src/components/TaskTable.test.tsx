@@ -210,8 +210,8 @@ describe('TaskTable mobile cards', () => {
     const mobile = mobileScope();
     expect(mobile.getByText('Opening Checks')).toHaveClass('badge--outline');
     expect(mobile.getByText('Keds Ice Cream - Frisco')).toBeInTheDocument();
-    expect(mobile.getByText('Schedule')).toBeInTheDocument();
-    expect(mobile.getByText('Completion')).toBeInTheDocument();
+    expect(mobile.queryByText('Schedule')).not.toBeInTheDocument();
+    expect(mobile.queryByText('Completion')).not.toBeInTheDocument();
     expect(mobile.getByText('Response:')).toBeInTheDocument();
     expect(mobile.getByRole('button', { name: /edit wipe counters/i })).toHaveClass('table-icon-btn');
     expect(mobile.getByRole('button', { name: /delete wipe counters/i })).toHaveClass('table-icon-btn--danger');

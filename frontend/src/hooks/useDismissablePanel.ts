@@ -64,8 +64,26 @@ function useDismissablePanel({
     // this listener runs on the capture phase on `window`, an ancestor of a
     // portaled panel, so scrolling the panel's own option list would
     // otherwise close it instead of scrolling it.
+    //
+    // On touch devices, opening the on-screen keyboard resizes the viewport
+    // (height only) and the browser scrolls the focused field into view. Neither
+    // is the user moving away from the panel, so a height-only resize and any
+    // scroll that follows closely on a viewport change are ignored; otherwise a
+    // dropdown opened above/below a field vanishes as soon as the keyboard shows.
+    let lastWidth = window.innerWidth;
+    let lastViewportChange = 0;
+    const noteViewportChange = () => { lastViewportChange = Date.now(); };
+    window.visualViewport?.addEventListener('resize', noteViewportChange);
+
     function handleScrollOrResize(event: Event) {
       if (isInside(event.target as Node)) return;
+      if (event.type === 'resize') {
+        const widthChanged = window.innerWidth !== lastWidth;
+        lastWidth = window.innerWidth;
+        if (!widthChanged) { noteViewportChange(); return; }
+      } else if (Date.now() - lastViewportChange < 600) {
+        return;
+      }
       latest.current.onClose();
     }
 
@@ -76,6 +94,7 @@ function useDismissablePanel({
       window.addEventListener('resize', handleScrollOrResize);
     }
     return () => {
+      window.visualViewport?.removeEventListener('resize', noteViewportChange);
       document.removeEventListener('mousedown', handlePointerDown);
       if (closeOnEscape) document.removeEventListener('keydown', handleKeyDown, true);
       if (closeOnScrollOrResize) {

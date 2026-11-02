@@ -74,7 +74,24 @@ type SupplierStatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 
 function SuperAdminInventory() {
   const isMobile = useIsMobile();
+  const subTabListRef = useRef<HTMLDivElement>(null);
   const [subTab, setSubTab] = usePersistedState<SubTab>('sa-inventory-subtab', 'inventory', oneOf(['inventory', 'suppliers', 'categories', 'stock-check-history'] as const));
+
+  // On a narrow screen the sub-tab strip scrolls horizontally, so a tab picked
+  // near an edge can be cut off. Nudge the strip just far enough that the
+  // selected tab's whole label is visible.
+  useEffect(() => {
+    const list = subTabListRef.current;
+    const tab = list?.querySelector<HTMLElement>(`[data-subtab="${subTab}"]`);
+    if (!list || !tab) return;
+    const tabLeft = tab.getBoundingClientRect().left - list.getBoundingClientRect().left + list.scrollLeft;
+    const tabRight = tabLeft + tab.offsetWidth;
+    const pad = 8;
+    let target = list.scrollLeft;
+    if (tabLeft - pad < list.scrollLeft) target = tabLeft - pad;
+    else if (tabRight + pad > list.scrollLeft + list.clientWidth) target = tabRight + pad - list.clientWidth;
+    if (target !== list.scrollLeft) list.scrollTo?.({ left: Math.max(0, target), behavior: 'smooth' });
+  }, [subTab]);
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [categories, setCategories] = useState<InventoryCategoryRecord[]>([]);
@@ -488,13 +505,14 @@ function SuperAdminInventory() {
   return (
     <div className="store-inventory-page super-admin-inventory-page">
       <div className="store-inventory-page__subtabs">
-        <div className="store-inventory-page__subtab-list store-inventory-page__subtab-list--scroll">
+        <div ref={subTabListRef} className="store-inventory-page__subtab-list store-inventory-page__subtab-list--scroll">
         {SUB_TABS.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.key}
               type="button"
+              data-subtab={tab.key}
               className={`store-inventory-page__subtab${subTab === tab.key ? ' store-inventory-page__subtab--active' : ''}`}
               onClick={() => setSubTab(tab.key)}
             >
@@ -559,7 +577,7 @@ function SuperAdminInventory() {
                       </div>
                     )}
                   </div>
-                  {!isMobile && addItemButton}
+                  {addItemButton}
                 </div>
               </div>
 
@@ -569,8 +587,6 @@ function SuperAdminInventory() {
                 <StatCard icon={AlertTriangle} label="Low Stock" value={lowStockCount} unit="items" tone="warning" />
                 <StatCard icon={PackageX} label="Out of Stock" value={outOfStockCount} unit="items" tone="info" />
               </div>
-
-              {isMobile && <div className="store-inventory-page__add-item-mobile">{addItemButton}</div>}
 
               <div className="filter-bar store-inventory-page__filter-bar">
                 <div className="filter filter--search">
@@ -598,12 +614,6 @@ function SuperAdminInventory() {
                   onClick={() => { setItemSearch(''); setCategoryFilter(''); setSupplierFilter('all'); }}
                 />
               </div>
-
-              <p className="store-inventory-page__catalog-line">
-                <strong>Catalog Directory</strong>
-                <span aria-hidden="true"> · </span>
-                {isLoading ? 'Loading...' : `Showing ${filteredItems.length} Items Across ${distinctCategories.length} Categories`}
-              </p>
 
               <StoreInventoryCardGrid
                 items={filteredItems}

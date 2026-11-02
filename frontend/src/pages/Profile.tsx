@@ -1,4 +1,5 @@
 import { type ChangeEvent, useEffect, useRef, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import {
   Briefcase, Camera, Eye, EyeOff, Mail, Pencil,
   ShieldCheck, Store as StoreIcon, Trash2, X,
@@ -468,7 +469,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
                 value={infoValues.fullName}
                 onChange={(e) => setInfoValues((v) => ({ ...v, fullName: e.target.value }))}
                 required
-                autoFocus
+                autoFocus={shouldAutoFocus()}
               />
             </div>
             <div className="profile-field">
@@ -558,7 +559,7 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
                     autoComplete="current-password"
                     className="input"
                     value={pwValues.currentPassword}
-                    autoFocus
+                    autoFocus={shouldAutoFocus()}
                     onChange={(e) => {
                       setPwValues((v) => ({ ...v, currentPassword: e.target.value }));
                       setPwCurrentError(null);

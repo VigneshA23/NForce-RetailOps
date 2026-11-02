@@ -89,8 +89,8 @@ describe('SuperAdminStores cross-page owner sync', () => {
     await desktopScope().findByText('Downtown Store');
     await userEvent.click(desktopScope().getByRole('button', { name: /assign owner to downtown store/i }));
 
-    const select = await screen.findByLabelText('Select Owner');
-    await userEvent.selectOptions(select, '9');
+    await userEvent.click(await screen.findByRole('button', { name: 'Select owner' }));
+    await userEvent.click(await screen.findByRole('option', { name: /Available Owner/ }));
     await userEvent.click(screen.getByRole('button', { name: 'Assign Owner' }));
 
     await waitFor(() => expect(onOwnersDataStale).toHaveBeenCalledTimes(1));

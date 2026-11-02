@@ -66,3 +66,25 @@
     margin-left: auto;
   }
 }
+
+/* Phones: Store/Category take half a row each (Admin's lone Category takes the
+   full row); Status and Schedule then share the last row equally, with the
+   clear (funnel) button at its right edge. */
+@media (--mobile) {
+  .tasks-page .filter-bar > .filter:not(.filter--search) {
+    flex: 1 1 calc(50% - 4px);
+    width: auto;
+    min-width: 0;
+  }
+
+  .tasks-page .filter-bar > .filter.filter--row-start {
+    flex-basis: 100%;
+  }
+
+  .tasks-page .filter-bar > .filter.filter--narrow,
+  .tasks-page .filter-bar > .filter:has(+ .filter-bar__clear) {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 0;
+  }
+}

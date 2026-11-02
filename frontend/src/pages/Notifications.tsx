@@ -18,6 +18,8 @@ import { ALL_DISPLAY_CATEGORIES, getCategoryMeta, type DisplayCategory } from '.
 import { formatNotificationMessage, isNotificationVisibleForStore } from '../utils/notificationStore';
 import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
 import FormField from '../components/FormField';
+import Select from '../components/Select';
+import FilterClearButton from '../components/FilterClearButton';
 import { ISSUE_RESPONSE_MAX_LENGTH } from '../utils/issueStatusMeta';
 import '../components/IssueCard.css';
 import './Notifications.css';
@@ -622,6 +624,10 @@ interface NotificationsProps {
 function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId, assignedStores, focusNotificationId, answerAs }: NotificationsProps) {
   const isWide = useMediaQuery('(min-width: 900px)');
   const isDesktopPointer = useMediaQuery('(hover: hover) and (pointer: fine)');
+  // Native <select> popups on a phone can spill past the toolbar, so at this
+  // width the toolbar swaps them for the app's own Select (viewport-aware, opens
+  // below or above the field as room allows). Same breakpoint as the toolbar CSS.
+  const isNarrow = useMediaQuery('(max-width: 600px)');
 
   const [items, setItems]           = useState<Notification[]>([]);
   const [loading, setLoading]       = useState(true);
@@ -917,74 +923,146 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
       </div>
 
       {/* ── Filter toolbar ── */}
-      <div className="nfp-toolbar">
-        {assignedStores && activeStoreId != null && assignedStores.length > 1 && (
-          <select
-            value={storeFilter === 'all' ? 'all' : String(storeFilter)}
-            onChange={(event) => setStoreFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))}
-            aria-label="Filter by store"
-            className="nfp-toolbar__select"
-          >
-            <option value={activeStoreId}>
-              {assignedStores.find((store) => store.id === activeStoreId)?.name ?? 'Selected Store'}
-            </option>
-            {assignedStores
-              .filter((store) => store.id !== activeStoreId)
-              .map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
-            <option value="all">All Stores</option>
-          </select>
-        )}
-        <div className="nfp-toolbar__search">
-          <Search size={13} className="nfp-toolbar__search-icon" aria-hidden="true" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search notifications..."
-            aria-label="Search notifications"
-            className="nfp-toolbar__search-input"
+      {isNarrow ? (
+        <div className="nfp-toolbar nfp-toolbar--narrow">
+          {assignedStores && activeStoreId != null && assignedStores.length > 1 && (
+            <Select
+              className="nfp-toolbar__select-wrap nfp-toolbar__select-wrap--full"
+              options={[
+                { value: String(activeStoreId), label: assignedStores.find((store) => store.id === activeStoreId)?.name ?? 'Selected Store' },
+                ...assignedStores.filter((store) => store.id !== activeStoreId).map((store) => ({ value: String(store.id), label: store.name })),
+                { value: 'all', label: 'All Stores' },
+              ]}
+              value={storeFilter === 'all' ? 'all' : String(storeFilter)}
+              onChange={(value) => setStoreFilter(value === 'all' ? 'all' : Number(value))}
+              ariaLabel="Filter by store"
+            />
+          )}
+          <div className="nfp-toolbar__search">
+            <Search size={13} className="nfp-toolbar__search-icon" aria-hidden="true" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search notifications..."
+              aria-label="Search notifications"
+              className="nfp-toolbar__search-input"
+            />
+          </div>
+          <Select
+            className="nfp-toolbar__select-wrap"
+            options={[{ value: 'all', label: 'All categories' }, ...ALL_DISPLAY_CATEGORIES.map(c => ({ value: c, label: c }))]}
+            value={catFilter}
+            onChange={(value) => setCatFilter(value as typeof catFilter)}
+            ariaLabel="Filter by category"
+          />
+          <Select
+            className="nfp-toolbar__select-wrap"
+            options={[
+              { value: 'all', label: 'All priorities' },
+              { value: 'HIGH', label: 'High' },
+              { value: 'MEDIUM', label: 'Medium' },
+              { value: 'LOW', label: 'Low' },
+            ]}
+            value={priFilter}
+            onChange={(value) => setPriFilter(value as typeof priFilter)}
+            ariaLabel="Filter by priority"
+          />
+          <Select
+            className="nfp-toolbar__select-wrap nfp-toolbar__select-wrap--status"
+            options={[
+              { value: 'all', label: 'All notifications' },
+              { value: 'unread', label: 'Unread only' },
+              { value: 'read', label: 'Read only' },
+            ]}
+            value={statusFilter}
+            onChange={(value) => setStatus(value as StatusFilter)}
+            ariaLabel="Filter by read status"
+          />
+          <Select
+            className="nfp-toolbar__select-wrap nfp-toolbar__select-wrap--last"
+            options={[
+              { value: 'newest', label: 'Newest first' },
+              { value: 'oldest', label: 'Oldest first' },
+            ]}
+            value={sortOrder}
+            onChange={(value) => setSortOrder(value as SortOrder)}
+            ariaLabel="Sort order"
+          />
+          <FilterClearButton
+            onClick={() => { setCatFilter('all'); setPriFilter('all'); setStatus('all'); setSortOrder('newest'); }}
           />
         </div>
-        <select
-          value={catFilter}
-          onChange={e => setCatFilter(e.target.value as typeof catFilter)}
-          aria-label="Filter by category"
-          className="nfp-toolbar__select"
-        >
-          <option value="all">All categories</option>
-          {ALL_DISPLAY_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <select
-          value={priFilter}
-          onChange={e => setPriFilter(e.target.value as typeof priFilter)}
-          aria-label="Filter by priority"
-          className="nfp-toolbar__select"
-        >
-          <option value="all">All priorities</option>
-          <option value="HIGH">High</option>
-          <option value="MEDIUM">Medium</option>
-          <option value="LOW">Low</option>
-        </select>
-        <select
-          value={statusFilter}
-          onChange={e => setStatus(e.target.value as StatusFilter)}
-          aria-label="Filter by read status"
-          className="nfp-toolbar__select"
-        >
-          <option value="all">All notifications</option>
-          <option value="unread">Unread only</option>
-          <option value="read">Read only</option>
-        </select>
-        <select
-          value={sortOrder}
-          onChange={e => setSortOrder(e.target.value as SortOrder)}
-          aria-label="Sort order"
-          className="nfp-toolbar__select"
-        >
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-        </select>
-      </div>
+      ) : (
+        <div className="nfp-toolbar">
+          {assignedStores && activeStoreId != null && assignedStores.length > 1 && (
+            <select
+              value={storeFilter === 'all' ? 'all' : String(storeFilter)}
+              onChange={(event) => setStoreFilter(event.target.value === 'all' ? 'all' : Number(event.target.value))}
+              aria-label="Filter by store"
+              className="nfp-toolbar__select"
+            >
+              <option value={activeStoreId}>
+                {assignedStores.find((store) => store.id === activeStoreId)?.name ?? 'Selected Store'}
+              </option>
+              {assignedStores
+                .filter((store) => store.id !== activeStoreId)
+                .map((store) => <option key={store.id} value={store.id}>{store.name}</option>)}
+              <option value="all">All Stores</option>
+            </select>
+          )}
+          <div className="nfp-toolbar__search">
+            <Search size={13} className="nfp-toolbar__search-icon" aria-hidden="true" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search notifications..."
+              aria-label="Search notifications"
+              className="nfp-toolbar__search-input"
+            />
+          </div>
+          <select
+            value={catFilter}
+            onChange={e => setCatFilter(e.target.value as typeof catFilter)}
+            aria-label="Filter by category"
+            className="nfp-toolbar__select"
+          >
+            <option value="all">All categories</option>
+            {ALL_DISPLAY_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <select
+            value={priFilter}
+            onChange={e => setPriFilter(e.target.value as typeof priFilter)}
+            aria-label="Filter by priority"
+            className="nfp-toolbar__select"
+          >
+            <option value="all">All priorities</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+          </select>
+          <select
+            value={statusFilter}
+            onChange={e => setStatus(e.target.value as StatusFilter)}
+            aria-label="Filter by read status"
+            className="nfp-toolbar__select"
+          >
+            <option value="all">All notifications</option>
+            <option value="unread">Unread only</option>
+            <option value="read">Read only</option>
+          </select>
+          <select
+            value={sortOrder}
+            onChange={e => setSortOrder(e.target.value as SortOrder)}
+            aria-label="Sort order"
+            className="nfp-toolbar__select"
+          >
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+        </div>
+      )}
 
       {/* ── Body ── */}
       {loading ? (

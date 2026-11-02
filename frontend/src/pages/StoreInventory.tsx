@@ -58,6 +58,7 @@ interface StoreInventoryProps {
 
 function StoreInventory({ historySeed }: StoreInventoryProps) {
   const isMobile = useIsMobile();
+  const subTabListRef = useRef<HTMLDivElement>(null);
   const [subTab, setSubTab] = usePersistedState<SubTab>('owner-inventory-subtab', 'items', oneOf(['items', 'suppliers', 'history'] as const));
   const [items, setItems] = useState<StoreInventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -305,16 +306,33 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     </SpecularButton>
   );
 
+  // On a narrow screen the sub-tab strip scrolls horizontally, so a tab picked
+  // near an edge can be cut off. Nudge the strip just far enough that the
+  // selected tab's whole label is visible.
+  useEffect(() => {
+    const list = subTabListRef.current;
+    const tab = list?.querySelector<HTMLElement>(`[data-subtab="${subTab}"]`);
+    if (!list || !tab) return;
+    const tabLeft = tab.getBoundingClientRect().left - list.getBoundingClientRect().left + list.scrollLeft;
+    const tabRight = tabLeft + tab.offsetWidth;
+    const pad = 8;
+    let target = list.scrollLeft;
+    if (tabLeft - pad < list.scrollLeft) target = tabLeft - pad;
+    else if (tabRight + pad > list.scrollLeft + list.clientWidth) target = tabRight + pad - list.clientWidth;
+    if (target !== list.scrollLeft) list.scrollTo?.({ left: Math.max(0, target), behavior: 'smooth' });
+  }, [subTab]);
+
   return (
     <div className="store-inventory-page">
       <div className="store-inventory-page__subtabs">
-        <div className="store-inventory-page__subtab-list store-inventory-page__subtab-list--scroll">
+        <div ref={subTabListRef} className="store-inventory-page__subtab-list store-inventory-page__subtab-list--scroll">
           {SUB_TABS.map((tab) => {
             const Icon = tab.icon;
             return (
               <button
                 key={tab.key}
                 type="button"
+                data-subtab={tab.key}
                 className={`store-inventory-page__subtab${subTab === tab.key ? ' store-inventory-page__subtab--active' : ''}`}
                 onClick={() => setSubTab(tab.key)}
               >
@@ -366,7 +384,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                     </div>
                   )}
                 </div>
-                {!isMobile && addItemButton}
+                {addItemButton}
               </div>
             </div>
 
@@ -376,8 +394,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               <StatCard icon={AlertTriangle} label="Low Stock" value={lowStockCount} unit="items" tone="warning" />
               <StatCard icon={PackageX} label="Out of Stock" value={outOfStockCount} unit="items" tone="info" />
             </div>
-
-            {isMobile && <div className="store-inventory-page__add-item-mobile">{addItemButton}</div>}
 
             <div className="filter-bar store-inventory-page__filter-bar">
               <div className="filter filter--search">
@@ -405,12 +421,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
                 onClick={() => { setSearch(''); setCategoryFilter(''); setSupplierFilter('all'); }}
               />
             </div>
-
-            <p className="store-inventory-page__catalog-line">
-              <strong>Catalog Directory</strong>
-              <span aria-hidden="true"> · </span>
-              {isLoading ? 'Loading...' : `Showing ${filteredItems.length} Active Items Across ${distinctCategories.length} Categories`}
-            </p>
 
             <StoreInventoryCardGrid
               items={filteredItems}

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { shouldAutoFocus } from '../utils/autoFocus';
 import { Flag } from 'lucide-react';
 import { flagResponse } from '../api/checklistHistory';
 import type { ChecklistHistoryResponseEntry, ChecklistHistoryTaskItem } from '../types/checklistHistory';
@@ -81,7 +82,7 @@ function FlagResponseModal({ isOpen, onClose, responseEntry, task, onFlagged }: 
             rows={4}
             maxLength={500}
             required
-            autoFocus
+            autoFocus={shouldAutoFocus()}
           />
           <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
             {reason.length}/500

@@ -1,6 +1,7 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { isTouchDevice } from '../utils/autoFocus';
 import './Modal.css';
 
 interface ModalProps {
@@ -164,7 +165,13 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
     const firstField = modalRef.current?.querySelector<HTMLElement>(
       'input, select, textarea, button:not(.modal__close)',
     );
-    firstField?.focus();
+    // On touch devices focusing an input pops the soft keyboard open before the
+    // user has touched anything -- park focus on the dialog itself instead.
+    if (isTouchDevice() && firstField && ['INPUT', 'SELECT', 'TEXTAREA'].includes(firstField.tagName)) {
+      modalRef.current?.focus({ preventScroll: true });
+    } else {
+      firstField?.focus();
+    }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
@@ -197,6 +204,7 @@ function Modal({ isOpen, onClose, title, subtitle, children, footer, size = 'md'
         aria-modal="true"
         aria-labelledby={titleId}
         ref={modalRef}
+        tabIndex={-1}
       >
         <div className="modal__header">
           <div>
