@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   AlertCircle, ArrowUpRight, Bell, Check, CheckCheck,
-  ChevronLeft, Inbox, Loader2,
+  ChevronLeft, Inbox,
   RefreshCw, Search, Trash2,
 } from 'lucide-react';
 import { deleteNotification, getNotifications, getUnreadCount, markAllRead, markNotificationRead } from '../api/notifications';
@@ -18,6 +18,7 @@ import { ALL_DISPLAY_CATEGORIES, getCategoryMeta, type DisplayCategory } from '.
 import { formatNotificationMessage, isNotificationVisibleForStore } from '../utils/notificationStore';
 import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
 import FormField from '../components/FormField';
+import LatticeLoader from '../components/LatticeLoader';
 import Select from '../components/Select';
 import FilterClearButton from '../components/FilterClearButton';
 import { ISSUE_RESPONSE_MAX_LENGTH } from '../utils/issueStatusMeta';
@@ -236,7 +237,7 @@ function SwipeableRow({ children, onDelete, deleting, onOpen }: SwipeableRowProp
         onClick={e => { e.stopPropagation(); onDelete(); }}
         disabled={deleting}
       >
-        {deleting ? <Loader2 size={18} className="nfp-spin" /> : <Trash2 size={18} />}
+        {deleting ? <LatticeLoader label="Deleting" hideLabel showTimer={false} cellSize={5} gap={2} /> : <Trash2 size={18} />}
       </button>
     </div>
   );
@@ -310,7 +311,7 @@ function NotifRow({ n, assignedStores, selected, onSelect, onMarkRead, onDelete,
           onClick={handleMarkReadBtn}
         >
           {markingId === n.id
-            ? <Loader2 size={10} className="nfp-spin" />
+            ? <LatticeLoader label="Marking as read" hideLabel showTimer={false} cellSize={3} gap={1} />
             : <Check size={10} />}
         </button>
       )}
@@ -324,7 +325,7 @@ function NotifRow({ n, assignedStores, selected, onSelect, onMarkRead, onDelete,
         disabled={deletingId === n.id}
       >
         {deletingId === n.id
-          ? <Loader2 size={10} className="nfp-spin" />
+          ? <LatticeLoader label="Deleting" hideLabel showTimer={false} cellSize={3} gap={1} />
           : <Trash2 size={10} />}
       </button>
       )}
@@ -451,7 +452,7 @@ function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequ
             onClick={() => onDecide('approve', note.trim())}
             disabled={deciding !== null}
           >
-            {deciding === 'approve' ? <Loader2 size={13} className="nfp-spin" /> : <Check size={13} />}
+            {deciding === 'approve' ? <LatticeLoader label="Approving" hideLabel showTimer={false} cellSize={4} gap={1} /> : <Check size={13} />}
             Approve
           </button>
           <button
@@ -460,7 +461,7 @@ function ReceiptRequestPanel({ request, deciding, error, onDecide }: ReceiptRequ
             onClick={() => onDecide('reject', note.trim())}
             disabled={deciding !== null}
           >
-            {deciding === 'reject' ? <Loader2 size={13} className="nfp-spin" /> : null}
+            {deciding === 'reject' ? <LatticeLoader label="Rejecting" hideLabel showTimer={false} cellSize={4} gap={1} /> : null}
             Reject
           </button>
         </div>
@@ -589,7 +590,7 @@ function DetailPane({ n, assignedStores, onNavigate, onBack, onDelete, deletingI
             disabled={deletingId === n.id}
           >
             {deletingId === n.id
-              ? <Loader2 size={13} className="nfp-spin" />
+              ? <LatticeLoader label="Deleting" hideLabel showTimer={false} cellSize={4} gap={1} />
               : <Trash2 size={13} />}
             Delete
           </button>
@@ -904,7 +905,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
             onClick={() => load(true)}
             disabled={fetching || loading}
           >
-            <RefreshCw size={14} className={fetching ? 'nfp-spin' : undefined} />
+            {fetching ? <LatticeLoader label="Refreshing" hideLabel showTimer={false} cellSize={4} gap={1} /> : <RefreshCw size={14} />}
           </button>
           {unread > 0 && (
             <button
@@ -914,7 +915,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
               disabled={marking}
             >
               {marking
-                ? <Loader2 size={12} className="nfp-spin" />
+                ? <LatticeLoader label="Marking all read" hideLabel showTimer={false} cellSize={3} gap={2} />
                 : <CheckCheck size={13} />}
               Mark all read
             </button>
@@ -1138,7 +1139,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
                 disabled={loadingMore}
               >
                 {loadingMore
-                  ? <Loader2 size={13} className="nfp-spin" />
+                  ? <LatticeLoader label="Loading" hideLabel showTimer={false} cellSize={4} gap={1} />
                   : null}
                 {loadingMore ? 'Loading…' : 'Load older notifications'}
               </button>

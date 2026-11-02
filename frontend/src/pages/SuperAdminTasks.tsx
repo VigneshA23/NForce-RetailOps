@@ -203,17 +203,6 @@ function SuperAdminTasks() {
     [displayTasks],
   );
 
-  const storeCoverageCount = useMemo(() => {
-    if (displayTasks.some((task) => task.appliesToAllStores)) return activeStores.length;
-    const storeIds = new Set<number>();
-    displayTasks.forEach((task) => task.stores.forEach((store) => storeIds.add(store.id)));
-    return storeIds.size;
-  }, [displayTasks, activeStores]);
-
-  const summaryText = isLoading
-    ? 'Loading tasks...'
-    : `${activeTaskCount} active task${activeTaskCount === 1 ? '' : 's'} across ${storeCoverageCount} store${storeCoverageCount === 1 ? '' : 's'}`;
-
   async function loadCategoriesForScope(scope: { appliesToAllStores: boolean; storeIds: number[] }) {
     if (!scope.appliesToAllStores && scope.storeIds.length === 0) {
       setFormCategories([]);
@@ -373,16 +362,14 @@ function SuperAdminTasks() {
       </div>
 
       <div className="tasks-page__header">
-        <p className="tasks-page__summary">{summaryText}</p>
-
         <SpecularButton
           size="sm"
-          radius={999}
-          tint="var(--color-badge-solid-bg)"
-          tintOpacity={1}
-          textColor="var(--color-badge-solid-text)"
-          lineColor="#e11d33"
-          baseColor="#e4e4e7"
+          radius={10}
+          tint="#14141a"
+          tintOpacity={0.85}
+          textColor="#f5f5f5"
+          lineColor="#ffffff"
+          baseColor="#525252"
           followMouse
           proximity={180}
           onClick={openCreateForm}

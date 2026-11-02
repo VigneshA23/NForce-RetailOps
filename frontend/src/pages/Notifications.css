@@ -7,16 +7,6 @@
   padding: var(--space-lg);
 }
 
-/* ── Spin animation ─────────────────────────────────────────────────────────── */
-
-@keyframes nfp-spin {
-  to { transform: rotate(360deg); }
-}
-.nfp-spin {
-  animation: nfp-spin 1s linear infinite;
-  display: inline-block;
-}
-
 /* ── Header ─────────────────────────────────────────────────────────────────── */
 
 .nfp-header {

@@ -472,12 +472,12 @@ function SuperAdminInventory() {
   const addItemButton = (
     <SpecularButton
       size="sm"
-      radius={999}
-      tint="var(--color-badge-solid-bg)"
-      tintOpacity={1}
-      textColor="var(--color-badge-solid-text)"
-      lineColor="#e11d33"
-      baseColor="#e4e4e7"
+      radius={10}
+      tint="#14141a"
+      tintOpacity={0.85}
+      textColor="#f5f5f5"
+      lineColor="#ffffff"
+      baseColor="#525252"
       followMouse
       proximity={180}
       onClick={() => { setItemFormError(null); setIsCreateModalOpen(true); }}
@@ -635,17 +635,14 @@ function SuperAdminInventory() {
             <StatCard icon={CircleCheck} label="Active" value={activeSupplierCount} tone="success" />
           </div>
           <div className="super-admin-inventory-page__header">
-            <p className="super-admin-inventory-page__summary">
-              {isLoading ? 'Loading...' : `${activeSupplierCount} active of ${suppliers.length} total`}
-            </p>
             <SpecularButton
               size="sm"
-              radius={999}
-              tint="var(--color-badge-solid-bg)"
-              tintOpacity={1}
-              textColor="var(--color-badge-solid-text)"
-              lineColor="#e11d33"
-              baseColor="#e4e4e7"
+              radius={10}
+              tint="#14141a"
+              tintOpacity={0.85}
+              textColor="#f5f5f5"
+              lineColor="#ffffff"
+              baseColor="#525252"
               followMouse
               proximity={180}
               onClick={() => { setSupplierFormError(null); setSupplierModal({ mode: 'create' }); }}

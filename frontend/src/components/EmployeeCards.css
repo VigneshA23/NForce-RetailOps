@@ -237,8 +237,8 @@
     height: 15px;
   }
 
-  .employee-cards .table-icon-btn--danger {
+  .employee-cards .table-icon-btn--danger:hover,
+  .employee-cards .table-icon-btn--danger:focus-visible {
     color: var(--color-accent);
-    border-color: color-mix(in srgb, var(--color-accent) 30%, transparent);
   }
 }

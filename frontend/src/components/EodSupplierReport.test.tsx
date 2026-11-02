@@ -92,7 +92,7 @@ describe('EodSupplierReport', () => {
     expect(screen.getByText('1 item · 1 to order')).toBeInTheDocument();
     expect(screen.getByText('No Supplier')).toBeInTheDocument();
     expect(screen.getByText('1 item · nothing to order')).toBeInTheDocument();
-    expect(screen.getByText('1 to order · 1 awaiting End of Day count')).toBeInTheDocument();
+    expect(screen.queryByText(/awaiting End of Day count/)).not.toBeInTheDocument();
 
     // "No Supplier" has nothing needing an order, so (same as Order List)
     // it starts collapsed -- expand it to see Bread's own row.

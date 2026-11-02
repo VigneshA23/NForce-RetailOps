@@ -289,12 +289,12 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
   const addItemButton = (
     <SpecularButton
       size="sm"
-      radius={999}
-      tint="var(--color-badge-solid-bg)"
-      tintOpacity={1}
-      textColor="var(--color-badge-solid-text)"
-      lineColor="#e11d33"
-      baseColor="#e4e4e7"
+      radius={10}
+      tint="#14141a"
+      tintOpacity={0.85}
+      textColor="#f5f5f5"
+      lineColor="#ffffff"
+      baseColor="#525252"
       followMouse
       proximity={180}
       onClick={() => { setItemFormError(null); setIsCreateModalOpen(true); }}
@@ -485,7 +485,7 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
               <StatCard icon={CircleCheck} label="Active" value={activeSupplierCount} tone="success" />
             </div>
             <p className="store-inventory-page__catalog-line">
-              {isLoading ? 'Loading...' : `${activeSupplierCount} active of ${suppliers.length} total. New suppliers are added from the item form.`}
+              {isLoading ? 'Loading...' : 'New suppliers are added from the item form.'}
             </p>
 
             <div className="filter-bar filter-bar--row-pair store-inventory-page__supplier-filter-bar">
