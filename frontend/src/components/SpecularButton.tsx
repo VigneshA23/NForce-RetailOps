@@ -1,4 +1,4 @@
-import { useRef, useEffect, type CSSProperties, type ReactNode, type MouseEventHandler } from 'react';
+import { forwardRef, useRef, useEffect, type AriaAttributes, type CSSProperties, type ReactNode, type MouseEventHandler } from 'react';
 import { Renderer, Program, Mesh, Triangle, Color } from 'ogl';
 import './SpecularButton.css';
 
@@ -27,6 +27,9 @@ export interface SpecularButtonProps {
   onClick?: MouseEventHandler<HTMLButtonElement>;
   className?: string;
   type?: 'button' | 'submit' | 'reset';
+  title?: string;
+  'aria-expanded'?: AriaAttributes['aria-expanded'];
+  'aria-haspopup'?: AriaAttributes['aria-haspopup'];
 }
 
 interface ShaderProps {
@@ -199,7 +202,7 @@ const aimSpot = (radius: number, proximity: number, w: number, h: number, px: nu
   return { spot: wrap(nearest + offset * smoothDepth), near };
 };
 
-const SpecularButton = ({
+const SpecularButton = forwardRef<HTMLButtonElement, SpecularButtonProps>(({
   children = 'Get Started',
   size = 'lg',
   radius = 18,
@@ -221,9 +224,17 @@ const SpecularButton = ({
   disabled = false,
   onClick,
   className = '',
-  type = 'button'
-}: SpecularButtonProps) => {
-  const btnRef = useRef<HTMLButtonElement>(null);
+  type = 'button',
+  title,
+  'aria-expanded': ariaExpanded,
+  'aria-haspopup': ariaHasPopup
+}, forwardedRef) => {
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const setRefs = (node: HTMLButtonElement | null) => {
+    btnRef.current = node;
+    if (typeof forwardedRef === 'function') forwardedRef(node);
+    else if (forwardedRef) forwardedRef.current = node;
+  };
   const fxRef = useRef<HTMLSpanElement>(null);
   const propsRef = useRef<ShaderProps>({} as ShaderProps);
 
@@ -379,10 +390,13 @@ const SpecularButton = ({
 
   return (
     <button
-      ref={btnRef}
+      ref={setRefs}
       type={type}
       disabled={disabled}
       onClick={onClick}
+      title={title}
+      aria-expanded={ariaExpanded}
+      aria-haspopup={ariaHasPopup}
       className={`specular-button specular-button--${size}${className ? ` ${className}` : ''}`}
       style={
         {
@@ -398,6 +412,8 @@ const SpecularButton = ({
       <span className="specular-button__label">{children}</span>
     </button>
   );
-};
+});
+
+SpecularButton.displayName = 'SpecularButton';
 
 export default SpecularButton;

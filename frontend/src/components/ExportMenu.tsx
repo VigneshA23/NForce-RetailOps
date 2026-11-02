@@ -8,6 +8,7 @@ import { downloadWorkbook } from '../utils/xlsx';
 import { nfToast } from '../utils/toast';
 import ButtonDots from './ButtonDots';
 import CalendarPopover from './CalendarPopover';
+import SpecularButton from './SpecularButton';
 import { MAX_RANGE_DAYS, formatDateLabel, todayDate } from '../utils/checklistHistoryOptions';
 import useDismissablePanel from '../hooks/useDismissablePanel';
 import './ExportMenu.css';
@@ -213,17 +214,26 @@ function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps
 
   return (
     <div ref={menuRef} className="export-menu">
-      <button
+      <SpecularButton
         ref={triggerRef}
-        type="button"
-        className="btn btn--danger export-menu__trigger"
+        size="sm"
+        radius={10}
+        tint="#14141a"
+        tintOpacity={0.85}
+        textColor="#f5f5f5"
+        lineColor="#ffffff"
+        baseColor="#525252"
+        followMouse
+        proximity={180}
         onClick={() => { setMenuOpen((v) => !v); setMode('idle'); setRangeError(null); }}
         aria-expanded={menuOpen}
         aria-haspopup="menu"
       >
-        Export
-        <ChevronDown size={13} />
-      </button>
+        <span className="export-menu__trigger-label">
+          Export
+          <ChevronDown size={13} />
+        </span>
+      </SpecularButton>
 
       {menuOpen && createPortal(
         <div ref={dropdownRef} className="export-menu__dropdown" role="menu" style={{ top: position.top, left: position.left }}>

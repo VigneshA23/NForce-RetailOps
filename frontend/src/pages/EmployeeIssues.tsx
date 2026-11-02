@@ -13,6 +13,7 @@ import FilterClearButton from '../components/FilterClearButton'
 import Modal from '../components/Modal'
 import FormField from '../components/FormField'
 import ButtonDots from '../components/ButtonDots'
+import SpecularButton from '../components/SpecularButton'
 import IssueCard from '../components/IssueCard'
 import { useIssueList } from '../hooks/useIssueList'
 import { useIssueFocus, type IssueFocusRequest } from '../hooks/useIssueFocus'
@@ -95,14 +96,23 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
   // Sits below the status cards (or inside the empty state when there are
   // none), so the page reads summary first, then the action, then the list.
   const raiseButton = (
-    <button
-      type="button"
-      className="btn btn--danger"
+    <SpecularButton
+      size="sm"
+      radius={10}
+      tint="#14141a"
+      tintOpacity={0.85}
+      textColor="#f5f5f5"
+      lineColor="#ffffff"
+      baseColor="#525252"
+      followMouse
+      proximity={180}
       onClick={() => setIsRaiseModalOpen(true)}
     >
-      <Plus size={16} />
-      Raise Issue
-    </button>
+      <span className="emp-issues-page__raise-label">
+        <Plus size={16} />
+        Raise Issue
+      </span>
+    </SpecularButton>
   )
 
   return (
