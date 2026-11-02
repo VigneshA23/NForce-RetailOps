@@ -19,9 +19,10 @@ interface StoreInventoryCardGridProps {
   onToggleStatus: (item: StoreInventoryItem, active: boolean) => void;
 }
 
-// With fewer items than this the cards don't fill a row, so they keep their
-// normal width with a fixed gap between them instead of stretching apart.
-const FEW_ITEMS_THRESHOLD = 4;
+// With fewer items than this the cards don't fill a row, so they use wider
+// minimum columns and stretch to absorb leftover space (see the --few rule in
+// StoreInventoryCardGrid.css).
+const FEW_ITEMS_THRESHOLD = 6;
 
 function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, onEdit, onDelete, onToggleStatus }: StoreInventoryCardGridProps) {
   if (!isLoading && items.length === 0) {
