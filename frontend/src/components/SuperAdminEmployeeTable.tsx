@@ -1,6 +1,8 @@
-import { Eye, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
+import { Fragment, useState } from 'react';
+import { ChevronDown, Eye, Pencil, Trash2 } from 'lucide-react';
 import type { SuperAdminEmployee } from '../types/superAdminEmployee';
 import UserAvatar from './UserAvatar';
+import StoreChip from './StoreChip';
 import { getInitials } from '../utils/initials';
 import './EmployeeTable.css';
 import './EmployeeCards.css';
@@ -25,6 +27,17 @@ function SuperAdminEmployeeTable({
   onToggleStatus,
   onDelete,
 }: SuperAdminEmployeeTableProps) {
+  const [expandedIds, setExpandedIds] = useState<Set<SuperAdminEmployee['id']>>(new Set());
+
+  function toggleExpanded(id: SuperAdminEmployee['id']) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   return (
     <div className="table-card employee-cards">
       <div className="table-scroll">
@@ -41,7 +54,8 @@ function SuperAdminEmployeeTable({
           </thead>
           <tbody>
             {employees.map((employee) => (
-              <tr key={employee.id}>
+              <Fragment key={employee.id}>
+              <tr>
                 <td className="employee-cards__id" data-label="Emp ID">
                   <button
                     type="button"
@@ -78,14 +92,29 @@ function SuperAdminEmployeeTable({
                   {employee.stores.length === 0 ? (
                     <span className="employee-table__no-stores">—</span>
                   ) : (
-                    <div className="employee-table__store-badges">
-                      {employee.stores.map((store) => (
-                        <span key={store.id} className="employee-table__store-pill">
-                          <StoreIcon size={12} aria-hidden="true" />
-                          {store.name}
-                        </span>
-                      ))}
-                    </div>
+                    <>
+                      {/* Desktop: first store plus a "+N more" toggle. */}
+                      <div className="store-summary employee-cards__desktop-only">
+                        <StoreChip name={employee.stores[0].name} />
+                        {employee.stores.length > 1 && (
+                          <button
+                            type="button"
+                            className="store-more-toggle"
+                            aria-expanded={expandedIds.has(employee.id)}
+                            onClick={() => toggleExpanded(employee.id)}
+                          >
+                            +{employee.stores.length - 1} more
+                            <ChevronDown size={14} aria-hidden="true" />
+                          </button>
+                        )}
+                      </div>
+                      {/* Mobile: every store, as before. */}
+                      <div className="employee-table__store-badges employee-cards__mobile-only">
+                        {employee.stores.map((store) => (
+                          <StoreChip key={store.id} name={store.name} />
+                        ))}
+                      </div>
+                    </>
                   )}
                 </td>
                 <td className="employee-cards__contact" data-label="Contact">{employee.phone}</td>
@@ -137,6 +166,21 @@ function SuperAdminEmployeeTable({
                   </div>
                 </td>
               </tr>
+              {expandedIds.has(employee.id) && (
+                <tr className="store-expand-row">
+                  <td colSpan={6}>
+                    <div className="store-expand-panel">
+                      <div className="store-expand-panel__heading">Assigned Stores · {employee.stores.length}</div>
+                      <div className="store-expand-panel__list">
+                        {employee.stores.map((store) => (
+                          <StoreChip key={store.id} name={store.name} />
+                        ))}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

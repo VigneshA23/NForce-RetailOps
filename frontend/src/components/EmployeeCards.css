@@ -161,6 +161,12 @@
     display: none;
   }
 
+  /* Desktop-only "+N more" summary and its expanded row; mobile lists every store. */
+  .employee-cards .employee-cards__desktop-only,
+  .table-card.employee-cards .data-table tbody tr.store-expand-row {
+    display: none;
+  }
+
   /* Assigned stores */
   .employee-cards .employee-cards__stores-heading {
     grid-area: heading;
@@ -241,4 +247,77 @@
   .employee-cards .table-icon-btn--danger:focus-visible {
     color: var(--color-accent);
   }
+}
+
+/* Rounded corners on the employee list: clip the header row and last row to the card. */
+.table-card.employee-cards {
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Phones render the rows as separate cards, so there is no list edge to round. */
+@media (--mobile) {
+  .table-card.employee-cards {
+    border-radius: 0;
+    overflow: visible;
+  }
+}
+
+/* Employees stat-card colours, matching the Inventory page tiles (Pink, Sky Blue,
+   Slate Blue, Warm Yellow by tone), for both Owner/Admin and Super Admin. */
+:is(.employees-page, .super-admin-employees-page) .stat-card-row .stat-card--primary {
+  --employees-card-color: #d0178e;
+  --employees-card-rgb: 208, 23, 142;
+}
+
+:is(.employees-page, .super-admin-employees-page) .stat-card-row .stat-card--success {
+  --employees-card-color: #3fa8f4;
+  --employees-card-rgb: 63, 168, 244;
+}
+
+:is(.employees-page, .super-admin-employees-page) .stat-card-row .stat-card--warning {
+  --employees-card-color: #e5a52e;
+  --employees-card-rgb: 229, 165, 46;
+}
+
+:is(.employees-page, .super-admin-employees-page) .stat-card-row .stat-card--info {
+  --employees-card-color: #425873;
+  --employees-card-rgb: 66, 88, 115;
+}
+
+:is(.employees-page, .super-admin-employees-page) .stat-card-row .stat-card {
+  background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(var(--employees-card-rgb), 0.1) 100%);
+  border-color: rgba(var(--employees-card-rgb), 0.2);
+  box-shadow:
+    inset 4px 0 0 var(--employees-card-color),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 14px rgba(var(--employees-card-rgb), 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+:is(.employees-page, .super-admin-employees-page) .stat-card-row .stat-card:hover {
+  box-shadow:
+    inset 4px 0 0 var(--employees-card-color),
+    0 3px 6px rgba(0, 0, 0, 0.07),
+    0 10px 28px rgba(var(--employees-card-rgb), 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+:is(.employees-page, .super-admin-employees-page) .stat-card-row .stat-card__icon {
+  background: rgba(var(--employees-card-rgb), 0.14);
+  color: var(--employees-card-color);
+}
+
+[data-theme='dark'] :is(.employees-page, .super-admin-employees-page) .stat-card-row .stat-card {
+  background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(var(--employees-card-rgb), 0.16) 100%);
+  border-color: rgba(var(--employees-card-rgb), 0.28);
+  box-shadow:
+    inset 4px 0 0 var(--employees-card-color),
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 4px 14px rgba(var(--employees-card-rgb), 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme='dark'] :is(.employees-page, .super-admin-employees-page) .stat-card-row .stat-card__icon {
+  background: rgba(var(--employees-card-rgb), 0.22);
 }
