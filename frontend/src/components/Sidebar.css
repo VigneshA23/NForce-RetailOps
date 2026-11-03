@@ -40,37 +40,13 @@
   flex-shrink: 0;
 }
 
+/* Wide wordmark, shown whole and capped to the drawer's width. */
 .sidebar__brand-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  object-fit: cover;
+  height: 50px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
   flex-shrink: 0;
-}
-
-.sidebar__brand-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.25;
-  min-width: 0;
-  flex: 1 1 auto;
-}
-
-.sidebar__brand-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-header-text);
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.sidebar__brand-subtitle {
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: color-mix(in srgb, var(--color-header-text) 60%, transparent);
-  white-space: normal;
 }
 
 .sidebar__nav {

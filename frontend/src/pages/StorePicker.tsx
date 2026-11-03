@@ -41,7 +41,7 @@ function StorePicker({ user, stores, onSelectStore, onReload, onLogout, loggingO
       <Header
         title="NForce RetailOps"
         subtitle="Choose a Store"
-        logoSrc="/nforce-logo.png"
+        logoSrc="/keds-logo.png"
         showSearch={false}
         showNotifications={false}
         centeredModals

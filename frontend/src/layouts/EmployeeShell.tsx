@@ -186,7 +186,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       // one's own missed-tasks fetch, the heaviest of the bunch) to refetch on
       // every single tab switch.
       contentKey={overlay ?? 'tabs'}
-      logoSrc="/nforce-logo.png"
+      logoSrc="/keds-logo.png"
       hideLogoOnDesktop
       centeredModals
       user={user}

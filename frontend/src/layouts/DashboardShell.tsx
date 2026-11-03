@@ -210,7 +210,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       // (e.g. Daily Checklist's ~9 concurrent history requests) every time,
       // not just once per session.
       contentKey={overlay ?? 'tabs'}
-      logoSrc="/nforce-logo.png"
+      logoSrc="/keds-logo.png"
       hideLogoOnDesktop
       centeredModals
       user={user}

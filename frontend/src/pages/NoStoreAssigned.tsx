@@ -25,7 +25,7 @@ function NoStoreAssigned({ user, onLogout, loggingOut }: NoStoreAssignedProps) {
       <Header
         title="NForce RetailOps"
         subtitle="Store Ops Platform"
-        logoSrc="/nforce-logo.png"
+        logoSrc="/keds-logo.png"
         showSearch={false}
         showNotifications={false}
         centeredModals
