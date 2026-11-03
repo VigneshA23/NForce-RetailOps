@@ -5,8 +5,8 @@ import type { StoreSummary } from '../types/store'
 import type { EmployeeNavItem, EmployeeNavTabKey } from '../types/navigation'
 import { getEmployeeOverlay, getEmployeeTab, setEmployeeOverlay, setEmployeeTab } from '../utils/navigationStorage'
 import { getInitials } from '../utils/initials'
-import { useIsMobile } from '../hooks/useMediaQuery'
 import { useUnreadCount } from '../hooks/useUnreadCount'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import { useIssueUnreadBadge } from '../hooks/useIssueUnreadBadge'
 import { useMissedTasksBadge } from '../hooks/useMissedTasksBadge'
 import AppShell from './AppShell'
@@ -151,8 +151,9 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     : overlay === 'help' ? 'Help & Guidance'
     : store.name
 
-  const headerTitle = isMobile ? 'NForce RetailOps' : contextLabel
-  const headerSubtitle = isMobile ? contextLabel : undefined
+  // Help's heading is hidden on phones -- the page carries its own title.
+  const headerTitle = overlay === 'help' && isMobile ? '' : contextLabel
+  const headerSubtitle = undefined
 
   function handleSearchNavigate(target: 'today' | 'issues', id: number) {
     setOverlay(null)
@@ -172,6 +173,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     <AppShell<EmployeeNavTabKey>
       navItems={NAV_ITEMS}
       activeTab={activeTab}
+      navActive={overlay === null}
       tabBadges={tabBadges}
       onSelectTab={(key) => {
         setOverlay(null)

@@ -414,6 +414,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       navItems={SUPER_ADMIN_NAV_ITEMS}
       bottomNavItems={SUPER_ADMIN_BOTTOM_NAV_ITEMS}
       activeTab={activeTab}
+      navActive={!(showProfile || showHelp || showNotifications || showActivity)}
       onSelectTab={(key) => {
         setShowProfile(false);
         setShowHelp(false);
@@ -423,7 +424,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       }}
       title={
         showProfile ? 'My Profile'
-        : showHelp ? 'Help & Guidance'
+        : showHelp ? (isMobile ? '' : 'Help & Guidance')
         : showNotifications ? 'Notifications'
         : showActivity ? 'Recent Activity'
         : SUPER_ADMIN_PAGE_TITLES[activeTab]

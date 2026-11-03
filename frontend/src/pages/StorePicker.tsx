@@ -39,9 +39,10 @@ function StorePicker({ user, stores, onSelectStore, onReload, onLogout, loggingO
   return (
     <div className="store-picker">
       <Header
-        title="NForce RetailOps"
+        title=""
         subtitle="Choose a Store"
         logoSrc="/keds-logo.png"
+        showPlatformBrand={false}
         showSearch={false}
         showNotifications={false}
         centeredModals
