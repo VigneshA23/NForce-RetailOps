@@ -27,6 +27,9 @@ interface HeaderProps {
   // When false, drops the desktop/tablet brand logo + divider -- for the Store
   // Picker, where logoSrc already shows the one logo.
   showPlatformBrand?: boolean;
+  // On phones the theme toggle lives on the Profile page instead of here --
+  // only for shells that actually have a Profile page to hold it.
+  hideThemeToggleOnMobile?: boolean;
   showSearch?: boolean;
   showNotifications?: boolean;
   notificationUnreadCount?: number;
@@ -69,6 +72,7 @@ function Header({
   logoSrc,
   hideLogoOnDesktop,
   showPlatformBrand = true,
+  hideThemeToggleOnMobile = false,
   showSearch = true,
   showNotifications = true,
   notificationUnreadCount = 0,
@@ -160,11 +164,13 @@ function Header({
             </button>
           </div>
         )}
-        <IconButton
-          icon={isDarkTheme ? Sun : Moon}
-          ariaLabel={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
-          onClick={onToggleTheme}
-        />
+        <span className={hideThemeToggleOnMobile ? 'header__theme-toggle--hide-mobile' : undefined}>
+          <IconButton
+            icon={isDarkTheme ? Sun : Moon}
+            ariaLabel={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
+            onClick={onToggleTheme}
+          />
+        </span>
         {showNotifications && onNotificationsClick && (
           <NotificationBell
             unreadCount={notificationUnreadCount}

@@ -164,8 +164,13 @@
 }
 
 @media (--mobile) {
+  /* Theme toggle moves to the Profile page on phones. */
+  .header__theme-toggle--hide-mobile {
+    display: none;
+  }
+
   .header {
-    padding: 0 var(--space-sm);
+    padding: 0 4px;
   }
 
   .header__left {
@@ -189,8 +194,16 @@
     display: none;
   }
 
+  /* Long store names wrap onto a second line instead of being cut off. */
   .header__title {
     font-size: 14px;
+    /* Fixed 130px text area: names wrap inside it rather than stretching. */
+    width: 130px;
+    max-width: 130px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    overflow: visible;
   }
 
   .header__subtitle {

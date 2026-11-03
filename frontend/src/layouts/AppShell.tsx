@@ -15,6 +15,9 @@ import './AppShell.css';
 interface AppShellProps<Key extends string = NavTabKey> {
   navItems: NavItem<Key>[];
   activeTab: Key;
+  // false while an overlay page (Profile, Help, Notifications...) is open, so
+  // no main-menu item stays highlighted for a page that isn't showing.
+  navActive?: boolean;
   onSelectTab: (key: Key) => void;
   title: string;
   // Forwarded to Header -- see Header's own prop docs. Optional, so shells
@@ -77,6 +80,7 @@ interface AppShellProps<Key extends string = NavTabKey> {
 function AppShell<Key extends string = NavTabKey>({
   navItems,
   activeTab,
+  navActive = true,
   onSelectTab,
   title,
   subtitle,
@@ -176,6 +180,7 @@ function AppShell<Key extends string = NavTabKey>({
           subtitle={subtitle}
           logoSrc={logoSrc}
           hideLogoOnDesktop={hideLogoOnDesktop}
+          hideThemeToggleOnMobile
           centeredModals={centeredModals}
           showSearch={showSearch}
           searchValue={searchValue}
@@ -209,7 +214,7 @@ function AppShell<Key extends string = NavTabKey>({
       <div className="app-shell__body">
         <Sidebar<Key>
           items={navItems}
-          activeKey={activeTab}
+          activeKey={navActive ? activeTab : null}
           onSelect={onSelectTab}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((current) => !current)}
@@ -237,7 +242,7 @@ function AppShell<Key extends string = NavTabKey>({
         </div>
       </div>
       {showBottomNav && (
-        <BottomNav<Key> items={bottomNavItems ?? navItems} activeKey={activeTab} onSelect={onSelectTab} tabBadges={tabBadges} />
+        <BottomNav<Key> items={bottomNavItems ?? navItems} activeKey={navActive ? activeTab : null} onSelect={onSelectTab} tabBadges={tabBadges} />
       )}
     </div>
   );

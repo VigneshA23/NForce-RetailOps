@@ -3,7 +3,8 @@ import './BottomNav.css';
 
 interface BottomNavProps<Key extends string = NavTabKey> {
   items: NavItem<Key>[];
-  activeKey: Key;
+  // null while an overlay page (Profile, Help...) is open: no tab is current.
+  activeKey: Key | null;
   onSelect: (key: Key) => void;
   tabBadges?: Partial<Record<string, boolean>>;
 }

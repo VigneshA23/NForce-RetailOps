@@ -1,6 +1,6 @@
 import { type ChangeEvent, useEffect, useRef, useState, type FormEvent } from 'react';
 import { shouldAutoFocus } from '../utils/autoFocus';
-import { Briefcase, Camera, Eye, EyeOff, Mail, Pencil, ShieldCheck, Store as StoreIcon, Trash2, X, User, Phone } from 'lucide-react';
+import { Briefcase, Camera, Eye, EyeOff, Mail, Moon, Pencil, ShieldCheck, Store as StoreIcon, Sun, Trash2, X, User, Phone } from 'lucide-react';
 import { getMe, updateMe, updateAvatar, type MeResponse } from '../api/me';
 import { changePassword } from '../api/auth';
 import { ApiError } from '../api/client';
@@ -11,6 +11,8 @@ import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import { nfToast } from '../utils/toast';
 import { AVATAR_ACCEPT, validateAvatarFile } from '../utils/avatarUpload';
 import { getInitials } from '../utils/initials';
+import { useTheme } from '../hooks/useTheme';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import './Profile.css';
 
 import IconField from '../components/IconField';
@@ -96,6 +98,8 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
   const [previewOpen, setPreviewOpen] = useState(false);
   const [deleteConfirming, setDeleteConfirming] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
+  const { isDarkTheme, toggleTheme } = useTheme();
 
   // Personal info — separate saved vs. in-progress values for clean Cancel
   const [infoEditing, setInfoEditing] = useState(false);
@@ -438,6 +442,25 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
           </div>
         </div>
       </section>
+
+      {/* Appearance (phones only -- the header's theme toggle is hidden there) */}
+      {isMobile && (
+        <section className="profile-section profile-section--appearance">
+          <div className="profile-section__header">
+            <h3 className="profile-section__title">Appearance</h3>
+            <button
+              type="button"
+              className="profile-edit-btn"
+              onClick={toggleTheme}
+              aria-label={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}
+            >
+              {isDarkTheme ? <Sun size={13} /> : <Moon size={13} />}
+              {isDarkTheme ? 'Light mode' : 'Dark mode'}
+            </button>
+          </div>
+        </section>
+      )}
+
 
       {/* ── Personal info ────────────────────────────────────────────────── */}
       <section className="profile-section">
