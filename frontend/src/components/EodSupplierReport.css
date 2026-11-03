@@ -6,7 +6,9 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--space-sm) var(--space-md);
-  margin-bottom: var(--space-md);
+  /* No margin-bottom: .order-list's own 16px flex gap already spaces it from
+     the filter row below (the two used to stack into 32px). */
+  margin-bottom: 0;
 }
 
 .eod-report__date-nav {

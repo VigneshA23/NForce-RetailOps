@@ -4,7 +4,9 @@
   padding: var(--space-lg);
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  /* No gap: the sub-tab bar already carries its own margin-bottom (same as
+     Inventory's), and a flex gap on top doubled the space below the tabs. */
+  gap: 0;
 }
 
 /* .order-dashboard-page__subtabs (OrderDashboard.css, shared with Owner/
@@ -26,7 +28,7 @@
    label for the same store there would be redundant. */
 .super-admin-orders__eyebrow {
   display: block;
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 700;
 }
 
