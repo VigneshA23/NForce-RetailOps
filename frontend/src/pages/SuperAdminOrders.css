@@ -20,18 +20,6 @@
   padding-bottom: var(--space-sm);
 }
 
-/* Non-heading section label for the selected store's name, since this page
-   has no in-page <h1>/<h2> of its own (the shell already renders the
-   "Orders" title, same as Owner/Admin's OrderList.tsx, which has no in-page
-   header either). Desktop only -- mobile has its own store-select fixed in
-   the tab-bar slot at all times (see SuperAdminOrders.tsx), so a second
-   label for the same store there would be redundant. */
-.super-admin-orders__eyebrow {
-  display: block;
-  font-size: 18px;
-  font-weight: 700;
-}
-
 /* Store picker, always in this one spot in the sub-tabs row
    (order-dashboard-page__subtabs, reused from OrderDashboard.css) -- never
    relocates after a store is picked. Desktop: top-right corner, same as
