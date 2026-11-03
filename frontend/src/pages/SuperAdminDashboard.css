@@ -86,31 +86,31 @@
   border-radius: 16px;
 }
 
-/* Owners stat-card colours, matching the Inventory page tiles -- Pink Total
+/* Owners and Stores stat-card colours, matching the Inventory page tiles -- Pink Total
    Owners, Sky Blue Active Owners, Slate Blue Total Stores, Warm Yellow
    Inactive Owners. Each tone sets its colour; the shared rules below paint the
    left stripe, border, glow, tint and icon from it (same as StoreInventory.css). */
-.owners-page .stat-card-row .stat-card--primary {
+:is(.owners-page, .super-admin-stores-page) .stat-card-row .stat-card--primary {
   --owners-card-color: #d0178e;
   --owners-card-rgb: 208, 23, 142;
 }
 
-.owners-page .stat-card-row .stat-card--success {
+:is(.owners-page, .super-admin-stores-page) .stat-card-row .stat-card--success {
   --owners-card-color: #3fa8f4;
   --owners-card-rgb: 63, 168, 244;
 }
 
-.owners-page .stat-card-row .stat-card--warning {
+:is(.owners-page, .super-admin-stores-page) .stat-card-row .stat-card--warning {
   --owners-card-color: #e5a52e;
   --owners-card-rgb: 229, 165, 46;
 }
 
-.owners-page .stat-card-row .stat-card--info {
+:is(.owners-page, .super-admin-stores-page) .stat-card-row .stat-card--info {
   --owners-card-color: #425873;
   --owners-card-rgb: 66, 88, 115;
 }
 
-.owners-page .stat-card-row .stat-card {
+:is(.owners-page, .super-admin-stores-page) .stat-card-row .stat-card {
   background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(var(--owners-card-rgb), 0.1) 100%);
   border-color: rgba(var(--owners-card-rgb), 0.2);
   box-shadow:
@@ -120,7 +120,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-.owners-page .stat-card-row .stat-card:hover {
+:is(.owners-page, .super-admin-stores-page) .stat-card-row .stat-card:hover {
   box-shadow:
     inset 4px 0 0 var(--owners-card-color),
     0 3px 6px rgba(0, 0, 0, 0.07),
@@ -128,12 +128,12 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.85);
 }
 
-.owners-page .stat-card-row .stat-card__icon {
+:is(.owners-page, .super-admin-stores-page) .stat-card-row .stat-card__icon {
   background: rgba(var(--owners-card-rgb), 0.14);
   color: var(--owners-card-color);
 }
 
-[data-theme='dark'] .owners-page .stat-card-row .stat-card {
+[data-theme='dark'] :is(.owners-page, .super-admin-stores-page) .stat-card-row .stat-card {
   background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(var(--owners-card-rgb), 0.16) 100%);
   border-color: rgba(var(--owners-card-rgb), 0.28);
   box-shadow:
@@ -143,6 +143,6 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
-[data-theme='dark'] .owners-page .stat-card-row .stat-card__icon {
+[data-theme='dark'] :is(.owners-page, .super-admin-stores-page) .stat-card-row .stat-card__icon {
   background: rgba(var(--owners-card-rgb), 0.22);
 }
