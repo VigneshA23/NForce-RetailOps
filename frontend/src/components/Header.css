@@ -32,12 +32,12 @@
   flex: 1 1 auto;
 }
 
+/* The brand is a wide wordmark: sized by height and shown whole, never
+   cropped to a circle. */
 .header__logo {
   flex-shrink: 0;
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  object-fit: cover;
+  height: 54px;
+  width: auto;
 }
 
 /* Opt-in (Header's `hideLogoOnDesktop` prop) for callers that sit behind a
@@ -56,35 +56,12 @@
   flex-shrink: 0;
 }
 
+/* Wide wordmark (840x320 transparent source, enough pixels to stay sharp on
+   3x screens at this size), shown whole. */
 .header__platform-logo {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
-  object-fit: cover;
+  height: 54px;
+  width: auto;
   display: block;
-  box-shadow: 0 0 0 2px #26262b;
-}
-
-.header__platform-text {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.25;
-}
-
-.header__platform-name {
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-}
-
-.header__platform-tagline {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  color: #a1a1aa;
 }
 
 .header__platform-divider {
@@ -200,8 +177,7 @@
   }
 
   .header__logo {
-    width: 38px;
-    height: 38px;
+    height: 40px;
   }
 
   .header__logo--hide-desktop {
@@ -307,4 +283,100 @@
   .header__right .switch-store-btn__label {
     display: none;
   }
+}
+
+/* ---- Light sky header (light theme) ------------------------------------- */
+/* The Ked's wordmark is drawn for a light background, so in light mode the
+   header is the same light sky blue as the top of the page, so it flows
+   into the background, and its controls go dark-on-light, with white
+   search fields and buttons that lift off it. Redefining the header
+   tokens here flips everything that reads them (title, icon buttons, bell,
+   search text); the rest are hard-coded white-on-dark and get explicit
+   overrides. Dark mode keeps the original black header. The sidebar stays
+   black in both. */
+:root:not([data-theme='dark']) .header {
+  --color-header-bg: #f3f8fe;
+  --color-header-text: #18181b;
+  /* Sky blue behind the logo, easing into a soft pink on the right: the
+     wordmark's two colours, kept pale so text and icons stay readable. */
+  background: linear-gradient(90deg, #e6f2fe 0%, #f3f6fd 45%, #fbe6f1 100%);
+  border-bottom: 1px solid #e3e3f3;
+  box-shadow: 0 2px 10px rgba(16, 24, 40, 0.06);
+}
+
+:root:not([data-theme='dark']) .header .user-avatar {
+  border-color: #ffffff;
+}
+
+:root:not([data-theme='dark']) .header__platform-divider {
+  background: #cfdff1;
+}
+
+:root:not([data-theme='dark']) .header .icon-button:not(.icon-button--active):not(.icon-button--accent),
+:root:not([data-theme='dark']) .header__search-icon-trigger {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+:root:not([data-theme='dark']) .header .icon-button:not(.icon-button--active):not(.icon-button--accent):hover,
+:root:not([data-theme='dark']) .header__search-icon-trigger:hover {
+  background: #ffffff;
+}
+
+:root:not([data-theme='dark']) .header .nb__trigger:hover,
+:root:not([data-theme='dark']) .header .nb__trigger--open {
+  background: rgba(255, 255, 255, 0.75);
+  color: #18181b;
+}
+
+:root:not([data-theme='dark']) .header .search-input--header {
+  background: #ffffff;
+  border-color: #dbe7f5;
+  color: #94a3b8;
+}
+
+:root:not([data-theme='dark']) .header .search-input--header .search-input__field {
+  color: #18181b;
+}
+
+:root:not([data-theme='dark']) .header .search-input--header .search-input__field::placeholder {
+  color: #94a3b8;
+}
+
+:root:not([data-theme='dark']) .header :is(.adrop__search-icon, .sacp__search-icon, .edrop__search-icon) {
+  color: #94a3b8;
+}
+
+:root:not([data-theme='dark']) .header :is(.adrop__input, .sacp__input, .edrop__input) {
+  background: #ffffff;
+  border-color: #dbe7f5;
+  color: #18181b;
+}
+
+:root:not([data-theme='dark']) .header :is(.adrop__input, .sacp__input, .edrop__input)::placeholder {
+  color: #94a3b8;
+}
+
+:root:not([data-theme='dark']) .header :is(.adrop__input, .sacp__input, .edrop__input):focus {
+  background: #ffffff;
+  border-color: #94a3b8;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.2);
+}
+
+:root:not([data-theme='dark']) .header :is(.adrop__mobile-trigger, .sacp__mobile-trigger, .edrop__mobile-trigger) {
+  background: rgba(255, 255, 255, 0.75);
+  color: #334155;
+}
+
+:root:not([data-theme='dark']) .header :is(.adrop__mobile-trigger, .sacp__mobile-trigger, .edrop__mobile-trigger):hover {
+  background: #ffffff;
+  color: #18181b;
+}
+
+:root:not([data-theme='dark']) .header__right .btn--secondary {
+  background: rgba(255, 255, 255, 0.75);
+  border-color: #cfdff1;
+}
+
+:root:not([data-theme='dark']) .header__right .btn--secondary:hover {
+  background: #ffffff;
 }

@@ -435,7 +435,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         : showActivity ? 'activity'
         : activeTab
       }
-      logoSrc="/nforce-logo.png"
+      logoSrc="/keds-logo.png"
       hideLogoOnDesktop
       centeredModals
       user={user}

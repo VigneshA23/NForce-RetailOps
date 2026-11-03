@@ -88,13 +88,9 @@ function Sidebar<Key extends string = NavTabKey>({
         className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}${mobileOpen ? ' sidebar--mobile-open' : ''}`}
       >
         <div className="sidebar__brand">
-          <img src="/nforce-logo.png" alt="NForce logo" className="sidebar__brand-logo" />
-          {/* Mobile drawer only -- on desktop the logo and name are in the
-              header (Header.tsx). */}
-          <div className="sidebar__brand-text">
-            <span className="sidebar__brand-title">NForce RetailOps</span>
-            <span className="sidebar__brand-subtitle">Store Ops Platform</span>
-          </div>
+          {/* Mobile drawer only -- on desktop the logo is in the header
+              (Header.tsx). */}
+          <img src="/keds-logo.png" alt="Ked's Ice Cream, Waffles & Crepes" className="sidebar__brand-logo" />
         </div>
         <nav className="sidebar__nav" aria-label="Primary">
           {/* A dock: each item magnifies on hover and nudges its neighbours
