@@ -51,6 +51,27 @@
   font-size: 13px;
 }
 
+/* One shared control height so the search field lines up with the dropdowns
+   in the same row (it was a few px taller). */
+.filter-bar .select,
+.filter-bar .multi-select__trigger,
+.filter-bar .searchable-select__trigger,
+.filter-bar .date-range-picker__trigger,
+.filter-bar .search-input--filter {
+  box-sizing: border-box;
+  height: 34px;
+  min-height: 34px;
+}
+
+.filter-bar .search-input--filter {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.filter-bar .search-input--filter__field {
+  height: 100%;
+}
+
 /* Same single bordered container as desktop/tablet -- on phones the
    controls just stack full-width inside it instead of sitting in a row,
    everywhere a .filter-bar is used (not container-per-control). */
