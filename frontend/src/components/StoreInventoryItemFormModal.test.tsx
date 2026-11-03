@@ -280,7 +280,8 @@ describe('StoreInventoryItemFormModal', () => {
 
     // Adding a second store the category/supplier aren't assigned to clears
     // the choices already made rather than silently keeping them.
-    await user.click(screen.getByRole('button', { name: 'Select all stores' }));
+    await user.click(screen.getByRole('button', { name: /store/i }));
+    await user.click(screen.getByRole('button', { name: 'All Stores' }));
     expect(getCategoriesForStores).toHaveBeenLastCalledWith([1, 2]);
     expect(screen.getByRole('combobox', { name: 'Category' })).toHaveValue('');
     expect(screen.getByRole('combobox', { name: 'Preferred supplier' })).toHaveValue('');

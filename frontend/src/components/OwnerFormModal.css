@@ -31,7 +31,7 @@
 
 .owner-form .input,
 .owner-form .select {
-  background: var(--color-bg-page);
+  background: var(--color-filter-field-bg);
   border-radius: var(--radius-md);
   transition: border-color 0.15s ease;
 }

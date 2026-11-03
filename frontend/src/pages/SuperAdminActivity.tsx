@@ -145,7 +145,7 @@ function SuperAdminActivity({ onBack }: SuperAdminActivityProps) {
         <p className="sa-activity__subtitle">Owner and employee activity across every store, chronologically grouped.</p>
       </div>
 
-      <div className="filter-bar">
+      <div className="filter-bar filter-bar--row-pair sa-activity__filters">
         <div className="filter filter--search">
           <SearchInput value={search} onChange={setSearch} placeholder="Search activity, task, employee…" variant="filter" />
         </div>
@@ -158,7 +158,9 @@ function SuperAdminActivity({ onBack }: SuperAdminActivityProps) {
             ariaLabel="Filter by store"
           />
         )}
-        <DateRangePicker value={dateRange} onChange={setDateRange} />
+        <div className="filter sa-activity__date-filter">
+          <DateRangePicker value={dateRange} onChange={setDateRange} />
+        </div>
         <FilterClearButton onClick={() => { setStoreFilter('all'); setDateRange(DEFAULT_DATE_RANGE); }} />
       </div>
 

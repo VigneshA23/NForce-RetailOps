@@ -134,7 +134,7 @@
      every bit of free space itself -- otherwise that space ends up as a gap
      next to it instead, pushed there by the filter group's margin-left:auto. */
   flex: 1 1 260px;
-  background: var(--color-surface-card);
+  background: var(--color-filter-field-bg);
   border-radius: 10px;
   padding: 10px 12px;
 }

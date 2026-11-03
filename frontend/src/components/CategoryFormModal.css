@@ -62,7 +62,7 @@
   min-height: 44px;
   padding-left: 38px;
   border-radius: 12px;
-  background: var(--color-bg-page);
+  background: var(--color-filter-field-bg);
   font-size: 14px;
   font-weight: 500;
 }

@@ -34,7 +34,7 @@
   min-width: 0;
   width: 100%;
   border: none;
-  background: var(--color-surface-card);
+  background: var(--color-filter-field-bg);
   text-align: center;
   font-size: 14px;
   font-weight: 600;
