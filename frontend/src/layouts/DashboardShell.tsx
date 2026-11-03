@@ -79,7 +79,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
   const title = overlay === 'profile' ? 'My Profile'
-    : overlay === 'help' ? (isMobile ? '' : 'Help & Guidance')
+    : overlay === 'help' ? 'Help & Guidance'
     : PAGE_TITLES[activeTab];
 
   function handleNotificationsCountChange(value: number) {
