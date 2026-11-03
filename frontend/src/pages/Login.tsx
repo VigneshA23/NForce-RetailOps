@@ -353,7 +353,11 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                                 Signed in!
                               </>
                             ) : loading ? (
-                              <ButtonDots label="Signing in" />
+                              <span className="btn__dots" role="status" aria-label="Signing in">
+                                <span aria-hidden="true" />
+                                <span aria-hidden="true" />
+                                <span aria-hidden="true" />
+                              </span>
                             ) : (
                               'Sign In'
                             )}
