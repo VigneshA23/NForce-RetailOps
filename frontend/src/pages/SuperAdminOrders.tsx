@@ -813,10 +813,6 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
 
       {selectedStoreId !== null && subTab !== 'purchasing-report' && (
         <div className="super-admin-orders__store">
-          {!isMobile && (
-            <span className="super-admin-orders__eyebrow">{selectedStoreName}</span>
-          )}
-
           {subTab === 'counts' && <SuperAdminInventoryCounts storeId={selectedStoreId} />}
           {subTab === 'eod-report' && <SuperAdminEodSupplierReport storeId={selectedStoreId} storeName={selectedStoreName} />}
 
