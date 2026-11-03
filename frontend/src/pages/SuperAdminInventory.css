@@ -28,6 +28,15 @@
 .super-admin-inventory-page .store-inventory-page__subtabs {
   padding-top: var(--space-lg);
   padding-bottom: var(--space-sm);
+  /* Same space below the bar's border line as SuperAdminOrders.css. */
+  margin-bottom: var(--space-md);
+}
+
+/* Phones: 8px below the sub-tab bar, matching the Orders tab. */
+@media (max-width: 480px) {
+  .super-admin-inventory-page .store-inventory-page__subtabs {
+    margin-bottom: var(--space-sm);
+  }
 }
 
 .super-admin-inventory-page__no-store-msg {

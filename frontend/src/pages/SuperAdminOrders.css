@@ -18,6 +18,15 @@
 .super-admin-orders .order-dashboard-page__subtabs {
   padding-top: 0;
   padding-bottom: var(--space-sm);
+  /* 16px of space below the bar's bottom border line. */
+  margin-bottom: var(--space-md);
+}
+
+/* Phones: tighter, 8px below the sub-tab bar. */
+@media (max-width: 480px) {
+  .super-admin-orders .order-dashboard-page__subtabs {
+    margin-bottom: var(--space-sm);
+  }
 }
 
 /* Store picker, always in this one spot in the sub-tabs row
