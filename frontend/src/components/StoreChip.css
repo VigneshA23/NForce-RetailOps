@@ -1,0 +1,97 @@
+.store-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 5px 12px 5px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface-card);
+  color: var(--color-text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.store-chip__letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.store-chip__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* "+N more" toggle beside the first store; only its own background changes on hover. */
+.store-more-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.store-more-toggle:hover {
+  background: rgba(100, 116, 139, 0.14);
+}
+
+.store-more-toggle svg {
+  transition: transform 0.15s ease;
+}
+
+.store-more-toggle[aria-expanded='true'] svg {
+  transform: rotate(180deg);
+}
+
+/* Desktop cell: first store + toggle on one line. */
+.store-summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Expanded row listing every assigned store. */
+.store-expand-row > td {
+  padding: 0 var(--space-md) var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.store-expand-panel {
+  padding: 14px 18px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: var(--color-surface-muted, rgba(100, 116, 139, 0.05));
+}
+
+.store-expand-panel__heading {
+  margin-bottom: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.store-expand-panel__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}

@@ -2,6 +2,13 @@
    @custom-media queries below silently never resolve. */
 @import '../styles/breakpoints.css';
 
+/* Clip the header row and last row to the card's rounded corners; without this
+   the table's square cell backgrounds poke out past them. */
+.table-card.super-admin-store-table {
+  border-radius: 14px;
+  overflow: hidden;
+}
+
 .super-admin-store-table__name-link {
   display: flex;
   flex-direction: column;
