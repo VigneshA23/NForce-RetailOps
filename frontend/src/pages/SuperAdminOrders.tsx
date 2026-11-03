@@ -43,6 +43,7 @@ import '../pages/OrderDashboard.css';
 import './SuperAdminOrders.css';
 import { usePersistedState, oneOf, nullableNumber, nullableString } from '../hooks/usePersistedState';
 import LoadingSkeleton from '../components/LoadingSkeleton';
+import TableScroll from '../components/TableScroll';
 
 type StatusFilter = 'OPEN' | OrderStatus;
 
@@ -996,7 +997,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                   )}
                   {group.isOpen && (
                     <>
-                      <div className="table-scroll">
+                      <TableScroll>
                         <table className="order-list__group-table">
                           <colgroup>
                             <col className="order-list__col--checkbox" />
@@ -1022,7 +1023,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                           </thead>
                           <tbody>{group.shown.map((row) => renderRow(row, 'grouped'))}</tbody>
                         </table>
-                      </div>
+                      </TableScroll>
                       {group.hasMore && (
                         <button type="button" className="order-list__more-btn" onClick={() => setGroupExpanded((c) => ({ ...c, [group.key]: !(groupExpanded[group.key] ?? false) }))}>
                           {group.moreLabel}
@@ -1037,7 +1038,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
 
           {!entriesLoading && !entriesError && decorated.length > 0 && !grouped && (
             <div className="order-list__flat-card">
-              <div className="table-scroll">
+              <TableScroll>
                 <table className="order-list__flat-table">
                   <colgroup>
                     <col style={{ width: '3%' }} />
@@ -1065,7 +1066,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                   </thead>
                   <tbody>{decorated.map((row) => renderRow(row, 'flat'))}</tbody>
                 </table>
-              </div>
+              </TableScroll>
             </div>
           )}
 

@@ -7,6 +7,48 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Always-visible horizontal scrollbar: OS overlay scrollbars (Windows 11) hide
+   until hovered, so a table wider than its card looked silently clipped on the
+   right (e.g. Order List / End of Day Report status column). Styling the
+   scrollbar makes the browser draw it permanently. */
+.table-scroll::-webkit-scrollbar,
+.slc::-webkit-scrollbar,
+.sct::-webkit-scrollbar {
+  height: 6px;
+}
+
+.table-scroll::-webkit-scrollbar-track,
+.slc::-webkit-scrollbar-track,
+.sct::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--color-text-muted) 14%, transparent);
+  border-radius: 999px;
+}
+
+.table-scroll::-webkit-scrollbar-thumb,
+.slc::-webkit-scrollbar-thumb,
+.sct::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text-muted) 60%, transparent);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.table-scroll::-webkit-scrollbar-thumb:hover,
+.slc::-webkit-scrollbar-thumb:hover,
+.sct::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+  background-clip: padding-box;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .table-scroll,
+  .slc,
+  .sct {
+    scrollbar-width: auto;
+    scrollbar-color: color-mix(in srgb, var(--color-text-muted) 60%, transparent) color-mix(in srgb, var(--color-text-muted) 14%, transparent);
+  }
+}
+
 .data-table {
   width: 100%;
   min-width: 640px;
