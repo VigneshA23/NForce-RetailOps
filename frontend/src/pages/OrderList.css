@@ -62,6 +62,25 @@
   background: var(--color-filter-field-bg);
 }
 
+/* Same 34px control height as styles/filters.css's .filter-bar so the search
+   box lines up with the dropdowns (Order List + End of Day Report). */
+.order-list__filter-card .select,
+.order-list__filter-card .search-input--filter--surface {
+  box-sizing: border-box;
+  height: 34px;
+  min-height: 34px;
+}
+
+.order-list__filter-card .search-input--filter--surface {
+  border-radius: 6px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.order-list__filter-card .search-input--filter--surface .search-input--filter__field {
+  height: 100%;
+}
+
 .order-list__filter-select {
   min-width: 170px;
 }
