@@ -9,6 +9,8 @@ import type { NotificationNavigateHandler } from '../utils/notificationRoutes';
 import './Header.css';
 
 interface HeaderProps {
+  // Empty string omits the heading (e.g. the Store Picker, which carries only
+  // the brand logo and a subtitle).
   title: string;
   // Shown as a second, smaller line under the title (e.g. Employee's
   // currently selected store name) -- optional, so other shells' single-line
@@ -22,6 +24,9 @@ interface HeaderProps {
   // would otherwise be a redundant second copy. Ignored below the mobile
   // breakpoint, and has no effect when logoSrc isn't set.
   hideLogoOnDesktop?: boolean;
+  // When false, drops the desktop/tablet brand logo + divider -- for the Store
+  // Picker, where logoSrc already shows the one logo.
+  showPlatformBrand?: boolean;
   showSearch?: boolean;
   showNotifications?: boolean;
   notificationUnreadCount?: number;
@@ -63,6 +68,7 @@ function Header({
   subtitle,
   logoSrc,
   hideLogoOnDesktop,
+  showPlatformBrand = true,
   showSearch = true,
   showNotifications = true,
   notificationUnreadCount = 0,
@@ -122,12 +128,16 @@ function Header({
         {/* Brand wordmark, desktop/tablet only: the header spans the full
             width above the dock sidebar, which is too narrow to carry it. On
             mobile the logoSrc image above and the drawer cover it. */}
-        <div className="header__platform">
-          <img src="/keds-logo.png" alt="Ked's Ice Cream, Waffles & Crepes" className="header__platform-logo" />
-        </div>
-        <span className="header__platform-divider" aria-hidden="true" />
+        {showPlatformBrand && (
+          <>
+            <div className="header__platform">
+              <img src="/keds-logo.png" alt="Ked's Ice Cream, Waffles & Crepes" className="header__platform-logo" />
+            </div>
+            <span className="header__platform-divider" aria-hidden="true" />
+          </>
+        )}
         <div className="header__brand">
-          <h1 className="header__title">{title}</h1>
+          {title && <h1 className="header__title">{title}</h1>}
           {subtitle && <span className="header__subtitle">{subtitle}</span>}
         </div>
       </div>
