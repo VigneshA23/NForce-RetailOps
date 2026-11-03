@@ -44,9 +44,11 @@
   color: var(--color-text-secondary);
 }
 
-/* No margin-bottom: spacing to the card comes solely from the page's flex gap. */
-.sa-activity__filters {
-  margin-bottom: 0;
+/* .filter-bar's own margin-bottom (styles/filters.css) was still winning on
+   equal specificity and stacking with the page gap (~32px). Doubled class
+   beats it; the negative margin trims the page gap down to 8px here. */
+.sa-activity .sa-activity__filters {
+  margin-bottom: calc(-1 * var(--space-sm));
 }
 
 .sa-activity__date-filter .date-range-picker__trigger {
