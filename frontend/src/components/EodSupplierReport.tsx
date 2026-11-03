@@ -15,6 +15,7 @@ import { nfToast } from '../utils/toast';
 import EndOfDaySkippedBadge from './EndOfDaySkippedBadge';
 import '../pages/OrderList.css';
 import './EodSupplierReport.css';
+import TableScroll from './TableScroll';
 
 const STATUS_META: Record<EodReportStatus, { label: string; tone: string }> = {
   START_OF_DAY_PENDING: { label: 'Not Updated Today', tone: 'outline' },
@@ -517,7 +518,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
                   )}
                   {group.isOpen && (
                     <>
-                      <div className="table-scroll">
+                      <TableScroll>
                         <table className="order-list__group-table">
                           {/* Explicit percentages, not the shared .order-list__col--num
                               (10% each, tuned for Order List's 4 numeric columns) --
@@ -551,7 +552,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
                           </thead>
                           <tbody>{group.shown.map((row) => renderRow(row, 'grouped'))}</tbody>
                         </table>
-                      </div>
+                      </TableScroll>
                       {group.hasMore && (
                         <button type="button" className="order-list__more-btn" onClick={() => setGroupExpanded((c) => ({ ...c, [group.key]: !(groupExpanded[group.key] ?? false) }))}>
                           {group.moreLabel}
@@ -566,7 +567,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
 
           {!isLoading && filteredRows.length > 0 && !grouped && (
             <div className="order-list__flat-card">
-              <div className="table-scroll">
+              <TableScroll>
                 <table className="order-list__flat-table">
                   <colgroup>
                     <col style={{ width: '22%' }} />
@@ -596,7 +597,7 @@ function EodSupplierReport({ storeName }: { storeName?: string | null }) {
                   </thead>
                   <tbody>{filteredRows.map((row) => renderRow(row, 'flat'))}</tbody>
                 </table>
-              </div>
+              </TableScroll>
             </div>
           )}
         </>
