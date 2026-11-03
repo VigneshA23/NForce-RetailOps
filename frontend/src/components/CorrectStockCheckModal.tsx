@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Layers, FileText } from 'lucide-react';
 import Modal from './Modal';
 import FormField from './FormField';
 import Select from './Select';
@@ -9,7 +10,8 @@ import type { StockCheckResponse, StockCheckSnapshotKey } from '../types/stockCh
 import { formatDateLabel, formatTimeLabel } from '../utils/checklistHistoryOptions';
 import { countLabel } from '../utils/stockCheckFormat';
 import './CorrectStockCheckModal.css';
-
+
+import IconField from './IconField';
 export interface CorrectStockCheckValues {
   available: number;
   deadStock: number;
@@ -131,7 +133,9 @@ function CorrectStockCheckModal({ isOpen, row, snapshot, errorMessage, isSubmitt
     >
       <form id="correct-stock-check-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Snapshot" htmlFor="csc-snapshot">
-          <Select id="csc-snapshot" options={SNAPSHOT_OPTIONS} value={activeSnapshot} onChange={handleSnapshotChange} ariaLabel="Snapshot" />
+          <IconField icon={Layers}>
+            <Select id="csc-snapshot" options={SNAPSHOT_OPTIONS} value={activeSnapshot} onChange={handleSnapshotChange} ariaLabel="Snapshot" />
+          </IconField>
         </FormField>
         <FormField label="Available" htmlFor="csc-available">
           <QuantityStepper id="csc-available" value={available} unit={row.unitOfMeasurement} min={0} ariaLabel="Available" onChange={setAvailable} />
@@ -140,17 +144,21 @@ function CorrectStockCheckModal({ isOpen, row, snapshot, errorMessage, isSubmitt
           <QuantityStepper id="csc-dead-stock" value={deadStock} unit={row.unitOfMeasurement} min={0} ariaLabel="Dead stock" onChange={setDeadStock} />
         </FormField>
         <FormField label="Reason" htmlFor="csc-reason">
-          <Select id="csc-reason" options={REASON_OPTIONS} value={reason} onChange={setReason} ariaLabel="Reason" />
+          <IconField icon={FileText}>
+            <Select id="csc-reason" options={REASON_OPTIONS} value={reason} onChange={setReason} ariaLabel="Reason" />
+          </IconField>
         </FormField>
         <FormField label="Note (optional)" htmlFor="csc-note">
-          <input
-            id="csc-note"
-            type="text"
-            className="input"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="e.g. Found 2 extra in the back freezer"
-          />
+          <IconField icon={FileText}>
+            <input
+              id="csc-note"
+              type="text"
+              className="input"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="e.g. Found 2 extra in the back freezer"
+            />
+          </IconField>
         </FormField>
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>

@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Building2, ClipboardList, Tags, FileText, ListChecks, CircleCheck, Calendar } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import type { Category } from '../types/category';
 import type { AdminTask, AdminTaskFormValues, CompletionType, DayCode, ResponseType, ScheduleType } from '../types/adminTask';
@@ -10,7 +11,12 @@ import SearchableSelect from './SearchableSelect';
 import ButtonDots from './ButtonDots';
 import PopoverDateField from './PopoverDateField';
 import './TaskFormModal.css';
+import './SupplierFormModal.css';
 
+// Matches the backend's @Size(max = 2000) on TaskRequest.description.
+const DESCRIPTION_MAX_LENGTH = 2000;
+
+import IconField from './IconField';
 interface TaskFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
@@ -181,6 +187,7 @@ function TaskFormModal({
       onClose={onClose}
       size="lg"
       title={mode === 'edit' ? 'Edit Task' : 'Create Task'}
+      titleIcon={<ClipboardList size={18} />}
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose} disabled={isSubmitting}>
@@ -197,23 +204,30 @@ function TaskFormModal({
         {/* ── Basic Information ── */}
         <section className="task-form__section">
           <FormField label="Task Name *" htmlFor="task-name" error={errors.name}>
-            <input
-              id="task-name"
-              className="input"
-              value={values.name}
-              onChange={(event) => updateField('name', event.target.value)}
-              placeholder="Enter task name"
-              autoFocus={shouldAutoFocus()}
-            />
+            <div className="supplier-form__input-wrap">
+              <ClipboardList size={15} className="supplier-form__input-icon" aria-hidden="true" />
+              <input
+                id="task-name"
+                className="input"
+                value={values.name}
+                onChange={(event) => updateField('name', event.target.value)}
+                placeholder="Enter task name"
+                autoFocus={shouldAutoFocus()}
+              />
+            </div>
           </FormField>
           <FormField label="Description / Instructions" htmlFor="task-description">
-            <textarea
-              id="task-description"
-              className="input task-form__textarea"
-              value={values.description}
-              onChange={(event) => updateField('description', event.target.value)}
-              rows={3}
-            />
+            <IconField icon={FileText} align="top">
+              <textarea
+                id="task-description"
+                className="input task-form__textarea"
+                value={values.description}
+                onChange={(event) => updateField('description', event.target.value)}
+                rows={3}
+                maxLength={DESCRIPTION_MAX_LENGTH}
+              />
+            </IconField>
+            <p className="form-field__char-count">{values.description.length} / {DESCRIPTION_MAX_LENGTH}</p>
           </FormField>
         </section>
 
@@ -221,29 +235,32 @@ function TaskFormModal({
         <section className="task-form__section">
           {storeScopeSelectable && (
             <FormField label="Store *" htmlFor="task-store" error={errors.storeIds}>
-              <SearchableSelect
-                id="task-store"
-                placeholder="Select store(s)"
-                multiple
-                options={stores.map((store) => ({ id: store.id, label: store.name }))}
-                selectedIds={values.storeIds}
-                allOption={{
-                  label: 'All Stores',
-                  selected: values.appliesToAllStores,
-                  onToggle: () => handleStoreScopeChange({ appliesToAllStores: !values.appliesToAllStores, storeIds: [] }),
-                }}
-                onChange={(ids) => {
-                  // Checking every individual store by hand is the same intent as
-                  // checking "All Stores" -- promote to it so the category scope
-                  // also covers stores added later, not just today's full list.
-                  const everyStoreSelected = stores.length > 0 && stores.every((store) => ids.includes(store.id));
-                  handleStoreScopeChange(
-                    everyStoreSelected
-                      ? { appliesToAllStores: true, storeIds: [] }
-                      : { appliesToAllStores: false, storeIds: ids },
-                  );
-                }}
-              />
+              <div className="supplier-form__input-wrap supplier-form__input-wrap--select">
+                <Building2 size={15} className="supplier-form__input-icon" aria-hidden="true" />
+                <SearchableSelect
+                  id="task-store"
+                  placeholder="Select store(s)"
+                  multiple
+                  options={stores.map((store) => ({ id: store.id, label: store.name }))}
+                  selectedIds={values.storeIds}
+                  allOption={{
+                    label: 'All Stores',
+                    selected: values.appliesToAllStores,
+                    onToggle: () => handleStoreScopeChange({ appliesToAllStores: !values.appliesToAllStores, storeIds: [] }),
+                  }}
+                  onChange={(ids) => {
+                    // Checking every individual store by hand is the same intent as
+                    // checking "All Stores" -- promote to it so the category scope
+                    // also covers stores added later, not just today's full list.
+                    const everyStoreSelected = stores.length > 0 && stores.every((store) => ids.includes(store.id));
+                    handleStoreScopeChange(
+                      everyStoreSelected
+                        ? { appliesToAllStores: true, storeIds: [] }
+                        : { appliesToAllStores: false, storeIds: ids },
+                    );
+                  }}
+                />
+              </div>
             </FormField>
           )}
           <div className="task-form__grid-category">
@@ -265,29 +282,34 @@ function TaskFormModal({
                   </button>
                 </div>
               ) : (
-                <SearchableSelect
-                  id="task-category"
-                  placeholder="Select Category"
-                  options={categories.map((category) => ({ id: category.id, label: category.name }))}
-                  selectedIds={values.categoryId != null ? [values.categoryId] : []}
-                  onChange={(ids) => updateField('categoryId', ids[0] ?? null)}
-                  isLoading={categoriesLoading}
-                  error={categoriesError}
-                  onRetry={onRetryCategories}
-                />
+                <div className="supplier-form__input-wrap supplier-form__input-wrap--select">
+                  <Tags size={15} className="supplier-form__input-icon" aria-hidden="true" />
+                  <SearchableSelect
+                    id="task-category"
+                    placeholder="Select Category"
+                    options={categories.map((category) => ({ id: category.id, label: category.name }))}
+                    selectedIds={values.categoryId != null ? [values.categoryId] : []}
+                    onChange={(ids) => updateField('categoryId', ids[0] ?? null)}
+                    isLoading={categoriesLoading}
+                    error={categoriesError}
+                    onRetry={onRetryCategories}
+                  />
+                </div>
               )}
             </FormField>
             <FormField label="Order (optional)" htmlFor="task-display-order" error={errors.displayOrder}>
-              <input
-                id="task-display-order"
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                className="input"
-                value={values.displayOrder}
-                onChange={(event) => updateField('displayOrder', event.target.value.replace(/\D/g, ''))}
-                placeholder="Auto"
-              />
+              <IconField icon={ListChecks}>
+                <input
+                  id="task-display-order"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className="input"
+                  value={values.displayOrder}
+                  onChange={(event) => updateField('displayOrder', event.target.value.replace(/\D/g, ''))}
+                  placeholder="Auto"
+                />
+              </IconField>
             </FormField>
           </div>
           <p className="task-form__hint">
@@ -299,36 +321,40 @@ function TaskFormModal({
         <section className="task-form__section">
           <div className="task-form__grid-2">
             <FormField label="Response Type *" htmlFor="task-response-type" error={errors.responseType}>
-              <SearchableSelect
-                id="task-response-type"
-                placeholder="Select…"
-                options={RESPONSE_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
-                selectedIds={
-                  values.responseType
-                    ? [RESPONSE_TYPE_OPTIONS.findIndex((option) => option.value === values.responseType)]
-                    : []
-                }
-                onChange={(ids) => {
-                  const option = RESPONSE_TYPE_OPTIONS[ids[0]];
-                  if (option) handleResponseTypeChange(option.value);
-                }}
-              />
+              <IconField icon={ListChecks}>
+                <SearchableSelect
+                  id="task-response-type"
+                  placeholder="Select…"
+                  options={RESPONSE_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+                  selectedIds={
+                    values.responseType
+                      ? [RESPONSE_TYPE_OPTIONS.findIndex((option) => option.value === values.responseType)]
+                      : []
+                  }
+                  onChange={(ids) => {
+                    const option = RESPONSE_TYPE_OPTIONS[ids[0]];
+                    if (option) handleResponseTypeChange(option.value);
+                  }}
+                />
+              </IconField>
             </FormField>
             <FormField label="Completion Type *" htmlFor="task-completion-type" error={errors.completionType}>
-              <SearchableSelect
-                id="task-completion-type"
-                placeholder="Select…"
-                options={COMPLETION_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
-                selectedIds={
-                  values.completionType
-                    ? [COMPLETION_TYPE_OPTIONS.findIndex((option) => option.value === values.completionType)]
-                    : []
-                }
-                onChange={(ids) => {
-                  const option = COMPLETION_TYPE_OPTIONS[ids[0]];
-                  if (option) handleCompletionTypeChange(option.value);
-                }}
-              />
+              <IconField icon={CircleCheck}>
+                <SearchableSelect
+                  id="task-completion-type"
+                  placeholder="Select…"
+                  options={COMPLETION_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+                  selectedIds={
+                    values.completionType
+                      ? [COMPLETION_TYPE_OPTIONS.findIndex((option) => option.value === values.completionType)]
+                      : []
+                  }
+                  onChange={(ids) => {
+                    const option = COMPLETION_TYPE_OPTIONS[ids[0]];
+                    if (option) handleCompletionTypeChange(option.value);
+                  }}
+                />
+              </IconField>
             </FormField>
           </div>
 
@@ -364,20 +390,22 @@ function TaskFormModal({
         {/* ── Schedule & Dates ── */}
         <section className="task-form__section">
           <FormField label="Schedule *" htmlFor="task-schedule-type" error={errors.scheduleType}>
-            <SearchableSelect
-              id="task-schedule-type"
-              placeholder="Select Schedule"
-              options={SCHEDULE_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
-              selectedIds={
-                values.scheduleType
-                  ? [SCHEDULE_TYPE_OPTIONS.findIndex((option) => option.value === values.scheduleType)]
-                  : []
-              }
-              onChange={(ids) => {
-                const option = SCHEDULE_TYPE_OPTIONS[ids[0]];
-                if (option) handleScheduleTypeChange(option.value);
-              }}
-            />
+            <IconField icon={Calendar}>
+              <SearchableSelect
+                id="task-schedule-type"
+                placeholder="Select Schedule"
+                options={SCHEDULE_TYPE_OPTIONS.map((option, index) => ({ id: index, label: option.label }))}
+                selectedIds={
+                  values.scheduleType
+                    ? [SCHEDULE_TYPE_OPTIONS.findIndex((option) => option.value === values.scheduleType)]
+                    : []
+                }
+                onChange={(ids) => {
+                  const option = SCHEDULE_TYPE_OPTIONS[ids[0]];
+                  if (option) handleScheduleTypeChange(option.value);
+                }}
+              />
+            </IconField>
           </FormField>
 
           {values.scheduleType === 'SELECTED_DAYS' && (

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { shouldAutoFocus } from '../utils/autoFocus';
-import { Building2, MapPin, Truck } from 'lucide-react';
+import { Building2, MapPin, Truck, Phone } from 'lucide-react';
 import type { SupplierFormValues, SupplierStoreOption } from '../types/supplier';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
 import Modal from './Modal';
@@ -9,7 +9,8 @@ import Select from './Select';
 import SearchableSelect from './SearchableSelect';
 import ButtonDots from './ButtonDots';
 import './SupplierFormModal.css';
-
+
+import IconField from './IconField';
 interface SupplierFormModalProps {
   isOpen: boolean;
   mode: 'create' | 'edit';
@@ -136,14 +137,16 @@ function SupplierFormModal({
                   onChange={setCountryCode}
                   options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
                 />
-                <input
-                  id="supplier-phone"
-                  className="input"
-                  inputMode="numeric"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="10-digit number"
-                />
+                <IconField icon={Phone}>
+                  <input
+                    id="supplier-phone"
+                    className="input"
+                    inputMode="numeric"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="10-digit number"
+                  />
+                </IconField>
               </div>
             </FormField>
 

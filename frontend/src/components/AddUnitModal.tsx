@@ -1,10 +1,12 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Type } from 'lucide-react';
 import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
 import { createInventoryUnit, type InventoryUnit } from '../api/inventoryUnits';
 import './AddUnitModal.css';
-
+
+import IconField from './IconField';
 interface AddUnitModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -67,14 +69,16 @@ function AddUnitModal({ isOpen, onClose, onCreated }: AddUnitModalProps) {
     >
       <form id="add-unit-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Unit Name *" htmlFor="new-unit-name" error={errors.name}>
-          <input
-            id="new-unit-name"
-            className="input"
-            value={name}
-            maxLength={30}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="e.g. lb, box, dozen"
-          />
+          <IconField icon={Type}>
+            <input
+              id="new-unit-name"
+              className="input"
+              value={name}
+              maxLength={30}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="e.g. lb, box, dozen"
+            />
+          </IconField>
         </FormField>
         <FormField label="Quantity Type *" htmlFor="new-unit-whole" error={errors.wholeNumber}>
           <div className="add-unit-modal__options" role="radiogroup" aria-label="Quantity type">

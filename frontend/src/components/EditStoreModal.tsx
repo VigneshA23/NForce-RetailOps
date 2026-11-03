@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { MapPin, Store as StoreIcon } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import type { CreateStoreValues } from '../types/superAdminStore';
 import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
 import './AssignStoreModal.css';
+import './SupplierFormModal.css';
 
 interface EditStoreModalProps {
   isOpen: boolean;
@@ -49,6 +51,7 @@ function EditStoreModal({ isOpen, initialValues, errorMessage, isSubmitting = fa
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Store"
+      titleIcon={<StoreIcon size={18} />}
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
@@ -62,24 +65,30 @@ function EditStoreModal({ isOpen, initialValues, errorMessage, isSubmitting = fa
     >
       <form id="edit-store-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Store Name" htmlFor="edit-store-name" error={errors.name}>
-          <input
-            id="edit-store-name"
-            className="input"
-            value={values.name}
-            onChange={(event) => updateField('name', event.target.value)}
-            placeholder="e.g. Downtown Ice Cream Co."
-            autoFocus={shouldAutoFocus()}
-          />
+          <div className="supplier-form__input-wrap">
+            <StoreIcon size={15} className="supplier-form__input-icon" aria-hidden="true" />
+            <input
+              id="edit-store-name"
+              className="input"
+              value={values.name}
+              onChange={(event) => updateField('name', event.target.value)}
+              placeholder="e.g. Downtown Ice Cream Co."
+              autoFocus={shouldAutoFocus()}
+            />
+          </div>
         </FormField>
 
         <FormField label="Store Location" htmlFor="edit-store-location" error={errors.location}>
-          <input
-            id="edit-store-location"
-            className="input"
-            value={values.location}
-            onChange={(event) => updateField('location', event.target.value)}
-            placeholder="e.g. Downtown, Austin TX"
-          />
+          <div className="supplier-form__input-wrap">
+            <MapPin size={15} className="supplier-form__input-icon" aria-hidden="true" />
+            <input
+              id="edit-store-location"
+              className="input"
+              value={values.location}
+              onChange={(event) => updateField('location', event.target.value)}
+              placeholder="e.g. Downtown, Austin TX"
+            />
+          </div>
         </FormField>
 
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}

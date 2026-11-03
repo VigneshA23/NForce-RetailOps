@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { buildFixedCategoryOptions, NOTE_MAX_LENGTH, type StoreInventoryItem, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
+import { Boxes, Tags, Truck } from 'lucide-react';
+import './SupplierFormModal.css';
 import Modal from './Modal';
 import FormField from './FormField';
 import UnitSelect from './UnitSelect';
@@ -124,12 +126,15 @@ function StoreInventoryItemEditPanel({
     >
       <form id="item-edit-panel-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Item Name" htmlFor="edit-item-name" error={errors.name}>
-          <input
-            id="edit-item-name"
-            className="input"
-            value={values.name}
-            onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
-          />
+          <div className="supplier-form__input-wrap">
+            <Boxes size={15} className="supplier-form__input-icon" aria-hidden="true" />
+            <input
+              id="edit-item-name"
+              className="input"
+              value={values.name}
+              onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
+            />
+          </div>
         </FormField>
 
         <FormField label="Display Image (optional)" htmlFor="edit-item-image">
@@ -143,14 +148,17 @@ function StoreInventoryItemEditPanel({
 
         <div className="item-edit-panel__row">
           <FormField label="Category" htmlFor="edit-item-category">
-            <CategoryCombobox
-            id="edit-item-category"
-            options={categoryOptions}
-            value={values.category}
-            onChange={(category) => setValues((current) => ({ ...current, category }))}
-            ariaLabel="Category"
-            onRequestCreate={onRequestCreateCategory}
-          />
+            <div className="supplier-form__input-wrap">
+              <Tags size={15} className="supplier-form__input-icon" aria-hidden="true" />
+              <CategoryCombobox
+                id="edit-item-category"
+                options={categoryOptions}
+                value={values.category}
+                onChange={(category) => setValues((current) => ({ ...current, category }))}
+                ariaLabel="Category"
+                onRequestCreate={onRequestCreateCategory}
+              />
+            </div>
           </FormField>
           <FormField label="Unit of Measurement" htmlFor="edit-item-unit" error={errors.unitOfMeasurement}>
             <UnitSelect
@@ -198,15 +206,18 @@ function StoreInventoryItemEditPanel({
         </div>
 
         <FormField label="Preferred Supplier" htmlFor="edit-item-supplier" error={errors.preferredSupplierId}>
-          <SupplierCombobox
-            id="edit-item-supplier"
-            suppliers={suppliers}
-            value={values.preferredSupplierId}
-            onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
-            onRequestCreate={onRequestCreateSupplier}
-            ariaLabel="Preferred supplier"
-            isEditingExisting
-          />
+          <div className="supplier-form__input-wrap">
+            <Truck size={15} className="supplier-form__input-icon" aria-hidden="true" />
+            <SupplierCombobox
+              id="edit-item-supplier"
+              suppliers={suppliers}
+              value={values.preferredSupplierId}
+              onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
+              onRequestCreate={onRequestCreateSupplier}
+              ariaLabel="Preferred supplier"
+              isEditingExisting
+            />
+          </div>
         </FormField>
 
         <FormField label="Notes / Operational Remarks (Optional)" htmlFor="edit-item-note">

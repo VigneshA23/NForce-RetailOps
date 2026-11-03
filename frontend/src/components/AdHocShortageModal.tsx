@@ -1,11 +1,13 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Boxes, Package, FileText } from 'lucide-react';
 import type { StoreInventoryItemOption } from '../types/stockCheck';
 import Modal from './Modal';
 import { isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint } from '../utils/quantity';
 import FormField from './FormField';
 import Select from './Select';
 import ButtonDots from './ButtonDots';
-
+
+import IconField from './IconField';
 export interface AdHocShortageValues {
   storeInventoryItemId: number;
   currentStock: string;
@@ -83,40 +85,46 @@ function AdHocShortageModal({ isOpen, items, errorMessage, isSubmitting = false,
     >
       <form id="ad-hoc-shortage-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Item" htmlFor="ad-hoc-item" error={errors.storeInventoryItemId}>
-          <Select
-            id="ad-hoc-item"
-            options={itemOptions}
-            value={values.storeInventoryItemId ? String(values.storeInventoryItemId) : ''}
-            onChange={(value) => setValues((current) => ({ ...current, storeInventoryItemId: Number(value) }))}
-            ariaLabel="Item"
-          />
+          <IconField icon={Boxes}>
+            <Select
+              id="ad-hoc-item"
+              options={itemOptions}
+              value={values.storeInventoryItemId ? String(values.storeInventoryItemId) : ''}
+              onChange={(value) => setValues((current) => ({ ...current, storeInventoryItemId: Number(value) }))}
+              ariaLabel="Item"
+            />
+          </IconField>
         </FormField>
         <FormField
           label={selectedItem?.currentStock != null ? `Current Stock (expected ${selectedItem.currentStock} ${selectedUnit})` : 'Current Stock'}
           htmlFor="ad-hoc-current"
           error={errors.currentStock}
         >
-          <input
-            id="ad-hoc-current"
-            type="text"
-            inputMode={isWholeNumberUnit(selectedUnit) ? 'numeric' : 'decimal'}
-            className="input"
-            value={values.currentStock}
-            onChange={(event) => {
-              const next = event.target.value;
-              if (!isQtyInputAllowed(next, selectedUnit)) return;
-              setValues((current) => ({ ...current, currentStock: next }));
-            }}
-          />
+          <IconField icon={Package}>
+            <input
+              id="ad-hoc-current"
+              type="text"
+              inputMode={isWholeNumberUnit(selectedUnit) ? 'numeric' : 'decimal'}
+              className="input"
+              value={values.currentStock}
+              onChange={(event) => {
+                const next = event.target.value;
+                if (!isQtyInputAllowed(next, selectedUnit)) return;
+                setValues((current) => ({ ...current, currentStock: next }));
+              }}
+            />
+          </IconField>
         </FormField>
         <FormField label="Note (optional)" htmlFor="ad-hoc-note">
-          <input
-            id="ad-hoc-note"
-            className="input"
-            value={values.note}
-            onChange={(event) => setValues((current) => ({ ...current, note: event.target.value }))}
-            placeholder="Brief note for the owner"
-          />
+          <IconField icon={FileText}>
+            <input
+              id="ad-hoc-note"
+              className="input"
+              value={values.note}
+              onChange={(event) => setValues((current) => ({ ...current, note: event.target.value }))}
+              placeholder="Brief note for the owner"
+            />
+          </IconField>
         </FormField>
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>

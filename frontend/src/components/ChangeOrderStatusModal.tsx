@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Package } from 'lucide-react';
 import Modal from './Modal';
 import ButtonDots from './ButtonDots';
 import CategoryIcon from './CategoryIcon';
@@ -9,7 +9,8 @@ import { formatQty, isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint,
 import type { OrderStatus } from '../types/orderList';
 import type { InventoryItemCategory } from '../types/storeInventory';
 import './ChangeOrderStatusModal.css';
-
+
+import IconField from './IconField';
 interface ChangeOrderStatusModalProps {
   itemName: string;
   supplierName: string | null;
@@ -167,19 +168,21 @@ function ChangeOrderStatusModal({
             htmlFor="order-quantity-received"
             error={receivedError ?? undefined}
           >
-            <input
-              id="order-quantity-received"
-              type="text"
-              inputMode={isWholeNumberUnit(unitOfMeasurement) ? 'numeric' : 'decimal'}
-              className="input"
-              value={receivedText}
-              disabled={isConfirming}
-              onChange={(event) => {
-                if (!isQtyInputAllowed(event.target.value, unitOfMeasurement)) return;
-                setReceivedText(event.target.value);
-                setReceivedError(null);
-              }}
-            />
+            <IconField icon={Package}>
+              <input
+                id="order-quantity-received"
+                type="text"
+                inputMode={isWholeNumberUnit(unitOfMeasurement) ? 'numeric' : 'decimal'}
+                className="input"
+                value={receivedText}
+                disabled={isConfirming}
+                onChange={(event) => {
+                  if (!isQtyInputAllowed(event.target.value, unitOfMeasurement)) return;
+                  setReceivedText(event.target.value);
+                  setReceivedError(null);
+                }}
+              />
+            </IconField>
           </FormField>
           <p className="change-order-status-modal__hint">
             Ordered: {formatQty(orderedQuantity)} {unitOfMeasurement}. Change this if less (or more) arrived. It is added to

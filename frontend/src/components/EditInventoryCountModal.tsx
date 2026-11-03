@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { FileText } from 'lucide-react';
 import type { InventoryCountRow } from '../types/storeInventory';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -7,7 +8,8 @@ import QuantityStepper from './QuantityStepper';
 import { roundQty } from '../utils/quantity';
 import ButtonDots from './ButtonDots';
 import './EditInventoryCountModal.css';
-
+
+import IconField from './IconField';
 export interface EditInventoryCountValues {
   available: number;
   reason: string;
@@ -91,17 +93,21 @@ function EditInventoryCountModal({ isOpen, row, errorMessage, isSubmitting = fal
           </p>
         )}
         <FormField label="Reason" htmlFor="eic-reason">
-          <Select id="eic-reason" options={REASON_OPTIONS} value={reason} onChange={setReason} ariaLabel="Reason" />
+          <IconField icon={FileText}>
+            <Select id="eic-reason" options={REASON_OPTIONS} value={reason} onChange={setReason} ariaLabel="Reason" />
+          </IconField>
         </FormField>
         <FormField label="Note (optional)" htmlFor="eic-note">
-          <input
-            id="eic-note"
-            type="text"
-            className="input"
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-            placeholder="e.g. Found 2 extra in the back freezer"
-          />
+          <IconField icon={FileText}>
+            <input
+              id="eic-note"
+              type="text"
+              className="input"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="e.g. Found 2 extra in the back freezer"
+            />
+          </IconField>
         </FormField>
         {errorMessage && <p className="form-field__error">{errorMessage}</p>}
       </form>

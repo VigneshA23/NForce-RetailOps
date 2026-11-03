@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { FileText } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import type { Issue } from '../types/issue';
 import { ISSUE_RESPONSE_MAX_LENGTH } from '../utils/issueStatusMeta';
@@ -6,7 +7,8 @@ import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
 import './IssueCard.css';
-
+
+import IconField from './IconField';
 export type IssueResponseAction = 'ACKNOWLEDGED' | 'RESOLVED';
 
 interface IssueResponseModalProps {
@@ -71,16 +73,18 @@ function IssueResponseModal({ issue, action, busy, onCancel, onConfirm }: IssueR
     >
       {issue && <p className="issue-response-modal__note">{issue.note}</p>}
       <FormField label="Response" htmlFor="issue-response-text">
-        <textarea
-          id="issue-response-text"
-          className="input"
-          rows={3}
-          value={text}
-          maxLength={ISSUE_RESPONSE_MAX_LENGTH}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={copy.placeholder}
-          autoFocus={shouldAutoFocus()}
-        />
+        <IconField icon={FileText} align="top">
+          <textarea
+            id="issue-response-text"
+            className="input"
+            rows={3}
+            value={text}
+            maxLength={ISSUE_RESPONSE_MAX_LENGTH}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={copy.placeholder}
+            autoFocus={shouldAutoFocus()}
+          />
+        </IconField>
         <span className={`issue-text-counter${nearLimit ? ' issue-text-counter--near-limit' : ''}`} aria-live="polite">
           {text.length}/{ISSUE_RESPONSE_MAX_LENGTH}
         </span>

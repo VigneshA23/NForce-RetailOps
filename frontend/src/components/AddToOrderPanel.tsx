@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Boxes, Package, FileText } from 'lucide-react';
 import type { CreateOrderListEntryValues } from '../types/orderList';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -8,7 +8,8 @@ import QuantityStepper from './QuantityStepper';
 import { roundQty } from '../utils/quantity';
 import ButtonDots from './ButtonDots';
 import './AddToOrderPanel.css';
-
+
+import IconField from './IconField';
 export interface OrderableInventoryItem {
   id: number;
   name: string;
@@ -138,15 +139,17 @@ function AddToOrderPanel({
     >
       <form id="add-to-order-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Item" htmlFor="ato-item">
-          <Select
-            id="ato-item"
-            options={inventoryOptions}
-            value={values.storeInventoryItemId != null ? String(values.storeInventoryItemId) : ''}
-            onChange={(value) => setValues((current) => ({ ...current, storeInventoryItemId: value === '' ? null : Number(value) }))}
-            ariaLabel="Item"
-            placeholder={inventoryOptions.length === 0 ? 'No inventory items yet' : 'Select an item'}
-            disabled={inventoryOptions.length === 0}
-          />
+          <IconField icon={Boxes}>
+            <Select
+              id="ato-item"
+              options={inventoryOptions}
+              value={values.storeInventoryItemId != null ? String(values.storeInventoryItemId) : ''}
+              onChange={(value) => setValues((current) => ({ ...current, storeInventoryItemId: value === '' ? null : Number(value) }))}
+              ariaLabel="Item"
+              placeholder={inventoryOptions.length === 0 ? 'No inventory items yet' : 'Select an item'}
+              disabled={inventoryOptions.length === 0}
+            />
+          </IconField>
           {uncountedCount > 0 && (
             <p className="add-to-order-panel__need-hint">
               {uncountedCount === 1 ? '1 item is' : `${uncountedCount} items are`} not listed because no employee has submitted a stock check for {uncountedCount === 1 ? 'it' : 'them'} yet.
@@ -160,25 +163,29 @@ function AddToOrderPanel({
         </FormField>
 
         <FormField label="Quantity" htmlFor="ato-quantity">
-          <QuantityStepper
-            id="ato-quantity"
-            value={values.quantity}
-            unit={unit}
-            min={0}
-            ariaLabel="Quantity"
-            onChange={(quantity) => setValues((current) => ({ ...current, quantity }))}
-          />
+          <IconField icon={Package}>
+            <QuantityStepper
+              id="ato-quantity"
+              value={values.quantity}
+              unit={unit}
+              min={0}
+              ariaLabel="Quantity"
+              onChange={(quantity) => setValues((current) => ({ ...current, quantity }))}
+            />
+          </IconField>
         </FormField>
 
         <FormField label="Note (optional)" htmlFor="ato-note">
-          <input
-            id="ato-note"
-            type="text"
-            className="input"
-            value={values.note}
-            onChange={(event) => setValues((current) => ({ ...current, note: event.target.value }))}
-            placeholder="e.g. Saturday event"
-          />
+          <IconField icon={FileText}>
+            <input
+              id="ato-note"
+              type="text"
+              className="input"
+              value={values.note}
+              onChange={(event) => setValues((current) => ({ ...current, note: event.target.value }))}
+              placeholder="e.g. Saturday event"
+            />
+          </IconField>
         </FormField>
 
         <div className="add-to-order-panel__info">

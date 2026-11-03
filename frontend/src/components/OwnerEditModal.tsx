@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { Mail, User, UserPen } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import type { UpdateOwnerValues } from '../types/owner';
 import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
+import './SupplierFormModal.css';
 
 interface OwnerEditModalProps {
   isOpen: boolean;
@@ -58,6 +60,7 @@ function OwnerEditModal({ isOpen, initialValues, errorMessage, isSubmitting = fa
       isOpen={isOpen}
       onClose={onClose}
       title="Edit Owner"
+      titleIcon={<UserPen size={18} />}
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
@@ -72,23 +75,29 @@ function OwnerEditModal({ isOpen, initialValues, errorMessage, isSubmitting = fa
       <form id="owner-edit-form" onSubmit={handleSubmit} noValidate>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
           <FormField label="Owner Name" htmlFor="edit-owner-name" error={errors.ownerName}>
-            <input
-              id="edit-owner-name"
-              className="input"
-              value={values.ownerName}
-              onChange={(event) => updateField('ownerName', event.target.value)}
-              autoFocus={shouldAutoFocus()}
-            />
+            <div className="supplier-form__input-wrap">
+              <User size={15} className="supplier-form__input-icon" aria-hidden="true" />
+              <input
+                id="edit-owner-name"
+                className="input"
+                value={values.ownerName}
+                onChange={(event) => updateField('ownerName', event.target.value)}
+                autoFocus={shouldAutoFocus()}
+              />
+            </div>
           </FormField>
 
           <FormField label="Owner Email" htmlFor="edit-owner-email" error={errors.ownerEmail}>
-            <input
-              id="edit-owner-email"
-              type="email"
-              className="input"
-              value={values.ownerEmail}
-              onChange={(event) => updateField('ownerEmail', event.target.value)}
-            />
+            <div className="supplier-form__input-wrap">
+              <Mail size={15} className="supplier-form__input-icon" aria-hidden="true" />
+              <input
+                id="edit-owner-email"
+                type="email"
+                className="input"
+                value={values.ownerEmail}
+                onChange={(event) => updateField('ownerEmail', event.target.value)}
+              />
+            </div>
           </FormField>
 
           {errorMessage && <p className="form-field__error">{errorMessage}</p>}

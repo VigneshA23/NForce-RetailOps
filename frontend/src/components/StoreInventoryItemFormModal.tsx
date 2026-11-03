@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Building2, Plus } from 'lucide-react';
+import { Boxes, Building2, Plus, Tags, Truck } from 'lucide-react';
 import { buildFixedCategoryOptions, NOTE_MAX_LENGTH, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
@@ -159,13 +159,16 @@ function StoreInventoryItemFormModal({
     >
       <form id="store-inventory-item-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Item Name" htmlFor="inventory-item-name" error={errors.name}>
-          <input
-            id="inventory-item-name"
-            className="input"
-            value={values.name}
-            onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
-            placeholder="e.g. Whole Milk 1 Gallon, Chocolate Chip Cookie Dough, Strawberry Syrup"
-          />
+          <div className="supplier-form__input-wrap">
+            <Boxes size={15} className="supplier-form__input-icon" aria-hidden="true" />
+            <input
+              id="inventory-item-name"
+              className="input"
+              value={values.name}
+              onChange={(event) => setValues((current) => ({ ...current, name: event.target.value }))}
+              placeholder="e.g. Whole Milk 1 Gallon, Chocolate Chip Cookie Dough, Strawberry Syrup"
+            />
+          </div>
         </FormField>
         {showStoreField && (
           <FormField label="Select Store" htmlFor="inventory-item-store" error={errors.storeId}>
@@ -188,14 +191,17 @@ function StoreInventoryItemFormModal({
           </FormField>
         )}
         <FormField label="Category" htmlFor="inventory-item-category" error={errors.category}>
-          <CategoryCombobox
-            id="inventory-item-category"
-            options={categoryOptions}
-            value={values.category}
-            onChange={(category) => setValues((current) => ({ ...current, category }))}
-            ariaLabel="Category"
-            onRequestCreate={onRequestCreateCategory}
-          />
+          <div className="supplier-form__input-wrap">
+            <Tags size={15} className="supplier-form__input-icon" aria-hidden="true" />
+            <CategoryCombobox
+              id="inventory-item-category"
+              options={categoryOptions}
+              value={values.category}
+              onChange={(category) => setValues((current) => ({ ...current, category }))}
+              ariaLabel="Category"
+              onRequestCreate={onRequestCreateCategory}
+            />
+          </div>
         </FormField>
         <FormField label="Display Image (optional)" htmlFor="inventory-item-image">
           <InventoryImagePicker
@@ -243,15 +249,18 @@ function StoreInventoryItemFormModal({
           </FormField>
         </div>
         <FormField label="Preferred Supplier" htmlFor="inventory-item-supplier" error={errors.preferredSupplierId}>
-          <SupplierCombobox
-            id="inventory-item-supplier"
-            suppliers={effectiveSuppliers}
-            value={values.preferredSupplierId}
-            onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
-            onRequestCreate={onRequestCreateSupplier}
-            ariaLabel="Preferred supplier"
-            isEditingExisting={mode === 'edit'}
-          />
+          <div className="supplier-form__input-wrap">
+            <Truck size={15} className="supplier-form__input-icon" aria-hidden="true" />
+            <SupplierCombobox
+              id="inventory-item-supplier"
+              suppliers={effectiveSuppliers}
+              value={values.preferredSupplierId}
+              onChange={(supplierId) => setValues((current) => ({ ...current, preferredSupplierId: supplierId }))}
+              onRequestCreate={onRequestCreateSupplier}
+              ariaLabel="Preferred supplier"
+              isEditingExisting={mode === 'edit'}
+            />
+          </div>
         </FormField>
         <FormField label="Additional Notes" htmlFor="inventory-item-note">
           <textarea

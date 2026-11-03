@@ -621,3 +621,10 @@
     height: min(240px, calc(100vw - 96px));
   }
 }
+
+/* Read-only Personal info rows: small leading icon beside each label. */
+.profile-field__label--icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

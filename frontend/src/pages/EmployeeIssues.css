@@ -9,7 +9,18 @@
   padding: var(--space-lg);
 }
 
-/* ── Header: title + subtitle ── */
+/* ── Header: title + subtitle, with Raise Issue at the far right ── */
+
+.emp-issues-page__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.emp-issues-page__header-text {
+  min-width: 0;
+}
 
 .emp-issues-page__heading {
   font-size: 1.5rem;
@@ -76,7 +87,7 @@
   opacity: 0.6;
 }
 
-/* ── Raise Issue action: below the status cards ── */
+/* ── Raise Issue action: phones only, below the status cards ── */
 
 .emp-issues-page__actions {
   display: flex;
@@ -104,17 +115,17 @@
   color: #f87171;
 }
 
-/* Phones: .stat-card-row and .filter-bar each carry their own bottom margin,
-   which stacked on the page's flex gap and doubled the space between the stat
-   cards, Raise Issue, the filters and the first card. Let the page gap alone
-   (tightened a little) do the spacing. */
+/* .stat-card-row and .filter-bar each carry their own bottom margin, which
+   stacked on the page's flex gap and doubled the space between the stat
+   cards, the filters and the first card. Let the page gap alone do the
+   spacing, at every width. */
+.emp-issues-page .stat-card-row,
+.emp-issues-page .filter-bar {
+  margin-bottom: 0;
+}
+
 @media (--mobile) {
   .emp-issues-page {
     gap: 12px;
-  }
-
-  .emp-issues-page .stat-card-row,
-  .emp-issues-page .filter-bar {
-    margin-bottom: 0;
   }
 }
