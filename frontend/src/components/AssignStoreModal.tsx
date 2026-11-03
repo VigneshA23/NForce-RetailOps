@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Store as StoreIcon, MapPin } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import { getNextStoreCode, getReassignableStores } from '../api/owners';
 import type { AssignStoreValues, ReassignableStore } from '../types/owner';
@@ -7,7 +8,8 @@ import FormField from './FormField';
 import Select from './Select';
 import ButtonDots from './ButtonDots';
 import './AssignStoreModal.css';
-
+
+import IconField from './IconField';
 interface AssignStoreModalProps {
   isOpen: boolean;
   ownerName?: string;
@@ -118,35 +120,41 @@ function AssignStoreModal({
     >
       <form id="assign-store-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Store" htmlFor="assign-store-mode">
-          <Select
-            id="assign-store-mode"
-            value={values.storeMode}
-            onChange={(value) => updateField('storeMode', value as StoreMode)}
-            options={STORE_MODE_OPTIONS}
-          />
+          <IconField icon={StoreIcon}>
+            <Select
+              id="assign-store-mode"
+              value={values.storeMode}
+              onChange={(value) => updateField('storeMode', value as StoreMode)}
+              options={STORE_MODE_OPTIONS}
+            />
+          </IconField>
         </FormField>
 
         {values.storeMode === 'new' ? (
           <>
             <FormField label="Store Name" htmlFor="assign-store-name" error={errors.storeName}>
-              <input
-                id="assign-store-name"
-                className="input"
-                value={values.storeName}
-                onChange={(event) => updateField('storeName', event.target.value)}
-                placeholder="e.g. Downtown Ice Cream Co."
-                autoFocus={shouldAutoFocus()}
-              />
+              <IconField icon={StoreIcon}>
+                <input
+                  id="assign-store-name"
+                  className="input"
+                  value={values.storeName}
+                  onChange={(event) => updateField('storeName', event.target.value)}
+                  placeholder="e.g. Downtown Ice Cream Co."
+                  autoFocus={shouldAutoFocus()}
+                />
+              </IconField>
             </FormField>
 
             <FormField label="Store Location" htmlFor="assign-store-location" error={errors.storeLocation}>
-              <input
-                id="assign-store-location"
-                className="input"
-                value={values.storeLocation}
-                onChange={(event) => updateField('storeLocation', event.target.value)}
-                placeholder="e.g. Downtown, Austin TX"
-              />
+              <IconField icon={MapPin}>
+                <input
+                  id="assign-store-location"
+                  className="input"
+                  value={values.storeLocation}
+                  onChange={(event) => updateField('storeLocation', event.target.value)}
+                  placeholder="e.g. Downtown, Austin TX"
+                />
+              </IconField>
             </FormField>
 
             <p className="assign-store-modal__hint">
@@ -168,15 +176,17 @@ function AssignStoreModal({
             ) : reassignableStores.length === 0 ? (
               <p className="assign-store-modal__hint">No unassigned stores are available right now.</p>
             ) : (
-              <Select
-                id="assign-existing-store"
-                value={values.existingStoreId != null ? String(values.existingStoreId) : ''}
-                onChange={(value) => updateField('existingStoreId', Number(value))}
-                options={reassignableStores.map((store) => ({
-                  value: String(store.storeId),
-                  label: `#${store.storeCode} · ${store.storeName}`,
-                }))}
-              />
+              <IconField icon={StoreIcon}>
+                <Select
+                  id="assign-existing-store"
+                  value={values.existingStoreId != null ? String(values.existingStoreId) : ''}
+                  onChange={(value) => updateField('existingStoreId', Number(value))}
+                  options={reassignableStores.map((store) => ({
+                    value: String(store.storeId),
+                    label: `#${store.storeCode} · ${store.storeName}`,
+                  }))}
+                />
+              </IconField>
             )}
           </FormField>
         )}

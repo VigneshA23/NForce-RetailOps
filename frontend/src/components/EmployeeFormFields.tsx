@@ -1,10 +1,11 @@
 import type { EmployeeCreateValues, EmployeeUpdateValues } from '../types/employee';
 import { EMPLOYEE_TYPE_OPTIONS, GENDER_OPTIONS } from '../utils/employeeOptions';
 import { COUNTRY_CODE_OPTIONS, parsePhoneForForm } from '../utils/countryCodes';
-import { Mail, User } from 'lucide-react';
+import { Mail, User, Clock, Phone } from 'lucide-react';
 import FormField from './FormField';
 import Select from './Select';
-
+
+import IconField from './IconField';
 export type EmployeeFormValues = EmployeeUpdateValues & { countryCode: string };
 
 export function emptyEmployeeFormValues(): EmployeeFormValues {
@@ -54,21 +55,25 @@ function EmployeeFormFields({ values, errors, onChange, idPrefix = 'employee' }:
       </div>
 
       <FormField label="Type" htmlFor={`${idPrefix}-type`} required error={errors.employeeType}>
-        <Select
-          id={`${idPrefix}-type`}
-          value={values.employeeType}
-          onChange={(value) => onChange('employeeType', value as EmployeeFormValues['employeeType'])}
-          options={EMPLOYEE_TYPE_OPTIONS.map((type) => ({ value: type, label: type }))}
-        />
+        <IconField icon={Clock}>
+          <Select
+            id={`${idPrefix}-type`}
+            value={values.employeeType}
+            onChange={(value) => onChange('employeeType', value as EmployeeFormValues['employeeType'])}
+            options={EMPLOYEE_TYPE_OPTIONS.map((type) => ({ value: type, label: type }))}
+          />
+        </IconField>
       </FormField>
 
       <FormField label="Gender" htmlFor={`${idPrefix}-gender`} error={errors.gender}>
-        <Select
-          id={`${idPrefix}-gender`}
-          value={values.gender}
-          onChange={(value) => onChange('gender', value as EmployeeFormValues['gender'])}
-          options={GENDER_OPTIONS.map((gender) => ({ value: gender, label: gender }))}
-        />
+        <IconField icon={User}>
+          <Select
+            id={`${idPrefix}-gender`}
+            value={values.gender}
+            onChange={(value) => onChange('gender', value as EmployeeFormValues['gender'])}
+            options={GENDER_OPTIONS.map((gender) => ({ value: gender, label: gender }))}
+          />
+        </IconField>
       </FormField>
 
       <div className="form-field--full">
@@ -82,14 +87,16 @@ function EmployeeFormFields({ values, errors, onChange, idPrefix = 'employee' }:
               onChange={(value) => onChange('countryCode', value)}
               options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
             />
-            <input
-              id={`${idPrefix}-phone`}
-              className="input"
-              inputMode="numeric"
-              value={values.phone}
-              onChange={(event) => onChange('phone', event.target.value.replace(/\D/g, '').slice(0, 10))}
-              placeholder="10-digit number"
-            />
+            <IconField icon={Phone}>
+              <input
+                id={`${idPrefix}-phone`}
+                className="input"
+                inputMode="numeric"
+                value={values.phone}
+                onChange={(event) => onChange('phone', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="10-digit number"
+              />
+            </IconField>
           </div>
         </FormField>
       </div>

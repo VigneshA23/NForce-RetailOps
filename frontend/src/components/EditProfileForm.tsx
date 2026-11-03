@@ -1,9 +1,11 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
+import { User, Mail, Phone } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { updateMe, type MeResponse } from '../api/me';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
-
+
+import IconField from './IconField';
 interface EditProfileFormProps {
   me: MeResponse;
   onSaved: (updated: MeResponse) => void;
@@ -63,34 +65,40 @@ function EditProfileForm({ me, onSaved, onCancel, onOpenResetPassword }: EditPro
   return (
     <form onSubmit={handleSubmit} noValidate>
       <FormField label="Full Name" htmlFor="edit-profile-name" required error={errors.fullName}>
-        <input
-          id="edit-profile-name"
-          className="input"
-          value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
-        />
+        <IconField icon={User}>
+          <input
+            id="edit-profile-name"
+            className="input"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
+          />
+        </IconField>
       </FormField>
 
       <FormField label="Email" htmlFor="edit-profile-email" required error={errors.email}>
-        <input
-          id="edit-profile-email"
-          type="email"
-          className="input"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-        />
+        <IconField icon={Mail}>
+          <input
+            id="edit-profile-email"
+            type="email"
+            className="input"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
+        </IconField>
       </FormField>
 
       <FormField label="Mobile" htmlFor="edit-profile-phone" required error={errors.phone}>
-        <input
-          id="edit-profile-phone"
-          type="tel"
-          inputMode="numeric"
-          maxLength={10}
-          className="input"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
-        />
+        <IconField icon={Phone}>
+          <input
+            id="edit-profile-phone"
+            type="tel"
+            inputMode="numeric"
+            maxLength={10}
+            className="input"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value.replace(/\D/g, '').slice(0, 10))}
+          />
+        </IconField>
       </FormField>
 
       {submitError && <p className="form-field__error">{submitError}</p>}

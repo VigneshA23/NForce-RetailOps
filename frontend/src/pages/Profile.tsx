@@ -1,9 +1,6 @@
 import { type ChangeEvent, useEffect, useRef, useState, type FormEvent } from 'react';
 import { shouldAutoFocus } from '../utils/autoFocus';
-import {
-  Briefcase, Camera, Eye, EyeOff, Mail, Pencil,
-  ShieldCheck, Store as StoreIcon, Trash2, X,
-} from 'lucide-react';
+import { Briefcase, Camera, Eye, EyeOff, Mail, Pencil, ShieldCheck, Store as StoreIcon, Trash2, X, User, Phone } from 'lucide-react';
 import { getMe, updateMe, updateAvatar, type MeResponse } from '../api/me';
 import { changePassword } from '../api/auth';
 import { ApiError } from '../api/client';
@@ -15,7 +12,8 @@ import { nfToast } from '../utils/toast';
 import { AVATAR_ACCEPT, validateAvatarFile } from '../utils/avatarUpload';
 import { getInitials } from '../utils/initials';
 import './Profile.css';
-
+
+import IconField from '../components/IconField';
 interface ProfileProps {
   initials: string;
   avatarUrl?: string | null;
@@ -462,26 +460,30 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
           <form onSubmit={handleInfoSave} noValidate>
             <div className="profile-field">
               <label htmlFor="pf-name" className="profile-field__label">Full name</label>
-              <input
-                id="pf-name"
-                type="text"
-                className="input"
-                value={infoValues.fullName}
-                onChange={(e) => setInfoValues((v) => ({ ...v, fullName: e.target.value }))}
-                required
-                autoFocus={shouldAutoFocus()}
-              />
+              <IconField icon={User}>
+                <input
+                  id="pf-name"
+                  type="text"
+                  className="input"
+                  value={infoValues.fullName}
+                  onChange={(e) => setInfoValues((v) => ({ ...v, fullName: e.target.value }))}
+                  required
+                  autoFocus={shouldAutoFocus()}
+                />
+              </IconField>
             </div>
             <div className="profile-field">
               <label htmlFor="pf-email" className="profile-field__label">Email</label>
-              <input
-                id="pf-email"
-                type="email"
-                className="input"
-                value={infoValues.email}
-                onChange={(e) => setInfoValues((v) => ({ ...v, email: e.target.value }))}
-                required
-              />
+              <IconField icon={Mail}>
+                <input
+                  id="pf-email"
+                  type="email"
+                  className="input"
+                  value={infoValues.email}
+                  onChange={(e) => setInfoValues((v) => ({ ...v, email: e.target.value }))}
+                  required
+                />
+              </IconField>
             </div>
             <div className="profile-field">
               <label htmlFor="pf-phone" className="profile-field__label">
@@ -496,16 +498,18 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
                   onChange={(value) => setInfoValues((v) => ({ ...v, countryCode: value }))}
                   options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
                 />
-                <input
-                  id="pf-phone"
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={10}
-                  className="input"
-                  value={infoValues.phone}
-                  onChange={(e) => setInfoValues((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                  placeholder="10-digit number"
-                />
+                <IconField icon={Phone}>
+                  <input
+                    id="pf-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className="input"
+                    value={infoValues.phone}
+                    onChange={(e) => setInfoValues((v) => ({ ...v, phone: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
+                    placeholder="10-digit number"
+                  />
+                </IconField>
               </div>
             </div>
             {infoError && <p className="profile-field__error">{infoError}</p>}
@@ -521,15 +525,15 @@ function Profile({ initials, avatarUrl: propAvatarUrl, onAvatarChange, onProfile
         ) : (
           <div className="profile-fields-readonly">
             <div className="profile-field-row">
-              <div className="profile-field__label">Full name</div>
+              <div className="profile-field__label profile-field__label--icon"><User size={14} aria-hidden="true" />Full name</div>
               <div className="profile-field-value">{savedInfo.fullName || '—'}</div>
             </div>
             <div className="profile-field-row">
-              <div className="profile-field__label">Email</div>
+              <div className="profile-field__label profile-field__label--icon"><Mail size={14} aria-hidden="true" />Email</div>
               <div className="profile-field-value">{savedInfo.email || '—'}</div>
             </div>
             <div className="profile-field-row">
-              <div className="profile-field__label">Phone</div>
+              <div className="profile-field__label profile-field__label--icon"><Phone size={14} aria-hidden="true" />Phone</div>
               <div className="profile-field-value">
                 {savedInfo.phone ? `${savedInfo.countryCode} ${savedInfo.phone}` : '—'}
               </div>

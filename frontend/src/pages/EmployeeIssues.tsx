@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { shouldAutoFocus } from '../utils/autoFocus';
-import { AlertTriangle, MessageSquareWarning, Plus } from 'lucide-react'
+import { AlertTriangle, MessageSquareWarning, Plus, FileText } from 'lucide-react'
 import { getMyIssues, raiseIssue } from '../api/issues'
 import { ApiError } from '../api/client'
 import { nfToast } from '../utils/toast'
@@ -16,6 +16,7 @@ import ButtonDots from '../components/ButtonDots'
 import SpecularButton from '../components/SpecularButton'
 import IssueCard from '../components/IssueCard'
 import { useIssueList } from '../hooks/useIssueList'
+import { useIsMobile } from '../hooks/useMediaQuery'
 import { useIssueFocus, type IssueFocusRequest } from '../hooks/useIssueFocus'
 import {
   ISSUE_NOTE_MAX_LENGTH,
@@ -29,6 +30,7 @@ import {
 import './EmployeeIssues.css'
 import LoadingSkeleton from '../components/LoadingSkeleton'
 
+import IconField from '../components/IconField';
 const CARD_ID_PREFIX = 'emp-issue-row'
 
 interface EmployeeIssuesProps {
@@ -41,6 +43,7 @@ interface EmployeeIssuesProps {
 }
 
 function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssuesProps) {
+  const isMobile = useIsMobile()
   const load = useCallback(() => getMyIssues(store.id), [store.id])
   const { issues, setIssues, isLoading, error, refresh } = useIssueList<Issue>(
     load, isActive, 'Could not load your issues. Please try again.',
@@ -115,13 +118,20 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
     </SpecularButton>
   )
 
+  const showRaiseInHeader = !isMobile && !isLoading && !error && issues.length > 0;
+
   return (
     <div className="emp-issues-page">
       <div className="emp-issues-page__header">
-        <h1 className="emp-issues-page__heading">Issues</h1>
-        <p className="emp-issues-page__subheading">
-          Issues you have raised at {store.name} and their current status.
-        </p>
+        <div className="emp-issues-page__header-text">
+          <h1 className="emp-issues-page__heading">Issues</h1>
+          <p className="emp-issues-page__subheading">
+            Issues you have raised at {store.name} and their current status.
+          </p>
+        </div>
+        {/* Desktop/tablet: beside the title, far right. Phones keep it below
+            the status cards (full width) -- see the block further down. */}
+        {showRaiseInHeader && raiseButton}
       </div>
 
       {isLoading && <LoadingSkeleton label="Loading your issues…" variant="list" />}
@@ -162,7 +172,7 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
             })}
           </div>
 
-          <div className="emp-issues-page__actions">{raiseButton}</div>
+          {isMobile && <div className="emp-issues-page__actions">{raiseButton}</div>}
 
           <div className="filter-bar">
             <div className="filter filter--search">
@@ -236,16 +246,18 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
         }
       >
         <FormField label="What's the issue?" htmlFor="emp-issue-note">
-          <textarea
-            id="emp-issue-note"
-            className="input"
-            rows={4}
-            value={issueNote}
-            maxLength={ISSUE_NOTE_MAX_LENGTH}
-            onChange={(e) => setIssueNote(e.target.value)}
-            placeholder="Describe what needs the owner's attention..."
-            autoFocus={shouldAutoFocus()}
-          />
+          <IconField icon={FileText} align="top">
+            <textarea
+              id="emp-issue-note"
+              className="input"
+              rows={4}
+              value={issueNote}
+              maxLength={ISSUE_NOTE_MAX_LENGTH}
+              onChange={(e) => setIssueNote(e.target.value)}
+              placeholder="Describe what needs the owner's attention..."
+              autoFocus={shouldAutoFocus()}
+            />
+          </IconField>
           <span className={`issue-text-counter${noteNearLimit ? ' issue-text-counter--near-limit' : ''}`} aria-live="polite">
             {issueNote.length}/{ISSUE_NOTE_MAX_LENGTH}
           </span>

@@ -1,0 +1,26 @@
+.icon-field {
+  position: relative;
+  min-width: 0;
+}
+
+.icon-field__icon {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.icon-field--top .icon-field__icon {
+  top: 13px;
+  transform: none;
+}
+
+.icon-field .input,
+.icon-field .select,
+.icon-field .searchable-select__trigger,
+.icon-field .multi-select__trigger {
+  padding-left: 38px;
+}

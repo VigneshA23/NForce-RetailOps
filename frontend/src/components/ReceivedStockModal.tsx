@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Package } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -6,7 +7,8 @@ import ButtonDots from './ButtonDots';
 import { isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint, roundQty } from '../utils/quantity';
 import type { OpenOrder } from '../types/stockCheck';
 import './ReceivedStockModal.css';
-
+
+import IconField from './IconField';
 export interface ReceivedItemInput {
   orderId: number;
   quantity: number;
@@ -152,20 +154,22 @@ function ReceivedStockModal({
           error && <p className="form-field__error" role="alert">{error}</p>
         ) : (
           <FormField label={`Current on-hand stock (${unit})`} htmlFor="received-stock-current" error={error ?? undefined}>
-            <input
-              id="received-stock-current"
-              type="text"
-              inputMode={isWholeNumberUnit(unit) ? 'numeric' : 'decimal'}
-              className="input"
-              autoFocus={shouldAutoFocus()}
-              value={currentStock}
-              onChange={(event) => {
-                const next = event.target.value;
-                if (!isQtyInputAllowed(next, unit)) return;
-                setCurrentStock(next);
-                setError(null);
-              }}
-            />
+            <IconField icon={Package}>
+              <input
+                id="received-stock-current"
+                type="text"
+                inputMode={isWholeNumberUnit(unit) ? 'numeric' : 'decimal'}
+                className="input"
+                autoFocus={shouldAutoFocus()}
+                value={currentStock}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (!isQtyInputAllowed(next, unit)) return;
+                  setCurrentStock(next);
+                  setError(null);
+                }}
+              />
+            </IconField>
           </FormField>
         )}
       </form>

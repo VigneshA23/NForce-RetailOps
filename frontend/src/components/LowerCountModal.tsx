@@ -1,9 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { FileText } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
-
+
+import IconField from './IconField';
 interface LowerCountModalProps {
   isOpen: boolean;
   itemName: string;
@@ -71,18 +73,20 @@ function LowerCountModal({
     >
       <form id="lower-count-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Reason" htmlFor="lower-count-reason" error={error ?? undefined}>
-          <textarea
-            id="lower-count-reason"
-            className="input"
-            rows={3}
-            maxLength={500}
-            value={reason}
-            autoFocus={shouldAutoFocus()}
-            onChange={(event) => {
-              setReason(event.target.value);
-              setError(null);
-            }}
-          />
+          <IconField icon={FileText} align="top">
+            <textarea
+              id="lower-count-reason"
+              className="input"
+              rows={3}
+              maxLength={500}
+              value={reason}
+              autoFocus={shouldAutoFocus()}
+              onChange={(event) => {
+                setReason(event.target.value);
+                setError(null);
+              }}
+            />
+          </IconField>
         </FormField>
       </form>
     </Modal>

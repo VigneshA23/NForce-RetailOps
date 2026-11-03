@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { MapPin, Store as StoreIcon } from 'lucide-react';
 import { shouldAutoFocus } from '../utils/autoFocus';
 import { getNextStoreCode } from '../api/owners';
 import type { CreateStoreValues } from '../types/superAdminStore';
@@ -6,6 +7,7 @@ import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
 import './AssignStoreModal.css';
+import './SupplierFormModal.css';
 
 interface AddStoreModalProps {
   isOpen: boolean;
@@ -57,6 +59,7 @@ function AddStoreModal({ isOpen, errorMessage, isSubmitting = false, onClose, on
       isOpen={isOpen}
       onClose={onClose}
       title="Add Store"
+      titleIcon={<StoreIcon size={18} />}
       footer={
         <>
           <button type="button" className="btn btn--secondary" onClick={onClose}>
@@ -70,24 +73,30 @@ function AddStoreModal({ isOpen, errorMessage, isSubmitting = false, onClose, on
     >
       <form id="add-store-form" onSubmit={handleSubmit} noValidate>
         <FormField label="Store Name" htmlFor="add-store-name" error={errors.name}>
-          <input
-            id="add-store-name"
-            className="input"
-            value={values.name}
-            onChange={(event) => updateField('name', event.target.value)}
-            placeholder="e.g. Downtown Ice Cream Co."
-            autoFocus={shouldAutoFocus()}
-          />
+          <div className="supplier-form__input-wrap">
+            <StoreIcon size={15} className="supplier-form__input-icon" aria-hidden="true" />
+            <input
+              id="add-store-name"
+              className="input"
+              value={values.name}
+              onChange={(event) => updateField('name', event.target.value)}
+              placeholder="e.g. Downtown Ice Cream Co."
+              autoFocus={shouldAutoFocus()}
+            />
+          </div>
         </FormField>
 
         <FormField label="Store Location" htmlFor="add-store-location" error={errors.location}>
-          <input
-            id="add-store-location"
-            className="input"
-            value={values.location}
-            onChange={(event) => updateField('location', event.target.value)}
-            placeholder="e.g. Downtown, Austin TX"
-          />
+          <div className="supplier-form__input-wrap">
+            <MapPin size={15} className="supplier-form__input-icon" aria-hidden="true" />
+            <input
+              id="add-store-location"
+              className="input"
+              value={values.location}
+              onChange={(event) => updateField('location', event.target.value)}
+              placeholder="e.g. Downtown, Austin TX"
+            />
+          </div>
         </FormField>
 
         <p className="assign-store-modal__hint">

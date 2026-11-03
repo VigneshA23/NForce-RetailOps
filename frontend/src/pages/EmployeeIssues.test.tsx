@@ -42,17 +42,13 @@ beforeEach(() => {
 });
 
 describe('EmployeeIssues — Raise Issue placement', () => {
-  it('places Raise Issue below the status cards and above the filters', async () => {
+  it('places Raise Issue beside the page title on desktop/tablet', async () => {
     mockGetMyIssues.mockResolvedValue([issue({})]);
 
     const { container } = render(<EmployeeIssues store={STORE} />);
     const button = await screen.findByRole('button', { name: /raise issue/i });
 
-    const cards = container.querySelector('.stat-card-row')!;
-    const filters = container.querySelector('.filter-bar')!;
-    expect(cards.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(button.compareDocumentPosition(filters) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(container.querySelector('.emp-issues-page__header')).not.toContainElement(button);
+    expect(container.querySelector('.emp-issues-page__header')).toContainElement(button);
   });
 
   it('offers Raise Issue inside the empty state when there are no issues', async () => {

@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { shouldAutoFocus } from '../utils/autoFocus';
-import { Mail, User, UserPlus } from 'lucide-react';
+import { Mail, MapPin, Phone, Store as StoreIcon, User, UserPlus } from 'lucide-react';
 import { getNextStoreCode, getReassignableStores } from '../api/owners';
 import type { AddOwnerValues, OwnerStoreMode, ReassignableStore } from '../types/owner';
 import { COUNTRY_CODE_OPTIONS } from '../utils/countryCodes';
@@ -9,7 +9,8 @@ import FormField from './FormField';
 import Select from './Select';
 import ButtonDots from './ButtonDots';
 import './OwnerFormModal.css';
-
+
+import IconField from './IconField';
 type OwnerGender = 'Male' | 'Female' | 'Non-binary';
 
 const GENDER_OPTIONS = [
@@ -178,16 +179,19 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
                   onChange={(value) => updateField('ownerCountryCode', value)}
                   options={COUNTRY_CODE_OPTIONS.map((option) => ({ value: option.code, label: option.label }))}
                 />
-                <input
-                  id="owner-phone"
-                  type="tel"
-                  inputMode="numeric"
-                  maxLength={10}
-                  className="input"
-                  value={values.ownerPhone}
-                  onChange={(event) => updateField('ownerPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
-                  placeholder="10-digit number"
-                />
+                <div className="owner-form__input-icon-wrap">
+                  <Phone className="owner-form__input-icon" size={15} aria-hidden="true" />
+                  <input
+                    id="owner-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    className="input"
+                    value={values.ownerPhone}
+                    onChange={(event) => updateField('ownerPhone', event.target.value.replace(/\D/g, '').slice(0, 10))}
+                    placeholder="10-digit number"
+                  />
+                </div>
               </div>
             </FormField>
 
@@ -205,13 +209,15 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
             </FormField>
 
             <FormField label="Gender" htmlFor="owner-gender" required error={errors.ownerGender}>
-              <Select
-                id="owner-gender"
-                className="owner-form__gender"
-                value={values.ownerGender}
-                onChange={(value) => updateField('ownerGender', value as OwnerGender)}
-                options={[{ value: '', label: 'Select gender' }, ...GENDER_OPTIONS]}
-              />
+              <IconField icon={User}>
+                <Select
+                  id="owner-gender"
+                  className="owner-form__gender"
+                  value={values.ownerGender}
+                  onChange={(value) => updateField('ownerGender', value as OwnerGender)}
+                  options={[{ value: '', label: 'Select gender' }, ...GENDER_OPTIONS]}
+                />
+              </IconField>
             </FormField>
           </div>
         </div>
@@ -240,35 +246,43 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
           <div className="owner-form__grid">
             <div className="form-field--full">
               <FormField label="Store" htmlFor="owner-store-mode">
-                <Select
-                  id="owner-store-mode"
-                  value={values.storeMode}
-                  onChange={(value) => updateField('storeMode', value as OwnerStoreMode)}
-                  options={STORE_MODE_OPTIONS}
-                />
+                <IconField icon={StoreIcon}>
+                  <Select
+                    id="owner-store-mode"
+                    value={values.storeMode}
+                    onChange={(value) => updateField('storeMode', value as OwnerStoreMode)}
+                    options={STORE_MODE_OPTIONS}
+                  />
+                </IconField>
               </FormField>
             </div>
 
             {values.storeMode === 'new' && (
               <>
                 <FormField label="Store Name" htmlFor="owner-store-name" error={errors.storeName}>
-                  <input
-                    id="owner-store-name"
-                    className="input"
-                    value={values.storeName}
-                    onChange={(event) => updateField('storeName', event.target.value)}
-                    placeholder="e.g. Downtown Ice Cream Co."
-                  />
+                  <div className="owner-form__input-icon-wrap">
+                    <StoreIcon className="owner-form__input-icon" size={15} aria-hidden="true" />
+                    <input
+                      id="owner-store-name"
+                      className="input"
+                      value={values.storeName}
+                      onChange={(event) => updateField('storeName', event.target.value)}
+                      placeholder="e.g. Downtown Ice Cream Co."
+                    />
+                  </div>
                 </FormField>
 
                 <FormField label="Store Location" htmlFor="owner-store-location" error={errors.storeLocation}>
-                  <input
-                    id="owner-store-location"
-                    className="input"
-                    value={values.storeLocation}
-                    onChange={(event) => updateField('storeLocation', event.target.value)}
-                    placeholder="e.g. Downtown, Austin TX"
-                  />
+                  <div className="owner-form__input-icon-wrap">
+                    <MapPin className="owner-form__input-icon" size={15} aria-hidden="true" />
+                    <input
+                      id="owner-store-location"
+                      className="input"
+                      value={values.storeLocation}
+                      onChange={(event) => updateField('storeLocation', event.target.value)}
+                      placeholder="e.g. Downtown, Austin TX"
+                    />
+                  </div>
                 </FormField>
 
                 <FormField label="Store ID" htmlFor="owner-store-id">
@@ -293,17 +307,19 @@ function OwnerFormModal({ isOpen, errorMessage, isSubmitting = false, onClose, o
                   ) : reassignableStores.length === 0 ? (
                     <p className="owner-form__hint">No stores with a deactivated owner are available to reassign.</p>
                   ) : (
-                    <Select
-                      id="owner-existing-store"
-                      value={values.existingStoreId != null ? String(values.existingStoreId) : ''}
-                      onChange={(value) => updateField('existingStoreId', Number(value))}
-                      options={reassignableStores.map((store) => ({
-                        value: String(store.storeId),
-                        label: store.currentOwnerName
-                          ? `#${store.storeCode} · ${store.storeName} — was ${store.currentOwnerName}`
-                          : `#${store.storeCode} · ${store.storeName} — unassigned`,
-                      }))}
-                    />
+                    <IconField icon={StoreIcon}>
+                      <Select
+                        id="owner-existing-store"
+                        value={values.existingStoreId != null ? String(values.existingStoreId) : ''}
+                        onChange={(value) => updateField('existingStoreId', Number(value))}
+                        options={reassignableStores.map((store) => ({
+                          value: String(store.storeId),
+                          label: store.currentOwnerName
+                            ? `#${store.storeCode} · ${store.storeName} — was ${store.currentOwnerName}`
+                            : `#${store.storeCode} · ${store.storeName} — unassigned`,
+                        }))}
+                      />
+                    </IconField>
                   )}
                 </FormField>
               </div>
