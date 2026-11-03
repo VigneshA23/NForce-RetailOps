@@ -418,6 +418,66 @@
   text-align: right;
 }
 
+/* Home stat-card colours, matching the Owners/Stores/Inventory tiles. Five
+   tiles, so colour is by position (tones repeat here): Pink Owners, Slate Blue
+   Stores, Green Categories, Warm Yellow Completion, Sky Blue Issues. The shared
+   rules paint the left stripe, border, glow, tint and icon from the colour. */
+.sa-home .stat-card-row .stat-card:nth-child(1) { --home-card-color: #d0178e; --home-card-rgb: 208, 23, 142; }
+.sa-home .stat-card-row .stat-card:nth-child(2) { --home-card-color: #425873; --home-card-rgb: 66, 88, 115; }
+.sa-home .stat-card-row .stat-card:nth-child(3) { --home-card-color: #93c572; --home-card-rgb: 147, 197, 114; }
+.sa-home .stat-card-row .stat-card:nth-child(4) { --home-card-color: #e5a52e; --home-card-rgb: 229, 165, 46; }
+.sa-home .stat-card-row .stat-card:nth-child(5) { --home-card-color: #3fa8f4; --home-card-rgb: 63, 168, 244; }
+
+.sa-home .stat-card-row .stat-card {
+  background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(var(--home-card-rgb), 0.1) 100%);
+  border-color: rgba(var(--home-card-rgb), 0.2);
+  box-shadow:
+    inset 4px 0 0 var(--home-card-color),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 14px rgba(var(--home-card-rgb), 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.sa-home .stat-card-row .stat-card:hover {
+  box-shadow:
+    inset 4px 0 0 var(--home-card-color),
+    0 3px 6px rgba(0, 0, 0, 0.07),
+    0 10px 28px rgba(var(--home-card-rgb), 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.sa-home .stat-card-row .stat-card__icon {
+  background: rgba(var(--home-card-rgb), 0.14);
+  color: var(--home-card-color);
+}
+
+[data-theme='dark'] .sa-home .stat-card-row .stat-card {
+  background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(var(--home-card-rgb), 0.16) 100%);
+  border-color: rgba(var(--home-card-rgb), 0.28);
+  box-shadow:
+    inset 4px 0 0 var(--home-card-color),
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 4px 14px rgba(var(--home-card-rgb), 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme='dark'] .sa-home .stat-card-row .stat-card__icon {
+  background: rgba(var(--home-card-rgb), 0.22);
+}
+
+/* Panels share the 16px radius and soft shadow of the redesigned pages. */
+.sa-home__health-panel,
+.sa-home__insights-row .completion-rate-card,
+.sa-home__attention,
+.sa-home__orders {
+  border-radius: 16px;
+}
+
+.sa-home__health-panel,
+.sa-home__insights-row .completion-rate-card {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(66, 88, 115, 0.08);
+}
+
 @media (max-width: 900px) {
   .sa-home__insights-row {
     grid-template-columns: 1fr;
