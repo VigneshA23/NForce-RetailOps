@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Plus } from 'lucide-react';
+import { Building2, Plus } from 'lucide-react';
 import { buildFixedCategoryOptions, NOTE_MAX_LENGTH, type StoreInventoryItemFormValues } from '../types/storeInventory';
 import type { Supplier } from '../types/supplier';
 import Modal from './Modal';
@@ -7,7 +7,8 @@ import { isQtyInputAllowed, isWholeNumberUnit, parseQty, qtyRuleHint } from '../
 import FormField from './FormField';
 import UnitSelect from './UnitSelect';
 import CategoryCombobox from './CategoryCombobox';
-import MultiSelect from './MultiSelect';
+import SearchableSelect from './SearchableSelect';
+import './SupplierFormModal.css';
 import SupplierCombobox from './SupplierCombobox';
 import ButtonDots from './ButtonDots';
 import './StoreInventoryItemFormModal.css';
@@ -167,24 +168,23 @@ function StoreInventoryItemFormModal({
           />
         </FormField>
         {showStoreField && (
-          <FormField label="Stores" htmlFor="inventory-item-store" error={errors.storeId}>
-            <MultiSelect
-              id="inventory-item-store"
-              options={storeOptions}
-              value={selectedStoreIds}
-              onChange={changeStores}
-              placeholder="Select one or more stores"
-              searchPlaceholder="Search stores..."
-              allSelectedLabel="All stores"
-            />
-            <button
-              type="button"
-              className="btn btn--text btn--sm"
-              onClick={() => changeStores(stores.map((s) => s.id))}
-              disabled={stores.length === 0 || selectedStoreIds.length === stores.length}
-            >
-              Select all stores
-            </button>
+          <FormField label="Select Store" htmlFor="inventory-item-store" error={errors.storeId}>
+            <div className="supplier-form__input-wrap supplier-form__input-wrap--select">
+              <Building2 size={15} className="supplier-form__input-icon" aria-hidden="true" />
+              <SearchableSelect
+                id="inventory-item-store"
+                placeholder="Select store(s)"
+                multiple
+                options={storeOptions}
+                selectedIds={selectedStoreIds}
+                allOption={{
+                  label: 'All Stores',
+                  selected: stores.length > 0 && selectedStoreIds.length === stores.length,
+                  onToggle: () => changeStores(selectedStoreIds.length === stores.length ? [] : stores.map((s) => s.id)),
+                }}
+                onChange={changeStores}
+              />
+            </div>
           </FormField>
         )}
         <FormField label="Category" htmlFor="inventory-item-category" error={errors.category}>

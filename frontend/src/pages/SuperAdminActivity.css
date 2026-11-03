@@ -2,7 +2,7 @@
   padding: var(--space-lg);
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
+  gap: var(--space-md);
 }
 
 .sa-activity__back {
@@ -42,6 +42,22 @@
   margin: 0;
   font-size: 13px;
   color: var(--color-text-secondary);
+}
+
+/* No margin-bottom: spacing to the card comes solely from the page's flex gap. */
+.sa-activity__filters {
+  margin-bottom: 0;
+}
+
+.sa-activity__date-filter .date-range-picker__trigger {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 480px) {
+  .sa-activity__date-filter .date-range-picker__trigger {
+    height: 34px;
+  }
 }
 
 .sa-activity__list-card {
