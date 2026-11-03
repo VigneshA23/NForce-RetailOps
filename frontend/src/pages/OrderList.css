@@ -142,6 +142,13 @@
   color: var(--ops-text);
 }
 
+/* The Clear button's slot used to stay reserved while no filter was active,
+   leaving a blank gap before the view toggle. Collapse it instead -- the
+   search box is the row's flexible item, so it absorbs the freed space. */
+.order-list__clear-slot--empty {
+  display: none;
+}
+
 /* No extra margin -- the toggle just sits in the normal 10px flex gap like
    every other filter in this group, whether or not Clear is currently
    showing (its slot is reserved, not unmounted, so the toggle never jumps). */
