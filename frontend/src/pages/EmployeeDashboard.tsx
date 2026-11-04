@@ -691,7 +691,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
           <>
             <CategoryProgressGrid items={stripItems} />
 
-            <div className="filter-bar filter-bar--row-pair">
+            <div className="filter-bar filter-bar--row-pair employee-dashboard__filters">
               <div className="filter filter--search">
                 <SearchInput value={taskSearch} onChange={setTaskSearch} placeholder="Search tasks…" variant="filter" />
               </div>

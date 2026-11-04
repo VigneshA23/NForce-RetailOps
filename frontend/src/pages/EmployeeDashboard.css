@@ -148,16 +148,22 @@
 }
 
 /* Completion-tier states: 0-49% risk (red), 50-89% warning (amber), 90-100% good (green) */
+/* Under 50% done: brand pink rather than the app's red -- the day's tasks
+   still to do, not an error. */
 .category-progress-card--risk {
-  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  border-color: color-mix(in srgb, #c4267e 40%, var(--color-border));
 }
 
 .category-progress-card--risk .category-progress-card__done {
-  color: var(--color-accent);
+  color: #c4267e;
 }
 
 .category-progress-card--risk .category-progress-card__fill {
-  background: var(--color-accent);
+  background: #c4267e;
+}
+
+[data-theme='dark'] .category-progress-card--risk .category-progress-card__done {
+  color: #f06aa9;
 }
 
 .category-progress-card--warning {
@@ -888,5 +894,44 @@
   .checklist-task-btn {
     min-height: 44px;
     font-size: 13px;
+  }
+}
+
+/* Checklist filter bar on tablets: one row, with the search giving up width
+   so both dropdowns fit their columns. The dropdown triggers' 160px
+   min-width (above) was wider than the shared .filter column (140px), so
+   "All Categories" and "All Status" ran into each other; here they fill
+   their column and truncate their label instead. */
+@media (--tablet) {
+  .filter-bar.employee-dashboard__filters {
+    flex-wrap: nowrap;
+  }
+
+  .filter-bar.employee-dashboard__filters > .filter--search {
+    flex: 1 1 0;
+    min-width: 100px;
+  }
+
+  .filter-bar.employee-dashboard__filters > .filter:not(.filter--search) {
+    flex: 0 1 150px;
+    min-width: 110px;
+  }
+
+  .employee-dashboard__filters .multi-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .employee-dashboard__filters .multi-select__trigger {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .employee-dashboard__filters .multi-select__trigger > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

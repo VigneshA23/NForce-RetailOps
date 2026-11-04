@@ -26,9 +26,15 @@
   cursor: pointer;
 }
 
+/* Brand pink, matching the sidebar's active item. */
 .employee-stock-check-page__tab--active {
-  color: var(--color-badge-icon-primary-fg);
-  border-bottom-color: var(--color-badge-icon-primary-fg);
+  color: #c4267e;
+  border-bottom-color: #c4267e;
+}
+
+[data-theme='dark'] .employee-stock-check-page__tab--active {
+  color: #f06aa9;
+  border-bottom-color: #f06aa9;
 }
 
 .employee-stock-check-page__tab-count {

@@ -9,8 +9,10 @@
   border-radius: var(--radius-md);
 }
 
+/* Brand pink rather than the app's red: a pending count is a to-do, not an
+   error. */
 .stock-snapshot-card--pending {
-  border-color: color-mix(in srgb, var(--color-badge-icon-primary-fg) 45%, var(--color-border));
+  border-color: color-mix(in srgb, #c4267e 45%, var(--color-border));
 }
 
 .stock-snapshot-card__header {
@@ -44,7 +46,19 @@
 }
 
 .stock-snapshot-card__dot--pending {
-  background: var(--color-badge-icon-primary-fg);
+  background: #c4267e;
+}
+
+/* Save is the card's primary action: brand blue, deep enough for white text. */
+.stock-snapshot-card__save.btn--primary {
+  background: #1d8ee3;
+  border-color: #1d8ee3;
+  color: #ffffff;
+}
+
+.stock-snapshot-card__save.btn--primary:hover:not(:disabled) {
+  background: #1679c4;
+  border-color: #1679c4;
 }
 
 .stock-snapshot-card__form {
