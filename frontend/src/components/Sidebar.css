@@ -111,7 +111,6 @@
   padding: 12px 10px;
   border-radius: 999px;
 }
-
 .sidebar__dock-item {
   position: relative;
   z-index: 1;
@@ -225,10 +224,12 @@
   box-shadow: 0 6px 16px rgba(16, 24, 40, 0.16);
 }
 
+/* Primary text, not white: the dock is light glass in the light theme (and
+   dark glass in dark), so the label follows the theme to stay readable. */
 .sidebar__dock-item:focus-visible .sidebar__dock-label {
   transform: translateY(14px);
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .sidebar--collapsed .sidebar__dock-item:focus-visible .sidebar__dock-icon {
@@ -246,7 +247,7 @@
   .sidebar__dock-item:hover .sidebar__dock-label {
     transform: translateY(14px);
     font-weight: 700;
-    color: #ffffff;
+    color: var(--color-text-primary);
   }
 
   .sidebar__dock-item:hover + .sidebar__dock-item {
