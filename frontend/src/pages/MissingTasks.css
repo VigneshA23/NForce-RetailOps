@@ -303,3 +303,32 @@
     color: var(--color-text-muted);
   }
 }
+
+/* Curved outer corners, matching the Categories / Stock Check History
+   tables. Above phone width only -- on phones each row is already its own
+   rounded tile (see the --mobile block above). */
+@media (min-width: 481px) {
+  .missing-tasks-table-card--curved {
+    overflow: hidden;
+    border-radius: 16px;
+  }
+
+  .missing-tasks-table-card--curved .data-table thead th:first-child {
+    border-top-left-radius: 16px;
+  }
+
+  .missing-tasks-table-card--curved .data-table thead th:last-child {
+    border-top-right-radius: 16px;
+  }
+}
+
+/* Pagination footer inside the curved card (same as Stock Check History). */
+.missing-tasks-table-card__footer {
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 480px) {
+  .missing-tasks-table-card__footer {
+    border-top: none;
+  }
+}
