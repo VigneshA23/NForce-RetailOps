@@ -9,22 +9,49 @@
 /* The page, under the full-width header. The Sidebar component also renders
    into this DOM subtree, but it's position:fixed (Sidebar.css) -- a floating
    dock over the page, not a flex sibling reserving its own column -- so it
-   doesn't affect this element's layout. The page background (--page-bg,
-   below) is painted here rather than on .app-shell__page so it extends
-   continuously underneath the floating dock's track too, since the dock
-   itself has no opaque background of its own. */
+   doesn't affect this element's layout. */
 .app-shell__body {
   flex: 1;
   display: flex;
   min-height: 0;
-  background: var(--page-bg);
 }
 
+/* Carries the page background (--page-bg, below) and reserves left padding
+   for the floating Sidebar dock (position:fixed, Sidebar.css) so real
+   content never renders underneath it -- the same pattern as
+   .app-shell__main--bottom-nav's padding-bottom further down, for the
+   floating BottomNav. background-clip: content-box keeps that reserved
+   strip plain (just the flat <body> background showing through) instead of
+   extending the gradient under the dock's track -- the dock already has its
+   own glass surface, so the page background doesn't need to continue there
+   too. Widths mirror the dock's own track widths per state/breakpoint
+   (Sidebar.css's --sidebar-width-* variables and its matching media
+   queries). On mobile the dock is an off-canvas drawer instead (there's no
+   floating left dock -- BottomNav takes over), so no padding is reserved. */
 .app-shell__content {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  padding-left: var(--sidebar-width-expanded);
+  background: var(--page-bg);
+  background-clip: content-box;
+}
+
+.app-shell--sidebar-collapsed .app-shell__content {
+  padding-left: var(--sidebar-width-collapsed);
+}
+
+@media (--tablet-narrow) {
+  .app-shell__content {
+    padding-left: var(--sidebar-width-collapsed);
+  }
+}
+
+@media (--mobile) {
+  .app-shell__content {
+    padding-left: 0;
+  }
 }
 
 .app-shell__header {
@@ -51,33 +78,6 @@
   overflow-y: auto;
   overflow-x: hidden;
   will-change: opacity, transform;
-}
-
-/* Reserves room for the floating Sidebar dock (position:fixed, Sidebar.css)
-   so real page content never renders underneath it -- the same pattern as
-   .app-shell__main--bottom-nav's padding-bottom below, for the floating
-   BottomNav. Widths mirror the dock's own track widths per state/breakpoint
-   (Sidebar.css's --sidebar-width-* variables and its matching media
-   queries). On mobile the dock is an off-canvas drawer instead (there's no
-   floating left dock -- BottomNav takes over), so no padding is reserved. */
-.app-shell__page {
-  padding-left: var(--sidebar-width-expanded);
-}
-
-.app-shell--sidebar-collapsed .app-shell__page {
-  padding-left: var(--sidebar-width-collapsed);
-}
-
-@media (--tablet-narrow) {
-  .app-shell__page {
-    padding-left: var(--sidebar-width-collapsed);
-  }
-}
-
-@media (--mobile) {
-  .app-shell__page {
-    padding-left: 0;
-  }
 }
 
 /* Sky blue page background with three soft waves along the bottom (from the
