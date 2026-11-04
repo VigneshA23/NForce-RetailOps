@@ -170,19 +170,22 @@
   }
 
   .header {
-    padding: 0 4px;
+    padding: 0 8px;
+    gap: var(--space-sm);
   }
 
   .header__left {
     gap: var(--space-sm);
   }
 
+  /* Icons keep their size; only the title (above) gives way. */
   .header__right {
-    gap: var(--space-sm);
+    gap: 6px;
+    flex: 0 0 auto;
   }
 
   .header__logo {
-    height: 40px;
+    height: 34px;
   }
 
   .header__logo--hide-desktop {
@@ -194,16 +197,21 @@
     display: none;
   }
 
-  /* Long store names wrap onto a second line instead of being cut off. */
+  /* The title takes whatever width is left (no fixed 130px, which pushed
+     the right-hand icons off narrow screens) and wraps to at most two
+     lines, then truncates. */
+  .header__brand {
+    flex: 1 1 auto;
+  }
+
   .header__title {
     font-size: 14px;
-    /* Fixed 130px text area: names wrap inside it rather than stretching. */
-    width: 130px;
-    max-width: 130px;
     white-space: normal;
     overflow-wrap: anywhere;
-    text-overflow: clip;
-    overflow: visible;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .header__subtitle {
@@ -223,14 +231,9 @@
     flex: 0 0 44px;
   }
 
-  /* Icon-only on mobile: keep the button tappable but drop its label and the
-     extra horizontal padding that was sized for the text. */
-  .switch-store-btn {
-    padding: 10px;
-    min-width: 44px;
-  }
-
-  .switch-store-btn__label {
+  /* On phones Switch Store lives in the profile menu, beside the signed-in
+     name (ProfileMenu's onSwitchStore), to keep the header from overflowing. */
+  .header__right .switch-store-btn {
     display: none;
   }
 }
@@ -335,9 +338,14 @@
   background: #ffffff;
 }
 
+:root:not([data-theme='dark']) .header .nb__trigger {
+  background: rgba(255, 255, 255, 0.75);
+  color: #334155;
+}
+
 :root:not([data-theme='dark']) .header .nb__trigger:hover,
 :root:not([data-theme='dark']) .header .nb__trigger--open {
-  background: rgba(255, 255, 255, 0.75);
+  background: #ffffff;
   color: #18181b;
 }
 
