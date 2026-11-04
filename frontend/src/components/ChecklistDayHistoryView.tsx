@@ -240,7 +240,7 @@ function ChecklistDayHistoryView({
 
       <div className="stat-card-row" style={{ marginBottom: 'var(--space-lg)' }}>
         <StatCard icon={CheckCircle2} label="Tasks Complete" value={complete} tone="success" />
-        <StatCard icon={Flag} label="Flagged" value={flagged} tone="warning" />
+        <StatCard icon={Flag} label="Flagged" value={flagged} tone="purple" />
         <StatCard icon={Clock} label="In Progress" value={inProgress} tone="info" />
         <StatCard icon={HelpCircle} label="Not Answered" value={notAnswered} tone="primary" />
       </div>

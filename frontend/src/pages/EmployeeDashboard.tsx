@@ -577,7 +577,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
           <StatCard icon={Percent} label="Completion" value={`${completionPercent}%`} tone="primary" />
           <StatCard icon={CheckCircle2} label="Tasks Done" value={completedTasks} tone="success" />
           <StatCard icon={ListTodo} label="Remaining" value={remainingTasks} tone="info" />
-          <StatCard icon={Flag} label="Flagged" value={flagCount} tone="warning" />
+          <StatCard icon={Flag} label="Flagged" value={flagCount} tone="purple" />
           <StatCard
             icon={CalendarX}
             label="Missed Tasks"
