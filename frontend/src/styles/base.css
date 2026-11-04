@@ -14,3 +14,11 @@ input,
 select {
   font-family: inherit;
 }
+
+/* Theme toggle: a slow crossfade from the old theme to the new one
+   (useTheme.toggleTheme drives the View Transition). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 500ms;
+  animation-timing-function: ease-in-out;
+}
