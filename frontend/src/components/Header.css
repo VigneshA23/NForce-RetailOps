@@ -49,17 +49,25 @@
   display: none;
 }
 
+/* Fixed to the width still available to the sidebar's 156px column once the
+   header's own 18px left padding is subtracted, so this box's right edge
+   lands flush with the sidebar's edge regardless of the logo's own size --
+   the logo is then centered inside it with real padding on both sides
+   instead of filling the box edge-to-edge. */
 .header__platform {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
   flex-shrink: 0;
+  width: calc(var(--sidebar-width-expanded) - 18px);
+  box-sizing: border-box;
+  padding: 0 14px;
 }
 
 /* Wide wordmark (840x320 transparent source, enough pixels to stay sharp on
    3x screens at this size), shown whole. */
 .header__platform-logo {
-  height: 54px;
+  height: 40px;
   width: auto;
   display: block;
 }
@@ -69,7 +77,11 @@
   width: 1px;
   height: 34px;
   background: #2e2e33;
-  margin: 0 6px;
+  /* Cancels .header__left's 16px flex gap entirely so the line sits flush
+     with .header__platform's fixed right edge (the sidebar's 156px edge)
+     instead of 16px past it. Right side keeps the normal gap before the
+     title. */
+  margin: 0 6px 0 -16px;
 }
 
 .header__brand {
