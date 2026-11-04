@@ -166,7 +166,7 @@ function Header({
             </button>
           </div>
         )}
-        <span className={hideThemeToggleOnMobile ? 'header__theme-toggle--hide-mobile' : undefined}>
+        <span className={`header__theme-toggle${hideThemeToggleOnMobile ? ' header__theme-toggle--hide-mobile' : ''}`}>
           <IconButton
             icon={isDarkTheme ? Sun : Moon}
             ariaLabel={isDarkTheme ? 'Switch to light theme' : 'Switch to dark theme'}

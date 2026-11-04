@@ -163,6 +163,24 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Theme toggle: same 36px rounded square as the bell and search icons,
+   instead of IconButton's default 44px circle (header only -- the Profile
+   page's toggle is unaffected). */
+.header__theme-toggle {
+  display: inline-flex;
+}
+
+.header__theme-toggle .icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.header__theme-toggle .icon-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 @media (--mobile) {
   /* Theme toggle moves to the Profile page on phones. */
   .header__theme-toggle--hide-mobile {
