@@ -4,11 +4,16 @@
   min-height: 100dvh;
 }
 
-/* Sidebar + page, side by side under the full-width header. */
+/* Sidebar + page, side by side under the full-width header. The page
+   background (--page-bg, below) is painted here rather than on
+   .app-shell__page so it extends continuously underneath the sidebar's
+   track too, since the sidebar itself no longer has an opaque background
+   (Sidebar.css). */
 .app-shell__body {
   flex: 1;
   display: flex;
   min-height: 0;
+  background: var(--page-bg);
 }
 
 .app-shell__content {
@@ -79,10 +84,6 @@
   --page-bg:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 560' preserveAspectRatio='none'%3E%3Cpath d='M0 330 C 260 250 470 420 760 340 S 1220 210 1440 290 L1440 560 L0 560Z' fill='%23233655' fill-opacity='0.5'/%3E%3Cpath d='M0 420 C 300 340 560 500 860 420 S 1260 330 1440 400 L1440 560 L0 560Z' fill='%231b2a47' fill-opacity='0.55'/%3E%3Cpath d='M0 490 C 340 440 620 560 940 500 S 1300 450 1440 480 L1440 560 L0 560Z' fill='%2315213a' fill-opacity='0.6'/%3E%3C/svg%3E") center bottom / max(100%, 1440px) 62% no-repeat fixed,
     var(--page-bg-sky);
-}
-
-.app-shell__page {
-  background: var(--page-bg);
 }
 
 /* Bottom nav padding lives here (was on main; absolute page ignores parent padding) */
