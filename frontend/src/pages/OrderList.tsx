@@ -518,9 +518,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
     [entries],
   );
 
-  function pickStatusTile(next: StatusFilter) {
-    setStatusFilter((current) => (current === next ? 'OPEN' : next));
-  }
 
   const bulkEligibleItems: BulkStatusChangeItem[] = pendingBulkStatusChange
     ? eligibleIdsForBulkStatus(pendingBulkStatusChange.ids, pendingBulkStatusChange.nextStatus)
@@ -708,10 +705,10 @@ function OrderList({ storeName, seed }: OrderListProps) {
   return (
     <div className="order-list">
       <div className="stat-card-row">
-        <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
-        <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" active={statusFilter === 'NEEDS_ORDERING'} onClick={() => pickStatusTile('NEEDS_ORDERING')} />
-        <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" active={statusFilter === 'ORDERED'} onClick={() => pickStatusTile('ORDERED')} />
-        <StatCard icon={PackageCheck} label="Received Today" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
+        <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" />
+        <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" />
+        <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" />
+        <StatCard icon={PackageCheck} label="Received Today" value={receivedCount} tone="success" />
       </div>
 
       <div className="order-list__filter-row">

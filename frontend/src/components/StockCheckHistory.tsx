@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, CircleSlash, Download, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Clock3, CircleSlash, FileSpreadsheet, FileText, Pencil, Store as StoreIcon } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import Pagination from './Pagination';
@@ -9,7 +9,7 @@ import FilterClearButton from './FilterClearButton';
 import ItemIcon from './ItemIcon';
 import UserAvatar from './UserAvatar';
 import ButtonDots from './ButtonDots';
-import SpecularButton from './SpecularButton';
+import ExportButton from './ExportButton';
 import CorrectStockCheckModal, { type CorrectStockCheckValues } from './CorrectStockCheckModal';
 import { correctStockCheck, getStockCheckHistory } from '../api/storeInventory';
 import { categoryLabel } from '../types/storeInventory';
@@ -285,44 +285,30 @@ function StockCheckHistory({ onTotalChange, storeName }: StockCheckHistoryProps)
         <div className="stock-check-history__header-actions">
           <DateRangePicker value={dateRange} onChange={handleRangeChange} />
           <div className="stock-check-history__export" ref={exportMenuRef}>
-            <SpecularButton
-              size="sm"
-              radius={10}
-              tint="#14141a"
-              tintOpacity={0.85}
-              textColor="#f5f5f5"
-              lineColor="#ffffff"
-              baseColor="#525252"
-              followMouse
-              proximity={180}
+            <ExportButton
+              isOpen={isExportMenuOpen}
               disabled={visibleItems.length === 0}
               onClick={() => setIsExportMenuOpen((open) => !open)}
-              aria-expanded={isExportMenuOpen}
-              aria-haspopup="menu"
-            >
-              <span className="stock-check-history__export-trigger-label">
-                <Download size={14} /> Export <ChevronDown size={13} />
-              </span>
-            </SpecularButton>
+            />
             {isExportMenuOpen && (
-              <div className="stock-check-history__export-menu" role="menu">
+              <div className="stock-check-history__export-menu glass-menu" role="menu">
                 <button
                   type="button"
-                  className="stock-check-history__export-item"
+                  className="stock-check-history__export-item glass-menu__item"
                   role="menuitem"
                   onClick={handleExportExcel}
                   disabled={isExcelExporting || isPdfExporting}
                 >
-                  {isExcelExporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} /> Download Excel</>)}
+                  {isExcelExporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} /> Export as Excel</>)}
                 </button>
                 <button
                   type="button"
-                  className="stock-check-history__export-item"
+                  className="stock-check-history__export-item glass-menu__item"
                   role="menuitem"
                   onClick={handleExportPdf}
                   disabled={isExcelExporting || isPdfExporting}
                 >
-                  {isPdfExporting ? <ButtonDots label="Generating" /> : (<><FileText size={14} /> Download PDF</>)}
+                  {isPdfExporting ? <ButtonDots label="Generating" /> : (<><FileText size={14} /> Export as PDF</>)}
                 </button>
               </div>
             )}

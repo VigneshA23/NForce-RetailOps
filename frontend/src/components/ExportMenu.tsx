@@ -105,7 +105,9 @@ function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps
     if (!trigger || !dropdown) return;
 
     const triggerRect = trigger.getBoundingClientRect();
-    const dropdownRect = dropdown.getBoundingClientRect();
+    // offsetWidth/Height, not getBoundingClientRect(): the glass-menu open
+    // animation starts at scale(0.88), which would under-measure the panel.
+    const dropdownRect = { width: dropdown.offsetWidth, height: dropdown.offsetHeight };
 
     let top = triggerRect.bottom + 6;
     if (top + dropdownRect.height > window.innerHeight - VIEWPORT_MARGIN) {
@@ -236,23 +238,39 @@ function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps
       </SpecularButton>
 
       {menuOpen && createPortal(
-        <div ref={dropdownRef} className="export-menu__dropdown" role="menu" style={{ top: position.top, left: position.left }}>
+        <div ref={dropdownRef} className="export-menu__dropdown glass-menu" role="menu" style={{ top: position.top, left: position.left }}>
           {!rangeOverride && (
             <button
               type="button"
-              className={`export-menu__item${exporting ? ' btn--loading' : ''}`}
+              className={`export-menu__item glass-menu__item${exporting ? ' btn--loading' : ''}`}
               role="menuitem"
               onClick={handleExportToday}
               disabled={exporting || !storeId}
             >
-              {exporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} />Export this day (Excel)</>)}
+              {exporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} />Export as Excel</>)}
             </button>
           )}
 
           {!rangeOverride && (
             <button
               type="button"
-              className="export-menu__item"
+              className={`export-menu__item glass-menu__item${pdfExporting ? ' btn--loading' : ''}`}
+              role="menuitem"
+              onClick={handleExportPdf}
+              disabled={pdfExporting || !storeId}
+            >
+              {pdfExporting ? <ButtonDots label="Generating PDF" /> : (<><FileText size={14} />Export as PDF</>)}
+            </button>
+          )}
+
+          {!rangeOverride && (
+            <div className="export-menu__divider" role="separator" />
+          )}
+
+          {!rangeOverride && (
+            <button
+              type="button"
+              className="export-menu__item glass-menu__item"
               role="menuitem"
               onClick={() => { setMode((m) => (m === 'range' ? 'idle' : 'range')); setRangeError(null); setOpenCalendar(null); }}
               aria-expanded={mode === 'range'}
@@ -317,7 +335,7 @@ function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps
                   onClick={handleExportRange}
                   disabled={rangeExporting || pdfRangeExporting}
                 >
-                  {rangeExporting ? <ButtonDots label="Downloading" /> : 'Download Excel'}
+                  {rangeExporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} />Excel</>)}
                 </button>
                 <button
                   type="button"
@@ -325,26 +343,10 @@ function ExportMenu({ storeId, date, storeName, rangeOverride }: ExportMenuProps
                   onClick={handleExportPdfRange}
                   disabled={rangeExporting || pdfRangeExporting}
                 >
-                  {pdfRangeExporting ? <ButtonDots label="Generating" /> : 'Download PDF'}
+                  {pdfRangeExporting ? <ButtonDots label="Generating" /> : (<><FileText size={14} />PDF</>)}
                 </button>
               </div>
             </div>
-          )}
-
-          {!rangeOverride && (
-            <>
-              <div className="export-menu__divider" role="separator" />
-
-              <button
-                type="button"
-                className={`export-menu__item${pdfExporting ? ' btn--loading' : ''}`}
-                role="menuitem"
-                onClick={handleExportPdf}
-                disabled={pdfExporting || !storeId}
-              >
-                {pdfExporting ? <ButtonDots label="Generating PDF" /> : (<><FileText size={14} />Export as PDF</>)}
-              </button>
-            </>
           )}
         </div>,
         document.body,

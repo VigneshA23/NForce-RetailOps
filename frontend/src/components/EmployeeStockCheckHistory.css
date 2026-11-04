@@ -32,16 +32,6 @@
   display: inline-flex;
 }
 
-.employee-stock-history__export-trigger {
-  white-space: nowrap;
-}
-
-.employee-stock-history__export-trigger-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .employee-stock-history__export-menu {
   position: absolute;
   top: calc(100% + 6px);

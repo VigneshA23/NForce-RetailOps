@@ -62,19 +62,6 @@
   background: var(--color-filter-field-bg);
 }
 
-/* Pink Export button, matching the sky-wave mockup -- on Items and on
-   Stock Check History (both roles). */
-:root:not([data-theme='dark']) :is(.store-inventory-page__export, .store-inventory-page .stock-check-history__export) > :is(.btn--secondary, .btn--danger) {
-  background: #c4267e;
-  border-color: #c4267e;
-  color: #ffffff;
-}
-
-:root:not([data-theme='dark']) :is(.store-inventory-page__export, .store-inventory-page .stock-check-history__export) > :is(.btn--secondary, .btn--danger):hover {
-  background: #a81f6a;
-  border-color: #a81f6a;
-}
-
 .store-inventory-page__subtab-list {
   display: flex;
   align-items: center;

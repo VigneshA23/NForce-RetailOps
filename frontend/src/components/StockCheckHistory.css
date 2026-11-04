@@ -49,12 +49,6 @@
   position: relative;
 }
 
-.stock-check-history__export-trigger-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 .stock-check-history__export-menu {
   position: absolute;
   top: calc(100% + 6px);

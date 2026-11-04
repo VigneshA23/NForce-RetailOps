@@ -229,7 +229,7 @@ describe('SuperAdminStockCheckHistory', () => {
     expect(exportButton).toBeEnabled();
 
     await user.click(exportButton);
-    await user.click(screen.getByRole('menuitem', { name: /Download Excel/ }));
+    await user.click(screen.getByRole('menuitem', { name: /Export as Excel/ }));
 
     await waitFor(() => expect(mockBuildWorkbook).toHaveBeenCalled());
     const [exportedRows, , , options] = mockBuildWorkbook.mock.calls[0];
@@ -250,7 +250,7 @@ describe('SuperAdminStockCheckHistory', () => {
     await waitFor(() => expect(mockGetHistory).toHaveBeenLastCalledWith(1, expect.any(String), expect.any(String), 1, 10, undefined));
 
     await user.click(screen.getByRole('button', { name: /Export/ }));
-    await user.click(screen.getByRole('menuitem', { name: /Download Excel/ }));
+    await user.click(screen.getByRole('menuitem', { name: /Export as Excel/ }));
 
     await waitFor(() => expect(mockBuildWorkbook).toHaveBeenCalled());
     const [, , , options] = mockBuildWorkbook.mock.calls[0];

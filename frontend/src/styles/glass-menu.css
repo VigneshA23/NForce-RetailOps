@@ -1,0 +1,140 @@
+/* ─── Glass dropdown menu ──────────────────────────────────────────────────────
+   Shared frosted-glass look for dropdown menus (the Export menus), mirroring
+   the avatar ProfileMenu (components/ProfileMenu.css). Add `glass-menu` to
+   the panel and `glass-menu__item` to each option, alongside the component's
+   own classes -- those keep positioning/layout, this only owns appearance.
+   Selectors are doubled (.glass-menu.glass-menu) so they win over the
+   component rules regardless of stylesheet load order. */
+
+.glass-menu.glass-menu {
+  border-radius: 14px;
+  transform-origin: top right;
+  animation: gm-open 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /* Top gloss sheen layered over light-mode glass */
+  background:
+    linear-gradient(170deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 35%, transparent 60%),
+    rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.1),
+    0 24px 56px rgba(0, 0, 0, 0.08),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+}
+
+:root[data-theme='dark'] .glass-menu.glass-menu {
+  background:
+    linear-gradient(170deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 35%, transparent 60%),
+    rgba(16, 12, 22, 0.75);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.3),
+    0 8px 24px rgba(0, 0, 0, 0.45),
+    0 24px 56px rgba(0, 0, 0, 0.4),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* ─── Items ─────────────────────────────────────────────────────────────────── */
+.glass-menu__item.glass-menu__item {
+  position: relative;
+  overflow: hidden;
+  font-size: 13.5px;
+  color: #3c3c45;
+  background: transparent;
+  transition:
+    background 130ms ease-out,
+    color 120ms ease-out,
+    transform 100ms cubic-bezier(0.16, 1, 0.3, 1);
+  animation: gm-item-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Hover shimmer sweep */
+.glass-menu__item.glass-menu__item::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.18) 50%, transparent 100%);
+  transform: skewX(-15deg);
+  transition: left 380ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+.glass-menu__item.glass-menu__item:hover:not(:disabled)::after {
+  left: 140%;
+}
+
+.glass-menu__item.glass-menu__item:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.045);
+  color: #0a0a12;
+}
+.glass-menu__item.glass-menu__item:active:not(:disabled) {
+  background: rgba(0, 0, 0, 0.07);
+}
+.glass-menu__item.glass-menu__item:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+:root[data-theme='dark'] .glass-menu__item.glass-menu__item {
+  color: rgba(255, 255, 255, 0.78);
+}
+:root[data-theme='dark'] .glass-menu__item.glass-menu__item::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%);
+}
+:root[data-theme='dark'] .glass-menu__item.glass-menu__item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.96);
+}
+:root[data-theme='dark'] .glass-menu__item.glass-menu__item:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+/* Stagger items in */
+.glass-menu > :nth-child(2) { animation-delay: 30ms; }
+.glass-menu > :nth-child(3) { animation-delay: 55ms; }
+.glass-menu > :nth-child(4) { animation-delay: 80ms; }
+.glass-menu > :nth-child(5) { animation-delay: 105ms; }
+
+/* Dividers inside a glass menu use the same hairline as the avatar menu */
+.glass-menu [role='separator'] {
+  background: rgba(0, 0, 0, 0.07);
+}
+:root[data-theme='dark'] .glass-menu [role='separator'] {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+@keyframes gm-open {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(-12px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes gm-item-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-menu.glass-menu,
+  .glass-menu__item.glass-menu__item {
+    animation: none;
+    filter: none;
+  }
+  .glass-menu__item.glass-menu__item,
+  .glass-menu__item.glass-menu__item::after {
+    transition: none;
+  }
+}

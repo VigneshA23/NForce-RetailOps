@@ -31,6 +31,7 @@ import Pagination from '../components/Pagination';
 import FilterClearButton from '../components/FilterClearButton';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
+import ExportButton from '../components/ExportButton';
 import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
 import { getStockStatus } from '../utils/storeInventoryStatus';
@@ -551,25 +552,24 @@ function SuperAdminInventory() {
                 <h1 className="store-inventory-page__title">Inventory Master</h1>
                 <div className="store-inventory-page__header-actions">
                   <div className="store-inventory-page__export" ref={exportMenuRef}>
-                    <button
-                      type="button"
-                      className="btn btn--danger"
+                    <ExportButton
+                      isOpen={isExportMenuOpen}
+                      disabled={filteredItems.length === 0}
+                      title={filteredItems.length === 0 ? 'Nothing to export' : undefined}
                       onClick={() => setIsExportMenuOpen((open) => !open)}
-                    >
-                      <FileText size={14} /> Export
-                    </button>
+                    />
                     {isExportMenuOpen && (
-                      <div className="store-inventory-page__export-menu">
+                      <div className="store-inventory-page__export-menu glass-menu">
                         <button
                           type="button"
-                          className="store-inventory-page__export-item"
+                          className="store-inventory-page__export-item glass-menu__item"
                           onClick={() => { exportInventoryCatalogCsv(filteredItems); setIsExportMenuOpen(false); }}
                         >
                           <FileSpreadsheet size={14} /> Export as CSV
                         </button>
                         <button
                           type="button"
-                          className="store-inventory-page__export-item"
+                          className="store-inventory-page__export-item glass-menu__item"
                           onClick={() => { exportInventoryCatalogPdf(filteredItems); setIsExportMenuOpen(false); }}
                         >
                           <FileText size={14} /> Export as PDF
