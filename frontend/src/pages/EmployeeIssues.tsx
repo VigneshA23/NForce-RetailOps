@@ -165,8 +165,6 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
                   label={meta.label}
                   value={counts[status]}
                   tone={meta.tone}
-                  onClick={() => setStatusFilter((current) => (current === status ? null : status))}
-                  active={statusFilter === status}
                 />
               )
             })}

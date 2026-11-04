@@ -128,10 +128,6 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
 
   const pendingIssue = pending ? issues.find((i) => i.id === pending.issueId) ?? null : null;
 
-  function toggleStatus(status: NonNullable<IssueStatusFilter>) {
-    setStatusFilter((current) => (current === status ? 'ACTIVE' : status));
-  }
-
   if (!storeId && !storesLoading) {
     return (
       <div className="admin-issues-page">
@@ -156,8 +152,6 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
               label={meta.label}
               value={counts[status]}
               tone={meta.tone}
-              onClick={() => toggleStatus(status)}
-              active={statusFilter === status}
             />
           );
         })}
