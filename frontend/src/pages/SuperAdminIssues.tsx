@@ -164,10 +164,6 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
 
   const pendingIssue = pending ? issues.find((i) => i.id === pending.issueId) ?? null : null;
 
-  function toggleStatus(status: NonNullable<IssueStatusFilter>) {
-    setStatusFilter((current) => (current === status ? 'ACTIVE' : status));
-  }
-
   return (
     <div className="sa-issues-page">
       <div className="stat-card-row">
@@ -180,8 +176,6 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
               label={meta.label}
               value={counts[status]}
               tone={meta.tone}
-              onClick={() => toggleStatus(status)}
-              active={statusFilter === status}
             />
           );
         })}
