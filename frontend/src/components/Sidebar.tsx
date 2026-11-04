@@ -49,7 +49,7 @@ function Sidebar<Key extends string = NavTabKey>({
   // mobile drawer is always full width.
   const showToggle = !isMobile && !isTabletNarrow;
   const [hoveredTooltip, setHoveredTooltip] = useState<HoveredTooltip | null>(null);
-  const asideRef = useRef<HTMLElement>(null);
+  const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -73,7 +73,7 @@ function Sidebar<Key extends string = NavTabKey>({
     if (!isIconOnly) return;
     const icon = button.querySelector<HTMLElement>('.sidebar__dock-icon') ?? button;
     const iconRect = icon.getBoundingClientRect();
-    const railRight = asideRef.current?.getBoundingClientRect().right ?? iconRect.right;
+    const railRight = navRef.current?.getBoundingClientRect().right ?? iconRect.right;
     setHoveredTooltip({ label, top: iconRect.top + iconRect.height / 2, left: railRight + 10 });
   }
 
@@ -84,8 +84,13 @@ function Sidebar<Key extends string = NavTabKey>({
   return (
     <>
       {mobileOpen && <div className="sidebar-scrim" onClick={onClose} aria-hidden="true" />}
-      <aside
-        ref={asideRef}
+      {/* <nav>, not <aside> -- this isn't complementary content, it's the
+          primary navigation, and it no longer reserves its own layout
+          column (see .sidebar in Sidebar.css): it's a floating dock
+          positioned over the app shell page. */}
+      <nav
+        ref={navRef}
+        aria-label="Primary"
         className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}${mobileOpen ? ' sidebar--mobile-open' : ''}`}
       >
         <div className="sidebar__brand">
@@ -93,7 +98,7 @@ function Sidebar<Key extends string = NavTabKey>({
               (Header.tsx). */}
           <img src="/keds-logo.png" alt="Ked's Ice Cream, Waffles & Crepes" className="sidebar__brand-logo" />
         </div>
-        <nav className="sidebar__nav" aria-label="Primary">
+        <div className="sidebar__nav">
           {/* A dock: each item magnifies on hover and nudges its neighbours
               apart. The neighbour rules in Sidebar.css use sibling
               selectors, so the items must stay direct siblings -- no <li>
@@ -146,8 +151,8 @@ function Sidebar<Key extends string = NavTabKey>({
               </button>
             )}
           </div>
-        </nav>
-      </aside>
+        </div>
+      </nav>
       {hoveredTooltip &&
         createPortal(
           <div

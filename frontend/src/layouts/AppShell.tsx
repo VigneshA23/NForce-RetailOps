@@ -170,10 +170,12 @@ function AppShell<Key extends string = NavTabKey>({
   const showBottomNav = useBottomTabs && !hideBottomNav && !keyboardActive;
 
   return (
-    <div className="app-shell">
-      {/* Header spans the full width; the sidebar and the page sit
-          side by side underneath it (on phones the sidebar is a
-          slide-in drawer instead). */}
+    <div className={`app-shell${collapsed ? ' app-shell--sidebar-collapsed' : ''}`}>
+      {/* Header spans the full width; the sidebar now floats over the page
+          as a fixed dock rather than sharing a flex row with it (on phones
+          it's a slide-in drawer instead) -- the collapsed modifier class
+          here tells .app-shell__page (AppShell.css) how much left padding
+          to reserve so the dock never covers real content. */}
       <div className="app-shell__header">
         <Header
           title={title}

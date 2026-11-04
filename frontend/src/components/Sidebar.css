@@ -1,14 +1,16 @@
 @import '../styles/breakpoints.css';
 
-/* Invisible positioning track reserving layout width for the floating "dock"
-   pill of round icons below -- no rail background of its own, so the
-   app-shell's page background (AppShell.css) shows straight through it. */
+/* No longer a layout element -- this is a floating positioning track for the
+   "dock" pill of round icons below, laid directly over the app shell page
+   (AppShell.css's .app-shell__page reserves matching padding-left so real
+   content never renders underneath it, the same way .app-shell__main
+   --bottom-nav reserves padding-bottom for the floating BottomNav). No rail
+   background of its own, so the page background shows straight through it. */
 .sidebar {
-  flex-shrink: 0;
-  width: var(--sidebar-width-expanded);
-  position: sticky;
+  position: fixed;
   top: var(--header-height);
-  align-self: flex-start;
+  left: 0;
+  width: var(--sidebar-width-expanded);
   /* Sits under the full-width header (AppShell.tsx). */
   height: calc(100dvh - var(--header-height));
   /* Scrolls on short screens rather than cutting the last items off. */
