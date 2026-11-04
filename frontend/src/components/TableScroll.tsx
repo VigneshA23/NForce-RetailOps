@@ -19,6 +19,11 @@ function TableScroll({ children }: TableScrollProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<ThumbState | null>(null);
+  // True while the table is being scrolled (and ~0.8s after), so the
+  // hover-revealed scrollbar (TableScroll.css) also shows during touch swipes
+  // and keyboard scrolling, not only while the pointer is over the table.
+  const [isScrolling, setIsScrolling] = useState(false);
+  const scrollIdleTimer = useRef<number | undefined>(undefined);
 
   const update = useCallback(() => {
     const el = scrollRef.current;
@@ -37,7 +42,13 @@ function TableScroll({ children }: TableScrollProps) {
     const el = scrollRef.current;
     if (!el) return;
     update();
-    el.addEventListener('scroll', update, { passive: true });
+    function onScroll() {
+      update();
+      setIsScrolling(true);
+      window.clearTimeout(scrollIdleTimer.current);
+      scrollIdleTimer.current = window.setTimeout(() => setIsScrolling(false), 800);
+    }
+    el.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', update);
     let observer: ResizeObserver | undefined;
     if (typeof ResizeObserver !== 'undefined') {
@@ -46,7 +57,8 @@ function TableScroll({ children }: TableScrollProps) {
       if (el.firstElementChild) observer.observe(el.firstElementChild);
     }
     return () => {
-      el.removeEventListener('scroll', update);
+      el.removeEventListener('scroll', onScroll);
+      window.clearTimeout(scrollIdleTimer.current);
       window.removeEventListener('resize', update);
       observer?.disconnect();
     };
@@ -73,7 +85,7 @@ function TableScroll({ children }: TableScrollProps) {
   }
 
   return (
-    <div className="table-scroll-wrap">
+    <div className={`table-scroll-wrap${isScrolling ? ' table-scroll-wrap--scrolling' : ''}`}>
       <div ref={scrollRef} className="table-scroll">
         {children}
       </div>

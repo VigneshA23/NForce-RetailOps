@@ -36,3 +36,48 @@
     background: color-mix(in srgb, var(--color-text-muted) 65%, transparent);
   }
 }
+
+/* Order List / EOD Report: the scrollbar keeps its space (no layout jump)
+   but stays invisible until the table is hovered, something inside it is
+   focused, or it's being scrolled (--scrolling, set by TableScroll.tsx). Overrides the always-visible styling in styles/table.css. */
+.table-scroll-wrap > .table-scroll::-webkit-scrollbar-track,
+.table-scroll-wrap > .table-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.table-scroll-wrap:is(:hover, :focus-within, .table-scroll-wrap--scrolling) > .table-scroll::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--color-text-muted) 14%, transparent);
+}
+
+.table-scroll-wrap:is(:hover, :focus-within, .table-scroll-wrap--scrolling) > .table-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text-muted) 60%, transparent);
+  background-clip: padding-box;
+}
+
+.table-scroll-wrap:is(:hover, :focus-within, .table-scroll-wrap--scrolling) > .table-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+  background-clip: padding-box;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .table-scroll-wrap > .table-scroll {
+    scrollbar-color: transparent transparent;
+  }
+
+  .table-scroll-wrap:is(:hover, :focus-within, .table-scroll-wrap--scrolling) > .table-scroll {
+    scrollbar-color: color-mix(in srgb, var(--color-text-muted) 60%, transparent) color-mix(in srgb, var(--color-text-muted) 14%, transparent);
+  }
+}
+
+/* Same for the in-page bar on touch/narrow screens: a tap counts as hover,
+   and it also shows while dragging (:active) or when a field has focus. */
+@media (pointer: coarse), (max-width: 1024px) {
+  .table-scroll-wrap__track {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .table-scroll-wrap:is(:hover, :focus-within, :active, .table-scroll-wrap--scrolling) .table-scroll-wrap__track {
+    opacity: 1;
+  }
+}
