@@ -825,3 +825,42 @@
     min-width: 0;
   }
 }
+
+/* Narrow tablets (481-767px), which the --tablet-up rule above doesn't
+   reach: the shared .filter column (15%, min 140px) is narrower than the
+   triggers' 160px min-width, so "All Categories" and "All Status" ran into
+   each other. Keep one row, let the search give up width, and have the
+   triggers fill their column and truncate their label instead. */
+@media (--tablet-narrow) {
+  .filter-bar.employee-dashboard-filters {
+    flex-wrap: nowrap;
+  }
+
+  .filter-bar.employee-dashboard-filters > .filter--search {
+    flex: 1 1 0;
+    min-width: 100px;
+  }
+
+  .filter-bar.employee-dashboard-filters > .filter:not(.filter--search) {
+    flex: 0 1 150px;
+    min-width: 110px;
+  }
+
+  .employee-dashboard-filters .multi-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .employee-dashboard-filters .multi-select__trigger {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .employee-dashboard-filters .multi-select__trigger > span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

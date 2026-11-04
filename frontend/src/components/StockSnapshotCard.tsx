@@ -149,7 +149,7 @@ function StockSnapshotCard({ title, idPrefix, snapshot, isSubmitting = false, on
         <div className="stock-snapshot-card__actions">
           <span className="stock-snapshot-card__footer-text">{footer}</span>
           {isEditable ? (
-            <button type="submit" className={`btn ${isSaved ? 'btn--secondary' : 'btn--danger'}`} disabled={isSubmitting}>
+            <button type="submit" className={`btn ${isSaved ? 'btn--secondary' : 'btn--primary stock-snapshot-card__save'}`} disabled={isSubmitting}>
               {isSubmitting ? <ButtonDots /> : isSaved ? 'Update Count' : 'Save Check'}
             </button>
           ) : (
