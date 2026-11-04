@@ -549,7 +549,6 @@ function SuperAdminInventory() {
           ) : (
             <>
               <div className="store-inventory-page__title-row">
-                <h1 className="store-inventory-page__title">Inventory Master</h1>
                 <div className="store-inventory-page__header-actions">
                   <div className="store-inventory-page__export" ref={exportMenuRef}>
                     <ExportButton

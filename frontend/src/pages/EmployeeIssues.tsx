@@ -122,14 +122,13 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
 
   return (
     <div className="emp-issues-page">
-      <div className="emp-issues-page__header">
-        <div className="emp-issues-page__header-text">
-          <h1 className="emp-issues-page__heading">Issues</h1>
+      {/* Desktop/tablet: Raise Issue at the far right above the status
+          cards. Phones keep it below them (full width) -- see further down. */}
+      {showRaiseInHeader && (
+        <div className="emp-issues-page__header">
+          {raiseButton}
         </div>
-        {/* Desktop/tablet: beside the title, far right. Phones keep it below
-            the status cards (full width) -- see the block further down. */}
-        {showRaiseInHeader && raiseButton}
-      </div>
+      )}
 
       {isLoading && <LoadingSkeleton label="Loading your issues…" variant="list" />}
 

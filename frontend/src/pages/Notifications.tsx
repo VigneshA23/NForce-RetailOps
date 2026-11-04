@@ -874,7 +874,7 @@ function Notifications({ onUnreadChange, onNavigate, onBackToHome, activeStoreId
     <div className="nfp-page">
 
       {onBackToHome && (
-        <button type="button" className="nfp-detail__back" onClick={onBackToHome}>
+        <button type="button" className="nfp-detail__back nfp-detail__back--page" onClick={onBackToHome}>
           <ChevronLeft size={16} aria-hidden="true" /> Back
         </button>
       )}

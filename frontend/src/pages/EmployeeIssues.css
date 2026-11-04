@@ -14,19 +14,8 @@
 .emp-issues-page__header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-md);
-}
-
-.emp-issues-page__header-text {
-  min-width: 0;
-}
-
-.emp-issues-page__heading {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0;
 }
 
 /* ── Loading / error / empty ── */

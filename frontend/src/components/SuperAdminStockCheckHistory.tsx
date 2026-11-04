@@ -278,7 +278,6 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
   return (
     <div className="stock-check-history">
       <div className="stock-check-history__header">
-        <h1 className="stock-check-history__title">Stock Check History</h1>
         <div className="stock-check-history__header-actions">
           <DateRangePicker value={dateRange} onChange={handleRangeChange} />
           <div className="stock-check-history__export" ref={exportMenuRef}>

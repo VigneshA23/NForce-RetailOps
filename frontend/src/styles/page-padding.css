@@ -1,0 +1,76 @@
+@import './breakpoints.css';
+
+/* One page gutter everywhere: 24px on every side on desktop and tablet,
+   16px on phones. Each page's root (or, for the Employee checklist and
+   Missed Tasks, its body wrapper) is listed here; doubled class selectors win
+   over the pages' own padding rules and their media-query overrides. The
+   mobile bottom tab bar's clearance is separate -- AppShell adds it to
+   .app-shell__page, so it is not part of these 16px. */
+.placeholder-page.placeholder-page,
+.employee-history.employee-history,
+.admin-issues-page.admin-issues-page,
+.categories-page.categories-page,
+.emp-issues-page.emp-issues-page,
+.employee-stock-check-page.employee-stock-check-page,
+.employees-page.employees-page,
+.help-page.help-page,
+.home-page.home-page,
+.missing-tasks-page__body.missing-tasks-page__body,
+.nfp-page.nfp-page,
+.order-dashboard-page.order-dashboard-page,
+.profile-page.profile-page,
+.store-detail-page.store-detail-page,
+.store-inventory-page.store-inventory-page,
+.sa-activity.sa-activity,
+.super-admin-employees-page.super-admin-employees-page,
+.sa-home.sa-home,
+.sa-issues-page.sa-issues-page,
+.super-admin-orders.super-admin-orders,
+.super-admin-stores-page.super-admin-stores-page,
+.tasks-page.tasks-page,
+.owners-page.owners-page,
+.employee-dashboard-body.employee-dashboard-body {
+  padding: var(--space-lg);
+}
+
+/* Inventory's sticky sub-tab bar carries the top spacing itself. */
+.store-inventory-page.store-inventory-page {
+  padding-top: 0;
+}
+
+@media (--mobile) {
+  .placeholder-page.placeholder-page,
+  .employee-history.employee-history,
+  .admin-issues-page.admin-issues-page,
+  .categories-page.categories-page,
+  .emp-issues-page.emp-issues-page,
+  .employee-stock-check-page.employee-stock-check-page,
+  .employees-page.employees-page,
+  .help-page.help-page,
+  .home-page.home-page,
+  .missing-tasks-page__body.missing-tasks-page__body,
+  .nfp-page.nfp-page,
+  .order-dashboard-page.order-dashboard-page,
+  .profile-page.profile-page,
+  .store-detail-page.store-detail-page,
+  .store-inventory-page.store-inventory-page,
+  .sa-activity.sa-activity,
+  .super-admin-employees-page.super-admin-employees-page,
+  .sa-home.sa-home,
+  .sa-issues-page.sa-issues-page,
+  .super-admin-orders.super-admin-orders,
+  .super-admin-stores-page.super-admin-stores-page,
+  .tasks-page.tasks-page,
+  .owners-page.owners-page,
+  .employee-dashboard-body.employee-dashboard-body {
+    padding: var(--space-md);
+  }
+
+  .store-inventory-page.store-inventory-page {
+    padding-top: 0;
+  }
+
+  .store-inventory-page.store-inventory-page .store-inventory-page__subtabs {
+    padding-top: var(--space-md);
+  }
+}

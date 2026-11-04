@@ -10,9 +10,13 @@ import './Header.css';
 
 interface HeaderProps {
   // Empty string omits the heading (e.g. the Store Picker, which carries only
-  // the brand logo).
+  // the brand logo and a subtitle).
   title: string;
-  // Optional brand logo rendered to the left of the title -- omitted
+  // Shown as a second, smaller line under the title (e.g. Employee's
+  // currently selected store name) -- optional, so other shells' single-line
+  // title is unaffected when omitted.
+  subtitle?: string;
+  // Optional brand logo rendered to the left of the title/subtitle -- omitted
   // by default, so Admin/Super Admin headers stay exactly as-is.
   logoSrc?: string;
   // When true, hides the logo at tablet/desktop widths -- for callers that
@@ -65,6 +69,7 @@ interface HeaderProps {
 
 function Header({
   title,
+  subtitle,
   logoSrc,
   hideLogoOnDesktop,
   showPlatformBrand = true,
@@ -139,6 +144,7 @@ function Header({
         )}
         <div className="header__brand">
           {title && <h1 className="header__title">{title}</h1>}
+          {subtitle && <span className="header__subtitle">{subtitle}</span>}
         </div>
       </div>
       <div className="header__right">

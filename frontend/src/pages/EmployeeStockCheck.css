@@ -66,13 +66,6 @@
   margin-bottom: var(--space-lg);
 }
 
-.employee-stock-check-page__title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-}
-
 .employee-stock-check-page__subtitle {
   margin: 4px 0 0;
   font-size: 13px;

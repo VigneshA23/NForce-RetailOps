@@ -22,6 +22,7 @@ interface AppShellProps<Key extends string = NavTabKey> {
   title: string;
   // Forwarded to Header -- see Header's own prop docs. Optional, so shells
   // that don't pass them (Admin/Super Admin) render exactly as before.
+  subtitle?: string;
   logoSrc?: string;
   hideLogoOnDesktop?: boolean;
   // See Modal's `centered` prop. Passed by all three shells (Employee,
@@ -84,6 +85,7 @@ function AppShell<Key extends string = NavTabKey>({
   navActive = true,
   onSelectTab,
   title,
+  subtitle,
   logoSrc,
   hideLogoOnDesktop,
   centeredModals,
@@ -180,6 +182,7 @@ function AppShell<Key extends string = NavTabKey>({
       <div className="app-shell__header">
         <Header
           title={title}
+          subtitle={subtitle}
           logoSrc={logoSrc}
           hideLogoOnDesktop={hideLogoOnDesktop}
           hideThemeToggleOnMobile

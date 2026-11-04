@@ -78,8 +78,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
+  // Page title over the store name. Notifications carries its own in-page
+  // heading, so the header shows no title there.
   const title = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
+    : overlay === 'notifications' ? ''
     : PAGE_TITLES[activeTab];
 
   function handleNotificationsCountChange(value: number) {
@@ -203,6 +206,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
         setActiveTab(key);
       }}
       title={title}
+      subtitle={storesState.stores[0]?.name}
       // A stable key (not activeTab) while no overlay is open: AppShell keys
       // its content wrapper on this and remounts on every change, which would
       // otherwise blow away the "lazy-mount, stay alive" tabs below on every

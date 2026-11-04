@@ -1,0 +1,56 @@
+@import './breakpoints.css';
+
+/* One look for every in-page title, taken from the Employee checklist's
+   "Today's Tasks" heading: 32px / 700 Open Sans (24px on phones). Doubled
+   class selectors so these win over each page's own heading rules, including
+   their own mobile overrides, without !important. Help keeps its white text
+   (it sits on a coloured banner); only size and weight change there. */
+.employee-dashboard-heading.employee-dashboard-heading,
+.home-page__greeting.home-page__greeting,
+.sa-home__greeting.sa-home__greeting,
+.missing-tasks-page__heading.missing-tasks-page__heading,
+.nfp-header__title.nfp-header__title,
+.sa-activity__title.sa-activity__title,
+.help-page__title.help-page__title,
+.placeholder-page__title.placeholder-page__title {
+  font-family: inherit;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: normal;
+  line-height: normal;
+}
+
+.employee-dashboard-heading.employee-dashboard-heading,
+.home-page__greeting.home-page__greeting,
+.sa-home__greeting.sa-home__greeting,
+.missing-tasks-page__heading.missing-tasks-page__heading,
+.nfp-header__title.nfp-header__title,
+.sa-activity__title.sa-activity__title,
+.placeholder-page__title.placeholder-page__title {
+  color: var(--color-text-primary);
+}
+
+/* "Welcome, {name}!" stays on one line; its row wraps the date badge onto
+   the next line instead. Ellipsis only for a name too long for the screen. */
+.employee-dashboard-heading.employee-dashboard-heading,
+.home-page__greeting.home-page__greeting,
+.sa-home__greeting.sa-home__greeting {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  min-width: 0;
+}
+
+@media (--mobile) {
+  .employee-dashboard-heading.employee-dashboard-heading,
+  .home-page__greeting.home-page__greeting,
+  .sa-home__greeting.sa-home__greeting,
+  .missing-tasks-page__heading.missing-tasks-page__heading,
+  .nfp-header__title.nfp-header__title,
+  .sa-activity__title.sa-activity__title,
+  .help-page__title.help-page__title,
+  .placeholder-page__title.placeholder-page__title {
+    font-size: 24px;
+  }
+}

@@ -34,29 +34,6 @@
   }
 }
 
-.store-detail-page__header {
-  margin-bottom: var(--space-md);
-}
-
-.store-detail-page__heading-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
-  flex-wrap: wrap;
-}
-
-.store-detail-page__heading-left {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  flex-wrap: wrap;
-}
-
-.store-detail-page__heading {
-  margin: 0;
-}
-
 .store-detail-page__mode-badge {
   display: inline-flex;
   align-items: center;
@@ -103,13 +80,48 @@
   margin-bottom: var(--space-md);
 }
 
-/* Date nav + Export on the same row */
-.store-detail-page__date-nav-row {
+/* Daily Checklist toolbar: date nav, Live badge, Export and the quick-jump
+   pills in one wrapping flex row, arranged with `order` and a zero-height
+   full-width break. 8px between rows; the break sits on a line of its own,
+   so its negative margin cancels the second gap it would otherwise add.
+
+   Tablet and desktop (Owner/Admin and Super Admin):
+     [date nav] [Live] ................ [Export]
+     [Yesterday] [Last Week] [Today]
+   Phones (and --stacked, if a page ever wants that at every size):
+     [date nav] ................ [Live]
+     [Yesterday] [Last Week] [Today] ... [Export] */
+.store-detail-page__toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-md);
+  column-gap: var(--space-sm);
+  row-gap: var(--space-sm);
   width: 100%;
+}
+
+.store-detail-page__toolbar > .store-detail-page__date-nav { order: 1; }
+.store-detail-page__toolbar > .checklist-live-status { order: 2; }
+.store-detail-page__toolbar > .store-detail-page__toolbar-export { order: 3; margin-left: auto; }
+.store-detail-page__toolbar > .store-detail-page__toolbar-break { order: 4; }
+.store-detail-page__toolbar > .store-detail-page__date-pills { order: 5; }
+
+.store-detail-page__toolbar-break {
+  flex-basis: 100%;
+  height: 0;
+  margin-top: calc(-1 * var(--space-sm));
+}
+
+.store-detail-page__toolbar--stacked > .checklist-live-status { margin-left: auto; }
+.store-detail-page__toolbar--stacked > .store-detail-page__toolbar-break { order: 3; }
+.store-detail-page__toolbar--stacked > .store-detail-page__date-pills { order: 4; }
+.store-detail-page__toolbar--stacked > .store-detail-page__toolbar-export { order: 5; }
+
+@media (--mobile) {
+  .store-detail-page__toolbar > .checklist-live-status { margin-left: auto; }
+  .store-detail-page__toolbar > .store-detail-page__toolbar-break { order: 3; }
+  .store-detail-page__toolbar > .store-detail-page__date-pills { order: 4; }
+  .store-detail-page__toolbar > .store-detail-page__toolbar-export { order: 5; }
 }
 
 /* Arrow nav: ‹ Thu, Sep 5, 2026 › */

@@ -19,6 +19,7 @@
   align-items: center;
   gap: var(--space-sm);
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .employee-stock-history__header-actions .btn {

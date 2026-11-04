@@ -527,6 +527,11 @@
 }
 .nfp-detail__back:hover { color: var(--color-text-primary); }
 
+/* The list page's Back sits straight above the "Notifications" title. */
+.nfp-detail__back--page {
+  padding-bottom: 0;
+}
+
 .nfp-detail__placeholder {
   text-align: center;
   padding: 40px 20px;

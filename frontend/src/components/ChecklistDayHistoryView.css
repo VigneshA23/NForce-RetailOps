@@ -5,14 +5,6 @@
   padding: var(--space-lg) var(--space-lg) 80px;
 }
 
-.employee-history-heading {
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--color-text-primary);
-  margin: 0 0 var(--space-lg);
-}
-
 /* Sticks just below the app header so store/date switching never requires
    scrolling back up, without fighting the header's own sticky z-index. Only
    repaints the sky (AppShell.css) once a sentinel above it (see the TSX)

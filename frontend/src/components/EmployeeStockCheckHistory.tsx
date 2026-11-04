@@ -171,9 +171,6 @@ function EmployeeStockCheckHistory({ storeId, onTotalChange }: EmployeeStockChec
   return (
     <div className="employee-stock-history">
       <div className="employee-stock-check-page__header">
-        <div>
-          <h1 className="employee-stock-check-page__title">Stock Check History</h1>
-        </div>
         <div className="employee-stock-history__header-actions">
           <DateRangePicker value={dateRange} onChange={handleRangeChange} />
           <div ref={exportMenuRef} className="employee-stock-history__export">
