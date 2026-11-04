@@ -11,7 +11,7 @@
 }
 
 .missing-tasks-page__body {
-  padding: var(--space-xl) var(--space-lg) 120px;
+  padding: var(--space-lg) var(--space-lg) 120px;
 }
 
 .missing-tasks-page__back {

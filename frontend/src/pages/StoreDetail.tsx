@@ -11,6 +11,7 @@ import type { ChecklistHistoryCategory, ChecklistHistoryDetail, ChecklistHistory
 import StoreDetailTable, { type StoreDetailRow } from '../components/StoreDetailTable';
 import CalendarPopover from '../components/CalendarPopover';
 import ExportMenu from '../components/ExportMenu';
+import ChecklistLiveStatus from '../components/ChecklistLiveStatus';
 import {
   hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, stepDate, formatDateNavLabel,
   formatDateLabel, formatDateRangeLabel, previousCalendarWeekRange, datesInRange, responseDisplayValue,
@@ -60,8 +61,6 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
   // Tracked so the silent 60s refresh's failures (previously swallowed with no
   // trace at all) are visible: when it can't refresh, the on-screen data is
   // frozen at whatever loaded last, and the user should be able to tell.
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | null>(null);
-  const [refreshStale, setRefreshStale] = useState(false);
 
   const [filter, setFilter] = useState<FilterKey>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,8 +83,6 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
       getChecklistHistoryDetail(id, forDate)
         .then((result) => {
           setDetail(result);
-          setLastUpdatedAt(new Date());
-          setRefreshStale(false);
           if (!silent) setDetailLoading(false);
         })
         .catch((error: Error) => {
@@ -98,12 +95,8 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
             attempt(true);
             return;
           }
-          if (silent) {
-            // Previously swallowed entirely -- the table would silently go
-            // stale with no indication a refresh had failed.
-            setRefreshStale(true);
-            return;
-          }
+          // A failed background refresh keeps the last good data on screen.
+          if (silent) return;
           setDetailError(error.message);
           setDetailLoading(false);
         });
@@ -149,7 +142,6 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
       .then((days) => {
         if (!active) return;
         setWeeklyDays(days);
-        setLastUpdatedAt(new Date());
         setDetailLoading(false);
       })
       .catch((error: Error) => {
@@ -460,34 +452,12 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
 
   return (
     <div className="store-detail-page">
-      <div className="store-detail-page__header">
-        <div className="store-detail-page__heading-row">
-          <div className="store-detail-page__heading-left">
-            <h1 className="store-detail-page__heading">Daily checklist</h1>
-            {isToday ? (
-              <span className="store-detail-page__mode-badge store-detail-page__mode-badge--live">
-                ● Live
-              </span>
-            ) : (
-              <span className="store-detail-page__mode-badge store-detail-page__mode-badge--historical">
-                📋 Historical
-              </span>
-            )}
-            {isToday && lastUpdatedAt && (
-              <span className="store-detail-page__last-updated">
-                {refreshStale
-                  ? "Couldn't refresh — showing data from " +
-                    lastUpdatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                  : 'Updated ' + lastUpdatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            )}
-          </div>
-        </div>
-        <p className="store-detail-page__subheading">Every task for your store, with who recorded it.</p>
-      </div>
-
       <div className="store-detail-page__filters">
-        <div className="store-detail-page__date-nav-row">
+        {/* One wrapping toolbar: date nav + Live, Export, then the quick-jump
+            pills. Desktop/tablet: Live beside the date, Export far right,
+            pills below. Phones: date left + Live right, then pills + Export
+            (see .store-detail-page__toolbar in StoreDetail.css). */}
+        <div className="store-detail-page__toolbar">
           <div className="store-detail-page__date-nav">
             <button
               type="button"
@@ -518,7 +488,36 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
               <ChevronRight size={16} />
             </button>
           </div>
-          <ExportMenu storeId={storeId} date={date} storeName={storeName} rangeOverride={weekRange ?? undefined} />
+          <ChecklistLiveStatus isToday={isToday} />
+          <div className="store-detail-page__toolbar-export">
+            <ExportMenu storeId={storeId} date={date} storeName={storeName} rangeOverride={weekRange ?? undefined} />
+          </div>
+          <span className="store-detail-page__toolbar-break" aria-hidden="true" />
+          <div className="store-detail-page__date-pills">
+            <button
+              type="button"
+              className={`store-detail-page__date-pill${weekRange === null && date === yesterday() ? ' store-detail-page__date-pill--active' : ''}`}
+              onClick={() => { exitWeekMode(); setDate(yesterday()); }}
+            >
+              Yesterday
+            </button>
+            <button
+              type="button"
+              className={`store-detail-page__date-pill${weekRange !== null ? ' store-detail-page__date-pill--active' : ''}`}
+              onClick={() => setWeekRange(previousCalendarWeekRange(date))}
+            >
+              Last Week
+            </button>
+            {(weekRange !== null || date !== todayDate()) && (
+              <button
+                type="button"
+                className="store-detail-page__date-pill store-detail-page__date-pill--today"
+                onClick={() => { exitWeekMode(); setDate(todayDate()); }}
+              >
+                Today
+              </button>
+            )}
+          </div>
         </div>
         <CalendarPopover
           value={date}
@@ -528,31 +527,6 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
           onSelect={(d) => { exitWeekMode(); setDate(d); }}
           anchorRef={dateTriggerRef}
         />
-        <div className="store-detail-page__date-pills">
-          <button
-            type="button"
-            className={`store-detail-page__date-pill${weekRange === null && date === yesterday() ? ' store-detail-page__date-pill--active' : ''}`}
-            onClick={() => { exitWeekMode(); setDate(yesterday()); }}
-          >
-            Yesterday
-          </button>
-          <button
-            type="button"
-            className={`store-detail-page__date-pill${weekRange !== null ? ' store-detail-page__date-pill--active' : ''}`}
-            onClick={() => setWeekRange(previousCalendarWeekRange(date))}
-          >
-            Last Week
-          </button>
-          {(weekRange !== null || date !== todayDate()) && (
-            <button
-              type="button"
-              className="store-detail-page__date-pill store-detail-page__date-pill--today"
-              onClick={() => { exitWeekMode(); setDate(todayDate()); }}
-            >
-              Today
-            </button>
-          )}
-        </div>
       </div>
 
       <div className="stat-card-row store-detail-page__stat-row">

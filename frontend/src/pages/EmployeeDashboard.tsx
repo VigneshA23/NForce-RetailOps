@@ -26,6 +26,7 @@ import SearchInput from '../components/SearchInput'
 import FilterClearButton from '../components/FilterClearButton'
 import ButtonDots from '../components/ButtonDots'
 import MissedTasksBanner from '../components/MissedTasksBanner'
+import { firstName } from '../utils/initials'
 import './EmployeeDashboard.css'
 import '../styles/filters.css'
 import LoadingSkeleton from '../components/LoadingSkeleton'
@@ -564,9 +565,9 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
     <div className="employee-dashboard">
       <div className="employee-dashboard-body">
         <div className="employee-dashboard-heading-row">
-          <div>
-            <h1 className="employee-dashboard-heading">Today's Tasks</h1>
-          </div>
+          <h1 className="employee-dashboard-heading">
+            {employeeName ? `Welcome, ${firstName(employeeName)}!` : 'Welcome!'}
+          </h1>
           <span className="employee-dashboard-date">
             <Calendar size={13} aria-hidden="true" />
             {todayLabel}

@@ -424,7 +424,6 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
         <>
       <div className="employee-stock-check-page__header employee-stock-check-page__header--daily">
         <div>
-          <h1 className="employee-stock-check-page__title">Daily Stock Entry</h1>
           <p className="employee-stock-check-page__summary">
             {isLoading
               ? 'Loading...'

@@ -1,7 +1,7 @@
 .placeholder-page {
   display: flex;
   justify-content: center;
-  padding: var(--space-xl) var(--space-lg);
+  padding: var(--space-lg);
 }
 
 .placeholder-page__card {

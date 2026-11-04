@@ -24,8 +24,6 @@ import { matchesSearch } from '../utils/search'
 import './ChecklistDayHistoryView.css'
 
 interface ChecklistDayHistoryViewProps {
-  heading?: string
-  subheading?: string
   history: ShiftHistory | null
   loading: boolean
   error: string | null
@@ -105,8 +103,6 @@ function correctionValueLabel(
 }
 
 function ChecklistDayHistoryView({
-  heading = 'Audit History',
-  subheading = 'Review past shifts and completed tasks.',
   history,
   loading,
   error,
@@ -233,11 +229,6 @@ function ChecklistDayHistoryView({
 
   return (
     <div className="employee-history">
-      <div className="employee-history-header">
-        <h1 className="employee-history-heading">{heading}</h1>
-        <p className="employee-history-subheading">{subheading}</p>
-      </div>
-
       <div className="stat-card-row" style={{ marginBottom: 'var(--space-lg)' }}>
         <StatCard icon={CheckCircle2} label="Tasks Complete" value={complete} tone="success" />
         <StatCard icon={Flag} label="Flagged" value={flagged} tone="purple" />

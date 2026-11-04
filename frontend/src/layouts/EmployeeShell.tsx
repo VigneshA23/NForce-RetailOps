@@ -53,6 +53,15 @@ const NAV_ITEMS: EmployeeNavItem[] = [
 
 const BOTTOM_NAV_ITEMS: EmployeeNavItem[] = NAV_ITEMS
 
+const EMPLOYEE_PAGE_TITLES: Record<EmployeeNavTabKey, string> = {
+  today: 'Checklist',
+  audits: 'History',
+  issues: 'Issues',
+  // Missed Tasks keeps its own in-page title, so the header shows none.
+  missing: '',
+  'stock-check': 'Stock Check',
+}
+
 type Overlay = 'profile' | 'help' | 'notifications' | null
 
 function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOut, avatarUrl, onAvatarChange, onProfileUpdate, employeeId = null }: EmployeeShellProps) {
@@ -145,12 +154,14 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
 
   const ALL_EMPLOYEE_TABS: EmployeeNavTabKey[] = ['today', 'audits', 'issues', 'missing', 'stock-check']
 
-  const contextLabel = overlay === 'profile' ? 'My Profile'
+  // Same header as the Owner/Admin shell: page title over the store name.
+  // Notifications (and Missed Tasks, see EMPLOYEE_PAGE_TITLES) carry their
+  // own in-page heading, so the header shows no title there.
+  const headerTitle = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
-    : store.name
-
-  const headerTitle = contextLabel
-  const headerSubtitle = undefined
+    : overlay === 'notifications' ? ''
+    : EMPLOYEE_PAGE_TITLES[activeTab]
+  const headerSubtitle = store.name
 
   function handleSearchNavigate(target: 'today' | 'issues', id: number) {
     setOverlay(null)

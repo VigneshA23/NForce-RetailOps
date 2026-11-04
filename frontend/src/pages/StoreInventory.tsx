@@ -356,7 +356,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
         ) : (
           <>
             <div className="store-inventory-page__title-row">
-              <h1 className="store-inventory-page__title">Inventory Master</h1>
               <div className="store-inventory-page__header-actions">
                 <div className="store-inventory-page__export" ref={exportMenuRef}>
                   <ExportButton
@@ -477,9 +476,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
           </div>
         ) : (
           <>
-            <div className="store-inventory-page__title-row">
-              <h1 className="store-inventory-page__title">Suppliers</h1>
-            </div>
             <div className="stat-card-row store-inventory-page__supplier-stats">
               <StatCard icon={Truck} label="Suppliers" value={suppliers.length} tone="primary" />
               <StatCard icon={CircleCheck} label="Active" value={activeSupplierCount} tone="success" />

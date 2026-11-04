@@ -99,7 +99,7 @@ async function loginAsEmployee(user: ReturnType<typeof userEvent.setup>) {
 async function selectFirstOpenStore(user: ReturnType<typeof userEvent.setup>) {
   const storeCard = await screen.findByRole('button', { name: /store 1/i })
   await user.click(storeCard)
-  await screen.findByRole('heading', { name: /today's tasks/i })
+  await screen.findByRole('heading', { name: /^welcome/i })
 }
 
 beforeEach(() => {
@@ -361,7 +361,7 @@ describe('session countdown accuracy after refresh', () => {
 
     render(<App />)
 
-    await screen.findByRole('heading', { name: /today's tasks/i })
+    await screen.findByRole('heading', { name: /^welcome/i })
     await screen.findByText(/welcome back/i, {}, { timeout: 2000 })
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull()
   })
@@ -384,7 +384,7 @@ describe('session countdown accuracy after refresh', () => {
 
     render(<App />)
 
-    await screen.findByRole('heading', { name: /today's tasks/i })
+    await screen.findByRole('heading', { name: /^welcome/i })
     expect(screen.queryByText(/welcome back/i)).not.toBeInTheDocument()
   })
 })
@@ -408,7 +408,7 @@ describe('session restore', () => {
     render(<App />)
 
     // Straight back into the remembered store, no picker.
-    await screen.findByRole('heading', { name: /today's tasks/i })
+    await screen.findByRole('heading', { name: /^welcome/i })
     expect(screen.queryByText(/select your store/i)).not.toBeInTheDocument()
   })
 
@@ -451,7 +451,7 @@ describe('session restore', () => {
     render(<App />)
 
     // Recovers on the automatic retry instead of bouncing to Login.
-    await screen.findByRole('heading', { name: /today's tasks/i })
+    await screen.findByRole('heading', { name: /^welcome/i })
     expect(mockGetMe).toHaveBeenCalledTimes(2)
     expect(localStorage.getItem(TOKEN_KEY)).toBe('still-valid-token')
   })
@@ -480,7 +480,7 @@ describe('store selection', () => {
     await user.type(screen.getByLabelText(/^password$/i), 'password123')
     await user.click(screen.getByRole('button', { name: /sign in/i }))
 
-    await screen.findByRole('heading', { name: /today's tasks/i })
+    await screen.findByRole('heading', { name: /^welcome/i })
     expect(screen.queryByText(/select your store/i)).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /switch store/i })).not.toBeInTheDocument()
   })
@@ -535,7 +535,7 @@ describe('employee tab persistence', () => {
     expect(missedCallsAfterFirstVisit).toBeGreaterThan(0)
 
     await user.click(screen.getByRole('button', { name: /checklist/i }))
-    await screen.findByRole('heading', { name: /today's tasks/i })
+    await screen.findByRole('heading', { name: /^welcome/i })
 
     await user.click(screen.getByRole('button', { name: /missed task.*from previous days/i }))
     await screen.findByRole('heading', { name: /missed tasks/i })
@@ -554,7 +554,7 @@ describe('employee tab persistence', () => {
 
     await loginAsEmployee(user)
     await selectFirstOpenStore(user)
-    await screen.findByRole('heading', { name: /today's tasks/i })
+    await screen.findByRole('heading', { name: /^welcome/i })
 
     expect(screen.queryByRole('button', { name: /^missing tasks$/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /^missed tasks$/i })).not.toBeInTheDocument()
