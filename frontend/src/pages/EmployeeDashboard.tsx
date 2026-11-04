@@ -14,6 +14,7 @@ import {
   MessageSquareWarning,
   Percent,
 } from 'lucide-react'
+import VisibleItemsScroll from '../components/VisibleItemsScroll'
 import { ApiError } from '../api/client'
 import { getDailyChecklist, submitTaskResponse, undoTaskResponse } from '../api/tasks'
 import type { TaskResponseStateResponse } from '../api/tasks'
@@ -25,7 +26,6 @@ import SearchInput from '../components/SearchInput'
 import FilterClearButton from '../components/FilterClearButton'
 import ButtonDots from '../components/ButtonDots'
 import MissedTasksBanner from '../components/MissedTasksBanner'
-import { useIsMobile } from '../hooks/useMediaQuery'
 import './EmployeeDashboard.css'
 import '../styles/filters.css'
 import LoadingSkeleton from '../components/LoadingSkeleton'
@@ -60,53 +60,6 @@ function localDraftKey(storeId: number, unitKey: string, date: string): string {
 function dueBadgeLabel(originalDueDate: string): string {
   const [year, month, day] = originalDueDate.split('-').map(Number)
   return `Due ${new Date(year, month - 1, day).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}`
-}
-
-interface CategoryProgressGridItem {
-  id: number
-  name: string
-  done: number
-  total: number
-}
-
-function CategoryProgressGrid({ items }: { items: CategoryProgressGridItem[] }) {
-  const [animated, setAnimated] = useState(false)
-  useEffect(() => { setAnimated(true) }, [])
-
-  return (
-    <div className="category-progress-grid">
-      {items.map(({ id, name, done, total }) => {
-        const complete = total > 0 && done === total
-        const percent = total === 0 ? 0 : Math.round((done / total) * 100)
-        // No tasks in this category at all -- nothing to be "behind" on, so
-        // it stays neutral rather than reading as a 0% (red) failure.
-        const tone = total === 0 ? '' : percent >= 90 ? ' category-progress-card--good' : percent >= 50 ? ' category-progress-card--warning' : ' category-progress-card--risk'
-        return (
-          <div key={id} className={`category-progress-card${tone}`}>
-            <span className="category-progress-card__name">{name}</span>
-            <div className="category-progress-card__fraction">
-              <span className="category-progress-card__done">{done}</span>
-              <span className="category-progress-card__sep">/{total}</span>
-            </div>
-            <div
-              className="category-progress-card__bar"
-              role="progressbar"
-              aria-valuenow={percent}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`${name}: ${done} of ${total} done`}
-            >
-              <div
-                className="category-progress-card__fill"
-                style={{ width: animated ? `${percent}%` : '0%' }}
-              />
-            </div>
-            {complete && <span className="category-progress-card__badge">All done</span>}
-          </div>
-        )
-      })}
-    </div>
-  )
 }
 
 interface MultiSelectDropdownProps {
@@ -280,7 +233,6 @@ function showsCompletedByCount(task: ChecklistTask): boolean {
 }
 
 function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount = 0, onNavigate, focusTaskId }: EmployeeDashboardProps) {
-  const isMobile = useIsMobile()
   const [categories, setCategories] = useState<ChecklistCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -298,14 +250,9 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
   const [taskSearch, setTaskSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState<Set<number>>(new Set())
   const [statusFilter, setStatusFilter] = useState<'complete' | 'open' | 'needs-correction' | null>(null)
-  // Controlled open state: desktop = all open by default, mobile = all closed
+  // Controlled open state: every category starts collapsed (all screen sizes);
+  // a search-result click still opens the owning category (see focusTaskId).
   const [openCategories, setOpenCategories] = useState<Set<number>>(new Set())
-  const categoriesInitialized = useRef(false)
-  useEffect(() => {
-    if (categoriesInitialized.current || categories.length === 0) return
-    categoriesInitialized.current = true
-    if (!isMobile) setOpenCategories(new Set(categories.map((c) => c.id)))
-  }, [categories, isMobile])
 
   function toggleCategory(id: number, isOpen: boolean) {
     setOpenCategories((prev) => {
@@ -479,12 +426,6 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
       .filter((cat) => cat.tasks.length > 0)
   }, [categories, taskSearch, categoryFilter, statusFilter, employeeId])
 
-  const stripItems = useMemo(
-    () => categories.map((cat) => ({ id: cat.id, name: cat.name, ...categoryProgress(cat) })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [categories, employeeId],
-  )
-
   const todayLabel = useMemo(
     () => new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
     [],
@@ -642,7 +583,6 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
             label="Missed Tasks"
             value={missedTasksCount}
             tone="warning"
-            onClick={() => onNavigate?.('missing')}
           />
         </div>
 
@@ -689,9 +629,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
 
         {!loading && !error && categories.length > 0 && !isAllDone && (
           <>
-            <CategoryProgressGrid items={stripItems} />
-
-            <div className="filter-bar filter-bar--row-pair">
+            <div className="filter-bar filter-bar--row-pair employee-dashboard-filters">
               <div className="filter filter--search">
                 <SearchInput value={taskSearch} onChange={setTaskSearch} placeholder="Search tasks…" variant="filter" />
               </div>
@@ -768,7 +706,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                         </div>
                       </summary>
 
-                      <div className="checklist-tasks">
+                      <VisibleItemsScroll className="checklist-tasks" maxVisible={4}>
                         {sortFlaggedForMeFirst(category.tasks, employeeId).map((task) => {
                           const unitKey = checklistUnitKey(task)
                           const isPending = pendingUnitKey === unitKey
@@ -1014,7 +952,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
                             </div>
                           )
                         })}
-                      </div>
+                      </VisibleItemsScroll>
                     </details>
                   )
                 })}

@@ -193,6 +193,7 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
       loggingOut={loggingOut}
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
+      onSwitchStore={canSwitchStore ? onSwitchStore : undefined}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
       notificationStoreId={store.id}

@@ -24,7 +24,6 @@
   justify-content: space-between;
   gap: var(--space-md);
   padding-bottom: var(--space-lg);
-  margin-bottom: var(--space-lg);
 }
 
 .employee-dashboard-heading {
@@ -79,115 +78,7 @@
 
 /* ── Category progress grid ─────────────────────────────────────────── */
 
-.category-progress-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  margin-bottom: var(--space-lg);
-}
-
-.category-progress-card {
-  background: var(--color-surface-card);
-  border: 1.5px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 14px 16px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  transition: border-color 0.2s;
-}
-
-.category-progress-card__name {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.category-progress-card__fraction {
-  display: flex;
-  align-items: baseline;
-  gap: 2px;
-  line-height: 1;
-}
-
-.category-progress-card__done {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  line-height: 1;
-}
-
-.category-progress-card__sep {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--color-text-muted);
-}
-
-.category-progress-card__bar {
-  height: 5px;
-  border-radius: 100px;
-  background: var(--color-border);
-  overflow: hidden;
-  margin-top: 2px;
-}
-
-.category-progress-card__fill {
-  height: 100%;
-  border-radius: 100px;
-  background: var(--color-text-muted);
-  transition: width 0.5s ease;
-}
-
-.category-progress-card__badge {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--color-badge-icon-success-fg);
-  margin-top: 2px;
-}
-
 /* Completion-tier states: 0-49% risk (red), 50-89% warning (amber), 90-100% good (green) */
-.category-progress-card--risk {
-  border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
-}
-
-.category-progress-card--risk .category-progress-card__done {
-  color: var(--color-accent);
-}
-
-.category-progress-card--risk .category-progress-card__fill {
-  background: var(--color-accent);
-}
-
-.category-progress-card--warning {
-  border-color: color-mix(in srgb, var(--color-badge-icon-warning-fg) 35%, var(--color-border));
-}
-
-.category-progress-card--warning .category-progress-card__done {
-  color: var(--color-badge-icon-warning-fg);
-}
-
-.category-progress-card--warning .category-progress-card__fill {
-  background: var(--color-badge-icon-warning-fg);
-}
-
-.category-progress-card--good {
-  border-color: color-mix(in srgb, var(--color-badge-icon-success-fg) 35%, var(--color-border));
-  background: var(--color-badge-icon-success-bg);
-}
-
-.category-progress-card--good .category-progress-card__done {
-  color: var(--color-badge-icon-success-fg);
-}
-
-.category-progress-card--good .category-progress-card__fill {
-  background: var(--color-badge-icon-success-fg);
-}
-
 /* ── Checklist categories ───────────────────────────────────────────── */
 
 .checklist-categories {
@@ -345,11 +236,49 @@
   gap: 1px;
   background: var(--color-border);
   border-top: 1px solid var(--color-border);
-  /* ~5 tasks visible; scroll for more */
-  max-height: 560px;
+  /* Exactly 4 tasks visible, the rest scroll -- the height is measured from
+     the 4th task by VisibleItemsScroll (tasks vary in height). */
+  position: relative;
+  max-height: var(--visible-items-max-height, 560px);
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-border) transparent;
+}
+
+/* Half-width vertical scrollbar (6px vs the ~12px "thin" default), hidden
+   (no gutter, so no grey strip) until the list is hovered or a field inside
+   it has focus. Chrome ignores these pseudo-elements when scrollbar-width is
+   set, so that's only used below for browsers without them. */
+.checklist-tasks::-webkit-scrollbar {
+  width: 0;
+}
+
+.checklist-tasks:hover::-webkit-scrollbar,
+.checklist-tasks:focus-within::-webkit-scrollbar {
+  width: 6px;
+}
+
+.checklist-tasks::-webkit-scrollbar-track {
+  background: var(--color-bg-page);
+}
+
+.checklist-tasks::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.checklist-tasks::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  .checklist-tasks {
+    scrollbar-width: none;
+    scrollbar-color: var(--color-border) var(--color-bg-page);
+  }
+
+  .checklist-tasks:hover,
+  .checklist-tasks:focus-within {
+    scrollbar-width: thin;
+  }
 }
 
 /* ── Individual task card ───────────────────────────────────────────── */
@@ -867,10 +796,6 @@
     padding: 6px 10px;
   }
 
-  .category-progress-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
   .checklist-categories {
     grid-template-columns: 1fr;
   }
@@ -891,5 +816,15 @@
   .checklist-task-btn {
     min-height: 44px;
     font-size: 13px;
+  }
+}
+
+/* Dropdown slots hug their 160px triggers instead of taking a fixed 15% of
+   the bar (which left gaps after each dropdown); the search box takes the
+   freed space. Phones keep the shared row-pair layout. */
+@media (--tablet-up) {
+  .filter-bar.employee-dashboard-filters > .filter:not(.filter--search) {
+    flex: 0 0 auto;
+    min-width: 0;
   }
 }
