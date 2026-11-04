@@ -123,6 +123,63 @@
   animation: pm-item-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: 0ms;
 }
+/* Name row: label + name on the left, optional Switch Store icon (Employee,
+   phones only) on the right. */
+.profile-menu__name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-menu__name-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.profile-menu__name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-menu__switch-store {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  background: transparent;
+  color: #3c3c45;
+  cursor: pointer;
+  transition: background 130ms ease-out, color 120ms ease-out;
+}
+
+.profile-menu__switch-store:hover {
+  background: rgba(0, 0, 0, 0.045);
+  color: #0a0a12;
+}
+
+:root[data-theme='dark'] .profile-menu__switch-store {
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.78);
+}
+
+:root[data-theme='dark'] .profile-menu__switch-store:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.96);
+}
+
+/* Same breakpoint as --mobile (styles/breakpoints.css). */
+@media (max-width: 480px) {
+  .profile-menu__switch-store {
+    display: inline-flex;
+  }
+}
+
 .profile-menu__name-label {
   display: block;
   font-size: 9px;

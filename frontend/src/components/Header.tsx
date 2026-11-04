@@ -54,6 +54,7 @@ interface HeaderProps {
   onIssuesClick?: () => void;
   onInventoryClick?: () => void;
   onOrdersClick?: () => void;
+  onSwitchStore?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
   // See Modal's `centered` prop. Forwarded down to the logout confirmation
@@ -97,6 +98,7 @@ function Header({
   onIssuesClick,
   onInventoryClick,
   onOrdersClick,
+  onSwitchStore,
   onLogout,
   loggingOut,
   centeredModals,
@@ -194,6 +196,7 @@ function Header({
           onIssuesClick={onIssuesClick}
           onInventoryClick={onInventoryClick}
           onOrdersClick={onOrdersClick}
+          onSwitchStore={onSwitchStore}
           onLogout={onLogout}
           loggingOut={loggingOut}
           centeredModals={centeredModals}
