@@ -3,12 +3,12 @@
 /* Token-based rather than fixed hex, so this page (and NoStoreAssigned,
    which shares these classes) follows the light/dark theme toggle instead of
    always rendering a fixed dark palette -- previously it looked fine in dark
-   mode but was low-contrast/unreadable once a user switched to light. */
+   mode but was low-contrast/unreadable once a user switched to light.
+   These screens sit outside AppShell, so they paint the shared sky + waves
+   page background (--page-bg, AppShell.css) themselves. */
 .store-picker {
   min-height: 100dvh;
-  background:
-    radial-gradient(120% 60% at 50% 0%, color-mix(in srgb, var(--color-accent) 12%, transparent) 0%, transparent 65%),
-    var(--color-bg-page);
+  background: var(--page-bg, var(--color-bg-page));
   color: var(--color-text-primary);
   display: flex;
   flex-direction: column;

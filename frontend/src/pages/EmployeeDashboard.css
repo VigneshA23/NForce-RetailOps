@@ -1,15 +1,12 @@
 @import '../styles/breakpoints.css';
 
+/* Transparent in both themes so the shell-wide sky + waves background
+   (AppShell.css's --page-bg) shows through. */
 .employee-dashboard {
   min-height: 100dvh;
-  background: var(--color-bg-page);
+  background: transparent;
   display: flex;
   flex-direction: column;
-}
-
-/* Let the shell-wide sky background (AppShell.css) show through. */
-:root:not([data-theme='dark']) .employee-dashboard {
-  background: transparent;
 }
 
 .employee-dashboard-body {
