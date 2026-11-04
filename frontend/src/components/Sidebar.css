@@ -59,11 +59,12 @@
 
 /* ---- The dock pill ------------------------------------------------------ */
 
-/* Glass values mirror the shared frosted-glass formula in
-   styles/glass-menu.css (ProfileMenu + Export menus) so the dock reads as
-   the same "glass" as the rest of the app, tuned per theme since it now
-   floats directly over the colorful page background (AppShell.css's
-   --page-bg) instead of a solid dark rail. */
+/* True glassmorphism -- much lower tint opacity than the shared
+   styles/glass-menu.css formula (used for text-heavy dropdowns, where
+   legibility needs a more opaque backing). The dock only ever sits over
+   the quiet page gradient (AppShell.css's --page-bg), never over scrolling
+   text/cards, so it can afford to be this see-through without hurting
+   icon/label contrast. */
 .sidebar__dock {
   position: relative;
   z-index: 1;
@@ -84,28 +85,24 @@
   padding: 14px 8px;
   border-radius: 30px;
   background:
-    linear-gradient(170deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.04) 35%, transparent 60%),
-    rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(28px) saturate(200%);
-  -webkit-backdrop-filter: blur(28px) saturate(200%);
-  border: 1px solid rgba(0, 0, 0, 0.09);
+    linear-gradient(170deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.18) 100%),
+    rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 8px 24px rgba(0, 0, 0, 0.1),
-    0 24px 56px rgba(0, 0, 0, 0.08),
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.95);
+    0 8px 32px rgba(31, 38, 135, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 :root[data-theme='dark'] .sidebar__dock {
   background:
-    linear-gradient(170deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 35%, transparent 60%),
-    rgba(16, 12, 22, 0.75);
-  border-color: rgba(255, 255, 255, 0.09);
+    linear-gradient(170deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.05) 100%),
+    rgba(20, 16, 28, 0.3);
+  border-color: rgba(255, 255, 255, 0.14);
   box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.3),
-    0 8px 24px rgba(0, 0, 0, 0.45),
-    0 24px 56px rgba(0, 0, 0, 0.4),
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.1);
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .sidebar--collapsed .sidebar__dock {
