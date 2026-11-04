@@ -1,12 +1,9 @@
 @import '../styles/breakpoints.css';
 
+/* Transparent in both themes so the shell-wide sky + waves background
+   (AppShell.css's --page-bg) shows through. */
 .missing-tasks-page {
   min-height: 100dvh;
-  background: var(--color-bg-page);
-}
-
-/* Let the shell-wide sky background (AppShell.css) show through. */
-:root:not([data-theme='dark']) .missing-tasks-page {
   background: transparent;
 }
 
