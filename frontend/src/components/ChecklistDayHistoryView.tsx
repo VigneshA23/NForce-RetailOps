@@ -138,6 +138,26 @@ function ChecklistDayHistoryView({
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
   const calendarButtonRef = useRef<HTMLButtonElement>(null)
 
+  // The sticky filters bar should only paint its background once it's
+  // actually pinned to the top (scrolled content would otherwise show
+  // through it) -- a 0-height sentinel placed right above it flips this the
+  // moment it scrolls out of the scroll container's view, which is cheaper
+  // and more reliable than tracking scrollTop against a threshold.
+  const [isFiltersBarStuck, setIsFiltersBarStuck] = useState(false)
+  const filtersBarSentinelRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const sentinel = filtersBarSentinelRef.current
+    if (!sentinel || typeof IntersectionObserver === 'undefined') return
+    const root = sentinel.closest('.app-shell__page')
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsFiltersBarStuck(!entry.isIntersecting),
+      { root, threshold: 0 },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [])
+
   // Re-expand the first category whenever a new day's data arrives (mirrors
   // the reset that used to happen right after the fetch resolved).
   useEffect(() => {
@@ -245,7 +265,10 @@ function ChecklistDayHistoryView({
         <StatCard icon={HelpCircle} label="Not Answered" value={notAnswered} tone="primary" />
       </div>
 
-      <div className={`employee-history-filters${hasFiltersBar ? ' employee-history-filters--extended' : ''}`}>
+      <div ref={filtersBarSentinelRef} aria-hidden="true" style={{ height: 0 }} />
+      <div
+        className={`employee-history-filters${hasFiltersBar ? ' employee-history-filters--extended' : ''}${isFiltersBarStuck ? ' employee-history-filters--stuck' : ''}`}
+      >
         {extraFilters}
         <div className="employee-history-date-trigger-wrap">
           <button
