@@ -73,8 +73,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  /* flex-start + the toggle's own margin-top:auto (below), not
+     space-between -- space-between stretched the gap between items to
+     fill whatever height was left over, so a short list (e.g. Employee's
+     4 items) got huge gaps while a long one (Super Admin's 9) barely
+     showed the gap at all. This keeps the gap fixed regardless of item
+     count and only pushes the collapse toggle down to the bottom. */
+  justify-content: flex-start;
+  gap: 20px;
   padding: 14px 8px;
   border-radius: 30px;
   background:
@@ -288,7 +294,10 @@
 /* ---- Collapse toggle ---------------------------------------------------- */
 
 .sidebar__dock-toggle {
-  margin-top: 6px;
+  /* Pins the toggle to the bottom of the dock now that .sidebar__dock no
+     longer uses justify-content: space-between -- soaks up whatever
+     height is left over instead of the gap between every item doing it. */
+  margin-top: auto;
   flex-shrink: 0;
   width: 34px;
   height: 34px;
