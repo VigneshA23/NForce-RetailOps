@@ -167,20 +167,6 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
               Categories
             </button>
           )}
-          {onHelpClick && (
-            <button
-              type="button"
-              role="menuitem"
-              className="profile-menu__item"
-              onClick={() => {
-                setIsOpen(false);
-                onHelpClick();
-              }}
-            >
-              <HelpCircle size={14} />
-              Help &amp; Guidance
-            </button>
-          )}
           {onSettingsClick && (
             <button
               type="button"
@@ -193,20 +179,6 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
             >
               <Settings size={14} />
               Settings
-            </button>
-          )}
-          {onIssuesClick && (
-            <button
-              type="button"
-              role="menuitem"
-              className="profile-menu__item"
-              onClick={() => {
-                setIsOpen(false);
-                onIssuesClick();
-              }}
-            >
-              <AlertTriangle size={14} />
-              Issues
             </button>
           )}
           {onInventoryClick && (
@@ -235,6 +207,34 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
             >
               <ShoppingCart size={14} />
               Orders
+            </button>
+          )}
+          {onIssuesClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onIssuesClick();
+              }}
+            >
+              <AlertTriangle size={14} />
+              Issues
+            </button>
+          )}
+          {onHelpClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onHelpClick();
+              }}
+            >
+              <HelpCircle size={14} />
+              Help &amp; Guidance
             </button>
           )}
           <button
