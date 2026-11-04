@@ -150,7 +150,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
     : store.name
 
   const headerTitle = contextLabel
-  const headerSubtitle = undefined
 
   function handleSearchNavigate(target: 'today' | 'issues', id: number) {
     setOverlay(null)
@@ -177,7 +176,6 @@ function EmployeeShell({ user, store, stores, onLogout, onSwitchStore, loggingOu
         setActiveTab(key)
       }}
       title={headerTitle}
-      subtitle={headerSubtitle}
       // Only overlay changes (Profile/Help/Notifications) should trigger
       // AppShell's cross-fade, which unmounts+remounts everything inside it --
       // keying this off activeTab too would fight the mountedTabs/display:none

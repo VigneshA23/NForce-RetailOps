@@ -327,7 +327,6 @@ function SuperAdminHome({
               <div className="sa-home__orders-head">
                 <div>
                   <h3 className="sa-home__orders-title">Outstanding Orders</h3>
-                  <p className="sa-home__orders-subtitle">Orders requiring follow-up across your stores</p>
                 </div>
                 <button
                   type="button"

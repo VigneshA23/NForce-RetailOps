@@ -250,7 +250,6 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
         <div className="missing-tasks-page__heading-row">
           <div>
             <h1 className="missing-tasks-page__heading">Missed Tasks</h1>
-            <p className="missing-tasks-page__subtitle">Move tasks you missed on previous days onto a day you'll complete them.</p>
           </div>
           {!loading && !error && totalMissing > 0 && (
             <span className="missing-tasks-page__count">

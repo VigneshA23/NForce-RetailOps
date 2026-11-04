@@ -111,12 +111,6 @@
   color: var(--color-accent);
 }
 
-.sa-home__orders-subtitle {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
-
 .sa-home__orders-total {
   display: flex;
   flex-direction: column;

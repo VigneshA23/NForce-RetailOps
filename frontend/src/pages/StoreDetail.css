@@ -43,7 +43,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-md);
-  margin-bottom: 4px;
   flex-wrap: wrap;
 }
 
@@ -56,12 +55,6 @@
 
 .store-detail-page__heading {
   margin: 0;
-}
-
-.store-detail-page__subheading {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-text-secondary);
 }
 
 .store-detail-page__mode-badge {

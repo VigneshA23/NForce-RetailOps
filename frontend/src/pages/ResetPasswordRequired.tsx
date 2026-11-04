@@ -83,7 +83,6 @@ function ResetPasswordRequired({ onSuccess, onLogout, loggingOut }: ResetPasswor
 
             <h1 className="login3-heading">Set a New Password</h1>
             <span className="login3-heading-underline" aria-hidden="true" />
-            <p className="login3-subheading">This is your first sign-in — choose a permanent password to continue</p>
 
             <form onSubmit={handleSubmit} noValidate>
               <div className="login3-field">

@@ -483,7 +483,6 @@ function StoreDetail({ storeId, storeName }: StoreDetailProps) {
             )}
           </div>
         </div>
-        <p className="store-detail-page__subheading">Every task for your store, with who recorded it.</p>
       </div>
 
       <div className="store-detail-page__filters">

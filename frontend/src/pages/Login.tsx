@@ -198,7 +198,6 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                     >
                       <h1 className="login3-heading">{heading}</h1>
                       <span className="login3-heading-underline" aria-hidden="true" />
-                      <p className="login3-subheading">Sign in to access RetailOps</p>
 
                       {notice && <div className="login3-error" role="status">{notice}</div>}
 
@@ -395,9 +394,6 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                         <>
                           <h1 className="login3-heading">Reset Password</h1>
                           <span className="login3-heading-underline" aria-hidden="true" />
-                          <p className="login3-subheading">
-                            Enter your organisational email and we'll send reset instructions.
-                          </p>
                         </>
                       )}
 

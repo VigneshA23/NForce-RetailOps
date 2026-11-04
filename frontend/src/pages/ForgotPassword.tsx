@@ -71,10 +71,6 @@ function ForgotPassword({ onBackToSignIn }: ForgotPasswordProps) {
 
             <h1 className="login3-heading">Reset Password</h1>
             <span className="login3-heading-underline" aria-hidden="true" />
-            <p className="login3-subheading">
-              Enter your organizational email. If it's registered, you'll receive reset
-              instructions.
-            </p>
 
             {submitted ? (
               <>

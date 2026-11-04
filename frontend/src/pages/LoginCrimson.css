@@ -206,13 +206,7 @@
   height: 4px;
   border-radius: 999px;
   background: linear-gradient(135deg, #ff4d5e 0%, #e11d33 100%);
-  margin-bottom: 14px;
-}
-
-.login3-subheading {
-  font-size: 14px;
-  color: rgba(242, 242, 244, 0.68);
-  margin: 0 0 28px;
+  margin-bottom: 28px;
 }
 
 /* ─── Form fields ────────────────────────────────────────────────────────── */
@@ -515,7 +509,6 @@
   .login3-heading-underline {
     background: linear-gradient(135deg, #ff4d5e 0%, #e11d33 100%);
   }
-  .login3-subheading { color: rgba(10, 10, 11, 0.55); }
   .login3-label { color: rgba(10, 10, 11, 0.72); }
   .login3-label-required { color: #e11d33; }
   .login3-remember { color: rgba(10, 10, 11, 0.62); }
@@ -826,12 +819,6 @@
   .login3-heading {
     color: #0a0a0b;
     font-size: 22px;
-  }
-
-  .login3-subheading {
-    color: rgba(10, 10, 11, 0.55);
-    font-size: 13px;
-    margin: 0 0 24px;
   }
 
   /* Labels: uppercase, spaced, quiet */

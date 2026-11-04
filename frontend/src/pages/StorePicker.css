@@ -29,12 +29,6 @@
   font-size: 34px;
   font-weight: 700;
   color: var(--color-accent);
-  margin: 0 0 12px;
-}
-
-.store-picker-subheading {
-  font-size: 14px;
-  color: var(--color-text-secondary);
   margin: 0 0 40px;
 }
 
@@ -234,9 +228,6 @@
 
 .store-picker-empty-card .store-picker-heading {
   font-size: 24px;
-}
-
-.store-picker-empty-card .store-picker-subheading {
   margin-bottom: 28px;
 }
 

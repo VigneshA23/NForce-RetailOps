@@ -203,7 +203,6 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
         setActiveTab(key);
       }}
       title={title}
-      subtitle={storesState.stores[0]?.name}
       // A stable key (not activeTab) while no overlay is open: AppShell keys
       // its content wrapper on this and remounts on every change, which would
       // otherwise blow away the "lazy-mount, stay alive" tabs below on every

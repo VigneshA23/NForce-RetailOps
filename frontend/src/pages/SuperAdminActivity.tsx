@@ -142,7 +142,6 @@ function SuperAdminActivity({ onBack }: SuperAdminActivityProps) {
 
       <div className="sa-activity__header">
         <h1 className="sa-activity__title">Recent Activity</h1>
-        <p className="sa-activity__subtitle">Owner and employee activity across every store, chronologically grouped.</p>
       </div>
 
       <div className="filter-bar filter-bar--row-pair sa-activity__filters">

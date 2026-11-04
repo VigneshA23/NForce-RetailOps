@@ -125,9 +125,6 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
       <div className="emp-issues-page__header">
         <div className="emp-issues-page__header-text">
           <h1 className="emp-issues-page__heading">Issues</h1>
-          <p className="emp-issues-page__subheading">
-            Issues you have raised at {store.name} and their current status.
-          </p>
         </div>
         {/* Desktop/tablet: beside the title, far right. Phones keep it below
             the status cards (full width) -- see the block further down. */}

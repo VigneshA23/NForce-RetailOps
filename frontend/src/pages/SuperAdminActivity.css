@@ -28,7 +28,6 @@
 .sa-activity__header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .sa-activity__title {
@@ -38,11 +37,6 @@
   color: var(--color-text-primary);
 }
 
-.sa-activity__subtitle {
-  margin: 0;
-  font-size: 13px;
-  color: var(--color-text-secondary);
-}
 
 /* .filter-bar's own margin-bottom (styles/filters.css) was still winning on
    equal specificity and stacking with the page gap (~32px). Doubled class

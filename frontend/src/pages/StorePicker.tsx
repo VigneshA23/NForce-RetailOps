@@ -40,7 +40,6 @@ function StorePicker({ user, stores, onSelectStore, onReload, onLogout, loggingO
     <div className="store-picker">
       <Header
         title=""
-        subtitle="Choose a Store"
         logoSrc="/keds-logo.png"
         showPlatformBrand={false}
         showSearch={false}
@@ -57,7 +56,6 @@ function StorePicker({ user, stores, onSelectStore, onReload, onLogout, loggingO
 
       <div className="store-picker-body">
         <h1 className="store-picker-heading">Select your store</h1>
-        <p className="store-picker-subheading">Choose an active location to access the RetailOps dashboard.</p>
 
         <div className="store-picker-grid">
           {stores.map((store, index) => {
