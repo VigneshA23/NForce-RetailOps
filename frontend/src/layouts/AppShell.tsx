@@ -177,8 +177,8 @@ function AppShell<Key extends string = NavTabKey>({
       {/* Header spans the full width; the sidebar now floats over the page
           as a fixed dock rather than sharing a flex row with it (on phones
           it's a slide-in drawer instead) -- the collapsed modifier class
-          here tells .app-shell__page (AppShell.css) how much left padding
-          to reserve so the dock never covers real content. */}
+          here tells .app-shell__content (AppShell.css) how much left
+          padding to reserve so the dock never covers real content. */}
       <div className="app-shell__header">
         <Header
           title={title}
