@@ -85,11 +85,14 @@
   color: var(--color-text-muted);
 }
 
-.employee-stock-check-page__header .btn {
+.employee-stock-check-page__header .specular-button {
+  flex-shrink: 0;
+}
+
+.employee-stock-check-page__shortage-label {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);
-  flex-shrink: 0;
 }
 
 .employee-stock-check-page__toolbar {
@@ -462,7 +465,7 @@
     align-items: stretch;
   }
 
-  .employee-stock-check-page__header--daily .btn {
+  .employee-stock-check-page__header--daily .specular-button {
     align-self: flex-start;
   }
 
