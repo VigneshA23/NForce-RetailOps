@@ -342,7 +342,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                         >
                           <motion.button
                             type="submit"
-                            className={`login3-submit login3-submit--keds${isSuccess ? ' login3-submit--success' : ''}`}
+                            className={`login3-submit${isSuccess ? ' login3-submit--success' : ''}`}
                             disabled={loading || isSuccess}
                             whileHover={!isSuccess && !loading ? { scale: 1.02 } : undefined}
                             whileTap={!isSuccess && !loading ? { scale: 0.98 } : undefined}
@@ -410,7 +410,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                           <p className="login3-sent-hint">Didn't see it? Check your spam folder.</p>
                           <motion.button
                             type="button"
-                            className="login3-submit login3-submit--keds"
+                            className="login3-submit"
                             onClick={backToSignIn}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
@@ -448,7 +448,7 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                           <div className="nf1-btn-wrap">
                             <motion.button
                               type="submit"
-                              className="login3-submit login3-submit--keds"
+                              className="login3-submit"
                               disabled={forgotLoading}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
