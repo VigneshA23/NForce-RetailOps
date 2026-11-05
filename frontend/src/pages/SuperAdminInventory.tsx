@@ -154,11 +154,18 @@ function SuperAdminInventory() {
   // This selector is the one thing that differs from the Owner/Admin page.
   const [selectedStoreId, setSelectedStoreId] = usePersistedState<number | null>('sa-inventory-store', null, nullableNumber);
 
+  // Filters a "View Items" jump wants applied once it lands on the Items
+  // sub-tab. Held here rather than set directly because the store-change
+  // reset below runs after the jump's render and would otherwise wipe them.
+  const pendingItemFiltersRef = useRef<{ category?: string; supplier?: string } | null>(null);
+
   // Switching store resets the view and closes anything open for the old one.
   useEffect(() => {
+    const pending = pendingItemFiltersRef.current;
+    pendingItemFiltersRef.current = null;
     setItemSearch('');
-    setCategoryFilter('');
-    setSupplierFilter('all');
+    setCategoryFilter(pending?.category ?? '');
+    setSupplierFilter(pending?.supplier ?? 'all');
     setEditTarget(null);
     setIsCreateModalOpen(false);
   }, [selectedStoreId]);
@@ -458,12 +465,32 @@ function SuperAdminInventory() {
   }
 
   // "View Items" on a supplier's per-store breakdown row -- jumps to the
-  // Inventory sub-tab with that store selected and the search box prefilled
-  // with the supplier's name (itemSearch already matches preferredSupplierName,
-  // so this reuses the existing item list/search instead of a new view).
-  function handleViewStoreItems(storeId: number, supplierName: string) {
-    setSelectedStoreId(storeId);
-    setItemSearch(supplierName);
+  // Items sub-tab with that store selected and the Supplier filter set to
+  // this supplier (matched on preferredSupplierId, same as the dropdown).
+  function handleViewStoreItems(storeId: number, supplierId: number) {
+    jumpToStoreItems(storeId, { supplier: String(supplierId) });
+  }
+
+  // "View Items" on a category's per-store breakdown row -- same jump, with
+  // the Category filter set instead. The Categories panel groups by a
+  // trimmed, case-insensitive name, so resolve the exact `item.category`
+  // string that store's items carry (that is what the filter options use).
+  function handleViewCategoryStoreItems(storeId: number, categoryName: string) {
+    const key = categoryName.trim().toLowerCase();
+    const match = items.find((i) => i.storeId === storeId && i.category?.trim().toLowerCase() === key);
+    jumpToStoreItems(storeId, { category: match?.category ?? categoryName });
+  }
+
+  function jumpToStoreItems(storeId: number, filters: { category?: string; supplier?: string }) {
+    if (storeId === selectedStoreId) {
+      // Same store: the reset effect won't fire, so apply directly.
+      setItemSearch('');
+      setCategoryFilter(filters.category ?? '');
+      setSupplierFilter(filters.supplier ?? 'all');
+    } else {
+      pendingItemFiltersRef.current = filters;
+      setSelectedStoreId(storeId);
+    }
     setSubTab('inventory');
   }
 
@@ -797,7 +824,7 @@ function SuperAdminInventory() {
                                   <button
                                     type="button"
                                     className="super-admin-inventory-page__view-items"
-                                    onClick={() => handleViewStoreItems(s.storeId, supplier.name)}
+                                    onClick={() => handleViewStoreItems(s.storeId, supplier.id)}
                                   >
                                     View Items
                                     <ChevronRight size={14} />
@@ -929,7 +956,7 @@ function SuperAdminInventory() {
                               <button
                                 type="button"
                                 className="super-admin-inventory-page__view-items"
-                                onClick={() => handleViewStoreItems(s.storeId, supplier.name)}
+                                onClick={() => handleViewStoreItems(s.storeId, supplier.id)}
                               >
                                 View Items
                                 <ChevronRight size={14} />
@@ -972,7 +999,7 @@ function SuperAdminInventory() {
           isLoading={isLoading}
           loadError={loadError}
           onRetry={loadAll}
-          onViewStoreItems={(storeId) => { setSelectedStoreId(storeId); setSubTab('inventory'); }}
+          onViewStoreItems={handleViewCategoryStoreItems}
         />
       )}
 
