@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Plus, Truck } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { getAllStores } from '../api/superAdminStores';
@@ -163,10 +163,10 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   // OrderList.tsx's own seed prop works, so arriving here again from the Home
   // card re-selects even if the Super Admin has since picked a different
   // store by hand.
-  const appliedFocusTs = useRef<number | null>(null);
+  const [appliedFocusTs, setAppliedFocusTs] = usePersistedState<number | null>('sa-orders-focus-ts', null, nullableNumber);
   useEffect(() => {
-    if (!focusStore || focusStore.ts === appliedFocusTs.current) return;
-    appliedFocusTs.current = focusStore.ts;
+    if (!focusStore || focusStore.ts === appliedFocusTs) return;
+    setAppliedFocusTs(focusStore.ts);
     selectStore(focusStore.storeId, focusStore.storeName);
     setSubTab('orders');
     // eslint-disable-next-line react-hooks/exhaustive-deps
