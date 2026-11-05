@@ -453,12 +453,13 @@
 }
 
 .login3-submit.login3-submit--keds {
-  background: linear-gradient(135deg, #40a8f8 0%, #d01890 100%);
-  box-shadow: 0 12px 24px -8px rgba(208, 24, 144, 0.55);
+  background: linear-gradient(135deg, #ffffff 0%, #40a8f8 100%);
+  color: #0a3d66;
+  box-shadow: 0 12px 24px -8px rgba(64, 168, 248, 0.55);
 }
 
 .login3-submit.login3-submit--keds:hover:not(:disabled) {
-  box-shadow: 0 16px 28px -8px rgba(208, 24, 144, 0.65);
+  box-shadow: 0 16px 28px -8px rgba(64, 168, 248, 0.65);
 }
 
 /* ─── Desktop redesign additions ─────────────────────────────────────────── */
@@ -916,12 +917,13 @@
   }
 
   .login3-submit.login3-submit--keds {
-    background: linear-gradient(135deg, #40a8f8 0%, #d01890 100%);
-    box-shadow: 0 12px 24px -8px rgba(208, 24, 144, 0.40);
+    background: linear-gradient(135deg, #ffffff 0%, #40a8f8 100%);
+    color: #0a3d66;
+    box-shadow: 0 12px 24px -8px rgba(64, 168, 248, 0.40);
   }
 
   .login3-submit.login3-submit--keds:hover:not(:disabled) {
-    box-shadow: 0 16px 28px -8px rgba(208, 24, 144, 0.55);
+    box-shadow: 0 16px 28px -8px rgba(64, 168, 248, 0.55);
   }
 
   .login3-success {
