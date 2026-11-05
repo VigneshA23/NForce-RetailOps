@@ -33,9 +33,10 @@ interface InventoryCategoriesPanelProps {
   isLoading: boolean;
   loadError: string | null;
   onRetry: () => void;
-  // Jumps to the Inventory sub-tab with that store selected, mirroring the
-  // Suppliers tab's own "View Items" link.
-  onViewStoreItems?: (storeId: number) => void;
+  // Jumps to the Items sub-tab with that store selected and the Category
+  // filter set to this category, mirroring the Suppliers tab's own
+  // "View Items" link.
+  onViewStoreItems?: (storeId: number, categoryName: string) => void;
 }
 
 type CategoryModalState = { mode: 'create' } | { mode: 'edit'; category: InventoryCategoryRecord } | null;
@@ -366,7 +367,7 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
                                   <button
                                     type="button"
                                     className="super-admin-inventory-page__view-items"
-                                    onClick={() => onViewStoreItems(s.storeId)}
+                                    onClick={() => onViewStoreItems(s.storeId, category.name)}
                                   >
                                     View Items
                                     <ChevronRight size={14} />
@@ -460,7 +461,7 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
                         <div key={s.storeId} className="supplier-mobile-card__breakdown-row">
                           <span className="supplier-mobile-card__breakdown-name">{s.storeName}</span>
                           {onViewStoreItems && (
-                            <button type="button" className="super-admin-inventory-page__view-items" onClick={() => onViewStoreItems(s.storeId)}>
+                            <button type="button" className="super-admin-inventory-page__view-items" onClick={() => onViewStoreItems(s.storeId, category.name)}>
                               View Items
                               <ChevronRight size={14} />
                             </button>
