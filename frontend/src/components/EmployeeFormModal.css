@@ -155,22 +155,9 @@
    Store field -- see SupplierFormModal.css (supplier-form__input-wrap). */
 
 /* Footer: outlined Cancel + wide dark submit */
-.employee-form-modal .modal__footer {
-  gap: 12px;
-}
-
-.employee-form-modal .employee-form__cancel,
+/* Footer buttons use the default .btn size and pill curve, right-aligned,
+   matching the Tasks popup. */
 .employee-form-modal .employee-form__submit {
-  min-height: 46px;
-  border-radius: 14px;
-}
-
-.employee-form-modal .employee-form__cancel {
-  min-width: 96px;
-}
-
-.employee-form-modal .employee-form__submit {
-  flex: 1;
   gap: 8px;
 }
 

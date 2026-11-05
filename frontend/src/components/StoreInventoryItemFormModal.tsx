@@ -152,7 +152,7 @@ function StoreInventoryItemFormModal({
             Cancel
           </button>
           <button type="submit" form="store-inventory-item-form" className={`btn btn--primary${isSubmitting ? ' btn--loading' : ''}`} disabled={isSubmitting}>
-            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'create' ? (<><Plus size={16} /> Add to Catalog</>) : 'Save Changes'}
+            {isSubmitting ? <ButtonDots label="Saving" /> : mode === 'create' ? 'Add to Catalog' : 'Save Changes'}
           </button>
         </>
       }

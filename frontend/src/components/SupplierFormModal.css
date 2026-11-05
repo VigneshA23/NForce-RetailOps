@@ -88,23 +88,8 @@
   font-weight: 500;
 }
 
-.supplier-form-modal .modal__footer {
-  gap: 12px;
-}
-
-.supplier-form-modal .supplier-form__cancel,
-.supplier-form-modal .supplier-form__submit {
-  min-height: 46px;
-  border-radius: 14px;
-}
-
-.supplier-form-modal .supplier-form__cancel {
-  min-width: 96px;
-}
-
-.supplier-form-modal .supplier-form__submit {
-  min-width: 180px;
-}
+/* Footer buttons use the default .btn size and pill curve, right-aligned,
+   matching the Tasks popup. */
 
 /* Mobile bottom sheet: grab handle above the header, full-width footer --
    same as CategoryFormModal's own. */

@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { Fragment, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import { CircleCheck, CornerDownRight, ChevronDown, ChevronRight, Pencil, Plus, Store as StoreIcon, Tags, Trash2 } from 'lucide-react';
 import { nfToast } from '../utils/toast';
 import { createInventoryCategory, deleteInventoryCategory, setInventoryCategoryActive, updateInventoryCategory } from '../api/inventoryCategories';
@@ -9,6 +9,7 @@ import StatCard from './StatCard';
 import Select from './Select';
 import SearchInput from './SearchInput';
 import FilterClearButton from './FilterClearButton';
+import Pagination from './Pagination';
 import ConfirmDialog from './ConfirmDialog';
 import SpecularButton from './SpecularButton';
 import UserAvatar from './UserAvatar';
@@ -53,6 +54,8 @@ type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE';
 // already-large file doesn't grow further -- same pattern as
 // StockLevelComparison/SuperAdminStockCheckHistory being their own sub-tab
 // components instead of inlined.
+const CATEGORY_PAGE_SIZE = 10;
+
 function InventoryCategoriesPanel({ stores, items, categories, setCategories, isLoading, loadError, onRetry, onViewStoreItems }: InventoryCategoriesPanelProps) {
   const isMobile = useIsMobile();
 
@@ -70,6 +73,27 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
       return true;
     });
   }, [categories, search, statusFilter]);
+
+  const [page, setPage] = useState(1);
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+  const pageCount = Math.max(1, Math.ceil(visibleCategories.length / CATEGORY_PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pagedCategories = visibleCategories.slice(
+    (currentPage - 1) * CATEGORY_PAGE_SIZE,
+    currentPage * CATEGORY_PAGE_SIZE,
+  );
+  const categoryPagination = !isLoading && visibleCategories.length > 0 ? (
+    <Pagination
+      page={currentPage}
+      pageCount={pageCount}
+      totalItems={visibleCategories.length}
+      pageSize={CATEGORY_PAGE_SIZE}
+      onPageChange={setPage}
+      itemLabel="categories"
+    />
+  ) : null;
 
   // Items Count column: total items per category (matched by name,
   // case-insensitive -- an item's own category is a free-text field, not a
@@ -244,7 +268,7 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
                 </tr>
               </thead>
               <tbody>
-                {visibleCategories.map((category) => {
+                {pagedCategories.map((category) => {
                   const byStore = itemsByCategory.get(category.name.trim().toLowerCase());
                   const storeBreakdown = byStore
                     ? [...byStore.entries()]
@@ -364,12 +388,13 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
               {categories.length === 0 ? 'No categories yet.' : 'No categories match these filters.'}
             </div>
           )}
+          {categoryPagination && <div className="supplier-table-card__footer">{categoryPagination}</div>}
         </div>
       )}
 
       {isMobile && (
         <div className="supplier-mobile-list">
-          {visibleCategories.map((category) => {
+          {pagedCategories.map((category) => {
             const byStore = itemsByCategory.get(category.name.trim().toLowerCase());
             const storeBreakdown = byStore
               ? [...byStore.entries()]
@@ -455,6 +480,8 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
           )}
         </div>
       )}
+
+      {isMobile && categoryPagination}
 
       <ConfirmDialog
         isOpen={deleteTarget !== null}

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Info, Boxes, Package, FileText } from 'lucide-react';
+import { Info, Boxes, Package, FileText, Plus } from 'lucide-react';
 import type { CreateOrderListEntryValues } from '../types/orderList';
 import Modal from './Modal';
 import FormField from './FormField';
@@ -7,6 +7,9 @@ import Select from './Select';
 import QuantityStepper from './QuantityStepper';
 import { roundQty } from '../utils/quantity';
 import ButtonDots from './ButtonDots';
+// Shared popup styling (uppercase labels, icon tile, width) so this matches the
+// Inventory page's Add New Inventory Item popup.
+import './StoreInventoryItemFormModal.css';
 import './AddToOrderPanel.css';
 
 import IconField from './IconField';
@@ -123,7 +126,8 @@ function AddToOrderPanel({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      size="panel"
+      className="store-inventory-item-form"
+      titleIcon={<span className="store-inventory-item-form__icon-tile"><Plus size={18} /></span>}
       title="Add to order"
       subtitle={storeName ? `${storeName} · for extra stock outside the daily count` : 'For extra stock outside the daily count'}
       footer={

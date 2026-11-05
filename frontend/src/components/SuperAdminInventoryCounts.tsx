@@ -482,7 +482,7 @@ function SuperAdminInventoryCounts({ storeId }: SuperAdminInventoryCountsProps) 
           </div>
         )}
         {isLoading && <div className="inventory-counts__empty">Loading...</div>}
-        <div className="inventory-counts__card-footer">
+        <div className="inventory-counts__pagination-footer">
           <Pagination page={page} pageCount={pageCount} totalItems={totalItems} pageSize={PAGE_SIZE} onPageChange={setPage} itemLabel="items" />
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Building2, Info, Plus, UserPen, UserPlus } from 'lucide-react';
+import { Building2, Info, UserPen, UserPlus } from 'lucide-react';
 import type { EmployeeCreateValues, EmployeeUpdateValues, StoreOption } from '../types/employee';
 import { validateEmployeeForm } from '../utils/employeeUtils';
 import EmployeeFormFields, {
@@ -102,10 +102,7 @@ function EmployeeFormModal({
             {isSubmitting ? (
               <ButtonDots label="Saving" />
             ) : (
-              <>
-                {mode === 'create' && <Plus size={16} className="employee-form__submit-icon" aria-hidden="true" />}
-                {mode === 'create' ? 'Add Employee' : 'Save Changes'}
-              </>
+              mode === 'create' ? 'Add Employee' : 'Save Changes'
             )}
           </button>
         </>
