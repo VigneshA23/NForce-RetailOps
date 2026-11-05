@@ -17,6 +17,10 @@ interface StoreInventoryCardGridProps {
   onEdit: (item: StoreInventoryItem) => void;
   onDelete: (item: StoreInventoryItem) => void;
   onToggleStatus: (item: StoreInventoryItem, active: boolean) => void;
+  // Set when `items` is one page of a longer list: the --few check uses the
+  // whole list, and a short last page keeps full-row card widths (--paged)
+  // instead of stretching its few cards across the row.
+  totalCount?: number;
 }
 
 // With fewer items than this the cards don't fill a row, so they use wider
@@ -24,7 +28,7 @@ interface StoreInventoryCardGridProps {
 // StoreInventoryCardGrid.css).
 const FEW_ITEMS_THRESHOLD = 6;
 
-function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, onEdit, onDelete, onToggleStatus }: StoreInventoryCardGridProps) {
+function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, onEdit, onDelete, onToggleStatus, totalCount }: StoreInventoryCardGridProps) {
   if (!isLoading && items.length === 0) {
     return <div className="store-inventory-card-grid__empty">No inventory items match your filters.</div>;
   }
@@ -34,7 +38,11 @@ function StoreInventoryCardGrid({ items, isLoading = false, selectedId = null, o
   }
 
   return (
-    <div className={`store-inventory-card-grid${items.length < FEW_ITEMS_THRESHOLD ? ' store-inventory-card-grid--few' : ''}`}>
+    <div
+      className={`store-inventory-card-grid${
+        (totalCount ?? items.length) < FEW_ITEMS_THRESHOLD ? ' store-inventory-card-grid--few' : ''
+      }${totalCount !== undefined && totalCount > items.length ? ' store-inventory-card-grid--paged' : ''}`}
+    >
       {items.map((item) => {
         const status = getStockStatus(item);
         const statusMeta = STOCK_STATUS_META[status];

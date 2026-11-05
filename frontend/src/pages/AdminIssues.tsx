@@ -8,8 +8,10 @@ import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
 import FilterClearButton from '../components/FilterClearButton';
 import IssueCard from '../components/IssueCard';
+import Pagination from '../components/Pagination';
 import IssueResponseModal, { type IssueResponseAction } from '../components/IssueResponseModal';
 import { useIssueList } from '../hooks/useIssueList';
+import { usePagedList } from '../hooks/usePagedList';
 import { useIssueFocus, type IssueFocusRequest } from '../hooks/useIssueFocus';
 import {
   ISSUE_STATUSES,
@@ -23,6 +25,7 @@ import './AdminIssues.css';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 
 const CARD_ID_PREFIX = 'admin-issue-row';
+const ISSUE_PAGE_SIZE = 10;
 
 interface AdminIssuesProps {
   storeId: number | null;
@@ -44,10 +47,6 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
   const [busyId, setBusyId] = useState<number | null>(null);
   const [pending, setPending] = useState<{ issueId: number; action: IssueResponseAction } | null>(null);
 
-  const clearFilters = useCallback(() => { setStatusFilter(null); setSearch(''); }, []);
-  const issueIds = useMemo(() => issues.map((i) => i.id), [issues]);
-  const highlightedId = useIssueFocus(focusIssueId, issueIds, CARD_ID_PREFIX, clearFilters);
-
   const counts = useMemo(() => ({
     OPEN: issues.filter((i) => i.status === 'OPEN').length,
     ACKNOWLEDGED: issues.filter((i) => i.status === 'ACKNOWLEDGED').length,
@@ -67,6 +66,28 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
       return true;
     });
   }, [issues, statusFilter, search]);
+
+  // Grouped by status unless a single status is selected. Paging runs over
+  // the cards in display order (group by group), so each page shows the
+  // next run of cards with their group headers.
+  const groupStatuses = useMemo(
+    () => statusFilter === null ? ISSUE_STATUSES
+      : statusFilter === 'ACTIVE' ? ISSUE_STATUSES.filter((s) => s !== 'RESOLVED')
+      : null,
+    [statusFilter],
+  );
+  const orderedIssues = useMemo(
+    () => groupStatuses === null ? filtered : groupStatuses.flatMap((status) => filtered.filter((i) => i.status === status)),
+    [filtered, groupStatuses],
+  );
+  const {
+    page: issuePage, pageCount: issuePageCount, pageItems: pageIssues, setPage: setIssuePage, revealItem,
+  } = usePagedList(orderedIssues, ISSUE_PAGE_SIZE, `${storeId}|${statusFilter}|${search}`);
+
+  // Deep link: clear the filters and jump to the page holding that issue.
+  const clearFilters = useCallback((issueId: number) => { setStatusFilter(null); setSearch(''); revealItem(issueId); }, [revealItem]);
+  const issueIds = useMemo(() => issues.map((i) => i.id), [issues]);
+  const highlightedId = useIssueFocus(focusIssueId, issueIds, CARD_ID_PREFIX, clearFilters);
 
   async function handleConfirm(issue: Issue, action: IssueResponseAction, responseText: string) {
     setBusyId(issue.id);
@@ -121,10 +142,6 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
     );
   }
 
-  // Grouped by status unless a single status is selected.
-  const groupStatuses = statusFilter === null ? ISSUE_STATUSES
-    : statusFilter === 'ACTIVE' ? ISSUE_STATUSES.filter((s) => s !== 'RESOLVED')
-    : null;
 
   const pendingIssue = pending ? issues.find((i) => i.id === pending.issueId) ?? null : null;
 
@@ -183,17 +200,18 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
       <div>
         <div className="issue-card-list">
           {groupStatuses === null ? (
-            filtered.map(renderCard)
+            pageIssues.map(renderCard)
           ) : (
             groupStatuses.map((status) => {
-              const group = filtered.filter((i) => i.status === status);
+              const group = pageIssues.filter((i) => i.status === status);
               if (group.length === 0) return null;
               const meta = ISSUE_STATUS_META[status];
               return (
                 <Fragment key={status}>
                   <div className="issues-group-header-cell">
                     <span className={`badge ${meta.badgeClass}`}>{meta.label}</span>
-                    <span className="issues-group-count">{group.length}</span>
+                    {/* The status's total across all pages, not just this one. */}
+                    <span className="issues-group-count">{filtered.filter((i) => i.status === status).length}</span>
                   </div>
                   {group.map(renderCard)}
                 </Fragment>
@@ -201,6 +219,16 @@ function AdminIssues({ storeId, storesLoading = false, isActive = true, focusIss
             })
           )}
         </div>
+        {!isLoading && (
+          <Pagination
+            page={issuePage}
+            pageCount={issuePageCount}
+            totalItems={orderedIssues.length}
+            pageSize={ISSUE_PAGE_SIZE}
+            onPageChange={setIssuePage}
+            itemLabel="issues"
+          />
+        )}
         {(isLoading || storesLoading) && <LoadingSkeleton label="Loading issues…" variant="list" />}
         {!isLoading && !storesLoading && !error && filtered.length === 0 && (
           <div className="issue-card-list__empty">

@@ -6,16 +6,24 @@
   gap: var(--space-lg);
 }
 
-.sa-checklist__store-row {
-  display: flex;
-  width: 100%;
-}
-
 .sa-checklist__store-select {
   /* Same sizing as Super Admin Orders' own store-select. */
   width: 280px;
   max-width: 320px;
   flex-shrink: 0;
+}
+
+/* The shared Daily Checklist toolbar (StoreDetail.css) with the store
+   selector added. Tablet and desktop:
+     [date nav] [Live] ............ [Store selector]
+     [Yesterday] [Last Week] [Today] ...... [Export]
+   Phones keep StoreDetail.css's own phone layout, with the store selector
+   full width above it. */
+@media (min-width: 481px) {
+  .sa-checklist .sa-checklist__toolbar > .sa-checklist__store-select { order: 3; margin-left: auto; }
+  .sa-checklist .sa-checklist__toolbar > .store-detail-page__toolbar-break { order: 4; }
+  .sa-checklist .sa-checklist__toolbar > .store-detail-page__date-pills { order: 5; }
+  .sa-checklist .sa-checklist__toolbar > .store-detail-page__toolbar-export { order: 6; margin-left: auto; }
 }
 
 .sa-checklist__no-store-msg {
@@ -77,11 +85,13 @@
 }
 
 @media (--mobile) {
-  /* Phones: the store selector spans the full width of its row. */
+  /* Phones: the store selector spans the full width of its own row, first. */
   .sa-checklist__store-select {
     width: 100%;
     max-width: none;
   }
+
+  .sa-checklist .sa-checklist__toolbar > .sa-checklist__store-select { order: 0; flex-basis: 100%; }
 }
 
 /* Phones: the Outstanding / Completed & Flagged search boxes used to be taller

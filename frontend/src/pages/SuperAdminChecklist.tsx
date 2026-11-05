@@ -464,8 +464,13 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     <div className="sa-checklist">
       <div className="store-detail-page">
         <div className="store-detail-page__filters">
-          {/* Row 1: store selector, top-left. */}
-          <div className="sa-checklist__store-row">
+          {/* The Owner/Admin checklist toolbar plus the store selector, placed
+              by SuperAdminChecklist.css --
+              tablet/desktop: date nav + Live left, store selector right;
+                              pills left, Export right;
+              phones: store selector full width, then date nav + Live,
+                      then pills + Export. */}
+          <div className="store-detail-page__toolbar sa-checklist__toolbar">
             <div className="sa-checklist__store-select">
               <SearchableSelect
                 id="sa-store-select"
@@ -477,11 +482,6 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                 emptyMessage="No stores found"
               />
             </div>
-          </div>
-          {/* Rows 2-3: the same toolbar as the Owner/Admin checklist --
-              tablet/desktop: date nav + Live, Export far right, pills below;
-              phones: date nav + Live right, then pills + Export. */}
-          <div className="store-detail-page__toolbar">
             <div className="store-detail-page__date-nav">
               <button
                 type="button"
