@@ -3,13 +3,46 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: #425873;
-  color: #ffffff;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .user-avatar--img {
   object-fit: cover;
-  background: transparent;
+}
+
+.user-avatar--primary {
+  background: var(--color-badge-icon-primary-bg);
+  color: var(--color-badge-icon-primary-fg);
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-primary-fg) 20%, transparent);
+}
+
+.user-avatar--success {
+  background: var(--color-badge-icon-success-bg);
+  color: var(--color-badge-icon-success-fg);
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-success-fg) 20%, transparent);
+}
+
+.user-avatar--warning {
+  background: var(--color-badge-icon-warning-bg);
+  color: var(--color-badge-icon-warning-fg);
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-warning-fg) 20%, transparent);
+}
+
+.user-avatar--info {
+  background: var(--color-badge-icon-info-bg);
+  color: var(--color-badge-icon-info-fg);
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-info-fg) 20%, transparent);
+}
+
+.user-avatar--purple {
+  background: var(--color-badge-icon-purple-bg);
+  color: var(--color-badge-icon-purple-fg);
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-purple-fg) 20%, transparent);
+}
+
+.user-avatar--slate {
+  background: var(--color-badge-icon-slate-bg);
+  color: var(--color-badge-icon-slate-fg);
+  border: 1px solid color-mix(in srgb, var(--color-badge-icon-slate-fg) 20%, transparent);
 }
