@@ -58,7 +58,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [storesLoading, setStoresLoading] = useState(true);
 
   const [selectedStoreId, setSelectedStoreId] = usePersistedState<number | null>('sa-checklist-store', nav?.storeId ?? null, nullableNumber);
-  const appliedNavTs = useRef<number | undefined>(nav?.ts);
+  const [appliedNavTs, setAppliedNavTs] = usePersistedState<number | null>('sa-checklist-nav-ts', null, nullableNumber);
 
   const [date, setDate] = useState(todayDate);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -94,8 +94,8 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   // When parent navigates to a specific store (e.g. from Home table or Owners table),
   // update selectedStoreId. ts-based check ensures re-navigation to the same store still fires.
   useEffect(() => {
-    if (nav && nav.ts !== appliedNavTs.current) {
-      appliedNavTs.current = nav.ts;
+    if (nav && nav.ts !== appliedNavTs) {
+      setAppliedNavTs(nav.ts);
       setSelectedStoreId(nav.storeId);
     }
   }, [nav]);
