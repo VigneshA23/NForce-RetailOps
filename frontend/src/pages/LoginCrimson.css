@@ -172,6 +172,10 @@
   }
 }
 
+.login3-mobile-brand--keds {
+  justify-content: center;
+}
+
 .login3-mobile-logo {
   display: block;
   width: 40px;
@@ -179,6 +183,13 @@
   flex-shrink: 0;
   object-fit: cover;
   border-radius: 50%;
+}
+
+.login3-mobile-logo--keds {
+  width: auto;
+  height: 40px;
+  border-radius: 0;
+  object-fit: contain;
 }
 
 .login3-mobile-wordmark {
@@ -617,12 +628,23 @@
   }
 }
 
+.nf1-card-header--keds {
+  justify-content: center;
+}
+
 .nf1-card-logo {
   width: 48px;
   height: 48px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+}
+
+.nf1-card-logo--keds {
+  width: auto;
+  height: 64px;
+  border-radius: 0;
+  object-fit: contain;
 }
 
 .nf1-card-wordmark {
@@ -793,6 +815,11 @@
 
   .login3-mobile-logo {
     width: 72px;
+    height: 72px;
+  }
+
+  .login3-mobile-logo--keds {
+    width: auto;
     height: 72px;
   }
 
