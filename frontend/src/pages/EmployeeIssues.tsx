@@ -15,7 +15,9 @@ import FormField from '../components/FormField'
 import ButtonDots from '../components/ButtonDots'
 import SpecularButton from '../components/SpecularButton'
 import IssueCard from '../components/IssueCard'
+import Pagination from '../components/Pagination'
 import { useIssueList } from '../hooks/useIssueList'
+import { usePagedList } from '../hooks/usePagedList'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { useIssueFocus, type IssueFocusRequest } from '../hooks/useIssueFocus'
 import {
@@ -32,6 +34,7 @@ import LoadingSkeleton from '../components/LoadingSkeleton'
 
 import IconField from '../components/IconField';
 const CARD_ID_PREFIX = 'emp-issue-row'
+const ISSUE_PAGE_SIZE = 10
 
 interface EmployeeIssuesProps {
   store: StoreSummary
@@ -56,10 +59,6 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
   const [issueNote, setIssueNote] = useState('')
   const [isSubmittingIssue, setIsSubmittingIssue] = useState(false)
 
-  const clearFilters = useCallback(() => { setStatusFilter(null); setSearch('') }, [])
-  const issueIds = useMemo(() => issues.map((i) => i.id), [issues])
-  const highlightedId = useIssueFocus(focusIssueId, issueIds, CARD_ID_PREFIX, clearFilters)
-
   const counts = useMemo(() => ({
     OPEN: issues.filter((i) => i.status === 'OPEN').length,
     ACKNOWLEDGED: issues.filter((i) => i.status === 'ACKNOWLEDGED').length,
@@ -75,6 +74,19 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
     })
   }, [issues, statusFilter, search])
 
+  const {
+    page: issuePage, pageCount: issuePageCount, pageItems: pageIssues, setPage: setIssuePage, revealItem,
+  } = usePagedList(filtered, ISSUE_PAGE_SIZE, `${store.id}|${statusFilter}|${search}`)
+
+  // Deep link: clear the filters and jump to the page holding that issue.
+  const clearFilters = useCallback((issueId?: number) => {
+    setStatusFilter(null)
+    setSearch('')
+    if (issueId !== undefined) revealItem(issueId)
+  }, [revealItem])
+  const issueIds = useMemo(() => issues.map((i) => i.id), [issues])
+  const highlightedId = useIssueFocus(focusIssueId, issueIds, CARD_ID_PREFIX, clearFilters)
+
   async function handleSubmitIssue() {
     const note = issueNote.trim()
     if (!note) return
@@ -82,8 +94,10 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
     try {
       const newIssue = await raiseIssue(store.id, note)
       setIssues((prev) => [newIssue, ...prev])
-      // Make sure the new issue is visible rather than hidden by a filter.
+      // Make sure the new issue is visible rather than hidden by a filter
+      // or a later page -- it's first in the list.
       clearFilters()
+      setIssuePage(1)
       setIssueNote('')
       setIsRaiseModalOpen(false)
       nfToast.success('Issue raised. Owner has been notified.')
@@ -190,7 +204,7 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
 
           <div>
             <div className="issue-card-list">
-              {filtered.map((issue) => (
+              {pageIssues.map((issue) => (
                 <IssueCard
                   key={issue.id}
                   issue={issue}
@@ -205,6 +219,14 @@ function EmployeeIssues({ store, isActive = true, focusIssueId }: EmployeeIssues
                 {search ? 'No issues match your search.' : 'No issues match the selected filter.'}
               </div>
             )}
+            <Pagination
+              page={issuePage}
+              pageCount={issuePageCount}
+              totalItems={filtered.length}
+              pageSize={ISSUE_PAGE_SIZE}
+              onPageChange={setIssuePage}
+              itemLabel="issues"
+            />
           </div>
 
           <p className="emp-issues-page__retention-hint">
