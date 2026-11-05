@@ -452,6 +452,15 @@
   cursor: not-allowed;
 }
 
+.login3-submit.login3-submit--keds {
+  background: linear-gradient(135deg, #40a8f8 0%, #d01890 100%);
+  box-shadow: 0 12px 24px -8px rgba(208, 24, 144, 0.55);
+}
+
+.login3-submit.login3-submit--keds:hover:not(:disabled) {
+  box-shadow: 0 16px 28px -8px rgba(208, 24, 144, 0.65);
+}
+
 /* ─── Desktop redesign additions ─────────────────────────────────────────── */
 /* All rules below are scoped to --tablet-up so mobile is NEVER affected.
    These come before the mobile overrides so cascade order is preserved. */
@@ -904,6 +913,15 @@
 
   .login3-submit:hover:not(:disabled) {
     box-shadow: 0 16px 28px -8px rgba(225, 29, 51, 0.55);
+  }
+
+  .login3-submit.login3-submit--keds {
+    background: linear-gradient(135deg, #40a8f8 0%, #d01890 100%);
+    box-shadow: 0 12px 24px -8px rgba(208, 24, 144, 0.40);
+  }
+
+  .login3-submit.login3-submit--keds:hover:not(:disabled) {
+    box-shadow: 0 16px 28px -8px rgba(208, 24, 144, 0.55);
   }
 
   .login3-success {
