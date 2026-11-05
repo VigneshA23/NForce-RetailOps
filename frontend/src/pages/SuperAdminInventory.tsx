@@ -60,6 +60,7 @@ const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
 ];
 
 const SUPPLIER_PAGE_SIZE = 10;
+const ITEM_PAGE_SIZE = 12;
 
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
 
@@ -315,6 +316,17 @@ function SuperAdminInventory() {
       return true;
     });
   }, [storeItems, itemSearch, categoryFilter, supplierFilter]);
+
+  // Items sub-tab paging -- back to page 1 whenever the store or a filter
+  // changes; clamped so a poll that shrinks the list never strands the view
+  // on a page that no longer exists.
+  const [itemPage, setItemPage] = useState(1);
+  useEffect(() => {
+    setItemPage(1);
+  }, [selectedStoreId, itemSearch, categoryFilter, supplierFilter]);
+  const itemPageCount = Math.max(1, Math.ceil(filteredItems.length / ITEM_PAGE_SIZE));
+  const currentItemPage = Math.min(itemPage, itemPageCount);
+  const pagedItems = filteredItems.slice((currentItemPage - 1) * ITEM_PAGE_SIZE, currentItemPage * ITEM_PAGE_SIZE);
 
   // Memoised because the form modal resets its fields whenever this reference
   // changes -- an inline object would wipe in-progress input on every re-render
@@ -642,13 +654,24 @@ function SuperAdminInventory() {
               </div>
 
               <StoreInventoryCardGrid
-                items={filteredItems}
+                items={pagedItems}
+                totalCount={filteredItems.length}
                 isLoading={isLoading}
                 selectedId={editTarget?.id ?? null}
                 onEdit={(item) => { setItemFormError(null); setEditTarget(item); }}
                 onDelete={(item) => { setItemDeleteError(null); setItemDeleteTarget(item); }}
                 onToggleStatus={handleToggleItem}
               />
+              {!isLoading && (
+                <Pagination
+                  page={currentItemPage}
+                  pageCount={itemPageCount}
+                  totalItems={filteredItems.length}
+                  pageSize={ITEM_PAGE_SIZE}
+                  onPageChange={setItemPage}
+                  itemLabel="items"
+                />
+              )}
             </>
           )}
         </>
