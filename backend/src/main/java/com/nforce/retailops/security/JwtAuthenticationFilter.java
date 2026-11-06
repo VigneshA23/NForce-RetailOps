@@ -66,10 +66,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // The JWT signature/expiry is valid, but the session behind it may have
             // been revoked (logout) or expired from inactivity — that check is the
             // server-side source of truth, not just the token's own expiry.
-            long sessionStart = System.nanoTime();
-            log.info("[JwtFilter] -> sending to DB: sessionService.validateAndTouch");
             boolean sessionValid = sessionService.validateAndTouch(tokenId);
-            log.info("[JwtFilter] <- received from DB: sessionService.validateAndTouch ({} ms)", elapsedMs(sessionStart));
 
             if (sessionValid) {
                 String email = jwtService.extractEmail(token);
@@ -79,13 +76,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // rather than at token expiry. Leaving the SecurityContext unset
                 // makes this fall through to a clean 401 from the entry point.
                 UserDetails userDetails;
-                long userLookupStart = System.nanoTime();
-                log.info("[JwtFilter] -> sending to DB: userDetailsService.loadUserByUsername");
                 try {
                     userDetails = userDetailsService.loadUserByUsername(email);
-                    log.info("[JwtFilter] <- received from DB: userDetailsService.loadUserByUsername ({} ms)", elapsedMs(userLookupStart));
                 } catch (UsernameNotFoundException ex) {
-                    log.info("[JwtFilter] <- received from DB: userDetailsService.loadUserByUsername, not found ({} ms)", elapsedMs(userLookupStart));
                     sessionService.invalidate(tokenId);
                     filterChain.doFilter(request, response);
                     return;

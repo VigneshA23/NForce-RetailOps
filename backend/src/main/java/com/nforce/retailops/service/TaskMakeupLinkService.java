@@ -254,11 +254,7 @@ public class TaskMakeupLinkService {
     // unambiguous which lines are "waiting on the database" vs. everything else
     // (in-process Java, no network/DB involved).
     private <T> T timed(String label, Supplier<T> query) {
-        long start = System.nanoTime();
-        log.info("[MissedTasks] -> sending to DB: {}", label);
-        T result = query.get();
-        log.info("[MissedTasks] <- received from DB: {} ({} ms)", label, elapsedMs(start));
-        return result;
+        return query.get();
     }
 
     private static long elapsedMs(long startNanos) {
