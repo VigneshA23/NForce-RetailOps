@@ -369,7 +369,7 @@
 .sa-home__health-icon--good { background: var(--color-badge-icon-success-bg); color: var(--color-badge-icon-success-fg); }
 .sa-home__health-icon--info { background: var(--color-badge-icon-info-bg); color: var(--color-badge-icon-info-fg); }
 .sa-home__health-icon--accent { background: var(--color-badge-icon-purple-bg); color: var(--color-badge-icon-purple-fg); }
-.sa-home__health-icon--danger { background: var(--color-badge-icon-primary-bg); color: var(--color-badge-icon-primary-fg); }
+.sa-home__health-icon--danger { background: rgba(208, 23, 142, 0.12); color: #d0178e; }
 .sa-home__health-icon--warning { background: var(--color-badge-icon-warning-bg); color: var(--color-badge-icon-warning-fg); }
 
 .sa-home__health-row-main {
@@ -406,8 +406,12 @@
 .sa-home__health-bar-fill--good { background: var(--color-badge-icon-success-fg); }
 .sa-home__health-bar-fill--info { background: var(--color-badge-icon-info-fg); }
 .sa-home__health-bar-fill--accent { background: var(--color-badge-icon-purple-fg); }
-.sa-home__health-bar-fill--danger { background: var(--color-badge-icon-primary-fg); }
+.sa-home__health-bar-fill--danger { background: #d0178e; }
 .sa-home__health-bar-fill--warning { background: var(--color-badge-icon-warning-fg); }
+
+/* Platform Completion Trend chart: pink line/gradient instead of the global
+   red accent. Scoped here so other pages using CompletionRateCard keep red. */
+.sa-home .completion-rate-card { --color-accent: #d0178e; }
 
 .sa-home__health-value {
   flex-shrink: 0;
