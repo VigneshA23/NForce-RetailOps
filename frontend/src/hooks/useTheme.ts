@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { flushSync } from 'react-dom';
 
 const THEME_STORAGE_KEY = 'nforce-retailops-theme';
 // Several components (the app shell header, the Profile page's mobile
@@ -27,5 +28,21 @@ export function useTheme() {
     return () => window.removeEventListener(THEME_CHANGE_EVENT, syncFromStorage);
   }, []);
 
-  return { isDarkTheme, toggleTheme: () => setIsDarkTheme((current) => !current) };
+  function toggleTheme() {
+    const next = !isDarkTheme;
+    const doc = document as Document & { startViewTransition?: (update: () => void) => unknown };
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (typeof doc.startViewTransition !== 'function' || reduceMotion) {
+      setIsDarkTheme(next);
+      return;
+    }
+    // Snapshot the old theme, flip synchronously, then let the new theme
+    // fade in slowly (see the ::view-transition rules in base.css).
+    doc.startViewTransition(() => {
+      document.documentElement.dataset.theme = next ? 'dark' : 'light';
+      flushSync(() => setIsDarkTheme(next));
+    });
+  }
+
+  return { isDarkTheme, toggleTheme };
 }

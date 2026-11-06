@@ -16,6 +16,7 @@ import StoreDetailTable, { type StoreDetailRow } from '../components/StoreDetail
 import TrendChart from '../components/TrendChart';
 import CalendarPopover from '../components/CalendarPopover';
 import ExportMenu from '../components/ExportMenu';
+import ChecklistLiveStatus from '../components/ChecklistLiveStatus';
 import {
   hasActiveResponse, taskStatus, todayDate, yesterday, daysAgo, stepDate, formatDateNavLabel,
   formatDateLabel, formatDateRangeLabel, previousCalendarWeekRange, datesInRange, responseDisplayValue,
@@ -57,7 +58,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   const [storesLoading, setStoresLoading] = useState(true);
 
   const [selectedStoreId, setSelectedStoreId] = usePersistedState<number | null>('sa-checklist-store', nav?.storeId ?? null, nullableNumber);
-  const appliedNavTs = useRef<number | undefined>(nav?.ts);
+  const [appliedNavTs, setAppliedNavTs] = usePersistedState<number | null>('sa-checklist-nav-ts', null, nullableNumber);
 
   const [date, setDate] = useState(todayDate);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -93,8 +94,8 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
   // When parent navigates to a specific store (e.g. from Home table or Owners table),
   // update selectedStoreId. ts-based check ensures re-navigation to the same store still fires.
   useEffect(() => {
-    if (nav && nav.ts !== appliedNavTs.current) {
-      appliedNavTs.current = nav.ts;
+    if (nav && nav.ts !== appliedNavTs) {
+      setAppliedNavTs(nav.ts);
       setSelectedStoreId(nav.storeId);
     }
   }, [nav]);
@@ -463,8 +464,24 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
     <div className="sa-checklist">
       <div className="store-detail-page">
         <div className="store-detail-page__filters">
-          <div className="store-detail-page__date-nav-row sa-checklist__top-row">
-            {/* Date nav — LEFT */}
+          {/* The Owner/Admin checklist toolbar plus the store selector, placed
+              by SuperAdminChecklist.css --
+              tablet/desktop: date nav + Live left, store selector right;
+                              pills left, Export right;
+              phones: store selector full width, then date nav + Live,
+                      then pills + Export. */}
+          <div className="store-detail-page__toolbar sa-checklist__toolbar">
+            <div className="sa-checklist__store-select">
+              <SearchableSelect
+                id="sa-store-select"
+                options={storeSelectOptions}
+                selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
+                onChange={(ids) => setSelectedStoreId(ids[0] ?? null)}
+                placeholder="Select a store…"
+                isLoading={storesLoading}
+                emptyMessage="No stores found"
+              />
+            </div>
             <div className="store-detail-page__date-nav">
               <button
                 type="button"
@@ -495,40 +512,8 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                 <ChevronRight size={16} />
               </button>
             </div>
-            {/* Live / Historical badge — same logic as Admin's checklist */}
-            {isToday ? (
-              <span className="store-detail-page__mode-badge store-detail-page__mode-badge--live">
-                ● Live
-              </span>
-            ) : (
-              <span className="store-detail-page__mode-badge store-detail-page__mode-badge--historical">
-                📋 Historical
-              </span>
-            )}
-            {/* Spacer pushes store selector to the right */}
-            <div className="sa-checklist__top-row-spacer" style={{ flex: 1 }} />
-            {/* Store selector — RIGHT, same plain/blue-focus look as Super Admin Orders' own */}
-            <div className="sa-checklist__store-select">
-              <SearchableSelect
-                id="sa-store-select"
-                options={storeSelectOptions}
-                selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
-                onChange={(ids) => setSelectedStoreId(ids[0] ?? null)}
-                placeholder="Select a store…"
-                isLoading={storesLoading}
-                emptyMessage="No stores found"
-              />
-            </div>
-            {selectedStoreId !== null && <ExportMenu storeId={selectedStoreId} date={date} rangeOverride={weekRange ?? undefined} />}
-          </div>
-            <CalendarPopover
-              value={date}
-              max={todayDate()}
-              isOpen={pickerOpen}
-              onClose={() => setPickerOpen(false)}
-              onSelect={(d) => { exitWeekMode(); setDate(d); }}
-              anchorRef={dateTriggerRef}
-            />
+            <ChecklistLiveStatus isToday={isToday} />
+            <span className="store-detail-page__toolbar-break" aria-hidden="true" />
             <div className="store-detail-page__date-pills">
               <button
                 type="button"
@@ -554,6 +539,20 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
                 </button>
               )}
             </div>
+            {selectedStoreId !== null && (
+              <div className="store-detail-page__toolbar-export">
+                <ExportMenu storeId={selectedStoreId} date={date} rangeOverride={weekRange ?? undefined} />
+              </div>
+            )}
+          </div>
+          <CalendarPopover
+            value={date}
+            max={todayDate()}
+            isOpen={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            onSelect={(d) => { exitWeekMode(); setDate(d); }}
+            anchorRef={dateTriggerRef}
+          />
           </div>
 
           {/* Stat tiles always visible — zero values before store selected */}

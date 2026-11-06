@@ -200,19 +200,15 @@ describe('EmployeeDashboard moved units', () => {
     expect(mockGetDailyChecklist).toHaveBeenCalledTimes(2)
   })
 
-  it('renders the Missed Tasks stat tile with the count and navigates on click', async () => {
+  it('renders the Missed Tasks stat tile with the count as display-only (no navigation)', async () => {
     mockGetDailyChecklist.mockResolvedValue([category([task()])])
     const onNavigate = vi.fn()
-    const user = userEvent.setup()
     render(<EmployeeDashboard store={STORE} onLogout={vi.fn()} employeeId={7} missedTasksCount={3} onNavigate={onNavigate} />)
 
     await screen.findByText('Sweep the floor')
-    const tile = screen.getByText('Missed Tasks').closest('button')
-    expect(tile).not.toBeNull()
-    expect(tile).toHaveTextContent('3')
-
-    await user.click(tile!)
-    expect(onNavigate).toHaveBeenCalledWith('missing')
+    const label = screen.getByText('Missed Tasks')
+    expect(label.closest('button')).toBeNull()
+    expect(label.closest('.stat-card-row')).toHaveTextContent('3')
   })
 })
 

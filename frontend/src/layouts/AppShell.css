@@ -1,14 +1,23 @@
+@import '../styles/breakpoints.css';
+
 .app-shell {
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
 }
 
-/* Sidebar + page, side by side under the full-width header. */
+/* The page, under the full-width header. The Sidebar component also renders
+   into this DOM subtree, but it's position:fixed (Sidebar.css) -- a floating
+   dock over the page, not a flex sibling reserving its own column -- so it
+   doesn't affect this element's layout. The page background (--page-bg,
+   below) is painted here rather than on .app-shell__page so it extends
+   continuously underneath the floating dock's track too, since the dock
+   itself has no opaque background of its own. */
 .app-shell__body {
   flex: 1;
   display: flex;
   min-height: 0;
+  background: var(--page-bg);
 }
 
 .app-shell__content {
@@ -42,6 +51,33 @@
   overflow-y: auto;
   overflow-x: hidden;
   will-change: opacity, transform;
+}
+
+/* Reserves room for the floating Sidebar dock (position:fixed, Sidebar.css)
+   so real page content never renders underneath it -- the same pattern as
+   .app-shell__main--bottom-nav's padding-bottom below, for the floating
+   BottomNav. Widths mirror the dock's own track widths per state/breakpoint
+   (Sidebar.css's --sidebar-width-* variables and its matching media
+   queries). On mobile the dock is an off-canvas drawer instead (there's no
+   floating left dock -- BottomNav takes over), so no padding is reserved. */
+.app-shell__page {
+  padding-left: var(--sidebar-width-expanded);
+}
+
+.app-shell--sidebar-collapsed .app-shell__page {
+  padding-left: var(--sidebar-width-collapsed);
+}
+
+@media (--tablet-narrow) {
+  .app-shell__page {
+    padding-left: var(--sidebar-width-collapsed);
+  }
+}
+
+@media (--mobile) {
+  .app-shell__page {
+    padding-left: 0;
+  }
 }
 
 /* Sky blue page background with three soft waves along the bottom (from the
@@ -79,10 +115,6 @@
   --page-bg:
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 560' preserveAspectRatio='none'%3E%3Cpath d='M0 330 C 260 250 470 420 760 340 S 1220 210 1440 290 L1440 560 L0 560Z' fill='%23233655' fill-opacity='0.5'/%3E%3Cpath d='M0 420 C 300 340 560 500 860 420 S 1260 330 1440 400 L1440 560 L0 560Z' fill='%231b2a47' fill-opacity='0.55'/%3E%3Cpath d='M0 490 C 340 440 620 560 940 500 S 1300 450 1440 480 L1440 560 L0 560Z' fill='%2315213a' fill-opacity='0.6'/%3E%3C/svg%3E") center bottom / max(100%, 1440px) 62% no-repeat fixed,
     var(--page-bg-sky);
-}
-
-.app-shell__page {
-  background: var(--page-bg);
 }
 
 /* Bottom nav padding lives here (was on main; absolute page ignores parent padding) */

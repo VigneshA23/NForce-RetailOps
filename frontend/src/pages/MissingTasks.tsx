@@ -12,6 +12,9 @@ import FilterClearButton from '../components/FilterClearButton'
 import SearchInput from '../components/SearchInput'
 import './MissingTasks.css'
 import LoadingSkeleton from '../components/LoadingSkeleton'
+import Pagination from '../components/Pagination'
+
+const PAGE_SIZE = 10
 
 interface MissingTasksProps {
   store: StoreSummary
@@ -223,6 +226,19 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
       .sort(compareInstances)
   }, [allInstances, taskSearch, dateFilter, categoryFilter])
 
+  // Client-side pages over the missed tasks loaded so far (the shared
+  // Pagination footer). Older history still comes from the server via
+  // "Load older missed tasks", offered once you're on the last page.
+  const [page, setPage] = useState(1)
+  const pageCount = Math.max(1, Math.ceil(filteredInstances.length / PAGE_SIZE))
+  useEffect(() => { setPage(1) }, [taskSearch, dateFilter, categoryFilter, store.id])
+  // A Move removes a row, so the last page can empty out -- step back.
+  useEffect(() => { if (page > pageCount) setPage(pageCount) }, [page, pageCount])
+  const pagedInstances = useMemo(
+    () => filteredInstances.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filteredInstances, page],
+  )
+
   return (
     <div className="missing-tasks-page">
       <div className="missing-tasks-page__body">
@@ -234,7 +250,6 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
         <div className="missing-tasks-page__heading-row">
           <div>
             <h1 className="missing-tasks-page__heading">Missed Tasks</h1>
-            <p className="missing-tasks-page__subtitle">Move tasks you missed on previous days onto a day you'll complete them.</p>
           </div>
           {!loading && !error && totalMissing > 0 && (
             <span className="missing-tasks-page__count">
@@ -286,11 +301,11 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
             </div>
 
             {filteredInstances.length === 0 ? (
-              <div className="table-card">
+              <div className="table-card missing-tasks-table-card--curved">
                 <p className="table-card__empty">No missed tasks match your filters.</p>
               </div>
             ) : (
-              <div className="table-card">
+              <div className="table-card missing-tasks-table-card--curved">
                 <div className="table-scroll">
                   <table className="data-table missing-tasks-table">
                     <thead>
@@ -302,7 +317,7 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredInstances.map((instance) => {
+                      {pagedInstances.map((instance) => {
                         const key = instanceKey(instance)
                         const isPending = pendingKey === key
                         const rowError = rowErrors[key]
@@ -372,12 +387,22 @@ function MissingTasks({ store, onMoved, onBack }: MissingTasksProps) {
                     </tbody>
                   </table>
                 </div>
+                <div className="missing-tasks-table-card__footer">
+                  <Pagination
+                    page={page}
+                    pageCount={pageCount}
+                    totalItems={filteredInstances.length}
+                    pageSize={PAGE_SIZE}
+                    onPageChange={setPage}
+                    itemLabel="missed tasks"
+                  />
+                </div>
               </div>
             )}
           </>
         )}
 
-        {!loading && !error && nextCursor && (
+        {!loading && !error && nextCursor && page >= pageCount && (
           <div className="missing-tasks-page__load-more">
             <button type="button" className="btn btn--secondary btn--sm" disabled={loadingMore} onClick={loadMore}>
               {loadingMore ? <ButtonDots label="Loading" /> : 'Load older missed tasks'}

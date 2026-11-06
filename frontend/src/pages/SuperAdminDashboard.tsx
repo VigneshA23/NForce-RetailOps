@@ -425,7 +425,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       title={
         showProfile ? 'My Profile'
         : showHelp ? 'Help & Guidance'
-        : showNotifications ? 'Notifications'
+        : showNotifications ? ''
         : showActivity ? 'Recent Activity'
         : SUPER_ADMIN_PAGE_TITLES[activeTab]
       }

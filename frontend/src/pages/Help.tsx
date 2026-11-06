@@ -127,9 +127,6 @@ function Help({ role }: HelpProps) {
           </span>
           <div className="help-page__banner-text">
             <h2 className="help-page__title">Help &amp; Guidance</h2>
-            <p className="help-page__subtitle">
-              Find quick answers, guides and resources to help you get the most out of NForce RetailOps.
-            </p>
           </div>
         </div>
         <SearchInput value={query} onChange={setQuery} placeholder="Search help articles, guides, or topics…" variant="card" />

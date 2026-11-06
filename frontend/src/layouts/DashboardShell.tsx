@@ -78,8 +78,11 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
 
   const userInitials = useMemo(() => getInitials(user.fullName), [user.fullName]);
 
+  // Page title over the store name. Notifications carries its own in-page
+  // heading, so the header shows no title there.
   const title = overlay === 'profile' ? 'My Profile'
     : overlay === 'help' ? 'Help & Guidance'
+    : overlay === 'notifications' ? ''
     : PAGE_TITLES[activeTab];
 
   function handleNotificationsCountChange(value: number) {

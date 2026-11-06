@@ -31,28 +31,15 @@
   flex-wrap: wrap;
 }
 
-.stock-check-history__title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--color-text-primary);
-}
-
 .stock-check-history__header-actions {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  margin-left: auto;
 }
 
 .stock-check-history__export {
   position: relative;
-}
-
-.stock-check-history__export-trigger-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .stock-check-history__export-menu {

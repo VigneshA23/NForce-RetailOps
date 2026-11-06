@@ -185,22 +185,9 @@
 }
 
 /* Footer */
-.category-form-modal .modal__footer {
-  gap: 12px;
-}
-
-.category-form-modal .category-form__cancel,
+/* Footer buttons use the default .btn size and pill curve, right-aligned,
+   matching the Tasks popup. */
 .category-form-modal .category-form__submit {
-  min-height: 46px;
-  border-radius: 14px;
-}
-
-.category-form-modal .category-form__cancel {
-  min-width: 96px;
-}
-
-.category-form-modal .category-form__submit {
-  min-width: 180px;
   gap: 8px;
 }
 

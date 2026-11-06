@@ -8,8 +8,10 @@ import Select from '../components/Select';
 import FilterClearButton from '../components/FilterClearButton';
 import ButtonDots from '../components/ButtonDots';
 import IssueCard from '../components/IssueCard';
+import Pagination from '../components/Pagination';
 import IssueResponseModal, { type IssueResponseAction } from '../components/IssueResponseModal';
 import { useIssueList } from '../hooks/useIssueList';
+import { usePagedList } from '../hooks/usePagedList';
 import { useIssueFocus, type IssueFocusRequest } from '../hooks/useIssueFocus';
 import {
   ISSUE_STATUSES,
@@ -23,6 +25,7 @@ import './SuperAdminIssues.css';
 import LoadingSkeleton from '../components/LoadingSkeleton';
 
 const CARD_ID_PREFIX = 'sa-issue-row';
+const ISSUE_PAGE_SIZE = 10;
 
 interface SuperAdminIssuesProps {
   // Set from a notification click to scroll to and highlight that issue.
@@ -44,10 +47,6 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
   const [nudgedIds, setNudgedIds] = useState<Set<number>>(() => new Set());
   const [busyId, setBusyId] = useState<number | null>(null);
   const [pending, setPending] = useState<{ issueId: number; action: IssueResponseAction } | null>(null);
-
-  const clearFilters = useCallback(() => { setStatusFilter(null); setStoreFilter(''); setSearch(''); }, []);
-  const issueIds = useMemo(() => issues.map((i) => i.id), [issues]);
-  const highlightedId = useIssueFocus(focusIssueId, issueIds, CARD_ID_PREFIX, clearFilters);
 
   const storeOptions = useMemo(() => {
     const byId = new Map<number, string>();
@@ -78,6 +77,28 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
       return true;
     });
   }, [issues, statusFilter, storeFilter, search]);
+
+  // Grouped by status unless a single status is selected. Paging runs over
+  // the cards in display order (group by group), so each page shows the
+  // next run of cards with their group headers.
+  const groupStatuses = useMemo(
+    () => statusFilter === null ? ISSUE_STATUSES
+      : statusFilter === 'ACTIVE' ? ISSUE_STATUSES.filter((s) => s !== 'RESOLVED')
+      : null,
+    [statusFilter],
+  );
+  const orderedIssues = useMemo(
+    () => groupStatuses === null ? filtered : groupStatuses.flatMap((status) => filtered.filter((i) => i.status === status)),
+    [filtered, groupStatuses],
+  );
+  const {
+    page: issuePage, pageCount: issuePageCount, pageItems: pageIssues, setPage: setIssuePage, revealItem,
+  } = usePagedList(orderedIssues, ISSUE_PAGE_SIZE, `${statusFilter}|${storeFilter}|${search}`);
+
+  // Deep link: clear the filters and jump to the page holding that issue.
+  const clearFilters = useCallback((issueId: number) => { setStatusFilter(null); setStoreFilter(''); setSearch(''); revealItem(issueId); }, [revealItem]);
+  const issueIds = useMemo(() => issues.map((i) => i.id), [issues]);
+  const highlightedId = useIssueFocus(focusIssueId, issueIds, CARD_ID_PREFIX, clearFilters);
 
   async function handleNudge(issue: SAIssue) {
     setNudgingId(issue.id);
@@ -158,15 +179,8 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
     );
   }
 
-  const groupStatuses = statusFilter === null ? ISSUE_STATUSES
-    : statusFilter === 'ACTIVE' ? ISSUE_STATUSES.filter((s) => s !== 'RESOLVED')
-    : null;
 
   const pendingIssue = pending ? issues.find((i) => i.id === pending.issueId) ?? null : null;
-
-  function toggleStatus(status: NonNullable<IssueStatusFilter>) {
-    setStatusFilter((current) => (current === status ? 'ACTIVE' : status));
-  }
 
   return (
     <div className="sa-issues-page">
@@ -180,8 +194,6 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
               label={meta.label}
               value={counts[status]}
               tone={meta.tone}
-              onClick={() => toggleStatus(status)}
-              active={statusFilter === status}
             />
           );
         })}
@@ -221,17 +233,18 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
       <div>
         <div className="issue-card-list">
           {groupStatuses === null ? (
-            filtered.map(renderCard)
+            pageIssues.map(renderCard)
           ) : (
             groupStatuses.map((status) => {
-              const group = filtered.filter((i) => i.status === status);
+              const group = pageIssues.filter((i) => i.status === status);
               if (group.length === 0) return null;
               const meta = ISSUE_STATUS_META[status];
               return (
                 <Fragment key={status}>
                   <div className="issues-group-header-cell">
                     <span className={`badge ${meta.badgeClass}`}>{meta.label}</span>
-                    <span className="issues-group-count">{group.length}</span>
+                    {/* The status's total across all pages, not just this one. */}
+                    <span className="issues-group-count">{filtered.filter((i) => i.status === status).length}</span>
                   </div>
                   {group.map(renderCard)}
                 </Fragment>
@@ -239,6 +252,16 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
             })
           )}
         </div>
+        {!isLoading && (
+          <Pagination
+            page={issuePage}
+            pageCount={issuePageCount}
+            totalItems={orderedIssues.length}
+            pageSize={ISSUE_PAGE_SIZE}
+            onPageChange={setIssuePage}
+            itemLabel="issues"
+          />
+        )}
         {isLoading && <LoadingSkeleton label="Loading issues…" variant="list" />}
         {!isLoading && !error && filtered.length === 0 && (
           <div className="issue-card-list__empty">

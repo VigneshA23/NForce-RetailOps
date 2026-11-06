@@ -24,7 +24,6 @@ function NoStoreAssigned({ user, onLogout, loggingOut }: NoStoreAssignedProps) {
     <div className="store-picker">
       <Header
         title=""
-        subtitle="Store Ops Platform"
         logoSrc="/keds-logo.png"
         showPlatformBrand={false}
         showSearch={false}
@@ -45,9 +44,6 @@ function NoStoreAssigned({ user, onLogout, loggingOut }: NoStoreAssignedProps) {
             <StoreIcon size={28} />
           </span>
           <h1 className="store-picker-heading">No store assigned yet</h1>
-          <p className="store-picker-subheading">
-            Ask your manager to assign you to a store, then sign in again.
-          </p>
           <button
             type="button"
             className="btn btn--secondary store-picker-empty-logout"

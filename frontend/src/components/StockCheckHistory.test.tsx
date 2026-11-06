@@ -457,7 +457,7 @@ describe('StockCheckHistory', () => {
     await screen.findByText('Page 1 Item');
 
     await user.click(screen.getByRole('button', { name: /Export/ }));
-    await user.click(screen.getByRole('menuitem', { name: /Download Excel/ }));
+    await user.click(screen.getByRole('menuitem', { name: /Export as Excel/ }));
 
     await waitFor(() => expect(mockBuildStockCheckHistoryWorkbook).toHaveBeenCalled());
     const exportedRows = mockBuildStockCheckHistoryWorkbook.mock.calls[0][0];

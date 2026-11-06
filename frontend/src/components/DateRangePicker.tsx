@@ -101,11 +101,14 @@ function daySpan(startDate: string, endDate: string): number {
 interface DateRangePickerProps {
   value: DateRangeSelection;
   onChange: (value: DateRangeSelection) => void;
+  // 'toolbar' (default) sizes the trigger like the Export button it sits
+  // next to; 'filter' keeps the compact field look for use inside a filter bar.
+  variant?: 'toolbar' | 'filter';
 }
 
 // Same portal + measure-after-render + viewport-clamp pattern as
 // ExportMenu/CalendarPopover, so it behaves consistently near screen edges.
-function DateRangePicker({ value, onChange }: DateRangePickerProps) {
+function DateRangePicker({ value, onChange, variant = 'toolbar' }: DateRangePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [draftPreset, setDraftPreset] = useState<DateRangePreset>(value.preset);
   const [draftStart, setDraftStart] = useState(value.customStart);
@@ -137,7 +140,9 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
     if (!trigger || !panel) return;
 
     const triggerRect = trigger.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
+    // offsetWidth/Height, not getBoundingClientRect(): the glass-menu open
+    // animation starts at scale(0.88), which would under-measure the panel.
+    const panelRect = { width: panel.offsetWidth, height: panel.offsetHeight };
 
     let top = triggerRect.bottom + 6;
     if (top + panelRect.height > window.innerHeight - VIEWPORT_MARGIN) {
@@ -209,7 +214,7 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       <button
         ref={triggerRef}
         type="button"
-        className="date-range-picker__trigger"
+        className={`date-range-picker__trigger${variant === 'toolbar' ? ' date-range-picker__trigger--toolbar' : ''}`}
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
@@ -220,7 +225,7 @@ function DateRangePicker({ value, onChange }: DateRangePickerProps) {
       </button>
 
       {isOpen && createPortal(
-        <div ref={panelRef} className="date-range-picker__panel" role="dialog" aria-label="Choose a date range" style={position}>
+        <div ref={panelRef} className="date-range-picker__panel glass-menu" role="dialog" aria-label="Choose a date range" style={position}>
           <div className="date-range-picker__panel-title">Date Range</div>
 
           <div className="date-range-picker__options">

@@ -1,13 +1,16 @@
 @import '../styles/breakpoints.css';
 
-/* Black rail carrying a floating "dock" pill of round icons. Values come
-   from the Super Admin black-sidebar design (dark-rail variant). */
+/* No longer a layout element -- this is a floating positioning track for the
+   "dock" pill of round icons below, laid directly over the app shell page
+   (AppShell.css's .app-shell__page reserves matching padding-left so real
+   content never renders underneath it, the same way .app-shell__main
+   --bottom-nav reserves padding-bottom for the floating BottomNav). No rail
+   background of its own, so the page background shows straight through it. */
 .sidebar {
-  flex-shrink: 0;
-  width: var(--sidebar-width-expanded);
-  position: sticky;
+  position: fixed;
   top: var(--header-height);
-  align-self: flex-start;
+  left: 0;
+  width: var(--sidebar-width-expanded);
   /* Sits under the full-width header (AppShell.tsx). */
   height: calc(100dvh - var(--header-height));
   /* Scrolls on short screens rather than cutting the last items off. */
@@ -15,9 +18,7 @@
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  background: var(--color-nav-bg);
-  border-right: 1px solid rgba(196, 38, 126, 0.25);
-  color: var(--color-header-text);
+  color: var(--color-text-primary);
   z-index: var(--z-sidebar);
   transition: width 0.25s;
 }
@@ -42,7 +43,7 @@
 
 /* Wide wordmark, shown whole and capped to the drawer's width. */
 .sidebar__brand-logo {
-  height: 50px;
+  height: 44px;
   width: auto;
   max-width: 100%;
   object-fit: contain;
@@ -60,6 +61,12 @@
 
 /* ---- The dock pill ------------------------------------------------------ */
 
+/* True glassmorphism -- much lower tint opacity than the shared
+   styles/glass-menu.css formula (used for text-heavy dropdowns, where
+   legibility needs a more opaque backing). The dock only ever sits over
+   the quiet page gradient (AppShell.css's --page-bg), never over scrolling
+   text/cards, so it can afford to be this see-through without hurting
+   icon/label contrast. */
 .sidebar__dock {
   position: relative;
   z-index: 1;
@@ -69,15 +76,35 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  /* flex-start + the toggle's own margin-top:auto (below), not
+     space-between -- space-between stretched the gap between items to
+     fill whatever height was left over, so a short list (e.g. Employee's
+     4 items) got huge gaps while a long one (Super Admin's 9) barely
+     showed the gap at all. This keeps the gap fixed regardless of item
+     count and only pushes the collapse toggle down to the bottom. */
+  justify-content: flex-start;
+  gap: 20px;
   padding: 14px 8px;
   border-radius: 30px;
-  background: linear-gradient(160deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 60%, rgba(255, 255, 255, 0.06) 100%);
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(170deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.18) 100%),
+    rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 4px 16px rgba(31, 38, 135, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+:root[data-theme='dark'] .sidebar__dock {
+  background:
+    linear-gradient(170deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.05) 100%),
+    rgba(20, 16, 28, 0.3);
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .sidebar--collapsed .sidebar__dock {
@@ -86,7 +113,6 @@
   padding: 12px 10px;
   border-radius: 999px;
 }
-
 .sidebar__dock-item {
   position: relative;
   z-index: 1;
@@ -115,14 +141,18 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  color: #d4d3dc;
+  background: rgba(0, 0, 0, 0.045);
+  color: var(--color-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   transform-origin: left center;
   transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+:root[data-theme='dark'] .sidebar__dock-icon {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar__dock-icon svg {
@@ -132,7 +162,7 @@
 .sidebar__dock-label {
   font-size: 11.5px;
   font-weight: 600;
-  color: #a9a8b3;
+  color: var(--color-text-secondary);
   text-align: center;
   line-height: 1.15;
   max-width: 112px;
@@ -173,8 +203,12 @@
   height: 9px;
   border-radius: 50%;
   background: #ef4444;
-  border: 2px solid var(--color-nav-bg);
+  border: 2px solid rgba(255, 255, 255, 0.78);
   pointer-events: none;
+}
+
+:root[data-theme='dark'] .sidebar__badge {
+  border-color: rgba(16, 12, 22, 0.75);
 }
 
 /* ---- Dock magnification ------------------------------------------------- */
@@ -192,10 +226,12 @@
   box-shadow: 0 6px 16px rgba(16, 24, 40, 0.16);
 }
 
+/* Primary text, not white: the dock is light glass in the light theme (and
+   dark glass in dark), so the label follows the theme to stay readable. */
 .sidebar__dock-item:focus-visible .sidebar__dock-label {
   transform: translateY(14px);
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-text-primary);
 }
 
 .sidebar--collapsed .sidebar__dock-item:focus-visible .sidebar__dock-icon {
@@ -213,7 +249,7 @@
   .sidebar__dock-item:hover .sidebar__dock-label {
     transform: translateY(14px);
     font-weight: 700;
-    color: #ffffff;
+    color: var(--color-text-primary);
   }
 
   .sidebar__dock-item:hover + .sidebar__dock-item {
@@ -258,15 +294,18 @@
 /* ---- Collapse toggle ---------------------------------------------------- */
 
 .sidebar__dock-toggle {
-  margin-top: 6px;
+  /* Pins the toggle to the bottom of the dock now that .sidebar__dock no
+     longer uses justify-content: space-between -- soaks up whatever
+     height is left over instead of the gap between every item doing it. */
+  margin-top: auto;
   flex-shrink: 0;
   width: 34px;
   height: 34px;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid #2e2c31;
-  background: #1a181b;
-  color: #d4d3dc;
+  border: 1px solid rgba(0, 0, 0, 0.09);
+  background: rgba(0, 0, 0, 0.045);
+  color: var(--color-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -277,7 +316,18 @@
 
 .sidebar__dock-toggle:hover,
 .sidebar__dock-toggle:focus-visible {
-  background: #26232a;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--color-text-primary);
+}
+
+:root[data-theme='dark'] .sidebar__dock-toggle {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme='dark'] .sidebar__dock-toggle:hover,
+:root[data-theme='dark'] .sidebar__dock-toggle:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
 }
 
@@ -369,6 +419,12 @@
     transform: translateX(-100%);
     transition: transform var(--transition-fast);
     z-index: var(--z-modal);
+    /* Full-screen overlay: needs its own legible surface, unlike the desktop
+       rail which is transparent over the page background. Matches
+       BottomNav.css's dark-glass formula. */
+    background: rgba(4, 4, 6, 0.96);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
   }
 
   .sidebar.sidebar--mobile-open {

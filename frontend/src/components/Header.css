@@ -36,7 +36,7 @@
    cropped to a circle. */
 .header__logo {
   flex-shrink: 0;
-  height: 54px;
+  height: 46px;
   width: auto;
 }
 
@@ -49,17 +49,25 @@
   display: none;
 }
 
+/* Fixed to the width still available to the sidebar's 156px column once the
+   header's own 18px left padding is subtracted, so this box's right edge
+   lands flush with the sidebar's edge regardless of the logo's own size --
+   the logo is then centered inside it with real padding on both sides
+   instead of filling the box edge-to-edge. */
 .header__platform {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
   flex-shrink: 0;
+  width: calc(var(--sidebar-width-expanded) - 18px);
+  box-sizing: border-box;
+  padding: 0 14px;
 }
 
 /* Wide wordmark (840x320 transparent source, enough pixels to stay sharp on
    3x screens at this size), shown whole. */
 .header__platform-logo {
-  height: 54px;
+  height: 40px;
   width: auto;
   display: block;
 }
@@ -69,7 +77,11 @@
   width: 1px;
   height: 34px;
   background: #2e2e33;
-  margin: 0 6px;
+  /* Cancels .header__left's 16px flex gap entirely so the line sits flush
+     with .header__platform's fixed right edge (the sidebar's 156px edge)
+     instead of 16px past it. Right side keeps the normal gap before the
+     title. */
+  margin: 0 6px 0 -16px;
 }
 
 .header__brand {
@@ -163,6 +175,24 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Theme toggle: same 36px rounded square as the bell and search icons,
+   instead of IconButton's default 44px circle (header only -- the Profile
+   page's toggle is unaffected). */
+.header__theme-toggle {
+  display: inline-flex;
+}
+
+.header__theme-toggle .icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.header__theme-toggle .icon-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
 @media (--mobile) {
   /* Theme toggle moves to the Profile page on phones. */
   .header__theme-toggle--hide-mobile {
@@ -170,19 +200,22 @@
   }
 
   .header {
-    padding: 0 4px;
+    padding: 0 8px;
+    gap: var(--space-sm);
   }
 
   .header__left {
     gap: var(--space-sm);
   }
 
+  /* Icons keep their size; only the title (above) gives way. */
   .header__right {
-    gap: var(--space-sm);
+    gap: 6px;
+    flex: 0 0 auto;
   }
 
   .header__logo {
-    height: 40px;
+    height: 30px;
   }
 
   .header__logo--hide-desktop {
@@ -194,16 +227,21 @@
     display: none;
   }
 
-  /* Long store names wrap onto a second line instead of being cut off. */
+  /* The title takes whatever width is left (no fixed 130px, which pushed
+     the right-hand icons off narrow screens) and wraps to at most two
+     lines, then truncates. */
+  .header__brand {
+    flex: 1 1 auto;
+  }
+
   .header__title {
     font-size: 14px;
-    /* Fixed 130px text area: names wrap inside it rather than stretching. */
-    width: 130px;
-    max-width: 130px;
     white-space: normal;
     overflow-wrap: anywhere;
-    text-overflow: clip;
-    overflow: visible;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .header__subtitle {
@@ -223,14 +261,9 @@
     flex: 0 0 44px;
   }
 
-  /* Icon-only on mobile: keep the button tappable but drop its label and the
-     extra horizontal padding that was sized for the text. */
-  .switch-store-btn {
-    padding: 10px;
-    min-width: 44px;
-  }
-
-  .switch-store-btn__label {
+  /* On phones Switch Store lives in the profile menu, beside the signed-in
+     name (ProfileMenu's onSwitchStore), to keep the header from overflowing. */
+  .header__right .switch-store-btn {
     display: none;
   }
 }
@@ -335,9 +368,14 @@
   background: #ffffff;
 }
 
+:root:not([data-theme='dark']) .header .nb__trigger {
+  background: rgba(255, 255, 255, 0.75);
+  color: #334155;
+}
+
 :root:not([data-theme='dark']) .header .nb__trigger:hover,
 :root:not([data-theme='dark']) .header .nb__trigger--open {
-  background: rgba(255, 255, 255, 0.75);
+  background: #ffffff;
   color: #18181b;
 }
 

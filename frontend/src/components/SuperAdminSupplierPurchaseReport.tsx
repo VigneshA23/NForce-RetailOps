@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronDown, Download, FileSpreadsheet, FileText, Layers, PackageCheck, Truck } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, FileText, Layers, PackageCheck, Truck } from 'lucide-react';
 import DateRangePicker, { DEFAULT_DATE_RANGE, resolveDateRange } from './DateRangePicker';
 import type { DateRangeSelection } from './DateRangePicker';
 import ButtonDots from './ButtonDots';
-import SpecularButton from './SpecularButton';
+import ExportButton from './ExportButton';
 import StoreAccordionGroup from './StoreAccordionGroup';
 import SupplierPurchaseTable from './SupplierPurchaseTable';
 import OrderHistoryTable from './OrderHistoryTable';
@@ -243,45 +243,31 @@ function SuperAdminSupplierPurchaseReport({ selectedStoreId }: SuperAdminSupplie
       <div className="sa-supplier-purchase-report__toolbar sa-supplier-purchase-report__toolbar--end">
         <DateRangePicker value={dateRange} onChange={setDateRange} />
         <div className="sa-supplier-purchase-report__export" ref={exportMenuRef}>
-          <SpecularButton
-            size="sm"
-            radius={10}
-            tint="#14141a"
-            tintOpacity={0.85}
-            textColor="#f5f5f5"
-            lineColor="#ffffff"
-            baseColor="#525252"
-            followMouse
-            proximity={180}
+          <ExportButton
+            isOpen={isExportMenuOpen}
             disabled={!hasExportableRows}
             title={hasExportableRows ? undefined : 'Nothing to export'}
             onClick={() => setIsExportMenuOpen((open) => !open)}
-            aria-expanded={isExportMenuOpen}
-            aria-haspopup="menu"
-          >
-            <span className="sa-supplier-purchase-report__export-trigger-label">
-              <Download size={14} /> Export <ChevronDown size={13} />
-            </span>
-          </SpecularButton>
+          />
           {isExportMenuOpen && (
-            <div className="sa-supplier-purchase-report__export-menu" role="menu">
+            <div className="sa-supplier-purchase-report__export-menu glass-menu" role="menu">
               <button
                 type="button"
-                className="sa-supplier-purchase-report__export-item"
+                className="sa-supplier-purchase-report__export-item glass-menu__item"
                 role="menuitem"
                 onClick={handleExportExcel}
                 disabled={isExcelExporting || isPdfExporting}
               >
-                {isExcelExporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} /> Download Excel</>)}
+                {isExcelExporting ? <ButtonDots label="Downloading" /> : (<><FileSpreadsheet size={14} /> Export as Excel</>)}
               </button>
               <button
                 type="button"
-                className="sa-supplier-purchase-report__export-item"
+                className="sa-supplier-purchase-report__export-item glass-menu__item"
                 role="menuitem"
                 onClick={handleExportPdf}
                 disabled={isExcelExporting || isPdfExporting}
               >
-                {isPdfExporting ? <ButtonDots label="Generating" /> : (<><FileText size={14} /> Download PDF</>)}
+                {isPdfExporting ? <ButtonDots label="Generating" /> : (<><FileText size={14} /> Export as PDF</>)}
               </button>
             </div>
           )}

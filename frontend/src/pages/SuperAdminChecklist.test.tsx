@@ -259,7 +259,7 @@ describe('SuperAdminChecklist "Last Week" filter', () => {
     await userEvent.click(exportButton);
 
     const range = previousCalendarWeekRange(todayDate());
-    expect(screen.queryByText('Export this day (Excel)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Export as Excel')).not.toBeInTheDocument();
     expect(screen.getByText(new Date(`${range.start}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))).toBeInTheDocument();
     expect(screen.getByText(new Date(`${range.end}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))).toBeInTheDocument();
   });

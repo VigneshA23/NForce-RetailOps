@@ -338,7 +338,7 @@ describe('StoreDetail "Last Week" filter', () => {
     const range = previousCalendarWeekRange(todayDate());
     // No single-day export option -- the range form is shown directly,
     // pre-filled with the selected week rather than a stray leftover date.
-    expect(screen.queryByText('Export this day (Excel)')).not.toBeInTheDocument();
+    expect(screen.queryByText('Export as Excel')).not.toBeInTheDocument();
     expect(screen.getByText(new Date(`${range.start}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))).toBeInTheDocument();
     expect(screen.getByText(new Date(`${range.end}T00:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }))).toBeInTheDocument();
   });

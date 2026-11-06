@@ -324,3 +324,24 @@
     gap: 10px;
   }
 }
+
+/* One page of a paginated list (see totalCount in StoreInventoryCardGrid.tsx):
+   the same column widths as the rules above at each breakpoint, but
+   auto-fill rather than auto-fit, so a short last page keeps its cards the
+   width of a full row's instead of stretching them across the empty
+   columns. Kept last so it overrides those rules. */
+.store-inventory-card-grid--paged {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+}
+
+@media (--mobile) {
+  .store-inventory-card-grid--paged {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+  }
+}
+
+@media (--tablet-up) {
+  .store-inventory-card-grid--paged {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+  }
+}

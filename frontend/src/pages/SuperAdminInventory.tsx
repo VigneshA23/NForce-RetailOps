@@ -31,6 +31,7 @@ import Pagination from '../components/Pagination';
 import FilterClearButton from '../components/FilterClearButton';
 import ConfirmDialog from '../components/ConfirmDialog';
 import SpecularButton from '../components/SpecularButton';
+import ExportButton from '../components/ExportButton';
 import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
 import { getStockStatus } from '../utils/storeInventoryStatus';
@@ -59,6 +60,7 @@ const SUB_TABS: { key: SubTab; label: string; icon?: typeof Package }[] = [
 ];
 
 const SUPPLIER_PAGE_SIZE = 10;
+const ITEM_PAGE_SIZE = 12;
 
 type SupplierModalState = { mode: 'create' } | { mode: 'edit'; supplier: Supplier } | null;
 
@@ -153,11 +155,18 @@ function SuperAdminInventory() {
   // This selector is the one thing that differs from the Owner/Admin page.
   const [selectedStoreId, setSelectedStoreId] = usePersistedState<number | null>('sa-inventory-store', null, nullableNumber);
 
+  // Filters a "View Items" jump wants applied once it lands on the Items
+  // sub-tab. Held here rather than set directly because the store-change
+  // reset below runs after the jump's render and would otherwise wipe them.
+  const pendingItemFiltersRef = useRef<{ category?: string; supplier?: string } | null>(null);
+
   // Switching store resets the view and closes anything open for the old one.
   useEffect(() => {
+    const pending = pendingItemFiltersRef.current;
+    pendingItemFiltersRef.current = null;
     setItemSearch('');
-    setCategoryFilter('');
-    setSupplierFilter('all');
+    setCategoryFilter(pending?.category ?? '');
+    setSupplierFilter(pending?.supplier ?? 'all');
     setEditTarget(null);
     setIsCreateModalOpen(false);
   }, [selectedStoreId]);
@@ -308,6 +317,17 @@ function SuperAdminInventory() {
     });
   }, [storeItems, itemSearch, categoryFilter, supplierFilter]);
 
+  // Items sub-tab paging -- back to page 1 whenever the store or a filter
+  // changes; clamped so a poll that shrinks the list never strands the view
+  // on a page that no longer exists.
+  const [itemPage, setItemPage] = useState(1);
+  useEffect(() => {
+    setItemPage(1);
+  }, [selectedStoreId, itemSearch, categoryFilter, supplierFilter]);
+  const itemPageCount = Math.max(1, Math.ceil(filteredItems.length / ITEM_PAGE_SIZE));
+  const currentItemPage = Math.min(itemPage, itemPageCount);
+  const pagedItems = filteredItems.slice((currentItemPage - 1) * ITEM_PAGE_SIZE, currentItemPage * ITEM_PAGE_SIZE);
+
   // Memoised because the form modal resets its fields whenever this reference
   // changes -- an inline object would wipe in-progress input on every re-render
   // (e.g. the 60s poll).
@@ -457,12 +477,32 @@ function SuperAdminInventory() {
   }
 
   // "View Items" on a supplier's per-store breakdown row -- jumps to the
-  // Inventory sub-tab with that store selected and the search box prefilled
-  // with the supplier's name (itemSearch already matches preferredSupplierName,
-  // so this reuses the existing item list/search instead of a new view).
-  function handleViewStoreItems(storeId: number, supplierName: string) {
-    setSelectedStoreId(storeId);
-    setItemSearch(supplierName);
+  // Items sub-tab with that store selected and the Supplier filter set to
+  // this supplier (matched on preferredSupplierId, same as the dropdown).
+  function handleViewStoreItems(storeId: number, supplierId: number) {
+    jumpToStoreItems(storeId, { supplier: String(supplierId) });
+  }
+
+  // "View Items" on a category's per-store breakdown row -- same jump, with
+  // the Category filter set instead. The Categories panel groups by a
+  // trimmed, case-insensitive name, so resolve the exact `item.category`
+  // string that store's items carry (that is what the filter options use).
+  function handleViewCategoryStoreItems(storeId: number, categoryName: string) {
+    const key = categoryName.trim().toLowerCase();
+    const match = items.find((i) => i.storeId === storeId && i.category?.trim().toLowerCase() === key);
+    jumpToStoreItems(storeId, { category: match?.category ?? categoryName });
+  }
+
+  function jumpToStoreItems(storeId: number, filters: { category?: string; supplier?: string }) {
+    if (storeId === selectedStoreId) {
+      // Same store: the reset effect won't fire, so apply directly.
+      setItemSearch('');
+      setCategoryFilter(filters.category ?? '');
+      setSupplierFilter(filters.supplier ?? 'all');
+    } else {
+      pendingItemFiltersRef.current = filters;
+      setSelectedStoreId(storeId);
+    }
     setSubTab('inventory');
   }
 
@@ -548,28 +588,26 @@ function SuperAdminInventory() {
           ) : (
             <>
               <div className="store-inventory-page__title-row">
-                <h1 className="store-inventory-page__title">Inventory Master</h1>
                 <div className="store-inventory-page__header-actions">
                   <div className="store-inventory-page__export" ref={exportMenuRef}>
-                    <button
-                      type="button"
-                      className="btn btn--danger"
+                    <ExportButton
+                      isOpen={isExportMenuOpen}
+                      disabled={filteredItems.length === 0}
+                      title={filteredItems.length === 0 ? 'Nothing to export' : undefined}
                       onClick={() => setIsExportMenuOpen((open) => !open)}
-                    >
-                      <FileText size={14} /> Export
-                    </button>
+                    />
                     {isExportMenuOpen && (
-                      <div className="store-inventory-page__export-menu">
+                      <div className="store-inventory-page__export-menu glass-menu">
                         <button
                           type="button"
-                          className="store-inventory-page__export-item"
+                          className="store-inventory-page__export-item glass-menu__item"
                           onClick={() => { exportInventoryCatalogCsv(filteredItems); setIsExportMenuOpen(false); }}
                         >
                           <FileSpreadsheet size={14} /> Export as CSV
                         </button>
                         <button
                           type="button"
-                          className="store-inventory-page__export-item"
+                          className="store-inventory-page__export-item glass-menu__item"
                           onClick={() => { exportInventoryCatalogPdf(filteredItems); setIsExportMenuOpen(false); }}
                         >
                           <FileText size={14} /> Export as PDF
@@ -616,13 +654,24 @@ function SuperAdminInventory() {
               </div>
 
               <StoreInventoryCardGrid
-                items={filteredItems}
+                items={pagedItems}
+                totalCount={filteredItems.length}
                 isLoading={isLoading}
                 selectedId={editTarget?.id ?? null}
                 onEdit={(item) => { setItemFormError(null); setEditTarget(item); }}
                 onDelete={(item) => { setItemDeleteError(null); setItemDeleteTarget(item); }}
                 onToggleStatus={handleToggleItem}
               />
+              {!isLoading && (
+                <Pagination
+                  page={currentItemPage}
+                  pageCount={itemPageCount}
+                  totalItems={filteredItems.length}
+                  pageSize={ITEM_PAGE_SIZE}
+                  onPageChange={setItemPage}
+                  itemLabel="items"
+                />
+              )}
             </>
           )}
         </>
@@ -798,7 +847,7 @@ function SuperAdminInventory() {
                                   <button
                                     type="button"
                                     className="super-admin-inventory-page__view-items"
-                                    onClick={() => handleViewStoreItems(s.storeId, supplier.name)}
+                                    onClick={() => handleViewStoreItems(s.storeId, supplier.id)}
                                   >
                                     View Items
                                     <ChevronRight size={14} />
@@ -930,7 +979,7 @@ function SuperAdminInventory() {
                               <button
                                 type="button"
                                 className="super-admin-inventory-page__view-items"
-                                onClick={() => handleViewStoreItems(s.storeId, supplier.name)}
+                                onClick={() => handleViewStoreItems(s.storeId, supplier.id)}
                               >
                                 View Items
                                 <ChevronRight size={14} />
@@ -973,7 +1022,7 @@ function SuperAdminInventory() {
           isLoading={isLoading}
           loadError={loadError}
           onRetry={loadAll}
-          onViewStoreItems={(storeId) => { setSelectedStoreId(storeId); setSubTab('inventory'); }}
+          onViewStoreItems={handleViewCategoryStoreItems}
         />
       )}
 

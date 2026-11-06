@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { shouldAutoFocus } from '../utils/autoFocus';
-import { Building2, Check, Plus, Tag } from 'lucide-react';
+import { Building2, Check, Tag } from 'lucide-react';
 import type { CategoryFormValues, CategoryStoreOption } from '../types/category';
 import { CATEGORY_BADGE_COLORS, DEFAULT_CATEGORY_BADGE_COLOR } from '../utils/categoryBadge';
 import Modal from './Modal';
@@ -98,10 +98,7 @@ function CategoryFormModal({
             {isSubmitting ? (
               <ButtonDots label="Saving" />
             ) : mode === 'create' ? (
-              <>
-                <Plus size={16} className="category-form__submit-icon" aria-hidden="true" />
-                Add Category
-              </>
+              'Add Category'
             ) : (
               'Save Changes'
             )}

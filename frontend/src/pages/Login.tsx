@@ -173,18 +173,20 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
               >
                 <div className="nf1-card-highlight" aria-hidden="true" />
 
-                <div className="login3-mobile-brand">
-                  <img src="/nforce-logo.png" alt="NForce RetailOps logo" className="login3-mobile-logo" />
-                  <p className="login3-mobile-wordmark">NForce RetailOps</p>
-                  <span className="login3-mobile-tagline">
-                    Your stores.{' '}
-                    <span className="login3-mobile-tagline-accent">One checklist.</span>
-                  </span>
+                <div className="login3-mobile-brand login3-mobile-brand--keds">
+                  <img
+                    src="/keds-logo.png"
+                    alt="Ked's Ice Cream, Waffles & Crepes"
+                    className="login3-mobile-logo login3-mobile-logo--keds"
+                  />
                 </div>
 
-                <div className="nf1-card-header">
-                  <img src="/nforce-logo.png" alt="" className="nf1-card-logo" aria-hidden="true" />
-                  <span className="nf1-card-wordmark">NForce RetailOps</span>
+                <div className="nf1-card-header nf1-card-header--keds">
+                  <img
+                    src="/keds-logo.png"
+                    alt="Ked's Ice Cream, Waffles & Crepes"
+                    className="nf1-card-logo nf1-card-logo--keds"
+                  />
                 </div>
 
                 <AnimatePresence mode="wait">
@@ -198,7 +200,6 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                     >
                       <h1 className="login3-heading">{heading}</h1>
                       <span className="login3-heading-underline" aria-hidden="true" />
-                      <p className="login3-subheading">Sign in to access RetailOps</p>
 
                       {notice && <div className="login3-error" role="status">{notice}</div>}
 
@@ -353,7 +354,11 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                                 Signed in!
                               </>
                             ) : loading ? (
-                              <ButtonDots label="Signing in" />
+                              <span className="btn__dots" role="status" aria-label="Signing in">
+                                <span aria-hidden="true" />
+                                <span aria-hidden="true" />
+                                <span aria-hidden="true" />
+                              </span>
                             ) : (
                               'Sign In'
                             )}
@@ -391,9 +396,6 @@ function Login({ onLoginSuccess, notice }: LoginProps) {
                         <>
                           <h1 className="login3-heading">Reset Password</h1>
                           <span className="login3-heading-underline" aria-hidden="true" />
-                          <p className="login3-subheading">
-                            Enter your organisational email and we'll send reset instructions.
-                          </p>
                         </>
                       )}
 

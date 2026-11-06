@@ -38,9 +38,11 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  /* Rounded square with a faint fill, matching the other header icons
+     (search trigger, etc.) instead of a bare round hover target. */
+  border-radius: 8px;
   border: none;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.12);
   color: var(--color-header-text);
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease;
@@ -48,7 +50,7 @@
 }
 
 .nb__trigger:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .nb__trigger--open {

@@ -24,13 +24,17 @@ interface ProfileMenuProps {
   loggingOut?: boolean;
   // See Modal's `centered` prop.
   centeredModals?: boolean;
+  // Employee with several stores: on phones the header's Switch Store button
+  // moves here, as an icon beside the signed-in name (hidden on wider screens,
+  // where the header keeps its own button).
+  onSwitchStore?: () => void;
 }
 
 function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onEmployeesClick, onCategoriesClick, onHelpClick, onSettingsClick, onIssuesClick, onInventoryClick, onOrdersClick, onLogout, loggingOut = false, centeredModals = false }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onEmployeesClick, onCategoriesClick, onHelpClick, onSettingsClick, onIssuesClick, onInventoryClick, onOrdersClick, onLogout, loggingOut = false, centeredModals = false, onSwitchStore }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -74,8 +78,24 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
         <div className="profile-menu__dropdown" role="menu">
           <div className="profile-menu__inner">
           <div className="profile-menu__name">
-            <span className="profile-menu__name-label">Signed in as</span>
-            <span className="profile-menu__name-text">{fullName}</span>
+            <div className="profile-menu__name-info">
+              <span className="profile-menu__name-label">Signed in as</span>
+              <span className="profile-menu__name-text">{fullName}</span>
+            </div>
+            {onSwitchStore && (
+              <button
+                type="button"
+                className="profile-menu__switch-store"
+                aria-label="Switch Store"
+                title="Switch Store"
+                onClick={() => {
+                  setIsOpen(false);
+                  onSwitchStore();
+                }}
+              >
+                <Store size={16} />
+              </button>
+            )}
           </div>
           {onProfileClick && (
             <button
@@ -147,20 +167,6 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
               Categories
             </button>
           )}
-          {onHelpClick && (
-            <button
-              type="button"
-              role="menuitem"
-              className="profile-menu__item"
-              onClick={() => {
-                setIsOpen(false);
-                onHelpClick();
-              }}
-            >
-              <HelpCircle size={14} />
-              Help &amp; Guidance
-            </button>
-          )}
           {onSettingsClick && (
             <button
               type="button"
@@ -173,20 +179,6 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
             >
               <Settings size={14} />
               Settings
-            </button>
-          )}
-          {onIssuesClick && (
-            <button
-              type="button"
-              role="menuitem"
-              className="profile-menu__item"
-              onClick={() => {
-                setIsOpen(false);
-                onIssuesClick();
-              }}
-            >
-              <AlertTriangle size={14} />
-              Issues
             </button>
           )}
           {onInventoryClick && (
@@ -215,6 +207,34 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
             >
               <ShoppingCart size={14} />
               Orders
+            </button>
+          )}
+          {onIssuesClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onIssuesClick();
+              }}
+            >
+              <AlertTriangle size={14} />
+              Issues
+            </button>
+          )}
+          {onHelpClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onHelpClick();
+              }}
+            >
+              <HelpCircle size={14} />
+              Help &amp; Guidance
             </button>
           )}
           <button

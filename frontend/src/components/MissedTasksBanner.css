@@ -5,8 +5,11 @@
   width: 100%;
   padding: 12px 14px;
   margin-bottom: var(--space-lg);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  /* Same edge as the Admin / Super Admin home widgets (.card): 16px corners,
+     no hard border, soft card shadow. */
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
   background: var(--color-surface-card);
   font-family: inherit;
   cursor: pointer;
@@ -15,7 +18,7 @@
 }
 
 .missed-tasks-banner:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card-hover);
   border-color: color-mix(in srgb, var(--color-badge-icon-warning-fg) 30%, var(--color-border));
 }
 

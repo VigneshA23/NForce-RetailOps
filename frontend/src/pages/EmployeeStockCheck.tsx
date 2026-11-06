@@ -11,6 +11,7 @@ import EmployeeStockCheckHistory from '../components/EmployeeStockCheckHistory';
 import LowerCountModal from '../components/LowerCountModal';
 import MissedEndOfDayBlockModal from '../components/MissedEndOfDayBlockModal';
 import ReceivedStockModal, { type ReceivedItemInput } from '../components/ReceivedStockModal';
+import SpecularButton from '../components/SpecularButton';
 import { roundQty } from '../utils/quantity';
 import StockSnapshotCard from '../components/StockSnapshotCard';
 import ItemIcon from '../components/ItemIcon';
@@ -424,16 +425,22 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
         <>
       <div className="employee-stock-check-page__header employee-stock-check-page__header--daily">
         <div>
-          <h1 className="employee-stock-check-page__title">Daily Stock Entry</h1>
           <p className="employee-stock-check-page__summary">
             {isLoading
               ? 'Loading...'
               : `Start of Day: ${startCount} of ${items.length} · End of Day: ${endCount} of ${items.length}`}
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn--danger"
+        <SpecularButton
+          size="sm"
+          radius={10}
+          tint="#14141a"
+          tintOpacity={0.85}
+          textColor="#f5f5f5"
+          lineColor="#ffffff"
+          baseColor="#525252"
+          followMouse
+          proximity={180}
           disabled={isLoading || !canReportShortage}
           title={canReportShortage ? undefined : 'Submit a Start of Day stock check first'}
           onClick={() => {
@@ -441,9 +448,11 @@ function EmployeeStockCheck({ store, refreshSignal = 0, onOpenNotifications }: E
             setIsAdHocOpen(true);
           }}
         >
-          <AlertTriangle size={16} />
-          Report Shortage
-        </button>
+          <span className="employee-stock-check-page__shortage-label">
+            <AlertTriangle size={16} />
+            Report Shortage
+          </span>
+        </SpecularButton>
       </div>
 
       {!isLoading && items.length === 0 && (

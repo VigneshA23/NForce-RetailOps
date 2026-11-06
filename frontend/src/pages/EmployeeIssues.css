@@ -9,30 +9,13 @@
   padding: var(--space-lg);
 }
 
-/* ── Header: title + subtitle, with Raise Issue at the far right ── */
+/* ── Header: title, with Raise Issue at the far right ── */
 
 .emp-issues-page__header {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--space-md);
-}
-
-.emp-issues-page__header-text {
-  min-width: 0;
-}
-
-.emp-issues-page__heading {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  margin: 0 0 4px;
-}
-
-.emp-issues-page__subheading {
-  font-size: 0.85rem;
-  color: var(--color-text-secondary);
-  margin: 0;
 }
 
 /* ── Loading / error / empty ── */

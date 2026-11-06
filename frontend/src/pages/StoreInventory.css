@@ -62,19 +62,6 @@
   background: var(--color-filter-field-bg);
 }
 
-/* Pink Export button, matching the sky-wave mockup -- on Items and on
-   Stock Check History (both roles). */
-:root:not([data-theme='dark']) :is(.store-inventory-page__export, .store-inventory-page .stock-check-history__export) > :is(.btn--secondary, .btn--danger) {
-  background: #c4267e;
-  border-color: #c4267e;
-  color: #ffffff;
-}
-
-:root:not([data-theme='dark']) :is(.store-inventory-page__export, .store-inventory-page .stock-check-history__export) > :is(.btn--secondary, .btn--danger):hover {
-  background: #a81f6a;
-  border-color: #a81f6a;
-}
-
 .store-inventory-page__subtab-list {
   display: flex;
   align-items: center;
@@ -261,14 +248,6 @@
   margin-bottom: var(--space-md);
 }
 
-.store-inventory-page__title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: var(--color-text-primary);
-}
-
 .store-inventory-page__catalog-line {
   margin: 0 0 var(--space-sm);
   font-size: 13px;
@@ -326,6 +305,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  /* No title beside it any more -- keep the actions on the right. */
+  margin-left: auto;
 }
 
 .store-inventory-page__export {

@@ -30,6 +30,7 @@ import { useIsMobile } from '../hooks/useMediaQuery';
 import { buildCategoryOptions, categoryLabel as categoryLabelOf } from '../types/storeInventory';
 import './OrderList.css';
 import LoadingSkeleton from '../components/LoadingSkeleton';
+import TableScroll from '../components/TableScroll';
 
 type StatusFilter = 'OPEN' | OrderStatus;
 
@@ -517,9 +518,6 @@ function OrderList({ storeName, seed }: OrderListProps) {
     [entries],
   );
 
-  function pickStatusTile(next: StatusFilter) {
-    setStatusFilter((current) => (current === next ? 'OPEN' : next));
-  }
 
   const bulkEligibleItems: BulkStatusChangeItem[] = pendingBulkStatusChange
     ? eligibleIdsForBulkStatus(pendingBulkStatusChange.ids, pendingBulkStatusChange.nextStatus)
@@ -707,10 +705,10 @@ function OrderList({ storeName, seed }: OrderListProps) {
   return (
     <div className="order-list">
       <div className="stat-card-row">
-        <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
-        <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" active={statusFilter === 'NEEDS_ORDERING'} onClick={() => pickStatusTile('NEEDS_ORDERING')} />
-        <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" active={statusFilter === 'ORDERED'} onClick={() => pickStatusTile('ORDERED')} />
-        <StatCard icon={PackageCheck} label="Received Today" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
+        <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" />
+        <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" />
+        <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" />
+        <StatCard icon={PackageCheck} label="Received Today" value={receivedCount} tone="success" />
       </div>
 
       <div className="order-list__filter-row">
@@ -888,7 +886,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
               )}
               {group.isOpen && (
                 <>
-                  <div className="table-scroll">
+                  <TableScroll>
                     <table className="order-list__group-table">
                       <colgroup>
                         <col className="order-list__col--checkbox" />
@@ -914,7 +912,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
                       </thead>
                       <tbody>{group.shown.map((row) => renderRow(row, 'grouped'))}</tbody>
                     </table>
-                  </div>
+                  </TableScroll>
                   {group.hasMore && (
                     <button type="button" className="order-list__more-btn" onClick={() => setGroupExpanded((c) => ({ ...c, [group.key]: !(groupExpanded[group.key] ?? false) }))}>
                       {group.moreLabel}
@@ -929,7 +927,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
 
       {!isLoading && decorated.length > 0 && !grouped && (
         <div className="order-list__flat-card">
-          <div className="table-scroll">
+          <TableScroll>
             <table className="order-list__flat-table">
               <colgroup>
                 <col style={{ width: '3%' }} />
@@ -957,7 +955,7 @@ function OrderList({ storeName, seed }: OrderListProps) {
               </thead>
               <tbody>{decorated.map((row) => renderRow(row, 'flat'))}</tbody>
             </table>
-          </div>
+          </TableScroll>
         </div>
       )}
 

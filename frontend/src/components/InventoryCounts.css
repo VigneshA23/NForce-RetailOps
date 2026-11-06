@@ -342,7 +342,7 @@
   border-top-right-radius: 16px;
 }
 
-.inventory-counts__card-footer {
+.inventory-counts__pagination-footer {
   border-top: 1px solid var(--color-border);
   border-bottom-left-radius: 16px;
   border-bottom-right-radius: 16px;

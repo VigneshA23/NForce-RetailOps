@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, CircleCheck, Clipboard, Layers, List, PackageCheck, PackageSearch, Plus, Truck } from 'lucide-react';
 import { ApiError } from '../api/client';
 import { getAllStores } from '../api/superAdminStores';
@@ -43,6 +43,7 @@ import '../pages/OrderDashboard.css';
 import './SuperAdminOrders.css';
 import { usePersistedState, oneOf, nullableNumber, nullableString } from '../hooks/usePersistedState';
 import LoadingSkeleton from '../components/LoadingSkeleton';
+import TableScroll from '../components/TableScroll';
 
 type StatusFilter = 'OPEN' | OrderStatus;
 
@@ -162,10 +163,10 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
   // OrderList.tsx's own seed prop works, so arriving here again from the Home
   // card re-selects even if the Super Admin has since picked a different
   // store by hand.
-  const appliedFocusTs = useRef<number | null>(null);
+  const [appliedFocusTs, setAppliedFocusTs] = usePersistedState<number | null>('sa-orders-focus-ts', null, nullableNumber);
   useEffect(() => {
-    if (!focusStore || focusStore.ts === appliedFocusTs.current) return;
-    appliedFocusTs.current = focusStore.ts;
+    if (!focusStore || focusStore.ts === appliedFocusTs) return;
+    setAppliedFocusTs(focusStore.ts);
     selectStore(focusStore.storeId, focusStore.storeName);
     setSubTab('orders');
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -579,9 +580,6 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
     [entries],
   );
 
-  function pickStatusTile(next: StatusFilter) {
-    setStatusFilter((current) => (current === next ? 'OPEN' : next));
-  }
 
   const bulkEligibleItems: BulkStatusChangeItem[] = pendingBulkStatusChange
     ? eligibleIdsForBulkStatus(pendingBulkStatusChange.ids, pendingBulkStatusChange.nextStatus)
@@ -819,10 +817,10 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
           {subTab === 'orders' && (
           <>
           <div className="stat-card-row">
-            <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" active={statusFilter === 'OPEN'} onClick={() => pickStatusTile('OPEN')} />
-            <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" active={statusFilter === 'NEEDS_ORDERING'} onClick={() => pickStatusTile('NEEDS_ORDERING')} />
-            <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" active={statusFilter === 'ORDERED'} onClick={() => pickStatusTile('ORDERED')} />
-            <StatCard icon={PackageCheck} label="Received Today" value={receivedCount} tone="success" active={statusFilter === 'RECEIVED'} onClick={() => pickStatusTile('RECEIVED')} />
+            <StatCard icon={Layers} label="All Open" value={openCount} tone="primary" />
+            <StatCard icon={PackageSearch} label="Needs Ordering" value={needsCount} tone="warning" />
+            <StatCard icon={Truck} label="Ordered" value={orderedCount} tone="info" />
+            <StatCard icon={PackageCheck} label="Received Today" value={receivedCount} tone="success" />
           </div>
 
           <div className="order-list__filter-row">
@@ -996,7 +994,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                   )}
                   {group.isOpen && (
                     <>
-                      <div className="table-scroll">
+                      <TableScroll>
                         <table className="order-list__group-table">
                           <colgroup>
                             <col className="order-list__col--checkbox" />
@@ -1022,7 +1020,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                           </thead>
                           <tbody>{group.shown.map((row) => renderRow(row, 'grouped'))}</tbody>
                         </table>
-                      </div>
+                      </TableScroll>
                       {group.hasMore && (
                         <button type="button" className="order-list__more-btn" onClick={() => setGroupExpanded((c) => ({ ...c, [group.key]: !(groupExpanded[group.key] ?? false) }))}>
                           {group.moreLabel}
@@ -1037,7 +1035,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
 
           {!entriesLoading && !entriesError && decorated.length > 0 && !grouped && (
             <div className="order-list__flat-card">
-              <div className="table-scroll">
+              <TableScroll>
                 <table className="order-list__flat-table">
                   <colgroup>
                     <col style={{ width: '3%' }} />
@@ -1065,7 +1063,7 @@ function SuperAdminOrders({ focusStore }: SuperAdminOrdersProps) {
                   </thead>
                   <tbody>{decorated.map((row) => renderRow(row, 'flat'))}</tbody>
                 </table>
-              </div>
+              </TableScroll>
             </div>
           )}
 

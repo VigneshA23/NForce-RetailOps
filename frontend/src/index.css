@@ -7,6 +7,9 @@
 @import './styles/table.css';
 @import './styles/filters.css';
 @import './styles/cards.css';
+@import './styles/glass-menu.css';
+@import './styles/page-title.css';
+@import './styles/page-padding.css';
 
 /* Boot state shown while the stored session is being revalidated, and while an
    employee's assigned stores are loading. Keeps the login screen from flashing

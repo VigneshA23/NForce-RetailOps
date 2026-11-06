@@ -21,6 +21,7 @@ import StockCheckHistory from '../components/StockCheckHistory';
 import SearchInput from '../components/SearchInput';
 import Pagination from '../components/Pagination';
 import SpecularButton from '../components/SpecularButton';
+import ExportButton from '../components/ExportButton';
 import StatCard from '../components/StatCard';
 import UserAvatar from '../components/UserAvatar';
 import Select from '../components/Select';
@@ -41,6 +42,7 @@ const SUB_TABS: { key: SubTab; label: string; icon: typeof Package }[] = [
 ];
 
 const SUPPLIER_PAGE_SIZE = 10;
+const ITEM_PAGE_SIZE = 12;
 
 // Mirrors Super Admin Inventory's own Suppliers status-filter options exactly.
 const SUPPLIER_STATUS_FILTER_OPTIONS = [
@@ -283,6 +285,17 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
     });
   }, [items, search, categoryFilter, supplierFilter]);
 
+  // Items sub-tab paging -- back to page 1 whenever a filter changes; clamped
+  // so a poll that shrinks the list never strands the view on a page that no
+  // longer exists.
+  const [itemPage, setItemPage] = useState(1);
+  useEffect(() => {
+    setItemPage(1);
+  }, [search, categoryFilter, supplierFilter]);
+  const itemPageCount = Math.max(1, Math.ceil(filteredItems.length / ITEM_PAGE_SIZE));
+  const currentItemPage = Math.min(itemPage, itemPageCount);
+  const pagedItems = filteredItems.slice((currentItemPage - 1) * ITEM_PAGE_SIZE, currentItemPage * ITEM_PAGE_SIZE);
+
   // Shared between its desktop position (next to Export) and its mobile one
   // (below the stat cards) -- rendered in exactly one of the two per isMobile
   // rather than both, since each instance spins up its own WebGL shine effect.
@@ -355,28 +368,26 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
         ) : (
           <>
             <div className="store-inventory-page__title-row">
-              <h1 className="store-inventory-page__title">Inventory Master</h1>
               <div className="store-inventory-page__header-actions">
                 <div className="store-inventory-page__export" ref={exportMenuRef}>
-                  <button
-                    type="button"
-                    className="btn btn--secondary"
+                  <ExportButton
+                    isOpen={isExportMenuOpen}
+                    disabled={filteredItems.length === 0}
+                    title={filteredItems.length === 0 ? 'Nothing to export' : undefined}
                     onClick={() => setIsExportMenuOpen((open) => !open)}
-                  >
-                    <FileText size={14} /> Export
-                  </button>
+                  />
                   {isExportMenuOpen && (
-                    <div className="store-inventory-page__export-menu">
+                    <div className="store-inventory-page__export-menu glass-menu">
                       <button
                         type="button"
-                        className="store-inventory-page__export-item"
+                        className="store-inventory-page__export-item glass-menu__item"
                         onClick={() => { exportInventoryCatalogCsv(filteredItems); setIsExportMenuOpen(false); }}
                       >
                         <FileSpreadsheet size={14} /> Export as CSV
                       </button>
                       <button
                         type="button"
-                        className="store-inventory-page__export-item"
+                        className="store-inventory-page__export-item glass-menu__item"
                         onClick={() => { exportInventoryCatalogPdf(filteredItems); setIsExportMenuOpen(false); }}
                       >
                         <FileText size={14} /> Export as PDF
@@ -423,13 +434,24 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
             </div>
 
             <StoreInventoryCardGrid
-              items={filteredItems}
+              items={pagedItems}
+              totalCount={filteredItems.length}
               isLoading={isLoading}
               selectedId={editTarget?.id ?? null}
               onEdit={(item) => { setItemFormError(null); setEditTarget(item); }}
               onDelete={(item) => { setDeleteError(null); setDeleteTarget(item); }}
               onToggleStatus={handleToggleStatus}
             />
+            {!isLoading && (
+              <Pagination
+                page={currentItemPage}
+                pageCount={itemPageCount}
+                totalItems={filteredItems.length}
+                pageSize={ITEM_PAGE_SIZE}
+                onPageChange={setItemPage}
+                itemLabel="items"
+              />
+            )}
             {deleteError && <div className="store-inventory-page__error">{deleteError}</div>}
 
             <StoreInventoryItemFormModal
@@ -477,9 +499,6 @@ function StoreInventory({ historySeed }: StoreInventoryProps) {
           </div>
         ) : (
           <>
-            <div className="store-inventory-page__title-row">
-              <h1 className="store-inventory-page__title">Suppliers</h1>
-            </div>
             <div className="stat-card-row store-inventory-page__supplier-stats">
               <StatCard icon={Truck} label="Suppliers" value={suppliers.length} tone="primary" />
               <StatCard icon={CircleCheck} label="Active" value={activeSupplierCount} tone="success" />

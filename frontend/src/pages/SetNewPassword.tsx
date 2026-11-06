@@ -132,8 +132,6 @@ function SetNewPassword({ token, onDone }: SetNewPasswordProps) {
                   </>
                 ) : (
                   <>
-                    <p className="login3-subheading">Choose a strong password of at least 8 characters.</p>
-
                     <form onSubmit={handleSubmit} noValidate>
                       <div className="login3-field">
                         <span className="login3-label-row">
