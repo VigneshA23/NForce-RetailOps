@@ -8,4 +8,7 @@ import java.util.Optional;
 
 public interface DailyCashEntryRepository extends JpaRepository<DailyCashEntry, Long> {
     Optional<DailyCashEntry> findByStoreIdAndBusinessDate(Long storeId, LocalDate businessDate);
+
+    // The store's most recent day on record (unique per store + date, so no tie).
+    Optional<DailyCashEntry> findFirstByStoreIdOrderByBusinessDateDesc(Long storeId);
 }
