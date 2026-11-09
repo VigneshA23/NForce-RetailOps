@@ -12,6 +12,7 @@ import Tasks from '../pages/Tasks';
 import AdminIssues from '../pages/AdminIssues';
 import StoreInventory from '../pages/StoreInventory';
 import OrderDashboard from '../pages/OrderDashboard';
+import DailyCash from '../pages/DailyCash';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 import Notifications from '../pages/Notifications';
@@ -125,7 +126,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
     setActiveTab('orders');
   }
 
-  const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders'];
+  const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders', 'cash'];
 
   function renderTab(tab: NavTabKey) {
     switch (tab) {
@@ -193,6 +194,8 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
         return <StoreInventory historySeed={historySeed} />;
       case 'orders':
         return <OrderDashboard storeName={storesState.stores[0]?.name} seed={orderSeed} />;
+      case 'cash':
+        return <DailyCash storeId={storesState.stores[0]?.id ?? null} storesLoading={storesState.isLoading} />;
     }
   }
 
@@ -223,11 +226,13 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       onProfileClick={() => setOverlay('profile')}
       onHelpClick={() => setOverlay('help')}
       onIssuesClick={() => { setOverlay(null); setActiveTab('issues'); }}
-      // Inventory and Orders are sidebar tabs on tablet and desktop, so the
-      // profile menu only offers them on mobile, where the bottom bar has no
-      // room for a sixth and seventh entry (the same escape hatch Issues uses).
+      // Inventory, Orders and Daily Cash are sidebar tabs on tablet and
+      // desktop, so the profile menu only offers them on mobile, where the
+      // bottom bar has no room for more entries (the same escape hatch Issues
+      // uses).
       onInventoryClick={isMobile ? () => { setOverlay(null); setActiveTab('inventory'); } : undefined}
       onOrdersClick={isMobile ? () => { setOverlay(null); setActiveTab('orders'); } : undefined}
+      onCashClick={isMobile ? () => { setOverlay(null); setActiveTab('cash'); } : undefined}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}

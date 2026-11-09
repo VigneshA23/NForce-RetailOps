@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Boxes, Building2, HelpCircle, LogOut, Settings, ShoppingCart, Store, Tags, User as UserIcon, Users } from 'lucide-react';
+import { AlertTriangle, Banknote, Boxes, Building2, HelpCircle, LogOut, Settings, ShoppingCart, Store, Tags, User as UserIcon, Users } from 'lucide-react';
 import UserAvatar from './UserAvatar';
 import ConfirmDialog from './ConfirmDialog';
 import './ProfileMenu.css';
@@ -20,6 +20,7 @@ interface ProfileMenuProps {
   onIssuesClick?: () => void;
   onInventoryClick?: () => void;
   onOrdersClick?: () => void;
+  onCashClick?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
   // See Modal's `centered` prop.
@@ -34,7 +35,7 @@ function getInitials(fullName: string): string {
   return fullName.charAt(0).toUpperCase() || '?';
 }
 
-function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onEmployeesClick, onCategoriesClick, onHelpClick, onSettingsClick, onIssuesClick, onInventoryClick, onOrdersClick, onLogout, loggingOut = false, centeredModals = false, onSwitchStore }: ProfileMenuProps) {
+function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onStoresClick, onEmployeesClick, onCategoriesClick, onHelpClick, onSettingsClick, onIssuesClick, onInventoryClick, onOrdersClick, onCashClick, onLogout, loggingOut = false, centeredModals = false, onSwitchStore }: ProfileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -207,6 +208,20 @@ function ProfileMenu({ fullName, avatarUrl, onProfileClick, onOwnersClick, onSto
             >
               <ShoppingCart size={14} />
               Orders
+            </button>
+          )}
+          {onCashClick && (
+            <button
+              type="button"
+              role="menuitem"
+              className="profile-menu__item"
+              onClick={() => {
+                setIsOpen(false);
+                onCashClick();
+              }}
+            >
+              <Banknote size={14} />
+              Daily Cash
             </button>
           )}
           {onIssuesClick && (
