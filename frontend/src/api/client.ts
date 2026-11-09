@@ -6,11 +6,22 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 
 export class ApiError extends Error {
   status: number;
+  // Set for a 400 validation failure, whose body is a field -> message map
+  // rather than { message } (see GlobalExceptionHandler.handleValidation).
+  fieldErrors?: Record<string, string>;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, fieldErrors?: Record<string, string>) {
     super(message);
     this.status = status;
+    this.fieldErrors = fieldErrors;
   }
+}
+
+function asFieldErrors(payload: unknown): Record<string, string> | undefined {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload) || 'message' in payload) return undefined;
+  const entries = Object.entries(payload);
+  if (entries.length === 0 || !entries.every(([, value]) => typeof value === 'string')) return undefined;
+  return Object.fromEntries(entries) as Record<string, string>;
 }
 
 // A hung backend request would otherwise leave the caller waiting forever with
@@ -73,7 +84,7 @@ export async function apiRequest<T>(path: string, { method = 'GET', body, timeou
     const message =
       (payload && typeof payload === 'object' && 'message' in payload && String(payload.message)) ||
       'Something went wrong. Please try again.';
-    throw new ApiError(response.status, message);
+    throw new ApiError(response.status, message, asFieldErrors(payload));
   }
 
   if (response.status === 204) {

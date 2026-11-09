@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Boxes, Building2, CheckSquare, ClipboardList, LayoutGrid, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
+import { Banknote, Boxes, Building2, CheckSquare, ClipboardList, LayoutGrid, ShoppingCart, Store, Tags, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -9,7 +9,8 @@ export type NavTabKey =
   | 'tasks'
   | 'issues'
   | 'inventory'
-  | 'orders';
+  | 'orders'
+  | 'cash';
 
 export interface NavItem<Key extends string = NavTabKey> {
   key: Key;
@@ -25,11 +26,13 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'tasks', label: 'Tasks', icon: CheckSquare },
   { key: 'inventory', label: 'Inventory', icon: Boxes },
   { key: 'orders', label: 'Orders', icon: ShoppingCart },
+  { key: 'cash', label: 'Daily Cash', icon: Banknote },
 ];
 
 // Mobile bottom tab bar: home, daily checklist, tasks, employees, categories.
-// Issues, Inventory and Orders are intentionally not bottom-bar tabs; they are
-// reached via the profile menu (and, for Issues and Orders, a Home page tile).
+// Issues, Inventory, Orders and Daily Cash are intentionally not bottom-bar
+// tabs; they are reached via the profile menu (and, for Issues and Orders, a
+// Home page tile).
 // Seven tabs will not fit at phone width -- see the truncation note below.
 // 'store-detail' uses a shorter label on mobile — "Checklist" vs "Daily Checklist" on desktop —
 // because 5 tabs at 375px gives ~60px text width; "Daily Checklist" truncates, "Checklist" fits.
@@ -48,6 +51,7 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   issues: 'Issues',
   inventory: 'Inventory',
   orders: 'Orders',
+  cash: 'Daily Cash Entry',
 };
 
 export type EmployeeNavTabKey = 'today' | 'audits' | 'issues' | 'missing' | 'stock-check';
@@ -58,7 +62,7 @@ export interface EmployeeNavItem {
   icon: LucideIcon;
 }
 
-export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'tasks' | 'checklist' | 'issues' | 'inventory' | 'orders';
+export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'tasks' | 'checklist' | 'issues' | 'inventory' | 'orders' | 'cash';
 
 export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'home', label: 'Home', icon: Home },
@@ -70,12 +74,13 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'checklist', label: 'Daily Checklist', icon: ClipboardList },
   { key: 'inventory', label: 'Inventory', icon: Boxes },
   { key: 'orders', label: 'Orders', icon: ShoppingCart },
+  { key: 'cash', label: 'Daily Cash', icon: Banknote },
 ];
 
 // Issues is not a sidebar entry on any screen size: it is reached from the
 // profile menu (desktop, tablet and mobile) and the Home page's issues tile.
 // Mobile bottom tab bar: home, tasks, daily checklist. Owners, Stores,
-// Employees, Categories, Inventory and Orders are accessible via the profile
+// Employees, Categories, Inventory, Orders and Daily Cash are accessible via the profile
 // menu on mobile only -- 10 tabs doesn't fit comfortably at phone width.
 const SUPER_ADMIN_BOTTOM_NAV_ORDER: SuperAdminNavTabKey[] = ['home', 'tasks', 'checklist'];
 export const SUPER_ADMIN_BOTTOM_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = SUPER_ADMIN_BOTTOM_NAV_ORDER.map(
@@ -93,4 +98,5 @@ export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
   issues: 'Issues',
   inventory: 'Inventory',
   orders: 'Orders',
+  cash: 'Daily Cash Entry',
 };

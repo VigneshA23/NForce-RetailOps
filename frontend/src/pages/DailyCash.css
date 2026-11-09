@@ -1,0 +1,127 @@
+@import '../styles/breakpoints.css';
+
+.daily-cash-page__card {
+  max-width: 880px;
+}
+
+.daily-cash-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.daily-cash-page__pickers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-md);
+  min-width: 0;
+}
+
+/* Same width as the Super Admin Daily Checklist's store selector. */
+.daily-cash-page__store {
+  width: 280px;
+  max-width: 100%;
+}
+
+.daily-cash-page__date {
+  flex: 0 1 220px;
+  min-width: 180px;
+}
+
+.daily-cash-page__store .form-field,
+.daily-cash-page__date .form-field {
+  margin-bottom: 0;
+}
+
+.daily-cash-page__status {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.daily-cash-page__fieldset {
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.daily-cash-page__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--space-lg);
+}
+
+.daily-cash-page__money {
+  position: relative;
+}
+
+.daily-cash-page__currency {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
+.daily-cash-page__input.input {
+  padding-left: 26px;
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-cash-page__hint {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.daily-cash-page__alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  margin: 0 0 var(--space-md);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-badge-danger-bg, #fde8ea);
+  color: var(--color-badge-danger-fg, #b3162a);
+  font-size: 13px;
+}
+
+.daily-cash-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-md);
+}
+
+.daily-cash-page__error-summary {
+  font-size: 13px;
+  color: var(--color-accent);
+}
+
+@media (--mobile) {
+  .daily-cash-page__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .daily-cash-page__pickers,
+  .daily-cash-page__store,
+  .daily-cash-page__date {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .daily-cash-page__actions .btn {
+    width: 100%;
+  }
+}

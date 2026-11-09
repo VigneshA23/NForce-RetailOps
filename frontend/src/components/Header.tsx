@@ -54,6 +54,7 @@ interface HeaderProps {
   onIssuesClick?: () => void;
   onInventoryClick?: () => void;
   onOrdersClick?: () => void;
+  onCashClick?: () => void;
   onSwitchStore?: () => void;
   onLogout: () => void;
   loggingOut?: boolean;
@@ -98,6 +99,7 @@ function Header({
   onIssuesClick,
   onInventoryClick,
   onOrdersClick,
+  onCashClick,
   onSwitchStore,
   onLogout,
   loggingOut,
@@ -196,6 +198,7 @@ function Header({
           onIssuesClick={onIssuesClick}
           onInventoryClick={onInventoryClick}
           onOrdersClick={onOrdersClick}
+          onCashClick={onCashClick}
           onSwitchStore={onSwitchStore}
           onLogout={onLogout}
           loggingOut={loggingOut}

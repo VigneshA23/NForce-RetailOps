@@ -11,10 +11,10 @@ import type { EmployeeNavTabKey, NavTabKey, SuperAdminNavTabKey } from '../types
 // types/navigation.ts -- a stored value outside this list is treated as
 // invalid and ignored, so a stale/renamed tab key can never crash a shell.
 const SUPER_ADMIN_TAB_VALUES: readonly SuperAdminNavTabKey[] = [
-  'home', 'owners', 'stores', 'employees', 'categories', 'tasks', 'checklist', 'issues', 'inventory', 'orders',
+  'home', 'owners', 'stores', 'employees', 'categories', 'tasks', 'checklist', 'issues', 'inventory', 'orders', 'cash',
 ];
 const OWNER_TAB_VALUES: readonly NavTabKey[] = [
-  'home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders',
+  'home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders', 'cash',
 ];
 const EMPLOYEE_TAB_VALUES: readonly EmployeeNavTabKey[] = ['today', 'audits', 'issues', 'missing', 'stock-check'];
 
