@@ -6,6 +6,8 @@ import { getInitials } from '../utils/initials';
 import './SuperAdminStoreTable.css';
 import LoadingSkeleton from './LoadingSkeleton';
 
+const INACTIVE_TITLE = 'Store is inactive - activate it to make changes';
+
 interface SuperAdminStoreTableProps {
   stores: SuperAdminStore[];
   isLoading?: boolean;
@@ -101,7 +103,8 @@ function SuperAdminStoreTable({
                       type="button"
                       className="table-icon-btn"
                       aria-label={`Edit ${store.storeName}`}
-                      title="Edit store"
+                      title={store.storeActive ? 'Edit store' : INACTIVE_TITLE}
+                      disabled={!store.storeActive}
                       onClick={() => onEdit(store)}
                     >
                       <Pencil size={16} />
@@ -110,7 +113,8 @@ function SuperAdminStoreTable({
                       type="button"
                       className="table-icon-btn"
                       aria-label={`Assign owner to ${store.storeName}`}
-                      title="Assign owner"
+                      title={store.storeActive ? 'Assign owner' : INACTIVE_TITLE}
+                      disabled={!store.storeActive}
                       onClick={() => onAssignOwner(store)}
                     >
                       <UserRoundCog size={16} />
@@ -119,7 +123,8 @@ function SuperAdminStoreTable({
                       type="button"
                       className="table-icon-btn table-icon-btn--danger"
                       aria-label={`Delete ${store.storeName}`}
-                      title="Delete store"
+                      title={store.storeActive ? 'Delete store' : INACTIVE_TITLE}
+                      disabled={!store.storeActive}
                       onClick={() => onDelete(store)}
                     >
                       <Trash2 size={16} />
@@ -187,7 +192,8 @@ function SuperAdminStoreTable({
                     type="button"
                     className="table-icon-btn"
                     aria-label={`Edit ${store.storeName}`}
-                    title="Edit store"
+                    title={store.storeActive ? 'Edit store' : INACTIVE_TITLE}
+                    disabled={!store.storeActive}
                     onClick={() => onEdit(store)}
                   >
                     <Pencil size={16} />
@@ -196,7 +202,8 @@ function SuperAdminStoreTable({
                     type="button"
                     className="table-icon-btn table-icon-btn--danger"
                     aria-label={`Delete ${store.storeName}`}
-                    title="Delete store"
+                    title={store.storeActive ? 'Delete store' : INACTIVE_TITLE}
+                    disabled={!store.storeActive}
                     onClick={() => onDelete(store)}
                   >
                     <Trash2 size={16} />
@@ -226,7 +233,8 @@ function SuperAdminStoreTable({
                   type="button"
                   className="table-icon-btn sa-store-mobile-card__assign-btn"
                   aria-label={`Assign owner to ${store.storeName}`}
-                  title="Assign owner"
+                  title={store.storeActive ? 'Assign owner' : INACTIVE_TITLE}
+                  disabled={!store.storeActive}
                   onClick={() => onAssignOwner(store)}
                 >
                   <UserRoundCog size={16} />

@@ -303,3 +303,9 @@
     border-top: none;
   }
 }
+
+.super-admin-store-table .table-icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: auto;
+}

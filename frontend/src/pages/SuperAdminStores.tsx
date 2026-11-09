@@ -72,9 +72,13 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
       .finally(() => setIsLoading(false));
   }
 
+  function refreshOwners() {
+    getOwners().then(setAllOwners).catch(() => {});
+  }
+
   useEffect(() => {
     loadStores();
-    getOwners().then(setAllOwners).catch(() => {});
+    refreshOwners();
     getAllEmployeesForSuperAdmin()
       .then((employees) => setActiveEmployeeCount(employees.filter((e) => e.active).length))
       .catch(() => {});
@@ -168,22 +172,9 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
     try {
       const updated = await assignStoreOwner(assignTarget.storeId, ownerId);
       setStores((current) => current.map((s) => (s.storeId === updated.storeId ? updated : s)));
-      // Patch the assigned owner's store fields locally (rather than refetching the
-      // whole owners list) so they no longer show as available.
-      setAllOwners((current) =>
-        current.map((o) =>
-          o.ownerId === ownerId
-            ? {
-                ...o,
-                storeId: updated.storeId,
-                storeCode: updated.storeCode,
-                storeName: updated.storeName,
-                storeLocation: updated.storeLocation,
-                storeActive: updated.storeActive,
-              }
-            : o,
-        ),
-      );
+      // Reassignment releases the previous owner too, which a local patch of the
+      // new owner alone would miss -- refetch so availability reflects the server.
+      refreshOwners();
       setAssignTarget(null);
       nfToast.success(`Owner assigned to "${updated.storeName}".`);
       // The previous owner (if any) also lost this store link -- simplest
@@ -305,6 +296,9 @@ function SuperAdminStores({ onNavigateToChecklist, onOwnersDataStale }: SuperAdm
             }}
             onAssignOwner={(store) => {
               setAssignError(null);
+              // Owner availability changes whenever any store is reassigned,
+              // so always load the current list when the modal opens.
+              refreshOwners();
               setAssignTarget(store);
             }}
             onDelete={(store) => {
