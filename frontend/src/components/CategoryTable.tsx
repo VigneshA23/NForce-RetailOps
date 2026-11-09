@@ -6,6 +6,7 @@ import {
   Tag,
   PlusCircle,
   Store as StoreIcon,
+  ChevronDown,
 } from 'lucide-react';
 import {
   DndContext,
@@ -22,7 +23,9 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
+import StoreChip from './StoreChip';
 import type { Category } from '../types/category';
 import { formatDateLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
 import Toggle from './Toggle';
@@ -71,7 +74,42 @@ function startsLabel(category: Category): string | null {
     : `Starts ${formatDateLabel(category.startDate)}`;
 }
 
-function CategoryRowCells({ category, canManage, onEdit, onDelete, onToggleStatus, onAssignTasks }: RowSharedProps) {
+interface StoresExpandProps {
+  storesExpanded: boolean;
+  onToggleStores: () => void;
+}
+
+function StoresExpandRow({ category, colSpan }: { category: Category; colSpan: number }) {
+  return (
+    <tr className="store-expand-row category-table__expand-row">
+      <td colSpan={colSpan}>
+        <div className="store-expand-panel">
+          <div className="store-expand-panel__heading">Assigned Stores · {category.stores.length}</div>
+          <div className="store-expand-panel__list">
+            {category.stores.map((store) => (
+              <StoreChip key={store.id} name={store.name} />
+            ))}
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function canExpandStores(category: Category, canManage: boolean): boolean {
+  return canManage && !category.appliesToAllStores && category.stores.length > 1;
+}
+
+function CategoryRowCells({
+  category,
+  canManage,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+  onAssignTasks,
+  storesExpanded,
+  onToggleStores,
+}: RowSharedProps & StoresExpandProps) {
   const starts = startsLabel(category);
   return (
     <>
@@ -92,7 +130,35 @@ function CategoryRowCells({ category, canManage, onEdit, onDelete, onToggleStatu
               ? 'Assigned Stores'
               : `Assigned Stores (${category.stores.length})`}
           </span>
-          <ul className="category-table__store-chips">
+          {/* Desktop: first store (or All Stores) plus a "+N more" toggle. */}
+          <div className="store-summary category-table__desktop-only">
+            {category.appliesToAllStores ? (
+              <span className="store-chip">
+                <span className="store-chip__letter category-table__all-stores-circle" aria-hidden="true">
+                  <StoreIcon size={12} />
+                </span>
+                <span className="store-chip__name">All Stores</span>
+              </span>
+            ) : category.stores.length === 0 ? (
+              <span className="category-table__no-stores">—</span>
+            ) : (
+              <>
+                <StoreChip name={category.stores[0].name} />
+                {category.stores.length > 1 && (
+                  <button
+                    type="button"
+                    className="store-more-toggle"
+                    aria-expanded={storesExpanded}
+                    onClick={onToggleStores}
+                  >
+                    +{category.stores.length - 1} more
+                    <ChevronDown size={14} aria-hidden="true" />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+          <ul className="category-table__store-chips category-table__mobile-only">
             {category.appliesToAllStores ? (
               <li className="category-table__store-chip">
                 <StoreIcon size={12} aria-hidden="true" />
@@ -174,6 +240,7 @@ function CategoryRowCells({ category, canManage, onEdit, onDelete, onToggleStatu
 }
 
 function SortableCategoryRow({ category, canManage, onEdit, onDelete, onToggleStatus, onAssignTasks }: RowSharedProps) {
+  const [storesExpanded, setStoresExpanded] = useState(false);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: category.id,
   });
@@ -183,47 +250,62 @@ function SortableCategoryRow({ category, canManage, onEdit, onDelete, onToggleSt
   };
 
   return (
-    <tr
-      ref={setNodeRef}
-      style={style}
-      className={`category-table__row category-table__row--reorderable${isDragging ? ' category-table__row--dragging' : ''}`}
-    >
-      <td className="category-table__drag-cell">
-        <button
-          type="button"
-          className={`table-icon-btn category-table__drag-handle${isDragging ? ' category-table__drag-handle--dragging' : ''}`}
-          aria-label={`Reorder ${category.name}`}
-          title="Drag to reorder"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical size={16} />
-        </button>
-      </td>
-      <CategoryRowCells
-        category={category}
-        canManage={canManage}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onToggleStatus={onToggleStatus}
-        onAssignTasks={onAssignTasks}
-      />
-    </tr>
+    <>
+      <tr
+        ref={setNodeRef}
+        style={style}
+        className={`category-table__row category-table__row--reorderable${isDragging ? ' category-table__row--dragging' : ''}`}
+      >
+        <td className="category-table__drag-cell">
+          <button
+            type="button"
+            className={`table-icon-btn category-table__drag-handle${isDragging ? ' category-table__drag-handle--dragging' : ''}`}
+            aria-label={`Reorder ${category.name}`}
+            title="Drag to reorder"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical size={16} />
+          </button>
+        </td>
+        <CategoryRowCells
+          category={category}
+          canManage={canManage}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onToggleStatus={onToggleStatus}
+          onAssignTasks={onAssignTasks}
+          storesExpanded={storesExpanded}
+          onToggleStores={() => setStoresExpanded((v) => !v)}
+        />
+      </tr>
+      {storesExpanded && canExpandStores(category, canManage) && (
+        <StoresExpandRow category={category} colSpan={6} />
+      )}
+    </>
   );
 }
 
 function StaticCategoryRow({ category, canManage, onEdit, onDelete, onToggleStatus, onAssignTasks }: RowSharedProps) {
+  const [storesExpanded, setStoresExpanded] = useState(false);
   return (
-    <tr className="category-table__row">
-      <CategoryRowCells
-        category={category}
-        canManage={canManage}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onToggleStatus={onToggleStatus}
-        onAssignTasks={onAssignTasks}
-      />
-    </tr>
+    <>
+      <tr className="category-table__row">
+        <CategoryRowCells
+          category={category}
+          canManage={canManage}
+          onEdit={onEdit}
+          onDelete={onDelete}
+          onToggleStatus={onToggleStatus}
+          onAssignTasks={onAssignTasks}
+          storesExpanded={storesExpanded}
+          onToggleStores={() => setStoresExpanded((v) => !v)}
+        />
+      </tr>
+      {storesExpanded && canExpandStores(category, canManage) && (
+        <StoresExpandRow category={category} colSpan={5} />
+      )}
+    </>
   );
 }
 

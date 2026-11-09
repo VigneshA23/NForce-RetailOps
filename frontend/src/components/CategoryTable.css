@@ -128,14 +128,17 @@
   display: none;
 }
 
-.category-table__card--managed .category-table__store-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-width: 440px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* Desktop uses the first-store + "+N more" summary; the chip list is mobile-only. */
+.category-table__card--managed .category-table__mobile-only {
+  display: none;
+}
+
+.category-table__all-stores-circle {
+  background: var(--color-badge-icon-info-fg);
+}
+
+.category-table__no-stores {
+  color: var(--color-text-muted);
 }
 
 .category-table__store-chip {
@@ -369,7 +372,9 @@
     gap: 4px;
   }
 
-  .category-table__card--managed .category-table__stores-text {
+  .category-table__card--managed .category-table__stores-text,
+  .category-table__card--managed .category-table__desktop-only,
+  .table-card.category-table__card--managed .data-table tbody tr.store-expand-row {
     display: none;
   }
 
@@ -408,7 +413,7 @@
     height: 14px;
   }
 
-  .category-table__card--managed .category-table__store-chips {
+  .category-table__card--managed .category-table__store-chips.category-table__mobile-only {
     grid-area: chips;
     display: flex;
     flex-direction: column;
