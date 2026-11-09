@@ -35,6 +35,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errors);
     }
 
+    // Malformed / wrongly-typed JSON body, e.g. a non-numeric cash target.
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, String>> handleUnreadableBody(
+        org.springframework.http.converter.HttpMessageNotReadableException ex
+    ) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            .body(Map.of("message", "Request body is invalid: check that every value has the correct type (e.g. amounts must be numbers)"));
+    }
+
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<Map<String, String>> handleEmailAlreadyExists(EmailAlreadyExistsException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
