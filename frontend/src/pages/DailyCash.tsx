@@ -11,6 +11,7 @@ import FormField from '../components/FormField';
 import PopoverDateField from '../components/PopoverDateField';
 import ButtonDots from '../components/ButtonDots';
 import { formatAmount } from '../utils/currency';
+import { parseAmount, validateAmount } from '../utils/amountInput';
 import { nfToast } from '../utils/toast';
 import './DailyCash.css';
 
@@ -72,10 +73,6 @@ const EMPTY_VALUES: Values = {
   otherAdjustments: '',
 };
 
-// The server stores up to 10 whole digits and 2 decimals per amount.
-const AMOUNT_PATTERN = /^-?(\d{1,10}(\.\d{0,2})?|\.\d{1,2})$/;
-const NUMBER_PATTERN = /^-?(\d+(\.\d*)?|\.\d+)$/;
-
 function todayKey(): string {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -95,23 +92,11 @@ function valuesFrom(entry: DailyCashEntry): Values {
   return values;
 }
 
-// Commas are display-only (formatAmount adds them on blur), so ignore them.
-function normalise(raw: string): string {
-  return raw.trim().replace(/,/g, '');
-}
-
 function validateField(field: FieldSpec, raw: string): string | undefined {
-  const value = normalise(raw);
-  if (value === '') {
-    return field.signed ? `${field.label} is required (enter 0 if none)` : `${field.label} is required`;
-  }
-  if (!NUMBER_PATTERN.test(value)) return `${field.label} must be a number, e.g. 125.50`;
-  if (!field.signed && value.startsWith('-')) return `${field.label} cannot be negative`;
-  if (!AMOUNT_PATTERN.test(value)) {
-    const [whole = '', fraction = ''] = value.replace('-', '').split('.');
-    return fraction.length > 2 ? 'Use at most 2 decimal places' : whole.length > 10 ? 'Amount is too large' : `${field.label} must be a number, e.g. 125.50`;
-  }
-  return undefined;
+  return validateAmount(field.label, raw, {
+    signed: field.signed,
+    requiredMessage: field.signed ? `${field.label} is required (enter 0 if none)` : undefined,
+  });
 }
 
 function validateAll(values: Values): Errors {
@@ -183,7 +168,7 @@ function DailyCash({
   function handleBlur(field: FieldSpec) {
     const raw = values[field.key];
     if (validateField(field, raw)) return;
-    setValues((current) => ({ ...current, [field.key]: formatAmount(Number(normalise(raw))) }));
+    setValues((current) => ({ ...current, [field.key]: formatAmount(parseAmount(raw)) }));
   }
 
   async function handleSubmit(event: FormEvent) {
@@ -195,7 +180,7 @@ function DailyCash({
     if (Object.keys(nextErrors).length > 0 || storeId === null) return;
 
     const amounts = {} as CashAmounts;
-    for (const field of FIELDS) amounts[field.key] = Number(normalise(values[field.key]));
+    for (const field of FIELDS) amounts[field.key] = parseAmount(values[field.key]);
 
     setIsSaving(true);
     try {

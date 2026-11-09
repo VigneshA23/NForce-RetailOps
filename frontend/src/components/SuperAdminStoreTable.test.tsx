@@ -23,7 +23,7 @@ function baseStore(overrides: Partial<SuperAdminStore> = {}): SuperAdminStore {
 
 function renderTable(stores: SuperAdminStore[], props: Partial<Parameters<typeof SuperAdminStoreTable>[0]> = {}) {
   return render(
-    <SuperAdminStoreTable stores={stores} onViewDetails={vi.fn()} onToggleStatus={vi.fn()} onEdit={vi.fn()} onAssignOwner={vi.fn()} onDelete={vi.fn()} {...props} />,
+    <SuperAdminStoreTable stores={stores} onViewDetails={vi.fn()} onToggleStatus={vi.fn()} onEdit={vi.fn()} onAssignOwner={vi.fn()} onDelete={vi.fn()} onCashTarget={vi.fn()} {...props} />,
   );
 }
 
@@ -128,5 +128,21 @@ describe('SuperAdminStoreTable', () => {
 
     expect(screen.getByText('Loading stores...')).toBeInTheDocument();
     expect(screen.queryByText('No stores match your filters.')).not.toBeInTheDocument();
+  });
+
+  it('opens the cash drawer target for a store from either layout, but not for an inactive store', async () => {
+    const user = userEvent.setup();
+    const onCashTarget = vi.fn();
+    const active = baseStore();
+    const inactive = baseStore({ storeId: 2, storeName: 'Closed Store', storeActive: false });
+    renderTable([active, inactive], { onCashTarget });
+
+    await user.click(desktopScope().getByRole('button', { name: 'Cash target for Downtown Store' }));
+    expect(onCashTarget).toHaveBeenCalledWith(active);
+
+    await user.click(mobileScope().getByRole('button', { name: 'Cash target for Downtown Store' }));
+    expect(onCashTarget).toHaveBeenCalledTimes(2);
+
+    expect(desktopScope().getByRole('button', { name: 'Cash target for Closed Store' })).toBeDisabled();
   });
 });

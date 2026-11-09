@@ -14,7 +14,7 @@ const SUPER_ADMIN_TAB_VALUES: readonly SuperAdminNavTabKey[] = [
   'home', 'owners', 'stores', 'employees', 'categories', 'tasks', 'checklist', 'issues', 'inventory', 'orders', 'cash',
 ];
 const OWNER_TAB_VALUES: readonly NavTabKey[] = [
-  'home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders', 'cash',
+  'home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders', 'cash', 'cash-target',
 ];
 const EMPLOYEE_TAB_VALUES: readonly EmployeeNavTabKey[] = ['today', 'audits', 'issues', 'missing', 'stock-check'];
 
