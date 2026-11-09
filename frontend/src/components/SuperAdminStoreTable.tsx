@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Eye, Pencil, Store as StoreIcon, Trash2, User, UserRoundCog, Users } from 'lucide-react';
+import { Banknote, Eye, Pencil, Store as StoreIcon, Trash2, User, UserRoundCog, Users } from 'lucide-react';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
@@ -17,6 +17,8 @@ interface SuperAdminStoreTableProps {
   onEdit: (store: SuperAdminStore) => void;
   onAssignOwner: (store: SuperAdminStore) => void;
   onDelete: (store: SuperAdminStore) => void;
+  // View/edit the store's cash-drawer target (RTS-294).
+  onCashTarget: (store: SuperAdminStore) => void;
   footer?: ReactNode;
 }
 
@@ -29,6 +31,7 @@ function SuperAdminStoreTable({
   onEdit,
   onAssignOwner,
   onDelete,
+  onCashTarget,
   footer,
 }: SuperAdminStoreTableProps) {
   return (
@@ -121,6 +124,16 @@ function SuperAdminStoreTable({
                     </button>
                     <button
                       type="button"
+                      className="table-icon-btn"
+                      aria-label={`Cash target for ${store.storeName}`}
+                      title={store.storeActive ? 'Cash drawer target' : INACTIVE_TITLE}
+                      disabled={!store.storeActive}
+                      onClick={() => onCashTarget(store)}
+                    >
+                      <Banknote size={16} />
+                    </button>
+                    <button
+                      type="button"
                       className="table-icon-btn table-icon-btn--danger"
                       aria-label={`Delete ${store.storeName}`}
                       title={store.storeActive ? 'Delete store' : INACTIVE_TITLE}
@@ -197,6 +210,16 @@ function SuperAdminStoreTable({
                     onClick={() => onEdit(store)}
                   >
                     <Pencil size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    className="table-icon-btn"
+                    aria-label={`Cash target for ${store.storeName}`}
+                    title={store.storeActive ? 'Cash drawer target' : INACTIVE_TITLE}
+                    disabled={!store.storeActive}
+                    onClick={() => onCashTarget(store)}
+                  >
+                    <Banknote size={16} />
                   </button>
                   <button
                     type="button"

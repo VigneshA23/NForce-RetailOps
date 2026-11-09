@@ -43,6 +43,7 @@ interface AppShellProps<Key extends string = NavTabKey> {
   onInventoryClick?: () => void;
   onOrdersClick?: () => void;
   onCashClick?: () => void;
+  onCashTargetClick?: () => void;
   // Forwarded to ProfileMenu (see its prop) -- Employee shell only.
   onSwitchStore?: () => void;
   onNotificationsClick?: () => void;
@@ -104,6 +105,7 @@ function AppShell<Key extends string = NavTabKey>({
   onInventoryClick,
   onOrdersClick,
   onCashClick,
+  onCashTargetClick,
   onSwitchStore,
   onNotificationsClick,
   onNotificationNavigate,
@@ -207,6 +209,7 @@ function AppShell<Key extends string = NavTabKey>({
           onInventoryClick={onInventoryClick}
           onOrdersClick={onOrdersClick}
           onCashClick={onCashClick}
+          onCashTargetClick={onCashTargetClick}
           onSwitchStore={onSwitchStore}
           onNotificationsClick={onNotificationsClick}
           onNotificationNavigate={onNotificationNavigate}

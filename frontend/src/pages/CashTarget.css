@@ -1,0 +1,9 @@
+.cash-target-page__card {
+  max-width: 560px;
+}
+
+.cash-target-page__intro {
+  margin: 0 0 var(--space-lg);
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
