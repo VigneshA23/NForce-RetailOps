@@ -6,7 +6,6 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreCashTarget;
 import com.nforce.retailops.entity.StoreCashTargetChange;
 import com.nforce.retailops.entity.SuperAdmin;
-import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreCashTargetChangeRepository;
 import com.nforce.retailops.repository.StoreCashTargetRepository;
@@ -39,12 +38,18 @@ import static org.mockito.Mockito.when;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class StoreCashTargetServiceTest {
 
-    @Mock StoreCashTargetRepository targetRepository;
-    @Mock StoreCashTargetChangeRepository changeRepository;
-    @Mock StoreOwnerRepository storeOwnerRepository;
-    @Mock StoreRepository storeRepository;
-    @Mock UserRepository userRepository;
-    @Mock SuperAdminRepository superAdminRepository;
+    @Mock
+    StoreCashTargetRepository targetRepository;
+    @Mock
+    StoreCashTargetChangeRepository changeRepository;
+    @Mock
+    StoreOwnerRepository storeOwnerRepository;
+    @Mock
+    StoreRepository storeRepository;
+    @Mock
+    UserRepository userRepository;
+    @Mock
+    SuperAdminRepository superAdminRepository;
 
     StoreCashTargetService service;
     Store store;
@@ -53,7 +58,7 @@ class StoreCashTargetServiceTest {
     @BeforeEach
     void setUp() {
         service = new StoreCashTargetService(targetRepository, changeRepository,
-            storeOwnerRepository, storeRepository, userRepository, superAdminRepository);
+                storeOwnerRepository, storeRepository, userRepository, superAdminRepository);
         store = mock(Store.class);
         when(store.getId()).thenReturn(7L);
         when(storeRepository.findById(7L)).thenReturn(Optional.of(store));
@@ -71,7 +76,7 @@ class StoreCashTargetServiceTest {
         when(superAdminRepository.getReferenceById(3L)).thenReturn(sa);
 
         StoreCashTargetResponse r = service.updateForSuperAdmin(3L, 7L,
-            new StoreCashTargetRequest(new BigDecimal("200.00")));
+                new StoreCashTargetRequest(new BigDecimal("200.00")));
 
         assertEquals(new BigDecimal("200.00"), r.targetAmount());
         assertEquals(3L, r.updatedBySuperAdminId());
@@ -110,7 +115,7 @@ class StoreCashTargetServiceTest {
     void ownerWithoutActiveStoreIsRejected() {
         when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(java.util.List.of());
         assertThrows(StoreNotFoundException.class,
-            () -> service.update(1L, new StoreCashTargetRequest(BigDecimal.TEN)));
+                () -> service.update(1L, new StoreCashTargetRequest(BigDecimal.TEN)));
         verify(changeRepository, never()).save(any());
     }
 }
