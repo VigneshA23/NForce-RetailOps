@@ -1,5 +1,17 @@
 import { chromium } from 'playwright';
 
+const OWNER_EMAIL = process.env.VERIFY_OWNER_EMAIL;
+const OWNER_PASSWORD = process.env.VERIFY_OWNER_PASSWORD;
+const SUPERADMIN_EMAIL = process.env.VERIFY_SUPERADMIN_EMAIL;
+const SUPERADMIN_PASSWORD = process.env.VERIFY_SUPERADMIN_PASSWORD;
+if (!OWNER_EMAIL || !OWNER_PASSWORD || !SUPERADMIN_EMAIL || !SUPERADMIN_PASSWORD) {
+  throw new Error(
+    'Set VERIFY_OWNER_EMAIL, VERIFY_OWNER_PASSWORD, VERIFY_SUPERADMIN_EMAIL and VERIFY_SUPERADMIN_PASSWORD ' +
+    'before running this script (e.g. in an untracked frontend/.env.verify file, loaded with ' +
+    '`node --env-file=.env.verify verify-edit-modals2.mjs`).',
+  );
+}
+
 const BASE = 'http://localhost:5173';
 const browser = await chromium.launch();
 
@@ -20,7 +32,7 @@ ownerPage.on('response', async (res) => {
     console.log(`${res.status()} ${res.url()} -> ${body}`);
   }
 });
-await loginAs(ownerPage, 'priya.ramachandran@kedsicecream.com', 'Password123!');
+await loginAs(ownerPage, OWNER_EMAIL, OWNER_PASSWORD);
 await ownerPage.waitForSelector('nav >> text=Inventory', { timeout: 20000 });
 await ownerPage.waitForTimeout(1500);
 await ownerPage.click('nav >> text=Inventory');
@@ -34,7 +46,7 @@ await ownerPage.close();
 
 // --- Owner: Order List Entry edit (Supplier) ---
 const orderPage = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await loginAs(orderPage, 'priya.ramachandran@kedsicecream.com', 'Password123!');
+await loginAs(orderPage, OWNER_EMAIL, OWNER_PASSWORD);
 await orderPage.waitForSelector('nav >> text=Orders', { timeout: 20000 });
 await orderPage.click('nav >> text=Orders');
 await orderPage.waitForSelector('text=Loading', { state: 'detached', timeout: 15000 }).catch(() => {});
@@ -46,7 +58,7 @@ await orderPage.close();
 
 // --- Super Admin: Inventory Item edit (Category) ---
 const saPage = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await loginAs(saPage, 'superadmin@kedsicecream.com', 'Superadmin123');
+await loginAs(saPage, SUPERADMIN_EMAIL, SUPERADMIN_PASSWORD);
 await saPage.waitForSelector('nav >> text=Inventory', { timeout: 20000 });
 await saPage.click('nav >> text=Inventory');
 await saPage.waitForSelector('text=Loading', { state: 'detached', timeout: 15000 }).catch(() => {});

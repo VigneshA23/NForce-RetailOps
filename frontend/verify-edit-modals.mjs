@@ -1,5 +1,14 @@
 import { chromium } from 'playwright';
 
+const OWNER_EMAIL = process.env.VERIFY_OWNER_EMAIL;
+const OWNER_PASSWORD = process.env.VERIFY_OWNER_PASSWORD;
+if (!OWNER_EMAIL || !OWNER_PASSWORD) {
+  throw new Error(
+    'Set VERIFY_OWNER_EMAIL and VERIFY_OWNER_PASSWORD before running this script ' +
+    '(e.g. in an untracked frontend/.env.verify file, loaded with `node --env-file=.env.verify verify-edit-modals.mjs`).',
+  );
+}
+
 const BASE = 'http://localhost:5173';
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -8,8 +17,8 @@ page.on('console', (msg) => { if (msg.type() === 'error') console.log('CONSOLE E
 
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForSelector('#email', { timeout: 15000 });
-await page.fill('#email', 'priya.ramachandran@kedsicecream.com');
-await page.fill('#password', 'Password123!');
+await page.fill('#email', OWNER_EMAIL);
+await page.fill('#password', OWNER_PASSWORD);
 await page.click('button[type="submit"]');
 await page.waitForSelector('nav >> text=Tasks', { timeout: 20000 });
 
