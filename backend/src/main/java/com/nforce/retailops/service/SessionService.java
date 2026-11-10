@@ -77,15 +77,26 @@ public class SessionService {
      * keeps it alive. Returns false when the caller must be treated as
      * unauthenticated (revoked via logout, or past its Remember-Me/standard
      * idle window).
+     *
+     * The token's subject must also match the email the session was created
+     * for. The signature alone is not enough: a token minted with a leaked or
+     * guessed signing secret can carry any subject, so a session is only valid
+     * for the identity it was issued to. A mismatch is rejected without
+     * touching or deleting the session, so a forged token can't be used to
+     * revoke (or keep alive) the real user's session.
      */
     @Transactional
-    public boolean validateAndTouch(String tokenId) {
+    public boolean validateAndTouch(String tokenId, String subjectEmail) {
         Optional<ActiveSession> sessionOpt = activeSessionRepository.findByTokenId(tokenId);
         if (sessionOpt.isEmpty()) {
             return false;
         }
 
         ActiveSession session = sessionOpt.get();
+        if (subjectEmail == null || !subjectEmail.equals(session.getSubjectEmail())) {
+            return false;
+        }
+
         OffsetDateTime now = OffsetDateTime.now();
 
         if (!now.isBefore(session.getExpiresAt())) {

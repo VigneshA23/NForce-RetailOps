@@ -62,15 +62,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (jwtService.isTokenValid(token)) {
             String tokenId = jwtService.extractTokenId(token);
+            String email = jwtService.extractEmail(token);
 
             // The JWT signature/expiry is valid, but the session behind it may have
             // been revoked (logout) or expired from inactivity — that check is the
-            // server-side source of truth, not just the token's own expiry.
-            boolean sessionValid = sessionService.validateAndTouch(tokenId);
+            // server-side source of truth, not just the token's own expiry. It also
+            // confirms the token's subject is the one this session was issued to.
+            boolean sessionValid = sessionService.validateAndTouch(tokenId, email);
 
             if (sessionValid) {
-                String email = jwtService.extractEmail(token);
-
                 // The account itself is re-read on every request, so an account
                 // deactivated or deleted mid-session stops being able to act here
                 // rather than at token expiry. Leaving the SecurityContext unset

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class JwtServiceTest {
 
@@ -81,6 +82,36 @@ class JwtServiceTest {
         String shortLivedToken = jwtService.generateToken("owner@nforce.test", List.of("OWNER_ADMIN"), 1);
         Thread.sleep(25);
         assertThat(jwtService.isTokenValid(shortLivedToken)).isFalse();
+    }
+
+    // A known signing secret lets anyone forge a token for any subject, so
+    // the app must refuse to start with one rather than run exposed.
+    @Test
+    void defaultPlaceholderSecretIsRefusedAtStartup() {
+        assertThatThrownBy(() -> new JwtService("change-me-in-env", 60_000))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("JWT_SECRET");
+    }
+
+    @Test
+    void blankOrMissingSecretIsRefusedAtStartup() {
+        assertThatThrownBy(() -> new JwtService("", 60_000)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new JwtService("   ", 60_000)).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> new JwtService(null, 60_000)).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void secretShorterThan32BytesIsRefusedAtStartup() {
+        assertThatThrownBy(() -> new JwtService("short-secret", 60_000))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("at least 32");
+    }
+
+    @Test
+    void secretOfExactlyTheMinimumLengthIsAccepted() {
+        JwtService jwtService = new JwtService("x".repeat(32), 60_000);
+
+        assertThat(jwtService.isTokenValid(jwtService.generateToken("owner@nforce.test", List.of("OWNER_ADMIN")))).isTrue();
     }
 
     @Test
