@@ -116,7 +116,11 @@ public class StoreCashTargetService {
         return targetRepository.findByStoreId(store.getId()).orElseGet(() -> {
             StoreCashTarget created = new StoreCashTarget();
             created.setStore(store);
-            return targetRepository.saveAndFlush(created);
+            StoreCashTarget saved = targetRepository.saveAndFlush(created);
+            if (saved.getTargetAmount() == null) {
+                saved.setTargetAmount(targetRepository.findAmountByStoreId(store.getId()));
+            }
+            return saved;
         });
     }
 

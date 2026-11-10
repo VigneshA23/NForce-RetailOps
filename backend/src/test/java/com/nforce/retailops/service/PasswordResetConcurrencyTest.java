@@ -27,6 +27,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Not @Transactional on purpose: each thread must run in its own real
@@ -114,6 +115,33 @@ class PasswordResetConcurrencyTest {
         } finally {
             cleanup(email, user);
         }
+    }
+
+    @Test
+    void newResetRequestInvalidatesEarlierTokenAndNewOneStillWorks() {
+        String email = "reset-supersede-" + UUID.randomUUID() + "@nforce.test";
+        User user = createUser(email);
+        try {
+            passwordResetService.requestReset(email);
+            PasswordResetToken first = latestToken(email);
+            passwordResetService.requestReset(email);
+
+            assertThat(tokenRepository.findByToken(first.getToken()).orElseThrow().isUsed()).isTrue();
+            assertThatThrownBy(() -> passwordResetService.confirmReset(first.getToken().toString(), "brand-new-pass-1"))
+                .isInstanceOf(InvalidPasswordResetTokenException.class);
+
+            PasswordResetToken second = latestToken(email);
+            assertThat(second.getToken()).isNotEqualTo(first.getToken());
+            passwordResetService.confirmReset(second.getToken().toString(), "brand-new-pass-2");
+        } finally {
+            cleanup(email, user);
+        }
+    }
+
+    private PasswordResetToken latestToken(String email) {
+        return tokenRepository.findAll().stream()
+            .filter(t -> t.getEmail().equalsIgnoreCase(email) && !t.isUsed())
+            .findFirst().orElseThrow();
     }
 
     @Test
