@@ -53,6 +53,10 @@ public class PasswordResetService {
         var userOpt = userRepository.findByEmailWithRoles(normalised);
         if (userOpt.isEmpty()) return;
 
+        // Lock the account row so concurrent requests for the same email run
+        // the count-then-insert one at a time; the lock is held until commit.
+        if (userRepository.findByEmailForUpdate(normalised).isEmpty()) return;
+
         // DB-backed rate limit: max 3 tokens per email per hour.
         OffsetDateTime since = OffsetDateTime.now().minusHours(1);
         if (tokenRepository.countByEmailSince(normalised, since) >= MAX_REQUESTS_PER_HOUR) return;
@@ -95,7 +99,11 @@ public class PasswordResetService {
             throw new InvalidPasswordResetTokenException("Invalid or expired reset link");
         }
 
-        resetToken.setUsedAt(OffsetDateTime.now());
+        // Atomically claim the token; losing a concurrent race affects 0 rows.
+        OffsetDateTime now = OffsetDateTime.now();
+        if (tokenRepository.markUsedIfUnused(uuid, now, now) != 1) {
+            throw new InvalidPasswordResetTokenException("Invalid or expired reset link");
+        }
 
         var user = userRepository.findByEmailWithRoles(resetToken.getEmail())
             .orElseThrow(() -> new InvalidPasswordResetTokenException("Invalid or expired reset link"));
@@ -103,6 +111,5 @@ public class PasswordResetService {
         user.setMustResetPassword(false);
 
         userRepository.save(user);
-        tokenRepository.save(resetToken);
     }
 }
