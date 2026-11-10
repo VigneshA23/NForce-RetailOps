@@ -14,6 +14,7 @@ import StoreInventory from '../pages/StoreInventory';
 import OrderDashboard from '../pages/OrderDashboard';
 import DailyCash from '../pages/DailyCash';
 import CashTarget from '../pages/CashTarget';
+import MonthlyCashSummary from '../pages/MonthlyCashSummary';
 import Profile from '../pages/Profile';
 import Help from '../pages/Help';
 import Notifications from '../pages/Notifications';
@@ -127,7 +128,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
     setActiveTab('orders');
   }
 
-  const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders', 'cash', 'cash-target'];
+  const ALL_TABS: NavTabKey[] = ['home', 'store-detail', 'employees', 'categories', 'tasks', 'issues', 'inventory', 'orders', 'cash', 'cash-target', 'cash-summary'];
 
   function renderTab(tab: NavTabKey) {
     switch (tab) {
@@ -199,6 +200,8 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
         return <DailyCash storeId={storesState.stores[0]?.id ?? null} storesLoading={storesState.isLoading} />;
       case 'cash-target':
         return <CashTarget storeId={storesState.stores[0]?.id ?? null} storesLoading={storesState.isLoading} />;
+      case 'cash-summary':
+        return <MonthlyCashSummary />;
     }
   }
 
@@ -237,6 +240,7 @@ function DashboardShell({ user, onLogout, loggingOut, avatarUrl, onAvatarChange,
       onOrdersClick={isMobile ? () => { setOverlay(null); setActiveTab('orders'); } : undefined}
       onCashClick={isMobile ? () => { setOverlay(null); setActiveTab('cash'); } : undefined}
       onCashTargetClick={isMobile ? () => { setOverlay(null); setActiveTab('cash-target'); } : undefined}
+      onCashSummaryClick={isMobile ? () => { setOverlay(null); setActiveTab('cash-summary'); } : undefined}
       onNotificationsClick={() => setOverlay('notifications')}
       onNotificationNavigate={handleNotificationNavigate}
       notificationUnreadCount={unreadCount}

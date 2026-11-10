@@ -1,0 +1,180 @@
+@import '../styles/breakpoints.css';
+
+.cash-summary__card {
+  max-width: 1080px;
+}
+
+.cash-summary__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-lg);
+  padding-bottom: var(--space-md);
+  margin-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cash-summary__month {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.cash-summary__month-label {
+  margin: 0;
+  min-width: 10ch;
+  font-size: 18px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--color-text-primary);
+}
+
+.cash-summary__nav.btn {
+  padding: 6px;
+  min-width: 0;
+}
+
+.cash-summary__period,
+.cash-summary__status,
+.cash-summary__footnote {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.cash-summary__status {
+  margin-bottom: var(--space-md);
+}
+
+.cash-summary__footnote {
+  margin-top: var(--space-md);
+  color: var(--color-text-muted);
+}
+
+.cash-summary__alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: #fde8ea;
+  color: #b3162a;
+  font-size: 13px;
+}
+
+/* The table scrolls inside its card, never the page. */
+.cash-summary__table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  transition: opacity 0.15s ease;
+}
+
+.cash-summary__table-wrap--loading {
+  opacity: 0.55;
+}
+
+.cash-summary__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.cash-summary__table th,
+.cash-summary__table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.cash-summary__table thead th {
+  text-align: right;
+  vertical-align: bottom;
+}
+
+.cash-summary__store-name {
+  display: block;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.cash-summary__store-meta {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.cash-summary__label-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  background: var(--color-surface-card, var(--color-surface));
+}
+
+.cash-summary__table tbody th.cash-summary__label-col {
+  white-space: normal;
+  min-width: 150px;
+}
+
+.cash-summary__hint {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+
+.cash-summary__amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-primary);
+}
+
+.cash-summary__combined {
+  background: var(--color-surface-hovered);
+}
+
+.cash-summary__table thead th.cash-summary__combined .cash-summary__store-name {
+  color: var(--color-primary);
+}
+
+.cash-summary__row--emphasis th,
+.cash-summary__row--emphasis td {
+  font-weight: 600;
+}
+
+/* First emphasis row draws a divider between flows and the cash position. */
+.cash-summary__row--emphasis:nth-child(6) th,
+.cash-summary__row--emphasis:nth-child(6) td {
+  border-top: 2px solid var(--color-border);
+}
+
+.cash-summary__amount--short {
+  /* Same token Daily Cash uses for its error text. */
+  color: var(--color-accent);
+}
+
+.cash-summary__amount--over {
+  color: var(--color-badge-icon-success-fg, #15803d);
+}
+
+@media (--mobile) {
+  .cash-summary__toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cash-summary__month {
+    justify-content: space-between;
+  }
+
+  .cash-summary__table th,
+  .cash-summary__table td {
+    padding: 8px 10px;
+  }
+}

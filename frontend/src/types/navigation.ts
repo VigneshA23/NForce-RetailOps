@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { Banknote, Boxes, Building2, CheckSquare, ClipboardList, LayoutGrid, ShoppingCart, Store, Tags, Target, Users, Home } from 'lucide-react';
+import { Banknote, Boxes, CalendarCheck, Building2, CheckSquare, ClipboardList, LayoutGrid, ShoppingCart, Store, Tags, Target, Users, Home } from 'lucide-react';
 
 export type NavTabKey =
   | 'home'
@@ -11,7 +11,8 @@ export type NavTabKey =
   | 'inventory'
   | 'orders'
   | 'cash'
-  | 'cash-target';
+  | 'cash-target'
+  | 'cash-summary';
 
 export interface NavItem<Key extends string = NavTabKey> {
   key: Key;
@@ -29,6 +30,7 @@ export const OWNER_NAV_ITEMS: NavItem[] = [
   { key: 'orders', label: 'Orders', icon: ShoppingCart },
   { key: 'cash', label: 'Daily Cash', icon: Banknote },
   { key: 'cash-target', label: 'Cash Target', icon: Target },
+  { key: 'cash-summary', label: 'Month-End Cash', icon: CalendarCheck },
 ];
 
 // Mobile bottom tab bar: home, daily checklist, tasks, employees, categories.
@@ -55,6 +57,7 @@ export const PAGE_TITLES: Record<NavTabKey, string> = {
   orders: 'Orders',
   cash: 'Daily Cash Entry',
   'cash-target': 'Cash Drawer Target',
+  'cash-summary': 'Month-End Cash Summary',
 };
 
 export type EmployeeNavTabKey = 'today' | 'audits' | 'issues' | 'missing' | 'stock-check';
@@ -65,7 +68,7 @@ export interface EmployeeNavItem {
   icon: LucideIcon;
 }
 
-export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'tasks' | 'checklist' | 'issues' | 'inventory' | 'orders' | 'cash';
+export type SuperAdminNavTabKey = 'home' | 'owners' | 'stores' | 'employees' | 'categories' | 'tasks' | 'checklist' | 'issues' | 'inventory' | 'orders' | 'cash' | 'cash-summary';
 
 export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'home', label: 'Home', icon: Home },
@@ -78,6 +81,7 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem<SuperAdminNavTabKey>[] = [
   { key: 'inventory', label: 'Inventory', icon: Boxes },
   { key: 'orders', label: 'Orders', icon: ShoppingCart },
   { key: 'cash', label: 'Daily Cash', icon: Banknote },
+  { key: 'cash-summary', label: 'Month-End Cash', icon: CalendarCheck },
 ];
 
 // Issues is not a sidebar entry on any screen size: it is reached from the
@@ -102,4 +106,5 @@ export const SUPER_ADMIN_PAGE_TITLES: Record<SuperAdminNavTabKey, string> = {
   inventory: 'Inventory',
   orders: 'Orders',
   cash: 'Daily Cash Entry',
+  'cash-summary': 'Month-End Cash Summary',
 };
