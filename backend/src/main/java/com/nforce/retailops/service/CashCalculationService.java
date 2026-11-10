@@ -63,7 +63,7 @@ public class CashCalculationService {
     public ExpectedCashResponse calculate(DailyCashEntry entry) {
         BigDecimal expected = calculateExpectedCash(entry);
         return new ExpectedCashResponse(
-            entry.getStore().getId(), true, null, entry.getBusinessDate(),
+            entry.getStore().getId(), true, null, entry.getBusinessDate(), entry.getUpdatedAt(),
             expected,
             entry.getCashRemaining(),
             entry.getCashRemaining().subtract(expected),

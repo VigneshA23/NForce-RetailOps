@@ -30,3 +30,26 @@ export interface DailyCashEntry extends CashAmounts {
   // Prior versions of the entry, oldest first; empty until the first re-save.
   history: unknown[];
 }
+
+// Mirrors the backend's ExpectedCashResponse (RTS-295): the store's live
+// expected cash, derived from its latest saved entry. When `available` is
+// false every amount and asOfDate is null -- never a fake zero.
+export interface ExpectedCash {
+  storeId: number;
+  available: boolean;
+  message: string | null;
+  // YYYY-MM-DD business date of the entry the figure comes from.
+  asOfDate: string | null;
+  // ISO timestamp of when that entry was last saved (first save or a later
+  // correction) -- when the count was entered into the system.
+  lastUpdatedAt: string | null;
+  expectedCashOnHand: number | null;
+  cashRemaining: number | null;
+  variance: number | null;
+  openingDrawerCash: number | null;
+  totalCashSales: number | null;
+  cashRemoved: number | null;
+  bankDeposits: number | null;
+  cashExpenses: number | null;
+  otherAdjustments: number | null;
+}
