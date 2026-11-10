@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.dto.AddOwnerRequest;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
@@ -36,6 +37,8 @@ class OwnerProvisioningServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private SuperAdminRepository superAdminRepository;
+    @Mock
     private RoleRepository roleRepository;
     @Mock
     private StoreRepository storeRepository;
@@ -53,7 +56,7 @@ class OwnerProvisioningServiceTest {
     @BeforeEach
     void setUp() {
         ownerProvisioningService = new OwnerProvisioningService(
-            userRepository, roleRepository, storeRepository, storeOwnerRepository,
+            userRepository, new EmailUniquenessService(userRepository, superAdminRepository), roleRepository, storeRepository, storeOwnerRepository,
             passwordEncoder, temporaryPasswordGenerator, storeCodeGenerator
         );
     }
@@ -255,5 +258,16 @@ class OwnerProvisioningServiceTest {
         verify(userRepository, never()).getReferenceById(any(Long.class));
         verify(storeOwnerRepository, never()).deleteById(any());
         verify(storeRepository, never()).deleteById(any());
+    }
+
+    @Test
+    void createOwnerAccountRejectsAnEmailBelongingToASuperAdmin() {
+        when(userRepository.findByEmailWithRoles("owner@nforce.test")).thenReturn(Optional.empty());
+        when(superAdminRepository.findByEmailIgnoreCase("owner@nforce.test"))
+            .thenReturn(Optional.of(new com.nforce.retailops.entity.SuperAdmin()));
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+            ownerProvisioningService.createOwnerAccount(requestWithNoStore(), false, false))
+            .isInstanceOf(com.nforce.retailops.exception.EmailAlreadyExistsException.class);
     }
 }

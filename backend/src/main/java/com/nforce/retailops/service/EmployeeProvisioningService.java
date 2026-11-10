@@ -45,6 +45,7 @@ public class EmployeeProvisioningService {
 
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final UserRepository userRepository;
+    private final EmailUniquenessService emailUniquenessService;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
@@ -52,12 +53,14 @@ public class EmployeeProvisioningService {
     public EmployeeProvisioningService(
         StoreEmployeeRepository storeEmployeeRepository,
         UserRepository userRepository,
+        EmailUniquenessService emailUniquenessService,
         RoleRepository roleRepository,
         PasswordEncoder passwordEncoder,
         TemporaryPasswordGenerator temporaryPasswordGenerator
     ) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.userRepository = userRepository;
+        this.emailUniquenessService = emailUniquenessService;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.temporaryPasswordGenerator = temporaryPasswordGenerator;
@@ -69,9 +72,7 @@ public class EmployeeProvisioningService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ProvisionedEmployee createEmployeeAccount(Long ownerId, EmployeeCreateRequest request, Set<Store> stores) {
         String email = request.email().trim();
-        if (userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
-        }
+        emailUniquenessService.assertAvailable(email);
 
         Role employeeRole = roleRepository.findByName(EMPLOYEE_ROLE_NAME)
             .orElseThrow(() -> new IllegalStateException(EMPLOYEE_ROLE_NAME + " role is not seeded"));

@@ -1,5 +1,7 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.SuperAdmin;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.dto.EmployeeCreateRequest;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.StoreEmployee;
@@ -38,6 +40,8 @@ class EmployeeProvisioningServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private SuperAdminRepository superAdminRepository;
+    @Mock
     private RoleRepository roleRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -49,7 +53,7 @@ class EmployeeProvisioningServiceTest {
     @BeforeEach
     void setUp() {
         employeeProvisioningService = new EmployeeProvisioningService(
-            storeEmployeeRepository, userRepository, roleRepository, passwordEncoder, temporaryPasswordGenerator
+            storeEmployeeRepository, userRepository, new EmailUniquenessService(userRepository, superAdminRepository), roleRepository, passwordEncoder, temporaryPasswordGenerator
         );
     }
 
@@ -109,5 +113,16 @@ class EmployeeProvisioningServiceTest {
         InOrder order = inOrder(storeEmployeeRepository, userRepository);
         order.verify(storeEmployeeRepository).deleteById(7L);
         order.verify(userRepository).deleteById(42L);
+    }
+
+    @Test
+    void createEmployeeAccountRejectsAnEmailBelongingToASuperAdmin() {
+        when(userRepository.findByEmailWithRoles("jane@nforce.test")).thenReturn(Optional.empty());
+        when(superAdminRepository.findByEmailIgnoreCase("jane@nforce.test")).thenReturn(Optional.of(new SuperAdmin()));
+
+        assertThatThrownBy(() -> employeeProvisioningService.createEmployeeAccount(OWNER_ID, request(), Set.of()))
+            .isInstanceOf(EmailAlreadyExistsException.class);
+
+        verify(userRepository, never()).save(any(User.class));
     }
 }

@@ -1,6 +1,7 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.ActiveSession;
+import com.nforce.retailops.entity.PrincipalType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -19,11 +20,11 @@ public interface ActiveSessionRepository extends JpaRepository<ActiveSession, Lo
 
     @Modifying
     @Transactional
-    void deleteBySubjectEmail(String subjectEmail);
+    void deleteByPrincipalTypeAndSubjectEmail(PrincipalType principalType, String subjectEmail);
 
     @Modifying
     @Transactional
-    void deleteBySubjectEmailAndTokenIdNot(String subjectEmail, String tokenId);
+    void deleteByPrincipalTypeAndSubjectEmailAndTokenIdNot(PrincipalType principalType, String subjectEmail, String tokenId);
 
     @Modifying
     @Transactional

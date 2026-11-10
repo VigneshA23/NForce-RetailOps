@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.entity.ActiveSession;
 import com.nforce.retailops.repository.ActiveSessionRepository;
 import org.junit.jupiter.api.Test;
@@ -133,7 +134,7 @@ class SessionServiceTest {
 
     @Test
     void creatingAStandardSessionExpiresThirtyMinutesFromNow() {
-        sessionService(30, 240).createSession("tok-5", "user@nforce.test", 30);
+        sessionService(30, 240).createSession("tok-5", "user@nforce.test", PrincipalType.USER, 30);
 
         verify(activeSessionRepository).save(argThat(session ->
             "tok-5".equals(session.getTokenId())
@@ -146,7 +147,7 @@ class SessionServiceTest {
 
     @Test
     void creatingARememberMeSessionExpiresFourHoursFromNow() {
-        sessionService(30, 240).createSession("tok-6", "user@nforce.test", 240);
+        sessionService(30, 240).createSession("tok-6", "user@nforce.test", PrincipalType.USER, 240);
 
         verify(activeSessionRepository).save(argThat(session ->
             "tok-6".equals(session.getTokenId())
@@ -158,9 +159,20 @@ class SessionServiceTest {
 
     @Test
     void invalidateAllForUserRevokesEverySessionThatUserHolds() {
-        sessionService(30, 240).invalidateAllForUser("employee@nforce.test");
+        sessionService(30, 240).invalidateAllForUser("employee@nforce.test", PrincipalType.USER);
 
-        verify(activeSessionRepository).deleteBySubjectEmail("employee@nforce.test");
+        verify(activeSessionRepository)
+            .deleteByPrincipalTypeAndSubjectEmail(PrincipalType.USER, "employee@nforce.test");
         verify(activeSessionRepository, never()).deleteByTokenId(anyString());
+    }
+
+    @Test
+    void invalidatingAUserNeverTouchesASuperAdminSessionWithTheSameEmail() {
+        sessionService(30, 240).invalidateAllForUser("shared@nforce.test", PrincipalType.USER);
+
+        verify(activeSessionRepository)
+            .deleteByPrincipalTypeAndSubjectEmail(PrincipalType.USER, "shared@nforce.test");
+        verify(activeSessionRepository, never())
+            .deleteByPrincipalTypeAndSubjectEmail(eq(PrincipalType.SUPER_ADMIN), anyString());
     }
 }

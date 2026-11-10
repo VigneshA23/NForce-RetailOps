@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.dto.EmployeeCreateRequest;
 import com.nforce.retailops.dto.EmployeeDirectoryResponse;
 import com.nforce.retailops.dto.EmployeeCreationResponse;
@@ -46,6 +47,7 @@ public class EmployeeService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
+    private final EmailUniquenessService emailUniquenessService;
     private final SessionService sessionService;
     private final MailService mailService;
     private final EmployeeProvisioningService employeeProvisioningService;
@@ -62,6 +64,7 @@ public class EmployeeService {
         StoreOwnerRepository storeOwnerRepository,
         StoreRepository storeRepository,
         UserRepository userRepository,
+        EmailUniquenessService emailUniquenessService,
         SessionService sessionService,
         MailService mailService,
         EmployeeProvisioningService employeeProvisioningService,
@@ -77,6 +80,7 @@ public class EmployeeService {
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
+        this.emailUniquenessService = emailUniquenessService;
         this.sessionService = sessionService;
         this.mailService = mailService;
         this.employeeProvisioningService = employeeProvisioningService;
@@ -340,9 +344,8 @@ public class EmployeeService {
 
         String email = request.email().trim();
         User employee = storeEmployee.getEmployee();
-        if (!employee.getEmail().equalsIgnoreCase(email)
-            && userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        if (!employee.getEmail().equalsIgnoreCase(email)) {
+            emailUniquenessService.assertAvailable(email);
         }
 
         String previousEmail = employee.getEmail();
@@ -379,7 +382,7 @@ public class EmployeeService {
         User employee = storeEmployee.getEmployee();
         String employeeName = employee.getFullName();
         List<Store> affectedStores = ownedStoresAmong(storeEmployee.getStores(), ownerId);
-        sessionService.invalidateAllForUser(employee.getEmail());
+        sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
         storeEmployeeRepository.delete(storeEmployee);
         userRepository.delete(employee);
 
@@ -397,9 +400,8 @@ public class EmployeeService {
 
         String email = request.email().trim();
         User employee = storeEmployee.getEmployee();
-        if (!employee.getEmail().equalsIgnoreCase(email)
-            && userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        if (!employee.getEmail().equalsIgnoreCase(email)) {
+            emailUniquenessService.assertAvailable(email);
         }
 
         String previousEmail = employee.getEmail();
@@ -435,7 +437,7 @@ public class EmployeeService {
         userRepository.save(employee);
 
         if (!active) {
-            sessionService.invalidateAllForUser(employee.getEmail());
+            sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
         }
 
         notificationService.send(employee,
@@ -462,7 +464,7 @@ public class EmployeeService {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
             .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
         User employee = storeEmployee.getEmployee();
-        sessionService.invalidateAllForUser(employee.getEmail());
+        sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
         storeEmployeeRepository.delete(storeEmployee);
         userRepository.delete(employee);
     }
@@ -484,7 +486,7 @@ public class EmployeeService {
         // The old password stops working the moment this runs, so any session
         // still holding a token issued against it is invalidated immediately
         // rather than staying valid until that token's own expiry.
-        sessionService.invalidateAllForUser(employee.getEmail());
+        sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
 
         // Thrown on failure, which rolls back the password change and session
         // invalidation above -- the employee must not be locked out without
@@ -509,7 +511,7 @@ public class EmployeeService {
         // Deactivation has to bite immediately: without this the employee keeps
         // working off the token they already hold until it expires.
         if (!request.active()) {
-            sessionService.invalidateAllForUser(employee.getEmail());
+            sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
         }
 
         notificationService.send(employee,
