@@ -1,0 +1,16 @@
+/* "Last updated" line under the Expected Cash on Hand tile (RTS-296). */
+.expected-cash-stat__updated {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.expected-cash-stat__card--green {
+  --stat-color: #16a34a;
+  --stat-rgb: 22, 163, 74;
+}
+
+[data-theme='dark'] .expected-cash-stat__card--green {
+  --stat-color: #4ade80;
+  --stat-rgb: 74, 222, 128;
+}

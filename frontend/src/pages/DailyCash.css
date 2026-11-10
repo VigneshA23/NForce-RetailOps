@@ -34,13 +34,27 @@
   min-width: 180px;
 }
 
+.daily-cash-page__formula-banner {
+  width: 100%;
+  margin: calc(-1 * var(--space-sm)) 0 var(--space-lg);
+  padding: 10px 12px;
+  border: 1px solid rgba(200, 121, 10, 0.28);
+  border-radius: var(--radius-sm);
+  background: var(--color-badge-icon-warning-bg);
+  color: var(--color-badge-icon-warning-fg);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+}
+
 .daily-cash-page__store .form-field,
 .daily-cash-page__date .form-field {
   margin-bottom: 0;
 }
 
 .daily-cash-page__status {
-  margin: 0 0 10px;
+  margin: 0;
   font-size: 13px;
   color: var(--color-text-secondary);
 }
@@ -121,7 +135,31 @@
     width: 100%;
   }
 
+  .daily-cash-page__formula-banner {
+    margin-top: calc(-1 * var(--space-sm));
+    margin-bottom: var(--space-md);
+    text-align: left;
+  }
+
   .daily-cash-page__actions .btn {
     width: 100%;
+  }
+}
+
+/* Expected Cash on Hand (RTS-296): one stat tile above the entry form, as
+   wide as a dashboard KPI tile on desktop and full width on phones. */
+.daily-cash-page__expected {
+  max-width: 320px;
+  margin-bottom: var(--space-md);
+}
+
+.daily-cash-page__expected .stat-card {
+  width: 100%;
+  text-align: left;
+}
+
+@media (--mobile) {
+  .daily-cash-page__expected {
+    max-width: none;
   }
 }

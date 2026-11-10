@@ -10,6 +10,7 @@ import type { CashAmountField, CashAmounts, DailyCashEntry, DailyCashEntryReques
 import FormField from '../components/FormField';
 import PopoverDateField from '../components/PopoverDateField';
 import ButtonDots from '../components/ButtonDots';
+import ExpectedCashStat from '../components/ExpectedCashStat';
 import { formatAmount } from '../utils/currency';
 import { parseAmount, validateAmount } from '../utils/amountInput';
 import { nfToast } from '../utils/toast';
@@ -44,6 +45,7 @@ function saveEntry(scope: 'owner' | 'super-admin', storeId: number, request: Dai
 interface FieldSpec {
   key: CashAmountField;
   label: string;
+  description: string;
   // Only Other Adjustments may go below zero (money taken out of the drawer
   // for a reason none of the other fields cover), matching RTS-291.
   signed?: boolean;
@@ -51,14 +53,17 @@ interface FieldSpec {
 }
 
 const FIELDS: FieldSpec[] = [
-  { key: 'totalCashSales', label: 'Total cash sales' },
-  { key: 'openingDrawerCash', label: 'Opening drawer cash' },
-  { key: 'cashRemoved', label: 'Cash removed' },
-  { key: 'cashRemaining', label: 'Cash remaining' },
-  { key: 'cashExpenses', label: 'Cash expenses' },
-  { key: 'bankDeposits', label: 'Bank deposits' },
-  { key: 'otherAdjustments', label: 'Other adjustments', signed: true, hint: 'Use a minus sign for money taken out. Enter 0 if none.' },
+  { key: 'totalCashSales', label: 'Total cash sales', description: 'Cash payments received from sales on this business date. Do not include card or other non-cash payments.' },
+  { key: 'openingDrawerCash', label: 'Opening drawer cash', description: 'Cash physically in the drawer at the start of the day, before recording today’s sales.' },
+  { key: 'cashRemoved', label: 'Cash removed', description: 'Cash taken out of the drawer during the day, excluding amounts recorded as bank deposits or cash expenses.' },
+  { key: 'cashRemaining', label: 'Cash remaining', description: 'Cash physically counted in the drawer at the end of the day. This is compared with Expected Cash on Hand to show the variance.' },
+  { key: 'cashExpenses', label: 'Cash expenses', description: 'Cash paid directly from the drawer for expenses during this business date.' },
+  { key: 'bankDeposits', label: 'Bank deposits', description: 'Cash from the drawer deposited into the bank during this business date.' },
+  { key: 'otherAdjustments', label: 'Other adjustments', description: 'A cash increase or decrease not captured by the other fields. Use a negative amount for cash taken out.', signed: true, hint: 'Use a minus sign for money taken out. Enter 0 if none.' },
 ];
+
+const EXPECTED_CASH_FORMULA =
+  'Expected Cash = Opening Cash + Cash Sales − Cash Removed − Bank Deposits − Cash Expenses ± Other Adjustments';
 
 type Values = Record<CashAmountField, string>;
 type Errors = Partial<Record<CashAmountField, string>>;
@@ -131,6 +136,8 @@ function DailyCash({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  // Bumped after each successful save so Expected Cash on Hand refetches.
+  const [expectedRefreshKey, setExpectedRefreshKey] = useState(0);
 
   useEffect(() => {
     if (storeId === null || !businessDate) return;
@@ -186,6 +193,7 @@ function DailyCash({
     try {
       const saved = await saveEntry(scope, storeId, { businessDate, ...amounts });
       setEntry(saved);
+      setExpectedRefreshKey((key) => key + 1);
       setValues(valuesFrom(saved));
       setSubmitAttempted(false);
       nfToast.success(`Cash entry for ${formatDateLabel(businessDate)} saved.`);
@@ -231,6 +239,11 @@ function DailyCash({
 
   return (
     <div className="daily-cash-page">
+      {storeId !== null && (
+        <div className="daily-cash-page__expected">
+          <ExpectedCashStat scope={scope} storeId={storeId} refreshKey={expectedRefreshKey} />
+        </div>
+      )}
       <section className="card daily-cash-page__card" aria-label="Daily cash entry">
         <div className="daily-cash-page__toolbar">
           <div className="daily-cash-page__pickers">
@@ -254,6 +267,12 @@ function DailyCash({
           )}
         </div>
 
+        {storeId !== null && (
+          <div className="daily-cash-page__formula-banner">
+            {EXPECTED_CASH_FORMULA}
+          </div>
+        )}
+
         {storeId === null ? (
           <p className="daily-cash-page__status">
             {storesLoading ? 'Loading stores…' : noStoreMessage}
@@ -273,7 +292,14 @@ function DailyCash({
                   const id = `daily-cash-${field.key}`;
                   const error = errors[field.key];
                   return (
-                    <FormField key={field.key} label={field.label} htmlFor={id} required error={error}>
+                    <FormField
+                      key={field.key}
+                      label={field.label}
+                      htmlFor={id}
+                      description={field.description}
+                      required
+                      error={error}
+                    >
                       <div className="daily-cash-page__money">
                         <span className="daily-cash-page__currency" aria-hidden="true">$</span>
                         <input

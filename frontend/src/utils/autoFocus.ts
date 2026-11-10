@@ -4,7 +4,7 @@
 export function isTouchDevice(): boolean {
   return typeof window !== 'undefined'
     && typeof window.matchMedia === 'function'
-    && window.matchMedia('(pointer: coarse)').matches;
+    && (window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0);
 }
 
 export const shouldAutoFocus = (): boolean => !isTouchDevice();

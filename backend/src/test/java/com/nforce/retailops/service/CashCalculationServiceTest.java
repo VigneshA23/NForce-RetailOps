@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -137,6 +138,17 @@ class CashCalculationServiceTest {
         assertNull(r.expectedCashOnHand());
         assertNull(r.variance());
         assertNull(r.asOfDate());
+        assertNull(r.lastUpdatedAt());
+    }
+
+    @Test
+    void lastUpdatedAt_isWhenTheLatestEntryWasLastSaved() {
+        DailyCashEntry e = entry("2026-11-09", "200", "1000", "100", "575", "50", "500", "25");
+        OffsetDateTime savedAt = OffsetDateTime.parse("2026-11-09T21:15:00+05:30");
+        e.setUpdatedAt(savedAt);
+        ExpectedCashResponse r = service.calculate(e);
+        assertEquals(savedAt, r.lastUpdatedAt());
+        assertEquals(LocalDate.parse("2026-11-09"), r.asOfDate());
     }
 
     @Test
