@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getMonthlyCashSummary, getSuperAdminMonthlyCashSummary } from '../api/cashSummary';
+import { getAllStores } from '../api/superAdminStores';
+import type { SuperAdminStore } from '../types/superAdminStore';
 import type { MonthlyCashSummary as Summary, StoreMonthlyCashSummary } from '../types/cashSummary';
 import { formatCurrency } from '../utils/currency';
+import FormField from '../components/FormField';
+import SearchableSelect from '../components/SearchableSelect';
 import './MonthlyCashSummary.css';
 
 interface MonthlyCashSummaryProps {
@@ -13,6 +17,7 @@ interface MonthlyCashSummaryProps {
 
 type AmountKey = Exclude<keyof StoreMonthlyCashSummary,
   'storeId' | 'storeName' | 'storeCode' | 'daysRecorded' | 'asOfDate'>;
+const COMBINED_SELECTION = 'combined';
 
 interface Row {
   key: AmountKey;
@@ -69,17 +74,49 @@ function formatVariance(value: number): string {
 // actual and variance are the cash position on each store's last recorded day.
 function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
   const [month, setMonth] = useState(currentMonth);
+  const [storeSelection, setStoreSelection] = useState(COMBINED_SELECTION);
+  const [stores, setStores] = useState<SuperAdminStore[]>([]);
+  const [storesLoading, setStoresLoading] = useState(scope === 'super-admin');
+  const [storesError, setStoresError] = useState<string | null>(null);
+  const [storesReloadToken, setStoresReloadToken] = useState(0);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
+    if (scope !== 'super-admin') return;
+    let active = true;
+    setStoresLoading(true);
+    setStoresError(null);
+    getAllStores()
+      .then((result) => {
+        if (active) {
+          setStores(result);
+          setStoreSelection((selection) => selection === COMBINED_SELECTION
+            || result.some((store) => String(store.storeId) === selection)
+            ? selection
+            : COMBINED_SELECTION);
+        }
+      })
+      .catch((cause: unknown) => {
+        if (active) setStoresError(cause instanceof Error ? cause.message : 'Could not load stores');
+      })
+      .finally(() => {
+        if (active) setStoresLoading(false);
+      });
+    return () => { active = false; };
+  }, [scope, storesReloadToken]);
+
+  useEffect(() => {
     const controller = new AbortController();
     setIsLoading(true);
     setError(null);
-    const load = scope === 'super-admin' ? getSuperAdminMonthlyCashSummary : getMonthlyCashSummary;
-    load(month, controller.signal)
+    const selectedStoreId = storeSelection === COMBINED_SELECTION ? undefined : Number(storeSelection);
+    const load = scope === 'super-admin'
+      ? getSuperAdminMonthlyCashSummary(month, controller.signal, selectedStoreId)
+      : getMonthlyCashSummary(month, controller.signal);
+    load
       .then((data) => setSummary(data))
       .catch((cause: unknown) => {
         if (cause instanceof DOMException && cause.name === 'AbortError') return;
@@ -90,12 +127,14 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
         if (!controller.signal.aborted) setIsLoading(false);
       });
     return () => controller.abort();
-  }, [scope, month, reloadToken]);
+  }, [scope, month, reloadToken, storeSelection]);
 
   const isCurrentMonth = month === currentMonth();
   const columns: StoreMonthlyCashSummary[] = summary
-    ? scope === 'super-admin' && summary.stores.length > 0
-      ? [...summary.stores, summary.combined]
+    ? scope === 'super-admin'
+      ? storeSelection === COMBINED_SELECTION
+        ? [summary.combined]
+        : summary.stores
       : summary.stores
     : [];
   const anyData = columns.some((c) => c.daysRecorded > 0);
@@ -104,6 +143,32 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
     <div className="cash-summary">
       <section className="card cash-summary__card" aria-label="Month-end cash summary">
         <div className="cash-summary__toolbar">
+          {scope === 'super-admin' && (
+            <div className="cash-summary__store-picker">
+              <FormField label="Store" htmlFor="cash-summary-store">
+                <SearchableSelect
+                  id="cash-summary-store"
+                  options={stores.map((store) => ({
+                    id: store.storeId,
+                    label: store.storeName,
+                    sublabel: `#${store.storeCode}`,
+                  }))}
+                  selectedIds={storeSelection === COMBINED_SELECTION ? [] : [Number(storeSelection)]}
+                  onChange={(ids) => setStoreSelection(ids.length > 0 ? String(ids[0]) : COMBINED_SELECTION)}
+                  placeholder="Select a store…"
+                  isLoading={storesLoading}
+                  error={storesError}
+                  onRetry={() => setStoresReloadToken((token) => token + 1)}
+                  emptyMessage="No stores found"
+                  allOption={{
+                    label: 'All Stores',
+                    selected: storeSelection === COMBINED_SELECTION,
+                    onToggle: () => setStoreSelection(COMBINED_SELECTION),
+                  }}
+                />
+              </FormField>
+            </div>
+          )}
           <div className="cash-summary__month" role="group" aria-label="Month">
             <button
               type="button"

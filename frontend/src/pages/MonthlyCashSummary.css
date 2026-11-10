@@ -21,6 +21,14 @@
   gap: var(--space-sm);
 }
 
+.cash-summary__store-picker {
+  width: min(280px, 100%);
+}
+
+.cash-summary__store-picker .form-field {
+  margin-bottom: 0;
+}
+
 .cash-summary__month-label {
   margin: 0;
   min-width: 10ch;
@@ -171,6 +179,10 @@
 
   .cash-summary__month {
     justify-content: space-between;
+  }
+
+  .cash-summary__store-picker {
+    width: 100%;
   }
 
   .cash-summary__table th,
