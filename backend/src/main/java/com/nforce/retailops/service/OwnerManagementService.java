@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.dto.AddOwnerRequest;
 import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerCreationResponse;
@@ -9,7 +10,6 @@ import com.nforce.retailops.dto.UpdateOwnerRequest;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.OwnerNotFoundException;
@@ -43,6 +43,7 @@ public class OwnerManagementService {
     private static final int MAX_OWNER_LISTING_ROWS = 500;
 
     private final UserRepository userRepository;
+    private final EmailUniquenessService emailUniquenessService;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final MailService mailService;
@@ -57,21 +58,22 @@ public class OwnerManagementService {
     private final String appBaseUrl;
 
     public OwnerManagementService(
-        UserRepository userRepository,
-        StoreRepository storeRepository,
-        StoreOwnerRepository storeOwnerRepository,
-        MailService mailService,
-        StoreCodeGenerator storeCodeGenerator,
-        OwnerProvisioningService ownerProvisioningService,
-        NotificationService notificationService,
-        SuperAdminAlertService superAdminAlertService,
-        SessionService sessionService,
-        ActivityLogService activityLogService,
-        PasswordResetService passwordResetService,
-        AccountEmailChangeService accountEmailChangeService,
-        @Value("${app.base-url}") String appBaseUrl
-    ) {
+            UserRepository userRepository,
+            EmailUniquenessService emailUniquenessService,
+            StoreRepository storeRepository,
+            StoreOwnerRepository storeOwnerRepository,
+            MailService mailService,
+            StoreCodeGenerator storeCodeGenerator,
+            OwnerProvisioningService ownerProvisioningService,
+            NotificationService notificationService,
+            SuperAdminAlertService superAdminAlertService,
+            SessionService sessionService,
+            ActivityLogService activityLogService,
+            PasswordResetService passwordResetService,
+            AccountEmailChangeService accountEmailChangeService,
+            @Value("${app.base-url}") String appBaseUrl) {
         this.userRepository = userRepository;
+        this.emailUniquenessService = emailUniquenessService;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.mailService = mailService;
@@ -92,9 +94,9 @@ public class OwnerManagementService {
         List<Long> ownerIds = owners.stream().map(User::getId).toList();
 
         Map<Long, List<StoreOwner>> storeOwnersByOwnerId = ownerIds.isEmpty()
-            ? Map.of()
-            : storeOwnerRepository.findByOwnerIdInWithStoreAndOwner(ownerIds).stream()
-                .collect(Collectors.groupingBy(storeOwner -> storeOwner.getOwner().getId()));
+                ? Map.of()
+                : storeOwnerRepository.findByOwnerIdInWithStoreAndOwner(ownerIds).stream()
+                        .collect(Collectors.groupingBy(storeOwner -> storeOwner.getOwner().getId()));
 
         List<OwnerResponse> result = new ArrayList<>();
         for (User owner : owners) {
@@ -120,8 +122,8 @@ public class OwnerManagementService {
     @Transactional(readOnly = true)
     public List<ReassignableStoreResponse> listReassignableStores() {
         return storeOwnerRepository.findAllWithRevokedAccess().stream()
-            .map(ReassignableStoreResponse::from)
-            .toList();
+                .map(ReassignableStoreResponse::from)
+                .toList();
     }
 
     // Deliberately NOT @Transactional: the account (and any store change) is
@@ -142,20 +144,23 @@ public class OwnerManagementService {
             throw new InvalidOwnerRequestException("Choose either a new store or an existing store, not both");
         }
 
-        OwnerProvisioningService.ProvisionedOwner provisioned =
-            ownerProvisioningService.createOwnerAccount(request, hasNewStore, hasExistingStore);
+        OwnerProvisioningService.ProvisionedOwner provisioned = ownerProvisioningService.createOwnerAccount(request,
+                hasNewStore, hasExistingStore);
 
         boolean emailSent = false;
         try {
             String token = passwordResetService.createSetupToken(provisioned.email());
-            mailService.sendAccountSetupEmail(provisioned.email(), provisioned.fullName(), appBaseUrl + "?token=" + token);
+            mailService.sendAccountSetupEmail(provisioned.email(), provisioned.fullName(),
+                    appBaseUrl + "?token=" + token);
             emailSent = true;
         } catch (EmailDeliveryException ex) {
-            log.warn("Setup email failed for owner {} ({}); account still created", provisioned.fullName(), provisioned.ownerId(), ex);
+            log.warn("Setup email failed for owner {} ({}); account still created", provisioned.fullName(),
+                    provisioned.ownerId(), ex);
             try {
                 Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
                 if (principal instanceof SuperAdminUserDetails saDetails) {
-                    superAdminAlertService.notifyOwnerEmailDeliveryFailed(saDetails.getSuperAdmin(), provisioned.fullName());
+                    superAdminAlertService.notifyOwnerEmailDeliveryFailed(saDetails.getSuperAdmin(),
+                            provisioned.fullName());
                 }
             } catch (RuntimeException notifEx) {
                 log.warn("Could not send OWNER_EMAIL_FAILED notification for owner {}", provisioned.ownerId(), notifEx);
@@ -163,10 +168,9 @@ public class OwnerManagementService {
         }
 
         activityLogService.logPlatform(
-            "OWNER_CREATED", "Super Admin", "SUPER_ADMIN",
-            "OWNER", provisioned.fullName(),
-            "Created admin \"" + provisioned.fullName() + "\""
-        );
+                "OWNER_CREATED", "Super Admin", "SUPER_ADMIN",
+                "OWNER", provisioned.fullName(),
+                "Created admin \"" + provisioned.fullName() + "\"");
 
         return new OwnerCreationResponse(provisioned.response(), null, emailSent);
     }
@@ -174,7 +178,7 @@ public class OwnerManagementService {
     @Transactional
     public OwnerResponse assignStore(Long ownerId, AssignStoreRequest request) {
         User owner = userRepository.findById(ownerId)
-            .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+                .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
 
         if (!owner.isActive()) {
             throw new InvalidOwnerRequestException("Cannot assign a store to a deactivated owner");
@@ -182,7 +186,7 @@ public class OwnerManagementService {
 
         if (storeOwnerRepository.existsByOwnerIdAndActiveTrue(ownerId)) {
             throw new OwnerStoreConflictException(
-                "This owner already has an active store assigned. Deactivate their current store first before assigning a new one.");
+                    "This owner already has an active store assigned. Deactivate their current store first before assigning a new one.");
         }
 
         boolean hasNewStoreName = request.storeName() != null && !request.storeName().isBlank();
@@ -200,7 +204,7 @@ public class OwnerManagementService {
         if (hasNewStore) {
             if (storeRepository.existsByNameAndLocationIgnoreCase(request.storeName(), request.storeLocation())) {
                 throw new StoreAlreadyExistsException(
-                    "A store with this name and location already exists");
+                        "A store with this name and location already exists");
             }
             Store store = new Store();
             store.setName(request.storeName());
@@ -214,7 +218,7 @@ public class OwnerManagementService {
             storeOwner = storeOwnerRepository.save(storeOwner);
         } else {
             storeOwner = storeOwnerRepository.findByStoreId(request.existingStoreId())
-                .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+                    .orElseThrow(() -> new StoreNotFoundException("Store not found"));
             if (storeOwner.isActive()) {
                 throw new InvalidOwnerRequestException("That store is not available for reassignment");
             }
@@ -228,10 +232,9 @@ public class OwnerManagementService {
         }
 
         activityLogService.log(
-            "STORE_ASSIGNED", "Super Admin", "SUPER_ADMIN",
-            storeOwner.getStore().getId(), storeOwner.getStore().getName(), "OWNER", owner.getFullName(),
-            "Assigned " + owner.getFullName() + " to " + storeOwner.getStore().getName()
-        );
+                "STORE_ASSIGNED", "Super Admin", "SUPER_ADMIN",
+                storeOwner.getStore().getId(), storeOwner.getStore().getName(), "OWNER", owner.getFullName(),
+                "Assigned " + owner.getFullName() + " to " + storeOwner.getStore().getName());
 
         return OwnerResponse.from(storeOwner);
     }
@@ -239,13 +242,13 @@ public class OwnerManagementService {
     @Transactional
     public List<OwnerResponse> updateOwner(Long ownerId, UpdateOwnerRequest request) {
         User owner = userRepository.findById(ownerId)
-            .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+                .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
 
         String email = request.ownerEmail().trim();
         String previousEmail = owner.getEmail();
         boolean emailChanged = AccountEmailChangeService.isChange(previousEmail, email);
-        if (emailChanged && userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        if (emailChanged) {
+            emailUniquenessService.assertAvailable(email);
         }
 
         owner.setFullName(request.ownerName().trim());
@@ -256,10 +259,9 @@ public class OwnerManagementService {
         }
 
         activityLogService.logPlatform(
-            "OWNER_UPDATED", "Super Admin", "SUPER_ADMIN",
-            "OWNER", owner.getFullName(),
-            "Updated admin \"" + owner.getFullName() + "\""
-        );
+                "OWNER_UPDATED", "Super Admin", "SUPER_ADMIN",
+                "OWNER", owner.getFullName(),
+                "Updated admin \"" + owner.getFullName() + "\"");
 
         List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
         if (storeOwners.isEmpty()) {
@@ -271,17 +273,16 @@ public class OwnerManagementService {
     @Transactional
     public List<OwnerResponse> setOwnerActive(Long ownerId, boolean active) {
         User owner = userRepository.findById(ownerId)
-            .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+                .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
         owner.setActive(active);
         userRepository.save(owner);
         notificationService.createForAccountStatus(owner, active);
 
         List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
         activityLogService.logForStores(
-            active ? "OWNER_ACTIVATED" : "OWNER_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
-            storeOwners.stream().map(StoreOwner::getStore).toList(), "OWNER", owner.getFullName(),
-            (active ? "Activated admin \"" : "Deactivated admin \"") + owner.getFullName() + "\""
-        );
+                active ? "OWNER_ACTIVATED" : "OWNER_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
+                storeOwners.stream().map(StoreOwner::getStore).toList(), "OWNER", owner.getFullName(),
+                (active ? "Activated admin \"" : "Deactivated admin \"") + owner.getFullName() + "\"");
         if (!active) {
             // Deactivating the owner fully releases their store link(s) --
             // same shape as a never-owned store (owner=null, active=false),
@@ -313,35 +314,40 @@ public class OwnerManagementService {
     @Transactional
     public List<OwnerResponse> setStoreActive(Long ownerId, Long storeId, boolean active) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+                .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
         storeOwner.setActive(active);
         storeOwner.setOwnerVacantSince(active ? null : OffsetDateTime.now());
         storeOwnerRepository.save(storeOwner);
 
         activityLogService.log(
-            active ? "STORE_ACTIVATED" : "STORE_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
-            storeOwner.getStore().getId(), storeOwner.getStore().getName(), "STORE", storeOwner.getStore().getName(),
-            (active ? "Activated store \"" : "Deactivated store \"") + storeOwner.getStore().getName() + "\""
-        );
+                active ? "STORE_ACTIVATED" : "STORE_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
+                storeOwner.getStore().getId(), storeOwner.getStore().getName(), "STORE",
+                storeOwner.getStore().getName(),
+                (active ? "Activated store \"" : "Deactivated store \"") + storeOwner.getStore().getName() + "\"");
 
         return storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .map(OwnerResponse::from)
-            .toList();
+                .map(OwnerResponse::from)
+                .toList();
     }
 
     @Transactional
     public void deleteOwner(Long ownerId) {
         User owner = userRepository.findById(ownerId)
-            .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
+                .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
 
-        // Release every store this owner was linked to the same way setOwnerActive(false)
-        // does: active=false, not just owner_id going null via the FK's ON DELETE SET NULL
+        // Release every store this owner was linked to the same way
+        // setOwnerActive(false)
+        // does: active=false, not just owner_id going null via the FK's ON DELETE SET
+        // NULL
         // below. Without this, a hard-deleted owner's store keeps active=true with no
-        // owner, so it never satisfies findAllWithRevokedAccess's "active = false" check
+        // owner, so it never satisfies findAllWithRevokedAccess's "active = false"
+        // check
         // and silently disappears from the Existing Store picker while the store itself
-        // stays active. (last_owner_id/owner_id are left for the DB cascade to null out --
-        // pointing them at a user we're about to delete would just be undone by it anyway.)
+        // stays active. (last_owner_id/owner_id are left for the DB cascade to null out
+        // --
+        // pointing them at a user we're about to delete would just be undone by it
+        // anyway.)
         List<StoreOwner> storeOwners = storeOwnerRepository.findByOwnerId(ownerId);
         storeOwners.forEach(storeOwner -> {
             storeOwner.setActive(false);
@@ -351,7 +357,7 @@ public class OwnerManagementService {
 
         // Token stops working immediately; DB cascade/set-null (V42) handles
         // the FK cleanup when the user row is deleted below.
-        sessionService.invalidateAllForUser(owner.getEmail());
+        sessionService.invalidateAllForUser(owner.getEmail(), PrincipalType.USER);
         userRepository.delete(owner);
     }
 }

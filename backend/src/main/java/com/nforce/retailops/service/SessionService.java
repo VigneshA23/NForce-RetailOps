@@ -1,6 +1,7 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.entity.ActiveSession;
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.repository.ActiveSessionRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -58,11 +59,12 @@ public class SessionService {
     }
 
     @Transactional
-    public void createSession(String tokenId, String subjectEmail, long sessionMinutes) {
+    public void createSession(String tokenId, String subjectEmail, PrincipalType principalType, long sessionMinutes) {
         OffsetDateTime now = OffsetDateTime.now();
         ActiveSession session = new ActiveSession();
         session.setTokenId(tokenId);
         session.setSubjectEmail(subjectEmail);
+        session.setPrincipalType(principalType);
         session.setLastActiveAt(now);
         session.setExpiresAt(now.plusMinutes(sessionMinutes));
         activeSessionRepository.save(session);
@@ -129,15 +131,15 @@ public class SessionService {
      * tokens happens to expire.
      */
     @Transactional
-    public void invalidateAllForUser(String email) {
-        activeSessionRepository.deleteBySubjectEmail(email);
+    public void invalidateAllForUser(String email, PrincipalType principalType) {
+        activeSessionRepository.deleteByPrincipalTypeAndSubjectEmail(principalType, email);
     }
 
     // Same as invalidateAllForUser, but keeps the caller's own current session alive --
     // used for "log out from all other devices" so the user isn't signed out of the
     // tab/device they just made the change from.
     @Transactional
-    public void invalidateAllForUserExcept(String email, String exceptTokenId) {
-        activeSessionRepository.deleteBySubjectEmailAndTokenIdNot(email, exceptTokenId);
+    public void invalidateAllForUserExcept(String email, PrincipalType principalType, String exceptTokenId) {
+        activeSessionRepository.deleteByPrincipalTypeAndSubjectEmailAndTokenIdNot(principalType, email, exceptTokenId);
     }
 }

@@ -20,6 +20,7 @@ import java.math.BigDecimal;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -137,6 +138,17 @@ class CashCalculationServiceTest {
         assertNull(r.expectedCashOnHand());
         assertNull(r.variance());
         assertNull(r.asOfDate());
+        assertNull(r.lastUpdatedAt());
+    }
+
+    @Test
+    void lastUpdatedAt_isWhenTheLatestEntryWasLastSaved() {
+        DailyCashEntry e = entry("2026-11-09", "200", "1000", "100", "575", "50", "500", "25");
+        OffsetDateTime savedAt = OffsetDateTime.parse("2026-11-09T21:15:00+05:30");
+        e.setUpdatedAt(savedAt);
+        ExpectedCashResponse r = service.calculate(e);
+        assertEquals(savedAt, r.lastUpdatedAt());
+        assertEquals(LocalDate.parse("2026-11-09"), r.asOfDate());
     }
 
     @Test
@@ -147,6 +159,25 @@ class CashCalculationServiceTest {
         assertTrue(r.available());
         assertEquals(LocalDate.of(2026, 11, 9), r.asOfDate());
         assertMoney("575.00", r.expectedCashOnHand());
+    }
+
+    @Test
+    void oldEntry_isStillShownAsLive_withLastUpdatedAt() {
+        // BA decision: no staleness cutoff. A 6-day-old entry is still the live figure.
+        DailyCashEntry old = entry("2020-01-01", "200", "1000", "100", "575", "50", "500", "25");
+        java.time.OffsetDateTime saved = java.time.OffsetDateTime.parse("2020-01-01T21:30:00Z");
+        ReflectionTestUtils.setField(old, "updatedAt", saved);
+        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.of(old));
+        ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
+        assertTrue(r.available());
+        assertEquals(saved, r.lastUpdatedAt());
+        assertMoney("575.00", r.expectedCashOnHand());
+    }
+
+    @Test
+    void noEntries_hasNoLastUpdatedAt() {
+        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.empty());
+        assertNull(service.getExpectedCashForStore(STORE_ID).lastUpdatedAt());
     }
 
     @Test

@@ -183,7 +183,8 @@ class ExpectedCashControllerTest {
             .andExpect(jsonPath("$.message").isNotEmpty())
             .andExpect(jsonPath("$.expectedCashOnHand").doesNotExist())
             .andExpect(jsonPath("$.variance").doesNotExist())
-            .andExpect(jsonPath("$.asOfDate").doesNotExist());
+            .andExpect(jsonPath("$.asOfDate").doesNotExist())
+            .andExpect(jsonPath("$.lastUpdatedAt").doesNotExist());
     }
 
     // ---- calculation --------------------------------------------------------
@@ -204,6 +205,8 @@ class ExpectedCashControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.available").value(true))
             .andExpect(jsonPath("$.asOfDate").value("2026-11-09"))
+            // When the latest entry was saved, for the "last updated" label (RTS-296).
+            .andExpect(jsonPath("$.lastUpdatedAt").isNotEmpty())
             .andExpect(jsonPath("$.expectedCashOnHand").value(540.00))
             .andExpect(jsonPath("$.cashRemaining").value(530.00))
             .andExpect(jsonPath("$.variance").value(-10.00))

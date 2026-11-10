@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.repository.PasswordResetTokenRepository;
@@ -57,7 +58,7 @@ class AccountEmailChangeServiceTest {
 
         service.emailChanged(user, OLD_EMAIL);
 
-        verify(sessionService).invalidateAllForUser(OLD_EMAIL);
+        verify(sessionService).invalidateAllForUser(OLD_EMAIL, PrincipalType.USER);
         verify(passwordResetTokenRepository).deleteByEmailIgnoreCase(OLD_EMAIL);
         verify(mailService).sendAccountSetupEmail(NEW_EMAIL, "John Smith", "http://localhost:5173?token=new-token");
         verify(mailService, never()).sendLoginEmailChangedEmail(anyString(), anyString(), anyString());
@@ -69,7 +70,7 @@ class AccountEmailChangeServiceTest {
 
         service.emailChanged(user, OLD_EMAIL);
 
-        verify(sessionService).invalidateAllForUser(OLD_EMAIL);
+        verify(sessionService).invalidateAllForUser(OLD_EMAIL, PrincipalType.USER);
         verify(passwordResetTokenRepository).deleteByEmailIgnoreCase(OLD_EMAIL);
         verify(mailService).sendLoginEmailChangedEmail(OLD_EMAIL, "John Smith", NEW_EMAIL);
         verify(mailService).sendLoginEmailChangedEmail(NEW_EMAIL, "John Smith", NEW_EMAIL);

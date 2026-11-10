@@ -1,5 +1,7 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.SuperAdmin;
+import com.nforce.retailops.repository.SuperAdminRepository;
 import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerResponse;
 import com.nforce.retailops.dto.UpdateOwnerRequest;
@@ -38,6 +40,8 @@ class OwnerManagementServiceTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private SuperAdminRepository superAdminRepository;
+    @Mock
     private StoreRepository storeRepository;
     @Mock
     private StoreOwnerRepository storeOwnerRepository;
@@ -65,7 +69,7 @@ class OwnerManagementServiceTest {
     @BeforeEach
     void setUp() {
         ownerManagementService = new OwnerManagementService(
-            userRepository, storeRepository, storeOwnerRepository,
+            userRepository, new EmailUniquenessService(userRepository, superAdminRepository), storeRepository, storeOwnerRepository,
             mailService, storeCodeGenerator, ownerProvisioningService, notificationService, superAdminAlertService, sessionService,
             activityLogService, passwordResetService, accountEmailChangeService, "http://localhost:5173"
         );
@@ -289,6 +293,22 @@ class OwnerManagementServiceTest {
         ownerManagementService.updateOwner(5L, new UpdateOwnerRequest("Samuel Owner", owner.getEmail().toUpperCase()));
 
         assertThat(owner.getFullName()).isEqualTo("Samuel Owner");
+        verify(accountEmailChangeService, never()).emailChanged(any(), any());
+    }
+
+    @Test
+    void updateOwnerRefusesAnEmailBelongingToASuperAdmin() {
+        User owner = user(5L, "Sam Owner");
+        String previousEmail = owner.getEmail();
+        when(userRepository.findById(5L)).thenReturn(Optional.of(owner));
+        when(userRepository.findByEmailWithRoles("admin@nforce.test")).thenReturn(Optional.empty());
+        when(superAdminRepository.findByEmailIgnoreCase("admin@nforce.test")).thenReturn(Optional.of(new SuperAdmin()));
+
+        assertThatThrownBy(() ->
+            ownerManagementService.updateOwner(5L, new UpdateOwnerRequest("Sam Owner", "admin@nforce.test")))
+            .isInstanceOf(EmailAlreadyExistsException.class);
+
+        assertThat(owner.getEmail()).isEqualTo(previousEmail);
         verify(accountEmailChangeService, never()).emailChanged(any(), any());
     }
 }

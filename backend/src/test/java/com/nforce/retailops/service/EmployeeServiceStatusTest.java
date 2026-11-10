@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.dto.EmployeeResponse;
 import com.nforce.retailops.dto.UpdateEmployeeStatusRequest;
 import com.nforce.retailops.entity.StoreEmployee;
@@ -54,6 +55,9 @@ class EmployeeServiceStatusTest {
     @Mock
     private ActivityLogService activityLogService;
 
+    @Mock
+    private EmailUniquenessService emailUniquenessService;
+
     @InjectMocks
     private EmployeeService employeeService;
 
@@ -90,7 +94,7 @@ class EmployeeServiceStatusTest {
         assertThat(response.active()).isFalse();
         assertThat(storeEmployee.getEmployee().isActive()).isFalse();
         verify(userRepository).save(storeEmployee.getEmployee());
-        verify(sessionService).invalidateAllForUser(EMPLOYEE_EMAIL);
+        verify(sessionService).invalidateAllForUser(EMPLOYEE_EMAIL, PrincipalType.USER);
     }
 
     @Test
@@ -102,7 +106,7 @@ class EmployeeServiceStatusTest {
             employeeService.setEmployeeActive(OWNER_ID, EMPLOYEE_ID, new UpdateEmployeeStatusRequest(true));
 
         assertThat(response.active()).isTrue();
-        verify(sessionService, never()).invalidateAllForUser(anyString());
+        verify(sessionService, never()).invalidateAllForUser(anyString(), any());
     }
 
     @Test
@@ -120,7 +124,7 @@ class EmployeeServiceStatusTest {
         ).isInstanceOf(EmployeeNotFoundException.class);
 
         verify(userRepository, never()).save(any(User.class));
-        verify(sessionService, never()).invalidateAllForUser(anyString());
+        verify(sessionService, never()).invalidateAllForUser(anyString(), any());
     }
 
     @Test
@@ -135,7 +139,7 @@ class EmployeeServiceStatusTest {
         assertThat(storeEmployee.getEmployee().getPasswordHash()).isEqualTo("hashed");
         assertThat(storeEmployee.getEmployee().isMustResetPassword()).isTrue();
         verify(userRepository).save(storeEmployee.getEmployee());
-        verify(sessionService).invalidateAllForUser(EMPLOYEE_EMAIL);
+        verify(sessionService).invalidateAllForUser(EMPLOYEE_EMAIL, PrincipalType.USER);
         verify(mailService).sendAccountSetupEmail(eq(EMPLOYEE_EMAIL), eq("Test Employee"), anyString());
     }
 
@@ -153,7 +157,7 @@ class EmployeeServiceStatusTest {
             .isInstanceOf(EmployeeNotFoundException.class);
 
         verify(mailService, never()).sendAccountSetupEmail(anyString(), anyString(), anyString());
-        verify(sessionService, never()).invalidateAllForUser(anyString());
+        verify(sessionService, never()).invalidateAllForUser(anyString(), any());
     }
 
     @Test
@@ -162,7 +166,7 @@ class EmployeeServiceStatusTest {
 
         employeeService.deleteEmployee(OWNER_ID, EMPLOYEE_ID);
 
-        verify(sessionService).invalidateAllForUser(EMPLOYEE_EMAIL);
+        verify(sessionService).invalidateAllForUser(EMPLOYEE_EMAIL, PrincipalType.USER);
         verify(storeEmployeeRepository).delete(storeEmployee);
         verify(userRepository).delete(storeEmployee.getEmployee());
     }

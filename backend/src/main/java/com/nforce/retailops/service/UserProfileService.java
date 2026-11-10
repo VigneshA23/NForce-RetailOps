@@ -7,7 +7,6 @@ import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -26,15 +25,16 @@ public class UserProfileService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final UserRepository userRepository;
+    private final EmailUniquenessService emailUniquenessService;
 
     public UserProfileService(
-        StoreOwnerRepository storeOwnerRepository,
-        StoreEmployeeRepository storeEmployeeRepository,
-        UserRepository userRepository
-    ) {
+            StoreOwnerRepository storeOwnerRepository,
+            StoreEmployeeRepository storeEmployeeRepository,
+            UserRepository userRepository, EmailUniquenessService emailUniquenessService) {
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.userRepository = userRepository;
+        this.emailUniquenessService = emailUniquenessService;
     }
 
     @Transactional(readOnly = true)
@@ -42,8 +42,8 @@ public class UserProfileService {
         String role = isOwnerAdmin(user) ? OWNER_ROLE_NAME : "EMPLOYEE";
 
         List<String> storeNames = accessibleStores(user).stream()
-            .map(Store::getName)
-            .toList();
+                .map(Store::getName)
+                .toList();
 
         String employeeType = null;
         String phone;
@@ -60,8 +60,8 @@ public class UserProfileService {
         }
 
         return new MeResponse(
-            user.getId(), user.getFullName(), user.getEmail(), role, storeNames, user.isMustResetPassword(),
-            employeeType, phone, user.getAvatarUrl());
+                user.getId(), user.getFullName(), user.getEmail(), role, storeNames, user.isMustResetPassword(),
+                employeeType, phone, user.getAvatarUrl());
     }
 
     /**
@@ -72,8 +72,8 @@ public class UserProfileService {
     @Transactional
     public MeResponse updateMe(User user, UpdateMeRequest request) {
         String email = request.email().trim();
-        if (!user.getEmail().equalsIgnoreCase(email) && userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        if (!user.getEmail().equalsIgnoreCase(email)) {
+            emailUniquenessService.assertAvailable(email);
         }
 
         user.setFullName(request.fullName().trim());
@@ -109,8 +109,8 @@ public class UserProfileService {
     @Transactional(readOnly = true)
     public List<AssignedStoreResponse> listMyStores(User user) {
         return accessibleStores(user).stream()
-            .map(AssignedStoreResponse::from)
-            .toList();
+                .map(AssignedStoreResponse::from)
+                .toList();
     }
 
     /**
@@ -132,15 +132,15 @@ public class UserProfileService {
 
     private List<Store> accessibleStores(User user) {
         List<Store> stores = isOwnerAdmin(user)
-            ? storeOwnerRepository.findByOwnerIdAndActiveTrue(user.getId())
-                .map(so -> List.of(so.getStore()))
-                .orElseGet(List::of)
-            : storeEmployeeRepository.findByEmployeeId(user.getId())
-                .map(storeEmployee -> List.copyOf(storeEmployee.getStores()))
-                .orElseGet(List::of);
+                ? storeOwnerRepository.findByOwnerIdAndActiveTrue(user.getId())
+                        .map(so -> List.of(so.getStore()))
+                        .orElseGet(List::of)
+                : storeEmployeeRepository.findByEmployeeId(user.getId())
+                        .map(storeEmployee -> List.copyOf(storeEmployee.getStores()))
+                        .orElseGet(List::of);
 
         return stores.stream()
-            .sorted(Comparator.comparing(Store::getName, String.CASE_INSENSITIVE_ORDER))
-            .toList();
+                .sorted(Comparator.comparing(Store::getName, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 }

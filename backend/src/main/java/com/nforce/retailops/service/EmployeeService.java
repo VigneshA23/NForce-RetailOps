@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.dto.EmployeeCreateRequest;
 import com.nforce.retailops.dto.EmployeeDirectoryResponse;
 import com.nforce.retailops.dto.EmployeeCreationResponse;
@@ -13,7 +14,6 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.exception.EmployeeNotFoundException;
 import com.nforce.retailops.exception.InvalidStoreSelectionException;
@@ -46,6 +46,7 @@ public class EmployeeService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
+    private final EmailUniquenessService emailUniquenessService;
     private final SessionService sessionService;
     private final MailService mailService;
     private final EmployeeProvisioningService employeeProvisioningService;
@@ -58,25 +59,26 @@ public class EmployeeService {
     private final String appBaseUrl;
 
     public EmployeeService(
-        StoreEmployeeRepository storeEmployeeRepository,
-        StoreOwnerRepository storeOwnerRepository,
-        StoreRepository storeRepository,
-        UserRepository userRepository,
-        SessionService sessionService,
-        MailService mailService,
-        EmployeeProvisioningService employeeProvisioningService,
-        PasswordEncoder passwordEncoder,
-        TemporaryPasswordGenerator temporaryPasswordGenerator,
-        NotificationService notificationService,
-        ActivityLogService activityLogService,
-        PasswordResetService passwordResetService,
-        AccountEmailChangeService accountEmailChangeService,
-        @Value("${app.base-url}") String appBaseUrl
-    ) {
+            StoreEmployeeRepository storeEmployeeRepository,
+            StoreOwnerRepository storeOwnerRepository,
+            StoreRepository storeRepository,
+            UserRepository userRepository,
+            EmailUniquenessService emailUniquenessService,
+            SessionService sessionService,
+            MailService mailService,
+            EmployeeProvisioningService employeeProvisioningService,
+            PasswordEncoder passwordEncoder,
+            TemporaryPasswordGenerator temporaryPasswordGenerator,
+            NotificationService notificationService,
+            ActivityLogService activityLogService,
+            PasswordResetService passwordResetService,
+            AccountEmailChangeService accountEmailChangeService,
+            @Value("${app.base-url}") String appBaseUrl) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
+        this.emailUniquenessService = emailUniquenessService;
         this.sessionService = sessionService;
         this.mailService = mailService;
         this.employeeProvisioningService = employeeProvisioningService;
@@ -94,8 +96,8 @@ public class EmployeeService {
     // shared employee never leaks into a different owner's activity feed.
     private List<Store> ownedStoresAmong(Collection<Store> stores, Long ownerId) {
         return stores.stream()
-            .filter(store -> storeOwnerRepository.findByStoreIdAndOwnerId(store.getId(), ownerId).isPresent())
-            .toList();
+                .filter(store -> storeOwnerRepository.findByStoreIdAndOwnerId(store.getId(), ownerId).isPresent())
+                .toList();
     }
 
     private String ownerName(Long ownerId) {
@@ -104,7 +106,7 @@ public class EmployeeService {
 
     private boolean ownsAnyStore(StoreEmployee storeEmployee, Long ownerId) {
         return storeEmployee.getStores().stream()
-            .anyMatch(store -> storeOwnerRepository.findByStoreIdAndOwnerId(store.getId(), ownerId).isPresent());
+                .anyMatch(store -> storeOwnerRepository.findByStoreIdAndOwnerId(store.getId(), ownerId).isPresent());
     }
 
     // An owner can manage an employee either through shared store assignment, or
@@ -121,12 +123,13 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<EmployeeResponse> listEmployees(Long ownerId) {
         List<Long> storeIds = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .map(so -> List.of(so.getStore().getId()))
-            .orElseGet(List::of);
+                .map(so -> List.of(so.getStore().getId()))
+                .orElseGet(List::of);
 
         Map<Long, StoreEmployee> employeesById = new LinkedHashMap<>();
         if (!storeIds.isEmpty()) {
-            for (StoreEmployee storeEmployee : storeEmployeeRepository.findDistinctByStoresIdInOrderByIdAscFetchEmployee(storeIds)) {
+            for (StoreEmployee storeEmployee : storeEmployeeRepository
+                    .findDistinctByStoresIdInOrderByIdAscFetchEmployee(storeIds)) {
                 employeesById.put(storeEmployee.getId(), storeEmployee);
             }
         }
@@ -135,8 +138,8 @@ public class EmployeeService {
         }
 
         List<StoreEmployee> employees = employeesById.values().stream()
-            .sorted(Comparator.comparing(StoreEmployee::getId))
-            .toList();
+                .sorted(Comparator.comparing(StoreEmployee::getId))
+                .toList();
 
         if (employees.isEmpty()) {
             return List.of();
@@ -146,16 +149,15 @@ public class EmployeeService {
         List<Long> employeeIds = employees.stream().map(StoreEmployee::getId).toList();
         for (Object[] row : storeEmployeeRepository.findStoreRowsGroupedByEmployeeIds(employeeIds)) {
             storesByEmployeeId
-                .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
-                .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
+                    .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
+                    .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
         }
 
         return employees.stream()
-            .map(storeEmployee -> EmployeeResponse.from(
-                storeEmployee,
-                storesByEmployeeId.getOrDefault(storeEmployee.getId(), List.of())
-            ))
-            .toList();
+                .map(storeEmployee -> EmployeeResponse.from(
+                        storeEmployee,
+                        storesByEmployeeId.getOrDefault(storeEmployee.getId(), List.of())))
+                .toList();
     }
 
     // Read-only, cross-owner directory for the Super Admin's Employees page --
@@ -172,22 +174,21 @@ public class EmployeeService {
         Map<Long, List<StoreOptionResponse>> storesByEmployeeId = new LinkedHashMap<>();
         for (Object[] row : storeEmployeeRepository.findStoreRowsGroupedByEmployeeIds(employeeIds)) {
             storesByEmployeeId
-                .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
-                .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
+                    .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
+                    .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
         }
 
         return employees.stream()
-            .map(storeEmployee -> {
-                User owner = storeEmployee.getCreatedByOwner();
-                return SuperAdminEmployeeResponse.from(
-                    storeEmployee,
-                    storesByEmployeeId.getOrDefault(storeEmployee.getId(), List.of()),
-                    owner != null ? owner.getId() : null,
-                    owner != null ? owner.getFullName() : "Unassigned"
-                );
-            })
-            .sorted(Comparator.comparing(SuperAdminEmployeeResponse::name, String.CASE_INSENSITIVE_ORDER))
-            .toList();
+                .map(storeEmployee -> {
+                    User owner = storeEmployee.getCreatedByOwner();
+                    return SuperAdminEmployeeResponse.from(
+                            storeEmployee,
+                            storesByEmployeeId.getOrDefault(storeEmployee.getId(), List.of()),
+                            owner != null ? owner.getId() : null,
+                            owner != null ? owner.getFullName() : "Unassigned");
+                })
+                .sorted(Comparator.comparing(SuperAdminEmployeeResponse::name, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     // Super-Admin-only now: created with no owner and no stores. An owner
@@ -201,23 +202,24 @@ public class EmployeeService {
     // shown in the UI directly with the new employee.
     public EmployeeCreationResponse createEmployee(EmployeeCreateRequest request) {
         Set<Store> stores = resolveStores(request.storeIds());
-        EmployeeProvisioningService.ProvisionedEmployee provisioned =
-            employeeProvisioningService.createEmployeeAccount(null, request, stores);
+        EmployeeProvisioningService.ProvisionedEmployee provisioned = employeeProvisioningService
+                .createEmployeeAccount(null, request, stores);
 
         boolean emailSent = false;
         try {
             String token = passwordResetService.createSetupToken(provisioned.email());
-            mailService.sendAccountSetupEmail(provisioned.email(), provisioned.fullName(), appBaseUrl + "?token=" + token);
+            mailService.sendAccountSetupEmail(provisioned.email(), provisioned.fullName(),
+                    appBaseUrl + "?token=" + token);
             emailSent = true;
         } catch (EmailDeliveryException ex) {
-            log.warn("Setup email failed for employee {} ({}); account still created", provisioned.fullName(), provisioned.userId(), ex);
+            log.warn("Setup email failed for employee {} ({}); account still created", provisioned.fullName(),
+                    provisioned.userId(), ex);
         }
 
         activityLogService.logForStores(
-            "EMPLOYEE_CREATED", "Super Admin", "SUPER_ADMIN",
-            stores, "EMPLOYEE", provisioned.fullName(),
-            "Created employee \"" + provisioned.fullName() + "\""
-        );
+                "EMPLOYEE_CREATED", "Super Admin", "SUPER_ADMIN",
+                stores, "EMPLOYEE", provisioned.fullName(),
+                "Created employee \"" + provisioned.fullName() + "\"");
 
         return new EmployeeCreationResponse(provisioned.response(), null, emailSent);
     }
@@ -226,7 +228,7 @@ public class EmployeeService {
     @Transactional
     public EmployeeResponse updateEmployeeStores(Long employeeId, UpdateEmployeeStoresRequest request) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found: " + employeeId));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found: " + employeeId));
         storeEmployee.setStores(resolveStores(request.storeIds()));
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
         return EmployeeResponse.from(storeEmployee);
@@ -247,12 +249,12 @@ public class EmployeeService {
     @Transactional(readOnly = true)
     public List<EmployeeDirectoryResponse> listDirectory(Long ownerId) {
         Long myStoreId = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .map(so -> so.getStore().getId())
-            .orElse(null);
+                .map(so -> so.getStore().getId())
+                .orElse(null);
 
         List<StoreEmployee> employees = storeEmployeeRepository.findAllFetchEmployeeAndCreatedByOwner().stream()
-            .filter(storeEmployee -> storeEmployee.getEmployee().isActive())
-            .toList();
+                .filter(storeEmployee -> storeEmployee.getEmployee().isActive())
+                .toList();
         if (employees.isEmpty()) {
             return List.of();
         }
@@ -261,39 +263,40 @@ public class EmployeeService {
         Map<Long, List<StoreOptionResponse>> storesByEmployeeId = new LinkedHashMap<>();
         for (Object[] row : storeEmployeeRepository.findStoreRowsGroupedByEmployeeIds(employeeIds)) {
             storesByEmployeeId
-                .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
-                .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
+                    .computeIfAbsent((Long) row[0], key -> new ArrayList<>())
+                    .add(new StoreOptionResponse((Long) row[1], (String) row[2]));
         }
 
         return employees.stream()
-            .map(storeEmployee -> {
-                List<StoreOptionResponse> stores = storesByEmployeeId.getOrDefault(storeEmployee.getId(), List.of());
-                boolean assignedToMyStore = myStoreId != null
-                    && stores.stream().anyMatch(store -> store.id().equals(myStoreId));
-                return new EmployeeDirectoryResponse(
-                    storeEmployee.getId(),
-                    "EMP-" + String.format("%03d", storeEmployee.getId()),
-                    storeEmployee.getEmployee().getFullName(),
-                    storeEmployee.getEmployee().getEmail(),
-                    storeEmployee.getPhone(),
-                    stores,
-                    assignedToMyStore
-                );
-            })
-            .sorted(Comparator.comparing(EmployeeDirectoryResponse::name, String.CASE_INSENSITIVE_ORDER))
-            .toList();
+                .map(storeEmployee -> {
+                    List<StoreOptionResponse> stores = storesByEmployeeId.getOrDefault(storeEmployee.getId(),
+                            List.of());
+                    boolean assignedToMyStore = myStoreId != null
+                            && stores.stream().anyMatch(store -> store.id().equals(myStoreId));
+                    return new EmployeeDirectoryResponse(
+                            storeEmployee.getId(),
+                            "EMP-" + String.format("%03d", storeEmployee.getId()),
+                            storeEmployee.getEmployee().getFullName(),
+                            storeEmployee.getEmployee().getEmail(),
+                            storeEmployee.getPhone(),
+                            stores,
+                            assignedToMyStore);
+                })
+                .sorted(Comparator.comparing(EmployeeDirectoryResponse::name, String.CASE_INSENSITIVE_ORDER))
+                .toList();
     }
 
     private StoreOwner requireActiveStore(Long ownerId) {
         return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-            .orElseThrow(() -> new InvalidStoreSelectionException("You don't have an active store to assign employees to"));
+                .orElseThrow(() -> new InvalidStoreSelectionException(
+                        "You don't have an active store to assign employees to"));
     }
 
     @Transactional
     public EmployeeResponse assignToMyStore(Long ownerId, Long employeeId) {
         Store myStore = requireActiveStore(ownerId).getStore();
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
         storeEmployee.getStores().add(myStore);
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
@@ -301,13 +304,14 @@ public class EmployeeService {
         User employee = storeEmployee.getEmployee();
         User owner = userRepository.getReferenceById(ownerId);
         notificationService.sendForStore(employee, "EMPLOYEE_ASSIGNED",
-            "You've been added to " + myStore.getName(),
-            "You now have access to the checklist for " + myStore.getName() + ".",
-            "/checklist", myStore);
+                "You've been added to " + myStore.getName(),
+                "You now have access to the checklist for " + myStore.getName() + ".",
+                "/checklist", myStore);
         notificationService.sendForStore(owner, "NEW_EMPLOYEE_JOINED",
-            employee.getFullName() + " joined your store",
-            employee.getFullName() + " has been added to " + myStore.getName() + " and can now access your checklist.",
-            "/employees", myStore);
+                employee.getFullName() + " joined your store",
+                employee.getFullName() + " has been added to " + myStore.getName()
+                        + " and can now access your checklist.",
+                "/employees", myStore);
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -316,15 +320,15 @@ public class EmployeeService {
     public EmployeeResponse unassignFromMyStore(Long ownerId, Long employeeId) {
         Store myStore = requireActiveStore(ownerId).getStore();
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
         storeEmployee.getStores().removeIf(store -> store.getId().equals(myStore.getId()));
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
 
         notificationService.sendForStore(storeEmployee.getEmployee(), "EMPLOYEE_REMOVED",
-            "You've been removed from " + myStore.getName(),
-            "Your access to the checklist for " + myStore.getName() + " has been removed.",
-            null, myStore);
+                "You've been removed from " + myStore.getName(),
+                "Your access to the checklist for " + myStore.getName() + " has been removed.",
+                null, myStore);
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -332,7 +336,7 @@ public class EmployeeService {
     @Transactional
     public EmployeeResponse updateEmployee(Long ownerId, Long id, EmployeeUpdateRequest request) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
         if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
@@ -340,9 +344,8 @@ public class EmployeeService {
 
         String email = request.email().trim();
         User employee = storeEmployee.getEmployee();
-        if (!employee.getEmail().equalsIgnoreCase(email)
-            && userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        if (!employee.getEmail().equalsIgnoreCase(email)) {
+            emailUniquenessService.assertAvailable(email);
         }
 
         String previousEmail = employee.getEmail();
@@ -359,10 +362,9 @@ public class EmployeeService {
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
 
         activityLogService.logForStores(
-            "EMPLOYEE_UPDATED", ownerName(ownerId), "OWNER_ADMIN",
-            ownedStoresAmong(storeEmployee.getStores(), ownerId), "EMPLOYEE", employee.getFullName(),
-            "Updated employee \"" + employee.getFullName() + "\""
-        );
+                "EMPLOYEE_UPDATED", ownerName(ownerId), "OWNER_ADMIN",
+                ownedStoresAmong(storeEmployee.getStores(), ownerId), "EMPLOYEE", employee.getFullName(),
+                "Updated employee \"" + employee.getFullName() + "\"");
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -370,7 +372,7 @@ public class EmployeeService {
     @Transactional
     public void deleteEmployee(Long ownerId, Long id) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
         if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
@@ -379,27 +381,25 @@ public class EmployeeService {
         User employee = storeEmployee.getEmployee();
         String employeeName = employee.getFullName();
         List<Store> affectedStores = ownedStoresAmong(storeEmployee.getStores(), ownerId);
-        sessionService.invalidateAllForUser(employee.getEmail());
+        sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
         storeEmployeeRepository.delete(storeEmployee);
         userRepository.delete(employee);
 
         activityLogService.logForStores(
-            "EMPLOYEE_DELETED", ownerName(ownerId), "OWNER_ADMIN",
-            affectedStores, "EMPLOYEE", employeeName,
-            "Removed employee \"" + employeeName + "\""
-        );
+                "EMPLOYEE_DELETED", ownerName(ownerId), "OWNER_ADMIN",
+                affectedStores, "EMPLOYEE", employeeName,
+                "Removed employee \"" + employeeName + "\"");
     }
 
     @Transactional
     public EmployeeResponse updateEmployeeAsSuperAdmin(Long id, EmployeeUpdateRequest request) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
         String email = request.email().trim();
         User employee = storeEmployee.getEmployee();
-        if (!employee.getEmail().equalsIgnoreCase(email)
-            && userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        if (!employee.getEmail().equalsIgnoreCase(email)) {
+            emailUniquenessService.assertAvailable(email);
         }
 
         String previousEmail = employee.getEmail();
@@ -416,10 +416,9 @@ public class EmployeeService {
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
 
         activityLogService.logForStores(
-            "EMPLOYEE_UPDATED", "Super Admin", "SUPER_ADMIN",
-            storeEmployee.getStores(), "EMPLOYEE", employee.getFullName(),
-            "Updated employee \"" + employee.getFullName() + "\""
-        );
+                "EMPLOYEE_UPDATED", "Super Admin", "SUPER_ADMIN",
+                storeEmployee.getStores(), "EMPLOYEE", employee.getFullName(),
+                "Updated employee \"" + employee.getFullName() + "\"");
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -427,7 +426,7 @@ public class EmployeeService {
     @Transactional
     public EmployeeResponse setEmployeeActiveAsSuperAdmin(Long id, UpdateEmployeeStatusRequest request) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
         User employee = storeEmployee.getEmployee();
         boolean active = request.active();
@@ -435,22 +434,21 @@ public class EmployeeService {
         userRepository.save(employee);
 
         if (!active) {
-            sessionService.invalidateAllForUser(employee.getEmail());
+            sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
         }
 
         notificationService.send(employee,
-            active ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
-            active ? "Your account has been reactivated" : "Your account has been deactivated",
-            active
-                ? "Your NForce account has been reactivated by your store admin."
-                : "Your NForce account has been deactivated by your store admin.",
-            active ? "/checklist" : null);
+                active ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
+                active ? "Your account has been reactivated" : "Your account has been deactivated",
+                active
+                        ? "Your NForce account has been reactivated by your store admin."
+                        : "Your NForce account has been deactivated by your store admin.",
+                active ? "/checklist" : null);
 
         activityLogService.logForStores(
-            active ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
-            storeEmployee.getStores(), "EMPLOYEE", employee.getFullName(),
-            (active ? "Activated employee \"" : "Deactivated employee \"") + employee.getFullName() + "\""
-        );
+                active ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", "Super Admin", "SUPER_ADMIN",
+                storeEmployee.getStores(), "EMPLOYEE", employee.getFullName(),
+                (active ? "Activated employee \"" : "Deactivated employee \"") + employee.getFullName() + "\"");
 
         return EmployeeResponse.from(storeEmployee);
     }
@@ -460,9 +458,9 @@ public class EmployeeService {
     @Transactional
     public void deleteEmployeeAsSuperAdmin(Long id) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
         User employee = storeEmployee.getEmployee();
-        sessionService.invalidateAllForUser(employee.getEmail());
+        sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
         storeEmployeeRepository.delete(storeEmployee);
         userRepository.delete(employee);
     }
@@ -470,7 +468,7 @@ public class EmployeeService {
     @Transactional
     public void resetEmployeePassword(Long ownerId, Long id) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
         if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
@@ -484,7 +482,7 @@ public class EmployeeService {
         // The old password stops working the moment this runs, so any session
         // still holding a token issued against it is invalidated immediately
         // rather than staying valid until that token's own expiry.
-        sessionService.invalidateAllForUser(employee.getEmail());
+        sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
 
         // Thrown on failure, which rolls back the password change and session
         // invalidation above -- the employee must not be locked out without
@@ -496,7 +494,7 @@ public class EmployeeService {
     @Transactional
     public EmployeeResponse setEmployeeActive(Long ownerId, Long id, UpdateEmployeeStatusRequest request) {
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(id)
-            .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+                .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
 
         if (!canManageEmployee(storeEmployee, ownerId)) {
             throw new EmployeeNotFoundException("Employee not found");
@@ -509,22 +507,22 @@ public class EmployeeService {
         // Deactivation has to bite immediately: without this the employee keeps
         // working off the token they already hold until it expires.
         if (!request.active()) {
-            sessionService.invalidateAllForUser(employee.getEmail());
+            sessionService.invalidateAllForUser(employee.getEmail(), PrincipalType.USER);
         }
 
         notificationService.send(employee,
-            request.active() ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
-            request.active() ? "Your account has been reactivated" : "Your account has been deactivated",
-            request.active()
-                ? "Your NForce account has been reactivated."
-                : "Your NForce account has been deactivated.",
-            request.active() ? "/checklist" : null);
+                request.active() ? "EMPLOYEE_ACCOUNT_REACTIVATED" : "EMPLOYEE_ACCOUNT_DEACTIVATED",
+                request.active() ? "Your account has been reactivated" : "Your account has been deactivated",
+                request.active()
+                        ? "Your NForce account has been reactivated."
+                        : "Your NForce account has been deactivated.",
+                request.active() ? "/checklist" : null);
 
         activityLogService.logForStores(
-            request.active() ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", ownerName(ownerId), "OWNER_ADMIN",
-            ownedStoresAmong(storeEmployee.getStores(), ownerId), "EMPLOYEE", employee.getFullName(),
-            (request.active() ? "Activated employee \"" : "Deactivated employee \"") + employee.getFullName() + "\""
-        );
+                request.active() ? "EMPLOYEE_ACTIVATED" : "EMPLOYEE_DEACTIVATED", ownerName(ownerId), "OWNER_ADMIN",
+                ownedStoresAmong(storeEmployee.getStores(), ownerId), "EMPLOYEE", employee.getFullName(),
+                (request.active() ? "Activated employee \"" : "Deactivated employee \"") + employee.getFullName()
+                        + "\"");
 
         return EmployeeResponse.from(storeEmployee);
     }

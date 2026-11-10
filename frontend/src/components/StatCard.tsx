@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { ArrowDown, ArrowUp } from 'lucide-react';
+import HelpTooltip from './HelpTooltip';
 import './StatCard.css';
 
 export type StatCardTone = 'primary' | 'success' | 'warning' | 'info' | 'purple';
@@ -12,6 +13,8 @@ interface StatCardTrend {
 interface StatCardProps {
   icon: LucideIcon;
   label: string;
+  labelHelp?: string;
+  className?: string;
   value: string | number;
   // Appended after the value in smaller, muted text (e.g. value=40, unit="items" -> "40 items").
   unit?: string;
@@ -23,13 +26,16 @@ interface StatCardProps {
   active?: boolean;
 }
 
-function StatCard({ icon: Icon, label, value, unit, caption, tone = 'primary', trend, onClick, active }: StatCardProps) {
-  const className = `stat-card stat-card--${tone}${active ? ' stat-card--active' : ''}`;
+function StatCard({ icon: Icon, label, labelHelp, className: extraClassName, value, unit, caption, tone = 'primary', trend, onClick, active }: StatCardProps) {
+  const className = `stat-card stat-card--${tone}${active ? ' stat-card--active' : ''}${extraClassName ? ` ${extraClassName}` : ''}`;
 
   const inner = (
     <>
       <div className="stat-card__body">
-        <span className="stat-card__label">{label}</span>
+        <span className="stat-card__label">
+          {label}
+          {labelHelp && <HelpTooltip label={label} description={labelHelp} />}
+        </span>
         <span className="stat-card__value">
           {value}
           {unit && <span className="stat-card__unit">{unit}</span>}

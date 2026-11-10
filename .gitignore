@@ -4,6 +4,7 @@
 .env.*.local
 !.env.example
 frontend/.env
+frontend/.env.verify
 
 # --- Node / frontend ---
 /node_modules/

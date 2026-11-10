@@ -6,7 +6,6 @@ import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.exception.InvalidOwnerRequestException;
 import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.exception.StoreNotFoundException;
@@ -30,24 +29,25 @@ import org.springframework.transaction.annotation.Transactional;
 public class OwnerProvisioningService {
 
     public record ProvisionedOwner(
-        Long ownerId,
-        String email,
-        String fullName,
-        String temporaryPassword,
-        Long storeOwnerId,
-        Long newStoreId,
-        // True whenever an existing store-owner link was repossessed for this
-        // owner, regardless of whether it had a previous owner at all -- a
-        // never-owned store reassigned here still needs compensating back to
-        // "unowned" on failure, even though previousOwnerIdIfReassigned is null.
-        boolean reassignedExistingStore,
-        Long previousOwnerIdIfReassigned,
-        OwnerResponse response
-    ) {}
+            Long ownerId,
+            String email,
+            String fullName,
+            String temporaryPassword,
+            Long storeOwnerId,
+            Long newStoreId,
+            // True whenever an existing store-owner link was repossessed for this
+            // owner, regardless of whether it had a previous owner at all -- a
+            // never-owned store reassigned here still needs compensating back to
+            // "unowned" on failure, even though previousOwnerIdIfReassigned is null.
+            boolean reassignedExistingStore,
+            Long previousOwnerIdIfReassigned,
+            OwnerResponse response) {
+    }
 
     private static final String OWNER_ROLE_NAME = "OWNER_ADMIN";
 
     private final UserRepository userRepository;
+    private final EmailUniquenessService emailUniquenessService;
     private final RoleRepository roleRepository;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
@@ -56,15 +56,16 @@ public class OwnerProvisioningService {
     private final StoreCodeGenerator storeCodeGenerator;
 
     public OwnerProvisioningService(
-        UserRepository userRepository,
-        RoleRepository roleRepository,
-        StoreRepository storeRepository,
-        StoreOwnerRepository storeOwnerRepository,
-        PasswordEncoder passwordEncoder,
-        TemporaryPasswordGenerator temporaryPasswordGenerator,
-        StoreCodeGenerator storeCodeGenerator
-    ) {
+            UserRepository userRepository,
+            EmailUniquenessService emailUniquenessService,
+            RoleRepository roleRepository,
+            StoreRepository storeRepository,
+            StoreOwnerRepository storeOwnerRepository,
+            PasswordEncoder passwordEncoder,
+            TemporaryPasswordGenerator temporaryPasswordGenerator,
+            StoreCodeGenerator storeCodeGenerator) {
         this.userRepository = userRepository;
+        this.emailUniquenessService = emailUniquenessService;
         this.roleRepository = roleRepository;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -75,12 +76,10 @@ public class OwnerProvisioningService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ProvisionedOwner createOwnerAccount(AddOwnerRequest request, boolean hasNewStore, boolean hasExistingStore) {
-        if (userRepository.findByEmailWithRoles(request.ownerEmail()).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
-        }
+        emailUniquenessService.assertAvailable(request.ownerEmail());
 
         Role ownerRole = roleRepository.findByName(OWNER_ROLE_NAME)
-            .orElseThrow(() -> new IllegalStateException(OWNER_ROLE_NAME + " role is not seeded"));
+                .orElseThrow(() -> new IllegalStateException(OWNER_ROLE_NAME + " role is not seeded"));
 
         String temporaryPassword = temporaryPasswordGenerator.generate();
 
@@ -101,7 +100,7 @@ public class OwnerProvisioningService {
         if (hasNewStore) {
             if (storeRepository.existsByNameAndLocationIgnoreCase(request.storeName(), request.storeLocation())) {
                 throw new StoreAlreadyExistsException(
-                    "A store with this name and location already exists");
+                        "A store with this name and location already exists");
             }
             Store store = new Store();
             store.setName(request.storeName());
@@ -116,7 +115,7 @@ public class OwnerProvisioningService {
             storeOwner = storeOwnerRepository.save(storeOwner);
         } else if (hasExistingStore) {
             storeOwner = storeOwnerRepository.findByStoreId(request.existingStoreId())
-                .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+                    .orElseThrow(() -> new StoreNotFoundException("Store not found"));
             if (storeOwner.isActive()) {
                 throw new InvalidOwnerRequestException("That store is not available for reassignment");
             }
@@ -127,19 +126,19 @@ public class OwnerProvisioningService {
             storeOwner = storeOwnerRepository.save(storeOwner);
         }
 
-        OwnerResponse response = storeOwner != null ? OwnerResponse.from(storeOwner) : OwnerResponse.withoutStore(owner);
+        OwnerResponse response = storeOwner != null ? OwnerResponse.from(storeOwner)
+                : OwnerResponse.withoutStore(owner);
 
         return new ProvisionedOwner(
-            owner.getId(),
-            owner.getEmail(),
-            owner.getFullName(),
-            temporaryPassword,
-            storeOwner != null ? storeOwner.getId() : null,
-            newStoreId,
-            reassignedExistingStore,
-            previousOwnerId,
-            response
-        );
+                owner.getId(),
+                owner.getEmail(),
+                owner.getFullName(),
+                temporaryPassword,
+                storeOwner != null ? storeOwner.getId() : null,
+                newStoreId,
+                reassignedExistingStore,
+                previousOwnerId,
+                response);
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -155,11 +154,12 @@ public class OwnerProvisioningService {
             // (revoked-access reassignment) or no owner at all (a
             // never-owned store picked up as "existing").
             StoreOwner storeOwner = storeOwnerRepository.findById(provisioned.storeOwnerId())
-                .orElseThrow(() -> new IllegalStateException(
-                    "Reassigned store-owner link " + provisioned.storeOwnerId() + " vanished during compensation"));
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Reassigned store-owner link " + provisioned.storeOwnerId()
+                                    + " vanished during compensation"));
             storeOwner.setOwner(provisioned.previousOwnerIdIfReassigned() != null
-                ? userRepository.getReferenceById(provisioned.previousOwnerIdIfReassigned())
-                : null);
+                    ? userRepository.getReferenceById(provisioned.previousOwnerIdIfReassigned())
+                    : null);
             storeOwner.setActive(false);
             storeOwnerRepository.save(storeOwner);
         }

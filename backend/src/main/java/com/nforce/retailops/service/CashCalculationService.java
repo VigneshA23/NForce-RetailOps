@@ -72,7 +72,8 @@ public class CashCalculationService {
             entry.getCashRemoved(),
             entry.getBankDeposits(),
             entry.getCashExpenses(),
-            entry.getOtherAdjustments()
+            entry.getOtherAdjustments(),
+            entry.getUpdatedAt()
         );
     }
 

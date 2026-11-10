@@ -3,6 +3,7 @@ package com.nforce.retailops.service;
 import com.nforce.retailops.dto.LoginResponse;
 import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.SuperAdmin;
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.InvalidCurrentPasswordException;
 import com.nforce.retailops.repository.SuperAdminRepository;
@@ -77,7 +78,7 @@ public class AuthService {
 
         long sessionMinutes = sessionService.resolveSessionMinutes(rememberMe);
         String token = jwtService.generateToken(user.getEmail(), roleNames, Duration.ofMinutes(sessionMinutes).toMillis());
-        sessionService.createSession(jwtService.extractTokenId(token), user.getEmail(), sessionMinutes);
+        sessionService.createSession(jwtService.extractTokenId(token), user.getEmail(), PrincipalType.USER, sessionMinutes);
 
         return new LoginResponse(token, primaryRole, user.getFullName(), user.isMustResetPassword(), sessionMinutes);
     }
@@ -89,7 +90,7 @@ public class AuthService {
 
         long sessionMinutes = sessionService.resolveSessionMinutes(rememberMe);
         String token = jwtService.generateToken(superAdmin.getEmail(), List.of("SUPER_ADMIN"), Duration.ofMinutes(sessionMinutes).toMillis());
-        sessionService.createSession(jwtService.extractTokenId(token), superAdmin.getEmail(), sessionMinutes);
+        sessionService.createSession(jwtService.extractTokenId(token), superAdmin.getEmail(), PrincipalType.SUPER_ADMIN, sessionMinutes);
 
         return new LoginResponse(token, "SUPER_ADMIN", superAdmin.getName(), false, sessionMinutes);
     }
@@ -124,7 +125,7 @@ public class AuthService {
             superAdmin.setPasswordHash(passwordEncoder.encode(newPassword));
             superAdminRepository.save(superAdmin);
             if (logoutOtherDevices && currentTokenId != null) {
-                sessionService.invalidateAllForUserExcept(email, currentTokenId);
+                sessionService.invalidateAllForUserExcept(email, PrincipalType.SUPER_ADMIN, currentTokenId);
             }
             return;
         }
@@ -138,7 +139,7 @@ public class AuthService {
         user.setMustResetPassword(false);
         userRepository.save(user);
         if (logoutOtherDevices && currentTokenId != null) {
-            sessionService.invalidateAllForUserExcept(email, currentTokenId);
+            sessionService.invalidateAllForUserExcept(email, PrincipalType.USER, currentTokenId);
         }
     }
 }
