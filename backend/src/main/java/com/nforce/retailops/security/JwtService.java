@@ -19,12 +19,32 @@ public class JwtService {
     private final SecretKey key;
     private final long expirationMs;
 
+    // The placeholder application.yml falls back to when JWT_SECRET is unset.
+    static final String DEFAULT_SECRET = "change-me-in-env";
+    // HS256 needs a 256-bit key.
+    static final int MIN_SECRET_BYTES = 32;
+
     public JwtService(
         @Value("${jwt.secret}") String secret,
         @Value("${jwt.expiration-ms}") long expirationMs
     ) {
+        requireStrongSecret(secret);
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
+    }
+
+    // Fail at startup rather than run with a signing key anyone can guess: a
+    // known secret lets an attacker forge a token for any subject.
+    private static void requireStrongSecret(String secret) {
+        if (secret == null || secret.isBlank() || DEFAULT_SECRET.equals(secret)) {
+            throw new IllegalStateException(
+                "jwt.secret is unset or still the default placeholder. Set the JWT_SECRET "
+                    + "environment variable to a random value of at least " + MIN_SECRET_BYTES + " characters.");
+        }
+        if (secret.getBytes(StandardCharsets.UTF_8).length < MIN_SECRET_BYTES) {
+            throw new IllegalStateException(
+                "jwt.secret is too short. JWT_SECRET must be at least " + MIN_SECRET_BYTES + " characters.");
+        }
     }
 
     public String generateToken(String email, List<String> roles) {

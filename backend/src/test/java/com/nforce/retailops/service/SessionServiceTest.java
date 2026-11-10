@@ -20,6 +20,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class SessionServiceTest {
 
+    private static final String EMAIL = "user@nforce.test";
+
     @Mock
     private ActiveSessionRepository activeSessionRepository;
 
@@ -45,18 +47,19 @@ class SessionServiceTest {
     void unknownTokenIdIsNotValid() {
         when(activeSessionRepository.findByTokenId("missing")).thenReturn(Optional.empty());
 
-        assertThat(sessionService(30, 240).validateAndTouch("missing")).isFalse();
+        assertThat(sessionService(30, 240).validateAndTouch("missing", EMAIL)).isFalse();
     }
 
     @Test
     void sessionWellWithinItsExpiryIsValid() {
         ActiveSession session = new ActiveSession();
         session.setTokenId("tok-1");
+        session.setSubjectEmail(EMAIL);
         session.setLastActiveAt(OffsetDateTime.now());
         session.setExpiresAt(OffsetDateTime.now().plusMinutes(25));
         when(activeSessionRepository.findByTokenId("tok-1")).thenReturn(Optional.of(session));
 
-        assertThat(sessionService(30, 240).validateAndTouch("tok-1")).isTrue();
+        assertThat(sessionService(30, 240).validateAndTouch("tok-1", EMAIL)).isTrue();
         verify(activeSessionRepository, never()).deleteByTokenId(anyString());
     }
 
@@ -65,13 +68,14 @@ class SessionServiceTest {
         OffsetDateTime lastActiveAt = OffsetDateTime.now().minusMinutes(1);
         ActiveSession session = new ActiveSession();
         session.setTokenId("tok-slide");
+        session.setSubjectEmail(EMAIL);
         session.setLastActiveAt(lastActiveAt);
         // Original 30-minute window, still intact at this point: expiresAt is
         // exactly lastActiveAt + 30 minutes.
         session.setExpiresAt(lastActiveAt.plusMinutes(30));
         when(activeSessionRepository.findByTokenId("tok-slide")).thenReturn(Optional.of(session));
 
-        assertThat(sessionService(30, 240).validateAndTouch("tok-slide")).isTrue();
+        assertThat(sessionService(30, 240).validateAndTouch("tok-slide", EMAIL)).isTrue();
 
         // The same 30-minute window should be re-applied from "now", not left
         // at its original (now nearly-elapsed) cutoff -- this is what keeps an
@@ -90,11 +94,12 @@ class SessionServiceTest {
     void sessionWithinTheTouchThrottleIsNotReTouched() {
         ActiveSession session = new ActiveSession();
         session.setTokenId("tok-throttled");
+        session.setSubjectEmail(EMAIL);
         session.setLastActiveAt(OffsetDateTime.now());
         session.setExpiresAt(OffsetDateTime.now().plusMinutes(30));
         when(activeSessionRepository.findByTokenId("tok-throttled")).thenReturn(Optional.of(session));
 
-        assertThat(sessionService(30, 240).validateAndTouch("tok-throttled")).isTrue();
+        assertThat(sessionService(30, 240).validateAndTouch("tok-throttled", EMAIL)).isTrue();
 
         verify(activeSessionRepository, never()).touch(anyString(), any(), any());
     }
@@ -103,13 +108,14 @@ class SessionServiceTest {
     void sessionPastItsAbsoluteExpiryIsRejectedAndRevokedEvenIfRecentlyActive() {
         ActiveSession session = new ActiveSession();
         session.setTokenId("tok-2");
+        session.setSubjectEmail(EMAIL);
         // Active a moment ago (would pass any inactivity-only check) but the
         // absolute lifetime granted at login has already elapsed.
         session.setLastActiveAt(OffsetDateTime.now().minusSeconds(5));
         session.setExpiresAt(OffsetDateTime.now().minusMinutes(1));
         when(activeSessionRepository.findByTokenId("tok-2")).thenReturn(Optional.of(session));
 
-        assertThat(sessionService(30, 240).validateAndTouch("tok-2")).isFalse();
+        assertThat(sessionService(30, 240).validateAndTouch("tok-2", EMAIL)).isFalse();
         verify(activeSessionRepository).deleteByTokenId("tok-2");
     }
 
@@ -118,11 +124,41 @@ class SessionServiceTest {
         OffsetDateTime now = OffsetDateTime.now();
         ActiveSession session = new ActiveSession();
         session.setTokenId("tok-3");
+        session.setSubjectEmail(EMAIL);
         session.setLastActiveAt(now.minusMinutes(1));
         session.setExpiresAt(now);
         when(activeSessionRepository.findByTokenId("tok-3")).thenReturn(Optional.of(session));
 
-        assertThat(sessionService(30, 240).validateAndTouch("tok-3")).isFalse();
+        assertThat(sessionService(30, 240).validateAndTouch("tok-3", EMAIL)).isFalse();
+    }
+
+    @Test
+    void liveSessionIsRejectedWhenTheTokenSubjectIsADifferentUser() {
+        // A forged token reusing a real session's jti but naming another subject.
+        ActiveSession session = new ActiveSession();
+        session.setTokenId("tok-forged");
+        session.setSubjectEmail(EMAIL);
+        session.setLastActiveAt(OffsetDateTime.now().minusMinutes(1));
+        session.setExpiresAt(OffsetDateTime.now().plusMinutes(29));
+        when(activeSessionRepository.findByTokenId("tok-forged")).thenReturn(Optional.of(session));
+
+        assertThat(sessionService(30, 240).validateAndTouch("tok-forged", "admin@nforce.test")).isFalse();
+
+        // The real user's session must survive: no touch, no revocation.
+        verify(activeSessionRepository, never()).touch(anyString(), any(), any());
+        verify(activeSessionRepository, never()).deleteByTokenId(anyString());
+    }
+
+    @Test
+    void sessionIsRejectedWhenTheTokenHasNoSubject() {
+        ActiveSession session = new ActiveSession();
+        session.setTokenId("tok-nosub");
+        session.setSubjectEmail(EMAIL);
+        session.setLastActiveAt(OffsetDateTime.now());
+        session.setExpiresAt(OffsetDateTime.now().plusMinutes(30));
+        when(activeSessionRepository.findByTokenId("tok-nosub")).thenReturn(Optional.of(session));
+
+        assertThat(sessionService(30, 240).validateAndTouch("tok-nosub", null)).isFalse();
     }
 
     @Test

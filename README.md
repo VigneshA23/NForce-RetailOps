@@ -66,7 +66,7 @@ Everything except the four above has a working default.
 | `DATABASE_URL` | `jdbc:postgresql://localhost:5432/retailops` | Database connection |
 | `DATABASE_USERNAME` | `postgres` | Database user |
 | `DATABASE_PASSWORD` | `postgres` | Database password |
-| `JWT_SECRET` | `change-me-in-env` | Token signing key — **set this** |
+| `JWT_SECRET` | *(none — required)* | Token signing key, at least 32 characters. The app refuses to start if it is unset, still `change-me-in-env`, or shorter than 32 characters |
 | `JWT_EXPIRATION_MS` | `86400000` | Token lifetime ceiling |
 | `SESSION_INACTIVITY_TIMEOUT_MINUTES` | `30` | Standard session window |
 | `SESSION_REMEMBER_ME_TIMEOUT_MINUTES` | `240` | "Remember me" session window |
