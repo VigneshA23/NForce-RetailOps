@@ -8,7 +8,10 @@ import SearchInput from '../components/SearchInput';
 import Select from '../components/Select';
 import FilterClearButton from '../components/FilterClearButton';
 import StatCard from '../components/StatCard';
+import Pagination from '../components/Pagination';
 import './Categories.css';
+
+const PAGE_SIZE = 10;
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'ALL', label: 'All Status' },
@@ -35,6 +38,12 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry, 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [isReordering, setIsReordering] = useState(false);
+  const [page, setPage] = useState(1);
+
+  // Back to the first page whenever the filters change.
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
 
   const appliedSeedId = useRef<number | null>(null);
   useEffect(() => {
@@ -61,7 +70,19 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry, 
   // relative to categories hidden by the filter.
   const canReorder = statusFilter === 'ALL' && search.trim() === '';
 
-  async function handleReorder(orderedIds: number[]) {
+  const pageCount = Math.max(1, Math.ceil(filteredCategories.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pagedCategories = filteredCategories.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // The table only shows one page, so it hands back that page's new order;
+  // splice it into the full (unfiltered) list at the same position.
+  async function handleReorder(pageOrderedIds: number[]) {
+    const orderedIds = [
+      ...categories.slice(0, pageStart).map((category) => category.id),
+      ...pageOrderedIds,
+      ...categories.slice(pageStart + pageOrderedIds.length).map((category) => category.id),
+    ];
     const previous = categories;
     const byId = new Map(previous.map((category) => [category.id, category]));
     setCategories(orderedIds.map((id) => byId.get(id)).filter((c): c is Category => c !== undefined));
@@ -113,11 +134,23 @@ function Categories({ categories, setCategories, isLoading, loadError, onRetry, 
           )}
 
           <CategoryTable
-            categories={filteredCategories}
+            categories={pagedCategories}
             canManage={false}
             canReorder={canReorder && !isReordering}
             onReorder={handleReorder}
             isLoading={isLoading}
+            footer={
+              !isLoading && filteredCategories.length > 0 ? (
+                <Pagination
+                  page={currentPage}
+                  pageCount={pageCount}
+                  totalItems={filteredCategories.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                  itemLabel="categories"
+                />
+              ) : null
+            }
           />
         </>
       )}
