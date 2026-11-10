@@ -3,12 +3,22 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MonthlyCashSummary from './MonthlyCashSummary';
 import * as cashSummaryApi from '../api/cashSummary';
+import * as superAdminStoresApi from '../api/superAdminStores';
 import type { MonthlyCashSummary as Summary, StoreMonthlyCashSummary } from '../types/cashSummary';
+import type { SuperAdminStore } from '../types/superAdminStore';
 
 vi.mock('../api/cashSummary', () => ({
   getMonthlyCashSummary: vi.fn(),
   getSuperAdminMonthlyCashSummary: vi.fn(),
 }));
+vi.mock('../api/superAdminStores', () => ({ getAllStores: vi.fn() }));
+
+function store(storeId: number, storeName: string): SuperAdminStore {
+  return {
+    storeId, storeName, storeCode: 100 + storeId, storeLocation: null, storeActive: false,
+    ownerId: null, ownerName: null, ownerAccessActive: false, ownerActive: null, employeeCount: 0, taskCount: 0,
+  };
+}
 
 function column(overrides: Partial<StoreMonthlyCashSummary>): StoreMonthlyCashSummary {
   return {
@@ -42,10 +52,14 @@ function currentMonth(): string {
 beforeEach(() => {
   vi.mocked(cashSummaryApi.getMonthlyCashSummary).mockReset();
   vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockReset();
+  vi.mocked(superAdminStoresApi.getAllStores).mockReset().mockResolvedValue([
+    store(1, 'Store 1'),
+    store(2, 'Store 2'),
+  ]);
 });
 
 describe('MonthlyCashSummary', () => {
-  it('shows Store 1, Store 2 and Combined columns for Super Admin', async () => {
+  it('shows the Combined totals when Super Admin selects all stores', async () => {
     vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
       [column({}), column({ storeId: 2, storeName: 'Store 2', variance: -20 })],
       column({ storeId: null, storeName: 'Combined', storeCode: null, variance: -15, expectedCashOnHand: 640 }),
@@ -55,8 +69,8 @@ describe('MonthlyCashSummary', () => {
 
     const table = await screen.findByRole('table');
     const headers = within(table).getAllByRole('columnheader').map((h) => h.textContent ?? '');
-    expect(headers.some((h) => h.startsWith('Store 1'))).toBe(true);
-    expect(headers.some((h) => h.startsWith('Store 2'))).toBe(true);
+    expect(headers.some((h) => h.startsWith('Store 1'))).toBe(false);
+    expect(headers.some((h) => h.startsWith('Store 2'))).toBe(false);
     expect(headers.some((h) => h.startsWith('Combined'))).toBe(true);
 
     for (const label of ['Total cash sales', 'Total cash removed', 'Bank deposits', 'Cash expenses',
@@ -64,11 +78,44 @@ describe('MonthlyCashSummary', () => {
       expect(within(table).getByRole('rowheader', { name: new RegExp(`^${label}`) })).toBeInTheDocument();
     }
     const varianceRow = within(table).getByRole('rowheader', { name: /^Variance/ }).closest('tr')!;
-    expect(within(varianceRow).getByText('+$5.00')).toBeInTheDocument();
-    expect(within(varianceRow).getByText('-$20.00')).toBeInTheDocument();
     expect(within(varianceRow).getByText('-$15.00')).toBeInTheDocument();
     expect(within(table).getByText('$640.00')).toBeInTheDocument();
-    expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenCalledWith(currentMonth(), expect.anything());
+    expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenCalledWith(currentMonth(), expect.anything(), undefined);
+  });
+
+  it('switches to an individual store without reloading and requests its summary', async () => {
+    const user = userEvent.setup();
+    vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary)
+      .mockResolvedValueOnce(summary(
+        [column({}), column({ storeId: 2, storeName: 'Store 2', variance: -20 })],
+        column({ storeId: null, storeName: 'Combined', storeCode: null, variance: -15 }),
+      ))
+      .mockResolvedValueOnce(summary(
+        [column({ storeId: 2, storeName: 'Store 2', variance: -20 })],
+        column({ storeId: null, storeName: 'Combined', storeCode: null }),
+      ))
+      .mockResolvedValueOnce(summary(
+        [column({}), column({ storeId: 2, storeName: 'Store 2', variance: -20 })],
+        column({ storeId: null, storeName: 'Combined', storeCode: null, variance: -15, expectedCashOnHand: 640 }),
+      ));
+
+    render(<MonthlyCashSummary scope="super-admin" />);
+    await screen.findByRole('table');
+    await user.click(screen.getByLabelText('Store'));
+    await user.type(screen.getByPlaceholderText('Search...'), 'Store 2');
+    await user.click(screen.getByRole('button', { name: /Store 2.*#102/ }));
+
+    const table = await screen.findByRole('table');
+    const headers = within(table).getAllByRole('columnheader').map((h) => h.textContent ?? '');
+    expect(headers.some((h) => h.startsWith('Store 2'))).toBe(true);
+    expect(headers.some((h) => h.startsWith('Combined'))).toBe(false);
+    expect(within(table).getByText('-$20.00')).toBeInTheDocument();
+    expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenLastCalledWith(currentMonth(), expect.anything(), 2);
+
+    await user.click(screen.getByLabelText('Store'));
+    await user.click(screen.getByRole('button', { name: 'All Stores' }));
+    expect(await screen.findByText('$640.00')).toBeInTheDocument();
+    expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenLastCalledWith(currentMonth(), expect.anything(), undefined);
   });
 
   it('shows only the owner’s own store, without a Combined column', async () => {
