@@ -8,11 +8,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.OffsetDateTime;
 import java.util.Optional;
-import java.util.UUID;
 
 public interface PasswordResetTokenRepository extends JpaRepository<PasswordResetToken, Long> {
 
-    Optional<PasswordResetToken> findByToken(UUID token);
+    // Lookup is by hash only: hash the incoming token with ResetTokenHashing
+    // first. Nothing stored here can be turned back into a working link.
+    Optional<PasswordResetToken> findByTokenHash(String tokenHash);
 
     @Query("SELECT COUNT(t) FROM PasswordResetToken t WHERE t.email = :email AND t.createdAt > :since")
     long countByEmailSince(@Param("email") String email, @Param("since") OffsetDateTime since);
@@ -21,8 +22,8 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
     // NULL, so the affected-row count (1 = winner, 0 = loser) decides the race.
     @Modifying(flushAutomatically = true)
     @Query("UPDATE PasswordResetToken t SET t.usedAt = :usedAt "
-        + "WHERE t.token = :token AND t.usedAt IS NULL AND t.expiresAt > :now")
-    int markUsedIfUnused(@Param("token") UUID token,
+        + "WHERE t.tokenHash = :tokenHash AND t.usedAt IS NULL AND t.expiresAt > :now")
+    int markUsedIfUnused(@Param("tokenHash") String tokenHash,
                          @Param("usedAt") OffsetDateTime usedAt,
                          @Param("now") OffsetDateTime now);
 

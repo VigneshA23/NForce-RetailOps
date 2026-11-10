@@ -7,9 +7,12 @@ import com.nforce.retailops.exception.InvalidPasswordResetTokenException;
 import com.nforce.retailops.repository.PasswordResetTokenRepository;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.UserRepository;
+import com.nforce.retailops.security.ResetTokenHashing;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -28,6 +31,10 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.verify;
 
 /**
  * Not @Transactional on purpose: each thread must run in its own real
@@ -45,6 +52,9 @@ class PasswordResetConcurrencyTest {
     @Autowired private RoleRepository roleRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private PlatformTransactionManager txManager;
+
+    // Only a hash is stored (RTS-495), so raw tokens come from the reset links.
+    @MockBean private MailService mailService;
 
     private User createUser(String email) {
         Role role = roleRepository.findByName("EMPLOYEE").orElseGet(() -> {
@@ -92,7 +102,7 @@ class PasswordResetConcurrencyTest {
         User user = createUser(email);
         UUID token = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now();
-        tokenRepository.save(new PasswordResetToken(email, token, now, now.plusHours(1)));
+        tokenRepository.save(new PasswordResetToken(email, ResetTokenHashing.hash(token), now, now.plusHours(1)));
         try {
             List<Callable<Boolean>> tasks = new ArrayList<>();
             for (int i = 0; i < THREADS; i++) {
@@ -111,7 +121,7 @@ class PasswordResetConcurrencyTest {
                 if (f.get()) winners++;
             }
             assertThat(winners).isEqualTo(1);
-            assertThat(tokenRepository.findByToken(token).orElseThrow().isUsed()).isTrue();
+            assertThat(tokenRepository.findByTokenHash(ResetTokenHashing.hash(token)).orElseThrow().isUsed()).isTrue();
         } finally {
             cleanup(email, user);
         }
@@ -123,25 +133,28 @@ class PasswordResetConcurrencyTest {
         User user = createUser(email);
         try {
             passwordResetService.requestReset(email);
-            PasswordResetToken first = latestToken(email);
+            String first = latestEmailedToken(email);
             passwordResetService.requestReset(email);
 
-            assertThat(tokenRepository.findByToken(first.getToken()).orElseThrow().isUsed()).isTrue();
-            assertThatThrownBy(() -> passwordResetService.confirmReset(first.getToken().toString(), "brand-new-pass-1"))
+            assertThat(tokenRepository.findByTokenHash(ResetTokenHashing.hash(UUID.fromString(first)))
+                .orElseThrow().isUsed()).isTrue();
+            assertThatThrownBy(() -> passwordResetService.confirmReset(first, "brand-new-pass-1"))
                 .isInstanceOf(InvalidPasswordResetTokenException.class);
 
-            PasswordResetToken second = latestToken(email);
-            assertThat(second.getToken()).isNotEqualTo(first.getToken());
-            passwordResetService.confirmReset(second.getToken().toString(), "brand-new-pass-2");
+            String second = latestEmailedToken(email);
+            assertThat(second).isNotEqualTo(first);
+            passwordResetService.confirmReset(second, "brand-new-pass-2");
         } finally {
             cleanup(email, user);
         }
     }
 
-    private PasswordResetToken latestToken(String email) {
-        return tokenRepository.findAll().stream()
-            .filter(t -> t.getEmail().equalsIgnoreCase(email) && !t.isUsed())
-            .findFirst().orElseThrow();
+    // The raw token from the most recent reset link "emailed" to this address.
+    private String latestEmailedToken(String email) {
+        ArgumentCaptor<String> link = ArgumentCaptor.forClass(String.class);
+        verify(mailService, atLeastOnce()).sendPasswordResetEmail(eq(email), any(), link.capture());
+        String value = link.getValue();
+        return value.substring(value.indexOf("?token=") + "?token=".length());
     }
 
     @Test
