@@ -63,6 +63,8 @@ public class PasswordResetService {
 
         UUID token = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now();
+        // Only the newest link may work: retire any earlier still-valid ones.
+        tokenRepository.invalidateOutstandingForEmail(normalised, now);
         tokenRepository.save(new PasswordResetToken(normalised, token, now, now.plusHours(1)));
 
         String fullName = userOpt.get().getFullName();

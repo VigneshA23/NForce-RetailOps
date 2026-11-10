@@ -1,15 +1,15 @@
 package com.nforce.retailops.entity;
 
 import jakarta.persistence.*;
-import org.hibernate.annotations.Generated;
-import org.hibernate.generator.EventType;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 // Per-store target cash-drawer amount, one row per store. The default
 // (150.00) is the DB column default (V109), never set from Java:
-// targetAmount is excluded from the INSERT and read back afterwards.
+// targetAmount is excluded from the INSERT and read back afterwards by the
+// service. Do NOT mark it @Generated: Hibernate then also excludes it from
+// UPDATE and saved changes silently never reach the database.
 @Entity
 @Table(name = "store_cash_targets")
 public class StoreCashTarget {
@@ -22,8 +22,7 @@ public class StoreCashTarget {
     @JoinColumn(name = "store_id", nullable = false, unique = true)
     private Store store;
 
-    @Generated(event = EventType.INSERT)
-    @Column(name = "target_amount", nullable = false, insertable = false,
+    @Column(name = "target_amount", nullable = false, insertable = false, updatable = true,
         columnDefinition = "NUMERIC(12,2) DEFAULT 150.00")
     private BigDecimal targetAmount;
 

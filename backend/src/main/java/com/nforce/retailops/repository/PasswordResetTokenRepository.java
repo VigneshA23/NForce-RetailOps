@@ -26,6 +26,14 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
                          @Param("usedAt") OffsetDateTime usedAt,
                          @Param("now") OffsetDateTime now);
 
+    // Supersede earlier links when a new one is issued. Rows are marked used, not
+    // deleted, because countByEmailSince counts them for the hourly rate limit.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE PasswordResetToken t SET t.usedAt = :now "
+        + "WHERE lower(t.email) = lower(:email) AND t.usedAt IS NULL")
+    int invalidateOutstandingForEmail(@Param("email") String email,
+                                      @Param("now") OffsetDateTime now);
+
     // Tokens are keyed by email, so when an account's email changes the links
     // issued to the old address are removed -- otherwise they would work for
     // whoever is later given that address.
