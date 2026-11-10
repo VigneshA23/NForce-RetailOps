@@ -44,6 +44,9 @@ public interface OrderListEntryRepository extends JpaRepository<OrderListEntry, 
 
     boolean existsBySupplierId(Long supplierId);
 
+    // Another store's orders reference this supplier, so it is shared.
+    boolean existsBySupplierIdAndStoreIdNot(Long supplierId, Long storeId);
+
     // Scalar badge count for the Owner/Admin Home tile -- only entries still
     // awaiting an order, so an entry stops contributing the moment the owner
     // advances it to ORDERED.

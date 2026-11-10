@@ -268,6 +268,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(SupplierNotManagedByStoreException.class)
+    public ResponseEntity<Map<String, String>> handleSupplierNotManagedByStore(SupplierNotManagedByStoreException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+    }
+
     // The row exists but belongs to another owner's store -- 403, not 404,
     // matching UnauthorizedTaskResponseActionException's precedent for
     // cross-store access on an otherwise-real resource.
