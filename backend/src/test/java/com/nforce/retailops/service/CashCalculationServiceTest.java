@@ -150,6 +150,25 @@ class CashCalculationServiceTest {
     }
 
     @Test
+    void oldEntry_isStillShownAsLive_withLastUpdatedAt() {
+        // BA decision: no staleness cutoff. A 6-day-old entry is still the live figure.
+        DailyCashEntry old = entry("2020-01-01", "200", "1000", "100", "575", "50", "500", "25");
+        java.time.OffsetDateTime saved = java.time.OffsetDateTime.parse("2020-01-01T21:30:00Z");
+        ReflectionTestUtils.setField(old, "updatedAt", saved);
+        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.of(old));
+        ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
+        assertTrue(r.available());
+        assertEquals(saved, r.lastUpdatedAt());
+        assertMoney("575.00", r.expectedCashOnHand());
+    }
+
+    @Test
+    void noEntries_hasNoLastUpdatedAt() {
+        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.empty());
+        assertNull(service.getExpectedCashForStore(STORE_ID).lastUpdatedAt());
+    }
+
+    @Test
     void multipleDays_figureComesFromTheLatestEntryOnly_notARunningSum() {
         // The repository hands back only the latest day; earlier days must not
         // be added in (each day's opening cash already carries them forward).
