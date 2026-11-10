@@ -43,7 +43,7 @@ function SetNewPassword({ token, onDone }: SetNewPasswordProps) {
 
   const tooShort = password.length > 0 && password.length < 8
   const mismatch = confirm.length > 0 && password !== confirm
-  const canSubmit = password.length >= 8 && !mismatch && !loading
+  const canSubmit = password.length >= 8 && confirm.length > 0 && password === confirm && !loading
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault()
