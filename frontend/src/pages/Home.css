@@ -511,4 +511,10 @@
     margin: 2px 0 var(--space-xs);
     font-size: 11px;
   }
+
+  /* Completed tasks read clearly as "done" on small screens -- green,
+     independent of whatever accent color the donut slice itself uses. */
+  .home-page__donut-legend-dot--completed {
+    background: var(--color-badge-icon-success-fg);
+  }
 }
