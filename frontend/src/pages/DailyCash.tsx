@@ -83,6 +83,14 @@ function todayKey(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
+const FUTURE_DATE_MESSAGE = 'Business date cannot be in the future';
+
+// YYYY-MM-DD strings compare correctly as text. Typing into the native date
+// input can get past its max, so this is checked separately.
+function isFutureDate(value: string): boolean {
+  return value > todayKey();
+}
+
 function formatDateLabel(value: string): string {
   return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
 }
@@ -147,6 +155,13 @@ function DailyCash({
     setSaveError(null);
     setErrors({});
     setSubmitAttempted(false);
+    // Nothing can be saved for a future day, so there is nothing to load.
+    if (isFutureDate(businessDate)) {
+      setEntry(null);
+      setValues(EMPTY_VALUES);
+      setIsLoading(false);
+      return;
+    }
 
     loadEntry(scope, storeId, businessDate, controller.signal)
       .then((result) => {
@@ -184,7 +199,7 @@ function DailyCash({
     setSaveError(null);
     const nextErrors = validateAll(values);
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0 || storeId === null) return;
+    if (Object.keys(nextErrors).length > 0 || storeId === null || isFutureDate(businessDate)) return;
 
     const amounts = {} as CashAmounts;
     for (const field of FIELDS) amounts[field.key] = parseAmount(values[field.key]);
@@ -236,6 +251,7 @@ function DailyCash({
   }
 
   const errorCount = Object.values(errors).filter(Boolean).length;
+  const dateIsFuture = isFutureDate(businessDate);
 
   return (
     <div className="daily-cash-page">
@@ -249,7 +265,7 @@ function DailyCash({
           <div className="daily-cash-page__pickers">
             {storeSelector && <div className="daily-cash-page__store">{storeSelector}</div>}
             <div className="daily-cash-page__date">
-              <FormField label="Business date" htmlFor="daily-cash-date">
+              <FormField label="Business date" htmlFor="daily-cash-date" error={dateIsFuture ? FUTURE_DATE_MESSAGE : undefined}>
                 <PopoverDateField id="daily-cash-date" value={businessDate} max={todayKey()} onChange={(value) => { if (value) setBusinessDate(value); }} />
               </FormField>
             </div>
@@ -258,7 +274,7 @@ function DailyCash({
             <p className="daily-cash-page__status" aria-live="polite">
               {isLoading
                 ? 'Loading…'
-                : loadError
+                : loadError || dateIsFuture
                   ? null
                   : entry
                     ? `Saved · last updated ${formatSavedAt(entry.updatedAt)}`
@@ -332,7 +348,7 @@ function DailyCash({
                   Fix {errorCount === 1 ? 'the highlighted field' : `the ${errorCount} highlighted fields`} to save.
                 </span>
               )}
-              <button type="submit" className="btn btn--primary" disabled={isLoading || isSaving}>
+              <button type="submit" className="btn btn--primary" disabled={isLoading || isSaving || dateIsFuture}>
                 {isSaving ? <ButtonDots label="Saving" /> : entry ? 'Update Entry' : 'Save Entry'}
               </button>
             </div>

@@ -68,3 +68,9 @@
 .form-field--error .select {
   border-color: var(--color-accent);
 }
+
+/* The browser draws the native date picker's calendar icon for a light page
+   unless told otherwise, leaving it near-black on the dark input. */
+:root[data-theme='dark'] input[type='date'] {
+  color-scheme: dark;
+}

@@ -3,13 +3,17 @@ package com.nforce.retailops.dto;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-// Owner/Admin daily cash entry. businessDate defaults to today when omitted.
+// Owner/Admin daily cash entry. businessDate defaults to today when omitted
+// and cannot be in the future (server's default timezone, like every other
+// date boundary).
 // otherAdjustments is signed; every other amount is non-negative.
 public record DailyCashEntryRequest(
+    @PastOrPresent(message = "Business date cannot be in the future")
     LocalDate businessDate,
 
     @NotNull(message = "Total cash sales is required")
