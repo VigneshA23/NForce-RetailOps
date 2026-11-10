@@ -26,15 +26,17 @@ public class UserProfileService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreEmployeeRepository storeEmployeeRepository;
     private final UserRepository userRepository;
+    private final EmailUniquenessService emailUniquenessService;
 
     public UserProfileService(
         StoreOwnerRepository storeOwnerRepository,
         StoreEmployeeRepository storeEmployeeRepository,
-        UserRepository userRepository
+        UserRepository userRepository, EmailUniquenessService emailUniquenessService
     ) {
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.userRepository = userRepository;
+        this.emailUniquenessService = emailUniquenessService;
     }
 
     @Transactional(readOnly = true)
@@ -72,8 +74,8 @@ public class UserProfileService {
     @Transactional
     public MeResponse updateMe(User user, UpdateMeRequest request) {
         String email = request.email().trim();
-        if (!user.getEmail().equalsIgnoreCase(email) && userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        if (!user.getEmail().equalsIgnoreCase(email)) {
+            emailUniquenessService.assertAvailable(email);
         }
 
         user.setFullName(request.fullName().trim());

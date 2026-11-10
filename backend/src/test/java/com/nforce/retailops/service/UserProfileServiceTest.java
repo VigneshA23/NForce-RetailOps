@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import static org.mockito.Mockito.doThrow;
 import com.nforce.retailops.dto.AssignedStoreResponse;
 import com.nforce.retailops.dto.MeResponse;
 import com.nforce.retailops.dto.UpdateMeRequest;
@@ -40,6 +41,8 @@ class UserProfileServiceTest {
     private StoreEmployeeRepository storeEmployeeRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private EmailUniquenessService emailUniquenessService;
 
     @InjectMocks
     private UserProfileService userProfileService;
@@ -132,7 +135,6 @@ class UserProfileServiceTest {
         StoreEmployee storeEmployee = new StoreEmployee();
         storeEmployee.setPhone("555-0000");
         when(storeEmployeeRepository.findByEmployeeId(USER_ID)).thenReturn(Optional.of(storeEmployee));
-        when(userRepository.findByEmailWithRoles("new@nforce.test")).thenReturn(Optional.empty());
 
         MeResponse updated = userProfileService.updateMe(
             employee, new UpdateMeRequest("New Name", "new@nforce.test", "555-1234"));
@@ -148,7 +150,6 @@ class UserProfileServiceTest {
     void updateMeAppliesNameEmailAndPhoneForAnOwner() {
         User owner = user("OWNER_ADMIN");
         owner.setPhone("555-0000");
-        when(userRepository.findByEmailWithRoles("new@nforce.test")).thenReturn(Optional.empty());
         when(storeOwnerRepository.findByOwnerIdAndActiveTrue(USER_ID)).thenReturn(Optional.empty());
 
         MeResponse updated = userProfileService.updateMe(
@@ -164,7 +165,8 @@ class UserProfileServiceTest {
     @Test
     void updateMeRejectsAnEmailAlreadyUsedBySomeoneElse() {
         User employee = user("EMPLOYEE");
-        when(userRepository.findByEmailWithRoles("taken@nforce.test")).thenReturn(Optional.of(new User()));
+        doThrow(new EmailAlreadyExistsException("A user with this email already exists"))
+            .when(emailUniquenessService).assertAvailable("taken@nforce.test");
 
         assertThatThrownBy(() -> userProfileService.updateMe(
             employee, new UpdateMeRequest("New Name", "taken@nforce.test", "555-1234")))
@@ -179,5 +181,15 @@ class UserProfileServiceTest {
         assertThatCode(() -> userProfileService.updateMe(
             employee, new UpdateMeRequest("New Name", employee.getEmail(), "555-1234")))
             .doesNotThrowAnyException();
+    }
+
+    @Test
+    void updateMeAsksTheSharedGuardAboutTheNewEmail() {
+        User employee = user("EMPLOYEE");
+        when(storeEmployeeRepository.findByEmployeeId(USER_ID)).thenReturn(Optional.empty());
+
+        userProfileService.updateMe(employee, new UpdateMeRequest("New Name", "new@nforce.test", "555-1234"));
+
+        org.mockito.Mockito.verify(emailUniquenessService).assertAvailable("new@nforce.test");
     }
 }

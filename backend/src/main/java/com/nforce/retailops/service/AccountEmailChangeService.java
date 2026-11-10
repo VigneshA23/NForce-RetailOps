@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.EmailDeliveryException;
 import com.nforce.retailops.repository.PasswordResetTokenRepository;
@@ -61,7 +62,7 @@ public class AccountEmailChangeService {
         String newEmail = user.getEmail();
         String fullName = user.getFullName();
 
-        sessionService.invalidateAllForUser(previousEmail);
+        sessionService.invalidateAllForUser(previousEmail, PrincipalType.USER);
         passwordResetTokenRepository.deleteByEmailIgnoreCase(previousEmail);
 
         if (user.isMustResetPassword()) {

@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.entity.PrincipalType;
 import com.nforce.retailops.dto.AddOwnerRequest;
 import com.nforce.retailops.dto.AssignStoreRequest;
 import com.nforce.retailops.dto.OwnerCreationResponse;
@@ -43,6 +44,7 @@ public class OwnerManagementService {
     private static final int MAX_OWNER_LISTING_ROWS = 500;
 
     private final UserRepository userRepository;
+    private final EmailUniquenessService emailUniquenessService;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final MailService mailService;
@@ -58,6 +60,7 @@ public class OwnerManagementService {
 
     public OwnerManagementService(
         UserRepository userRepository,
+        EmailUniquenessService emailUniquenessService,
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         MailService mailService,
@@ -72,6 +75,7 @@ public class OwnerManagementService {
         @Value("${app.base-url}") String appBaseUrl
     ) {
         this.userRepository = userRepository;
+        this.emailUniquenessService = emailUniquenessService;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.mailService = mailService;
@@ -244,8 +248,8 @@ public class OwnerManagementService {
         String email = request.ownerEmail().trim();
         String previousEmail = owner.getEmail();
         boolean emailChanged = AccountEmailChangeService.isChange(previousEmail, email);
-        if (emailChanged && userRepository.findByEmailWithRoles(email).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
+        if (emailChanged) {
+            emailUniquenessService.assertAvailable(email);
         }
 
         owner.setFullName(request.ownerName().trim());
@@ -351,7 +355,7 @@ public class OwnerManagementService {
 
         // Token stops working immediately; DB cascade/set-null (V42) handles
         // the FK cleanup when the user row is deleted below.
-        sessionService.invalidateAllForUser(owner.getEmail());
+        sessionService.invalidateAllForUser(owner.getEmail(), PrincipalType.USER);
         userRepository.delete(owner);
     }
 }

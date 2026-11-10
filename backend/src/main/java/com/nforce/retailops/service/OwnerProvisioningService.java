@@ -48,6 +48,7 @@ public class OwnerProvisioningService {
     private static final String OWNER_ROLE_NAME = "OWNER_ADMIN";
 
     private final UserRepository userRepository;
+    private final EmailUniquenessService emailUniquenessService;
     private final RoleRepository roleRepository;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
@@ -57,6 +58,7 @@ public class OwnerProvisioningService {
 
     public OwnerProvisioningService(
         UserRepository userRepository,
+        EmailUniquenessService emailUniquenessService,
         RoleRepository roleRepository,
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
@@ -65,6 +67,7 @@ public class OwnerProvisioningService {
         StoreCodeGenerator storeCodeGenerator
     ) {
         this.userRepository = userRepository;
+        this.emailUniquenessService = emailUniquenessService;
         this.roleRepository = roleRepository;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -75,9 +78,7 @@ public class OwnerProvisioningService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public ProvisionedOwner createOwnerAccount(AddOwnerRequest request, boolean hasNewStore, boolean hasExistingStore) {
-        if (userRepository.findByEmailWithRoles(request.ownerEmail()).isPresent()) {
-            throw new EmailAlreadyExistsException("A user with this email already exists");
-        }
+        emailUniquenessService.assertAvailable(request.ownerEmail());
 
         Role ownerRole = roleRepository.findByName(OWNER_ROLE_NAME)
             .orElseThrow(() -> new IllegalStateException(OWNER_ROLE_NAME + " role is not seeded"));

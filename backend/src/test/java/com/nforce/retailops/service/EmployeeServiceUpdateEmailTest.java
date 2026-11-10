@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import static org.mockito.Mockito.doThrow;
 import com.nforce.retailops.dto.EmployeeUpdateRequest;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.User;
@@ -38,6 +39,8 @@ class EmployeeServiceUpdateEmailTest {
     @Mock
     private UserRepository userRepository;
     @Mock
+    private EmailUniquenessService emailUniquenessService;
+    @Mock
     private ActivityLogService activityLogService;
     @Mock
     private AccountEmailChangeService accountEmailChangeService;
@@ -73,9 +76,10 @@ class EmployeeServiceUpdateEmailTest {
     void ownerChangingTheEmailHandsOffToTheEmailChangeFlow() {
         when(storeEmployeeRepository.findById(EMPLOYEE_ID)).thenReturn(Optional.of(storeEmployee));
         when(storeEmployeeRepository.save(storeEmployee)).thenReturn(storeEmployee);
-        when(userRepository.findByEmailWithRoles("john@nforce.test")).thenReturn(Optional.empty());
 
         employeeService.updateEmployee(OWNER_ID, EMPLOYEE_ID, request(" john@nforce.test "));
+
+        verify(emailUniquenessService).assertAvailable("john@nforce.test");
 
         assertThat(employee.getEmail()).isEqualTo("john@nforce.test");
         verify(accountEmailChangeService).emailChanged(employee, OLD_EMAIL);
@@ -85,7 +89,6 @@ class EmployeeServiceUpdateEmailTest {
     void superAdminChangingTheEmailHandsOffToTheEmailChangeFlow() {
         when(storeEmployeeRepository.findById(EMPLOYEE_ID)).thenReturn(Optional.of(storeEmployee));
         when(storeEmployeeRepository.save(storeEmployee)).thenReturn(storeEmployee);
-        when(userRepository.findByEmailWithRoles("john@nforce.test")).thenReturn(Optional.empty());
 
         employeeService.updateEmployeeAsSuperAdmin(EMPLOYEE_ID, request("john@nforce.test"));
 
@@ -105,7 +108,8 @@ class EmployeeServiceUpdateEmailTest {
     @Test
     void anEmailAlreadyInUseIsRefusedBeforeAnythingChanges() {
         when(storeEmployeeRepository.findById(EMPLOYEE_ID)).thenReturn(Optional.of(storeEmployee));
-        when(userRepository.findByEmailWithRoles("taken@nforce.test")).thenReturn(Optional.of(new User()));
+        doThrow(new EmailAlreadyExistsException("A user with this email already exists"))
+            .when(emailUniquenessService).assertAvailable("taken@nforce.test");
 
         assertThatThrownBy(() -> employeeService.updateEmployee(OWNER_ID, EMPLOYEE_ID, request("taken@nforce.test")))
             .isInstanceOf(EmailAlreadyExistsException.class);

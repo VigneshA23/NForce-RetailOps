@@ -18,6 +18,10 @@ public class ActiveSession {
     @Column(name = "subject_email", nullable = false, columnDefinition = "TEXT")
     private String subjectEmail;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "principal_type", nullable = false, length = 20)
+    private PrincipalType principalType = PrincipalType.USER;
+
     @Column(name = "last_active_at", nullable = false)
     private OffsetDateTime lastActiveAt;
 
@@ -61,6 +65,14 @@ public class ActiveSession {
 
     public void setSubjectEmail(String subjectEmail) {
         this.subjectEmail = subjectEmail;
+    }
+
+    public PrincipalType getPrincipalType() {
+        return principalType;
+    }
+
+    public void setPrincipalType(PrincipalType principalType) {
+        this.principalType = principalType;
     }
 
     public OffsetDateTime getLastActiveAt() {
