@@ -35,6 +35,15 @@ public interface PasswordResetTokenRepository extends JpaRepository<PasswordRese
     int invalidateOutstandingForEmail(@Param("email") String email,
                                       @Param("now") OffsetDateTime now);
 
+    // Resending an account-setup link retires earlier setup links only (RTS-512);
+    // a pending password-reset link for the same email is left alone.
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE PasswordResetToken t SET t.usedAt = :now "
+        + "WHERE lower(t.email) = lower(:email) AND t.usedAt IS NULL "
+        + "AND t.purpose = com.nforce.retailops.entity.PasswordResetToken.Purpose.ACCOUNT_SETUP")
+    int invalidateOutstandingSetupForEmail(@Param("email") String email,
+                                           @Param("now") OffsetDateTime now);
+
     // Tokens are keyed by email, so when an account's email changes the links
     // issued to the old address are removed -- otherwise they would work for
     // whoever is later given that address.

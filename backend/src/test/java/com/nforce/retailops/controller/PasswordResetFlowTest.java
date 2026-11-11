@@ -333,6 +333,63 @@ class PasswordResetFlowTest {
         confirmReset(raw, "second-new-password", 400);
     }
 
+    // ── RTS-512: resending a setup link retires the earlier one ──────────────
+
+    @Test
+    @Transactional
+    void resendingASetupLinkRejectsTheFirstLinkAndTheNewOneWorks() throws Exception {
+        user("reset-flow-resend@nforce.test");
+        String first = passwordResetService.createSetupToken("reset-flow-resend@nforce.test");
+        String second = passwordResetService.createSetupToken("reset-flow-resend@nforce.test");
+
+        // Same response as an expired/invalid link.
+        confirmReset(first, "brand-new-password", 400);
+
+        assertThat(passwordResetTokenRepository.findByTokenHash(ResetTokenHashing.hash(UUID.fromString(second)))
+            .orElseThrow().getExpiresAt()).isAfter(OffsetDateTime.now().plusHours(71));
+        confirmReset(second, "brand-new-password", 200);
+        assertThat(login("reset-flow-resend@nforce.test", "brand-new-password")).isEqualTo("OK");
+    }
+
+    @Test
+    @Transactional
+    void resendingASetupLinkLeavesAPendingPasswordResetLinkAlone() throws Exception {
+        user("reset-flow-resend-keep@nforce.test");
+        forgotPassword("reset-flow-resend-keep@nforce.test");
+        String reset = emailedResetToken("reset-flow-resend-keep@nforce.test");
+
+        passwordResetService.createSetupToken("reset-flow-resend-keep@nforce.test");
+        passwordResetService.createSetupToken("reset-flow-resend-keep@nforce.test");
+
+        confirmReset(reset, "brand-new-password", 200);
+    }
+
+    @Test
+    @Transactional
+    void resendingASetupLinkDoesNotTouchAnotherAccountsSetupLink() throws Exception {
+        user("reset-flow-resend-a@nforce.test");
+        user("reset-flow-resend-b@nforce.test");
+        String other = passwordResetService.createSetupToken("reset-flow-resend-b@nforce.test");
+
+        passwordResetService.createSetupToken("reset-flow-resend-a@nforce.test");
+        passwordResetService.createSetupToken("reset-flow-resend-a@nforce.test");
+
+        confirmReset(other, "brand-new-password", 200);
+    }
+
+    @Test
+    @Transactional
+    void aForgotPasswordRequestDoesNotRetireAPendingSetupLink() throws Exception {
+        user("reset-flow-setup-keep@nforce.test");
+        String setup = passwordResetService.createSetupToken("reset-flow-setup-keep@nforce.test");
+        forgotPassword("reset-flow-setup-keep@nforce.test");
+
+        // Pre-existing behaviour (RTS-497): a newer reset link retires earlier
+        // outstanding links for the email, setup included. Documented here so a
+        // change to that is deliberate.
+        confirmReset(setup, "brand-new-password", 400);
+    }
+
     @Test
     @Transactional
     void theStoredHashItselfIsNotAWorkingToken() throws Exception {
