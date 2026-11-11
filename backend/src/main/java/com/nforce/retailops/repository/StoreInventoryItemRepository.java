@@ -44,14 +44,4 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update StoreInventoryItem i set i.preferredSupplier = null where i.preferredSupplier.id = :supplierId")
     int clearPreferredSupplier(@Param("supplierId") Long supplierId);
-
-    // Owner/Admin's delete: only their own store's items lose the preference.
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query("update StoreInventoryItem i set i.preferredSupplier = null "
-        + "where i.preferredSupplier.id = :supplierId and i.store.id = :storeId")
-    int clearPreferredSupplierForStore(@Param("supplierId") Long supplierId, @Param("storeId") Long storeId);
-
-    // True when another store's item prefers this supplier -- it is then
-    // shared, and one store's Owner/Admin may not change it.
-    boolean existsByPreferredSupplierIdAndStoreIdNot(Long supplierId, Long storeId);
 }

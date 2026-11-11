@@ -4,7 +4,6 @@ import com.nforce.retailops.dto.AssignStoreOwnerRequest;
 import com.nforce.retailops.dto.CreateStoreRequest;
 import com.nforce.retailops.dto.InventoryCategoryResponse;
 import com.nforce.retailops.dto.StoreRequest;
-import com.nforce.retailops.dto.StatusRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.dto.SuperAdminStoreResponse;
 import com.nforce.retailops.dto.SupplierDeleteResponse;
@@ -75,39 +74,13 @@ public class StoreController {
     }
 
     // Permanent-delete: removes the supplier, or only deactivates it when
-    // orders reference it. Super Admin acts platform-wide; Owner/Admin only on
-    // a supplier their own store uses exclusively (404 if it isn't theirs, 403
-    // if other stores share it -- see SupplierService.requireExclusiveSupplier).
+    // orders reference it. Super Admin only -- Owner/Admin has no supplier
+    // rename/deactivate/delete in the UI, so those owner routes were removed
+    // (security audit: they had no store-ownership check).
     @DeleteMapping("/suppliers/{id}")
-    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
-    public ResponseEntity<SupplierDeleteResponse> deleteSupplier(
-        @PathVariable Long id,
-        @AuthenticationPrincipal Object principal
-    ) {
-        if (principal instanceof AppUserDetails appUser) {
-            return ResponseEntity.ok(supplierService.deleteSupplierForOwner(appUser.getUser().getId(), id));
-        }
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<SupplierDeleteResponse> deleteSupplier(@PathVariable Long id) {
         return ResponseEntity.ok(supplierService.deleteSupplier(id));
-    }
-
-    // Owner/Admin: rename and activate/deactivate, limited to a supplier their
-    // own store uses exclusively (same 404/403 rule as delete above).
-    @PutMapping("/suppliers/{id}")
-    public ResponseEntity<SupplierResponse> updateSupplier(
-        @PathVariable Long id,
-        @Valid @RequestBody SupplierRequest request,
-        @AuthenticationPrincipal AppUserDetails principal
-    ) {
-        return ResponseEntity.ok(supplierService.updateSupplierForOwner(principal.getUser().getId(), id, request));
-    }
-
-    @PatchMapping("/suppliers/{id}/status")
-    public ResponseEntity<SupplierResponse> setSupplierStatus(
-        @PathVariable Long id,
-        @Valid @RequestBody StatusRequest request,
-        @AuthenticationPrincipal AppUserDetails principal
-    ) {
-        return ResponseEntity.ok(supplierService.setSupplierActiveForOwner(principal.getUser().getId(), id, request.active()));
     }
 
     // "Remove from my store" -- hides the supplier from this owner's own

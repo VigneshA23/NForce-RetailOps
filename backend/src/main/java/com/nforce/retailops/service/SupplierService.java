@@ -12,7 +12,6 @@ import com.nforce.retailops.exception.StoreInactiveException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.exception.SupplierNameExistsException;
 import com.nforce.retailops.exception.SupplierNotFoundException;
-import com.nforce.retailops.exception.SupplierNotManagedByStoreException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
@@ -204,17 +203,6 @@ public class SupplierService {
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
     }
 
-    // ---------------------------------------------------------------------
-    // Super Admin -- platform-wide, any supplier.
-    // ---------------------------------------------------------------------
-
-    @Transactional
-    public SupplierResponse updateSupplier(Long supplierId, SupplierRequest request) {
-        Supplier supplier = supplierRepository.findById(supplierId)
-            .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
-        return rename(supplier, request);
-    }
-
     @Transactional
     public SupplierResponse setSupplierActive(Long supplierId, boolean active) {
         Supplier supplier = supplierRepository.findById(supplierId)
@@ -233,81 +221,7 @@ public class SupplierService {
         Supplier supplier = supplierRepository.findById(supplierId)
             .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
         storeInventoryItemRepository.clearPreferredSupplier(supplierId);
-        return removeOrDeactivate(supplier, orderListEntryRepository.existsBySupplierId(supplierId));
-    }
-
-    // ---------------------------------------------------------------------
-    // Owner/Admin -- only a supplier their own store uses exclusively.
-    //
-    // Suppliers are shared rows: one may apply to all stores, be assigned to
-    // several, or be preferred/ordered by another store's items. Renaming,
-    // deactivating or deleting it would change it for those stores too, so an
-    // owner may only do so when no other store uses it. Anything else:
-    //   - not usable at the caller's store (or hidden there) -> 404, masked
-    //     like every other cross-store id (see requireAssignedStore);
-    //   - usable here but shared with another store            -> 403.
-    // ---------------------------------------------------------------------
-
-    @Transactional
-    public SupplierResponse updateSupplierForOwner(Long ownerId, Long supplierId, SupplierRequest request) {
-        Store store = requireOwnerStore(ownerId);
-        Supplier supplier = requireExclusiveSupplier(store, supplierId);
-        return rename(supplier, request);
-    }
-
-    @Transactional
-    public SupplierResponse setSupplierActiveForOwner(Long ownerId, Long supplierId, boolean active) {
-        Store store = requireOwnerStore(ownerId);
-        Supplier supplier = requireExclusiveSupplier(store, supplierId);
-        supplier.setActive(active);
-        supplier = supplierRepository.save(supplier);
-        return SupplierResponse.from(supplier);
-    }
-
-    // Same remove-or-deactivate rule as deleteSupplier, but preferred-supplier
-    // clearing is limited to the caller's own store's items.
-    @Transactional
-    public SupplierDeleteResponse deleteSupplierForOwner(Long ownerId, Long supplierId) {
-        Store store = requireOwnerStore(ownerId);
-        Supplier supplier = requireExclusiveSupplier(store, supplierId);
-        storeInventoryItemRepository.clearPreferredSupplierForStore(supplierId, store.getId());
-        return removeOrDeactivate(supplier, orderListEntryRepository.existsBySupplierId(supplierId));
-    }
-
-    private Supplier requireExclusiveSupplier(Store store, Long supplierId) {
-        Long storeId = store.getId();
-        Supplier supplier = supplierRepository.findById(supplierId)
-            .filter(s -> s.isAppliesToAllStores() || containsStore(s.getStores(), storeId))
-            .filter(s -> !containsStore(s.getHiddenAtStores(), storeId))
-            .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
-        boolean shared = supplier.isAppliesToAllStores()
-            || supplier.getStores().stream().anyMatch(s -> !s.getId().equals(storeId))
-            || storeInventoryItemRepository.existsByPreferredSupplierIdAndStoreIdNot(supplierId, storeId)
-            || orderListEntryRepository.existsBySupplierIdAndStoreIdNot(supplierId, storeId);
-        if (shared) {
-            throw new SupplierNotManagedByStoreException(
-                "This supplier is shared with other stores, so only Super Admin can change it. "
-                    + "You can remove it from your store instead.");
-        }
-        return supplier;
-    }
-
-    private static boolean containsStore(Set<Store> stores, Long storeId) {
-        return stores.stream().anyMatch(s -> s.getId().equals(storeId));
-    }
-
-    private SupplierResponse rename(Supplier supplier, SupplierRequest request) {
-        String name = request.name().trim();
-        if (supplierRepository.existsByNameIgnoreCaseAndIdNot(name, supplier.getId())) {
-            throw new SupplierNameExistsException("A supplier with this name already exists.");
-        }
-        supplier.setName(name);
-        supplier = supplierRepository.save(supplier);
-        return SupplierResponse.from(supplier);
-    }
-
-    private SupplierDeleteResponse removeOrDeactivate(Supplier supplier, boolean hasOrderHistory) {
-        if (hasOrderHistory) {
+        if (orderListEntryRepository.existsBySupplierId(supplierId)) {
             supplier.setActive(false);
             supplierRepository.save(supplier);
             return new SupplierDeleteResponse(false, true);

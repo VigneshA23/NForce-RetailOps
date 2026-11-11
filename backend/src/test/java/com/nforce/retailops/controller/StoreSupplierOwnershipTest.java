@@ -29,16 +29,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-// Security finding: Owner/Admin supplier rename/deactivate/delete had no
-// store-ownership check, and delete cleared preferredSupplier platform-wide.
-// An owner may now change only a supplier their own store uses exclusively:
-// another store's supplier is 404 (masked), a shared one is 403.
+// Security finding: Owner/Admin could rename, deactivate or delete any
+// store's supplier through /api/stores/suppliers/{id}. The Owner/Admin UI
+// has none of those actions, so the three owner routes were removed. These
+// tests pin that (1) an Owner/Admin can no longer rename, deactivate or
+// delete a supplier, and (2) every supplier API that remains -- Owner/Admin's
+// list / inline add / hide, and all of Super Admin's -- still works.
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
@@ -62,181 +65,125 @@ class StoreSupplierOwnershipTest {
 
     private Store storeA;
     private Store storeB;
-    private String tokenA;
+    private String ownerToken;
 
     @BeforeEach
     void setUp() throws Exception {
         Role ownerRole = role("OWNER_ADMIN");
-        storeA = store("Ownership Store A", 8701L);
-        storeB = store("Ownership Store B", 8702L);
-        link(user("supplier-owner-a@nforce.test", ownerRole), storeA);
-        link(user("supplier-owner-b@nforce.test", ownerRole), storeB);
-        tokenA = login("supplier-owner-a@nforce.test");
+        storeA = store("Supplier Routes Store A", 8701L);
+        storeB = store("Supplier Routes Store B", 8702L);
+        link(user("supplier-routes-owner@nforce.test", ownerRole), storeA);
+        ownerToken = login("supplier-routes-owner@nforce.test");
     }
 
-    // ---- cross-store: rejected as 404, supplier untouched ------------------
+    // ---- removed for Owner/Admin -------------------------------------------
 
     @Test
-    void ownerCannotRenameAnotherStoresSupplier() throws Exception {
-        Supplier theirs = supplier("B Only Rename", storeB);
+    void ownerCanNoLongerRenameASupplier() throws Exception {
+        Supplier supplier = supplier("Rename Target", storeA);
 
-        mockMvc.perform(put("/api/stores/suppliers/" + theirs.getId())
-                .header("Authorization", "Bearer " + tokenA)
+        int status = mockMvc.perform(put("/api/stores/suppliers/" + supplier.getId())
+                .header("Authorization", "Bearer " + ownerToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Hijacked\"}"))
-            .andExpect(status().isNotFound());
+                .content("{\"name\":\"Renamed\"}"))
+            .andReturn().getResponse().getStatus();
 
-        assertThat(reload(theirs).getName()).isEqualTo("B Only Rename");
+        assertThat(status / 100).as("HTTP status %s", status).isNotEqualTo(2);
+        assertThat(reload(supplier).getName()).isEqualTo("Rename Target");
     }
 
     @Test
-    void ownerCannotDeactivateAnotherStoresSupplier() throws Exception {
-        Supplier theirs = supplier("B Only Status", storeB);
+    void ownerCanNoLongerDeactivateASupplier() throws Exception {
+        Supplier supplier = supplier("Deactivate Target", storeA);
 
-        mockMvc.perform(patch("/api/stores/suppliers/" + theirs.getId() + "/status")
-                .header("Authorization", "Bearer " + tokenA)
+        int status = mockMvc.perform(patch("/api/stores/suppliers/" + supplier.getId() + "/status")
+                .header("Authorization", "Bearer " + ownerToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"active\":false}"))
-            .andExpect(status().isNotFound());
+            .andReturn().getResponse().getStatus();
 
-        assertThat(reload(theirs).isActive()).isTrue();
+        assertThat(status / 100).as("HTTP status %s", status).isNotEqualTo(2);
+        assertThat(reload(supplier).isActive()).isTrue();
     }
 
     @Test
-    void ownerCannotDeleteAnotherStoresSupplier_andTheirPreferenceSurvives() throws Exception {
-        Supplier theirs = supplier("B Only Delete", storeB);
-        StoreInventoryItem bItem = item(storeB, "B Milk", theirs);
+    void ownerCanNoLongerDeleteASupplier_evenAnotherStoresPreferenceSurvives() throws Exception {
+        Supplier supplier = supplier("Delete Target", storeB);
+        StoreInventoryItem bItem = item(storeB, "B Milk", supplier);
 
-        mockMvc.perform(delete("/api/stores/suppliers/" + theirs.getId())
-                .header("Authorization", "Bearer " + tokenA))
-            .andExpect(status().isNotFound());
+        mockMvc.perform(delete("/api/stores/suppliers/" + supplier.getId())
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isForbidden());
 
-        assertThat(supplierRepository.findById(theirs.getId())).isPresent();
+        assertThat(supplierRepository.findById(supplier.getId())).isPresent();
         assertThat(reloadItem(bItem).getPreferredSupplier()).isNotNull();
     }
 
-    @Test
-    void ownerCannotChangeASupplierTheirStoreHasHidden() throws Exception {
-        Supplier hidden = supplier("A Hidden", storeA);
-        hidden.getHiddenAtStores().add(storeA);
-        supplierRepository.save(hidden);
+    // ---- Owner/Admin supplier APIs that remain -----------------------------
 
-        mockMvc.perform(put("/api/stores/suppliers/" + hidden.getId())
-                .header("Authorization", "Bearer " + tokenA)
+    @Test
+    void ownerCanStillListAddAndHideSuppliers() throws Exception {
+        mockMvc.perform(post("/api/stores/suppliers")
+                .header("Authorization", "Bearer " + ownerToken)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Renamed Hidden\"}"))
-            .andExpect(status().isNotFound());
-    }
-
-    // ---- shared with another store: 403 -----------------------------------
-
-    @Test
-    void ownerCannotRenameASupplierAssignedToAnotherStoreToo() throws Exception {
-        Supplier shared = supplier("Shared Assigned", storeA, storeB);
-
-        mockMvc.perform(put("/api/stores/suppliers/" + shared.getId())
-                .header("Authorization", "Bearer " + tokenA)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"Renamed Shared\"}"))
-            .andExpect(status().isForbidden())
-            .andExpect(jsonPath("$.message").exists());
-
-        assertThat(reload(shared).getName()).isEqualTo("Shared Assigned");
-    }
-
-    @Test
-    void ownerCannotDeleteAnAllStoresSupplier() throws Exception {
-        Supplier global = supplier("Global Supplier");
-        global.setAppliesToAllStores(true);
-        supplierRepository.save(global);
-        StoreInventoryItem bItem = item(storeB, "B Bread", global);
-
-        mockMvc.perform(delete("/api/stores/suppliers/" + global.getId())
-                .header("Authorization", "Bearer " + tokenA))
-            .andExpect(status().isForbidden());
-
-        assertThat(supplierRepository.findById(global.getId())).isPresent();
-        assertThat(reloadItem(bItem).getPreferredSupplier()).isNotNull();
-    }
-
-    @Test
-    void ownerCannotDeactivateASupplierAnotherStoresItemsPrefer() throws Exception {
-        // Assigned only to A, but B's item still points at it.
-        Supplier usedByB = supplier("Preferred By B", storeA);
-        item(storeB, "B Eggs", usedByB);
-
-        mockMvc.perform(patch("/api/stores/suppliers/" + usedByB.getId() + "/status")
-                .header("Authorization", "Bearer " + tokenA)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"active\":false}"))
-            .andExpect(status().isForbidden());
-
-        assertThat(reload(usedByB).isActive()).isTrue();
-    }
-
-    // ---- the caller's own exclusive supplier: still allowed ----------------
-
-    @Test
-    void ownerCanRenameAndDeactivateTheirOwnSupplier() throws Exception {
-        Supplier mine = supplier("A Only", storeA);
-
-        mockMvc.perform(put("/api/stores/suppliers/" + mine.getId())
-                .header("Authorization", "Bearer " + tokenA)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"name\":\"A Only Renamed\"}"))
+                .content("{\"name\":\"Regression Inline Supplier\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.name").value("A Only Renamed"));
+            .andExpect(jsonPath("$.name").value("Regression Inline Supplier"));
 
-        mockMvc.perform(patch("/api/stores/suppliers/" + mine.getId() + "/status")
-                .header("Authorization", "Bearer " + tokenA)
+        Supplier mine = supplier("Regression Listed", storeA);
+        mockMvc.perform(get("/api/stores/suppliers")
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$[?(@.name == 'Regression Listed')]").exists());
+
+        mockMvc.perform(delete("/api/stores/suppliers/" + mine.getId() + "/hide")
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/stores/suppliers")
+                .header("Authorization", "Bearer " + ownerToken))
+            .andExpect(jsonPath("$[?(@.name == 'Regression Listed')]").doesNotExist());
+    }
+
+    // ---- Super Admin unaffected --------------------------------------------
+
+    @Test
+    void superAdminCanStillDeleteThroughTheStoresRoute() throws Exception {
+        String saToken = superAdminToken("supplier-routes-sa1@nforce.test");
+        Supplier supplier = supplier("SA Store-Route Delete", storeA, storeB);
+        StoreInventoryItem bItem = item(storeB, "B Cheese", supplier);
+
+        mockMvc.perform(delete("/api/stores/suppliers/" + supplier.getId())
+                .header("Authorization", "Bearer " + saToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.deleted").value(true));
+
+        assertThat(supplierRepository.findById(supplier.getId())).isEmpty();
+        assertThat(reloadItem(bItem).getPreferredSupplier()).isNull();
+    }
+
+    @Test
+    void superAdminSupplierManagementStillWorks() throws Exception {
+        String saToken = superAdminToken("supplier-routes-sa2@nforce.test");
+        Supplier supplier = supplier("SA Managed", storeA);
+
+        mockMvc.perform(put("/api/super-admin/suppliers/" + supplier.getId())
+                .header("Authorization", "Bearer " + saToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"SA Managed Renamed\",\"appliesToAllStores\":true}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.name").value("SA Managed Renamed"));
+
+        mockMvc.perform(patch("/api/super-admin/suppliers/" + supplier.getId() + "/status")
+                .header("Authorization", "Bearer " + saToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"active\":false}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.active").value(false));
-    }
 
-    @Test
-    void ownerCanDeleteTheirOwnSupplier_clearingOnlyTheirItems() throws Exception {
-        Supplier mine = supplier("A Delete", storeA);
-        StoreInventoryItem aItem = item(storeA, "A Milk", mine);
-
-        mockMvc.perform(delete("/api/stores/suppliers/" + mine.getId())
-                .header("Authorization", "Bearer " + tokenA))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.deleted").value(true));
-
-        assertThat(supplierRepository.findById(mine.getId())).isEmpty();
-        assertThat(reloadItem(aItem).getPreferredSupplier()).isNull();
-    }
-
-    @Test
-    void scopedClearLeavesOtherStoresPreferencesAlone() {
-        Supplier supplier = supplier("Scoped Clear", storeA);
-        StoreInventoryItem aItem = item(storeA, "A Juice", supplier);
-        StoreInventoryItem bItem = item(storeB, "B Juice", supplier);
-
-        int cleared = itemRepository.clearPreferredSupplierForStore(supplier.getId(), storeA.getId());
-
-        assertThat(cleared).isEqualTo(1);
-        assertThat(reloadItem(aItem).getPreferredSupplier()).isNull();
-        assertThat(reloadItem(bItem).getPreferredSupplier()).isNotNull();
-    }
-
-    // ---- Super Admin keeps platform-wide delete ----------------------------
-
-    @Test
-    void superAdminCanStillDeleteASharedSupplier() throws Exception {
-        superAdmin("supplier-ownership-sa@nforce.test");
-        String saToken = login("supplier-ownership-sa@nforce.test");
-        Supplier shared = supplier("Shared For SA", storeA, storeB);
-        StoreInventoryItem bItem = item(storeB, "B Cheese", shared);
-
-        mockMvc.perform(delete("/api/stores/suppliers/" + shared.getId())
+        mockMvc.perform(delete("/api/super-admin/suppliers/" + supplier.getId())
                 .header("Authorization", "Bearer " + saToken))
             .andExpect(status().isOk());
-
-        assertThat(supplierRepository.findById(shared.getId())).isEmpty();
-        assertThat(reloadItem(bItem).getPreferredSupplier()).isNull();
+        assertThat(supplierRepository.findById(supplier.getId())).isEmpty();
     }
 
     // ---- helpers -----------------------------------------------------------
@@ -305,12 +252,13 @@ class StoreSupplierOwnershipTest {
         storeOwnerRepository.save(storeOwner);
     }
 
-    private SuperAdmin superAdmin(String email) {
+    private String superAdminToken(String email) throws Exception {
         SuperAdmin sa = new SuperAdmin();
         sa.setName("Super Admin");
         sa.setEmail(email);
         sa.setPasswordHash(passwordEncoder.encode(PASSWORD));
-        return superAdminRepository.save(sa);
+        superAdminRepository.save(sa);
+        return login(email);
     }
 
     private String login(String email) throws Exception {
