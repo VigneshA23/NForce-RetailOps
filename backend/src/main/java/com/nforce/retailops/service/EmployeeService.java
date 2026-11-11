@@ -297,6 +297,9 @@ public class EmployeeService {
         Store myStore = requireActiveStore(ownerId).getStore();
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+        if (!storeEmployee.getEmployee().isActive()) {
+            throw new EmployeeNotFoundException("Employee not found");
+        }
 
         storeEmployee.getStores().add(myStore);
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
@@ -321,6 +324,9 @@ public class EmployeeService {
         Store myStore = requireActiveStore(ownerId).getStore();
         StoreEmployee storeEmployee = storeEmployeeRepository.findById(employeeId)
                 .orElseThrow(() -> new EmployeeNotFoundException("Employee not found"));
+        if (!storeEmployee.getEmployee().isActive()) {
+            throw new EmployeeNotFoundException("Employee not found");
+        }
 
         storeEmployee.getStores().removeIf(store -> store.getId().equals(myStore.getId()));
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
