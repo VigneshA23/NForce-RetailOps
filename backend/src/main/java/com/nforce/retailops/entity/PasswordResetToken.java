@@ -7,7 +7,7 @@ import java.time.OffsetDateTime;
 // One row per emailed password-reset or account-setup link. Only the SHA-256
 // of the token is stored (RTS-495, see ResetTokenHashing); the raw token exists
 // only in the link itself. The legacy plaintext `token` column is deliberately
-// not mapped: V111 cleared it and it is dropped in a later migration.
+// not mapped: V111 cleared it and V114 drops it (RTS-510).
 @Entity
 @Table(name = "password_reset_tokens")
 public class PasswordResetToken {
