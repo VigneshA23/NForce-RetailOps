@@ -1,6 +1,10 @@
 package com.nforce.retailops.controller;
 
+import com.nforce.retailops.service.InternalJobRateLimitService;
 import com.nforce.retailops.service.LoginRateLimitService;
+import jakarta.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import com.nforce.retailops.service.RaisedIssueService;
 import com.nforce.retailops.service.SuperAdminAlertService;
 import com.nforce.retailops.service.TaskMakeupLinkService;
@@ -18,6 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * Auth: each request must carry X-Internal-Job-Secret matching INTERNAL_JOB_SECRET.
  * Missing header → 401. Wrong value → 403. Secret not configured → 503.
+ * Comparison is constant-time. Wrong/missing attempts are counted per caller IP
+ * (5 per 15 min, then 429); the correct secret always succeeds (RTS-484).
  *
  * These endpoints are added to SecurityConfig's permitAll() list so EventBridge
  * can reach them without a JWT. The shared-secret header is the sole auth mechanism.
@@ -33,6 +39,8 @@ public class InternalJobController {
     private final TaskService taskService;
     private final TaskMakeupLinkService taskMakeupLinkService;
     private final LoginRateLimitService loginRateLimitService;
+    private final InternalJobRateLimitService rateLimitService;
+    private final HttpServletRequest request; // injected as a per-request proxy
 
     @Value("${INTERNAL_JOB_SECRET:}")
     private String internalJobSecret;
@@ -42,7 +50,11 @@ public class InternalJobController {
             RaisedIssueService raisedIssueService,
             TaskService taskService,
             TaskMakeupLinkService taskMakeupLinkService,
-            LoginRateLimitService loginRateLimitService) {
+            LoginRateLimitService loginRateLimitService,
+            InternalJobRateLimitService rateLimitService,
+            HttpServletRequest request) {
+        this.rateLimitService = rateLimitService;
+        this.request = request;
         this.superAdminAlertService = superAdminAlertService;
         this.raisedIssueService = raisedIssueService;
         this.taskService = taskService;
@@ -105,16 +117,35 @@ public class InternalJobController {
         return ResponseEntity.ok("purge-login-attempts completed");
     }
 
+    /**
+     * Returns null when the caller may proceed. The correct secret always succeeds,
+     * even from a throttled IP; only wrong/missing secrets are counted (per IP) and,
+     * once the IP is over its limit, answered with 429.
+     *
+     * The IP is request.getRemoteAddr() on purpose — never X-Forwarded-For, which a
+     * client can forge. On Lambda the serverless container fills it from the Function
+     * URL's requestContext.http.sourceIp (trust to be confirmed in RTS-507).
+     */
     private ResponseEntity<String> checkSecret(String providedSecret) {
+        if (!internalJobSecret.isBlank() && providedSecret != null
+                && MessageDigest.isEqual(
+                        internalJobSecret.getBytes(StandardCharsets.UTF_8),
+                        providedSecret.getBytes(StandardCharsets.UTF_8))) {
+            return null;
+        }
+        if (providedSecret != null && internalJobSecret.isBlank()) {
+            return ResponseEntity.status(503).body("INTERNAL_JOB_SECRET not configured");
+        }
+
+        String ip = request.getRemoteAddr();
+        if (ip == null || ip.isBlank()) ip = "unknown";
+        if (rateLimitService.isBlocked(ip)) {
+            return ResponseEntity.status(429).body("Too many failed attempts. Try again later.");
+        }
+        rateLimitService.recordFailure(ip);
         if (providedSecret == null) {
             return ResponseEntity.status(401).body("Missing X-Internal-Job-Secret header");
         }
-        if (internalJobSecret.isBlank()) {
-            return ResponseEntity.status(503).body("INTERNAL_JOB_SECRET not configured");
-        }
-        if (!internalJobSecret.equals(providedSecret)) {
-            return ResponseEntity.status(403).body("Invalid secret");
-        }
-        return null;
+        return ResponseEntity.status(403).body("Invalid secret");
     }
 }
