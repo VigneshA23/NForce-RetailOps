@@ -44,6 +44,12 @@
   margin-bottom: -1px;
 }
 
+/* Pink active tab + underline, light theme only -- same accent as
+   Inventory's sub-tabs (StoreInventory.css). */
+:root:not([data-theme='dark']) .order-dashboard-page__subtabs {
+  --color-accent: #c4267e;
+}
+
 .order-dashboard-page__subtab--active {
   color: var(--color-accent);
   border-bottom-color: var(--color-accent);
