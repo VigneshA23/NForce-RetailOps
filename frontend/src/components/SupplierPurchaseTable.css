@@ -39,11 +39,24 @@
   gap: 2px;
   border: none;
   background: transparent;
-  color: var(--color-accent);
+  color: #1d6fd8;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   padding: 0;
+}
+
+.supplier-purchase-table__view-btn:hover {
+  color: #1558b0;
+}
+
+/* Logo blue, lifted for contrast on the dark surface. */
+:root[data-theme='dark'] .supplier-purchase-table__view-btn {
+  color: #60a5fa;
+}
+
+:root[data-theme='dark'] .supplier-purchase-table__view-btn:hover {
+  color: #93c5fd;
 }
 
 .supplier-purchase-table__view-btn-full {
