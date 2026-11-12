@@ -88,10 +88,12 @@ public class DailyCashEntryService {
     private DailyCashEntryResponse saveEntry(
         Store store, User user, SuperAdmin superAdmin, DailyCashEntryRequest request
     ) {
+        store = storeRepository.lockByStoreId(store.getId())
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         LocalDate date = request.businessDate() != null ? request.businessDate() : LocalDate.now();
         OffsetDateTime now = OffsetDateTime.now();
         DailyCashEntry entry = entryRepository
-            .findByStoreIdAndBusinessDate(store.getId(), date)
+            .lockByStoreIdAndBusinessDate(store.getId(), date)
             .orElse(null);
 
         if (entry == null) {

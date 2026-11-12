@@ -96,7 +96,7 @@ public class StoreCashTargetService {
         OffsetDateTime now = OffsetDateTime.now();
 
         StoreCashTargetChange change = new StoreCashTargetChange();
-        change.setStore(store);
+        change.setStore(target.getStore());
         change.setPreviousAmount(target.getTargetAmount());
         change.setNewAmount(newAmount);
         change.setChangedByUser(user);
@@ -113,12 +113,14 @@ public class StoreCashTargetService {
 
     // The new row's amount comes from the DB default, read back on insert.
     private StoreCashTarget findOrCreate(Store store) {
-        return targetRepository.findByStoreId(store.getId()).orElseGet(() -> {
+        Store lockedStore = storeRepository.lockByStoreId(store.getId())
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return targetRepository.lockByStoreId(lockedStore.getId()).orElseGet(() -> {
             StoreCashTarget created = new StoreCashTarget();
-            created.setStore(store);
+            created.setStore(lockedStore);
             StoreCashTarget saved = targetRepository.saveAndFlush(created);
             if (saved.getTargetAmount() == null) {
-                saved.setTargetAmount(targetRepository.findAmountByStoreId(store.getId()));
+                saved.setTargetAmount(targetRepository.findAmountByStoreId(lockedStore.getId()));
             }
             return saved;
         });

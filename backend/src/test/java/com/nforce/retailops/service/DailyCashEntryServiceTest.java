@@ -67,6 +67,7 @@ class DailyCashEntryServiceTest {
         when(so.getStore()).thenReturn(store);
         when(storeOwnerRepository.findByOwnerId(9L)).thenReturn(List.of(so));
         when(userRepository.getReferenceById(9L)).thenReturn(owner);
+        when(storeRepository.lockByStoreId(5L)).thenReturn(Optional.of(store));
         when(entryRepository.save(any(DailyCashEntry.class))).thenAnswer(i -> i.getArgument(0));
         when(correctionRepository.findByEntryIdOrderByCorrectedAtAscIdAsc(any())).thenReturn(List.of());
     }
@@ -79,7 +80,7 @@ class DailyCashEntryServiceTest {
     @Test
     void firstSaveCreatesEntryWithoutAuditRow() {
         LocalDate d = LocalDate.now();
-        when(entryRepository.findByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.empty());
+        when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.empty());
 
         DailyCashEntryResponse r = service.save(9L, req(d, "500", "-3.50"));
 
@@ -106,7 +107,7 @@ class DailyCashEntryServiceTest {
         existing.setUpdatedByUser(owner);
         existing.setEnteredAt(java.time.OffsetDateTime.now().minusHours(1));
         existing.setUpdatedAt(java.time.OffsetDateTime.now().minusHours(1));
-        when(entryRepository.findByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.of(existing));
+        when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.of(existing));
 
         DailyCashEntryResponse r = service.save(9L, req(d, "650", "0"));
 
@@ -123,7 +124,7 @@ class DailyCashEntryServiceTest {
         when(sa.getId()).thenReturn(3L);
         when(storeRepository.findById(5L)).thenReturn(Optional.of(store));
         when(superAdminRepository.getReferenceById(3L)).thenReturn(sa);
-        when(entryRepository.findByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.empty());
+        when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.empty());
 
         DailyCashEntryResponse r = service.saveForSuperAdmin(3L, 5L, req(d, "500", "0"));
 

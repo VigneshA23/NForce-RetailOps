@@ -1,7 +1,9 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.DailyCashEntry;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -12,6 +14,11 @@ import java.util.Optional;
 
 public interface DailyCashEntryRepository extends JpaRepository<DailyCashEntry, Long> {
     Optional<DailyCashEntry> findByStoreIdAndBusinessDate(Long storeId, LocalDate businessDate);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select e from DailyCashEntry e where e.store.id = :storeId and e.businessDate = :businessDate")
+    Optional<DailyCashEntry> lockByStoreIdAndBusinessDate(
+        @Param("storeId") Long storeId, @Param("businessDate") LocalDate businessDate);
 
     // The store's most recent day on record (unique per store + date, so no tie).
     Optional<DailyCashEntry> findFirstByStoreIdOrderByBusinessDateDesc(Long storeId);

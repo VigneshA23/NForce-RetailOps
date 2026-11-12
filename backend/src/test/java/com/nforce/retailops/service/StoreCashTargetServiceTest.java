@@ -62,10 +62,11 @@ class StoreCashTargetServiceTest {
         store = mock(Store.class);
         when(store.getId()).thenReturn(7L);
         when(storeRepository.findById(7L)).thenReturn(Optional.of(store));
+        when(storeRepository.lockByStoreId(7L)).thenReturn(Optional.of(store));
         existing = new StoreCashTarget();
         existing.setStore(store);
         existing.setTargetAmount(new BigDecimal("150.00"));
-        when(targetRepository.findByStoreId(7L)).thenReturn(Optional.of(existing));
+        when(targetRepository.lockByStoreId(7L)).thenReturn(Optional.of(existing));
         when(targetRepository.save(any())).thenAnswer(i -> i.getArgument(0));
     }
 
@@ -96,7 +97,7 @@ class StoreCashTargetServiceTest {
 
     @Test
     void missingRowIsCreatedWithoutSettingAmountFromJava() {
-        when(targetRepository.findByStoreId(7L)).thenReturn(Optional.empty());
+        when(targetRepository.lockByStoreId(7L)).thenReturn(Optional.empty());
         when(targetRepository.saveAndFlush(any())).thenAnswer(i -> {
             StoreCashTarget t = i.getArgument(0);
             assertNull(t.getTargetAmount()); // default comes from the DB

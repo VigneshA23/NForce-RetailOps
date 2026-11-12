@@ -1,14 +1,21 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.Store;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface StoreRepository extends JpaRepository<Store, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select s from Store s where s.id = :storeId")
+    Optional<Store> lockByStoreId(@Param("storeId") Long storeId);
 
     // Every active store, alphabetical -- the row set for Super Admin's
     // cross-store stock-level comparison (a deactivated store has no current
