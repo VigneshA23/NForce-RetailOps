@@ -20,6 +20,7 @@ import com.nforce.retailops.exception.OrderEntryAlreadyUpdatedException;
 import com.nforce.retailops.exception.InvalidOrderListEntryException;
 import com.nforce.retailops.exception.OrderListEntryNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.exception.SupplierNotFoundException;
 import com.nforce.retailops.repository.OrderListEntryRepository;
 import com.nforce.retailops.repository.StockCheckRepository;
 import com.nforce.retailops.repository.StoreInventoryItemRepository;
@@ -65,6 +66,7 @@ class OrderListServiceTest {
     @Mock private StoreOwnerRepository storeOwnerRepository;
     @Mock private StoreRepository storeRepository;
     @Mock private SupplierRepository supplierRepository;
+    @Mock private SupplierService supplierService;
     @Mock private StoreInventoryItemRepository storeInventoryItemRepository;
     @Mock private UserRepository userRepository;
     @Mock private StockReceiptService stockReceiptService;
@@ -540,6 +542,24 @@ class OrderListServiceTest {
         assertThat(entry.getOrderedAt()).isNotNull();
     }
 
+    // VULN-12: attaching a supplier the caller's store can't see must fail
+    // the same way a nonexistent supplier ID would (404), not leak whether
+    // the supplier exists at all.
+    @Test
+    void updateEntryRejectsAnOutOfScopeSupplier() {
+        when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
+        OrderListEntry entry = entryWithStatus(OrderStatus.NEEDS_ORDERING);
+        when(orderListEntryRepository.findByIdAndStoreId(ENTRY_ID, STORE_ID)).thenReturn(Optional.of(entry));
+        when(supplierService.requireVisibleSupplier(OWNER_ID, 99L))
+            .thenThrow(new SupplierNotFoundException("Supplier not found"));
+
+        assertThatThrownBy(() -> orderListService.updateEntry(OWNER_ID, ENTRY_ID,
+            new UpdateOrderListEntryRequest(bd(5), 99L, null, OrderStatus.NEEDS_ORDERING)))
+            .isInstanceOf(SupplierNotFoundException.class);
+
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
     @Test
     void markOrderedMovesNeedsOrderingToOrderedAndRecordsWhenWithoutTouchingTheRest() {
         when(storeOwnerRepository.findByOwnerId(OWNER_ID)).thenReturn(List.of(storeOwner()));
@@ -938,6 +958,44 @@ class OrderListServiceTest {
             null, "  ", "SUPPLIES", "packs", false, null, null, bd(1), null, null)))
             .isInstanceOf(InvalidOrderListEntryException.class);
         verify(storeInventoryItemRepository, never()).save(any());
+    }
+
+    // VULN-12: same visibility check on the create path, via the owner-scoped
+    // entry point only -- createEntryForSuperAdmin below is intentionally
+    // exempt, since Super Admin isn't scoped to one store's supplier list.
+    @Test
+    void createEntryRejectsAnOutOfScopeSupplier() {
+        stubActiveStoreOwner(store());
+        when(userRepository.getReferenceById(OWNER_ID)).thenReturn(new User());
+        when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(item()));
+        when(supplierService.requireVisibleSupplier(OWNER_ID, 99L))
+            .thenThrow(new SupplierNotFoundException("Supplier not found"));
+
+        assertThatThrownBy(() -> orderListService.createEntry(OWNER_ID,
+            new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, bd(5), 99L, null)))
+            .isInstanceOf(SupplierNotFoundException.class);
+
+        verify(orderListEntryRepository, never()).save(any());
+    }
+
+    @Test
+    void createEntryForSuperAdminAttachesAnySupplierRegardlessOfStoreVisibility() {
+        Store store = store();
+        StoreInventoryItem milk = item();
+        when(storeRepository.findById(STORE_ID)).thenReturn(Optional.of(store));
+        when(storeInventoryItemRepository.findByIdAndStoreId(ITEM_ID, STORE_ID)).thenReturn(Optional.of(milk));
+        com.nforce.retailops.entity.Supplier supplier = new com.nforce.retailops.entity.Supplier();
+        ReflectionTestUtils.setField(supplier, "id", 99L);
+        when(supplierRepository.findById(99L)).thenReturn(Optional.of(supplier));
+        when(orderListEntryRepository.save(any(OrderListEntry.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        orderListService.createEntryForSuperAdmin(STORE_ID,
+            new CreateOrderListEntryRequest(ITEM_ID, null, null, null, false, null, null, bd(5), 99L, null));
+
+        verify(supplierService, never()).requireVisibleSupplier(any(), any());
+        ArgumentCaptor<OrderListEntry> captor = ArgumentCaptor.forClass(OrderListEntry.class);
+        verify(orderListEntryRepository).save(captor.capture());
+        assertThat(captor.getValue().getSupplier()).isEqualTo(supplier);
     }
 
     // ---- createEntryForSuperAdmin (Super Admin "Add to order", cross-store) ----

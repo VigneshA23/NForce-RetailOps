@@ -140,9 +140,13 @@ class OrderListControllerTest {
         return orderListEntryRepository.save(entry);
     }
 
+    // appliesToAllStores=true so this supplier is visible to any store's
+    // requireVisibleSupplier check (VULN-12) -- tests that need an
+    // out-of-scope supplier build one directly instead of through this helper.
     private Supplier supplier(String name) {
         Supplier supplier = new Supplier();
         supplier.setName(name);
+        supplier.setAppliesToAllStores(true);
         return supplierRepository.save(supplier);
     }
 

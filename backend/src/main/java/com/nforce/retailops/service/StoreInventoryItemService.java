@@ -53,6 +53,7 @@ public class StoreInventoryItemService {
 
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final SupplierRepository supplierRepository;
+    private final SupplierService supplierService;
     private final StoreRepository storeRepository;
     private final StoreOwnerRepository storeOwnerRepository;
     private final StockCheckRepository stockCheckRepository;
@@ -67,6 +68,7 @@ public class StoreInventoryItemService {
     public StoreInventoryItemService(
         StoreInventoryItemRepository storeInventoryItemRepository,
         SupplierRepository supplierRepository,
+        SupplierService supplierService,
         StoreRepository storeRepository,
         StoreOwnerRepository storeOwnerRepository,
         StockCheckRepository stockCheckRepository,
@@ -80,6 +82,7 @@ public class StoreInventoryItemService {
     ) {
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.supplierRepository = supplierRepository;
+        this.supplierService = supplierService;
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
         this.stockCheckRepository = stockCheckRepository;
@@ -136,7 +139,7 @@ public class StoreInventoryItemService {
     public StoreInventoryItemResponse createForOwner(Long ownerId, StoreInventoryItemRequest request) {
         Store store = requireOwnerStore(ownerId);
         requireAssignedCategory(store, request.category(), null);
-        return toResponse(createItem(store, request));
+        return toResponse(createItem(store, request, ownerId));
     }
 
     @Transactional
@@ -145,7 +148,7 @@ public class StoreInventoryItemService {
         StoreInventoryItem item = storeInventoryItemRepository.findByIdAndStoreId(itemId, store.getId())
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
         requireAssignedCategory(store, request.category(), item.getCategory());
-        return toResponse(applyUpdate(item, request));
+        return toResponse(applyUpdate(item, request, ownerId));
     }
 
     @Transactional
@@ -231,7 +234,7 @@ public class StoreInventoryItemService {
             StoreInventoryItem item = new StoreInventoryItem();
             item.setStore(store);
             item.setItemGroupId(groupId);
-            applyFields(item, request, false);
+            applyFields(item, request, false, null);
             if (template != null) {
                 item.setImage(inventoryItemImageRepository.save(copyOf(template)));
             }
@@ -278,7 +281,7 @@ public class StoreInventoryItemService {
     public StoreInventoryItemResponse updateForSuperAdmin(Long itemId, StoreInventoryItemRequest request) {
         StoreInventoryItem item = storeInventoryItemRepository.findById(itemId)
             .orElseThrow(() -> new StoreInventoryItemNotFoundException("Store inventory item not found"));
-        return toResponse(applyUpdate(item, request));
+        return toResponse(applyUpdate(item, request, null));
     }
 
     @Transactional
@@ -399,11 +402,15 @@ public class StoreInventoryItemService {
         return toResponses(List.of(item)).get(0);
     }
 
-    private StoreInventoryItem createItem(Store store, StoreInventoryItemRequest request) {
+    // ownerId is null only from the Super Admin create path (see
+    // createForSuperAdmin, which calls applyFields directly instead of this
+    // helper) -- Owner/Admin's own create always has one, so its preferred-
+    // supplier choice goes through requireVisibleSupplier below.
+    private StoreInventoryItem createItem(Store store, StoreInventoryItemRequest request, Long ownerId) {
         checkNameAvailable(store.getId(), request.name().trim(), null);
         StoreInventoryItem item = new StoreInventoryItem();
         item.setStore(store);
-        applyFields(item, request);
+        applyFields(item, request, ownerId);
         StoreInventoryItem saved = storeInventoryItemRepository.save(item);
         notifyEmployeesOfNewItem(store, saved);
         return saved;
@@ -448,9 +455,11 @@ public class StoreInventoryItemService {
                 "/stock-check", store));
     }
 
-    private StoreInventoryItem applyUpdate(StoreInventoryItem item, StoreInventoryItemRequest request) {
+    // ownerId is null only from the Super Admin update path -- see createItem's
+    // comment above.
+    private StoreInventoryItem applyUpdate(StoreInventoryItem item, StoreInventoryItemRequest request, Long ownerId) {
         checkNameAvailable(item.getStore().getId(), request.name().trim(), item.getId());
-        applyFields(item, request);
+        applyFields(item, request, ownerId);
         return storeInventoryItemRepository.save(item);
     }
 
@@ -468,11 +477,14 @@ public class StoreInventoryItemService {
         }
     }
 
-    private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request) {
-        applyFields(item, request, true);
+    private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request, Long ownerId) {
+        applyFields(item, request, true, ownerId);
     }
 
-    private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request, boolean withImage) {
+    // ownerId null means the Super Admin path -- not scoped to one store's
+    // supplier visibility, so it keeps the original unscoped lookup rather
+    // than going through requireVisibleSupplier.
+    private void applyFields(StoreInventoryItem item, StoreInventoryItemRequest request, boolean withImage, Long ownerId) {
         item.setName(request.name().trim());
         item.setCategory(request.category().trim());
         item.setUnitOfMeasurement(request.unitOfMeasurement().trim());
@@ -483,8 +495,10 @@ public class StoreInventoryItemService {
         // The preferred supplier is optional; null clears it.
         Supplier supplier = request.preferredSupplierId() == null
             ? null
-            : supplierRepository.findById(request.preferredSupplierId())
-                .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+            : ownerId != null
+                ? supplierService.requireVisibleSupplier(ownerId, request.preferredSupplierId())
+                : supplierRepository.findById(request.preferredSupplierId())
+                    .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
         // A deactivated supplier can't be newly assigned, but an item already
         // linked to one keeps it so editing other fields still works.
         Supplier current = item.getPreferredSupplier();

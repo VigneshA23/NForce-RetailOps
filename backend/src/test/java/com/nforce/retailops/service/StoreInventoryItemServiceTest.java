@@ -47,6 +47,7 @@ class StoreInventoryItemServiceTest {
 
     @Mock private StoreInventoryItemRepository storeInventoryItemRepository;
     @Mock private SupplierRepository supplierRepository;
+    @Mock private SupplierService supplierService;
     @Mock private StoreRepository storeRepository;
     @Mock private StoreOwnerRepository storeOwnerRepository;
     @Mock private StockCheckRepository stockCheckRepository;
@@ -66,7 +67,7 @@ class StoreInventoryItemServiceTest {
     @BeforeEach
     void setUp() {
         service = new StoreInventoryItemService(
-            storeInventoryItemRepository, supplierRepository, storeRepository,
+            storeInventoryItemRepository, supplierRepository, supplierService, storeRepository,
             storeOwnerRepository, stockCheckRepository, stockCheckReceiptRepository, orderListEntryRepository,
             inventoryItemImageRepository, unsplashService,
             storeEmployeeRepository, notificationService, inventoryCategoryService
@@ -488,5 +489,47 @@ class StoreInventoryItemServiceTest {
         assertThatThrownBy(() -> service.updateForOwner(1L, 10L, requestForStore(null, "Milk", null)))
             .isInstanceOf(com.nforce.retailops.exception.InventoryCategoryNotAssignedException.class);
         verify(storeInventoryItemRepository, never()).save(existing);
+    }
+
+    // ---- VULN-13: preferred supplier must be visible to the caller's store ----
+
+    @Test
+    void createForOwnerRejectsAnOutOfScopeSupplier() {
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(ownerLinkTo(storeA)));
+        when(inventoryCategoryService.isCategoryAssignedToStore("INGREDIENTS", storeA)).thenReturn(true);
+        when(supplierService.requireVisibleSupplier(1L, 7L))
+            .thenThrow(new com.nforce.retailops.exception.SupplierNotFoundException("Supplier not found"));
+
+        assertThatThrownBy(() -> service.createForOwner(1L, requestForStore(null, "Milk", 7L)))
+            .isInstanceOf(com.nforce.retailops.exception.SupplierNotFoundException.class);
+        verify(storeInventoryItemRepository, never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void updateForOwnerRejectsAnOutOfScopeSupplier() {
+        StoreInventoryItem existing = existing(10L, storeA, "Milk", "INGREDIENTS");
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(ownerLinkTo(storeA)));
+        when(storeInventoryItemRepository.findByIdAndStoreId(10L, 1L)).thenReturn(java.util.Optional.of(existing));
+        when(supplierService.requireVisibleSupplier(1L, 7L))
+            .thenThrow(new com.nforce.retailops.exception.SupplierNotFoundException("Supplier not found"));
+
+        assertThatThrownBy(() -> service.updateForOwner(1L, 10L, requestForStore(null, "Milk", 7L)))
+            .isInstanceOf(com.nforce.retailops.exception.SupplierNotFoundException.class);
+        verify(storeInventoryItemRepository, never()).save(existing);
+    }
+
+    // Super Admin's cross-store create/update path is intentionally exempt --
+    // it isn't scoped to one store's supplier visibility, same as
+    // createEntryForSuperAdmin in OrderListService.
+    @Test
+    void createForSuperAdminAttachesAnySupplierRegardlessOfStoreVisibility() {
+        when(storeRepository.findById(1L)).thenReturn(java.util.Optional.of(storeA));
+        when(supplierRepository.findById(7L)).thenReturn(java.util.Optional.of(supplier(7L)));
+        when(storeInventoryItemRepository.save(org.mockito.ArgumentMatchers.any()))
+            .thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.createForSuperAdmin(requestForStore(1L, "Milk", 7L));
+
+        verify(supplierService, never()).requireVisibleSupplier(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
     }
 }

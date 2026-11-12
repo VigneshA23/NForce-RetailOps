@@ -101,6 +101,7 @@ public class OrderListService {
     private final StoreOwnerRepository storeOwnerRepository;
     private final StoreRepository storeRepository;
     private final SupplierRepository supplierRepository;
+    private final SupplierService supplierService;
     private final StoreInventoryItemRepository storeInventoryItemRepository;
     private final UserRepository userRepository;
     private final StockReceiptService stockReceiptService;
@@ -111,6 +112,7 @@ public class OrderListService {
         StoreOwnerRepository storeOwnerRepository,
         StoreRepository storeRepository,
         SupplierRepository supplierRepository,
+        SupplierService supplierService,
         StoreInventoryItemRepository storeInventoryItemRepository,
         UserRepository userRepository,
         StockReceiptService stockReceiptService,
@@ -121,6 +123,7 @@ public class OrderListService {
         this.storeOwnerRepository = storeOwnerRepository;
         this.storeRepository = storeRepository;
         this.supplierRepository = supplierRepository;
+        this.supplierService = supplierService;
         this.storeInventoryItemRepository = storeInventoryItemRepository;
         this.userRepository = userRepository;
         this.stockReceiptService = stockReceiptService;
@@ -198,8 +201,7 @@ public class OrderListService {
         if (request.supplierId() == null) {
             entry.setSupplier(null);
         } else {
-            Supplier supplier = supplierRepository.findById(request.supplierId())
-                .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+            Supplier supplier = supplierService.requireVisibleSupplier(ownerId, request.supplierId());
             entry.setSupplier(supplier);
         }
 
@@ -520,7 +522,7 @@ public class OrderListService {
     public OrderListEntryResponse createEntry(Long ownerId, CreateOrderListEntryRequest request) {
         StoreOwner storeOwner = requireActiveStoreOwner(ownerId);
         User raisedBy = userRepository.getReferenceById(ownerId);
-        return createEntryForStore(storeOwner.getStore(), raisedBy, request);
+        return createEntryForStore(storeOwner.getStore(), raisedBy, request, ownerId);
     }
 
     // Super Admin's counterpart to createEntry above -- store comes directly
@@ -533,14 +535,21 @@ public class OrderListService {
     public OrderListEntryResponse createEntryForSuperAdmin(Long storeId, CreateOrderListEntryRequest request) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return createEntryForStore(store, null, request);
+        return createEntryForStore(store, null, request, null);
     }
 
-    private OrderListEntryResponse createEntryForStore(Store store, User raisedBy, CreateOrderListEntryRequest request) {
+    // ownerId is null on the Super Admin path above -- Super Admin isn't
+    // scoped to one store's supplier visibility, so that path keeps the
+    // original unscoped lookup rather than going through requireVisibleSupplier.
+    private OrderListEntryResponse createEntryForStore(
+        Store store, User raisedBy, CreateOrderListEntryRequest request, Long ownerId
+    ) {
         Supplier supplier = null;
         if (request.supplierId() != null) {
-            supplier = supplierRepository.findById(request.supplierId())
-                .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+            supplier = ownerId != null
+                ? supplierService.requireVisibleSupplier(ownerId, request.supplierId())
+                : supplierRepository.findById(request.supplierId())
+                    .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
         }
 
         StoreInventoryItem item = resolveOrderItem(store, request, supplier);
