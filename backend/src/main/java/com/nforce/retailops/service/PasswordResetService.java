@@ -66,7 +66,8 @@ public class PasswordResetService {
         OffsetDateTime now = OffsetDateTime.now();
         // Only the newest link may work: retire any earlier still-valid ones.
         tokenRepository.invalidateOutstandingForEmail(normalised, now);
-        tokenRepository.save(new PasswordResetToken(normalised, ResetTokenHashing.hash(token), now, now.plusHours(1)));
+        tokenRepository.save(new PasswordResetToken(normalised, ResetTokenHashing.hash(token), now,
+            now.plusHours(1), PasswordResetToken.Purpose.PASSWORD_RESET));
 
         String fullName = userOpt.get().getFullName();
         String resetLink = appBaseUrl + "?token=" + token;
@@ -84,7 +85,11 @@ public class PasswordResetService {
     public String createSetupToken(String email) {
         UUID token = UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now();
-        tokenRepository.save(new PasswordResetToken(email, ResetTokenHashing.hash(token), now, now.plusHours(72)));
+        // Only the newest setup link may work: retire earlier ones (RTS-512).
+        // A pending password-reset link is a different purpose and is untouched.
+        tokenRepository.invalidateOutstandingSetupForEmail(email, now);
+        tokenRepository.save(new PasswordResetToken(email, ResetTokenHashing.hash(token), now,
+            now.plusHours(72), PasswordResetToken.Purpose.ACCOUNT_SETUP));
         return token.toString();
     }
 

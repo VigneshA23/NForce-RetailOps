@@ -462,7 +462,7 @@ public class ChecklistHistoryService {
 
     @Transactional(readOnly = true)
     public ChecklistHistoryDetailResponse getDetail(Long ownerId, Long storeId, LocalDate date) {
-        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerId(storeId, ownerId)
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(storeId, ownerId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
         return buildDetail(storeOwner, ownerId, storeId, date);
     }
@@ -967,7 +967,7 @@ public class ChecklistHistoryService {
             throw new InvalidStoreSelectionException("Select at most " + MAX_STORE_SELECTION + " stores");
         }
 
-        List<StoreOwner> owned = storeOwnerRepository.findByOwnerIdAndStoreIdIn(ownerId, requestedStoreIds);
+        List<StoreOwner> owned = storeOwnerRepository.findByOwnerIdAndStoreIdInAndActiveTrue(ownerId, requestedStoreIds);
         if (owned.size() != Set.copyOf(requestedStoreIds).size()) {
             throw new InvalidStoreSelectionException("One or more selected stores could not be found");
         }

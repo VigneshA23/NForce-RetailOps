@@ -284,6 +284,12 @@
   color: #ffffff;
 }
 
+.order-list__add-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
 .order-list__action-btn--primary:hover:not(:disabled) {
   background: #c8182c;
   border-color: transparent;

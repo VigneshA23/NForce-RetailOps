@@ -1085,6 +1085,11 @@ public class TaskService {
     }
 
     private Task requireOwnedTask(Long ownerId, Long taskId) {
+        // Task.owner is a historical FK; authority comes from a live link. A
+        // revoked (not deactivated) owner must not keep managing task definitions.
+        if (!storeOwnerRepository.existsByOwnerIdAndActiveTrue(ownerId)) {
+            throw new TaskNotFoundException("Task not found");
+        }
         return taskRepository.findByIdAndOwnerId(taskId, ownerId)
             .orElseThrow(() -> new TaskNotFoundException("Task not found"));
     }

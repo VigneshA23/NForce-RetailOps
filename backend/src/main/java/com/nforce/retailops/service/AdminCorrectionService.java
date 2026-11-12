@@ -53,7 +53,7 @@ public class AdminCorrectionService {
         // Super Admin (adminUserId == null) can correct any store. Owner/Admin is
         // scoped to their own store.
         if (adminUserId != null) {
-            storeOwnerRepository.findByStoreIdAndOwnerId(entry.getStore().getId(), adminUserId)
+            storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(entry.getStore().getId(), adminUserId)
                     .orElseThrow(() -> new UnauthorizedTaskResponseActionException(
                             "You can only correct responses belonging to your own store"));
         }
@@ -174,7 +174,7 @@ public class AdminCorrectionService {
                 .orElseThrow(() -> new TaskResponseNotFoundException("Response not found"));
 
         if (adminUserId != null) {
-            storeOwnerRepository.findByStoreIdAndOwnerId(entry.getStore().getId(), adminUserId)
+            storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(entry.getStore().getId(), adminUserId)
                     .orElseThrow(() -> new UnauthorizedTaskResponseActionException(
                             "You can only flag responses belonging to your own store"));
         }
@@ -245,7 +245,7 @@ public class AdminCorrectionService {
                 .orElseThrow(() -> new TaskResponseNotFoundException("Response not found"));
 
         if (adminUserId != null) {
-            storeOwnerRepository.findByStoreIdAndOwnerId(entry.getStore().getId(), adminUserId)
+            storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(entry.getStore().getId(), adminUserId)
                     .orElseThrow(() -> new UnauthorizedTaskResponseActionException(
                             "You can only view corrections for responses belonging to your own store"));
         }

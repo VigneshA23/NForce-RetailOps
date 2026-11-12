@@ -7,7 +7,7 @@ import java.time.OffsetDateTime;
 // One row per emailed password-reset or account-setup link. Only the SHA-256
 // of the token is stored (RTS-495, see ResetTokenHashing); the raw token exists
 // only in the link itself. The legacy plaintext `token` column is deliberately
-// not mapped: V111 cleared it and it is dropped in a later migration.
+// not mapped: V111 cleared it and V114 drops it (RTS-510).
 @Entity
 @Table(name = "password_reset_tokens")
 public class PasswordResetToken {
@@ -31,14 +31,30 @@ public class PasswordResetToken {
     @Column(name = "used_at")
     private OffsetDateTime usedAt;
 
+    // What the link is for (RTS-512). Lets a resent setup link retire earlier
+    // setup links without touching a pending password-reset link.
+    public enum Purpose { PASSWORD_RESET, ACCOUNT_SETUP }
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private Purpose purpose = Purpose.PASSWORD_RESET;
+
     protected PasswordResetToken() {}
 
     public PasswordResetToken(String email, String tokenHash, OffsetDateTime createdAt, OffsetDateTime expiresAt) {
+        this(email, tokenHash, createdAt, expiresAt, Purpose.PASSWORD_RESET);
+    }
+
+    public PasswordResetToken(String email, String tokenHash, OffsetDateTime createdAt,
+                              OffsetDateTime expiresAt, Purpose purpose) {
         this.email = email;
         this.tokenHash = tokenHash;
         this.createdAt = createdAt;
         this.expiresAt = expiresAt;
+        this.purpose = purpose;
     }
+
+    public Purpose getPurpose() { return purpose; }
 
     public Long getId() { return id; }
     public String getEmail() { return email; }

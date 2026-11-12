@@ -197,6 +197,7 @@ class SupplierServiceTest {
         when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(link));
 
         Supplier supplier = new Supplier();
+        supplier.setAppliesToAllStores(true);
         when(supplierRepository.findById(7L)).thenReturn(Optional.of(supplier));
         when(supplierRepository.save(any(Supplier.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -214,5 +215,115 @@ class SupplierServiceTest {
             com.nforce.retailops.exception.StoreNotFoundException.class,
             () -> supplierService.hideSupplierForStore(99L, 7L)
         );
+    }
+
+    // ---- requireVisibleSupplier / VULN-12,13,17 --------------------------
+    //
+    // VULN-17's enumeration oracle was: hiding a supplier that doesn't exist
+    // returned 404, while hiding one that exists but belongs to another store
+    // silently succeeded (204) -- letting a caller tell the two apart and
+    // enumerate other stores' supplier IDs. Both cases must now throw the
+    // exact same exception.
+
+    private com.nforce.retailops.entity.StoreOwner activeLinkTo(com.nforce.retailops.entity.Store store) {
+        com.nforce.retailops.entity.StoreOwner link = new com.nforce.retailops.entity.StoreOwner();
+        link.setStore(store);
+        link.setActive(true);
+        return link;
+    }
+
+    @Test
+    void requireVisibleSupplierReturnsASupplierThatAppliesToAllStores() {
+        com.nforce.retailops.entity.Store myStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(myStore, "id", 10L);
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(activeLinkTo(myStore)));
+
+        Supplier supplier = new Supplier();
+        supplier.setAppliesToAllStores(true);
+        when(supplierRepository.findById(7L)).thenReturn(Optional.of(supplier));
+
+        assertEquals(supplier, supplierService.requireVisibleSupplier(1L, 7L));
+    }
+
+    @Test
+    void requireVisibleSupplierReturnsASupplierExplicitlyAssignedToThisStore() {
+        com.nforce.retailops.entity.Store myStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(myStore, "id", 10L);
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(activeLinkTo(myStore)));
+
+        Supplier supplier = new Supplier();
+        supplier.getStores().add(myStore);
+        when(supplierRepository.findById(7L)).thenReturn(Optional.of(supplier));
+
+        assertEquals(supplier, supplierService.requireVisibleSupplier(1L, 7L));
+    }
+
+    // VULN-12/13: a supplier assigned to a different store only (never this
+    // one) must 404 the same way a nonexistent ID does.
+    @Test
+    void requireVisibleSupplierThrowsNotFoundForASupplierAssignedToAnotherStoreOnly() {
+        com.nforce.retailops.entity.Store myStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(myStore, "id", 10L);
+        com.nforce.retailops.entity.Store otherStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(otherStore, "id", 20L);
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(activeLinkTo(myStore)));
+
+        Supplier supplier = new Supplier();
+        supplier.getStores().add(otherStore);
+        when(supplierRepository.findById(7L)).thenReturn(Optional.of(supplier));
+
+        assertThrows(SupplierNotFoundException.class, () -> supplierService.requireVisibleSupplier(1L, 7L));
+    }
+
+    // VULN-17: a supplier that applies everywhere but was hidden at this
+    // specific store must also 404 here, not just in the list endpoint.
+    @Test
+    void requireVisibleSupplierThrowsNotFoundForASupplierHiddenAtThisStore() {
+        com.nforce.retailops.entity.Store myStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(myStore, "id", 10L);
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(activeLinkTo(myStore)));
+
+        Supplier supplier = new Supplier();
+        supplier.setAppliesToAllStores(true);
+        supplier.getHiddenAtStores().add(myStore);
+        when(supplierRepository.findById(7L)).thenReturn(Optional.of(supplier));
+
+        assertThrows(SupplierNotFoundException.class, () -> supplierService.requireVisibleSupplier(1L, 7L));
+    }
+
+    @Test
+    void requireVisibleSupplierThrowsNotFoundForANonexistentSupplier() {
+        com.nforce.retailops.entity.Store myStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(myStore, "id", 10L);
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(activeLinkTo(myStore)));
+        when(supplierRepository.findById(404L)).thenReturn(Optional.empty());
+
+        assertThrows(SupplierNotFoundException.class, () -> supplierService.requireVisibleSupplier(1L, 404L));
+    }
+
+    // VULN-17's actual oracle: both paths must raise the identical exception
+    // type (and thus the identical 404 response), so a caller gets no signal
+    // distinguishing "doesn't exist" from "exists but out of scope".
+    @Test
+    void hideSupplierForStoreClosesTheNotFoundVsOutOfScopeOracle() {
+        com.nforce.retailops.entity.Store myStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(myStore, "id", 10L);
+        com.nforce.retailops.entity.Store otherStore = new com.nforce.retailops.entity.Store();
+        org.springframework.test.util.ReflectionTestUtils.setField(otherStore, "id", 20L);
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(activeLinkTo(myStore)));
+
+        Supplier outOfScope = new Supplier();
+        outOfScope.getStores().add(otherStore);
+        when(supplierRepository.findById(7L)).thenReturn(Optional.of(outOfScope));
+        when(supplierRepository.findById(404L)).thenReturn(Optional.empty());
+
+        Exception outOfScopeEx = assertThrows(
+            SupplierNotFoundException.class, () -> supplierService.hideSupplierForStore(1L, 7L));
+        Exception notFoundEx = assertThrows(
+            SupplierNotFoundException.class, () -> supplierService.hideSupplierForStore(1L, 404L));
+
+        assertEquals(notFoundEx.getClass(), outOfScopeEx.getClass());
+        assertEquals(notFoundEx.getMessage(), outOfScopeEx.getMessage());
+        verify(supplierRepository, never()).save(any());
     }
 }

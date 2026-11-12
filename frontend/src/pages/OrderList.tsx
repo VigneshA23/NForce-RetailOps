@@ -15,6 +15,7 @@ import AddToOrderPanel, { type OrderableInventoryItem } from '../components/AddT
 import StatCard from '../components/StatCard';
 import CategoryIcon from '../components/CategoryIcon';
 import CheckboxButton from '../components/CheckboxButton';
+import SpecularButton from '../components/SpecularButton';
 import StatusDotMenu from '../components/StatusDotMenu';
 import ChangeOrderStatusModal from '../components/ChangeOrderStatusModal';
 import { roundQty } from '../utils/quantity';
@@ -748,10 +749,23 @@ function OrderList({ storeName, seed }: OrderListProps) {
           </button>
         </div>
         {isMobile && (
-          <button type="button" className="order-list__action-btn order-list__action-btn--primary order-list__add-item-btn" onClick={() => { setAddError(null); setIsAddOpen(true); }}>
-            <Plus size={16} />
-            Add item
-          </button>
+          <SpecularButton
+            size="sm" className="order-list__add-item-btn"
+            radius={10}
+            tint="#14141a"
+            tintOpacity={0.85}
+            textColor="#f5f5f5"
+            lineColor="#ffffff"
+            baseColor="#525252"
+            followMouse
+            proximity={180}
+            onClick={() => { setAddError(null); setIsAddOpen(true); }}
+          >
+            <span className="order-list__add-label">
+              <Plus size={16} />
+              Add item
+            </span>
+          </SpecularButton>
         )}
       </div>
 
@@ -779,10 +793,23 @@ function OrderList({ storeName, seed }: OrderListProps) {
             <Clipboard size={16} />
             Copy selected items
           </button>
-          <button type="button" className="order-list__action-btn order-list__action-btn--primary" onClick={() => { setAddError(null); setIsAddOpen(true); }}>
-            <Plus size={16} />
-            Add item
-          </button>
+          <SpecularButton
+            size="sm"
+            radius={10}
+            tint="#14141a"
+            tintOpacity={0.85}
+            textColor="#f5f5f5"
+            lineColor="#ffffff"
+            baseColor="#525252"
+            followMouse
+            proximity={180}
+            onClick={() => { setAddError(null); setIsAddOpen(true); }}
+          >
+            <span className="order-list__add-label">
+              <Plus size={16} />
+              Add item
+            </span>
+          </SpecularButton>
         </div>
       )}
 

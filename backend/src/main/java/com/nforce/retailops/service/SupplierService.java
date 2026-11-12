@@ -79,10 +79,33 @@ public class SupplierService {
     @Transactional
     public void hideSupplierForStore(Long ownerId, Long supplierId) {
         Store store = requireOwnerStore(ownerId);
-        Supplier supplier = supplierRepository.findById(supplierId)
-            .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+        Supplier supplier = requireVisibleSupplier(ownerId, supplierId);
         supplier.getHiddenAtStores().add(store);
         supplierRepository.save(supplier);
+    }
+
+    // Visibility check for any endpoint that lets Owner/Admin attach an
+    // existing supplier by ID (order-list entries, inventory item preferred
+    // supplier, hide-for-store) -- same filter listSuppliersForStore applies,
+    // so a caller can only ever reference a supplier they could actually see
+    // in their own Suppliers list. Deliberately reuses SupplierNotFoundException
+    // (404) for "not visible" the same as "doesn't exist", rather than a
+    // separate 403, so a caller can't distinguish the two cases and enumerate
+    // supplier IDs belonging to other stores. Distinct from RTS-478's
+    // requireSupplierInScope (an ownership check that does not exclude
+    // hidden suppliers) -- this one is a visibility check and does.
+    @Transactional(readOnly = true)
+    public Supplier requireVisibleSupplier(Long ownerId, Long supplierId) {
+        Store store = requireOwnerStore(ownerId);
+        Supplier supplier = supplierRepository.findById(supplierId)
+            .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
+        boolean visible = (supplier.isAppliesToAllStores()
+                || supplier.getStores().stream().anyMatch(s -> s.getId().equals(store.getId())))
+            && supplier.getHiddenAtStores().stream().noneMatch(s -> s.getId().equals(store.getId()));
+        if (!visible) {
+            throw new SupplierNotFoundException("Supplier not found");
+        }
+        return supplier;
     }
 
     private Store requireOwnerStore(Long ownerId) {
