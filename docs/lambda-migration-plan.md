@@ -1,12 +1,14 @@
 # Lambda Migration Plan — RetailOps Backend
 
+> **Do not commit real infrastructure values here.** Hostnames, database names, usernames and passwords belong in the restricted ops/secrets system. This document uses placeholders (`<RDS_ENDPOINT>`, `<DB_NAME>`, `<MASTER_USERNAME>`).
+
 ## Summary & Recommendation
 
 Migrate the Spring Boot backend from Railway to AWS Lambda using the `aws-serverless-java-container-springboot3` library (Amazon's official Spring Boot 3 adapter). This is a thin wrapper approach: existing controllers, services, and repositories need no changes. The only new code is one handler class and five internal HTTP endpoints to replace the five `@Scheduled` methods.
 
 Key decisions, all matching the tracktion-api reference:
 - **Function URL** (not API Gateway) — simpler, no per-request pricing
-- **No VPC** — retailops-db is publicly accessible; Lambda connects to RDS over the internet exactly as Railway did
+- **No VPC** — the RDS instance is publicly accessible; Lambda connects to RDS over the internet exactly as Railway did
 - **On-demand only** (no provisioned concurrency) — mitigated by a 5-minute warm-up ping from EventBridge during business hours
 - **Scheduled jobs via EventBridge Scheduler → Function URL HTTP** with a shared secret header (same DIGEST_CRON_SECRET pattern as tracktion-api)
 - **S3 upload required** — built JAR is 71.3MB, exceeding the 50MB direct-upload limit
@@ -111,7 +113,7 @@ All five endpoints are in the same `InternalJobController` inside the same deplo
 
 **Function URL** (`AuthType: NONE`) — matches tracktion-api. Spring Security handles all auth internally (JWT verification for API routes, shared-secret header for internal job routes). CORS must be configured at the Function URL level (not API Gateway) — set `AllowOrigins` to the Vercel frontend URL.
 
-**No VPC.** `retailops-db.cjcwmyi0kh8z.us-east-2.rds.amazonaws.com` is publicly accessible (confirmed during RDS connectivity test). Lambda connects to it over the internet on port 5432, exactly as Railway did. VPC would add ~10-15 seconds cold-start latency (ENI attachment), cost money for NAT Gateway, and provide no security benefit given the DB is already public with password auth + SSL. Explicitly: do not add a VPC.
+**No VPC.** `<RDS_ENDPOINT>` is publicly accessible (confirmed during RDS connectivity test). Lambda connects to it over the internet on port 5432, exactly as Railway did. VPC would add ~10-15 seconds cold-start latency (ENI attachment), cost money for NAT Gateway, and provide no security benefit given the DB is already public with password auth + SSL. Explicitly: do not add a VPC.
 
 ---
 
@@ -159,8 +161,8 @@ All set in Lambda configuration. No `.env` file on Lambda — `spring-dotenv` sk
 
 | Variable | Value / source |
 |---|---|
-| `DATABASE_URL` | `jdbc:postgresql://retailops-db.cjcwmyi0kh8z.us-east-2.rds.amazonaws.com:5432/retailopsdb?sslmode=require` |
-| `DATABASE_USERNAME` | `postgres` |
+| `DATABASE_URL` | `jdbc:postgresql://<RDS_ENDPOINT>:5432/<DB_NAME>?sslmode=require` |
+| `DATABASE_USERNAME` | `<MASTER_USERNAME>` |
 | `DATABASE_PASSWORD` | (from RDS setup — store in AWS Secrets Manager, reference via Lambda env) |
 | `JWT_SECRET` | Same value as current Railway deployment |
 | `JWT_EXPIRATION_MS` | `86400000` |
