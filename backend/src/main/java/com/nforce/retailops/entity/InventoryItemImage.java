@@ -20,8 +20,10 @@ public class InventoryItemImage {
     private String contentType;
 
     // Explicit length so H2 (tests, create-drop) doesn't default to
-    // varbinary(255); Postgres maps any varbinary length to bytea.
-    @Column(nullable = false, length = 10_485_760)
+    // varbinary(255); Postgres maps any varbinary length to bytea. Kept at
+    // H2's VARBINARY maximum: anything larger makes Hibernate emit a BLOB
+    // column that H2 rejects, so the table never exists in the test schema.
+    @Column(nullable = false, length = 1_048_576)
     private byte[] data;
 
     @Column(name = "unsplash_photo_id", length = 64)

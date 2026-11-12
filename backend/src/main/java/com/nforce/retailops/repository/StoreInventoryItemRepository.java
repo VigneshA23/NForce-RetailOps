@@ -17,6 +17,12 @@ public interface StoreInventoryItemRepository extends JpaRepository<StoreInvento
 
     Optional<StoreInventoryItem> findByIdAndStoreId(Long id, Long storeId);
 
+    // Reverse lookup from an image row to the one item that owns it (every
+    // item has its own image row), so the image endpoint can tell which
+    // store an uploaded picture belongs to.
+    @Query("select i from StoreInventoryItem i where i.image.id = :imageId")
+    Optional<StoreInventoryItem> findByImageId(@Param("imageId") Long imageId);
+
     // Every store's item with this exact name, case-insensitive -- there is
     // no shared item catalog, so "the same item across stores" can only be
     // matched by name. Includes inactive items; callers filter those out
