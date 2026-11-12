@@ -39,6 +39,7 @@ import SuperAdminInventory from '../pages/SuperAdminInventory';
 import SuperAdminOrders, { type OrderStoreFocus } from '../pages/SuperAdminOrders';
 import SuperAdminActivity from '../pages/SuperAdminActivity';
 import SuperAdminCash from '../pages/SuperAdminCash';
+import MonthlyCashSummary from '../pages/MonthlyCashSummary';
 import { getInitials } from '../utils/initials';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 import type { IssueFocusRequest } from '../hooks/useIssueFocus';
@@ -454,6 +455,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       onInventoryClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('inventory'); } : undefined}
       onOrdersClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('orders'); } : undefined}
       onCashClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('cash'); } : undefined}
+      onCashSummaryClick={isMobile ? () => { setShowProfile(false); setShowHelp(false); setShowNotifications(false); setShowActivity(false); setActiveTab('cash-summary'); } : undefined}
       onHelpClick={() => { setShowProfile(false); setShowNotifications(false); setShowActivity(false); setShowHelp(true); }}
       onNotificationsClick={() => { setShowProfile(false); setShowHelp(false); setShowActivity(false); setShowNotifications(true); }}
       onNotificationNavigate={handleNotificationNavigate}
@@ -509,6 +511,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         <SuperAdminOrders focusStore={orderStoreFocus} />
       ) : activeTab === 'cash' ? (
         <SuperAdminCash />
+      ) : activeTab === 'cash-summary' ? (
+        <MonthlyCashSummary scope="super-admin" />
       ) : (
         <div className="owners-page">
           <div className="stat-card-row">

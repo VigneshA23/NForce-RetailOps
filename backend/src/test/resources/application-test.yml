@@ -8,3 +8,8 @@ spring:
       ddl-auto: create-drop
   flyway:
     enabled: false
+
+# JwtService refuses the placeholder/short default, so give tests their own
+# key instead of depending on a developer's local backend/.env.
+jwt:
+  secret: test-only-signing-secret-not-for-real-use-0123456789

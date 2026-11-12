@@ -85,10 +85,16 @@ public class MailService {
                     .retrieve()
                     .toBodilessEntity();
             } catch (RestClientException ex) {
-                log.error("Resend send failed for {}", to, ex);
-                String detail = ex instanceof RestClientResponseException r
-                    ? r.getResponseBodyAsString()
-                    : ex.getMessage();
+                String detail;
+                if (ex instanceof RestClientResponseException r) {
+                    detail = r.getResponseBodyAsString();
+                    log.error("Resend send failed for {} from '{}': HTTP {} - response body: {}",
+                        to, fromEmail, r.getStatusCode().value(), detail, ex);
+                } else {
+                    detail = ex.getMessage();
+                    log.error("Resend send failed for {} from '{}' (no HTTP response, e.g. timeout/network): {}",
+                        to, fromEmail, detail, ex);
+                }
                 throw new EmailDeliveryException("Failed to send the account email to " + to + ": " + detail);
             }
         };

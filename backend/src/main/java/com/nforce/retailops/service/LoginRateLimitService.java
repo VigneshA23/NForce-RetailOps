@@ -21,8 +21,12 @@ public class LoginRateLimitService {
     @Value("${login.rate-limit.enabled:true}")
     private boolean enabled;
 
-    public LoginRateLimitService(LoginAttemptRepository repository) {
+    private final InternalJobRateLimitService internalJobRateLimitService;
+
+    public LoginRateLimitService(LoginAttemptRepository repository,
+                                 InternalJobRateLimitService internalJobRateLimitService) {
         this.repository = repository;
+        this.internalJobRateLimitService = internalJobRateLimitService;
     }
 
     // Called before the password check. Throws 429 if the window is exhausted.
@@ -55,10 +59,12 @@ public class LoginRateLimitService {
     }
 
     // Hourly cleanup: remove attempts older than twice the window so the
-    // table stays small without any manual intervention.
+    // table stays small without any manual intervention. Also purges the
+    // /internal/jobs/** failed-attempt table (RTS-484) so no extra job is needed.
     @Scheduled(fixedDelayString = "PT1H")
     @Transactional
     public void purgeExpiredAttempts() {
         repository.deleteOlderThan(OffsetDateTime.now().minusMinutes(WINDOW_MINUTES * 2L));
+        internalJobRateLimitService.purgeExpiredAttempts();
     }
 }

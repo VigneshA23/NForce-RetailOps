@@ -55,6 +55,9 @@ class AuthControllerTest {
     @Autowired
     private ActiveSessionRepository activeSessionRepository;
 
+    @org.springframework.beans.factory.annotation.Value("${jwt.secret}")
+    private String jwtSecret;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     private Role employeeRole() {
@@ -338,6 +341,53 @@ class AuthControllerTest {
 
         mockMvc.perform(get("/api/auth/session-status").header("Authorization", "Bearer " + token))
             .andExpect(status().isUnauthorized());
+    }
+
+    // RTS-469: a token signed with the right key and carrying a live session's
+    // jti is still not enough -- its subject has to be the one the session was
+    // issued to. Models an attacker who knows the signing secret.
+    @Test
+    @Transactional
+    void tokenReusingALiveSessionIdWithADifferentSubjectIsRejected() throws Exception {
+        User user = new User();
+        user.setFullName("Forgery Victim Employee");
+        user.setEmail("forgery-victim@nforce.test");
+        user.setPasswordHash(passwordEncoder.encode("correct-password"));
+        user.getRoles().add(employeeRole());
+        userRepository.save(user);
+
+        SuperAdmin superAdmin = new SuperAdmin();
+        superAdmin.setName("Forgery Target Super Admin");
+        superAdmin.setEmail("forgery-target-admin@nforce.test");
+        superAdmin.setPasswordHash(passwordEncoder.encode("irrelevant-password"));
+        superAdminRepository.save(superAdmin);
+
+        String loginBody = objectMapper.writeValueAsString(
+            new LoginPayload("forgery-victim@nforce.test", "correct-password"));
+        String responseJson = mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginBody))
+            .andExpect(status().isOk())
+            .andReturn().getResponse().getContentAsString();
+        String genuineToken = objectMapper.readTree(responseJson).get("token").asText();
+        String liveJti = extractTokenId(genuineToken);
+
+        String forgedToken = io.jsonwebtoken.Jwts.builder()
+            .subject("forgery-target-admin@nforce.test")
+            .id(liveJti)
+            .claim("roles", java.util.List.of("SUPER_ADMIN"))
+            .issuedAt(new java.util.Date())
+            .expiration(new java.util.Date(System.currentTimeMillis() + 60_000))
+            .signWith(io.jsonwebtoken.security.Keys.hmacShaKeyFor(
+                jwtSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+            .compact();
+
+        mockMvc.perform(get("/api/auth/session-status").header("Authorization", "Bearer " + forgedToken))
+            .andExpect(status().isUnauthorized());
+
+        // The forgery attempt must not have revoked the real user's session.
+        mockMvc.perform(get("/api/auth/session-status").header("Authorization", "Bearer " + genuineToken))
+            .andExpect(status().isOk());
     }
 
     // Decodes the JWT's own "jti" claim without needing JwtService injected

@@ -6,7 +6,6 @@ import com.nforce.retailops.entity.Role;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreEmployee;
 import com.nforce.retailops.entity.User;
-import com.nforce.retailops.exception.EmailAlreadyExistsException;
 import com.nforce.retailops.repository.RoleRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.UserRepository;
@@ -33,13 +32,13 @@ import java.util.Set;
 public class EmployeeProvisioningService {
 
     public record ProvisionedEmployee(
-        Long userId,
-        Long storeEmployeeId,
-        String email,
-        String fullName,
-        String temporaryPassword,
-        EmployeeResponse response
-    ) {}
+            Long userId,
+            Long storeEmployeeId,
+            String email,
+            String fullName,
+            String temporaryPassword,
+            EmployeeResponse response) {
+    }
 
     private static final String EMPLOYEE_ROLE_NAME = "EMPLOYEE";
 
@@ -51,13 +50,12 @@ public class EmployeeProvisioningService {
     private final TemporaryPasswordGenerator temporaryPasswordGenerator;
 
     public EmployeeProvisioningService(
-        StoreEmployeeRepository storeEmployeeRepository,
-        UserRepository userRepository,
-        EmailUniquenessService emailUniquenessService,
-        RoleRepository roleRepository,
-        PasswordEncoder passwordEncoder,
-        TemporaryPasswordGenerator temporaryPasswordGenerator
-    ) {
+            StoreEmployeeRepository storeEmployeeRepository,
+            UserRepository userRepository,
+            EmailUniquenessService emailUniquenessService,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            TemporaryPasswordGenerator temporaryPasswordGenerator) {
         this.storeEmployeeRepository = storeEmployeeRepository;
         this.userRepository = userRepository;
         this.emailUniquenessService = emailUniquenessService;
@@ -75,7 +73,7 @@ public class EmployeeProvisioningService {
         emailUniquenessService.assertAvailable(email);
 
         Role employeeRole = roleRepository.findByName(EMPLOYEE_ROLE_NAME)
-            .orElseThrow(() -> new IllegalStateException(EMPLOYEE_ROLE_NAME + " role is not seeded"));
+                .orElseThrow(() -> new IllegalStateException(EMPLOYEE_ROLE_NAME + " role is not seeded"));
 
         String temporaryPassword = temporaryPasswordGenerator.generate();
 
@@ -99,13 +97,12 @@ public class EmployeeProvisioningService {
         storeEmployee = storeEmployeeRepository.save(storeEmployee);
 
         return new ProvisionedEmployee(
-            employee.getId(),
-            storeEmployee.getId(),
-            employee.getEmail(),
-            employee.getFullName(),
-            temporaryPassword,
-            EmployeeResponse.from(storeEmployee)
-        );
+                employee.getId(),
+                storeEmployee.getId(),
+                employee.getEmail(),
+                employee.getFullName(),
+                temporaryPassword,
+                EmployeeResponse.from(storeEmployee));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

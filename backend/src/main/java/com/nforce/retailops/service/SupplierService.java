@@ -227,19 +227,6 @@ public class SupplierService {
     }
 
     @Transactional
-    public SupplierResponse updateSupplier(Long supplierId, SupplierRequest request) {
-        Supplier supplier = supplierRepository.findById(supplierId)
-            .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));
-        String name = request.name().trim();
-        if (supplierRepository.existsByNameIgnoreCaseAndIdNot(name, supplierId)) {
-            throw new SupplierNameExistsException("A supplier with this name already exists.");
-        }
-        supplier.setName(name);
-        supplier = supplierRepository.save(supplier);
-        return SupplierResponse.from(supplier);
-    }
-
-    @Transactional
     public SupplierResponse setSupplierActive(Long supplierId, boolean active) {
         Supplier supplier = supplierRepository.findById(supplierId)
             .orElseThrow(() -> new SupplierNotFoundException("Supplier not found"));

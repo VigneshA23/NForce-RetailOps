@@ -4,7 +4,6 @@ import com.nforce.retailops.dto.AssignStoreOwnerRequest;
 import com.nforce.retailops.dto.CreateStoreRequest;
 import com.nforce.retailops.dto.InventoryCategoryResponse;
 import com.nforce.retailops.dto.StoreRequest;
-import com.nforce.retailops.dto.StatusRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.dto.SuperAdminStoreResponse;
 import com.nforce.retailops.dto.SupplierDeleteResponse;
@@ -75,23 +74,13 @@ public class StoreController {
     }
 
     // Permanent-delete: removes the supplier, or only deactivates it when
-    // orders reference it.
+    // orders reference it. Super Admin only -- Owner/Admin has no supplier
+    // rename/deactivate/delete in the UI, so those owner routes were removed
+    // (security audit: they had no store-ownership check).
     @DeleteMapping("/suppliers/{id}")
-    @PreAuthorize("hasAnyRole('OWNER_ADMIN', 'SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<SupplierDeleteResponse> deleteSupplier(@PathVariable Long id) {
         return ResponseEntity.ok(supplierService.deleteSupplier(id));
-    }
-
-    // Owner/Admin's Suppliers tab: rename and activate/deactivate, mirroring
-    // the Super Admin endpoints.
-    @PutMapping("/suppliers/{id}")
-    public ResponseEntity<SupplierResponse> updateSupplier(@PathVariable Long id, @Valid @RequestBody SupplierRequest request) {
-        return ResponseEntity.ok(supplierService.updateSupplier(id, request));
-    }
-
-    @PatchMapping("/suppliers/{id}/status")
-    public ResponseEntity<SupplierResponse> setSupplierStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {
-        return ResponseEntity.ok(supplierService.setSupplierActive(id, request.active()));
     }
 
     // "Remove from my store" -- hides the supplier from this owner's own

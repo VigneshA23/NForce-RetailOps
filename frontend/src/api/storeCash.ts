@@ -1,5 +1,5 @@
 import { ApiError, apiRequest } from './client';
-import type { DailyCashEntry, DailyCashEntryRequest } from '../types/storeCash';
+import type { DailyCashEntry, DailyCashEntryRequest, ExpectedCash } from '../types/storeCash';
 
 // Owner/Admin's daily cash entry for their own store -- the server resolves
 // the store from the caller, so no storeId is sent.
@@ -37,4 +37,14 @@ export async function getSuperAdminDailyCashEntry(
 
 export async function saveSuperAdminDailyCashEntry(storeId: number, request: DailyCashEntryRequest): Promise<DailyCashEntry> {
   return apiRequest<DailyCashEntry>(`/super-admin/stores/${storeId}/cash`, { method: 'PUT', body: request });
+}
+
+// Expected cash on hand (RTS-295), computed only on the server. A store with
+// no entries answers 200 with available=false, so only real failures throw.
+export async function getExpectedCash(signal?: AbortSignal): Promise<ExpectedCash> {
+  return apiRequest<ExpectedCash>('/stores/cash/expected', { signal });
+}
+
+export async function getSuperAdminExpectedCash(storeId: number, signal?: AbortSignal): Promise<ExpectedCash> {
+  return apiRequest<ExpectedCash>(`/super-admin/stores/${storeId}/cash/expected`, { signal });
 }
