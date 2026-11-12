@@ -1,7 +1,6 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.DailyCashEntryRequest;
-import com.nforce.retailops.dto.DailyCashEntryResponse;
 import com.nforce.retailops.dto.StoreCashTargetRequest;
 import com.nforce.retailops.dto.StoreCashTargetResponse;
 import com.nforce.retailops.entity.DailyCashEntry;
@@ -39,15 +38,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ActiveProfiles("test")
 class CashSaveConcurrencyTest {
 
-    @Autowired private DailyCashEntryService dailyCashEntryService;
-    @Autowired private StoreCashTargetService storeCashTargetService;
-    @Autowired private DailyCashEntryRepository dailyCashEntryRepository;
-    @Autowired private DailyCashEntryCorrectionRepository correctionRepository;
-    @Autowired private StoreCashTargetRepository targetRepository;
-    @Autowired private StoreRepository storeRepository;
-    @Autowired private SuperAdminRepository superAdminRepository;
-    @Autowired private JdbcTemplate jdbcTemplate;
-    @Autowired private PlatformTransactionManager transactionManager;
+    @Autowired
+    private DailyCashEntryService dailyCashEntryService;
+    @Autowired
+    private StoreCashTargetService storeCashTargetService;
+    @Autowired
+    private DailyCashEntryRepository dailyCashEntryRepository;
+    @Autowired
+    private DailyCashEntryCorrectionRepository correctionRepository;
+    @Autowired
+    private StoreCashTargetRepository targetRepository;
+    @Autowired
+    private StoreRepository storeRepository;
+    @Autowired
+    private SuperAdminRepository superAdminRepository;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+    @Autowired
+    private PlatformTransactionManager transactionManager;
 
     @Test
     void concurrentUpdatesToExistingDailyEntryKeepEveryPriorValue() throws Exception {
@@ -56,22 +64,22 @@ class CashSaveConcurrencyTest {
         dailyCashEntryService.saveForSuperAdmin(fixture.superAdminId(), fixture.storeId(), cashRequest(date, "100"));
 
         runTogether(List.of(
-            () -> dailyCashEntryService.saveForSuperAdmin(
-                fixture.superAdminId(), fixture.storeId(), cashRequest(date, "200")),
-            () -> dailyCashEntryService.saveForSuperAdmin(
-                fixture.superAdminId(), fixture.storeId(), cashRequest(date, "300"))));
+                () -> dailyCashEntryService.saveForSuperAdmin(
+                        fixture.superAdminId(), fixture.storeId(), cashRequest(date, "200")),
+                () -> dailyCashEntryService.saveForSuperAdmin(
+                        fixture.superAdminId(), fixture.storeId(), cashRequest(date, "300"))));
 
         DailyCashEntry entry = dailyCashEntryRepository
-            .findByStoreIdAndBusinessDate(fixture.storeId(), date).orElseThrow();
-        List<DailyCashEntryCorrection> corrections =
-            correctionRepository.findByEntryIdOrderByCorrectedAtAscIdAsc(entry.getId());
+                .findByStoreIdAndBusinessDate(fixture.storeId(), date).orElseThrow();
+        List<DailyCashEntryCorrection> corrections = correctionRepository
+                .findByEntryIdOrderByCorrectedAtAscIdAsc(entry.getId());
 
         assertThat(corrections).hasSize(2);
         assertThat(corrections.get(0).getPreviousTotalCashSales()).isEqualByComparingTo("100");
         assertThat(corrections.get(1).getPreviousTotalCashSales())
-            .isIn(new BigDecimal("200.00"), new BigDecimal("300.00"));
+                .isIn(new BigDecimal("200.00"), new BigDecimal("300.00"));
         assertThat(entry.getTotalCashSales()).isIn(new BigDecimal("200.00"), new BigDecimal("300.00"))
-            .isNotEqualByComparingTo(corrections.get(1).getPreviousTotalCashSales());
+                .isNotEqualByComparingTo(corrections.get(1).getPreviousTotalCashSales());
     }
 
     @Test
@@ -80,21 +88,21 @@ class CashSaveConcurrencyTest {
         LocalDate date = LocalDate.now();
 
         runTogether(List.of(
-            () -> dailyCashEntryService.saveForSuperAdmin(
-                fixture.superAdminId(), fixture.storeId(), cashRequest(date, "210")),
-            () -> dailyCashEntryService.saveForSuperAdmin(
-                fixture.superAdminId(), fixture.storeId(), cashRequest(date, "310"))));
+                () -> dailyCashEntryService.saveForSuperAdmin(
+                        fixture.superAdminId(), fixture.storeId(), cashRequest(date, "210")),
+                () -> dailyCashEntryService.saveForSuperAdmin(
+                        fixture.superAdminId(), fixture.storeId(), cashRequest(date, "310"))));
 
         DailyCashEntry entry = dailyCashEntryRepository
-            .findByStoreIdAndBusinessDate(fixture.storeId(), date).orElseThrow();
-        List<DailyCashEntryCorrection> corrections =
-            correctionRepository.findByEntryIdOrderByCorrectedAtAscIdAsc(entry.getId());
+                .findByStoreIdAndBusinessDate(fixture.storeId(), date).orElseThrow();
+        List<DailyCashEntryCorrection> corrections = correctionRepository
+                .findByEntryIdOrderByCorrectedAtAscIdAsc(entry.getId());
 
         assertThat(corrections).hasSize(1);
         assertThat(corrections.get(0).getPreviousTotalCashSales())
-            .isIn(new BigDecimal("210.00"), new BigDecimal("310.00"));
+                .isIn(new BigDecimal("210.00"), new BigDecimal("310.00"));
         assertThat(entry.getTotalCashSales()).isIn(new BigDecimal("210.00"), new BigDecimal("310.00"))
-            .isNotEqualByComparingTo(corrections.get(0).getPreviousTotalCashSales());
+                .isNotEqualByComparingTo(corrections.get(0).getPreviousTotalCashSales());
     }
 
     @Test
@@ -103,10 +111,10 @@ class CashSaveConcurrencyTest {
         storeCashTargetService.getForSuperAdmin(fixture.storeId());
 
         runTogether(List.of(
-            () -> storeCashTargetService.updateForSuperAdmin(
-                fixture.superAdminId(), fixture.storeId(), targetRequest("250")),
-            () -> storeCashTargetService.updateForSuperAdmin(
-                fixture.superAdminId(), fixture.storeId(), targetRequest("350"))));
+                () -> storeCashTargetService.updateForSuperAdmin(
+                        fixture.superAdminId(), fixture.storeId(), targetRequest("250")),
+                () -> storeCashTargetService.updateForSuperAdmin(
+                        fixture.superAdminId(), fixture.storeId(), targetRequest("350"))));
 
         assertContinuousTargetHistory(fixture.storeId(), "250", "350");
     }
@@ -116,10 +124,10 @@ class CashSaveConcurrencyTest {
         Fixture fixture = createFixture();
 
         runTogether(List.of(
-            () -> storeCashTargetService.updateForSuperAdmin(
-                fixture.superAdminId(), fixture.storeId(), targetRequest("450")),
-            () -> storeCashTargetService.updateForSuperAdmin(
-                fixture.superAdminId(), fixture.storeId(), targetRequest("550"))));
+                () -> storeCashTargetService.updateForSuperAdmin(
+                        fixture.superAdminId(), fixture.storeId(), targetRequest("450")),
+                () -> storeCashTargetService.updateForSuperAdmin(
+                        fixture.superAdminId(), fixture.storeId(), targetRequest("550"))));
 
         assertThat(targetRepository.findByStoreId(fixture.storeId())).isPresent();
         assertContinuousTargetHistory(fixture.storeId(), "450", "550");
@@ -130,11 +138,11 @@ class CashSaveConcurrencyTest {
         Fixture fixture = createFixture();
 
         List<StoreCashTargetResponse> responses = runTogether(List.of(
-            () -> storeCashTargetService.getForSuperAdmin(fixture.storeId()),
-            () -> storeCashTargetService.getForSuperAdmin(fixture.storeId())));
+                () -> storeCashTargetService.getForSuperAdmin(fixture.storeId()),
+                () -> storeCashTargetService.getForSuperAdmin(fixture.storeId())));
 
         assertThat(responses).extracting(StoreCashTargetResponse::targetAmount)
-            .containsExactly(new BigDecimal("150.00"), new BigDecimal("150.00"));
+                .containsExactly(new BigDecimal("150.00"), new BigDecimal("150.00"));
         assertThat(targetRepository.findByStoreId(fixture.storeId())).isPresent();
         assertThat(changeRowsFor(fixture.storeId())).isEmpty();
     }
@@ -147,21 +155,21 @@ class CashSaveConcurrencyTest {
         TargetChange secondChange = changes.get(1);
         assertThat(firstChange.previousAmount()).isEqualByComparingTo("150.00");
         assertThat(firstChange.newAmount()).isIn(
-            new BigDecimal(first).setScale(2), new BigDecimal(second).setScale(2));
+                new BigDecimal(first).setScale(2), new BigDecimal(second).setScale(2));
         assertThat(secondChange.previousAmount()).isEqualByComparingTo(firstChange.newAmount());
         assertThat(secondChange.newAmount()).isIn(
-            new BigDecimal(first).setScale(2), new BigDecimal(second).setScale(2))
-            .isNotEqualByComparingTo(firstChange.newAmount());
+                new BigDecimal(first).setScale(2), new BigDecimal(second).setScale(2))
+                .isNotEqualByComparingTo(firstChange.newAmount());
         assertThat(targetRepository.findByStoreId(storeId).orElseThrow().getTargetAmount())
-            .isEqualByComparingTo(secondChange.newAmount());
+                .isEqualByComparingTo(secondChange.newAmount());
     }
 
     private List<TargetChange> changeRowsFor(Long storeId) {
         return jdbcTemplate.query(
-            "select previous_amount, new_amount from store_cash_target_changes where store_id = ? order by id",
-            (resultSet, rowNumber) ->
-                new TargetChange(resultSet.getBigDecimal("previous_amount"), resultSet.getBigDecimal("new_amount")),
-            storeId);
+                "select previous_amount, new_amount from store_cash_target_changes where store_id = ? order by id",
+                (resultSet, rowNumber) -> new TargetChange(resultSet.getBigDecimal("previous_amount"),
+                        resultSet.getBigDecimal("new_amount")),
+                storeId);
     }
 
     private Fixture createFixture() {
@@ -184,8 +192,8 @@ class CashSaveConcurrencyTest {
 
     private static DailyCashEntryRequest cashRequest(LocalDate date, String totalCashSales) {
         return new DailyCashEntryRequest(date, new BigDecimal(totalCashSales), new BigDecimal("100"),
-            new BigDecimal("10"), new BigDecimal("90"), new BigDecimal("5"), new BigDecimal("20"),
-            BigDecimal.ZERO);
+                new BigDecimal("10"), new BigDecimal("90"), new BigDecimal("5"), new BigDecimal("20"),
+                BigDecimal.ZERO);
     }
 
     private static StoreCashTargetRequest targetRequest(String amount) {
