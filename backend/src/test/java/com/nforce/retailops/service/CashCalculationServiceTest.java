@@ -126,11 +126,65 @@ class CashCalculationServiceTest {
         assertMoney("0.00", r.variance());
     }
 
+    // The "live" lookup: latest entry on or before today (RTS-471).
+    private Optional<DailyCashEntry> latestOnOrBeforeToday() {
+        return entryRepository.findFirstByStoreIdAndBusinessDateLessThanEqualOrderByBusinessDateDesc(
+            STORE_ID, LocalDate.now());
+    }
+
+    // Behaves like the real repository query over a fixed set of rows.
+    private void storeHoldsEntries(DailyCashEntry... rows) {
+        when(entryRepository.findFirstByStoreIdAndBusinessDateLessThanEqualOrderByBusinessDateDesc(
+            eq(STORE_ID), any(LocalDate.class))).thenAnswer(inv -> {
+                LocalDate asOf = inv.getArgument(1);
+                return Stream.of(rows)
+                    .filter(e -> !e.getBusinessDate().isAfter(asOf))
+                    .max(java.util.Comparator.comparing(DailyCashEntry::getBusinessDate));
+            });
+    }
+
     // ---- store lookup -------------------------------------------------------
 
     @Test
+    void liveLookup_isCappedAtToday() {
+        when(latestOnOrBeforeToday()).thenReturn(Optional.empty());
+        service.getExpectedCashForStore(STORE_ID);
+        verify(entryRepository).findFirstByStoreIdAndBusinessDateLessThanEqualOrderByBusinessDateDesc(
+            STORE_ID, LocalDate.now());
+    }
+
+    @Test
+    void futureDatedEntry_isNeverTheLiveFigure_theLatestRealDayIs() {
+        // RTS-471: a row planted far in the future (e.g. before the request
+        // validation existed) must not mask the real current figure.
+        LocalDate today = LocalDate.now();
+        storeHoldsEntries(
+            entry(today.minusDays(2).toString(), "200", "1000", "100", "575", "50", "500", "25"),
+            entry(today.plusYears(5).toString(), "0", "0", "0", "0", "0", "0", "0"));
+        ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
+        assertTrue(r.available());
+        assertEquals(today.minusDays(2), r.asOfDate());
+        assertMoney("575.00", r.expectedCashOnHand());
+    }
+
+    @Test
+    void onlyFutureDatedEntries_isNotAvailable() {
+        storeHoldsEntries(entry(LocalDate.now().plusDays(30).toString(), "200", "1000", "100", "575", "50", "500", "25"));
+        ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
+        assertFalse(r.available());
+        assertNull(r.asOfDate());
+    }
+
+    @Test
+    void anEntryDatedToday_isLive() {
+        LocalDate today = LocalDate.now();
+        storeHoldsEntries(entry(today.toString(), "200", "1000", "100", "575", "50", "500", "25"));
+        assertEquals(today, service.getExpectedCashForStore(STORE_ID).asOfDate());
+    }
+
+    @Test
     void noEntries_isNotAvailable_notZero() {
-        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.empty());
+        when(latestOnOrBeforeToday()).thenReturn(Optional.empty());
         ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
         assertFalse(r.available());
         assertEquals(STORE_ID, r.storeId());
@@ -153,7 +207,7 @@ class CashCalculationServiceTest {
 
     @Test
     void singleEntry_usesThatDay_andReportsAsOfDate() {
-        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.of(
+        when(latestOnOrBeforeToday()).thenReturn(Optional.of(
             entry("2026-11-09", "200", "1000", "100", "575", "50", "500", "25")));
         ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
         assertTrue(r.available());
@@ -167,7 +221,7 @@ class CashCalculationServiceTest {
         DailyCashEntry old = entry("2020-01-01", "200", "1000", "100", "575", "50", "500", "25");
         java.time.OffsetDateTime saved = java.time.OffsetDateTime.parse("2020-01-01T21:30:00Z");
         ReflectionTestUtils.setField(old, "updatedAt", saved);
-        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.of(old));
+        when(latestOnOrBeforeToday()).thenReturn(Optional.of(old));
         ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
         assertTrue(r.available());
         assertEquals(saved, r.lastUpdatedAt());
@@ -176,7 +230,7 @@ class CashCalculationServiceTest {
 
     @Test
     void noEntries_hasNoLastUpdatedAt() {
-        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.empty());
+        when(latestOnOrBeforeToday()).thenReturn(Optional.empty());
         assertNull(service.getExpectedCashForStore(STORE_ID).lastUpdatedAt());
     }
 
@@ -184,7 +238,7 @@ class CashCalculationServiceTest {
     void multipleDays_figureComesFromTheLatestEntryOnly_notARunningSum() {
         // The repository hands back only the latest day; earlier days must not
         // be added in (each day's opening cash already carries them forward).
-        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.of(
+        when(latestOnOrBeforeToday()).thenReturn(Optional.of(
             entry("2026-11-09", "400", "250", "0", "605", "50", "0", "5")));
         ExpectedCashResponse r = service.getExpectedCashForStore(STORE_ID);
         assertMoney("605.00", r.expectedCashOnHand()); // 400 + 250 - 50 + 5
@@ -200,7 +254,7 @@ class CashCalculationServiceTest {
         so.setStore(store);
         so.setActive(true);
         when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(so));
-        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.empty());
+        when(latestOnOrBeforeToday()).thenReturn(Optional.empty());
         assertEquals(STORE_ID, service.getExpectedCashForOwner(1L).storeId());
     }
 
@@ -218,13 +272,13 @@ class CashCalculationServiceTest {
     void superAdmin_unknownStore_getsNotFound() {
         when(storeRepository.existsById(STORE_ID)).thenReturn(false);
         assertThrows(StoreNotFoundException.class, () -> service.getExpectedCashForSuperAdmin(STORE_ID));
-        verify(entryRepository, never()).findFirstByStoreIdOrderByBusinessDateDesc(any());
+        verify(entryRepository, never()).findFirstByStoreIdAndBusinessDateLessThanEqualOrderByBusinessDateDesc(any(), any());
     }
 
     @Test
     void superAdmin_existingStore_isAllowed() {
         when(storeRepository.existsById(STORE_ID)).thenReturn(true);
-        when(entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(STORE_ID)).thenReturn(Optional.of(
+        when(latestOnOrBeforeToday()).thenReturn(Optional.of(
             entry("2026-11-09", "100", "0", "0", "100", "0", "0", "0")));
         assertMoney("100.00", service.getExpectedCashForSuperAdmin(STORE_ID).expectedCashOnHand());
     }

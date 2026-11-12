@@ -20,8 +20,11 @@ public interface DailyCashEntryRepository extends JpaRepository<DailyCashEntry, 
     Optional<DailyCashEntry> lockByStoreIdAndBusinessDate(
         @Param("storeId") Long storeId, @Param("businessDate") LocalDate businessDate);
 
-    // The store's most recent day on record (unique per store + date, so no tie).
-    Optional<DailyCashEntry> findFirstByStoreIdOrderByBusinessDateDesc(Long storeId);
+    // The store's most recent day on record up to asOf (unique per store +
+    // date, so no tie). Callers pass today so a future-dated row can never
+    // become the "live" figure (RTS-471).
+    Optional<DailyCashEntry> findFirstByStoreIdAndBusinessDateLessThanEqualOrderByBusinessDateDesc(
+        Long storeId, LocalDate asOf);
 
     // Month-end summary (RTS-297): every entry for the given stores inside a
     // period, oldest first per store, so the last one is the month-end day.

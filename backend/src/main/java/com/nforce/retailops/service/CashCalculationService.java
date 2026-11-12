@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * THE one place the expected-cash formula is written down (RTS-295). The live
@@ -28,9 +29,10 @@ import java.math.BigDecimal;
  * The cash-drawer target (RTS-293) is deliberately NOT an input: it is a
  * separate informational figure.
  *
- * <p>"Live" means the entry with the latest business date for the store, i.e.
- * the most recent day on record. Re-saving or correcting an older day does not
- * change which entry is current.
+ * <p>"Live" means the entry with the latest business date for the store on or
+ * before today, i.e. the most recent day on record. A future-dated row is never
+ * live (RTS-471), even if one pre-dates the request-level check. Re-saving or
+ * correcting an older day does not change which entry is current.
  */
 @Service
 public class CashCalculationService {
@@ -83,7 +85,8 @@ public class CashCalculationService {
      */
     @Transactional(readOnly = true)
     public ExpectedCashResponse getExpectedCashForStore(Long storeId) {
-        return entryRepository.findFirstByStoreIdOrderByBusinessDateDesc(storeId)
+        return entryRepository
+            .findFirstByStoreIdAndBusinessDateLessThanEqualOrderByBusinessDateDesc(storeId, LocalDate.now())
             .map(this::calculate)
             .orElseGet(() -> ExpectedCashResponse.unavailable(storeId));
     }
