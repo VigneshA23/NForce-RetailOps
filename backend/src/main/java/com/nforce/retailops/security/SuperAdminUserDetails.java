@@ -49,8 +49,11 @@ public class SuperAdminUserDetails implements UserDetails {
         return true;
     }
 
+    // Mirrors AppUserDetails.isEnabled() deferring to user.isActive(). The JWT
+    // filter re-loads the account on every request and drops the session when
+    // this is false, so a deactivated Super Admin is cut off immediately.
     @Override
     public boolean isEnabled() {
-        return true;
+        return superAdmin.isActive();
     }
 }

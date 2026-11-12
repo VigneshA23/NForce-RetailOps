@@ -84,7 +84,10 @@ public class AuthService {
     }
 
     private LoginResponse loginAsSuperAdmin(SuperAdmin superAdmin, String password, boolean rememberMe) {
-        if (!passwordEncoder.matches(password, superAdmin.getPasswordHash())) {
+        // A deactivated Super Admin gets the same generic message an inactive
+        // user does (see login above), so the response doesn't reveal that the
+        // account exists but is revoked.
+        if (!superAdmin.isActive() || !passwordEncoder.matches(password, superAdmin.getPasswordHash())) {
             throw new BadCredentialsException("Invalid email or password");
         }
 

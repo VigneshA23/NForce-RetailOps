@@ -32,6 +32,11 @@ public class SuperAdmin {
     @Column(name = "avatar_url", columnDefinition = "TEXT")
     private String avatarUrl;
 
+    // V115. False = revoked: fails isEnabled() on every request and login is
+    // refused. Changed only through SuperAdminAccountService.
+    @Column(nullable = false)
+    private boolean active = true;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -105,5 +110,13 @@ public class SuperAdmin {
 
     public OffsetDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
     }
 }

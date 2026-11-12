@@ -106,6 +106,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(SuperAdminNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleSuperAdminNotFound(SuperAdminNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
+    }
+
+    // Self-deactivation, or deactivating the last active Super Admin.
+    @ExceptionHandler(InvalidSuperAdminStatusChangeException.class)
+    public ResponseEntity<Map<String, String>> handleInvalidSuperAdminStatusChange(InvalidSuperAdminStatusChangeException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(TaskNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleTaskNotFound(TaskNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", ex.getMessage()));
