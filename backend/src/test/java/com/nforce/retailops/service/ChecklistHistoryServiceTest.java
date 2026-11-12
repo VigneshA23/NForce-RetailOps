@@ -166,7 +166,7 @@ class ChecklistHistoryServiceTest {
     void summaryReportsNoChecklistWhenNothingApplicableOrRecorded() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdInAndActiveTrue(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
         when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
             .thenReturn(List.of());
@@ -186,7 +186,7 @@ class ChecklistHistoryServiceTest {
     void summaryUnionCountsADeactivatedTaskThatStillHasAResponse() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdInAndActiveTrue(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task deactivatedTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
@@ -219,7 +219,7 @@ class ChecklistHistoryServiceTest {
     void summaryRequiresTwoDistinctRespondersForMultipleCompletionTask() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdInAndActiveTrue(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task task = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
@@ -248,7 +248,7 @@ class ChecklistHistoryServiceTest {
         LocalDate today = LocalDate.now();
         Store storeA = store(10L, "Downtown");
         Store storeB = store(11L, "Uptown");
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L, 11L)))
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdInAndActiveTrue(OWNER_ID, List.of(10L, 11L)))
             .thenReturn(List.of(storeOwner(storeA), storeOwner(storeB)));
 
         Category category = category(20L, "Opening", 0);
@@ -286,7 +286,7 @@ class ChecklistHistoryServiceTest {
     void summaryCountsAnAdminFlaggedResponseAsAnIssueUsingItsLatestResponseOnly() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdInAndActiveTrue(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task yesNoTask = task(30L, category, ScheduleType.EVERY_DAY, Set.of(), true);
@@ -319,7 +319,7 @@ class ChecklistHistoryServiceTest {
     void summaryHasZeroIssueCountWhenNothingIsScheduledOrRecorded() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdInAndActiveTrue(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner(store)));
         when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
             .thenReturn(List.of());
@@ -627,7 +627,7 @@ class ChecklistHistoryServiceTest {
         StoreOwner storeOwner = storeOwner(store);
         storeOwner.setOwner(owner);
         when(storeOwnerRepository.findByStoreIdAndActiveTrue(10L)).thenReturn(Optional.of(storeOwner));
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner));
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdInAndActiveTrue(OWNER_ID, List.of(10L))).thenReturn(List.of(storeOwner));
         when(taskRepository.findActiveForStoresAndDateRange(OWNER_ID, List.of(10L), today, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdInAndResponseDateBetweenAndActiveTrue(List.of(10L), today, today))
             .thenReturn(List.of());
@@ -674,7 +674,7 @@ class ChecklistHistoryServiceTest {
     @Test
     void summaryRejectsStoreNotOwnedByCaller() {
         LocalDate today = LocalDate.now();
-        when(storeOwnerRepository.findByOwnerIdAndStoreIdIn(OWNER_ID, List.of(99L))).thenReturn(List.of());
+        when(storeOwnerRepository.findByOwnerIdAndStoreIdInAndActiveTrue(OWNER_ID, List.of(99L))).thenReturn(List.of());
 
         assertThatThrownBy(() -> checklistHistoryService.getSummary(OWNER_ID, List.of(99L), today, today))
             .isInstanceOf(InvalidStoreSelectionException.class);
@@ -683,7 +683,7 @@ class ChecklistHistoryServiceTest {
     @Test
     void detailRejectsStoreNotOwnedByCaller() {
         LocalDate today = LocalDate.now();
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(5L, OWNER_ID)).thenReturn(Optional.empty());
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(5L, OWNER_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> checklistHistoryService.getDetail(OWNER_ID, 5L, today))
             .isInstanceOf(StoreNotFoundException.class);
@@ -693,7 +693,7 @@ class ChecklistHistoryServiceTest {
     void detailIncludesDeactivatedTaskWithHistoryAndEnrichesEmpId() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task deactivatedTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
@@ -725,7 +725,7 @@ class ChecklistHistoryServiceTest {
     void detailIncludesTaskUnderDeactivatedCategoryWithHistory() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category deactivatedCategory = category(20L, "Opening", 0);
         deactivatedCategory.setActive(false);
@@ -753,7 +753,7 @@ class ChecklistHistoryServiceTest {
     void detailIncludesTaskWhenBothCategoryAndTaskAreDeactivated() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category deactivatedCategory = category(20L, "Opening", 0);
         deactivatedCategory.setActive(false);
@@ -786,7 +786,7 @@ class ChecklistHistoryServiceTest {
     void detailIncludesInactiveTaskWithNoResponses() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task inactiveTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
@@ -811,7 +811,7 @@ class ChecklistHistoryServiceTest {
     void detailIncludesTaskUnderInactiveCategoryWithNoResponses() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category inactiveCategory = category(20L, "Opening", 0);
         inactiveCategory.setActive(false);
@@ -838,7 +838,7 @@ class ChecklistHistoryServiceTest {
     void detailMarksMultipleCompletionTaskAsOpenWithOnlyOneResponse() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task task = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
@@ -863,7 +863,7 @@ class ChecklistHistoryServiceTest {
     void detailMarksMultipleCompletionTaskAsCompletedWithTwoDistinctResponses() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task task = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
@@ -891,7 +891,7 @@ class ChecklistHistoryServiceTest {
     void detailIncludesRaisedIssuesForTheStoreAndDate() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
         when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today)).thenReturn(List.of());
 
@@ -917,7 +917,7 @@ class ChecklistHistoryServiceTest {
     void detailPopulatesTotalActiveEmployeesOnEveryTask() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task task = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
@@ -938,7 +938,7 @@ class ChecklistHistoryServiceTest {
     void detailResolvesTaskDeactivationAuditFromActivityLog() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task deactivatedTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), false);
@@ -972,7 +972,7 @@ class ChecklistHistoryServiceTest {
     void detailLeavesDeactivationAuditNullForAnActiveTask() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category category = category(20L, "Opening", 0);
         Task activeTask = task(31L, category, ScheduleType.EVERY_DAY, Set.of(), true);
@@ -995,7 +995,7 @@ class ChecklistHistoryServiceTest {
     void detailResolvesCategoryDeactivationAuditFromActivityLog() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
 
         Category deactivatedCategory = category(20L, "Opening", 0);
         deactivatedCategory.setActive(false);
@@ -1029,7 +1029,7 @@ class ChecklistHistoryServiceTest {
     void detailReturnsEmptyCategoriesAndHasChecklistFalseWhenNothingApplies() {
         LocalDate today = LocalDate.now();
         Store store = store(10L, "Downtown");
-        when(storeOwnerRepository.findByStoreIdAndOwnerId(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
+        when(storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(10L, OWNER_ID)).thenReturn(Optional.of(storeOwner(store)));
         when(taskRepository.findForStoreAndDate(OWNER_ID, 10L, today)).thenReturn(List.of());
         when(taskResponseEntryRepository.findByStoreIdAndResponseDateAndActiveTrue(10L, today)).thenReturn(List.of());
 

@@ -28,6 +28,10 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     List<StoreOwner> findByOwnerIdAndStoreIdIn(Long ownerId, List<Long> storeIds);
 
+    // Access check form of the above: revoked (inactive) links are not returned,
+    // so a former owner cannot read a store they no longer manage.
+    List<StoreOwner> findByOwnerIdAndStoreIdInAndActiveTrue(Long ownerId, List<Long> storeIds);
+
     Optional<StoreOwner> findByStoreIdAndOwnerId(Long storeId, Long ownerId);
 
     // Access check form of the above: a revoked (inactive) link no longer
