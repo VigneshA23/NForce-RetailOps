@@ -85,6 +85,13 @@ login:
     # Set LOGIN_RATE_LIMIT_ENABLED=false in dev/CI to bypass the 5-attempt limit.
     enabled: ${LOGIN_RATE_LIMIT_ENABLED:true}
 
+logging:
+  level:
+    # The AWS serverless container's initializer logs EVERY environment
+    # variable at INFO on startup, which writes DB_PASSWORD, JWT_SECRET and
+    # INTERNAL_JOB_SECRET to CloudWatch. Keep this above INFO. Do not remove.
+    com.amazonaws.serverless.proxy.spring.AwsSpringWebRuntimeInitializer: WARN
+
 management:
   endpoints:
     web:

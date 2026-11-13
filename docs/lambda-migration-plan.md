@@ -173,6 +173,8 @@ All set in Lambda configuration. No `.env` file on Lambda — `spring-dotenv` sk
 | `PORT` | Not needed — Lambda adapter does not start an HTTP server on a port |
 | `DB_POOL_MAX_SIZE` | `3` (Lambda containers are single-threaded per invocation; a pool >3 wastes connections on RDS's connection limit) |
 
+**Secrets must not be logged at startup.** The AWS serverless container's `AwsSpringWebRuntimeInitializer` logs every environment variable at INFO, which would write `DATABASE_PASSWORD`, `JWT_SECRET`, `INTERNAL_JOB_SECRET`, `RESEND_API_KEY` etc. to CloudWatch. `application.yml` sets `logging.level.com.amazonaws.serverless.proxy.spring.AwsSpringWebRuntimeInitializer: WARN` to suppress it. Do not remove that line. After each Lambda deploy, trigger a cold start and search the log stream for a known secret value and for an environment dump; neither should appear. If a deployed Lambda ever ran without this setting, treat the logged values as exposed: purge or shorten retention of the affected log groups and rotate them (see RTS-472).
+
 **Note on `DB_POOL_MAX_SIZE`:** Railway used 10 (default). Lambda runs one request per container instance concurrently. With up to ~10 concurrent Lambda instances at peak (very unlikely at our traffic), a pool of 3 per instance means max 30 connections to RDS. RDS PostgreSQL default max_connections is 100 — this is safe. Set pool min=1 to release idle connections quickly between invocations.
 
 ---

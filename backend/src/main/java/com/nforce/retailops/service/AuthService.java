@@ -25,6 +25,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final SuperAdminRepository superAdminRepository;
     private final PasswordEncoder passwordEncoder;
+    private final String dummyPasswordHash;
     private final JwtService jwtService;
     private final SessionService sessionService;
 
@@ -38,6 +39,8 @@ public class AuthService {
         this.userRepository = userRepository;
         this.superAdminRepository = superAdminRepository;
         this.passwordEncoder = passwordEncoder;
+        // Hash produced by the live encoder so the dummy comparison has identical cost.
+        this.dummyPasswordHash = passwordEncoder.encode("timing-equalisation-dummy-password");
         this.jwtService = jwtService;
         this.sessionService = sessionService;
     }
@@ -58,11 +61,15 @@ public class AuthService {
             return loginAsSuperAdmin(superAdminMatch.get(), password, rememberMe);
         }
 
-        User user = userRepository.findByEmailWithRoles(email)
-            .filter(User::isActive)
-            .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+        Optional<User> userMatch = userRepository.findByEmailWithRoles(email).filter(User::isActive);
+        if (userMatch.isEmpty()) {
+            // Burn the same BCrypt cost as a real password check so a missing or
+            // inactive account is not distinguishable by response time.
+            passwordEncoder.matches(password, dummyPasswordHash);
+            throw new BadCredentialsException("Invalid email or password");
+        }
 
-        return loginAsUser(user, password, rememberMe);
+        return loginAsUser(userMatch.get(), password, rememberMe);
     }
 
     private LoginResponse loginAsUser(User user, String password, boolean rememberMe) {
