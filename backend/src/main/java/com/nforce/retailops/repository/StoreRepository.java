@@ -47,9 +47,15 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     // relation in its own subquery (so no join fan-out) and join them all
     // together in one native query. Columns, in order: id, store_code, name,
     // active, employee_count, store_task_count, applies_all_count.
+    // Super Admin top-right command palette (SACommandPalette): matches
+    // against store name, location, OR store code so a Super Admin can
+    // look up a store by its visible Store ID (`101`, `#101`) as well as
+    // by name or location. str(s.storeCode) makes the numeric column
+    // text-matchable, so a partial query like "10" still hits "101".
     @Query("select s from Store s where lower(s.name) like lower(concat('%', :q, '%')) "
-        + "or (s.location is not null and lower(s.location) like lower(concat('%', :q, '%'))) order by s.name")
-    List<Store> searchByNameOrLocation(@Param("q") String q, Pageable pageable);
+        + "or (s.location is not null and lower(s.location) like lower(concat('%', :q, '%'))) "
+        + "or str(s.storeCode) like concat('%', :codeQuery, '%') order by s.name")
+    List<Store> searchByNameLocationOrCode(@Param("q") String q, @Param("codeQuery") String codeQuery, Pageable pageable);
 
     // Every Store platform-wide, left-joined with its (at most one --
     // StoreOwner.store is a unique FK) StoreOwner/owner link, so a store with

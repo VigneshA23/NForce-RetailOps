@@ -42,7 +42,10 @@ public class SuperAdminSearchService {
             .map(u -> new SASearchItem(u.getId(), u.getFullName(), u.getEmail(), "owners:" + u.getId()))
             .toList();
 
-        List<SASearchItem> stores = storeRepository.searchByNameOrLocation(trimmed, top5).stream()
+        // Strip a leading '#' so "#101" and "101" both find store 101; the
+        // name/location branches don't care either way.
+        String codeQuery = trimmed.startsWith("#") ? trimmed.substring(1) : trimmed;
+        List<SASearchItem> stores = storeRepository.searchByNameLocationOrCode(trimmed, codeQuery, top5).stream()
             .map(s -> new SASearchItem(
                 s.getId(),
                 s.getName(),
