@@ -73,7 +73,8 @@ public class MissedEndOfDayService {
         }
         Map<Long, Store> stores = new LinkedHashMap<>();
         storeEmployeeRepository.findByEmployeeId(userId)
-            .ifPresent(se -> se.getStores().forEach(s -> stores.put(s.getId(), s)));
+            .ifPresent(se -> se.getStores().stream().filter(Store::isActive)
+                .forEach(s -> stores.put(s.getId(), s)));
         storeOwnerRepository.findByOwnerIdAndActiveTrue(userId)
             .ifPresent(so -> stores.put(so.getStore().getId(), so.getStore()));
         for (Store store : stores.values()) {

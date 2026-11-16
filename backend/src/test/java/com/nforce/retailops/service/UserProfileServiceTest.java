@@ -86,6 +86,26 @@ class UserProfileServiceTest {
     }
 
     @Test
+    void employeeDoesNotSeeDeactivatedStores() {
+        Store closed = store(2L, "Closed");
+        closed.setActive(false);
+        employeeAssignedTo(store(1L, "Open"), closed);
+
+        List<AssignedStoreResponse> stores = userProfileService.listMyStores(user("EMPLOYEE"));
+
+        assertThat(stores).extracting(AssignedStoreResponse::name).containsExactly("Open");
+    }
+
+    @Test
+    void employeeWhoseOnlyStoreIsDeactivatedSeesAnEmptyList() {
+        Store closed = store(2L, "Closed");
+        closed.setActive(false);
+        employeeAssignedTo(closed);
+
+        assertThat(userProfileService.listMyStores(user("EMPLOYEE"))).isEmpty();
+    }
+
+    @Test
     void employeeWithNoAssignmentSeesAnEmptyList() {
         when(storeEmployeeRepository.findByEmployeeId(USER_ID)).thenReturn(Optional.empty());
 
@@ -115,14 +135,14 @@ class UserProfileServiceTest {
 
     @Test
     void requireAssignedStorePassesForAStoreTheEmployeeIsAssignedTo() {
-        when(storeEmployeeRepository.existsByEmployeeIdAndStoresId(USER_ID, 1L)).thenReturn(true);
+        when(storeEmployeeRepository.existsByEmployeeIdAndActiveStoreId(USER_ID, 1L)).thenReturn(true);
 
         assertThatCode(() -> userProfileService.requireAssignedStore(USER_ID, 1L)).doesNotThrowAnyException();
     }
 
     @Test
     void requireAssignedStoreMasksAnUnassignedStoreAsNotFound() {
-        when(storeEmployeeRepository.existsByEmployeeIdAndStoresId(USER_ID, 42L)).thenReturn(false);
+        when(storeEmployeeRepository.existsByEmployeeIdAndActiveStoreId(USER_ID, 42L)).thenReturn(false);
 
         assertThatThrownBy(() -> userProfileService.requireAssignedStore(USER_ID, 42L))
             .isInstanceOf(StoreNotFoundException.class)

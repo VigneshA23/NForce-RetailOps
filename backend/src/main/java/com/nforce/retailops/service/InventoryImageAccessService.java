@@ -50,7 +50,7 @@ public class InventoryImageAccessService {
             Long userId = appUser.getUser().getId();
             if (storeId != null
                 && (storeOwnerRepository.findByStoreIdAndOwnerIdAndActiveTrue(storeId, userId).isPresent()
-                    || storeEmployeeRepository.existsByEmployeeIdAndStoresId(userId, storeId))) {
+                    || storeEmployeeRepository.existsByEmployeeIdAndActiveStoreId(userId, storeId))) {
                 return;
             }
         }

@@ -68,6 +68,14 @@ public interface StoreEmployeeRepository extends JpaRepository<StoreEmployee, Lo
 
     boolean existsByEmployeeIdAndStoresId(Long userId, Long storeId);
 
+    // The access check for employee-facing endpoints: assigned to the store AND the
+    // store is still open. Deactivating a store deliberately leaves its employee_stores
+    // rows in place (so reactivation restores the team), which means assignment alone
+    // must never be treated as access.
+    @Query("select count(se) > 0 from StoreEmployee se join se.stores s "
+        + "where se.employee.id = :userId and s.id = :storeId and s.active = true")
+    boolean existsByEmployeeIdAndActiveStoreId(@Param("userId") Long userId, @Param("storeId") Long storeId);
+
     @Query("select se from StoreEmployee se join fetch se.employee u "
         + "where lower(u.fullName) like lower(concat('%', :q, '%')) or lower(u.email) like lower(concat('%', :q, '%')) "
         + "order by u.fullName")

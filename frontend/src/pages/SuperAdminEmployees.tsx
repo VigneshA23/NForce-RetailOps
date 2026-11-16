@@ -62,6 +62,31 @@ function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
   const [statusTarget, setStatusTarget] = useState<SuperAdminEmployee | null>(null);
   const [statusError, setStatusError] = useState<string | null>(null);
 
+  // EmployeeFormModal re-seeds its form whenever initialValues / initialStoreIds
+  // change identity, so these must be stable across this page's re-renders (the
+  // store list resolving, polling, any unrelated state) or the modal wipes the
+  // admin's in-progress store selection back to the saved one.
+  const editInitialValues = useMemo(
+    () => (editTarget ? toEmployeeUpdateValues(editTarget) : undefined),
+    [editTarget],
+  );
+  const editInitialStoreIds = useMemo(
+    () => (editTarget ? editTarget.stores.map((s) => s.id) : undefined),
+    [editTarget],
+  );
+  // The picker only offers active stores, but an employee can still be assigned
+  // to a store that has since been deactivated. Those must stay visible so the
+  // admin can see and remove them; otherwise they are silently invisible, can't
+  // be unticked, and get re-submitted with every save.
+  const editStoreOptions = useMemo(() => {
+    if (!editTarget) return allStores;
+    const known = new Set(allStores.map((s) => s.id));
+    const assignedButClosed = editTarget.stores
+      .filter((s) => !known.has(s.id))
+      .map((s) => ({ id: s.id, name: allStores.length > 0 ? `${s.name} (Inactive)` : s.name }));
+    return [...allStores, ...assignedButClosed];
+  }, [allStores, editTarget]);
+
   function loadEmployees() {
     setIsLoading(true);
     setLoadError(null);
@@ -311,9 +336,9 @@ function SuperAdminEmployees({ focusEmployee }: SuperAdminEmployeesProps = {}) {
       <EmployeeFormModal
         isOpen={editTarget !== null}
         mode="edit"
-        initialValues={editTarget ? toEmployeeUpdateValues(editTarget) : undefined}
-        availableStores={allStores}
-        initialStoreIds={editTarget ? editTarget.stores.map((s) => s.id) : undefined}
+        initialValues={editInitialValues}
+        availableStores={editStoreOptions}
+        initialStoreIds={editInitialStoreIds}
         errorMessage={formError}
         isSubmitting={isSubmitting}
         onClose={() => setEditTarget(null)}

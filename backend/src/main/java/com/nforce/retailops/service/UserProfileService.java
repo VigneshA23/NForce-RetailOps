@@ -121,7 +121,7 @@ public class UserProfileService {
      */
     @Transactional(readOnly = true)
     public void requireAssignedStore(Long userId, Long storeId) {
-        if (!storeEmployeeRepository.existsByEmployeeIdAndStoresId(userId, storeId)) {
+        if (!storeEmployeeRepository.existsByEmployeeIdAndActiveStoreId(userId, storeId)) {
             throw new StoreNotFoundException("Store not found");
         }
     }
@@ -139,7 +139,10 @@ public class UserProfileService {
                         .map(storeEmployee -> List.copyOf(storeEmployee.getStores()))
                         .orElseGet(List::of);
 
+        // A deactivated store is not somewhere anyone can work, even though its
+        // employee_stores rows are kept so reactivating it restores the team.
         return stores.stream()
+                .filter(Store::isActive)
                 .sorted(Comparator.comparing(Store::getName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
