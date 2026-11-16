@@ -682,7 +682,7 @@
 }
 
 .order-list__par {
-  color: var(--ops-text-faint);
+  color: var(--ops-text-muted);
   font-weight: 600;
 }
 
@@ -1013,7 +1013,7 @@
   .order-list__mobile-stat-label {
     font-size: 10px;
     font-weight: 700;
-    color: var(--ops-text-faint);
+    color: var(--ops-text-muted);
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
