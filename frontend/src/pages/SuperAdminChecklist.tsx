@@ -555,12 +555,13 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
           />
           </div>
 
-          {/* Stat tiles always visible — zero values before store selected */}
+          {/* Stat tiles always visible — dashes before a store is selected, so
+              they don't read as a real 0% */}
           <><div className="stat-card-row store-detail-page__stat-row">
-            <StatCard icon={ClipboardList} label="Total Tasks" value={counts.total} tone="info" />
-            <StatCard icon={CheckCircle2} label="Completed" value={counts.completed} tone="success" />
-            <StatCard icon={Clock} label="No Response" value={counts.open} tone="warning" />
-            <StatCard icon={Percent} label="Completion" value={`${completionPercent}%`} tone="primary" />
+            <StatCard icon={ClipboardList} label="Total Tasks" value={selectedStoreId === null ? '—' : counts.total} tone="info" />
+            <StatCard icon={CheckCircle2} label="Completed" value={selectedStoreId === null ? '—' : counts.completed} tone="success" />
+            <StatCard icon={Clock} label="No Response" value={selectedStoreId === null ? '—' : counts.open} tone="warning" />
+            <StatCard icon={Percent} label="Completion" value={selectedStoreId === null ? '—' : `${completionPercent}%`} tone="primary" />
           </div>
 
           {categoryProgress.length > 0 && (
