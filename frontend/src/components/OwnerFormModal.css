@@ -118,8 +118,15 @@
     max-width: 44%;
   }
 
+  /* The flex item is the icon wrapper, not the input: let it take the rest
+     of the row and shrink below the input's natural width, or the number
+     box runs off the right edge of a phone screen. */
+  .owner-form__phone-row .owner-form__input-icon-wrap {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
   .owner-form__phone-row .input {
-    flex: 1 1 auto;
-    width: auto;
+    width: 100%;
   }
 }
