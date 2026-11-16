@@ -191,6 +191,8 @@ function MultiSelectDropdown({ options, selected, onChange, placeholder = 'All C
 }
 
 const GENERIC_TASK_ERROR = "Couldn't save your response. Please try again."
+// Retrying can't fix this one, so it gets no Retry button.
+const NOT_ASSIGNED_ERROR = "You're not assigned to this store, so no checklist is available."
 const TASK_REMOVED_ERROR = 'This task is no longer available — an admin removed it from the checklist.'
 // How long the "no longer available" message stays up before the checklist
 // silently refetches and drops the task's card -- long enough to read, short
@@ -348,7 +350,7 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
         if (!active || silent) return
         const message =
           err instanceof ApiError && err.status === 404
-            ? "You're not assigned to this store, so no checklist is available."
+            ? NOT_ASSIGNED_ERROR
             : "Couldn't load today's checklist. Please try again."
         setError(message)
         setCategories([])
@@ -575,10 +577,12 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
         </div>
 
         <div className="stat-card-row employee-dashboard-summary">
-          <StatCard icon={Percent} label="Completion" value={`${completionPercent}%`} tone="primary" />
-          <StatCard icon={CheckCircle2} label="Tasks Done" value={completedTasks} tone="success" />
-          <StatCard icon={ListTodo} label="Remaining" value={remainingTasks} tone="info" />
-          <StatCard icon={Flag} label="Flagged" value={flagCount} tone="purple" />
+          {/* After a failed load there are no figures, so show dashes rather
+              than zeros that read as "nothing done". */}
+          <StatCard icon={Percent} label="Completion" value={error ? '—' : `${completionPercent}%`} tone="primary" />
+          <StatCard icon={CheckCircle2} label="Tasks Done" value={error ? '—' : completedTasks} tone="success" />
+          <StatCard icon={ListTodo} label="Remaining" value={error ? '—' : remainingTasks} tone="info" />
+          <StatCard icon={Flag} label="Flagged" value={error ? '—' : flagCount} tone="purple" />
           <StatCard
             icon={CalendarX}
             label="Missed Tasks"
@@ -596,6 +600,11 @@ function EmployeeDashboard({ store, employeeId, employeeName, missedTasksCount =
             <AlertTriangle size={32} />
             <h2>Couldn't load checklist</h2>
             <p>{error}</p>
+            {error !== NOT_ASSIGNED_ERROR && (
+              <button type="button" className="btn btn--secondary btn--sm" onClick={() => loadChecklist()}>
+                Retry
+              </button>
+            )}
           </div>
         )}
 
