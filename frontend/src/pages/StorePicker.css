@@ -185,6 +185,11 @@
   color: #ffffff;
 }
 
+/* The dark theme's green is light, so white text on it is unreadable. */
+[data-theme='dark'] .store-card-status--open {
+  color: #14141a;
+}
+
 .store-card-status--closed {
   background: var(--color-badge-outline-bg);
   color: var(--color-badge-outline-text);
