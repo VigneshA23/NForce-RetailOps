@@ -8,6 +8,7 @@ package com.nforce.retailops.dto;
 // way.
 public record SuperAdminStockCheckResponse(
     Long storeId,
+    Long storeCode,
     String storeName,
     StockCheckResponse check
 ) {

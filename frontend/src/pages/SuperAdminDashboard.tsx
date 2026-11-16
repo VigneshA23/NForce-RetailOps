@@ -393,7 +393,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       query &&
       !owner.ownerName.toLowerCase().includes(query) &&
       !owner.ownerEmail.toLowerCase().includes(query) &&
-      !(owner.storeName?.toLowerCase().includes(query) ?? false)
+      !(owner.storeName?.toLowerCase().includes(query) ?? false) &&
+      !(owner.storeCode != null && String(owner.storeCode).includes(query))
     ) {
       return false;
     }

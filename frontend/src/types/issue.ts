@@ -3,6 +3,7 @@ export type IssueStatus = 'OPEN' | 'ACKNOWLEDGED' | 'RESOLVED';
 export interface Issue {
   id: number;
   storeId: number;
+  storeCode: number;
   storeName: string;
   employeeUserId: number;
   employeeFullName: string;

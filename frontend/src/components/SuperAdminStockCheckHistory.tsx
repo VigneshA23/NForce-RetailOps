@@ -77,6 +77,7 @@ function matchesFilters(
     !term ||
     row.itemName.toLowerCase().includes(term) ||
     row.storeName.toLowerCase().includes(term) ||
+    String(row.storeCode).includes(term) ||
     recordedBy.toLowerCase().includes(term);
   const matchesCategory = !categoryFilter || row.category === categoryFilter;
   return matchesSearch && matchesCategory;
@@ -260,7 +261,7 @@ function SuperAdminStockCheckHistory({ onTotalChange }: SuperAdminStockCheckHist
     setIsCorrecting(true);
     try {
       const updated = await correctSuperAdminStockCheck(row.storeId, row.id, snapshot, values.available, values.deadStock, values.reason);
-      const updatedRow = toSuperAdminStockCheckHistoryRowView({ storeId: row.storeId, storeName: row.storeName, check: updated });
+      const updatedRow = toSuperAdminStockCheckHistoryRowView({ storeId: row.storeId, storeCode: row.storeCode, storeName: row.storeName, check: updated });
       setItems((current) => current.map((item) => (item.id === updatedRow.id ? updatedRow : item)));
       nfToast.success(`"${row.itemName}" count corrected.`);
       setCorrectionTarget(null);

@@ -8,6 +8,11 @@ const OPTIONS = [
   { id: 2, label: 'Uptown' },
 ];
 
+const STORE_OPTIONS = [
+  { id: 1, label: 'Downtown', sublabel: '#101' },
+  { id: 2, label: 'Uptown', sublabel: '#202' },
+];
+
 function openTrigger(user: ReturnType<typeof userEvent.setup>, id: string) {
   return user.click(document.getElementById(id)!);
 }
@@ -123,6 +128,35 @@ describe('SearchableSelect', () => {
     await user.click(within(panel()).getByText('All Stores'));
     expect(onToggle).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('listbox')).toBeTruthy();
+  });
+
+  // The Super Admin store picker lists the store code in the option's
+  // sublabel (`#<code>`), so typing a Store ID into the search box must
+  // narrow results the same way typing part of the store name does.
+  it('filters options by sublabel (so store codes are searchable)', async () => {
+    const user = userEvent.setup();
+
+    render(
+      <SearchableSelect
+        id="store-picker"
+        options={STORE_OPTIONS}
+        selectedIds={[]}
+        onChange={vi.fn()}
+        placeholder="Select a store..."
+      />,
+    );
+
+    await openTrigger(user, 'store-picker');
+    const search = within(panel()).getByPlaceholderText('Search...');
+
+    await user.type(search, '202');
+    expect(within(panel()).getByText('Uptown')).toBeTruthy();
+    expect(within(panel()).queryByText('Downtown')).toBeNull();
+
+    await user.clear(search);
+    await user.type(search, '#101');
+    expect(within(panel()).getByText('Downtown')).toBeTruthy();
+    expect(within(panel()).queryByText('Uptown')).toBeNull();
   });
 
   // Existing multi-select "applies to all" behavior (CategoryFormModal and

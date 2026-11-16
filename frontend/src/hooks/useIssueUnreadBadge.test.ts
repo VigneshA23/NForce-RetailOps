@@ -13,6 +13,7 @@ function makeIssue(overrides: Partial<{ respondedAt: string | null }> = {}) {
   return {
     id: 1,
     storeId: 1,
+    storeCode: 101,
     storeName: 'Store 1',
     employeeUserId: 99,
     employeeFullName: 'Test Employee',

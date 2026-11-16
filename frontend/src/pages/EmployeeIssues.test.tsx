@@ -22,6 +22,7 @@ function issue(overrides: Partial<Issue>): Issue {
   return {
     id: 1,
     storeId: 10,
+    storeCode: 1010,
     storeName: 'Downtown',
     employeeUserId: 42,
     employeeFullName: 'Jane Doe',

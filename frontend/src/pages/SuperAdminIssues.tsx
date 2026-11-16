@@ -70,6 +70,7 @@ function SuperAdminIssues({ focusIssueId }: SuperAdminIssuesProps) {
       if (q) {
         return (
           issue.storeName.toLowerCase().includes(q) ||
+          String(issue.storeCode).includes(q) ||
           issue.employeeFullName.toLowerCase().includes(q) ||
           issue.note.toLowerCase().includes(q)
         );

@@ -8,6 +8,7 @@ import java.time.OffsetDateTime;
 public record IssueResponse(
     Long id,
     Long storeId,
+    Long storeCode,
     String storeName,
     Long employeeUserId,
     String employeeFullName,
@@ -26,6 +27,7 @@ public record IssueResponse(
         return new IssueResponse(
             issue.getId(),
             issue.getStore().getId(),
+            issue.getStore().getStoreCode(),
             issue.getStore().getName(),
             issue.getEmployeeUser().getId(),
             issue.getEmployeeUser().getFullName(),

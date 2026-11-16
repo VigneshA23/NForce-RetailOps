@@ -99,6 +99,7 @@ export interface StockCheckStatusCounts {
 // every store, so the frontend has one shape to handle either way.
 export interface SuperAdminStockCheckResponse {
   storeId: number;
+  storeCode: number;
   storeName: string;
   check: StockCheckResponse;
 }

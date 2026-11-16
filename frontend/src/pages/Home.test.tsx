@@ -107,7 +107,7 @@ describe('Home low-stock tile', () => {
 });
 
 const OPEN_ISSUE: Issue = {
-  id: 1, storeId: 10, storeName: 'Downtown', employeeUserId: 2,
+  id: 1, storeId: 10, storeCode: 1010, storeName: 'Downtown', employeeUserId: 2,
   employeeFullName: 'Alex', note: 'Freezer is noisy', status: 'OPEN',
   raisedDate: '2026-09-28', responseText: null, respondedByFullName: null,
   respondedBySuperAdmin: false, respondedAt: null, createdAt: '2026-09-28T09:00:00Z',

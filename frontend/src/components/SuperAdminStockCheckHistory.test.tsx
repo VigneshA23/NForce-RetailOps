@@ -106,7 +106,7 @@ function check(overrides: Partial<StockCheckResponse> = {}): StockCheckResponse 
 }
 
 function entry(storeId: number, storeName: string, checkOverrides: Partial<StockCheckResponse> = {}): SuperAdminStockCheckResponse {
-  return { storeId, storeName, check: check(checkOverrides) };
+  return { storeId, storeCode: storeId * 100, storeName, check: check(checkOverrides) };
 }
 
 // Mirrors what the server returns: counts over the whole (mocked) range.

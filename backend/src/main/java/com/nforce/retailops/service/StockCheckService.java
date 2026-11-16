@@ -1020,7 +1020,7 @@ public class StockCheckService {
             Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new StoreNotFoundException("Store not found"));
             List<SuperAdminStockCheckResponse> items = scoped.items().stream()
-                .map(check -> new SuperAdminStockCheckResponse(store.getId(), store.getName(), check))
+                .map(check -> new SuperAdminStockCheckResponse(store.getId(), store.getStoreCode(), store.getName(), check))
                 .toList();
             return new SuperAdminStockCheckHistoryPageResponse(
                 items, scoped.page(), scoped.pageSize(), scoped.pageCount(), scoped.totalItems(), scoped.statusCounts()
@@ -1035,7 +1035,7 @@ public class StockCheckService {
 
         List<SuperAdminStockCheckResponse> items = slice.rows().stream()
             .map(check -> new SuperAdminStockCheckResponse(
-                check.getStore().getId(), check.getStore().getName(),
+                check.getStore().getId(), check.getStore().getStoreCode(), check.getStore().getName(),
                 StockCheckResponse.from(check, editsByCheckId.getOrDefault(check.getId(), List.of()))
             ))
             .toList();

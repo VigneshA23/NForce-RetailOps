@@ -129,7 +129,14 @@ function SearchableSelect({
   const filteredOptions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     if (!normalized) return options;
-    return options.filter((option) => option.label.toLowerCase().includes(normalized));
+    // Match on sublabel too so e.g. the Super Admin store picker can be
+    // searched by store code (`#123`) and not only by store name. The `#`
+    // prefix some callers add to the sublabel is included in the match, so a
+    // query of either "123" or "#123" still hits.
+    return options.filter((option) => {
+      if (option.label.toLowerCase().includes(normalized)) return true;
+      return option.sublabel ? option.sublabel.toLowerCase().includes(normalized) : false;
+    });
   }, [options, query]);
 
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);

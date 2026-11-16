@@ -58,9 +58,15 @@ export function toStockCheckHistoryRowView(row: StockCheckResponse): StockCheckH
 // with its store, so the table can show a Store column in all-stores mode.
 export interface SuperAdminStockCheckHistoryRowView extends StockCheckHistoryRowView {
   storeId: number;
+  storeCode: number;
   storeName: string;
 }
 
 export function toSuperAdminStockCheckHistoryRowView(entry: SuperAdminStockCheckResponse): SuperAdminStockCheckHistoryRowView {
-  return { ...toStockCheckHistoryRowView(entry.check), storeId: entry.storeId, storeName: entry.storeName };
+  return {
+    ...toStockCheckHistoryRowView(entry.check),
+    storeId: entry.storeId,
+    storeCode: entry.storeCode,
+    storeName: entry.storeName,
+  };
 }
