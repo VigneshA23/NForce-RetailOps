@@ -186,6 +186,17 @@
   background: #1f2937;
 }
 
+/* Dark mode: the green and pink fills turn light, so white text on them is
+   unreadable, and the near-black "Out" fill vanishes on a dark card. */
+[data-theme='dark'] .store-inventory-card__status--in,
+[data-theme='dark'] .store-inventory-card__status--low {
+  color: #14141a;
+}
+
+[data-theme='dark'] .store-inventory-card__status--out {
+  background: #52525b;
+}
+
 .store-inventory-card__status--inactive {
   background: transparent;
   border: 1px solid var(--color-border);

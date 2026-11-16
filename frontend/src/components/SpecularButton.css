@@ -44,6 +44,12 @@
   cursor: default;
 }
 
+/* A faded dark button on a dark page still looks enabled, so fade it
+   further in dark mode. */
+[data-theme='dark'] .specular-button:disabled {
+  opacity: 0.35;
+}
+
 .specular-button:disabled:active {
   transform: none;
 }

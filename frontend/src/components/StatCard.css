@@ -30,6 +30,8 @@
 .stat-card--info { --stat-color: #425873; --stat-rgb: 66, 88, 115; }
 .stat-card--purple { --stat-color: var(--color-badge-icon-purple-fg); --stat-rgb: 124, 58, 237; }
 [data-theme='dark'] .stat-card--purple { --stat-rgb: 183, 148, 246; }
+/* Slate Blue is too dark to read on a dark card; lighten it like purple. */
+[data-theme='dark'] .stat-card--info { --stat-color: #9aa8bc; --stat-rgb: 154, 168, 188; }
 
 :is(.stat-card--primary, .stat-card--success, .stat-card--warning, .stat-card--info, .stat-card--purple) {
   background: linear-gradient(150deg, var(--color-surface-card) 0%, rgba(var(--stat-rgb), 0.1) 100%);

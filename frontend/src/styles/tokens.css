@@ -145,6 +145,26 @@
   --color-toggle-off-bg: #3f3f46;
 
   --color-surface-hovered: rgba(255, 255, 255, 0.06);
+
+  /* Names components reference with a light-mode fallback (e.g.
+     var(--color-badge-success-bg, #dcfce7)) but that no theme defined, so
+     the light colour also showed in dark mode. Defined for dark mode only:
+     light mode keeps each component's own fallback, unchanged. */
+  --color-badge-success-bg: #1a3327;
+  --color-badge-success-text: #3ddc8b;
+  --color-badge-warning-bg: #3a2e14;
+  --color-badge-warning-fg: #f0ab3d;
+  --color-badge-danger-bg: #3a1f24;
+  --color-badge-danger-fg: #ff6b7f;
+  --color-success: #3ddc8b;
+  --color-warning: #f0ab3d;
+  --color-danger: #ff6b7f;
+  --color-accent-soft: rgba(90, 164, 242, 0.18);
+  --color-bg-hover: rgba(255, 255, 255, 0.06);
+  --color-surface-hover: rgba(255, 255, 255, 0.06);
+  --color-surface-muted: rgba(255, 255, 255, 0.04);
+  --color-surface-sunken: rgba(0, 0, 0, 0.2);
+  --shadow-dropdown: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
 /* Operations screens (Order List, End of Day Report, Inventory Counts).
