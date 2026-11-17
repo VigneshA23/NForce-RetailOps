@@ -167,12 +167,27 @@ function CategoryRowCells({
             ) : category.stores.length === 0 ? (
               <li className="category-table__store-chip category-table__store-chip--empty">No stores assigned</li>
             ) : (
-              category.stores.map((store) => (
-                <li key={store.id} className="category-table__store-chip">
-                  <StoreIcon size={12} aria-hidden="true" />
-                  {store.name}
-                </li>
-              ))
+              <>
+                {(storesExpanded ? category.stores : category.stores.slice(0, 1)).map((store) => (
+                  <li key={store.id} className="category-table__store-chip">
+                    <StoreIcon size={12} aria-hidden="true" />
+                    {store.name}
+                  </li>
+                ))}
+                {category.stores.length > 1 && (
+                  <li className="category-table__store-more">
+                    <button
+                      type="button"
+                      className="store-more-toggle"
+                      aria-expanded={storesExpanded}
+                      onClick={onToggleStores}
+                    >
+                      {storesExpanded ? 'Show less' : `+${category.stores.length - 1} more`}
+                      <ChevronDown size={14} aria-hidden="true" />
+                    </button>
+                  </li>
+                )}
+              </>
             )}
           </ul>
         </td>
