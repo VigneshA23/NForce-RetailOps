@@ -393,6 +393,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       query &&
       !owner.ownerName.toLowerCase().includes(query) &&
       !owner.ownerEmail.toLowerCase().includes(query) &&
+      !owner.adminCode.toLowerCase().includes(query) &&
       !(owner.storeName?.toLowerCase().includes(query) ?? false) &&
       !(owner.storeCode != null && String(owner.storeCode).includes(query))
     ) {
@@ -582,7 +583,7 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                   <SearchInput
                     value={searchValue}
                     onChange={setSearchValue}
-                    placeholder="Search by name, email, or store..."
+                    placeholder="Search by name, email, admin ID, or store..."
                     variant="filter"
                   />
                 </div>
