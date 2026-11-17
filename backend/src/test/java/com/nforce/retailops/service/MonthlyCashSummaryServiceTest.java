@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.DailyCashBreakdown;
 import com.nforce.retailops.dto.MonthlyCashSummaryResponse;
 import com.nforce.retailops.dto.StoreMonthlyCashSummary;
 import com.nforce.retailops.entity.DailyCashEntry;
@@ -188,6 +189,93 @@ class MonthlyCashSummaryServiceTest {
     void owner_withoutActiveStore_is404() {
         when(storeOwnerRepository.findByOwnerId(42L)).thenReturn(List.of());
         assertThrows(StoreNotFoundException.class, () -> service.getForOwner(42L, "2026-10"));
+    }
+
+    @Test
+    void dailyBreakdown_listsRecordedDaysOldestFirst_andReconcilesToTotalsAndClosingFigures() {
+        when(storeRepository.findAllById(any())).thenReturn(List.of(store1));
+        // Deliberately out of order and with gaps: only recorded days appear.
+        when(entryRepository.findForStoresBetween(any(), any(), any())).thenReturn(List.of(
+            entry(store1, "2026-10-31", "150", "800", "200", "325", "20", "400", "-10"),
+            entry(store1, "2026-10-01", "150", "1000", "100", "490", "50", "500", "0"),
+            entry(store1, "2026-10-12", "150", "600", "0", "450", "0", "300", "0")
+        ));
+
+        StoreMonthlyCashSummary s = service.getForSuperAdmin("2026-10", List.of(1L)).stores().get(0);
+        List<DailyCashBreakdown> days = s.dailyBreakdown();
+
+        assertEquals(s.daysRecorded(), days.size());
+        assertEquals(List.of(LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-12"), LocalDate.parse("2026-10-31")),
+            days.stream().map(DailyCashBreakdown::businessDate).toList());
+
+        DailyCashBreakdown first = days.get(0);
+        assertMoney("150", first.openingDrawerCash());
+        assertMoney("1000", first.totalCashSales());
+        assertMoney("100", first.cashRemoved());
+        assertMoney("500", first.bankDeposits());
+        assertMoney("50", first.cashExpenses());
+        assertMoney("0", first.adjustments());
+        assertMoney("500", first.expectedCash());
+        assertMoney("490", first.cashRemaining());
+        assertMoney("-10", first.variance());
+
+        // Totals are the column sums of the rows.
+        assertMoney(columnSum(days, DailyCashBreakdown::totalCashSales).toPlainString(), s.totalCashSales());
+        assertMoney(columnSum(days, DailyCashBreakdown::cashRemoved).toPlainString(), s.totalCashRemoved());
+        assertMoney(columnSum(days, DailyCashBreakdown::bankDeposits).toPlainString(), s.bankDeposits());
+        assertMoney(columnSum(days, DailyCashBreakdown::cashExpenses).toPlainString(), s.cashExpenses());
+        assertMoney(columnSum(days, DailyCashBreakdown::adjustments).toPlainString(), s.adjustments());
+        assertMoney(columnSum(days, DailyCashBreakdown::variance).toPlainString(), s.netDailyVariance());
+
+        // Headline position figures are the last row.
+        DailyCashBreakdown last = days.get(days.size() - 1);
+        assertEquals(s.asOfDate(), last.businessDate());
+        assertMoney(last.expectedCash().toPlainString(), s.expectedCashOnHand());
+        assertMoney(last.cashRemaining().toPlainString(), s.actualCashCount());
+        assertMoney(last.variance().toPlainString(), s.variance());
+    }
+
+    @Test
+    void dailyBreakdown_rts519Scenario_lastDayNov12_expected55_actual10() {
+        when(storeRepository.findAllById(any())).thenReturn(List.of(store1));
+        when(entryRepository.findForStoresBetween(any(), any(), any())).thenReturn(List.of(
+            entry(store1, "2026-11-03", "100", "1000", "0", "100", "0", "1000", "0"),
+            entry(store1, "2026-11-05", "100", "900", "0", "100", "0", "900", "0"),
+            entry(store1, "2026-11-10", "100", "800", "0", "100", "0", "800", "0"),
+            // expected 100 + 712 - 0 - 757 - 0 + 0 = 55, counted 10 -> -45
+            entry(store1, "2026-11-12", "100", "712", "0", "10", "0", "757", "0")
+        ));
+
+        StoreMonthlyCashSummary s = service.getForSuperAdmin("2026-11", List.of(1L)).stores().get(0);
+
+        assertEquals(4, s.dailyBreakdown().size());
+        DailyCashBreakdown last = s.dailyBreakdown().get(3);
+        assertEquals(LocalDate.parse("2026-11-12"), last.businessDate());
+        assertMoney("55", last.expectedCash());
+        assertMoney("10", last.cashRemaining());
+        assertMoney("55", s.expectedCashOnHand());
+        assertMoney("10", s.actualCashCount());
+        assertMoney("3412", s.totalCashSales());
+    }
+
+    @Test
+    void dailyBreakdown_isEmptyForNoEntriesAndForCombined() {
+        when(storeRepository.findAllById(any())).thenReturn(List.of(store1, store2));
+        when(entryRepository.findForStoresBetween(any(), any(), any())).thenReturn(List.of(
+            entry(store1, "2026-10-05", "150", "100", "0", "250", "0", "0", "0")
+        ));
+
+        MonthlyCashSummaryResponse r = service.getForSuperAdmin("2026-10", List.of(1L, 2L));
+
+        assertEquals(1, r.stores().get(0).dailyBreakdown().size());
+        assertNotNull(r.stores().get(1).dailyBreakdown());
+        assertTrue(r.stores().get(1).dailyBreakdown().isEmpty());
+        assertTrue(r.combined().dailyBreakdown().isEmpty());
+    }
+
+    private static BigDecimal columnSum(List<DailyCashBreakdown> days,
+                                        java.util.function.Function<DailyCashBreakdown, BigDecimal> field) {
+        return days.stream().map(field).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     @Test

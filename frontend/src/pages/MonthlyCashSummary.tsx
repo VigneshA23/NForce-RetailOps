@@ -5,6 +5,7 @@ import { getAllStores } from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import type { MonthlyCashSummary as Summary, StoreMonthlyCashSummary } from '../types/cashSummary';
 import { formatCurrency } from '../utils/currency';
+import StoreCashSummaryView from '../components/StoreCashSummaryView';
 import FormField from '../components/FormField';
 import SearchableSelect from '../components/SearchableSelect';
 import './MonthlyCashSummary.css';
@@ -16,7 +17,7 @@ interface MonthlyCashSummaryProps {
 }
 
 type AmountKey = Exclude<keyof StoreMonthlyCashSummary,
-  'storeId' | 'storeName' | 'storeCode' | 'daysRecorded' | 'asOfDate'>;
+  'storeId' | 'storeName' | 'storeCode' | 'daysRecorded' | 'asOfDate' | 'dailyBreakdown'>;
 const COMBINED_SELECTION = 'combined';
 
 interface Row {
@@ -138,10 +139,13 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
       : summary.stores
     : [];
   const anyData = columns.some((c) => c.daysRecorded > 0);
+  const storeColumn = columns.length === 1 && columns[0].storeId !== null && columns[0].dailyBreakdown.length > 0
+    ? columns[0]
+    : null;
 
   return (
     <div className="cash-summary">
-      <section className="card cash-summary__card" aria-label="Month-end cash summary">
+      <section className={`card cash-summary__card${storeColumn && !error ? " cash-summary__card--toolbar-only" : ""}`} aria-label="Month-end cash summary">
         <div className="cash-summary__toolbar">
           {scope === 'super-admin' && (
             <div className="cash-summary__store-picker">
@@ -169,6 +173,7 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
               </FormField>
             </div>
           )}
+          {storeColumn && !error && <h2 className="cash-summary__heading">Monthly Summary</h2>}
           <div className="cash-summary__month" role="group" aria-label="Month">
             <button
               type="button"
@@ -189,7 +194,7 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
               <ChevronRight size={18} />
             </button>
           </div>
-          {summary && (
+          {summary && !(storeColumn && !error) && (
             <p className="cash-summary__period">
               {isCurrentMonth
                 ? `Month to date, ${dayLabel(summary.periodStart)} – ${dayLabel(summary.periodEnd)}`
@@ -209,7 +214,7 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
           <p className="cash-summary__status">Loading cash summary…</p>
         ) : columns.length === 0 ? (
           <p className="cash-summary__status">No stores to summarise.</p>
-        ) : (
+        ) : storeColumn ? null : (
           <>
             {!anyData && (
               <p className="cash-summary__status">No daily cash entries were recorded in {monthLabel(month)}.</p>
@@ -267,6 +272,15 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
           </>
         )}
       </section>
+
+      {/* One store with recorded days: tiles + reconciliation + per-day rows.
+          Combined / several stores keep the side-by-side table above. */}
+      {storeColumn && !error && (
+        <div className={`cash-summary__store-view${isLoading ? ' cash-summary__store-view--loading' : ''}`}>
+          <StoreCashSummaryView summary={storeColumn} />
+          <p className="cash-summary__footnote">Negative variance is a shortage, positive is an overage.</p>
+        </div>
+      )}
     </div>
   );
 }

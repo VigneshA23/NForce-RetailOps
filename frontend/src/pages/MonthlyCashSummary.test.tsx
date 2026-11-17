@@ -36,6 +36,7 @@ function column(overrides: Partial<StoreMonthlyCashSummary>): StoreMonthlyCashSu
     actualCashCount: 325,
     variance: 5,
     netDailyVariance: -5,
+    dailyBreakdown: [],
     ...overrides,
   };
 }
@@ -131,12 +132,35 @@ describe('MonthlyCashSummary', () => {
     expect(within(table).getByText('$1,800.00')).toBeInTheDocument();
   });
 
+  it('shows the daily breakdown for a single store but not for the Combined view', async () => {
+    const days = [{
+      businessDate: '2026-10-31', openingDrawerCash: 150, totalCashSales: 800, cashRemoved: 200, bankDeposits: 400,
+      cashExpenses: 20, adjustments: -10, expectedCash: 320, cashRemaining: 325, variance: 5,
+    }];
+    vi.mocked(cashSummaryApi.getMonthlyCashSummary).mockResolvedValue(summary(
+      [column({ dailyBreakdown: days })],
+      column({ storeId: null, storeName: 'Combined', storeCode: null }),
+    ));
+
+    const { unmount } = render(<MonthlyCashSummary />);
+    expect(await screen.findByRole('table', { name: 'Daily cash breakdown' })).toBeInTheDocument();
+    unmount();
+
+    vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
+      [column({ dailyBreakdown: days })],
+      column({ storeId: null, storeName: 'Combined', storeCode: null }),
+    ));
+    render(<MonthlyCashSummary scope="super-admin" />);
+    await screen.findAllByRole('table');
+    expect(screen.queryByRole('table', { name: 'Daily cash breakdown' })).not.toBeInTheDocument();
+  });
+
   it('shows a dash, not $0.00, for a store with no entries', async () => {
     vi.mocked(cashSummaryApi.getMonthlyCashSummary).mockResolvedValue(summary(
       [column({
         daysRecorded: 0, asOfDate: null, totalCashSales: null, totalCashRemoved: null, bankDeposits: null,
         cashExpenses: null, adjustments: null, expectedCashOnHand: null, actualCashCount: null,
-        variance: null, netDailyVariance: null,
+        variance: null, netDailyVariance: null, dailyBreakdown: [],
       })],
       column({ storeId: null, storeName: 'Combined', daysRecorded: 0 }),
     ));

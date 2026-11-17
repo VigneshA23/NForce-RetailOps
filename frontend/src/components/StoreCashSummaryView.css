@@ -1,0 +1,42 @@
+@import '../styles/breakpoints.css';
+
+.cash-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* The page's own spacing comes from the flex gap, not each row's margin. */
+.cash-view .stat-card-row {
+  margin-bottom: 0;
+}
+
+/* Five flow tiles on one row at desktop width; StatCard's grid handles the rest. */
+.cash-view__flows {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.cash-view__position-row {
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+/* Tiles carry the sign in their text; colour only reinforces it. */
+.stat-card.cash-kpi--short .stat-card__value {
+  color: var(--color-accent);
+}
+
+.stat-card.cash-kpi--over .stat-card__value {
+  color: var(--color-badge-icon-success-fg, #15803d);
+}
+
+/* The four position tiles keep their caption on mobile: it explains the figure. */
+@media (--mobile) {
+  .cash-view__position-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-sm);
+  }
+
+  .cash-view__position-row .stat-card__caption {
+    display: block;
+  }
+}

@@ -1,7 +1,9 @@
 @import '../styles/breakpoints.css';
 
+/* Fills the page like the other admin pages (Employees, Inventory, Orders); the
+   card used to be capped at 880px, leaving the right side of the page empty. */
 .daily-cash-page__card {
-  max-width: 880px;
+  max-width: none;
 }
 
 .daily-cash-page__toolbar {
@@ -66,10 +68,18 @@
   min-width: 0;
 }
 
+/* Three columns on a full-width card so the seven fields do not stretch into
+   long, thin inputs; two on tablets, one on phones. */
 .daily-cash-page__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0 var(--space-lg);
+}
+
+@media (--tablet-down) {
+  .daily-cash-page__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .daily-cash-page__money {

@@ -60,6 +60,19 @@
   color: var(--color-text-muted);
 }
 
+/* Single-store view sits below the toolbar card as separate tiles/cards. */
+.cash-summary__store-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+  transition: opacity 0.15s ease;
+}
+
+.cash-summary__store-view--loading {
+  opacity: 0.55;
+}
+
 .cash-summary__alert {
   display: flex;
   flex-wrap: wrap;
@@ -188,5 +201,38 @@
   .cash-summary__table th,
   .cash-summary__table td {
     padding: 8px 10px;
+  }
+}
+
+/* Single-store view: the toolbar is just the month selector, sitting top-right
+   above the one container, with no card of its own. */
+.cash-summary .cash-summary__card--toolbar-only {
+  max-width: none;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.cash-summary__heading {
+  margin: 0 auto 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.cash-summary .cash-summary__card--toolbar-only .cash-summary__toolbar {
+  justify-content: space-between;
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+@media (--mobile) {
+  .cash-summary .cash-summary__card--toolbar-only .cash-summary__toolbar {
+    align-items: stretch;
+  }
+
+  .cash-summary__heading {
+    margin: 0;
   }
 }

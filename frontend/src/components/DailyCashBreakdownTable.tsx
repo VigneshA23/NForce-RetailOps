@@ -1,0 +1,127 @@
+import { CalendarDays } from 'lucide-react';
+import type { StoreMonthlyCashSummary } from '../types/cashSummary';
+import { formatCurrency } from '../utils/currency';
+import './DailyCashBreakdownTable.css';
+
+interface DailyCashBreakdownTableProps {
+  summary: StoreMonthlyCashSummary;
+}
+
+function dayLabel(value: string): string {
+  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+    weekday: 'short', day: 'numeric', month: 'short',
+  });
+}
+
+function formatVariance(value: number): string {
+  if (value === 0) return formatCurrency(0);
+  return value > 0 ? `+${formatCurrency(value)}` : formatCurrency(value);
+}
+
+function varianceClass(value: number | null): string {
+  if (value === null || value === 0) return '';
+  return value < 0 ? ' daily-cash__amount--short' : ' daily-cash__amount--over';
+}
+
+function money(value: number | null): string {
+  return value === null ? '—' : formatCurrency(value);
+}
+
+// Per-day figures behind the month totals. Every number is rendered as the API
+// returned it -- the Month Total row is the API's own totals, not a sum computed
+// here -- so a reader can check the columns add up and see that the highlighted
+// last row is where the closing figures come from.
+function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
+  const days = summary.dailyBreakdown;
+  if (days.length === 0) return null;
+  const lastIndex = days.length - 1;
+  const closingDate = days[lastIndex].businessDate;
+
+  return (
+    <section className="daily-cash" aria-label="Daily breakdown">
+      <div className="card__header">
+        <h3 className="card__title daily-cash__title">
+          <CalendarDays size={18} aria-hidden="true" />
+          Daily Breakdown
+        </h3>
+      </div>
+      <p className="daily-cash__lead">
+        Expected cash on hand, Actual cash count and Variance above are taken from{' '}
+        <strong>{dayLabel(closingDate)}</strong>, the last recorded day (highlighted below).
+        Days with no entry are not listed.
+      </p>
+      <div className="table-card daily-cash__card">
+        <div className="table-scroll">
+          <table className="data-table daily-cash__table" aria-label="Daily cash breakdown">
+            <thead>
+              <tr>
+                <th scope="col" className="daily-cash__date-col">Date</th>
+                <th scope="col">Opening Drawer</th>
+                <th scope="col">Cash Sales</th>
+                <th scope="col">Cash Removed</th>
+                <th scope="col">Bank Deposits</th>
+                <th scope="col">Cash Expenses</th>
+                <th scope="col">Adjustments</th>
+                <th scope="col">Expected Cash</th>
+                <th scope="col">Actual Count</th>
+                <th scope="col">Variance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {days.map((day, index) => (
+                <tr
+                  key={day.businessDate}
+                  className={index === lastIndex ? 'daily-cash__row--closing' : undefined}
+                  aria-current={index === lastIndex ? 'true' : undefined}
+                >
+                  <th scope="row" className="daily-cash__date-col">
+                    {dayLabel(day.businessDate)}
+                    {index === lastIndex && <span className="daily-cash__badge">Closing day</span>}
+                  </th>
+                  <td>{money(day.openingDrawerCash)}</td>
+                  <td>{money(day.totalCashSales)}</td>
+                  <td>{money(day.cashRemoved)}</td>
+                  <td>{money(day.bankDeposits)}</td>
+                  <td>{money(day.cashExpenses)}</td>
+                  <td>{money(day.adjustments)}</td>
+                  <td>{money(day.expectedCash)}</td>
+                  <td>{money(day.cashRemaining)}</td>
+                  <td className={`daily-cash__variance${varianceClass(day.variance)}`}>
+                    {formatVariance(day.variance)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th scope="row" className="daily-cash__date-col">
+                  Month Total
+                  <span className="daily-cash__hint">({summary.daysRecorded} day{summary.daysRecorded === 1 ? '' : 's'})</span>
+                </th>
+                <td aria-label="Opening drawer is not totalled">—</td>
+                <td>{money(summary.totalCashSales)}</td>
+                <td>{money(summary.totalCashRemoved)}</td>
+                <td>{money(summary.bankDeposits)}</td>
+                <td>{money(summary.cashExpenses)}</td>
+                <td className={varianceClass(summary.adjustments).trim()}>
+                  {summary.adjustments === null ? '—' : formatVariance(summary.adjustments)}
+                </td>
+                <td aria-label="Expected cash is not totalled">—</td>
+                <td aria-label="Actual count is not totalled">—</td>
+                <td className={`daily-cash__variance${varianceClass(summary.netDailyVariance)}`}>
+                  {summary.netDailyVariance === null ? '—' : formatVariance(summary.netDailyVariance)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+      <p className="daily-cash__note">
+        Opening drawer, expected cash and actual count are balances for each day, so they are not added up.
+        Net daily variance is the sum of the Variance column.
+      </p>
+    </section>
+  );
+}
+
+export default DailyCashBreakdownTable;

@@ -1,0 +1,131 @@
+@import '../styles/breakpoints.css';
+
+/* Shell (card, card header, table-card, data-table) comes from the shared
+   styles; only the numeric-table specifics live here. */
+/* Lives inside the single summary container, divided from the tiles above. */
+.daily-cash {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+}
+
+.daily-cash__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.daily-cash .card__header {
+  margin-bottom: var(--space-sm);
+}
+
+.daily-cash__lead,
+.daily-cash__note {
+  margin: 0 0 var(--space-md);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.daily-cash__note {
+  margin: var(--space-md) 0 0;
+  color: var(--color-text-muted);
+}
+
+.daily-cash__card {
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.daily-cash .daily-cash__table {
+  min-width: 860px;
+}
+
+/* Numbers right-aligned in tabular figures; the date column stays left. */
+.daily-cash .daily-cash__table th,
+.daily-cash .daily-cash__table td {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.daily-cash .daily-cash__table tbody th,
+.daily-cash .daily-cash__table tfoot th {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  padding: 10px var(--space-md);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.daily-cash .daily-cash__table .daily-cash__date-col {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  text-align: left;
+  background: var(--color-surface-card);
+}
+
+/* Headers align with the figures under them (the shared .data-table head is left-aligned). */
+.daily-cash .daily-cash__table thead th {
+  text-align: right;
+  background: color-mix(in srgb, var(--color-text-primary) 4%, var(--color-surface-card));
+}
+
+.daily-cash .daily-cash__table thead th.daily-cash__date-col {
+  text-align: left;
+  background: color-mix(in srgb, var(--color-text-primary) 4%, var(--color-surface-card));
+}
+
+.daily-cash__badge,
+.daily-cash__hint {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* The closing day carries the headline figures: a text badge plus an underline
+   rule, so it is not marked by colour alone. */
+.daily-cash__badge {
+  color: var(--color-primary);
+}
+
+.daily-cash .daily-cash__table tbody tr.daily-cash__row--closing th,
+.daily-cash .daily-cash__table tbody tr.daily-cash__row--closing td {
+  font-weight: 600;
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface-card));
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.daily-cash .daily-cash__table tbody tr:last-child td {
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* After the :last-child rule above so the closing row's rule spans every cell. */
+.daily-cash .daily-cash__table tbody tr.daily-cash__row--closing:last-child td,
+.daily-cash .daily-cash__table tbody tr.daily-cash__row--closing:last-child th {
+  border-bottom: 2px solid var(--color-primary);
+}
+
+.daily-cash .daily-cash__table tfoot th,
+.daily-cash .daily-cash__table tfoot td {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px var(--space-md);
+  color: var(--color-text-primary);
+  background: color-mix(in srgb, var(--color-text-primary) 5%, var(--color-surface-card));
+  border-bottom: none;
+}
+
+.daily-cash .daily-cash__table tfoot .daily-cash__date-col {
+  background: color-mix(in srgb, var(--color-text-primary) 5%, var(--color-surface-card));
+}
+
+.daily-cash .daily-cash__table .daily-cash__amount--short {
+  color: var(--color-accent);
+}
+
+.daily-cash .daily-cash__table .daily-cash__amount--over {
+  color: var(--color-badge-icon-success-fg, #15803d);
+}

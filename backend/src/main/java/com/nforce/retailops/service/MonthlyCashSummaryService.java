@@ -1,5 +1,6 @@
 package com.nforce.retailops.service;
 
+import com.nforce.retailops.dto.DailyCashBreakdown;
 import com.nforce.retailops.dto.ExpectedCashResponse;
 import com.nforce.retailops.dto.MonthlyCashSummaryResponse;
 import com.nforce.retailops.dto.StoreMonthlyCashSummary;
@@ -138,7 +139,8 @@ public class MonthlyCashSummaryService {
             monthEnd.expectedCashOnHand(),
             monthEnd.cashRemaining(),
             monthEnd.variance(),
-            sum(days, ExpectedCashResponse::variance)
+            sum(days, ExpectedCashResponse::variance),
+            days.stream().map(DailyCashBreakdown::from).toList()
         );
     }
 
@@ -165,7 +167,8 @@ public class MonthlyCashSummaryService {
             sum(withData, StoreMonthlyCashSummary::expectedCashOnHand),
             sum(withData, StoreMonthlyCashSummary::actualCashCount),
             sum(withData, StoreMonthlyCashSummary::variance),
-            sum(withData, StoreMonthlyCashSummary::netDailyVariance)
+            sum(withData, StoreMonthlyCashSummary::netDailyVariance),
+            List.of() // per-day breakdown is per store; Combined is out of scope
         );
     }
 
