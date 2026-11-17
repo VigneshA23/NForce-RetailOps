@@ -38,7 +38,10 @@ public class SuperAdminSearchService {
         var top5 = PageRequest.of(0, MAX_RESULTS);
         String trimmed = q.trim();
 
-        List<SASearchItem> owners = userRepository.searchOwnersByNameOrEmail(trimmed, top5).stream()
+        // Admin codes are `ADM` + zero-padded user id, so accept either
+        // `ADM007`, `ADM7`, `007`, or `7` and compare against the raw id.
+        Long codeId = parseAdminCodeQuery(trimmed);
+        List<SASearchItem> owners = userRepository.searchOwnersByNameEmailOrAdminCode(trimmed, codeId, top5).stream()
             .map(u -> new SASearchItem(u.getId(), u.getFullName(), u.getEmail(), "owners:" + u.getId()))
             .toList();
 
@@ -64,5 +67,23 @@ public class SuperAdminSearchService {
             .toList();
 
         return new SASearchResponse(owners, stores, employees);
+    }
+
+    // Returns the numeric id to look up when the query looks like an admin
+    // code (`ADM007`, `adm7`, `007`, `7`), stripping an optional `ADM`
+    // prefix and leading zeros; returns null for anything else so the
+    // name/email branches of the query still apply alone.
+    static Long parseAdminCodeQuery(String query) {
+        if (query == null) return null;
+        String candidate = query.trim();
+        if (candidate.length() > 2 && candidate.substring(0, 3).equalsIgnoreCase("ADM")) {
+            candidate = candidate.substring(3);
+        }
+        if (candidate.isEmpty() || !candidate.chars().allMatch(Character::isDigit)) return null;
+        try {
+            return Long.parseLong(candidate);
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

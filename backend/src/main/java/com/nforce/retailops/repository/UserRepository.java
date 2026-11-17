@@ -25,8 +25,16 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("select distinct u from User u join u.roles r where r.name = 'OWNER_ADMIN' order by u.id")
     List<User> findAllOwners();
 
+    // Super Admin top-right command palette (SACommandPalette): matches
+    // owners by name, email, or their admin code (`ADM007`). The admin
+    // code is derived from the user id (`"ADM" + lpad(id, 3)`), so the
+    // service parses the query and passes a non-null `codeId` only when
+    // the query is of the form `ADM\d+` or pure digits; otherwise codeId
+    // is null and the condition collapses.
     @Query("select distinct u from User u join u.roles r where r.name = 'OWNER_ADMIN' "
-        + "and (lower(u.fullName) like lower(concat('%', :q, '%')) or lower(u.email) like lower(concat('%', :q, '%'))) "
+        + "and (lower(u.fullName) like lower(concat('%', :q, '%')) "
+        + "or lower(u.email) like lower(concat('%', :q, '%')) "
+        + "or (:codeId is not null and u.id = :codeId)) "
         + "order by u.fullName")
-    List<User> searchOwnersByNameOrEmail(@Param("q") String q, Pageable pageable);
+    List<User> searchOwnersByNameEmailOrAdminCode(@Param("q") String q, @Param("codeId") Long codeId, Pageable pageable);
 }
