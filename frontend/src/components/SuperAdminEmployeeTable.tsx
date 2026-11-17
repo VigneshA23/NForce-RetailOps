@@ -112,11 +112,24 @@ function SuperAdminEmployeeTable({
                           </button>
                         )}
                       </div>
-                      {/* Mobile: every store, as before. */}
+                      {/* Mobile: first store plus a "+N more" toggle that reveals the full list. */}
                       <div className="employee-table__store-badges employee-cards__mobile-only">
-                        {employee.stores.map((store) => (
+                        {(expandedIds.has(employee.id) ? employee.stores : employee.stores.slice(0, 1)).map((store) => (
                           <StoreChip key={store.id} name={store.name} />
                         ))}
+                        {employee.stores.length > 1 && (
+                          <button
+                            type="button"
+                            className="store-more-toggle"
+                            aria-expanded={expandedIds.has(employee.id)}
+                            onClick={() => toggleExpanded(employee.id)}
+                          >
+                            {expandedIds.has(employee.id)
+                              ? 'Show less'
+                              : `+${employee.stores.length - 1} more`}
+                            <ChevronDown size={14} aria-hidden="true" />
+                          </button>
+                        )}
                       </div>
                     </>
                   )}
