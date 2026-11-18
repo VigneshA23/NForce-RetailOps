@@ -1,44 +1,32 @@
-import { useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getMonthlyCashSummary, getSuperAdminMonthlyCashSummary } from '../api/cashSummary';
 import { getAllStores } from '../api/superAdminStores';
 import type { SuperAdminStore } from '../types/superAdminStore';
 import type { MonthlyCashSummary as Summary, StoreMonthlyCashSummary } from '../types/cashSummary';
-import { formatCurrency } from '../utils/currency';
 import StoreCashSummaryView from '../components/StoreCashSummaryView';
-import FormField from '../components/FormField';
 import SearchableSelect from '../components/SearchableSelect';
+// The month selector reuses the Daily Checklist's date-nav look.
+import './StoreDetail.css';
 import './MonthlyCashSummary.css';
 
 interface MonthlyCashSummaryProps {
-  // 'owner': the caller's own store, no Combined column.
-  // 'super-admin': every store plus Combined.
+  // 'owner': the caller's own store.
+  // 'super-admin': pick a store (or All Stores) first, like the Daily Checklist.
   scope?: 'owner' | 'super-admin';
 }
 
-type AmountKey = Exclude<keyof StoreMonthlyCashSummary,
-  'storeId' | 'storeName' | 'storeCode' | 'daysRecorded' | 'asOfDate' | 'dailyBreakdown'>;
 const COMBINED_SELECTION = 'combined';
+// Super Admin has not picked anything yet: tiles show dashes and a prompt.
+const NO_SELECTION = null;
+type StoreSelection = typeof NO_SELECTION | string;
 
-interface Row {
-  key: AmountKey;
-  label: string;
-  hint?: string;
-  emphasis?: boolean;
-  variance?: boolean;
-}
-
-const ROWS: Row[] = [
-  { key: 'totalCashSales', label: 'Total cash sales' },
-  { key: 'totalCashRemoved', label: 'Total cash removed' },
-  { key: 'bankDeposits', label: 'Bank deposits' },
-  { key: 'cashExpenses', label: 'Cash expenses' },
-  { key: 'adjustments', label: 'Adjustments' },
-  { key: 'expectedCashOnHand', label: 'Expected cash on hand', hint: 'As at the last day recorded', emphasis: true },
-  { key: 'actualCashCount', label: 'Actual cash count', hint: 'Cash remaining on that day', emphasis: true },
-  { key: 'variance', label: 'Variance', hint: 'Actual − expected', emphasis: true, variance: true },
-  { key: 'netDailyVariance', label: 'Net daily variance', hint: 'Every day’s over/short added up', variance: true },
-];
+// Nothing to show yet -- every amount null, so the tiles read "—", never $0.00.
+const NOTHING_SELECTED: StoreMonthlyCashSummary = {
+  storeId: null, storeName: '', storeCode: null, daysRecorded: 0, asOfDate: null,
+  totalCashSales: null, totalCashRemoved: null, bankDeposits: null, cashExpenses: null, adjustments: null,
+  expectedCashOnHand: null, actualCashCount: null, variance: null, netDailyVariance: null, dailyBreakdown: [],
+};
 
 function currentMonth(): string {
   const now = new Date();
@@ -56,28 +44,18 @@ function monthLabel(month: string): string {
   return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 }
 
-function dayLabel(value: string): string {
-  return new Date(`${value}T00:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
-}
-
-function varianceClass(value: number | null): string {
-  if (value === null || value === 0) return '';
-  return value < 0 ? ' cash-summary__amount--short' : ' cash-summary__amount--over';
-}
-
-function formatVariance(value: number): string {
-  if (value === 0) return formatCurrency(0);
-  return value > 0 ? `+${formatCurrency(value)}` : formatCurrency(value);
-}
-
-// Month-End Cash Summary (RTS-297): the month's cash totals per store, and a
-// Combined column for Super Admin. Flow lines are month totals; expected,
-// actual and variance are the cash position on each store's last recorded day.
+// Month-End Cash Summary (RTS-297): the month's cash flows and closing position
+// as tiles, with the rows behind them -- one per recorded day for a store, one
+// per store for All Stores. Laid out like the Daily Checklist: period selector
+// on the left, store selector on the right, tiles always visible (dashes until a
+// store is chosen). Flow figures are month totals; expected, actual and variance
+// are each store's position on its last recorded day.
 function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
+  const isSuperAdmin = scope === 'super-admin';
   const [month, setMonth] = useState(currentMonth);
-  const [storeSelection, setStoreSelection] = useState(COMBINED_SELECTION);
+  const [storeSelection, setStoreSelection] = useState<StoreSelection>(isSuperAdmin ? COMBINED_SELECTION : NO_SELECTION);
   const [stores, setStores] = useState<SuperAdminStore[]>([]);
-  const [storesLoading, setStoresLoading] = useState(scope === 'super-admin');
+  const [storesLoading, setStoresLoading] = useState(isSuperAdmin);
   const [storesError, setStoresError] = useState<string | null>(null);
   const [storesReloadToken, setStoresReloadToken] = useState(0);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -86,7 +64,7 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
   const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    if (scope !== 'super-admin') return;
+    if (!isSuperAdmin) return;
     let active = true;
     setStoresLoading(true);
     setStoresError(null);
@@ -94,10 +72,10 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
       .then((result) => {
         if (active) {
           setStores(result);
-          setStoreSelection((selection) => selection === COMBINED_SELECTION
+          setStoreSelection((selection) => selection === NO_SELECTION || selection === COMBINED_SELECTION
             || result.some((store) => String(store.storeId) === selection)
             ? selection
-            : COMBINED_SELECTION);
+            : NO_SELECTION);
         }
       })
       .catch((cause: unknown) => {
@@ -107,14 +85,23 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
         if (active) setStoresLoading(false);
       });
     return () => { active = false; };
-  }, [scope, storesReloadToken]);
+  }, [isSuperAdmin, storesReloadToken]);
 
   useEffect(() => {
+    // Super Admin: nothing to fetch until a store (or All Stores) is chosen.
+    if (isSuperAdmin && storeSelection === NO_SELECTION) {
+      setSummary(null);
+      setError(null);
+      setIsLoading(false);
+      return undefined;
+    }
     const controller = new AbortController();
     setIsLoading(true);
     setError(null);
-    const selectedStoreId = storeSelection === COMBINED_SELECTION ? undefined : Number(storeSelection);
-    const load = scope === 'super-admin'
+    const selectedStoreId = storeSelection === COMBINED_SELECTION || storeSelection === NO_SELECTION
+      ? undefined
+      : Number(storeSelection);
+    const load = isSuperAdmin
       ? getSuperAdminMonthlyCashSummary(month, controller.signal, selectedStoreId)
       : getMonthlyCashSummary(month, controller.signal);
     load
@@ -128,157 +115,95 @@ function MonthlyCashSummary({ scope = 'owner' }: MonthlyCashSummaryProps) {
         if (!controller.signal.aborted) setIsLoading(false);
       });
     return () => controller.abort();
-  }, [scope, month, reloadToken, storeSelection]);
+  }, [isSuperAdmin, month, reloadToken, storeSelection]);
+
+  // Same option shape as the Daily Checklist's store selector.
+  const storeSelectOptions = useMemo(
+    () => stores.map((store) => ({ id: store.storeId, label: store.storeName, sublabel: `#${store.storeCode}` })),
+    [stores],
+  );
 
   const isCurrentMonth = month === currentMonth();
-  const columns: StoreMonthlyCashSummary[] = summary
-    ? scope === 'super-admin'
-      ? storeSelection === COMBINED_SELECTION
-        ? [summary.combined]
-        : summary.stores
-      : summary.stores
-    : [];
-  const anyData = columns.some((c) => c.daysRecorded > 0);
-  const storeColumn = columns.length === 1 && columns[0].storeId !== null && columns[0].dailyBreakdown.length > 0
-    ? columns[0]
-    : null;
+  const showCombined = isSuperAdmin && storeSelection === COMBINED_SELECTION;
+  const awaitingStore = isSuperAdmin && storeSelection === NO_SELECTION;
+  const column: StoreMonthlyCashSummary | null = awaitingStore
+    ? NOTHING_SELECTED
+    : summary
+      ? showCombined ? summary.combined : summary.stores[0] ?? null
+      : null;
 
   return (
     <div className="cash-summary">
-      <section className={`card cash-summary__card${storeColumn && !error ? " cash-summary__card--toolbar-only" : ""}`} aria-label="Month-end cash summary">
-        <div className="cash-summary__toolbar">
-          {scope === 'super-admin' && (
-            <div className="cash-summary__store-picker">
-              <FormField label="Store" htmlFor="cash-summary-store">
-                <SearchableSelect
-                  id="cash-summary-store"
-                  options={stores.map((store) => ({
-                    id: store.storeId,
-                    label: store.storeName,
-                    sublabel: `#${store.storeCode}`,
-                  }))}
-                  selectedIds={storeSelection === COMBINED_SELECTION ? [] : [Number(storeSelection)]}
-                  onChange={(ids) => setStoreSelection(ids.length > 0 ? String(ids[0]) : COMBINED_SELECTION)}
-                  placeholder="Select a store…"
-                  isLoading={storesLoading}
-                  error={storesError}
-                  onRetry={() => setStoresReloadToken((token) => token + 1)}
-                  emptyMessage="No stores found"
-                  allOption={{
-                    label: 'All Stores',
-                    selected: storeSelection === COMBINED_SELECTION,
-                    onToggle: () => setStoreSelection(COMBINED_SELECTION),
-                  }}
-                />
-              </FormField>
-            </div>
-          )}
-          {storeColumn && !error && <h2 className="cash-summary__heading">Monthly Summary</h2>}
-          <div className="cash-summary__month" role="group" aria-label="Month">
-            <button
-              type="button"
-              className="btn btn--ghost cash-summary__nav"
-              onClick={() => setMonth((m) => shiftMonth(m, -1))}
-              aria-label="Previous month"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <h2 className="cash-summary__month-label" aria-live="polite">{monthLabel(month)}</h2>
-            <button
-              type="button"
-              className="btn btn--ghost cash-summary__nav"
-              onClick={() => setMonth((m) => shiftMonth(m, 1))}
-              disabled={isCurrentMonth}
-              aria-label="Next month"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-          {summary && !(storeColumn && !error) && (
-            <p className="cash-summary__period">
-              {isCurrentMonth
-                ? `Month to date, ${dayLabel(summary.periodStart)} – ${dayLabel(summary.periodEnd)}`
-                : `${dayLabel(summary.periodStart)} – ${dayLabel(summary.periodEnd)}`}
-            </p>
-          )}
+      <div className="cash-summary__toolbar">
+        <div className="store-detail-page__date-nav" role="group" aria-label="Month">
+          <button
+            type="button"
+            className="store-detail-page__date-arrow"
+            onClick={() => setMonth((m) => shiftMonth(m, -1))}
+            aria-label="Previous month"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <span className="store-detail-page__date-display" aria-live="polite">
+            <Calendar size={13} />
+            {monthLabel(month)}
+          </span>
+          <button
+            type="button"
+            className="store-detail-page__date-arrow"
+            onClick={() => setMonth((m) => shiftMonth(m, 1))}
+            disabled={isCurrentMonth}
+            aria-label="Next month"
+          >
+            <ChevronRight size={16} />
+          </button>
         </div>
 
-        {error ? (
-          <div className="cash-summary__alert" role="alert">
-            <span>{error}</span>
-            <button type="button" className="btn btn--secondary btn--sm" onClick={() => setReloadToken((t) => t + 1)}>
-              Retry
-            </button>
+        {isSuperAdmin && (
+          <div className="cash-summary__store-select">
+            <SearchableSelect
+              id="cash-summary-store"
+              options={storeSelectOptions}
+              selectedIds={storeSelection === NO_SELECTION || storeSelection === COMBINED_SELECTION
+                ? []
+                : [Number(storeSelection)]}
+              onChange={(ids) => setStoreSelection(ids.length > 0 ? String(ids[0]) : NO_SELECTION)}
+              placeholder="Select a store…"
+              isLoading={storesLoading}
+              error={storesError}
+              onRetry={() => setStoresReloadToken((token) => token + 1)}
+              emptyMessage="No stores found"
+              allOption={{
+                label: 'All Stores',
+                selected: storeSelection === COMBINED_SELECTION,
+                onToggle: () => setStoreSelection(COMBINED_SELECTION),
+              }}
+            />
           </div>
-        ) : isLoading && !summary ? (
-          <p className="cash-summary__status">Loading cash summary…</p>
-        ) : columns.length === 0 ? (
-          <p className="cash-summary__status">No stores to summarise.</p>
-        ) : storeColumn ? null : (
-          <>
-            {!anyData && (
-              <p className="cash-summary__status">No daily cash entries were recorded in {monthLabel(month)}.</p>
-            )}
-            <div className={`cash-summary__table-wrap${isLoading ? ' cash-summary__table-wrap--loading' : ''}`}>
-              <table className="cash-summary__table">
-                <thead>
-                  <tr>
-                    <th scope="col" className="cash-summary__label-col" aria-label="Line" />
-                    {columns.map((c) => (
-                      <th
-                        key={c.storeId ?? 'combined'}
-                        scope="col"
-                        className={c.storeId === null ? 'cash-summary__combined' : undefined}
-                      >
-                        <span className="cash-summary__store-name">{c.storeName}</span>
-                        <span className="cash-summary__store-meta">
-                          {c.daysRecorded === 0
-                            ? 'No entries'
-                            : `${c.daysRecorded} day${c.daysRecorded === 1 ? '' : 's'}${
-                              c.storeId !== null && c.asOfDate ? ` · to ${dayLabel(c.asOfDate)}` : ''}`}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ROWS.map((row) => (
-                    <tr key={row.key} className={row.emphasis ? 'cash-summary__row--emphasis' : undefined}>
-                      <th scope="row" className="cash-summary__label-col">
-                        {row.label}
-                        {row.hint && <span className="cash-summary__hint">{row.hint}</span>}
-                      </th>
-                      {columns.map((c) => {
-                        const value = c[row.key];
-                        return (
-                          <td
-                            key={c.storeId ?? 'combined'}
-                            className={`cash-summary__amount${c.storeId === null ? ' cash-summary__combined' : ''}${
-                              row.variance ? varianceClass(value) : ''}`}
-                          >
-                            {value === null ? '—' : row.variance ? formatVariance(value) : formatCurrency(value)}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="cash-summary__footnote">
-              Negative variance is a shortage, positive is an overage.
-              {scope === 'super-admin' && ' Combined adds up every store that recorded cash this month.'}
-            </p>
-          </>
         )}
-      </section>
+      </div>
 
-      {/* One store with recorded days: tiles + reconciliation + per-day rows.
-          Combined / several stores keep the side-by-side table above. */}
-      {storeColumn && !error && (
+      {error ? (
+        <div className="cash-summary__alert" role="alert">
+          <span>{error}</span>
+          <button type="button" className="btn btn--secondary btn--sm" onClick={() => setReloadToken((t) => t + 1)}>
+            Retry
+          </button>
+        </div>
+      ) : isLoading && !summary && !awaitingStore ? (
+        <p className="cash-summary__status">Loading cash summary…</p>
+      ) : !column ? (
+        <p className="cash-summary__status">No stores to summarise.</p>
+      ) : (
         <div className={`cash-summary__store-view${isLoading ? ' cash-summary__store-view--loading' : ''}`}>
-          <StoreCashSummaryView summary={storeColumn} />
-          <p className="cash-summary__footnote">Negative variance is a shortage, positive is an overage.</p>
+          <StoreCashSummaryView
+            summary={column}
+            storeRows={showCombined && summary ? summary.stores : undefined}
+            emptyMessage={awaitingStore
+              ? 'Select a store above to view its month-end cash summary.'
+              : `No daily cash entries were recorded in ${monthLabel(month)}.`}
+          />
+          <p className="cash-summary__footnote">Expected cash, actual count and variance are as at the last day recorded. Negative variance is a shortage, positive is an overage.</p>
         </div>
       )}
     </div>

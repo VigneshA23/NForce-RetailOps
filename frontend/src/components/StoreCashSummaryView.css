@@ -11,14 +11,23 @@
   margin-bottom: 0;
 }
 
-/* Five flow tiles on one row at desktop width; StatCard's grid handles the rest. */
-.cash-view__flows {
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+/* Eight tiles in a 4 x 2 grid: the four flow tiles on top, then Adjustments and
+   the closing position below. Two across on tablets and phones. */
+.cash-view .cash-view__tiles {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.cash-view__position-row {
-  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+@media (--tablet-down) {
+  .cash-view .cash-view__tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
+
+/* The two closing-position tiles get colours of their own so neither repeats
+   another tile: pistachio green for Expected, orange for Actual, teal for Variance. */
+.cash-view .stat-card.cash-tile--pista { --stat-color: #7fb85a; --stat-rgb: 147, 197, 114; }
+.cash-view .stat-card.cash-tile--teal { --stat-color: #0f9d8f; --stat-rgb: 20, 184, 166; }
+.cash-view .stat-card.cash-tile--orange { --stat-color: #ea6a2a; --stat-rgb: 234, 106, 42; }
 
 /* Tiles carry the sign in their text; colour only reinforces it. */
 .stat-card.cash-kpi--short .stat-card__value {
@@ -29,14 +38,18 @@
   color: var(--color-badge-icon-success-fg, #15803d);
 }
 
-/* The four position tiles keep their caption on mobile: it explains the figure. */
+/* The position tiles keep their caption on phones: it explains the figure. */
 @media (--mobile) {
-  .cash-view__position-row {
-    grid-template-columns: 1fr;
-    gap: var(--space-sm);
-  }
-
-  .cash-view__position-row .stat-card__caption {
+  .cash-view__tiles .stat-card__caption {
     display: block;
   }
+}
+
+/* Nothing recorded: the tiles show dashes and this line says why. */
+.cash-view__empty {
+  margin: var(--space-sm) 0 0;
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  font-size: 14px;
+  color: var(--color-text-secondary);
 }

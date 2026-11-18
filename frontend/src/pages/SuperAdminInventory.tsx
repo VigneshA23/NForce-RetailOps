@@ -22,6 +22,8 @@ import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormMod
 import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
 import StoreInventoryCardGrid from '../components/StoreInventoryCardGrid';
 import SupplierFormModal from '../components/SupplierFormModal';
+import StoreChip, { AllStoresChip } from '../components/StoreChip';
+import '../components/EmployeeTable.css';
 import InventoryCategoriesPanel from '../components/InventoryCategoriesPanel';
 import Toggle from '../components/Toggle';
 import Select from '../components/Select';
@@ -466,6 +468,15 @@ function SuperAdminInventory() {
   }, [items]);
 
   const [expandedSupplierIds, setExpandedSupplierIds] = useState<Set<number>>(new Set());
+  const [expandedStoreIds, setExpandedStoreIds] = useState<Set<number>>(new Set());
+  function toggleStoresExpanded(id: number) {
+    setExpandedStoreIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
 
   function toggleSupplierExpanded(supplierId: number) {
     setExpandedSupplierIds((current) => {
@@ -774,14 +785,23 @@ function SuperAdminInventory() {
                           </td>
                           <td className="supplier-table__cell-store" data-label="Assigned Store">
                             {supplier.appliesToAllStores ? (
-                              <span className="employee-table__store-badge">All Stores</span>
+                              <AllStoresChip />
                             ) : (supplier.stores ?? []).length === 0 ? (
                               <span className="employee-table__no-stores">—</span>
                             ) : (
-                              <div className="employee-table__store-badges">
-                                {(supplier.stores ?? []).map((store) => (
-                                  <span key={store.id} className="employee-table__store-badge">{store.name}</span>
-                                ))}
+                              <div className="store-summary" onClick={(event) => event.stopPropagation()}>
+                                <StoreChip name={(supplier.stores ?? [])[0].name} />
+                                {(supplier.stores ?? []).length > 1 && (
+                                  <button
+                                    type="button"
+                                    className="store-more-toggle"
+                                    aria-expanded={expandedStoreIds.has(supplier.id)}
+                                    onClick={() => toggleStoresExpanded(supplier.id)}
+                                  >
+                                    +{(supplier.stores ?? []).length - 1} more
+                                    <ChevronDown size={14} aria-hidden="true" />
+                                  </button>
+                                )}
                               </div>
                             )}
                           </td>
@@ -818,6 +838,20 @@ function SuperAdminInventory() {
                             </div>
                           </td>
                         </tr>
+                        {expandedStoreIds.has(supplier.id) && !supplier.appliesToAllStores && (supplier.stores ?? []).length > 1 && (
+                          <tr className="store-expand-row">
+                            <td colSpan={5}>
+                              <div className="store-expand-panel">
+                                <div className="store-expand-panel__heading">Assigned Stores · {(supplier.stores ?? []).length}</div>
+                                <div className="store-expand-panel__list">
+                                  {(supplier.stores ?? []).map((store) => (
+                                    <StoreChip key={store.id} name={store.name} />
+                                  ))}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
                         {/* Same table, same columns, at every breakpoint -- the store
                             cell spans Name + Assigned Store (2 columns) so the indented
                             row reads as "under" the supplier above it without a

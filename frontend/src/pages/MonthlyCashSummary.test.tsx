@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import MonthlyCashSummary from './MonthlyCashSummary';
@@ -59,8 +59,44 @@ beforeEach(() => {
   ]);
 });
 
+const DAYS = [{
+  businessDate: '2026-10-31', openingDrawerCash: 150, totalCashSales: 800, cashRemoved: 200, bankDeposits: 400,
+  cashExpenses: 20, adjustments: -10, expectedCash: 320, cashRemaining: 325, variance: 5,
+}];
+
+function emptyColumn(overrides: Partial<StoreMonthlyCashSummary> = {}): StoreMonthlyCashSummary {
+  return column({
+    daysRecorded: 0, asOfDate: null, totalCashSales: null, totalCashRemoved: null, bankDeposits: null,
+    cashExpenses: null, adjustments: null, expectedCashOnHand: null, actualCashCount: null,
+    variance: null, netDailyVariance: null, dailyBreakdown: [], ...overrides,
+  });
+}
+
+// The store selector is a button (no visible label, like the Daily Checklist's).
+async function openStoreSelect(user: ReturnType<typeof userEvent.setup>) {
+  await waitFor(() => expect(document.getElementById('cash-summary-store')).toBeEnabled());
+  await user.click(document.getElementById('cash-summary-store') as HTMLElement);
+}
+
+function tile(label: string): HTMLElement {
+  return screen.getByText(label, { selector: '.stat-card__label' }).closest('.stat-card') as HTMLElement;
+}
+
 describe('MonthlyCashSummary', () => {
-  it('shows the Combined totals when Super Admin selects all stores', async () => {
+  it('defaults Super Admin to All Stores and fetches the combined month straight away', async () => {
+    vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
+      [column({})],
+      column({ storeId: null, storeName: 'Combined', storeCode: null, variance: -15 }),
+    ));
+
+    render(<MonthlyCashSummary scope="super-admin" />);
+
+    expect(await screen.findByRole('table', { name: 'Store cash breakdown' })).toBeInTheDocument();
+    expect(within(tile('Variance')).getByText('-$15.00')).toBeInTheDocument();
+    expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenCalledWith(currentMonth(), expect.anything(), undefined);
+  });
+
+  it('shows the tiles layout with a store breakdown when Super Admin selects all stores', async () => {
     vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
       [column({}), column({ storeId: 2, storeName: 'Store 2', variance: -20 })],
       column({ storeId: null, storeName: 'Combined', storeCode: null, variance: -15, expectedCashOnHand: 640 }),
@@ -68,23 +104,22 @@ describe('MonthlyCashSummary', () => {
 
     render(<MonthlyCashSummary scope="super-admin" />);
 
-    const table = await screen.findByRole('table');
-    const headers = within(table).getAllByRole('columnheader').map((h) => h.textContent ?? '');
-    expect(headers.some((h) => h.startsWith('Store 1'))).toBe(false);
-    expect(headers.some((h) => h.startsWith('Store 2'))).toBe(false);
-    expect(headers.some((h) => h.startsWith('Combined'))).toBe(true);
+    expect(await screen.findByRole('table', { name: 'Store cash breakdown' })).toBeInTheDocument();
+    expect(within(tile('Variance')).getByText('-$15.00')).toBeInTheDocument();
+    expect(within(tile('Expected Cash on Hand')).getByText('$640.00')).toBeInTheDocument();
 
-    for (const label of ['Total cash sales', 'Total cash removed', 'Bank deposits', 'Cash expenses',
-      'Adjustments', 'Expected cash on hand', 'Actual cash count', 'Variance']) {
-      expect(within(table).getByRole('rowheader', { name: new RegExp(`^${label}`) })).toBeInTheDocument();
-    }
-    const varianceRow = within(table).getByRole('rowheader', { name: /^Variance/ }).closest('tr')!;
-    expect(within(varianceRow).getByText('-$15.00')).toBeInTheDocument();
-    expect(within(table).getByText('$640.00')).toBeInTheDocument();
+    const table = screen.getByRole('table', { name: 'Store cash breakdown' });
+    expect(within(table).getByText('Store 1')).toBeInTheDocument();
+    expect(within(table).getByText('Store 2')).toBeInTheDocument();
+    // The footer is the API's Combined row.
+    const footer = table.querySelector('tfoot tr') as HTMLElement;
+    expect(within(footer).getByText('Combined')).toBeInTheDocument();
+    expect(within(footer).getAllByText('-$15.00').length).toBeGreaterThan(0);
+    expect(screen.queryByRole('table', { name: 'Daily cash breakdown' })).not.toBeInTheDocument();
     expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenCalledWith(currentMonth(), expect.anything(), undefined);
   });
 
-  it('switches to an individual store without reloading and requests its summary', async () => {
+  it('switches between All Stores and one store, always in the same layout', async () => {
     const user = userEvent.setup();
     vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary)
       .mockResolvedValueOnce(summary(
@@ -92,7 +127,7 @@ describe('MonthlyCashSummary', () => {
         column({ storeId: null, storeName: 'Combined', storeCode: null, variance: -15 }),
       ))
       .mockResolvedValueOnce(summary(
-        [column({ storeId: 2, storeName: 'Store 2', variance: -20 })],
+        [column({ storeId: 2, storeName: 'Store 2', variance: -20, dailyBreakdown: DAYS })],
         column({ storeId: null, storeName: 'Combined', storeCode: null }),
       ))
       .mockResolvedValueOnce(summary(
@@ -101,81 +136,79 @@ describe('MonthlyCashSummary', () => {
       ));
 
     render(<MonthlyCashSummary scope="super-admin" />);
-    await screen.findByRole('table');
-    await user.click(screen.getByLabelText('Store'));
+    await screen.findByRole('table', { name: 'Store cash breakdown' });
+    await openStoreSelect(user);
     await user.type(screen.getByPlaceholderText('Search...'), 'Store 2');
     await user.click(screen.getByRole('button', { name: /Store 2.*#102/ }));
 
-    const table = await screen.findByRole('table');
-    const headers = within(table).getAllByRole('columnheader').map((h) => h.textContent ?? '');
-    expect(headers.some((h) => h.startsWith('Store 2'))).toBe(true);
-    expect(headers.some((h) => h.startsWith('Combined'))).toBe(false);
-    expect(within(table).getByText('-$20.00')).toBeInTheDocument();
+    expect(await screen.findByRole('table', { name: 'Daily cash breakdown' })).toBeInTheDocument();
+    expect(within(tile('Variance')).getByText('-$20.00')).toBeInTheDocument();
     expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenLastCalledWith(currentMonth(), expect.anything(), 2);
 
-    await user.click(screen.getByLabelText('Store'));
-    await user.click(screen.getByRole('button', { name: 'All Stores' }));
-    expect(await screen.findByText('$640.00')).toBeInTheDocument();
+    await openStoreSelect(user);
+    await user.click((() => { const all = screen.getAllByRole('button', { name: 'All Stores' }); return all[all.length - 1]; })());
+    expect(await screen.findByRole('table', { name: 'Store cash breakdown' })).toBeInTheDocument();
+    expect(within(tile('Expected Cash on Hand')).getByText('$640.00')).toBeInTheDocument();
     expect(cashSummaryApi.getSuperAdminMonthlyCashSummary).toHaveBeenLastCalledWith(currentMonth(), expect.anything(), undefined);
   });
 
-  it('shows only the owner’s own store, without a Combined column', async () => {
+  it('lists only the stores that recorded cash in the Store Breakdown', async () => {
+    vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
+      [column({}), emptyColumn({ storeId: 2, storeName: 'Quiet Store' })],
+      column({ storeId: null, storeName: 'Combined', storeCode: null }),
+    ));
+
+    render(<MonthlyCashSummary scope="super-admin" />);
+
+    const table = await screen.findByRole('table', { name: 'Store cash breakdown' });
+    expect(within(table).getByText('Store 1')).toBeInTheDocument();
+    expect(within(table).queryByText('Quiet Store')).not.toBeInTheDocument();
+  });
+
+  it('shows the owner’s own store with its daily breakdown', async () => {
     vi.mocked(cashSummaryApi.getMonthlyCashSummary).mockResolvedValue(summary(
-      [column({})],
+      [column({ dailyBreakdown: DAYS })],
       column({ storeId: null, storeName: 'Combined', storeCode: null }),
     ));
 
     render(<MonthlyCashSummary />);
 
-    const table = await screen.findByRole('table');
-    expect(within(table).queryByText('Combined')).not.toBeInTheDocument();
-    expect(within(table).getByText('$1,800.00')).toBeInTheDocument();
-  });
-
-  it('shows the daily breakdown for a single store but not for the Combined view', async () => {
-    const days = [{
-      businessDate: '2026-10-31', openingDrawerCash: 150, totalCashSales: 800, cashRemoved: 200, bankDeposits: 400,
-      cashExpenses: 20, adjustments: -10, expectedCash: 320, cashRemaining: 325, variance: 5,
-    }];
-    vi.mocked(cashSummaryApi.getMonthlyCashSummary).mockResolvedValue(summary(
-      [column({ dailyBreakdown: days })],
-      column({ storeId: null, storeName: 'Combined', storeCode: null }),
-    ));
-
-    const { unmount } = render(<MonthlyCashSummary />);
     expect(await screen.findByRole('table', { name: 'Daily cash breakdown' })).toBeInTheDocument();
-    unmount();
-
-    vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
-      [column({ dailyBreakdown: days })],
-      column({ storeId: null, storeName: 'Combined', storeCode: null }),
-    ));
-    render(<MonthlyCashSummary scope="super-admin" />);
-    await screen.findAllByRole('table');
-    expect(screen.queryByRole('table', { name: 'Daily cash breakdown' })).not.toBeInTheDocument();
+    expect(within(tile('Total Cash Sales')).getByText('$1,800.00')).toBeInTheDocument();
+    expect(document.getElementById('cash-summary-store')).toBeNull();
   });
 
-  it('shows a dash, not $0.00, for a store with no entries', async () => {
+  it('keeps the same layout, with dashes not $0.00, when a store recorded nothing', async () => {
     vi.mocked(cashSummaryApi.getMonthlyCashSummary).mockResolvedValue(summary(
-      [column({
-        daysRecorded: 0, asOfDate: null, totalCashSales: null, totalCashRemoved: null, bankDeposits: null,
-        cashExpenses: null, adjustments: null, expectedCashOnHand: null, actualCashCount: null,
-        variance: null, netDailyVariance: null, dailyBreakdown: [],
-      })],
+      [emptyColumn()],
       column({ storeId: null, storeName: 'Combined', daysRecorded: 0 }),
     ));
 
     render(<MonthlyCashSummary />);
 
     expect(await screen.findByText(/No daily cash entries were recorded/)).toBeInTheDocument();
-    expect(screen.getAllByText('—').length).toBe(9);
+    expect(screen.getAllByText('—').length).toBe(8);
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('keeps the same layout for All Stores in a month with no entries', async () => {
+    vi.mocked(cashSummaryApi.getSuperAdminMonthlyCashSummary).mockResolvedValue(summary(
+      [emptyColumn()],
+      emptyColumn({ storeId: null, storeName: 'Combined', storeCode: null }),
+    ));
+
+    render(<MonthlyCashSummary scope="super-admin" />);
+
+    expect(await screen.findByText(/No daily cash entries were recorded/)).toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBe(8);
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('steps back a month and cannot go past the current month', async () => {
     vi.mocked(cashSummaryApi.getMonthlyCashSummary).mockResolvedValue(summary([column({})], column({ storeId: null })));
     render(<MonthlyCashSummary />);
-    await screen.findByRole('table');
+    await screen.findByText('Total Cash Sales');
 
     expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: 'Previous month' }));
@@ -190,12 +223,12 @@ describe('MonthlyCashSummary', () => {
   it('offers a retry when loading fails', async () => {
     vi.mocked(cashSummaryApi.getMonthlyCashSummary)
       .mockRejectedValueOnce(new Error('Server unavailable'))
-      .mockResolvedValueOnce(summary([column({})], column({ storeId: null })));
+      .mockResolvedValueOnce(summary([column({ dailyBreakdown: DAYS })], column({ storeId: null })));
 
     render(<MonthlyCashSummary />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Server unavailable');
     await userEvent.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(await screen.findByRole('table')).toBeInTheDocument();
+    expect(await screen.findByRole('table', { name: 'Daily cash breakdown' })).toBeInTheDocument();
   });
 });

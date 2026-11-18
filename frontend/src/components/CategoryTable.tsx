@@ -25,7 +25,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useState } from 'react';
 import type { ReactNode } from 'react';
-import StoreChip from './StoreChip';
+import StoreChip, { AllStoresChip } from './StoreChip';
 import type { Category } from '../types/category';
 import { formatDateLabel, stepDate, todayDate } from '../utils/checklistHistoryOptions';
 import Toggle from './Toggle';
@@ -133,12 +133,7 @@ function CategoryRowCells({
           {/* Desktop: first store (or All Stores) plus a "+N more" toggle. */}
           <div className="store-summary category-table__desktop-only">
             {category.appliesToAllStores ? (
-              <span className="store-chip">
-                <span className="store-chip__letter category-table__all-stores-circle" aria-hidden="true">
-                  <StoreIcon size={12} />
-                </span>
-                <span className="store-chip__name">All Stores</span>
-              </span>
+              <AllStoresChip />
             ) : category.stores.length === 0 ? (
               <span className="category-table__no-stores">—</span>
             ) : (
