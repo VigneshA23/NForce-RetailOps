@@ -87,19 +87,19 @@ class DailyCashCorrectionTest {
             .andExpect(jsonPath("$.message").value("A reason is required to correct this entry"));
         assertThat(correctionRepository.count()).isZero();
 
-        save(body("650", "Sales were keyed in twice"))
+        save(body("650", "Opening cash was keyed in twice"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.totalCashSales").value(650))
+            .andExpect(jsonPath("$.openingDrawerCash").value(650))
             .andExpect(jsonPath("$.correctedByName").value("Sam Super"))
             .andExpect(jsonPath("$.correctedAt").exists())
             .andExpect(jsonPath("$.history.length()").value(1))
-            .andExpect(jsonPath("$.history[0].reason").value("Sales were keyed in twice"))
-            .andExpect(jsonPath("$.history[0].previousTotalCashSales").value(500))
-            .andExpect(jsonPath("$.history[0].newTotalCashSales").value(650))
+            .andExpect(jsonPath("$.history[0].reason").value("Opening cash was keyed in twice"))
+            .andExpect(jsonPath("$.history[0].previousOpeningDrawerCash").value(500))
+            .andExpect(jsonPath("$.history[0].newOpeningDrawerCash").value(650))
             .andExpect(jsonPath("$.history[0].correctedByName").value("Sam Super"));
 
         // Still one row for the day (never deleted or duplicated), no notification,
-        // and expected cash reflects the corrected sales.
+        // and expected cash reflects the corrected opening cash.
         assertThat(entryRepository.findByStoreIdAndBusinessDate(storeId, day)).isPresent();
         assertThat(notificationRepository.count()).isEqualTo(notificationsBefore);
         assertThat(expected()).isNotEqualTo(expectedBefore);
@@ -120,10 +120,9 @@ class DailyCashCorrectionTest {
         return objectMapper.readTree(json).path("expectedCashOnHand").asText();
     }
 
-    private String body(String sales, String reason) {
-        return "{\"businessDate\":\"" + day + "\",\"totalCashSales\":" + sales
-            + ",\"openingDrawerCash\":100,\"cashRemoved\":10,\"cashRemaining\":90,\"cashExpenses\":5,"
-            + "\"bankDeposits\":20,\"otherAdjustments\":0"
+    private String body(String opening, String reason) {
+        return "{\"businessDate\":\"" + day + "\",\"openingDrawerCash\":" + opening
+            + ",\"cashExpenses\":5,\"cashRemoved\":10,\"cashRemaining\":90,\"otherAdjustments\":0"
             + (reason == null ? "" : ",\"correctionReason\":\"" + reason + "\"") + "}";
     }
 

@@ -8,7 +8,7 @@ import java.util.List;
  * One column of the month-end cash summary: a single store, or the Combined
  * total ({@code storeId} null).
  *
- * <p>Flow figures (sales, removed, deposits, expenses, adjustments) are the
+ * <p>Flow figures (removed, expenses, adjustments) are the
  * month's totals. The position figures (expected, actual, variance) are as at
  * {@code asOfDate}, the last day in the month with an entry -- cash on hand is
  * a balance, so summing it across days would be meaningless.
@@ -29,9 +29,7 @@ public record StoreMonthlyCashSummary(
     Long storeCode,
     int daysRecorded,
     LocalDate asOfDate,
-    BigDecimal totalCashSales,
     BigDecimal totalCashRemoved,
-    BigDecimal bankDeposits,
     BigDecimal cashExpenses,
     BigDecimal adjustments,
     BigDecimal expectedCashOnHand,
@@ -47,7 +45,7 @@ public record StoreMonthlyCashSummary(
     public static StoreMonthlyCashSummary empty(Long storeId, String storeName, Long storeCode) {
         return new StoreMonthlyCashSummary(
             storeId, storeName, storeCode, 0, null,
-            null, null, null, null, null, null, null, null, null,
+            null, null, null, null, null, null, null,
             List.of()
         );
     }

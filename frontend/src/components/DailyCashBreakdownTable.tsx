@@ -60,9 +60,7 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
               <tr>
                 <th scope="col" className="daily-cash__date-col">Date</th>
                 <th scope="col">Opening Drawer</th>
-                <th scope="col">Cash Sales</th>
                 <th scope="col">Cash Removed</th>
-                <th scope="col">Bank Deposits</th>
                 <th scope="col">Cash Expenses</th>
                 <th scope="col">Adjustments</th>
                 <th scope="col">Expected Cash</th>
@@ -82,9 +80,7 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
                     {index === lastIndex && <span className="daily-cash__badge">Closing day</span>}
                   </th>
                   <td>{money(day.openingDrawerCash)}</td>
-                  <td>{money(day.totalCashSales)}</td>
                   <td>{money(day.cashRemoved)}</td>
-                  <td>{money(day.bankDeposits)}</td>
                   <td>{money(day.cashExpenses)}</td>
                   <td>{money(day.adjustments)}</td>
                   <td>{money(day.expectedCash)}</td>
@@ -102,9 +98,7 @@ function DailyCashBreakdownTable({ summary }: DailyCashBreakdownTableProps) {
                   <span className="daily-cash__hint">({summary.daysRecorded} day{summary.daysRecorded === 1 ? '' : 's'})</span>
                 </th>
                 <td aria-label="Opening drawer is not totalled">-</td>
-                <td>{money(summary.totalCashSales)}</td>
                 <td>{money(summary.totalCashRemoved)}</td>
-                <td>{money(summary.bankDeposits)}</td>
                 <td>{money(summary.cashExpenses)}</td>
                 <td className={varianceClass(summary.adjustments).trim()}>
                   {summary.adjustments === null ? '-' : formatVariance(summary.adjustments)}

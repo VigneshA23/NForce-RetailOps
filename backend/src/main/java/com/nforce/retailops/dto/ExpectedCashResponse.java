@@ -29,9 +29,7 @@ public record ExpectedCashResponse(
     BigDecimal cashRemaining,
     BigDecimal variance,
     BigDecimal openingDrawerCash,
-    BigDecimal totalCashSales,
     BigDecimal cashRemoved,
-    BigDecimal bankDeposits,
     BigDecimal cashExpenses,
     BigDecimal otherAdjustments,
     OffsetDateTime lastUpdatedAt
@@ -39,7 +37,7 @@ public record ExpectedCashResponse(
     public static ExpectedCashResponse unavailable(Long storeId) {
         return new ExpectedCashResponse(
             storeId, false, "No cash entries have been recorded for this store yet",
-            null, null, null, null, null, null, null, null, null, null, null
+            null, null, null, null, null, null, null, null, null
         );
     }
 }

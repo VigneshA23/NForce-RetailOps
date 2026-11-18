@@ -32,13 +32,13 @@ describe('apiRequest errors', () => {
   });
 
   it('keeps a validation failure\'s field -> message map as fieldErrors', async () => {
-    respondWith(400, { totalCashSales: 'Total cash sales is required', cashRemoved: 'Cash removed cannot be negative' });
+    respondWith(400, { openingDrawerCash: 'Opening drawer cash is required', cashRemoved: 'Cash removed cannot be negative' });
     const error = await errorFrom(apiRequest('/x'));
 
     expect(error.status).toBe(400);
     expect(error.message).toBe('Something went wrong. Please try again.');
     expect(error.fieldErrors).toEqual({
-      totalCashSales: 'Total cash sales is required',
+      openingDrawerCash: 'Opening drawer cash is required',
       cashRemoved: 'Cash removed cannot be negative',
     });
   });

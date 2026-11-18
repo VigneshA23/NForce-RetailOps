@@ -23,9 +23,6 @@ public class DailyCashEntry {
     @Column(name = "business_date", nullable = false)
     private LocalDate businessDate;
 
-    @Column(name = "total_cash_sales", nullable = false)
-    private BigDecimal totalCashSales;
-
     @Column(name = "opening_drawer_cash", nullable = false)
     private BigDecimal openingDrawerCash;
 
@@ -39,15 +36,13 @@ public class DailyCashEntry {
     @Column(name = "cash_expenses", nullable = false)
     private BigDecimal cashExpenses;
 
-    @Column(name = "bank_deposits", nullable = false)
-    private BigDecimal bankDeposits;
-
     // Signed: the only field allowed to be negative.
     @Column(name = "other_adjustments", nullable = false)
     private BigDecimal otherAdjustments;
 
-    // Exactly one of each user/super-admin pair is set (Super Admin is not a
-    // users row).
+    // Each actor is a user/super-admin pair (Super Admin is not a users row).
+    // updated_by always has exactly one set; entered_by has none for entries
+    // from before V119, which the UI shows as "Unknown".
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "entered_by_user_id")
     private User enteredByUser;
@@ -78,8 +73,6 @@ public class DailyCashEntry {
     public void setStore(Store store) { this.store = store; }
     public LocalDate getBusinessDate() { return businessDate; }
     public void setBusinessDate(LocalDate businessDate) { this.businessDate = businessDate; }
-    public BigDecimal getTotalCashSales() { return totalCashSales; }
-    public void setTotalCashSales(BigDecimal v) { this.totalCashSales = v; }
     public BigDecimal getOpeningDrawerCash() { return openingDrawerCash; }
     public void setOpeningDrawerCash(BigDecimal v) { this.openingDrawerCash = v; }
     public BigDecimal getCashRemoved() { return cashRemoved; }
@@ -88,8 +81,6 @@ public class DailyCashEntry {
     public void setCashRemaining(BigDecimal v) { this.cashRemaining = v; }
     public BigDecimal getCashExpenses() { return cashExpenses; }
     public void setCashExpenses(BigDecimal v) { this.cashExpenses = v; }
-    public BigDecimal getBankDeposits() { return bankDeposits; }
-    public void setBankDeposits(BigDecimal v) { this.bankDeposits = v; }
     public BigDecimal getOtherAdjustments() { return otherAdjustments; }
     public void setOtherAdjustments(BigDecimal v) { this.otherAdjustments = v; }
     public User getEnteredByUser() { return enteredByUser; }

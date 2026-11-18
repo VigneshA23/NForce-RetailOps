@@ -170,6 +170,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", ex.getMessage()));
     }
 
+    @ExceptionHandler(DailyCashEntryNotEditableException.class)
+    public ResponseEntity<Map<String, String>> handleDailyCashEntryNotEditable(DailyCashEntryNotEditableException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("message", ex.getMessage()));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied() {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)

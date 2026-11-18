@@ -27,9 +27,7 @@ function column(overrides: Partial<StoreMonthlyCashSummary>): StoreMonthlyCashSu
     storeCode: 101,
     daysRecorded: 30,
     asOfDate: '2026-10-31',
-    totalCashSales: 1800,
     totalCashRemoved: 300,
-    bankDeposits: 900,
     cashExpenses: 70,
     adjustments: -10,
     expectedCashOnHand: 320,
@@ -60,13 +58,13 @@ beforeEach(() => {
 });
 
 const DAYS = [{
-  businessDate: '2026-10-31', openingDrawerCash: 150, totalCashSales: 800, cashRemoved: 200, bankDeposits: 400,
+  businessDate: '2026-10-31', openingDrawerCash: 150, cashRemoved: 200,
   cashExpenses: 20, adjustments: -10, expectedCash: 320, cashRemaining: 325, variance: 5,
 }];
 
 function emptyColumn(overrides: Partial<StoreMonthlyCashSummary> = {}): StoreMonthlyCashSummary {
   return column({
-    daysRecorded: 0, asOfDate: null, totalCashSales: null, totalCashRemoved: null, bankDeposits: null,
+    daysRecorded: 0, asOfDate: null, totalCashRemoved: null,
     cashExpenses: null, adjustments: null, expectedCashOnHand: null, actualCashCount: null,
     variance: null, netDailyVariance: null, dailyBreakdown: [], ...overrides,
   });
@@ -174,7 +172,7 @@ describe('MonthlyCashSummary', () => {
     render(<MonthlyCashSummary />);
 
     expect(await screen.findByRole('table', { name: 'Daily cash breakdown' })).toBeInTheDocument();
-    expect(within(tile('Total Cash Sales')).getByText('$1,800.00')).toBeInTheDocument();
+    expect(within(tile('Total Cash Removed')).getByText('$300.00')).toBeInTheDocument();
     expect(document.getElementById('cash-summary-store')).toBeNull();
   });
 
@@ -187,7 +185,7 @@ describe('MonthlyCashSummary', () => {
     render(<MonthlyCashSummary />);
 
     expect(await screen.findByText(/No daily cash entries were recorded/)).toBeInTheDocument();
-    expect(screen.getAllByText('-').length).toBe(8);
+    expect(screen.getAllByText('-').length).toBe(6);
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
@@ -201,14 +199,14 @@ describe('MonthlyCashSummary', () => {
     render(<MonthlyCashSummary scope="super-admin" />);
 
     expect(await screen.findByText(/No daily cash entries were recorded/)).toBeInTheDocument();
-    expect(screen.getAllByText('-').length).toBe(8);
+    expect(screen.getAllByText('-').length).toBe(6);
     expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('steps back a month and cannot go past the current month', async () => {
     vi.mocked(cashSummaryApi.getMonthlyCashSummary).mockResolvedValue(summary([column({})], column({ storeId: null })));
     render(<MonthlyCashSummary />);
-    await screen.findByText('Total Cash Sales');
+    await screen.findByText('Total Cash Removed');
 
     expect(screen.getByRole('button', { name: 'Next month' })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: 'Previous month' }));

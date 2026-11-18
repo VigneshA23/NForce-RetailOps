@@ -7,9 +7,7 @@
 export interface DailyCashBreakdown {
   businessDate: string; // YYYY-MM-DD
   openingDrawerCash: number;
-  totalCashSales: number;
   cashRemoved: number;
-  bankDeposits: number;
   cashExpenses: number;
   adjustments: number;
   expectedCash: number;
@@ -26,9 +24,7 @@ export interface StoreMonthlyCashSummary {
   daysRecorded: number;
   // Last day in the month with an entry; expected/actual/variance are as at this day.
   asOfDate: string | null;
-  totalCashSales: number | null;
   totalCashRemoved: number | null;
-  bankDeposits: number | null;
   cashExpenses: number | null;
   adjustments: number | null;
   expectedCashOnHand: number | null;

@@ -7,11 +7,13 @@ import com.nforce.retailops.entity.DailyCashEntryCorrection;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.exception.DailyCashEntryNotEditableException;
 import com.nforce.retailops.exception.DailyCashEntryNotFoundException;
 import com.nforce.retailops.exception.CorrectionReasonRequiredException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.DailyCashEntryCorrectionRepository;
 import com.nforce.retailops.repository.DailyCashEntryRepository;
+import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SuperAdminRepository;
@@ -47,6 +49,7 @@ class DailyCashEntryServiceTest {
     @Mock DailyCashEntryRepository entryRepository;
     @Mock DailyCashEntryCorrectionRepository correctionRepository;
     @Mock StoreOwnerRepository storeOwnerRepository;
+    @Mock StoreEmployeeRepository storeEmployeeRepository;
     @Mock UserRepository userRepository;
     @Mock StoreRepository storeRepository;
     @Mock SuperAdminRepository superAdminRepository;
@@ -58,7 +61,7 @@ class DailyCashEntryServiceTest {
     @BeforeEach
     void setUp() {
         service = new DailyCashEntryService(entryRepository, correctionRepository, storeOwnerRepository,
-            storeRepository, userRepository, superAdminRepository);
+            storeEmployeeRepository, storeRepository, userRepository, superAdminRepository);
         store = mock(Store.class);
         when(store.getId()).thenReturn(5L);
         owner = mock(User.class);
@@ -73,26 +76,24 @@ class DailyCashEntryServiceTest {
         when(correctionRepository.findByEntryIdOrderByCorrectedAtAscIdAsc(any())).thenReturn(List.of());
     }
 
-    private static DailyCashEntryRequest req(LocalDate date, String sales, String adj) {
-        return req(date, sales, adj, null);
+    private static DailyCashEntryRequest req(LocalDate date, String opening, String adj) {
+        return req(date, opening, adj, null);
     }
 
-    private static DailyCashEntryRequest req(LocalDate date, String sales, String adj, String reason) {
-        return new DailyCashEntryRequest(date, new BigDecimal(sales), new BigDecimal("100"),
-            new BigDecimal("10"), new BigDecimal("90"), new BigDecimal("5"), new BigDecimal("20"), new BigDecimal(adj),
-            reason);
+    private static DailyCashEntryRequest req(LocalDate date, String opening, String adj, String reason) {
+        // opening, expenses 5, removed 10, remaining 90, adjustments
+        return new DailyCashEntryRequest(date, new BigDecimal(opening), new BigDecimal("5"),
+            new BigDecimal("10"), new BigDecimal("90"), new BigDecimal(adj), reason);
     }
 
     private DailyCashEntry existingEntry(LocalDate d) {
         DailyCashEntry existing = new DailyCashEntry();
         existing.setStore(store);
         existing.setBusinessDate(d);
-        existing.setTotalCashSales(new BigDecimal("500"));
-        existing.setOpeningDrawerCash(new BigDecimal("100"));
+        existing.setOpeningDrawerCash(new BigDecimal("500"));
         existing.setCashRemoved(BigDecimal.ZERO);
         existing.setCashRemaining(BigDecimal.ZERO);
         existing.setCashExpenses(BigDecimal.ZERO);
-        existing.setBankDeposits(BigDecimal.ZERO);
         existing.setOtherAdjustments(BigDecimal.ZERO);
         existing.setEnteredByUser(owner);
         existing.setUpdatedByUser(owner);
@@ -108,7 +109,7 @@ class DailyCashEntryServiceTest {
 
         DailyCashEntryResponse r = service.save(9L, req(d, "500", "-3.50"));
 
-        assertEquals(new BigDecimal("500"), r.totalCashSales());
+        assertEquals(new BigDecimal("500"), r.openingDrawerCash());
         assertEquals(new BigDecimal("-3.50"), r.otherAdjustments());
         assertEquals(d, r.businessDate());
         verify(correctionRepository, never()).save(any());
@@ -120,12 +121,10 @@ class DailyCashEntryServiceTest {
         DailyCashEntry existing = new DailyCashEntry();
         existing.setStore(store);
         existing.setBusinessDate(d);
-        existing.setTotalCashSales(new BigDecimal("500"));
-        existing.setOpeningDrawerCash(new BigDecimal("100"));
+        existing.setOpeningDrawerCash(new BigDecimal("500"));
         existing.setCashRemoved(BigDecimal.ZERO);
         existing.setCashRemaining(BigDecimal.ZERO);
         existing.setCashExpenses(BigDecimal.ZERO);
-        existing.setBankDeposits(BigDecimal.ZERO);
         existing.setOtherAdjustments(BigDecimal.ZERO);
         existing.setEnteredByUser(owner);
         existing.setUpdatedByUser(owner);
@@ -138,12 +137,12 @@ class DailyCashEntryServiceTest {
         ArgumentCaptor<DailyCashEntryCorrection> cap = ArgumentCaptor.forClass(DailyCashEntryCorrection.class);
         verify(correctionRepository).save(cap.capture());
         DailyCashEntryCorrection c = cap.getValue();
-        assertEquals(new BigDecimal("500"), c.getPreviousTotalCashSales());
-        assertEquals(new BigDecimal("650"), c.getNewTotalCashSales());
+        assertEquals(new BigDecimal("500"), c.getPreviousOpeningDrawerCash());
+        assertEquals(new BigDecimal("650"), c.getNewOpeningDrawerCash());
         assertEquals(new BigDecimal("90"), c.getNewCashRemaining());
         assertEquals("Till miscounted", c.getReason());
         assertEquals(owner, c.getCorrectedByUser());
-        assertEquals(new BigDecimal("650"), r.totalCashSales());
+        assertEquals(new BigDecimal("650"), r.openingDrawerCash());
     }
 
     @Test
@@ -155,7 +154,7 @@ class DailyCashEntryServiceTest {
         assertThrows(CorrectionReasonRequiredException.class, () -> service.save(9L, req(d, "650", "0", "   ")));
         assertThrows(CorrectionReasonRequiredException.class, () -> service.save(9L, req(d, "650", "0", null)));
 
-        assertEquals(new BigDecimal("500"), existing.getTotalCashSales());
+        assertEquals(new BigDecimal("500"), existing.getOpeningDrawerCash());
         verify(correctionRepository, never()).save(any());
         verify(entryRepository, never()).save(any());
     }
@@ -167,7 +166,6 @@ class DailyCashEntryServiceTest {
         existing.setCashRemoved(new BigDecimal("10"));
         existing.setCashRemaining(new BigDecimal("90"));
         existing.setCashExpenses(new BigDecimal("5"));
-        existing.setBankDeposits(new BigDecimal("20"));
         when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.of(existing));
 
         service.save(9L, req(d, "500.00", "0"));
@@ -188,14 +186,14 @@ class DailyCashEntryServiceTest {
         });
         when(correctionRepository.findByEntryIdOrderByCorrectedAtAscIdAsc(any())).thenAnswer(i -> saved);
 
-        DailyCashEntryResponse r = service.save(9L, req(d, "650", "0", "Typo in sales"));
+        DailyCashEntryResponse r = service.save(9L, req(d, "650", "0", "Typo in opening cash"));
 
         assertEquals("Priya Admin", r.correctedByName());
         assertEquals(saved.get(0).getCorrectedAt(), r.correctedAt());
         assertEquals(1, r.history().size());
-        assertEquals("Typo in sales", r.history().get(0).reason());
-        assertEquals(new BigDecimal("500"), r.history().get(0).previousTotalCashSales());
-        assertEquals(new BigDecimal("650"), r.history().get(0).newTotalCashSales());
+        assertEquals("Typo in opening cash", r.history().get(0).reason());
+        assertEquals(new BigDecimal("500"), r.history().get(0).previousOpeningDrawerCash());
+        assertEquals(new BigDecimal("650"), r.history().get(0).newOpeningDrawerCash());
     }
 
     @Test
@@ -234,5 +232,82 @@ class DailyCashEntryServiceTest {
     void getMissingEntryIsNotFound() {
         when(entryRepository.findByStoreIdAndBusinessDate(anyLong(), any())).thenReturn(Optional.empty());
         assertThrows(DailyCashEntryNotFoundException.class, () -> service.get(9L, LocalDate.now()));
+    }
+
+    // ---- employee saves ----------------------------------------------------
+
+    private User employee(long id, String name) {
+        User u = mock(User.class);
+        when(u.getId()).thenReturn(id);
+        when(u.getFullName()).thenReturn(name);
+        when(userRepository.getReferenceById(id)).thenReturn(u);
+        when(storeEmployeeRepository.existsByEmployeeIdAndActiveStoreId(id, 5L)).thenReturn(true);
+        return u;
+    }
+
+    @Test
+    void employeeFirstSaveRecordsTheEmployeeAndWritesNoAuditRow() {
+        LocalDate d = LocalDate.now();
+        User emp = employee(21L, "Erin Employee");
+        when(storeRepository.findById(5L)).thenReturn(Optional.of(store));
+        when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.empty());
+
+        DailyCashEntryResponse r = service.saveForEmployee(21L, 5L, req(d, "200", "0"));
+
+        assertEquals(21L, r.enteredByUserId());
+        assertEquals("Erin Employee", r.enteredByName());
+        assertEquals(21L, r.updatedByUserId());
+        assertEquals(null, r.enteredBySuperAdminId());
+        verify(correctionRepository, never()).save(any());
+    }
+
+    @Test
+    void secondEmployeeEditAppendsACorrectionNamingTheSecondEmployee() {
+        LocalDate d = LocalDate.now();
+        User first = employee(21L, "Erin Employee");
+        User second = employee(22L, "Sam Second");
+        when(storeRepository.findById(5L)).thenReturn(Optional.of(store));
+        DailyCashEntry existing = new DailyCashEntry();
+        existing.setStore(store);
+        existing.setBusinessDate(d);
+        existing.setOpeningDrawerCash(new BigDecimal("200"));
+        existing.setCashRemoved(BigDecimal.ZERO);
+        existing.setCashRemaining(BigDecimal.ZERO);
+        existing.setCashExpenses(BigDecimal.ZERO);
+        existing.setOtherAdjustments(BigDecimal.ZERO);
+        existing.setEnteredByUser(first);
+        existing.setUpdatedByUser(first);
+        existing.setEnteredAt(java.time.OffsetDateTime.now().minusHours(1));
+        existing.setUpdatedAt(java.time.OffsetDateTime.now().minusHours(1));
+        when(entryRepository.lockByStoreIdAndBusinessDate(5L, d)).thenReturn(Optional.of(existing));
+
+        DailyCashEntryResponse r = service.saveForEmployee(22L, 5L, req(d, "250", "0"));
+
+        ArgumentCaptor<DailyCashEntryCorrection> cap = ArgumentCaptor.forClass(DailyCashEntryCorrection.class);
+        verify(correctionRepository).save(cap.capture());
+        assertEquals(new BigDecimal("200"), cap.getValue().getPreviousOpeningDrawerCash());
+        assertEquals(second, cap.getValue().getCorrectedByUser());
+        assertEquals(first, cap.getValue().getPreviousUpdatedByUser());
+        assertEquals(new BigDecimal("250"), r.openingDrawerCash());
+        assertEquals(21L, r.enteredByUserId());
+        assertEquals(22L, r.updatedByUserId());
+    }
+
+    @Test
+    void employeeCannotSaveForANonTodayDate() {
+        employee(21L, "Erin Employee");
+        when(storeRepository.findById(5L)).thenReturn(Optional.of(store));
+        assertThrows(DailyCashEntryNotEditableException.class,
+            () -> service.saveForEmployee(21L, 5L, req(LocalDate.now().minusDays(1), "200", "0")));
+        verify(entryRepository, never()).save(any());
+    }
+
+    @Test
+    void employeeCannotSaveOrReadAStoreTheyAreNotAssignedTo() {
+        when(storeEmployeeRepository.existsByEmployeeIdAndActiveStoreId(23L, 5L)).thenReturn(false);
+        assertThrows(StoreNotFoundException.class,
+            () -> service.saveForEmployee(23L, 5L, req(LocalDate.now(), "200", "0")));
+        assertThrows(StoreNotFoundException.class, () -> service.getForEmployee(23L, 5L, null));
+        verify(entryRepository, never()).save(any());
     }
 }

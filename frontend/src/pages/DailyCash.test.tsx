@@ -22,12 +22,10 @@ vi.mock('../utils/toast', () => ({
 }));
 
 const LABELS = [
-  'Total cash sales',
   'Opening drawer cash',
+  'Cash expenses',
   'Cash removed',
   'Cash remaining',
-  'Cash expenses',
-  'Bank deposits',
   'Other adjustments',
 ];
 
@@ -36,18 +34,18 @@ function entry(overrides: Partial<DailyCashEntry> = {}): DailyCashEntry {
     id: 1,
     storeId: 7,
     businessDate: '2026-11-09',
-    totalCashSales: 1234.5,
     openingDrawerCash: 200,
     cashRemoved: 500,
     cashRemaining: 934.5,
     cashExpenses: 0,
-    bankDeposits: 500,
     otherAdjustments: -12.25,
     enteredByUserId: 3,
     enteredBySuperAdminId: null,
+    enteredByName: 'Sam Employee',
     enteredAt: '2026-11-09T18:00:00Z',
     updatedByUserId: 3,
     updatedBySuperAdminId: null,
+    updatedByName: 'Sam Employee',
     updatedAt: '2026-11-09T18:00:00Z',
     history: [],
     correctedByName: null,
@@ -59,8 +57,8 @@ function entry(overrides: Partial<DailyCashEntry> = {}): DailyCashEntry {
 function expected(overrides: Partial<ExpectedCash> = {}): ExpectedCash {
   return {
     storeId: 7, available: false, message: 'No cash entries have been recorded for this store yet', asOfDate: null, lastUpdatedAt: null,
-    expectedCashOnHand: null, cashRemaining: null, variance: null, openingDrawerCash: null, totalCashSales: null,
-    cashRemoved: null, bankDeposits: null, cashExpenses: null, otherAdjustments: null,
+    expectedCashOnHand: null, cashRemaining: null, variance: null, openingDrawerCash: null,
+    cashRemoved: null, cashExpenses: null, otherAdjustments: null,
     ...overrides,
   };
 }
@@ -105,7 +103,7 @@ describe('DailyCash', () => {
 
     expect(screen.queryByLabelText('Help for Business date')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Help for Expected Cash on Hand')).not.toBeInTheDocument();
-    const formula = screen.getByText('Expected Cash = Opening Cash + Cash Sales − Cash Removed − Bank Deposits − Cash Expenses ± Other Adjustments');
+    const formula = screen.getByText('Expected Cash = Opening Cash − Cash Expenses − Cash Removed ± Other Adjustments');
     expect(formula).toHaveClass('daily-cash-page__formula-banner');
     const savedStatus = screen.getByText('No entry saved for this date yet');
     const toolbar = savedStatus.closest('.daily-cash-page__toolbar');
@@ -114,14 +112,47 @@ describe('DailyCash', () => {
     expect(formula.compareDocumentPosition(toolbar as Node) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
   });
 
+  it('shows who first entered the saved entry', async () => {
+    vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry());
+    render(<DailyCash storeId={7} storesLoading={false} />);
+
+    expect(await screen.findByText(/^Entered by Sam Employee ·/)).toBeInTheDocument();
+  });
+
+  it('shows "Unknown" for an entry from before the creator was recorded', async () => {
+    vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(
+      entry({ enteredByUserId: null, enteredBySuperAdminId: null, enteredByName: null }),
+    );
+    render(<DailyCash storeId={7} storesLoading={false} />);
+
+    expect(await screen.findByText(/^Entered by Unknown ·/)).toBeInTheDocument();
+  });
+
+  it('shows exactly the five fields, in the agreed order', async () => {
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText('No entry saved for this date yet');
+
+    const inputs = Array.from(document.querySelectorAll<HTMLInputElement>('input[id^="daily-cash-"]'))
+      .filter((input) => input.id !== 'daily-cash-date');
+    expect(inputs.map((input) => input.id)).toEqual([
+      'daily-cash-openingDrawerCash',
+      'daily-cash-cashExpenses',
+      'daily-cash-cashRemoved',
+      'daily-cash-cashRemaining',
+      'daily-cash-otherAdjustments',
+    ]);
+    expect(screen.queryByLabelText(/^Total cash sales/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Bank deposits/)).not.toBeInTheDocument();
+  });
+
   it('opens input help in a modal on touch devices', async () => {
     vi.mocked(isTouchDevice).mockReturnValue(true);
     const user = userEvent.setup();
     render(<DailyCash storeId={7} storesLoading={false} />);
     await screen.findByText('No entry saved for this date yet');
 
-    await user.click(screen.getByLabelText('Help for Total cash sales'));
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Cash payments received from sales');
+    await user.click(screen.getByLabelText('Help for Opening drawer cash'));
+    expect(await screen.findByRole('dialog')).toHaveTextContent('Cash physically in the drawer at the start of the day');
     await user.click(screen.getByRole('button', { name: 'Close' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
@@ -131,7 +162,7 @@ describe('DailyCash', () => {
     render(<DailyCash storeId={7} storesLoading={false} />);
 
     expect(await screen.findByText(/^Saved · last updated/)).toBeInTheDocument();
-    expect(field('Total cash sales')).toHaveValue('1,234.50');
+    expect(field('Cash remaining')).toHaveValue('934.50');
     expect(field('Opening drawer cash')).toHaveValue('200.00');
     expect(field('Other adjustments')).toHaveValue('-12.25');
     expect(screen.getByRole('button', { name: 'Update Entry' })).toBeInTheDocument();
@@ -146,33 +177,33 @@ describe('DailyCash', () => {
       correctedAt: '2026-11-10T09:30:00Z',
       history: [{
         id: 1,
-        previousTotalCashSales: 1234.5, previousOpeningDrawerCash: 200, previousCashRemoved: 500,
-        previousCashRemaining: 934.5, previousCashExpenses: 0, previousBankDeposits: 500, previousOtherAdjustments: -12.25,
-        newTotalCashSales: 1300, newOpeningDrawerCash: 200, newCashRemoved: 500,
-        newCashRemaining: 934.5, newCashExpenses: 0, newBankDeposits: 500, newOtherAdjustments: -12.25,
-        correctedByName: 'Priya Admin', correctedAt: '2026-11-10T09:30:00Z', reason: 'Sales keyed in wrong',
+        previousOpeningDrawerCash: 200, previousCashRemoved: 500,
+        previousCashRemaining: 934.5, previousCashExpenses: 0, previousOtherAdjustments: -12.25,
+        newOpeningDrawerCash: 1300, newCashRemoved: 500,
+        newCashRemaining: 934.5, newCashExpenses: 0, newOtherAdjustments: -12.25,
+        correctedByName: 'Priya Admin', correctedAt: '2026-11-10T09:30:00Z', reason: 'Opening cash keyed in wrong',
       }],
     }));
     render(<DailyCash storeId={7} storesLoading={false} />);
     await screen.findByText(/^Saved · last updated/);
 
-    await user.clear(field('Total cash sales'));
-    await user.type(field('Total cash sales'), '1300');
+    await user.clear(field('Opening drawer cash'));
+    await user.type(field('Opening drawer cash'), '1300');
     await user.click(screen.getByRole('button', { name: 'Update Entry' }));
 
     expect(screen.getByText('Enter a reason for this correction')).toBeInTheDocument();
     expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
 
-    await user.type(screen.getByRole('textbox', { name: /reason for correction/i }), 'Sales keyed in wrong');
+    await user.type(screen.getByRole('textbox', { name: /reason for correction/i }), 'Opening cash keyed in wrong');
     await user.click(screen.getByRole('button', { name: 'Update Entry' }));
 
     const request = vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0];
-    expect(request.totalCashSales).toBe(1300);
-    expect(request.correctionReason).toBe('Sales keyed in wrong');
+    expect(request.openingDrawerCash).toBe(1300);
+    expect(request.correctionReason).toBe('Opening cash keyed in wrong');
     expect((await screen.findAllByText(/^Corrected by Priya Admin ·/)).length).toBe(2); // status line + history
     const history = screen.getByRole('region', { name: 'Correction history' });
-    expect(history).toHaveTextContent('Reason: Sales keyed in wrong');
-    expect(history).toHaveTextContent('Total cash sales: $1,234.50 → $1,300.00');
+    expect(history).toHaveTextContent('Reason: Opening cash keyed in wrong');
+    expect(history).toHaveTextContent('Opening drawer cash: $200.00 → $1,300.00');
   });
 
   it('does not ask for a reason when a saved day is re-saved unchanged', async () => {
@@ -193,13 +224,13 @@ describe('DailyCash', () => {
     render(<DailyCash storeId={7} storesLoading={false} />);
 
     expect(await screen.findByText('No entry saved for this date yet')).toBeInTheDocument();
-    expect(field('Total cash sales')).toHaveValue('');
+    expect(field('Opening drawer cash')).toHaveValue('');
 
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
-    expect(screen.getByText('Total cash sales is required')).toBeInTheDocument();
+    expect(screen.getByText('Opening drawer cash is required')).toBeInTheDocument();
     expect(screen.getByText('Other adjustments is required (enter 0 if none)')).toBeInTheDocument();
-    expect(screen.getByText('Fix the 7 highlighted fields to save.')).toBeInTheDocument();
+    expect(screen.getByText('Fix the 5 highlighted fields to save.')).toBeInTheDocument();
     expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
   });
 
@@ -209,17 +240,17 @@ describe('DailyCash', () => {
     await screen.findByText('No entry saved for this date yet');
 
     await fillAll(user);
-    await user.clear(field('Total cash sales'));
-    await user.type(field('Total cash sales'), 'abc');
+    await user.clear(field('Opening drawer cash'));
+    await user.type(field('Opening drawer cash'), 'abc');
     await user.clear(field('Cash removed'));
     await user.type(field('Cash removed'), '-5');
-    await user.clear(field('Bank deposits'));
-    await user.type(field('Bank deposits'), '1.234');
+    await user.clear(field('Cash expenses'));
+    await user.type(field('Cash expenses'), '1.234');
     await user.clear(field('Other adjustments'));
     await user.type(field('Other adjustments'), '-5');
     await user.click(screen.getByRole('button', { name: 'Save Entry' }));
 
-    expect(screen.getByText('Total cash sales must be a number, e.g. 125.50')).toBeInTheDocument();
+    expect(screen.getByText('Opening drawer cash must be a number, e.g. 125.50')).toBeInTheDocument();
     expect(screen.getByText('Cash removed cannot be negative')).toBeInTheDocument();
     expect(screen.getByText('Use at most 2 decimal places')).toBeInTheDocument();
     expect(screen.queryByText(/Other adjustments cannot be negative/)).not.toBeInTheDocument();
@@ -245,7 +276,7 @@ describe('DailyCash', () => {
     expect(storeCashApi.saveDailyCashEntry).toHaveBeenCalledTimes(1);
     const request = vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0];
     expect(request.businessDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(request.totalCashSales).toBe(1000.5);
+    expect(request.openingDrawerCash).toBe(1000.5);
     expect(request.otherAdjustments).toBe(-2);
     expect(nfToast.success).toHaveBeenCalledWith(expect.stringMatching(/^Cash entry for .+ saved\.$/));
     expect(await screen.findByText(/^Saved · last updated/)).toBeInTheDocument();

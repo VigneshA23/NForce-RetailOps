@@ -232,3 +232,16 @@
   color: var(--color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
+
+/* Saved / entered-by lines stack under each other beside the date picker. */
+.daily-cash-page__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+@media (--mobile) {
+  .daily-cash-page__meta {
+    width: 100%;
+  }
+}

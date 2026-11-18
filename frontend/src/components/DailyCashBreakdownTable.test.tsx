@@ -5,7 +5,7 @@ import type { DailyCashBreakdown, StoreMonthlyCashSummary } from '../types/cashS
 
 function day(businessDate: string, overrides: Partial<DailyCashBreakdown> = {}): DailyCashBreakdown {
   return {
-    businessDate, openingDrawerCash: 100, totalCashSales: 1000, cashRemoved: 0, bankDeposits: 900,
+    businessDate, openingDrawerCash: 100, cashRemoved: 0,
     cashExpenses: 12, adjustments: 0, expectedCash: 190, cashRemaining: 190, variance: 0, ...overrides,
   };
 }
@@ -14,7 +14,7 @@ function summary(days: DailyCashBreakdown[], overrides: Partial<StoreMonthlyCash
   return {
     storeId: 1, storeName: 'Store 1', storeCode: 101, daysRecorded: days.length,
     asOfDate: days.length ? days[days.length - 1].businessDate : null,
-    totalCashSales: 3412, totalCashRemoved: 0, bankDeposits: 2700, cashExpenses: 30, adjustments: 0,
+    totalCashRemoved: 0, cashExpenses: 30, adjustments: 0,
     expectedCashOnHand: 55, actualCashCount: 10, variance: -45, netDailyVariance: -45,
     dailyBreakdown: days, ...overrides,
   };
@@ -55,7 +55,7 @@ describe('DailyCashBreakdownTable', () => {
     // Totals deliberately do not equal the sum of the rows: the component must
     // show what the API said, proving there is no client-side arithmetic.
     render(<DailyCashBreakdownTable summary={summary([day('2026-11-03')], {
-      totalCashSales: 9999, netDailyVariance: 7,
+      cashExpenses: 9999, netDailyVariance: 7,
     })} />);
 
     const footer = screen.getByRole('table', { name: 'Daily cash breakdown' }).querySelector('tfoot tr') as HTMLElement;

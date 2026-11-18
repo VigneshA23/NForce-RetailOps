@@ -120,3 +120,9 @@ An AWS Lambda path *is* committed: `LambdaHandler.java`, the `lambda` Maven prof
 ## Repo docs
 
 `docs/` holds design and audit documents. Several are stale — in particular `docs/phase1-full-audit-v3.md` (dated 2026-09-04) lists raised issues, admin corrections and login rate limiting as unimplemented; all three have since shipped. Treat `docs/` as historical intent, not current state.
+
+### Daily Cash is five fields, one row per store per day
+
+`daily_cash_entries` carries exactly five amounts: `opening_drawer_cash`, `cash_expenses`, `cash_removed`, `cash_remaining`, `other_adjustments` (signed; the rest are 0 or more, 2 decimals). Expected cash (`CashCalculationService`, the only place the formula lives) is `opening − expenses − removed + other`; variance is `cash_remaining − expected`. V119 left `total_cash_sales` and `bank_deposits` (and V118's `new_total_cash_sales` / `new_bank_deposits`) as nullable, unmapped dead columns (V48 precedent: other branches share the dev DB) — drop them once no live branch reads them.
+
+Changing a saved day updates the row and appends the old and new values to `daily_cash_entry_corrections` (first save writes none), recording who made each edit. Owner/Admin and Super Admin corrections must give a reason (V118); an employee editing **today's** entry through `MeCashController` (`/api/me/cash`) is not asked for one. `entered_by_*` is whoever first created the row and is **null for pre-V119 entries**, which the UI shows as "Unknown". Any assigned-store employee may save today's entry only (other dates → 403); there is no "flagged" concept or creator-only edit yet (later stories).

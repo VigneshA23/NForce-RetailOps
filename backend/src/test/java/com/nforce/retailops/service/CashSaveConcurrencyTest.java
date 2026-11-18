@@ -75,11 +75,11 @@ class CashSaveConcurrencyTest {
                 .findByEntryIdOrderByCorrectedAtAscIdAsc(entry.getId());
 
         assertThat(corrections).hasSize(2);
-        assertThat(corrections.get(0).getPreviousTotalCashSales()).isEqualByComparingTo("100");
-        assertThat(corrections.get(1).getPreviousTotalCashSales())
+        assertThat(corrections.get(0).getPreviousOpeningDrawerCash()).isEqualByComparingTo("100");
+        assertThat(corrections.get(1).getPreviousOpeningDrawerCash())
                 .isIn(new BigDecimal("200.00"), new BigDecimal("300.00"));
-        assertThat(entry.getTotalCashSales()).isIn(new BigDecimal("200.00"), new BigDecimal("300.00"))
-                .isNotEqualByComparingTo(corrections.get(1).getPreviousTotalCashSales());
+        assertThat(entry.getOpeningDrawerCash()).isIn(new BigDecimal("200.00"), new BigDecimal("300.00"))
+                .isNotEqualByComparingTo(corrections.get(1).getPreviousOpeningDrawerCash());
     }
 
     @Test
@@ -99,10 +99,10 @@ class CashSaveConcurrencyTest {
                 .findByEntryIdOrderByCorrectedAtAscIdAsc(entry.getId());
 
         assertThat(corrections).hasSize(1);
-        assertThat(corrections.get(0).getPreviousTotalCashSales())
+        assertThat(corrections.get(0).getPreviousOpeningDrawerCash())
                 .isIn(new BigDecimal("210.00"), new BigDecimal("310.00"));
-        assertThat(entry.getTotalCashSales()).isIn(new BigDecimal("210.00"), new BigDecimal("310.00"))
-                .isNotEqualByComparingTo(corrections.get(0).getPreviousTotalCashSales());
+        assertThat(entry.getOpeningDrawerCash()).isIn(new BigDecimal("210.00"), new BigDecimal("310.00"))
+                .isNotEqualByComparingTo(corrections.get(0).getPreviousOpeningDrawerCash());
     }
 
     @Test
@@ -190,10 +190,9 @@ class CashSaveConcurrencyTest {
         });
     }
 
-    private static DailyCashEntryRequest cashRequest(LocalDate date, String totalCashSales) {
-        return new DailyCashEntryRequest(date, new BigDecimal(totalCashSales), new BigDecimal("100"),
-                new BigDecimal("10"), new BigDecimal("90"), new BigDecimal("5"), new BigDecimal("20"),
-                BigDecimal.ZERO, "Concurrent correction");
+    private static DailyCashEntryRequest cashRequest(LocalDate date, String openingDrawerCash) {
+        return new DailyCashEntryRequest(date, new BigDecimal(openingDrawerCash), new BigDecimal("5"),
+                new BigDecimal("10"), new BigDecimal("90"), BigDecimal.ZERO, "Concurrent correction");
     }
 
     private static StoreCashTargetRequest targetRequest(String amount) {

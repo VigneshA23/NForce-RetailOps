@@ -1,13 +1,12 @@
-// Mirrors the backend's DailyCashEntryRequest / DailyCashEntryResponse
-// (RTS-291). Amounts are BigDecimal on the server and plain numbers here.
+// Mirrors the backend's DailyCashEntryRequest / DailyCashEntryResponse.
+// Amounts are BigDecimal on the server and plain numbers here. The five
+// agreed fields, in the order the page shows them.
 
 export type CashAmountField =
-  | 'totalCashSales'
   | 'openingDrawerCash'
+  | 'cashExpenses'
   | 'cashRemoved'
   | 'cashRemaining'
-  | 'cashExpenses'
-  | 'bankDeposits'
   | 'otherAdjustments';
 
 export type CashAmounts = Record<CashAmountField, number>;
@@ -23,19 +22,15 @@ export interface DailyCashEntryRequest extends CashAmounts {
 // are null only on corrections saved before they were recorded.
 export interface DailyCashCorrection {
   id: number;
-  previousTotalCashSales: number;
   previousOpeningDrawerCash: number;
   previousCashRemoved: number;
   previousCashRemaining: number;
   previousCashExpenses: number;
-  previousBankDeposits: number;
   previousOtherAdjustments: number;
-  newTotalCashSales: number | null;
   newOpeningDrawerCash: number | null;
   newCashRemoved: number | null;
   newCashRemaining: number | null;
   newCashExpenses: number | null;
-  newBankDeposits: number | null;
   newOtherAdjustments: number | null;
   correctedByName: string | null;
   correctedAt: string;
@@ -48,9 +43,13 @@ export interface DailyCashEntry extends CashAmounts {
   businessDate: string;
   enteredByUserId: number | null;
   enteredBySuperAdminId: number | null;
+  // Display name of whoever first created the entry; null for entries from
+  // before the creator was recorded, which the page shows as "Unknown".
+  enteredByName: string | null;
   enteredAt: string;
   updatedByUserId: number | null;
   updatedBySuperAdminId: number | null;
+  updatedByName: string | null;
   updatedAt: string;
   // Corrections of the entry, oldest first; empty until the first correction.
   history: DailyCashCorrection[];
@@ -75,9 +74,7 @@ export interface ExpectedCash {
   cashRemaining: number | null;
   variance: number | null;
   openingDrawerCash: number | null;
-  totalCashSales: number | null;
   cashRemoved: number | null;
-  bankDeposits: number | null;
   cashExpenses: number | null;
   otherAdjustments: number | null;
 }

@@ -14,7 +14,7 @@
 /* Eight tiles in a 4 x 2 grid: the four flow tiles on top, then Adjustments and
    the closing position below. Two across on tablets and phones. */
 .cash-view .cash-view__tiles {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 @media (--tablet-down) {

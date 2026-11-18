@@ -7,7 +7,8 @@ import java.time.OffsetDateTime;
 
 // Immutable, append-only: the values an entry held just before a correction,
 // who last wrote them and when, plus who corrected them, when, why (V118), and
-// what they were changed to (V118). Follows the
+// what they were changed to (V118). The V118 new_total_cash_sales and
+// new_bank_deposits columns are retired with those fields (V119) and unmapped. Follows the
 // StockCheckCorrection precedent; admin_corrections cannot be reused.
 @Entity
 @Table(name = "daily_cash_entry_corrections")
@@ -21,8 +22,6 @@ public class DailyCashEntryCorrection {
     @JoinColumn(name = "daily_cash_entry_id", nullable = false)
     private DailyCashEntry entry;
 
-    @Column(name = "previous_total_cash_sales", nullable = false)
-    private BigDecimal previousTotalCashSales;
     @Column(name = "previous_opening_drawer_cash", nullable = false)
     private BigDecimal previousOpeningDrawerCash;
     @Column(name = "previous_cash_removed", nullable = false)
@@ -31,8 +30,6 @@ public class DailyCashEntryCorrection {
     private BigDecimal previousCashRemaining;
     @Column(name = "previous_cash_expenses", nullable = false)
     private BigDecimal previousCashExpenses;
-    @Column(name = "previous_bank_deposits", nullable = false)
-    private BigDecimal previousBankDeposits;
     @Column(name = "previous_other_adjustments", nullable = false)
     private BigDecimal previousOtherAdjustments;
 
@@ -61,8 +58,6 @@ public class DailyCashEntryCorrection {
     // V118. Null only on corrections saved before that release.
     @Column(name = "reason", length = 500)
     private String reason;
-    @Column(name = "new_total_cash_sales")
-    private BigDecimal newTotalCashSales;
     @Column(name = "new_opening_drawer_cash")
     private BigDecimal newOpeningDrawerCash;
     @Column(name = "new_cash_removed")
@@ -71,8 +66,6 @@ public class DailyCashEntryCorrection {
     private BigDecimal newCashRemaining;
     @Column(name = "new_cash_expenses")
     private BigDecimal newCashExpenses;
-    @Column(name = "new_bank_deposits")
-    private BigDecimal newBankDeposits;
     @Column(name = "new_other_adjustments")
     private BigDecimal newOtherAdjustments;
 
@@ -86,12 +79,10 @@ public class DailyCashEntryCorrection {
     ) {
         DailyCashEntryCorrection c = new DailyCashEntryCorrection();
         c.entry = e;
-        c.previousTotalCashSales = e.getTotalCashSales();
         c.previousOpeningDrawerCash = e.getOpeningDrawerCash();
         c.previousCashRemoved = e.getCashRemoved();
         c.previousCashRemaining = e.getCashRemaining();
         c.previousCashExpenses = e.getCashExpenses();
-        c.previousBankDeposits = e.getBankDeposits();
         c.previousOtherAdjustments = e.getOtherAdjustments();
         c.previousUpdatedByUser = e.getUpdatedByUser();
         c.previousUpdatedBySuperAdmin = e.getUpdatedBySuperAdmin();
@@ -104,32 +95,26 @@ public class DailyCashEntryCorrection {
 
     public Long getId() { return id; }
     public DailyCashEntry getEntry() { return entry; }
-    public BigDecimal getPreviousTotalCashSales() { return previousTotalCashSales; }
     public BigDecimal getPreviousOpeningDrawerCash() { return previousOpeningDrawerCash; }
     public BigDecimal getPreviousCashRemoved() { return previousCashRemoved; }
     public BigDecimal getPreviousCashRemaining() { return previousCashRemaining; }
     public BigDecimal getPreviousCashExpenses() { return previousCashExpenses; }
-    public BigDecimal getPreviousBankDeposits() { return previousBankDeposits; }
     public BigDecimal getPreviousOtherAdjustments() { return previousOtherAdjustments; }
     // Call once the entry holds its corrected values, before saving this row.
     public void recordCorrection(DailyCashEntry corrected, String reason) {
         this.reason = reason;
-        this.newTotalCashSales = corrected.getTotalCashSales();
         this.newOpeningDrawerCash = corrected.getOpeningDrawerCash();
         this.newCashRemoved = corrected.getCashRemoved();
         this.newCashRemaining = corrected.getCashRemaining();
         this.newCashExpenses = corrected.getCashExpenses();
-        this.newBankDeposits = corrected.getBankDeposits();
         this.newOtherAdjustments = corrected.getOtherAdjustments();
     }
 
     public String getReason() { return reason; }
-    public BigDecimal getNewTotalCashSales() { return newTotalCashSales; }
     public BigDecimal getNewOpeningDrawerCash() { return newOpeningDrawerCash; }
     public BigDecimal getNewCashRemoved() { return newCashRemoved; }
     public BigDecimal getNewCashRemaining() { return newCashRemaining; }
     public BigDecimal getNewCashExpenses() { return newCashExpenses; }
-    public BigDecimal getNewBankDeposits() { return newBankDeposits; }
     public BigDecimal getNewOtherAdjustments() { return newOtherAdjustments; }
     public User getPreviousUpdatedByUser() { return previousUpdatedByUser; }
     public SuperAdmin getPreviousUpdatedBySuperAdmin() { return previousUpdatedBySuperAdmin; }

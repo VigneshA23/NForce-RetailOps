@@ -9,10 +9,12 @@ import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.SuperAdmin;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.CorrectionReasonRequiredException;
+import com.nforce.retailops.exception.DailyCashEntryNotEditableException;
 import com.nforce.retailops.exception.DailyCashEntryNotFoundException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.DailyCashEntryCorrectionRepository;
 import com.nforce.retailops.repository.DailyCashEntryRepository;
+import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.SuperAdminRepository;
@@ -24,7 +26,8 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-// Daily cash entry. Owner/Admin writes to their own active store; Super Admin
+// Daily cash entry (five fields). Owner/Admin writes to their own active store; an
+// employee to a store they work at (today only, no reason asked); Super Admin
 // picks a store explicitly. One row per store + date, never deleted. Changing
 // an existing entry is a direct correction: it needs a reason, updates the row
 // in place and appends the old values, new values, who, when and why to
@@ -38,6 +41,7 @@ public class DailyCashEntryService {
     private final DailyCashEntryRepository entryRepository;
     private final DailyCashEntryCorrectionRepository correctionRepository;
     private final StoreOwnerRepository storeOwnerRepository;
+    private final StoreEmployeeRepository storeEmployeeRepository;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final SuperAdminRepository superAdminRepository;
@@ -46,6 +50,7 @@ public class DailyCashEntryService {
         DailyCashEntryRepository entryRepository,
         DailyCashEntryCorrectionRepository correctionRepository,
         StoreOwnerRepository storeOwnerRepository,
+        StoreEmployeeRepository storeEmployeeRepository,
         StoreRepository storeRepository,
         UserRepository userRepository,
         SuperAdminRepository superAdminRepository
@@ -53,6 +58,7 @@ public class DailyCashEntryService {
         this.entryRepository = entryRepository;
         this.correctionRepository = correctionRepository;
         this.storeOwnerRepository = storeOwnerRepository;
+        this.storeEmployeeRepository = storeEmployeeRepository;
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
         this.superAdminRepository = superAdminRepository;
@@ -63,7 +69,7 @@ public class DailyCashEntryService {
     @Transactional
     public DailyCashEntryResponse save(Long ownerId, DailyCashEntryRequest request) {
         Store store = requireActiveStoreOwner(ownerId).getStore();
-        return saveEntry(store, userRepository.getReferenceById(ownerId), null, request);
+        return saveEntry(store, userRepository.getReferenceById(ownerId), null, request, true);
     }
 
     @Transactional(readOnly = true)
@@ -77,7 +83,7 @@ public class DailyCashEntryService {
     public DailyCashEntryResponse saveForSuperAdmin(Long superAdminId, Long storeId, DailyCashEntryRequest request) {
         Store store = storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
-        return saveEntry(store, null, superAdminRepository.getReferenceById(superAdminId), request);
+        return saveEntry(store, null, superAdminRepository.getReferenceById(superAdminId), request, true);
     }
 
     @Transactional(readOnly = true)
@@ -87,11 +93,40 @@ public class DailyCashEntryService {
         return getEntry(store.getId(), date);
     }
 
+    // ---- Employee: any store they are assigned to, today only --------------
+
+    // Any store employee may record today's entry or edit it. Every edit lands
+    // in the audit trail with who made it and when. (Flagged entries and
+    // "only the creator may edit" are later stories.) Unlike a direct correction
+    // by an Owner/Admin or Super Admin, an employee is not asked for a reason.
+    @Transactional
+    public DailyCashEntryResponse saveForEmployee(Long employeeId, Long storeId, DailyCashEntryRequest request) {
+        Store store = requireAssignedStore(employeeId, storeId);
+        if (request.businessDate() != null && !request.businessDate().equals(LocalDate.now())) {
+            throw new DailyCashEntryNotEditableException("Employees can only record cash for today");
+        }
+        return saveEntry(store, userRepository.getReferenceById(employeeId), null, request, false);
+    }
+
+    @Transactional(readOnly = true)
+    public DailyCashEntryResponse getForEmployee(Long employeeId, Long storeId, LocalDate date) {
+        return getEntry(requireAssignedStore(employeeId, storeId).getId(), date);
+    }
+
+    // Masked as "not found" when the store isn't one the employee works at.
+    private Store requireAssignedStore(Long employeeId, Long storeId) {
+        if (!storeEmployeeRepository.existsByEmployeeIdAndActiveStoreId(employeeId, storeId)) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        return storeRepository.findById(storeId)
+            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+    }
+
     // ---- shared ------------------------------------------------------------
 
     // Exactly one of user / superAdmin is non-null.
     private DailyCashEntryResponse saveEntry(
-        Store store, User user, SuperAdmin superAdmin, DailyCashEntryRequest request
+        Store store, User user, SuperAdmin superAdmin, DailyCashEntryRequest request, boolean reasonRequired
     ) {
         store = storeRepository.lockByStoreId(store.getId())
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
@@ -115,38 +150,34 @@ public class DailyCashEntryService {
                 return toResponse(entry); // nothing to correct, no audit row
             }
             reason = request.correctionReason() == null ? "" : request.correctionReason().trim();
-            if (reason.isEmpty()) {
+            if (reason.isEmpty() && reasonRequired) {
                 throw new CorrectionReasonRequiredException("A reason is required to correct this entry");
             }
             // Old values now; the new values and reason are added once applied.
             correction = DailyCashEntryCorrection.snapshotOf(entry, user, superAdmin, now);
         }
 
-        entry.setTotalCashSales(request.totalCashSales());
         entry.setOpeningDrawerCash(request.openingDrawerCash());
         entry.setCashRemoved(request.cashRemoved());
         entry.setCashRemaining(request.cashRemaining());
         entry.setCashExpenses(request.cashExpenses());
-        entry.setBankDeposits(request.bankDeposits());
         entry.setOtherAdjustments(request.otherAdjustments());
         entry.setUpdatedByUser(user);
         entry.setUpdatedBySuperAdmin(superAdmin);
         entry.setUpdatedAt(now);
         entry = entryRepository.save(entry);
         if (correction != null) {
-            correction.recordCorrection(entry, reason);
+            correction.recordCorrection(entry, reason == null || reason.isEmpty() ? null : reason);
             correctionRepository.save(correction);
         }
         return toResponse(entry);
     }
 
     private static boolean sameFigures(DailyCashEntry e, DailyCashEntryRequest r) {
-        return same(e.getTotalCashSales(), r.totalCashSales())
-            && same(e.getOpeningDrawerCash(), r.openingDrawerCash())
+        return same(e.getOpeningDrawerCash(), r.openingDrawerCash())
             && same(e.getCashRemoved(), r.cashRemoved())
             && same(e.getCashRemaining(), r.cashRemaining())
             && same(e.getCashExpenses(), r.cashExpenses())
-            && same(e.getBankDeposits(), r.bankDeposits())
             && same(e.getOtherAdjustments(), r.otherAdjustments());
     }
 
@@ -181,12 +212,10 @@ public class DailyCashEntryService {
             .findByEntryIdOrderByCorrectedAtAscIdAsc(e.getId()).stream()
             .map(c -> new DailyCashEntryResponse.Correction(
                 c.getId(),
-                c.getPreviousTotalCashSales(),
                 c.getPreviousOpeningDrawerCash(),
+                c.getPreviousCashExpenses(),
                 c.getPreviousCashRemoved(),
                 c.getPreviousCashRemaining(),
-                c.getPreviousCashExpenses(),
-                c.getPreviousBankDeposits(),
                 c.getPreviousOtherAdjustments(),
                 id(c.getPreviousUpdatedByUser()),
                 id(c.getPreviousUpdatedBySuperAdmin()),
@@ -196,12 +225,10 @@ public class DailyCashEntryService {
                 c.getCorrectedAt(),
                 name(c.getCorrectedByUser(), c.getCorrectedBySuperAdmin()),
                 c.getReason(),
-                c.getNewTotalCashSales(),
                 c.getNewOpeningDrawerCash(),
+                c.getNewCashExpenses(),
                 c.getNewCashRemoved(),
                 c.getNewCashRemaining(),
-                c.getNewCashExpenses(),
-                c.getNewBankDeposits(),
                 c.getNewOtherAdjustments()))
             .toList();
         DailyCashEntryResponse.Correction latest = history.isEmpty() ? null : history.get(history.size() - 1);
@@ -209,18 +236,18 @@ public class DailyCashEntryService {
             e.getId(),
             e.getStore().getId(),
             e.getBusinessDate(),
-            e.getTotalCashSales(),
             e.getOpeningDrawerCash(),
+            e.getCashExpenses(),
             e.getCashRemoved(),
             e.getCashRemaining(),
-            e.getCashExpenses(),
-            e.getBankDeposits(),
             e.getOtherAdjustments(),
             id(e.getEnteredByUser()),
             id(e.getEnteredBySuperAdmin()),
+            name(e.getEnteredByUser(), e.getEnteredBySuperAdmin()),
             e.getEnteredAt(),
             id(e.getUpdatedByUser()),
             id(e.getUpdatedBySuperAdmin()),
+            name(e.getUpdatedByUser(), e.getUpdatedBySuperAdmin()),
             e.getUpdatedAt(),
             history,
             latest == null ? null : latest.correctedByName(),

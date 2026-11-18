@@ -1,5 +1,5 @@
 import {
-  Banknote, CircleCheck, HandCoins, Landmark, Scale, TriangleAlert, Wallet,
+  CircleCheck, HandCoins, Scale, TriangleAlert, Wallet,
 } from 'lucide-react';
 import type { StoreMonthlyCashSummary } from '../types/cashSummary';
 import { formatCurrency } from '../utils/currency';
@@ -45,9 +45,7 @@ function StoreCashSummaryView({ summary, storeRows = [], emptyMessage }: StoreCa
   return (
     <section className="card cash-view" aria-label="Month-end cash summary for the store">
       <div className="stat-card-row cash-view__tiles">
-        <StatCard icon={Banknote} label="Total Cash Sales" value={money(summary.totalCashSales)} tone="primary" />
         <StatCard icon={HandCoins} label="Total Cash Removed" value={money(summary.totalCashRemoved)} tone="success" />
-        <StatCard icon={Landmark} label="Bank Deposits" value={money(summary.bankDeposits)} tone="warning" />
         <StatCard icon={Wallet} label="Cash Expenses" value={money(summary.cashExpenses)} tone="info" />
         <StatCard
           icon={Scale}

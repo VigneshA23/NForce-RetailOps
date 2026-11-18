@@ -98,18 +98,16 @@ class SuperAdminCombinedCashSummaryControllerTest {
         superAdminRepository.save(sa);
     }
 
-    // opening, sales, removed, remaining, expenses, deposits, adjustments
-    private void entry(Store store, String date, String opening, String sales, String removed,
-                       String remaining, String expenses, String deposits, String adjust) {
+    // opening, removed, remaining, expenses, adjustments
+    private void entry(Store store, String date, String opening, String removed,
+                       String remaining, String expenses, String adjust) {
         DailyCashEntry e = new DailyCashEntry();
         e.setStore(store);
         e.setBusinessDate(LocalDate.parse(date));
         e.setOpeningDrawerCash(new BigDecimal(opening));
-        e.setTotalCashSales(new BigDecimal(sales));
         e.setCashRemoved(new BigDecimal(removed));
         e.setCashRemaining(new BigDecimal(remaining));
         e.setCashExpenses(new BigDecimal(expenses));
-        e.setBankDeposits(new BigDecimal(deposits));
         e.setOtherAdjustments(new BigDecimal(adjust));
         e.setEnteredAt(OffsetDateTime.now());
         e.setUpdatedAt(OffsetDateTime.now());
@@ -165,13 +163,13 @@ class SuperAdminCombinedCashSummaryControllerTest {
         Store b = store("Combined Store B", 9303L);
         Store empty = store("Combined Store Empty", 9304L);
 
-        // Store A, two days. Expected = opening + sales - removed - deposits - expenses + adj.
-        // Day 1: 100 + 500 - 50 - 0 - 10 + 0 = 540, counted 540 -> variance 0
-        entry(a, "2026-10-10", "100.00", "500.00", "50.00", "540.00", "10.00", "0.00", "0.00");
-        // Day 2: 540 + 300 - 0 - 100 - 20 + 5 = 725, counted 800 -> variance +75 (month end)
-        entry(a, "2026-10-20", "540.00", "300.00", "0.00", "800.00", "20.00", "100.00", "5.00");
-        // Store B, one day: 200 + 1000 - 100 - 500 - 50 - 10 = 540, counted 530 -> variance -10
-        entry(b, "2026-10-15", "200.00", "1000.00", "100.00", "530.00", "50.00", "500.00", "-10.00");
+        // Store A, two days. Expected = opening - expenses - removed + adj.
+        // Day 1: 100 - 10 - 50 + 0 = 40, counted 40 -> variance 0
+        entry(a, "2026-10-10", "100.00", "50.00", "40.00", "10.00", "0.00");
+        // Day 2: 40 - 20 - 0 + 5 = 25, counted 100 -> variance +75 (month end)
+        entry(a, "2026-10-20", "40.00", "0.00", "100.00", "20.00", "5.00");
+        // Store B, one day: 200 - 50 - 100 + (-10) = 40, counted 30 -> variance -10
+        entry(b, "2026-10-15", "200.00", "100.00", "30.00", "50.00", "-10.00");
         String token = login("combined-sa@nforce.test");
 
         mockMvc.perform(get(URL)
@@ -182,23 +180,21 @@ class SuperAdminCombinedCashSummaryControllerTest {
             .andExpect(jsonPath("$.month").value(MONTH))
             .andExpect(jsonPath("$.stores.length()").value(3))
             // Per-store columns are untouched by the combine step.
-            .andExpect(jsonPath("$.stores[?(@.storeId == " + a.getId() + ")].totalCashSales").value(800.00))
-            .andExpect(jsonPath("$.stores[?(@.storeId == " + a.getId() + ")].expectedCashOnHand").value(725.00))
+            .andExpect(jsonPath("$.stores[?(@.storeId == " + a.getId() + ")].totalCashRemoved").value(50.00))
+            .andExpect(jsonPath("$.stores[?(@.storeId == " + a.getId() + ")].expectedCashOnHand").value(25.00))
             .andExpect(jsonPath("$.stores[?(@.storeId == " + b.getId() + ")].variance").value(-10.00))
             // The store with no entries is listed, as "no data", not as zeros.
             .andExpect(jsonPath("$.stores[?(@.storeId == " + empty.getId() + ")].daysRecorded").value(0))
-            .andExpect(jsonPath("$.stores[?(@.storeId == " + empty.getId() + ")].totalCashSales").value((Object) null))
+            .andExpect(jsonPath("$.stores[?(@.storeId == " + empty.getId() + ")].totalCashRemoved").value((Object) null))
             .andExpect(jsonPath("$.stores[?(@.storeId == " + empty.getId() + ")].expectedCashOnHand").value((Object) null))
             // Combined = A + B only.
             .andExpect(jsonPath("$.combined.storeId").value((Object) null))
             .andExpect(jsonPath("$.combined.daysRecorded").value(3))
-            .andExpect(jsonPath("$.combined.totalCashSales").value(1800.00))
             .andExpect(jsonPath("$.combined.totalCashRemoved").value(150.00))
-            .andExpect(jsonPath("$.combined.bankDeposits").value(600.00))
             .andExpect(jsonPath("$.combined.cashExpenses").value(80.00))
             .andExpect(jsonPath("$.combined.adjustments").value(-5.00))
-            .andExpect(jsonPath("$.combined.expectedCashOnHand").value(1265.00))
-            .andExpect(jsonPath("$.combined.actualCashCount").value(1330.00))
+            .andExpect(jsonPath("$.combined.expectedCashOnHand").value(65.00))
+            .andExpect(jsonPath("$.combined.actualCashCount").value(130.00))
             .andExpect(jsonPath("$.combined.variance").value(65.00));
     }
 

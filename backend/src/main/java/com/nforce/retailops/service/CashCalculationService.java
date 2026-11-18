@@ -21,8 +21,8 @@ import java.time.LocalDate;
  * fails the build if another class starts reading the formula's inputs.
  *
  * <pre>
- * expected = openingDrawerCash + totalCashSales - cashRemoved
- *          - bankDeposits - cashExpenses + otherAdjustments   // signed
+ * expected = openingDrawerCash - cashExpenses - cashRemoved
+ *          + otherAdjustments   // signed
  * variance = cashRemaining (physically counted) - expected
  * </pre>
  *
@@ -54,10 +54,8 @@ public class CashCalculationService {
     /** The formula. The only place its arithmetic exists. */
     public BigDecimal calculateExpectedCash(DailyCashEntry entry) {
         return entry.getOpeningDrawerCash()
-            .add(entry.getTotalCashSales())
-            .subtract(entry.getCashRemoved())
-            .subtract(entry.getBankDeposits())
             .subtract(entry.getCashExpenses())
+            .subtract(entry.getCashRemoved())
             .add(entry.getOtherAdjustments());
     }
 
@@ -70,9 +68,7 @@ public class CashCalculationService {
             entry.getCashRemaining(),
             entry.getCashRemaining().subtract(expected),
             entry.getOpeningDrawerCash(),
-            entry.getTotalCashSales(),
             entry.getCashRemoved(),
-            entry.getBankDeposits(),
             entry.getCashExpenses(),
             entry.getOtherAdjustments(),
             entry.getUpdatedAt()

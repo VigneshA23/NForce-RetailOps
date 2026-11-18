@@ -32,7 +32,7 @@ class DailyCashEntryRequestTest {
 
     private static DailyCashEntryRequest requestFor(LocalDate businessDate) {
         BigDecimal ten = new BigDecimal("10.00");
-        return new DailyCashEntryRequest(businessDate, ten, ten, ten, ten, ten, ten, BigDecimal.ZERO, null);
+        return new DailyCashEntryRequest(businessDate, ten, ten, ten, ten, BigDecimal.ZERO, null);
     }
 
     @Test

@@ -14,9 +14,7 @@ import java.time.LocalDate;
 public record DailyCashBreakdown(
     LocalDate businessDate,
     BigDecimal openingDrawerCash,
-    BigDecimal totalCashSales,
     BigDecimal cashRemoved,
-    BigDecimal bankDeposits,
     BigDecimal cashExpenses,
     BigDecimal adjustments,
     BigDecimal expectedCash,
@@ -28,9 +26,7 @@ public record DailyCashBreakdown(
         return new DailyCashBreakdown(
             day.asOfDate(),
             day.openingDrawerCash(),
-            day.totalCashSales(),
             day.cashRemoved(),
-            day.bankDeposits(),
             day.cashExpenses(),
             day.otherAdjustments(),
             day.expectedCashOnHand(),

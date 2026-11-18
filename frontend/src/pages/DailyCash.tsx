@@ -53,28 +53,24 @@ interface FieldSpec {
 }
 
 const FIELDS: FieldSpec[] = [
-  { key: 'totalCashSales', label: 'Total cash sales', description: 'Cash payments received from sales on this business date. Do not include card or other non-cash payments.' },
-  { key: 'openingDrawerCash', label: 'Opening drawer cash', description: 'Cash physically in the drawer at the start of the day, before recording today’s sales.' },
-  { key: 'cashRemoved', label: 'Cash removed', description: 'Cash taken out of the drawer during the day, excluding amounts recorded as bank deposits or cash expenses.' },
-  { key: 'cashRemaining', label: 'Cash remaining', description: 'Cash physically counted in the drawer at the end of the day. This is compared with Expected Cash on Hand to show the variance.' },
+  { key: 'openingDrawerCash', label: 'Opening drawer cash', description: 'Cash physically in the drawer at the start of the day.' },
   { key: 'cashExpenses', label: 'Cash expenses', description: 'Cash paid directly from the drawer for expenses during this business date.' },
-  { key: 'bankDeposits', label: 'Bank deposits', description: 'Cash from the drawer deposited into the bank during this business date.' },
+  { key: 'cashRemoved', label: 'Cash removed', description: 'Cash taken out of the drawer during the day, other than amounts recorded as cash expenses.' },
+  { key: 'cashRemaining', label: 'Cash remaining', description: 'Cash physically counted in the drawer at the end of the day. This is compared with Expected Cash on Hand to show the variance.' },
   { key: 'otherAdjustments', label: 'Other adjustments', description: 'A cash increase or decrease not captured by the other fields. Use a negative amount for cash taken out.', signed: true, hint: 'Use a minus sign for money taken out. Enter 0 if none.' },
 ];
 
 const EXPECTED_CASH_FORMULA =
-  'Expected Cash = Opening Cash + Cash Sales − Cash Removed − Bank Deposits − Cash Expenses ± Other Adjustments';
+  'Expected Cash = Opening Cash − Cash Expenses − Cash Removed ± Other Adjustments';
 
 type Values = Record<CashAmountField, string>;
 type Errors = Partial<Record<CashAmountField, string>>;
 
 const EMPTY_VALUES: Values = {
-  totalCashSales: '',
   openingDrawerCash: '',
   cashRemoved: '',
   cashRemaining: '',
   cashExpenses: '',
-  bankDeposits: '',
   otherAdjustments: '',
 };
 
@@ -339,19 +335,26 @@ function DailyCash({
               </FormField>
             </div>
           </div>
-          {storeId !== null && (
-            <p className="daily-cash-page__status" aria-live="polite">
-              {isLoading
-                ? 'Loading…'
-                : loadError || dateIsFuture
-                  ? null
-                  : entry
-                    ? entry.correctedByName && entry.correctedAt
-                      ? `Corrected by ${entry.correctedByName} · ${formatSavedAt(entry.correctedAt)}`
-                      : `Saved · last updated ${formatSavedAt(entry.updatedAt)}`
-                    : 'No entry saved for this date yet'}
-            </p>
-          )}
+          <div className="daily-cash-page__meta">
+            {storeId !== null && (
+              <p className="daily-cash-page__status" aria-live="polite">
+                {isLoading
+                  ? 'Loading…'
+                  : loadError || dateIsFuture
+                    ? null
+                    : entry
+                      ? entry.correctedByName && entry.correctedAt
+                        ? `Corrected by ${entry.correctedByName} · ${formatSavedAt(entry.correctedAt)}`
+                        : `Saved · last updated ${formatSavedAt(entry.updatedAt)}`
+                      : 'No entry saved for this date yet'}
+              </p>
+            )}
+            {storeId !== null && !isLoading && !loadError && !dateIsFuture && entry && (
+              <p className="daily-cash-page__status daily-cash-page__entered-by">
+                Entered by {entry.enteredByName ?? 'Unknown'} · {formatSavedAt(entry.enteredAt)}
+              </p>
+            )}
+          </div>
         </div>
 
         {storeId !== null && (
