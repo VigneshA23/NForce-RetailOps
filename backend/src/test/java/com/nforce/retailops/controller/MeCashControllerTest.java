@@ -111,7 +111,9 @@ class MeCashControllerTest {
         mockMvc.perform(put(URL).param("storeId", s.getId().toString())
                 .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON).content(body(LocalDate.now(), "10.00", "-3.50")))
-            .andExpect(status().isOk());
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.dailyExpectedCash").value((Object) null))
+            .andExpect(jsonPath("$.expectedCashOnHand").value((Object) null));
 
         mockMvc.perform(get(URL).param("storeId", s.getId().toString())
                 .header("Authorization", "Bearer " + token))
@@ -123,6 +125,8 @@ class MeCashControllerTest {
             .andExpect(jsonPath("$.cashRemaining").value(90.00))
             .andExpect(jsonPath("$.otherAdjustments").value(-3.50))
             .andExpect(jsonPath("$.enteredByName").value("Erin Employee"))
+            .andExpect(jsonPath("$.dailyExpectedCash").value((Object) null))
+            .andExpect(jsonPath("$.expectedCashOnHand").value((Object) null))
             .andExpect(jsonPath("$.history.length()").value(0));
     }
 

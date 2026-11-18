@@ -2,6 +2,7 @@ package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.DailyCashEntryRequest;
 import com.nforce.retailops.dto.DailyCashEntryResponse;
+import com.nforce.retailops.dto.ExpectedCashRangeResponse;
 import com.nforce.retailops.entity.DailyCashEntry;
 import com.nforce.retailops.entity.DailyCashEntryCorrection;
 import com.nforce.retailops.entity.Store;
@@ -11,6 +12,7 @@ import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.CorrectionReasonRequiredException;
 import com.nforce.retailops.exception.DailyCashEntryNotEditableException;
 import com.nforce.retailops.exception.DailyCashEntryNotFoundException;
+import com.nforce.retailops.exception.InvalidDateRangeException;
 import com.nforce.retailops.exception.StoreNotFoundException;
 import com.nforce.retailops.repository.DailyCashEntryCorrectionRepository;
 import com.nforce.retailops.repository.DailyCashEntryRepository;
@@ -22,6 +24,7 @@ import com.nforce.retailops.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -77,6 +80,12 @@ public class DailyCashEntryService {
         return getEntry(requireActiveStoreOwner(ownerId).getStore().getId(), date);
     }
 
+    @Transactional(readOnly = true)
+    public ExpectedCashRangeResponse getRangeSum(Long ownerId, LocalDate from, LocalDate to) {
+        Long storeId = requireActiveStoreOwner(ownerId).getStore().getId();
+        return sumRange(storeId, from, to);
+    }
+
     // ---- Super Admin: any store, chosen explicitly ------------------------
 
     @Transactional
@@ -105,12 +114,12 @@ public class DailyCashEntryService {
         if (request.businessDate() != null && !request.businessDate().equals(LocalDate.now())) {
             throw new DailyCashEntryNotEditableException("Employees can only record cash for today");
         }
-        return saveEntry(store, userRepository.getReferenceById(employeeId), null, request, false);
+        return saveEntry(store, userRepository.getReferenceById(employeeId), null, request, false).forEmployee();
     }
 
     @Transactional(readOnly = true)
     public DailyCashEntryResponse getForEmployee(Long employeeId, Long storeId, LocalDate date) {
-        return getEntry(requireAssignedStore(employeeId, storeId).getId(), date);
+        return getEntry(requireAssignedStore(employeeId, storeId).getId(), date).forEmployee();
     }
 
     // Masked as "not found" when the store isn't one the employee works at.
@@ -120,6 +129,14 @@ public class DailyCashEntryService {
         }
         return storeRepository.findById(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public ExpectedCashRangeResponse getRangeSumForSuperAdmin(Long storeId, LocalDate from, LocalDate to) {
+        if (!storeRepository.existsById(storeId)) {
+            throw new StoreNotFoundException("Store not found");
+        }
+        return sumRange(storeId, from, to);
     }
 
     // ---- shared ------------------------------------------------------------
@@ -162,6 +179,10 @@ public class DailyCashEntryService {
         entry.setCashRemaining(request.cashRemaining());
         entry.setCashExpenses(request.cashExpenses());
         entry.setOtherAdjustments(request.otherAdjustments());
+        // Spec: daily expected cash = cash remaining + other adjustments
+        // (signed). Persisted on the entry so the running sum is a single-
+        // column SUM and the response can carry the saved figure.
+        entry.setDailyExpectedCash(request.cashRemaining().add(request.otherAdjustments()));
         entry.setUpdatedByUser(user);
         entry.setUpdatedBySuperAdmin(superAdmin);
         entry.setUpdatedAt(now);
@@ -199,6 +220,17 @@ public class DailyCashEntryService {
         return toResponse(entry);
     }
 
+    private ExpectedCashRangeResponse sumRange(Long storeId, LocalDate from, LocalDate to) {
+        if (from == null || to == null) {
+            throw new InvalidDateRangeException("Both 'from' and 'to' dates are required");
+        }
+        if (to.isBefore(from)) {
+            throw new InvalidDateRangeException("'to' date cannot be before 'from' date");
+        }
+        BigDecimal sum = entryRepository.sumExpectedCashOnHandBetween(storeId, from, to);
+        return new ExpectedCashRangeResponse(storeId, from, to, sum == null ? BigDecimal.ZERO : sum);
+    }
+
     // The store this Owner/Admin request is about (see OwnerStoreScope).
     private StoreOwner requireActiveStoreOwner(Long ownerId) {
         return OwnerStoreScope.requireLink(storeOwnerRepository, ownerId);
@@ -217,6 +249,7 @@ public class DailyCashEntryService {
                 c.getPreviousCashRemoved(),
                 c.getPreviousCashRemaining(),
                 c.getPreviousOtherAdjustments(),
+                c.getPreviousDailyExpectedCash(),
                 id(c.getPreviousUpdatedByUser()),
                 id(c.getPreviousUpdatedBySuperAdmin()),
                 c.getPreviousUpdatedAt(),
@@ -232,6 +265,8 @@ public class DailyCashEntryService {
                 c.getNewOtherAdjustments()))
             .toList();
         DailyCashEntryResponse.Correction latest = history.isEmpty() ? null : history.get(history.size() - 1);
+        BigDecimal expectedOnHand = entryRepository.sumExpectedCashOnHandUpTo(
+            e.getStore().getId(), e.getBusinessDate());
         return new DailyCashEntryResponse(
             e.getId(),
             e.getStore().getId(),
@@ -241,6 +276,8 @@ public class DailyCashEntryService {
             e.getCashRemoved(),
             e.getCashRemaining(),
             e.getOtherAdjustments(),
+            e.getDailyExpectedCash(),
+            expectedOnHand == null ? BigDecimal.ZERO : expectedOnHand,
             id(e.getEnteredByUser()),
             id(e.getEnteredBySuperAdmin()),
             name(e.getEnteredByUser(), e.getEnteredBySuperAdmin()),

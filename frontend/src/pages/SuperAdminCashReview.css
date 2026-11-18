@@ -1,0 +1,208 @@
+.cash-review {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.cash-review__pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+.cash-review__pickers > * {
+  min-width: 220px;
+  flex: 1 1 220px;
+}
+
+.cash-review__status {
+  color: var(--color-text-muted, #666);
+  margin: 0;
+  font-size: 0.925rem;
+}
+
+.cash-review__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.cash-review__stat {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+
+.cash-review__stat-label {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.35rem;
+}
+
+.cash-review__stat-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--color-text, #111);
+  margin: 0;
+}
+
+.cash-review__status-pill {
+  display: inline-block;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cash-review__status-pill--entered   { background: #e8f5e9; color: #1b5e20; }
+.cash-review__status-pill--corrected { background: #fff8e1; color: #8a5a00; }
+.cash-review__status-pill--flagged   { background: #ffebee; color: #b71c1c; }
+
+.cash-review__entry-card,
+.cash-review__flag-card,
+.cash-review__history-card,
+.cash-review__empty-card {
+  background: var(--color-surface, #fff);
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.cash-review__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cash-review__section-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.cash-review__field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.6rem 1rem;
+}
+
+.cash-review__field-label {
+  color: var(--color-text-muted, #666);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.15rem;
+}
+
+.cash-review__field-value {
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.cash-review__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--color-border, #e0e0e0);
+  font-size: 0.9rem;
+  color: var(--color-text-muted, #666);
+}
+
+.cash-review__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.cash-review__flag-card {
+  background: #fff5f5;
+  border-color: #ffcdd2;
+}
+
+.cash-review__flag-comment {
+  margin: 0.5rem 0 0.75rem;
+  font-style: italic;
+}
+
+.cash-review__history-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cash-review__history-item {
+  border: 1px solid var(--color-border, #e0e0e0);
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.cash-review__history-meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #666);
+  margin: 0 0 0.35rem;
+}
+
+.cash-review__reason {
+  margin: 0.25rem 0 0;
+  font-style: italic;
+}
+
+.cash-review__alert {
+  background: #fff3e0;
+  border: 1px solid #ffb74d;
+  color: #a35700;
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.925rem;
+}
+
+.cash-review__error {
+  background: #ffebee;
+  border: 1px solid #ef9a9a;
+  color: #b71c1c;
+  border-radius: 8px;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.925rem;
+}
+
+.cash-review__form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+}
+
+.cash-review__textarea {
+  width: 100%;
+  min-height: 90px;
+  resize: vertical;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--color-border, #e0e0e0);
+  font: inherit;
+}
+
+.cash-review__money-input {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cash-review__money-input .input {
+  flex: 1;
+}

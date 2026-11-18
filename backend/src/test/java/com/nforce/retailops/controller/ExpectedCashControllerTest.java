@@ -106,6 +106,7 @@ class ExpectedCashControllerTest {
         e.setCashRemaining(new BigDecimal(remaining));
         e.setCashExpenses(new BigDecimal(expenses));
         e.setOtherAdjustments(new BigDecimal(adjust));
+        e.setDailyExpectedCash(e.getCashRemaining().add(e.getOtherAdjustments()));
         e.setEnteredAt(OffsetDateTime.now());
         e.setUpdatedAt(OffsetDateTime.now());
         cashEntryRepository.save(e);

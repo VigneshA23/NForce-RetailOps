@@ -33,6 +33,13 @@ public class DailyCashEntryCorrection {
     @Column(name = "previous_other_adjustments", nullable = false)
     private BigDecimal previousOtherAdjustments;
 
+    // Snapshot of the stored daily expected cash (from the local V120
+    // migration that adds daily_expected_cash to daily_cash_entries).
+    // Nullable because corrections written before that migration did not
+    // record it.
+    @Column(name = "previous_daily_expected_cash")
+    private BigDecimal previousDailyExpectedCash;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "previous_updated_by_user_id")
     private User previousUpdatedByUser;
@@ -84,6 +91,7 @@ public class DailyCashEntryCorrection {
         c.previousCashRemaining = e.getCashRemaining();
         c.previousCashExpenses = e.getCashExpenses();
         c.previousOtherAdjustments = e.getOtherAdjustments();
+        c.previousDailyExpectedCash = e.getDailyExpectedCash();
         c.previousUpdatedByUser = e.getUpdatedByUser();
         c.previousUpdatedBySuperAdmin = e.getUpdatedBySuperAdmin();
         c.previousUpdatedAt = e.getUpdatedAt();
@@ -93,13 +101,6 @@ public class DailyCashEntryCorrection {
         return c;
     }
 
-    public Long getId() { return id; }
-    public DailyCashEntry getEntry() { return entry; }
-    public BigDecimal getPreviousOpeningDrawerCash() { return previousOpeningDrawerCash; }
-    public BigDecimal getPreviousCashRemoved() { return previousCashRemoved; }
-    public BigDecimal getPreviousCashRemaining() { return previousCashRemaining; }
-    public BigDecimal getPreviousCashExpenses() { return previousCashExpenses; }
-    public BigDecimal getPreviousOtherAdjustments() { return previousOtherAdjustments; }
     // Call once the entry holds its corrected values, before saving this row.
     public void recordCorrection(DailyCashEntry corrected, String reason) {
         this.reason = reason;
@@ -110,6 +111,14 @@ public class DailyCashEntryCorrection {
         this.newOtherAdjustments = corrected.getOtherAdjustments();
     }
 
+    public Long getId() { return id; }
+    public DailyCashEntry getEntry() { return entry; }
+    public BigDecimal getPreviousOpeningDrawerCash() { return previousOpeningDrawerCash; }
+    public BigDecimal getPreviousCashRemoved() { return previousCashRemoved; }
+    public BigDecimal getPreviousCashRemaining() { return previousCashRemaining; }
+    public BigDecimal getPreviousCashExpenses() { return previousCashExpenses; }
+    public BigDecimal getPreviousOtherAdjustments() { return previousOtherAdjustments; }
+    public BigDecimal getPreviousDailyExpectedCash() { return previousDailyExpectedCash; }
     public String getReason() { return reason; }
     public BigDecimal getNewOpeningDrawerCash() { return newOpeningDrawerCash; }
     public BigDecimal getNewCashRemoved() { return newCashRemoved; }

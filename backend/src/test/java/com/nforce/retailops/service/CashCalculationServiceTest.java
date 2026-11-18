@@ -287,11 +287,16 @@ class CashCalculationServiceTest {
     // snapshot, the plain response mapper, and CashCalculationService. Anything
     // else reading them is how a second copy of the arithmetic would start, so
     // new callers must go through CashCalculationService instead.
+    // SuperAdminCashReviewService is allowed because it reads those getters
+    // only to populate its review DTO -- its "expected cash on hand" is a
+    // separate, DB-aggregated figure (sum of cash_remaining + other_adjustments
+    // per the Super Admin spec) and never re-implements the formula.
     private static final Set<String> MAY_READ_FORMULA_INPUTS = Set.of(
         "DailyCashEntry.java",
         "DailyCashEntryCorrection.java",
         "DailyCashEntryService.java",
-        "CashCalculationService.java"
+        "CashCalculationService.java",
+        "SuperAdminCashReviewService.java"
     );
 
     @Test

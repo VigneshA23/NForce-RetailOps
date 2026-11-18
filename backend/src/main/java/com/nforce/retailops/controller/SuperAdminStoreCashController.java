@@ -2,6 +2,7 @@ package com.nforce.retailops.controller;
 
 import com.nforce.retailops.dto.DailyCashEntryRequest;
 import com.nforce.retailops.dto.DailyCashEntryResponse;
+import com.nforce.retailops.dto.ExpectedCashRangeResponse;
 import com.nforce.retailops.security.SuperAdminUserDetails;
 import com.nforce.retailops.service.DailyCashEntryService;
 import jakarta.validation.Valid;
@@ -42,5 +43,16 @@ public class SuperAdminStoreCashController {
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
     ) {
         return ResponseEntity.ok(service.getForSuperAdmin(storeId, date));
+    }
+
+    // Sum of daily expected cash over [from, to] inclusive. Days with no
+    // entry add 0.
+    @GetMapping("/expected-cash-on-hand")
+    public ResponseEntity<ExpectedCashRangeResponse> rangeSum(
+        @PathVariable Long storeId,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return ResponseEntity.ok(service.getRangeSumForSuperAdmin(storeId, from, to));
     }
 }

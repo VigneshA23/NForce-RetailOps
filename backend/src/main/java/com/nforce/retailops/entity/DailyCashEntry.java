@@ -40,9 +40,15 @@ public class DailyCashEntry {
     @Column(name = "other_adjustments", nullable = false)
     private BigDecimal otherAdjustments;
 
+    // cash_remaining + other_adjustments, recomputed and saved on every save
+    // or correction. The running "expected cash on hand" is the SUM of this
+    // across all of the store's entries up to the viewed date (V120).
+    @Column(name = "daily_expected_cash", nullable = false)
+    private BigDecimal dailyExpectedCash;
+
     // Each actor is a user/super-admin pair (Super Admin is not a users row).
     // updated_by always has exactly one set; entered_by has none for entries
-    // from before V119, which the UI shows as "Unknown".
+    // from before V121, which the UI shows as "Unknown".
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "entered_by_user_id")
     private User enteredByUser;
@@ -83,6 +89,8 @@ public class DailyCashEntry {
     public void setCashExpenses(BigDecimal v) { this.cashExpenses = v; }
     public BigDecimal getOtherAdjustments() { return otherAdjustments; }
     public void setOtherAdjustments(BigDecimal v) { this.otherAdjustments = v; }
+    public BigDecimal getDailyExpectedCash() { return dailyExpectedCash; }
+    public void setDailyExpectedCash(BigDecimal v) { this.dailyExpectedCash = v; }
     public User getEnteredByUser() { return enteredByUser; }
     public void setEnteredByUser(User v) { this.enteredByUser = v; }
     public SuperAdmin getEnteredBySuperAdmin() { return enteredBySuperAdmin; }
