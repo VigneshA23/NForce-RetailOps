@@ -60,23 +60,22 @@ function StoreCashSummaryView({ summary, storeRows = [], emptyMessage }: StoreCa
           icon={CircleCheck}
           label="Expected Cash on Hand"
           value={money(summary.expectedCashOnHand)}
-          caption="As at the last day recorded"
           tone="success"
+          className="cash-tile--pista"
         />
         <StatCard
           icon={Wallet}
           label="Actual Cash Count"
           value={money(summary.actualCashCount)}
-          caption="Cash remaining on that day"
           tone="info"
+          className="cash-tile--orange"
         />
         <StatCard
           icon={TriangleAlert}
           label="Variance"
           value={variance === null ? '—' : formatVariance(variance)}
-          caption="Actual − expected"
           tone="primary"
-          className={signClass(variance).trim()}
+          className={`cash-tile--teal ${signClass(variance)}`.trim()}
         />
       </div>
 
