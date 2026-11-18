@@ -52,16 +52,13 @@ describe('groupOwners', () => {
 });
 
 describe('OwnerTable store assignment', () => {
-  it('lists every store an admin holds, each with its own Remove control', () => {
-    const onRemoveStore = vi.fn();
-    renderTable([north, south], { onRemoveStore });
+  it('lists every store an admin holds, read-only (no remove control in the table)', () => {
+    renderTable([north, south]);
 
     const desktop = screen.getAllByRole('table')[0];
     expect(within(desktop).getByText('North')).toBeInTheDocument();
     expect(within(desktop).getByText('South')).toBeInTheDocument();
-
-    fireEvent.click(within(desktop).getByRole('button', { name: 'Remove South from Priya Admin' }));
-    expect(onRemoveStore).toHaveBeenCalledWith(expect.objectContaining({ ownerId: 1 }), south);
+    expect(within(desktop).queryByRole('button', { name: /remove/i })).not.toBeInTheDocument();
   });
 
   it('still offers Add Store to an active admin who already has a store', () => {

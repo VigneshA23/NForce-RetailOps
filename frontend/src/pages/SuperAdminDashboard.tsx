@@ -88,9 +88,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   // Store status toggle
   const [storeStatusTarget, setStoreStatusTarget] = useState<OwnerSummary | null>(null);
   const [storeStatusError, setStoreStatusError] = useState<string | null>(null);
-  // Unassigning a store from an admin (confirm first).
-  const [removeStoreTarget, setRemoveStoreTarget] = useState<OwnerSummary | null>(null);
-  const [removeStoreError, setRemoveStoreError] = useState<string | null>(null);
 
   // Owner detail view
   const [ownerDetailTarget, setOwnerDetailTarget] = useState<GroupedOwner | null>(null);
@@ -292,16 +289,55 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     }
   }
 
-  async function handleEditSubmit(values: UpdateOwnerValues) {
+  // Edit Owner also manages the admin's stores: the stores they hold now are
+  // pre-selected, vacant ones can be ticked to add, unticked ones are removed.
+  const editInitialValues = useMemo(
+    () => (editTarget ? { ownerName: editTarget.ownerName, ownerEmail: editTarget.ownerEmail } : undefined),
+    [editTarget],
+  );
+  const editCurrentStores = useMemo(
+    () =>
+      editTarget
+        ? [...editTarget.activeStores, ...(editTarget.ownerActive ? editTarget.inactiveStores : [])]
+            .filter((store) => store.storeId != null)
+            .map((store) => ({
+              id: store.storeId as number,
+              label: store.storeActive ? store.storeName ?? 'Store' : `${store.storeName ?? 'Store'} (Inactive)`,
+              sublabel: store.storeCode != null ? `#${store.storeCode}` : undefined,
+            }))
+        : [],
+    [editTarget],
+  );
+
+  async function handleEditSubmit(values: UpdateOwnerValues, storeIds: number[]) {
     if (!editTarget) return;
     setEditError(null);
     setIsEditSubmitting(true);
+    const ownerId = editTarget.ownerId;
+    const currentIds = editCurrentStores.map((store) => store.id);
+    const toRemove = currentIds.filter((id) => !storeIds.includes(id));
+    const toAdd = storeIds.filter((id) => !currentIds.includes(id));
+    let storesChanged = false;
     try {
-      const updated = await updateOwner(editTarget.ownerId, values);
-      applyOwnerUpdates(editTarget.ownerId, updated);
+      const updated = await updateOwner(ownerId, values);
+      applyOwnerUpdates(ownerId, updated);
+      for (const storeId of toRemove) {
+        await unassignStore(ownerId, storeId);
+        storesChanged = true;
+      }
+      for (const storeId of toAdd) {
+        await assignStore(ownerId, { existingStoreId: storeId });
+        storesChanged = true;
+      }
+      // A store change also affects the store's previous holder's row, so
+      // reload the whole list rather than patching this owner locally.
+      if (storesChanged) loadOwners();
       nfToast.success(`"${values.ownerName}" updated.`);
       setEditTarget(null);
     } catch (error) {
+      // Keep the popup open with the reason (e.g. the 409 "An admin is
+      // already assigned to this store"); anything already saved is shown.
+      if (storesChanged) loadOwners();
       const msg = error instanceof Error ? error.message : 'Failed to update owner';
       setEditError(msg);
       nfToast.error(msg);
@@ -386,24 +422,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       setStoreStatusTarget(null);
       const msg = error instanceof Error ? error.message : 'Failed to update store status';
       setStoreStatusError(msg);
-      nfToast.error(msg);
-    }
-  }
-
-  async function handleConfirmRemoveStore() {
-    if (!removeStoreTarget || removeStoreTarget.storeId == null) return;
-    setRemoveStoreError(null);
-    const { ownerId, ownerName, storeId } = removeStoreTarget;
-    const storeName = removeStoreTarget.storeName ?? 'Store';
-    try {
-      const updated = await unassignStore(ownerId, storeId);
-      applyOwnerUpdates(ownerId, updated);
-      setRemoveStoreTarget(null);
-      nfToast.success(`"${storeName}" removed from ${ownerName}.`);
-    } catch (error) {
-      setRemoveStoreTarget(null);
-      const msg = error instanceof Error ? error.message : 'Failed to remove store';
-      setRemoveStoreError(msg);
       nfToast.error(msg);
     }
   }
@@ -566,13 +584,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
             </div>
           )}
 
-          {removeStoreError && (
-            <div className="owners-page__error">
-              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
-              <span className="owners-page__error-message">{removeStoreError}</span>
-            </div>
-          )}
-
           {loadError ? (
             <div className="owners-page__error">
               <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
@@ -651,10 +662,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                   setAssignStoreError(null);
                   setAssignStoreTarget(owner);
                 }}
-                onRemoveStore={(_owner, store) => {
-                  setRemoveStoreError(null);
-                  setRemoveStoreTarget(store);
-                }}
                 onView={(owner) => setOwnerDetailTarget(owner)}
               />
               </div>
@@ -675,7 +682,8 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
       {/* Edit owner */}
       <OwnerEditModal
         isOpen={editTarget !== null}
-        initialValues={editTarget ? { ownerName: editTarget.ownerName, ownerEmail: editTarget.ownerEmail } : undefined}
+        initialValues={editInitialValues}
+        currentStores={editTarget ? editCurrentStores : undefined}
         errorMessage={editError}
         isSubmitting={isEditSubmitting}
         onClose={() => setEditTarget(null)}
@@ -728,21 +736,6 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         danger
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
-      />
-
-      {/* Remove a store from an admin */}
-      <ConfirmDialog
-        isOpen={removeStoreTarget !== null}
-        title="Remove Store"
-        message={
-          removeStoreTarget
-            ? `Remove ${removeStoreTarget.storeName} from ${removeStoreTarget.ownerName}? They will lose access to it straight away. The store will have no admin until you assign one, and its employees keep their checklist.`
-            : ''
-        }
-        confirmLabel="Remove"
-        danger
-        onConfirm={handleConfirmRemoveStore}
-        onCancel={() => setRemoveStoreTarget(null)}
       />
 
       {/* Store status toggle confirm */}
