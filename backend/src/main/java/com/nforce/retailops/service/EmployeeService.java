@@ -122,9 +122,7 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<EmployeeResponse> listEmployees(Long ownerId) {
-        List<Long> storeIds = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
-                .map(so -> List.of(so.getStore().getId()))
-                .orElseGet(List::of);
+        List<Long> storeIds = OwnerStoreScope.scopedStoreIds(storeOwnerRepository, ownerId);
 
         Map<Long, StoreEmployee> employeesById = new LinkedHashMap<>();
         if (!storeIds.isEmpty()) {
@@ -248,7 +246,7 @@ public class EmployeeService {
     // it. Omits owner attribution deliberately (see EmployeeDirectoryResponse).
     @Transactional(readOnly = true)
     public List<EmployeeDirectoryResponse> listDirectory(Long ownerId) {
-        Long myStoreId = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+        Long myStoreId = OwnerStoreScope.currentLink(storeOwnerRepository, ownerId)
                 .map(so -> so.getStore().getId())
                 .orElse(null);
 
@@ -287,7 +285,7 @@ public class EmployeeService {
     }
 
     private StoreOwner requireActiveStore(Long ownerId) {
-        return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+        return OwnerStoreScope.currentLink(storeOwnerRepository, ownerId)
                 .orElseThrow(() -> new InvalidStoreSelectionException(
                         "You don't have an active store to assign employees to"));
     }

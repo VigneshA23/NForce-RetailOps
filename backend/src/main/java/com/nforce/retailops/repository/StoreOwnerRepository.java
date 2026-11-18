@@ -1,7 +1,9 @@
 package com.nforce.retailops.repository;
 
 import com.nforce.retailops.entity.StoreOwner;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -13,13 +15,20 @@ public interface StoreOwnerRepository extends JpaRepository<StoreOwner, Long> {
 
     List<StoreOwner> findByOwnerId(Long ownerId);
 
-    Optional<StoreOwner> findByOwnerIdAndActiveTrue(Long ownerId);
+    // Every store an Owner/Admin is actively linked to, with the store loaded,
+    // in a stable order for the store picker. An admin may hold several.
+    @Query("select so from StoreOwner so join fetch so.store "
+        + "where so.owner.id = :ownerId and so.active = true order by so.store.name, so.store.id")
+    List<StoreOwner> findActiveWithStoreByOwnerId(@Param("ownerId") Long ownerId);
+
+    // Locks the store's single link row for the rest of the transaction, so two
+    // concurrent "assign an admin to this store" requests are serialised: the
+    // second one sees the first one's active link and is rejected with a 409.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select so from StoreOwner so join fetch so.store where so.store.id = :storeId")
+    Optional<StoreOwner> findByStoreIdForUpdate(@Param("storeId") Long storeId);
 
     boolean existsByOwnerIdAndActiveTrue(Long ownerId);
-
-    // Used when reassigning a store's owner -- checks if the target owner already
-    // manages a DIFFERENT store (excluding the store being reassigned).
-    boolean existsByOwnerIdAndActiveTrueAndStoreIdNot(Long ownerId, Long storeId);
 
     // Batched form of findByOwnerId, for listing many owners at once without one
     // query per owner.

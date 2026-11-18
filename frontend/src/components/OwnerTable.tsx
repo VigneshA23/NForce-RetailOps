@@ -1,4 +1,4 @@
-import { Copy, Eye, Mail, Pencil, Store as StoreIcon, Trash2 } from 'lucide-react';
+import { Copy, Eye, Mail, Pencil, Store as StoreIcon, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { OwnerSummary } from '../types/owner';
 import { nfToast } from '../utils/toast';
@@ -26,8 +26,12 @@ export interface GroupedOwner {
   ownerEmail: string;
   ownerActive: boolean;
   avatarUrl?: string | null;
+  // First active store (kept for single-store callers) and first store of any
+  // kind, plus every store row: an admin may hold several stores at once.
   activeStore: OwnerSummary | null;
   anyStore: OwnerSummary | null;
+  activeStores: OwnerSummary[];
+  inactiveStores: OwnerSummary[];
 }
 
 export function groupOwners(owners: OwnerSummary[]): GroupedOwner[] {
@@ -37,7 +41,12 @@ export function groupOwners(owners: OwnerSummary[]): GroupedOwner[] {
     if (existing) {
       existing.ownerActive = row.ownerActive;
       if (row.storeId != null) {
-        if (row.storeActive) existing.activeStore = row;
+        if (row.storeActive) {
+          if (existing.activeStore == null) existing.activeStore = row;
+          existing.activeStores.push(row);
+        } else {
+          existing.inactiveStores.push(row);
+        }
         if (existing.anyStore == null) existing.anyStore = row;
       }
     } else {
@@ -50,6 +59,8 @@ export function groupOwners(owners: OwnerSummary[]): GroupedOwner[] {
         avatarUrl: row.avatarUrl,
         activeStore: row.storeId != null && row.storeActive ? row : null,
         anyStore: row.storeId != null ? row : null,
+        activeStores: row.storeId != null && row.storeActive ? [row] : [],
+        inactiveStores: row.storeId != null && !row.storeActive ? [row] : [],
       });
     }
   });
@@ -64,7 +75,51 @@ interface OwnerTableProps {
   onToggleStatus: (owner: GroupedOwner) => void;
   onDelete: (owner: GroupedOwner) => void;
   onAddStore: (owner: GroupedOwner) => void;
+  // Unassigns one store from the admin; omitted, no remove control is shown.
+  onRemoveStore?: (owner: GroupedOwner, store: OwnerSummary) => void;
   onView: (owner: GroupedOwner) => void;
+}
+
+// Every store the admin holds. A store whose access was toggled off is shown
+// (marked Inactive) only while the owner is active -- a deactivated owner's
+// released links aren't worth flagging. Each can be removed from the admin.
+function OwnerStoreList({
+  owner,
+  onRemoveStore,
+}: {
+  owner: GroupedOwner;
+  onRemoveStore?: (owner: GroupedOwner, store: OwnerSummary) => void;
+}) {
+  const inactive = owner.ownerActive ? owner.inactiveStores : [];
+  if (owner.activeStores.length === 0 && inactive.length === 0) {
+    return <span className="owner-table__no-store">No store assigned</span>;
+  }
+  const rows = [...owner.activeStores, ...inactive];
+  return (
+    <ul className="owner-table__stores">
+      {rows.map((row) => (
+        <li
+          key={row.storeId}
+          className={`owner-table__store${row.storeActive ? '' : ' owner-table__store--inactive'}`}
+        >
+          <StoreIcon size={13} aria-hidden="true" />
+          <span>{row.storeName}</span>
+          {!row.storeActive && <span className="badge badge--outline">Inactive</span>}
+          {onRemoveStore && (
+            <button
+              type="button"
+              className="owner-table__store-remove"
+              aria-label={`Remove ${row.storeName} from ${owner.ownerName}`}
+              title="Remove store from this admin"
+              onClick={() => onRemoveStore(owner, row)}
+            >
+              <X size={12} />
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
 }
 
 function OwnerTable({
@@ -75,6 +130,7 @@ function OwnerTable({
   onToggleStatus,
   onDelete,
   onAddStore,
+  onRemoveStore,
   onView,
 }: OwnerTableProps) {
   const allGrouped = useMemo(() => groupOwners(owners), [owners]);
@@ -122,23 +178,7 @@ function OwnerTable({
                   <span className="owner-table__email">{owner.ownerEmail}</span>
                 </td>
                 <td data-label="Assigned Store">
-                  {owner.activeStore ? (
-                    <span className="owner-table__store">
-                      <StoreIcon size={13} aria-hidden="true" />
-                      {owner.activeStore.storeName}
-                    </span>
-                  ) : owner.ownerActive && owner.anyStore ? (
-                    // Only surfaced while the owner is active -- a deactivated
-                    // owner's revoked store link (see setOwnerActive) isn't a
-                    // manual per-store toggle worth flagging here, just noise.
-                    <span className="owner-table__store owner-table__store--inactive">
-                      <StoreIcon size={13} aria-hidden="true" />
-                      {owner.anyStore.storeName}
-                      <span className="badge badge--outline">Inactive</span>
-                    </span>
-                  ) : (
-                    <span className="owner-table__no-store">No store assigned</span>
-                  )}
+                  <OwnerStoreList owner={owner} onRemoveStore={onRemoveStore} />
                 </td>
                 <td data-label="Status">
                   <label
@@ -185,7 +225,7 @@ function OwnerTable({
                     >
                       <Trash2 size={16} />
                     </button>
-                    {owner.ownerActive && !owner.activeStore && (
+                    {owner.ownerActive && (
                       <button
                         type="button"
                         className="table-icon-btn table-icon-btn--text"
@@ -208,7 +248,6 @@ function OwnerTable({
       {/* Mobile-only: the table above is hidden below --mobile in favor of this card list. */}
       <div className="owner-table__mobile-cards">
         {grouped.map((owner) => {
-          const storeToShow = owner.activeStore ?? (owner.ownerActive ? owner.anyStore : null);
           return (
             <div className="owner-mobile-card" key={owner.ownerId}>
               <div className="owner-mobile-card__grid">
@@ -257,17 +296,7 @@ function OwnerTable({
                 <div className="owner-mobile-card__store-block">
                   <span className="owner-mobile-card__store-label">Assigned Store</span>
                   <div className="owner-mobile-card__store-row">
-                    {storeToShow ? (
-                      <span className="owner-mobile-card__store-pill">
-                        <StoreIcon size={12} aria-hidden="true" />
-                        {storeToShow.storeName}
-                        {!owner.activeStore && (
-                          <span className="badge badge--outline">Inactive</span>
-                        )}
-                      </span>
-                    ) : (
-                      <span className="owner-table__no-store">No store assigned</span>
-                    )}
+                    <OwnerStoreList owner={owner} onRemoveStore={onRemoveStore} />
 
                     <div className="owner-mobile-card__icon-actions">
                       <button
@@ -297,7 +326,7 @@ function OwnerTable({
                       >
                         <Trash2 size={16} />
                       </button>
-                      {owner.ownerActive && !owner.activeStore && (
+                      {owner.ownerActive && (
                         <button
                           type="button"
                           className="table-icon-btn"

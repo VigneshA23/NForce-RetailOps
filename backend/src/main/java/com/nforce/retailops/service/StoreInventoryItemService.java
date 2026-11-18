@@ -115,18 +115,9 @@ public class StoreInventoryItemService {
     // Owner Admin -- scoped to the caller's own store.
     // ---------------------------------------------------------------------
 
-    // Picks the caller's active store the same multi-store-safe way
-    // CategoryService.ownerStoreIds does (findByOwnerId + filter isActive),
-    // rather than the crash-prone findByOwnerIdAndActiveTrue (which assumes
-    // exactly one row and throws for an owner with more than one). Picking
-    // the first active store matches the rest of the Owner/Admin dashboard,
-    // which already assumes a single "current" store per owner.
+    // The store this Owner/Admin request is about (see OwnerStoreScope).
     private Store requireOwnerStore(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
-            .findFirst()
-            .map(StoreOwner::getStore)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return OwnerStoreScope.requireStore(storeOwnerRepository, ownerId);
     }
 
     @Transactional(readOnly = true)

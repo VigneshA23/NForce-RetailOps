@@ -128,12 +128,9 @@ public class DailyCashEntryService {
         return toResponse(entry);
     }
 
-    // Same multi-store-safe pick as StockCheckService.requireActiveStoreOwner.
+    // The store this Owner/Admin request is about (see OwnerStoreScope).
     private StoreOwner requireActiveStoreOwner(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
-            .findFirst()
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return OwnerStoreScope.requireLink(storeOwnerRepository, ownerId);
     }
 
     private static Long id(User u) { return u == null ? null : u.getId(); }

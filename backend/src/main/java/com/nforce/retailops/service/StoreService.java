@@ -8,7 +8,7 @@ import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.OwnerNotFoundException;
-import com.nforce.retailops.exception.OwnerStoreConflictException;
+import com.nforce.retailops.exception.StoreAdminConflictException;
 import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.exception.StoreHasHistoryException;
 import com.nforce.retailops.exception.StoreNotFoundException;
@@ -71,7 +71,8 @@ public class StoreService {
 
     @Transactional(readOnly = true)
     public List<StoreResponse> listStores(Long ownerId) {
-        return storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId)
+        // The store selected for this request (an admin may hold several).
+        return OwnerStoreScope.currentLink(storeOwnerRepository, ownerId)
             .map(storeOwner -> {
                 Store store = storeOwner.getStore();
                 Long storeId = store.getId();
@@ -253,27 +254,28 @@ public class StoreService {
         storeRepository.delete(storeOwner.getStore());
     }
 
-    // Super Admin assigns or reassigns an owner to a store.
-    // Guard: the target owner must not already manage a DIFFERENT active store.
-    // Reassignment is reflected immediately in both the Stores and Owners tables
-    // because both read from the same store_owners row.
+    // Super Admin assigns an owner to a store. An owner may hold any number of
+    // stores, but a store has at most one active admin: if a DIFFERENT admin is
+    // already active here it is a 409 and nothing changes (unassign them
+    // first). The row is locked so two concurrent assigns cannot both win.
+    // Reflected immediately in both the Stores and Owners tables because both
+    // read from the same store_owners row.
     @Transactional
     public SuperAdminStoreResponse assignOwnerToStore(Long storeId, Long newOwnerId) {
-        StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
+        StoreOwner storeOwner = storeOwnerRepository.findByStoreIdForUpdate(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
         User newOwner = userRepository.findById(newOwnerId)
             .orElseThrow(() -> new OwnerNotFoundException("Owner not found"));
 
         Long currentOwnerId = storeOwner.getOwner() != null ? storeOwner.getOwner().getId() : null;
-        boolean changingOwner = !newOwnerId.equals(currentOwnerId);
-        if (changingOwner && storeOwnerRepository.existsByOwnerIdAndActiveTrueAndStoreIdNot(newOwnerId, storeId)) {
-            throw new OwnerStoreConflictException(
-                "This owner already manages an active store. Reassign or deactivate their current store first.");
+        if (storeOwner.isActive() && !newOwnerId.equals(currentOwnerId)) {
+            throw new StoreAdminConflictException();
         }
 
         storeOwner.setOwner(newOwner);
         storeOwner.setActive(true);
+        storeOwner.setOwnerVacantSince(null);
         storeOwner = storeOwnerRepository.save(storeOwner);
 
         Store store = storeOwner.getStore();

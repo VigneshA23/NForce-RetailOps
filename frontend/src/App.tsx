@@ -17,6 +17,9 @@ import {
   getActiveStoreId,
   setActiveStoreId,
   clearActiveStoreId,
+  getOwnerStoreId,
+  setOwnerStoreId,
+  clearOwnerStoreId,
   getStoredAvatarUrl,
   setStoredAvatarUrl,
   clearStoredAvatarUrl,
@@ -38,6 +41,9 @@ import {
 } from './utils/sessionManager'
 import { getSessionConfig, getSessionStatus, logout } from './api/auth'
 import { useAssignedStores } from './hooks/useAssignedStores'
+import { getOwnerAssignedStores } from './api/stores'
+import { onStoreScopeInvalid } from './utils/storeScope'
+import { nfToast } from './utils/toast'
 import { useMe } from './hooks/useMe'
 import { loadCustomUnits } from './utils/inventoryUnits'
 import { clearPersistedPageState } from './hooks/usePersistedState'
@@ -47,6 +53,7 @@ type View = 'login' | 'set-new-password'
 const INACTIVITY_MESSAGE = 'Your session has expired due to inactivity. Please log in again.'
 const INVALID_SESSION_MESSAGE = 'Your session has expired or is invalid. Please log in again.'
 const SIGNED_OUT_ELSEWHERE_MESSAGE = 'You have been logged out.'
+const STORE_ACCESS_REMOVED_MESSAGE = 'You no longer have access to that store.'
 const SWITCHED_ACCOUNT_ELSEWHERE_MESSAGE = 'You signed in with another account in a different tab. Please log in again.'
 
 function App() {
@@ -71,6 +78,21 @@ function App() {
     error: storesError,
     reload: reloadStores,
   } = useAssignedStores(Boolean(isEmployee))
+  // Owner/Admin: the stores they are actively linked to, and the one they are
+  // working in. Every owner request carries that store (X-Store-Id), so the
+  // dashboard is only mounted once a store is selected.
+  const isOwner = user?.role === 'OWNER_ADMIN'
+  const {
+    stores: ownerStores,
+    isLoading: ownerStoresLoading,
+    error: ownerStoresError,
+    reload: reloadOwnerStores,
+  } = useAssignedStores(Boolean(isOwner), getOwnerAssignedStores)
+  const [ownerStore, setOwnerStore] = useState<StoreSummary | null>(null)
+  // Set when the selected store was revoked mid-session, until the store list
+  // has been re-fetched -- so the stale list can't re-select the revoked store.
+  const [ownerStoresStale, setOwnerStoresStale] = useState(false)
+  const [ownerStoreNotice, setOwnerStoreNotice] = useState<string | null>(null)
   const meState = useMe(restoringSession || user !== null)
   // Bounds the one-shot auto-retry in the session-restore effect below to a
   // single attempt, so a persistently-failing backend doesn't retry forever.
@@ -88,6 +110,7 @@ function App() {
     if (!leaveStorage) {
       clearAuthToken()
       clearActiveStoreId()
+      clearOwnerStoreId()
       clearStoredAvatarUrl()
       clearSuperAdminTab()
       clearOwnerTab()
@@ -100,6 +123,8 @@ function App() {
     setUser(null)
     setNeedsPasswordReset(false)
     setActiveStore(null)
+    setOwnerStore(null)
+    setOwnerStoreNotice(null)
     setAvatarUrl(null)
     setView('login')
     setSessionMessage(message)
@@ -161,6 +186,7 @@ function App() {
     if (meState.isUnauthorized) {
       clearAuthToken()
       clearActiveStoreId()
+      clearOwnerStoreId()
       setRestoringSession(false)
       return
     }
@@ -264,6 +290,62 @@ function App() {
     })
   }, [isEmployee, stores, storesLoading, storesError])
 
+  // Owner/Admin store bootstrap, mirroring the employee one above: no stores is
+  // the empty state, exactly one selects itself (no picker), and with several a
+  // choice remembered for this session is honoured only while the server still
+  // lists it. The id is written to storage before the store is set, so the
+  // dashboard's very first requests already carry it.
+  useEffect(() => {
+    if (!isOwner || ownerStoresLoading || ownerStoresError || ownerStoresStale) return
+
+    setOwnerStore((current) => {
+      const next =
+        (current && ownerStores.find((store) => store.id === current.id)) ||
+        (ownerStores.length === 1 ? ownerStores[0] : null) ||
+        ownerStores.find((store) => store.id === getOwnerStoreId()) ||
+        null
+      if (next) setOwnerStoreId(next.id)
+      // Forget a remembered store only once a real list shows it is gone, not
+      // on the empty list this effect sees before the first fetch lands.
+      else if (ownerStores.length > 0) clearOwnerStoreId()
+      return next
+    })
+  }, [isOwner, ownerStores, ownerStoresLoading, ownerStoresError, ownerStoresStale])
+
+  // A fresh store list (a new array from the hook) ends the stale period.
+  useEffect(() => {
+    setOwnerStoresStale(false)
+  }, [ownerStores])
+
+  // The selected store was revoked (a Super Admin unassigned this admin from
+  // it): the backend answered 404 STORE_SCOPE_INVALID. Drop everything shown
+  // for that store and re-fetch the list; the bootstrap above then lands on the
+  // picker, the empty state, or the one remaining store.
+  useEffect(() => {
+    if (!isOwner) return
+    return onStoreScopeInvalid(() => {
+      if (getOwnerStoreId() === null) return
+      clearOwnerStoreId()
+      clearOwnerTab()
+      clearOwnerOverlay()
+      clearPersistedPageState()
+      setOwnerStore(null)
+      setOwnerStoresStale(true)
+      setOwnerStoreNotice(STORE_ACCESS_REMOVED_MESSAGE)
+      nfToast.error(STORE_ACCESS_REMOVED_MESSAGE)
+      reloadOwnerStores()
+    })
+  }, [isOwner, reloadOwnerStores])
+
+  function handleSwitchOwnerStore() {
+    clearOwnerStoreId()
+    clearOwnerTab()
+    clearOwnerOverlay()
+    clearPersistedPageState()
+    setOwnerStoreNotice(null)
+    setOwnerStore(null)
+  }
+
   // Cross-tab sync: another tab clearing or replacing the shared auth token
   // ends this tab's session if that token was this tab's own (logout or
   // expiration there, or a different account signing in there). A tab
@@ -319,7 +401,65 @@ function App() {
   }
 
   if (user.role === 'OWNER_ADMIN') {
-    return <DashboardShell user={user} onLogout={handleLogout} loggingOut={loggingOut} avatarUrl={avatarUrl} onAvatarChange={handleAvatarChange} onProfileUpdate={handleProfileUpdate} />
+    if (ownerStoresLoading) {
+      return <div className="app-boot">Loading your stores...</div>
+    }
+    if (ownerStoresError) {
+      return (
+        <div className="app-boot app-boot--error">
+          {ownerStoresError}
+          <button type="button" className="btn btn--secondary" onClick={reloadOwnerStores}>
+            Retry
+          </button>
+        </div>
+      )
+    }
+    if (ownerStoresStale) {
+      return <div className="app-boot">Loading your stores...</div>
+    }
+    if (ownerStores.length === 0) {
+      return <NoStoreAssigned user={user} onLogout={handleLogout} loggingOut={loggingOut} notice={ownerStoreNotice} />
+    }
+    // The bootstrap effect is about to select a store by itself (the only one,
+    // or the one remembered for this session): don't flash the picker first.
+    if (
+      !ownerStore &&
+      (ownerStores.length === 1 || ownerStores.some((store) => store.id === getOwnerStoreId()))
+    ) {
+      return <div className="app-boot">Loading your stores...</div>
+    }
+    if (!ownerStore) {
+      return (
+        <StorePicker
+          user={user}
+          stores={ownerStores}
+          notice={ownerStoreNotice}
+          onSelectStore={(store) => {
+            setOwnerStoreId(store.id)
+            setOwnerStoreNotice(null)
+            setOwnerStore(store)
+          }}
+          onReload={reloadOwnerStores}
+          onLogout={handleLogout}
+          loggingOut={loggingOut}
+        />
+      )
+    }
+    return (
+      <DashboardShell
+        // Keyed on the store, so nothing loaded for one store survives into another.
+        key={ownerStore.id}
+        user={user}
+        store={ownerStore}
+        stores={ownerStores}
+        onSwitchStore={handleSwitchOwnerStore}
+        onLogout={handleLogout}
+        loggingOut={loggingOut}
+        avatarUrl={avatarUrl}
+        onAvatarChange={handleAvatarChange}
+        onProfileUpdate={handleProfileUpdate}
+      />
+    )
   }
 
   if (storesLoading) {

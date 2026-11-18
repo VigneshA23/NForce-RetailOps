@@ -149,7 +149,7 @@ class OwnerProvisioningServiceTest {
         existingLink.setStore(store);
         existingLink.setOwner(previousOwner);
         existingLink.setActive(false);
-        when(storeOwnerRepository.findByStoreId(20L)).thenReturn(Optional.of(existingLink));
+        when(storeOwnerRepository.findByStoreIdForUpdate(20L)).thenReturn(Optional.of(existingLink));
         when(storeOwnerRepository.save(any(StoreOwner.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var provisioned = ownerProvisioningService.createOwnerAccount(requestWithExistingStore(20L), false, true);
@@ -172,7 +172,7 @@ class OwnerProvisioningServiceTest {
         ReflectionTestUtils.setField(existingLink, "id", 30L);
         existingLink.setStore(store);
         existingLink.setActive(false);
-        when(storeOwnerRepository.findByStoreId(20L)).thenReturn(Optional.of(existingLink));
+        when(storeOwnerRepository.findByStoreIdForUpdate(20L)).thenReturn(Optional.of(existingLink));
         when(storeOwnerRepository.save(any(StoreOwner.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         var provisioned = ownerProvisioningService.createOwnerAccount(requestWithExistingStore(20L), false, true);

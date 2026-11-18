@@ -23,9 +23,11 @@ interface StorePickerProps {
   onReload: () => void
   onLogout: () => void
   loggingOut?: boolean
+  // Why the picker is showing, e.g. the store being worked in was revoked.
+  notice?: string | null
 }
 
-function StorePicker({ user, stores, onSelectStore, onReload, onLogout, loggingOut }: StorePickerProps) {
+function StorePicker({ user, stores, onSelectStore, onReload, onLogout, loggingOut, notice }: StorePickerProps) {
   const { isDarkTheme, toggleTheme } = useTheme()
   const [searchValue, setSearchValue] = useState('')
 
@@ -55,6 +57,11 @@ function StorePicker({ user, stores, onSelectStore, onReload, onLogout, loggingO
       />
 
       <div className="store-picker-body">
+        {notice && (
+          <p className="store-picker-notice" role="alert">
+            {notice}
+          </p>
+        )}
         <h1 className="store-picker-heading">Select your store</h1>
 
         <div className="store-picker-grid">

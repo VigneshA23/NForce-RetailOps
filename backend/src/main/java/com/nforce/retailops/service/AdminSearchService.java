@@ -41,7 +41,7 @@ public class AdminSearchService {
             return new AdminSearchResponse(List.of(), List.of(), List.of());
         }
 
-        StoreOwner activeLink = storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId).orElse(null);
+        StoreOwner activeLink = OwnerStoreScope.currentLink(storeOwnerRepository, ownerId).orElse(null);
         if (activeLink == null) {
             return new AdminSearchResponse(List.of(), List.of(), List.of());
         }

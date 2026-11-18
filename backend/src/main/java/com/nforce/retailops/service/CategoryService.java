@@ -344,7 +344,10 @@ public class CategoryService {
 
     private Set<Long> effectiveStoreIds(Category category) {
         if (category.isAppliesToAllStores()) {
-            return category.getOwner() != null ? ownerStoreIds(category.getOwner().getId()) : allStoreIds();
+            // Every store the owner holds, not just the one selected for this
+            // request: an "all stores" category covers them all, and this is
+            // also reached from Super Admin paths that have no selected store.
+            return category.getOwner() != null ? allOwnerStoreIds(category.getOwner().getId()) : allStoreIds();
         }
         return category.getStores().stream().map(Store::getId).collect(Collectors.toSet());
     }
@@ -353,11 +356,15 @@ public class CategoryService {
         return storeRepository.findAll().stream().map(Store::getId).collect(Collectors.toSet());
     }
 
-    private Set<Long> ownerStoreIds(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
+    private Set<Long> allOwnerStoreIds(Long ownerId) {
+        return OwnerStoreScope.activeLinks(storeOwnerRepository, ownerId).stream()
             .map(so -> so.getStore().getId())
             .collect(Collectors.toSet());
+    }
+
+    // The store selected for this Owner/Admin request (see OwnerStoreScope).
+    private Set<Long> ownerStoreIds(Long ownerId) {
+        return new java.util.HashSet<>(OwnerStoreScope.scopedStoreIds(storeOwnerRepository, ownerId));
     }
 
     private boolean namesOverlapInStores(String name, Long excludeCategoryId, Set<Long> targetStoreIds) {

@@ -117,11 +117,7 @@ public class StockReceiptApprovalService {
     }
 
     private StockReceiptRequest requirePendingRequest(Long ownerId, Long requestId) {
-        Long storeId = storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
-            .findFirst()
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"))
-            .getStore().getId();
+        Long storeId = OwnerStoreScope.requireStoreId(storeOwnerRepository, ownerId);
         StockReceiptRequest request = requestRepository.findByIdAndStoreId(requestId, storeId)
             .orElseThrow(() -> new StockReceiptRequestNotFoundException("Request not found"));
         if (!request.isPending()) {

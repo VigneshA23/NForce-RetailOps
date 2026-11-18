@@ -1,4 +1,5 @@
 import { authHeaders } from '../utils/authStorage';
+import { reportIfStoreScopeInvalid } from '../utils/storeScope';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api';
 
@@ -47,7 +48,9 @@ export async function fetchWithTimeout(
     else externalSignal.addEventListener('abort', onExternalAbort);
   }
   try {
-    return await fetch(input, { ...init, signal: controller.signal });
+    const response = await fetch(input, { ...init, signal: controller.signal });
+    reportIfStoreScopeInvalid(response);
+    return response;
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === 'AbortError') {
       if (timedOut) throw new Error('The request timed out. Please check your connection and try again.');

@@ -9,14 +9,16 @@ interface NoStoreAssignedProps {
   user: AuthUser
   onLogout: () => void
   loggingOut?: boolean
+  notice?: string | null
 }
 
 /**
- * Store assignment is optional when an employee is created, so an employee can
- * legitimately sign in with nothing to open yet. Say so plainly instead of
- * showing an empty picker.
+ * Store assignment is optional, so an employee or an Owner/Admin can
+ * legitimately sign in with nothing to open yet (or be left with none after a
+ * Super Admin removes their last store). Say so plainly instead of showing an
+ * empty picker.
  */
-function NoStoreAssigned({ user, onLogout, loggingOut }: NoStoreAssignedProps) {
+function NoStoreAssigned({ user, onLogout, loggingOut, notice }: NoStoreAssignedProps) {
   const { isDarkTheme, toggleTheme } = useTheme()
   const [searchValue, setSearchValue] = useState('')
 
@@ -44,6 +46,11 @@ function NoStoreAssigned({ user, onLogout, loggingOut }: NoStoreAssignedProps) {
             <StoreIcon size={28} />
           </span>
           <h1 className="store-picker-heading">No store assigned yet</h1>
+          {notice && (
+            <p className="store-picker-notice" role="alert">
+              {notice}
+            </p>
+          )}
           <button
             type="button"
             className="btn btn--secondary store-picker-empty-logout"

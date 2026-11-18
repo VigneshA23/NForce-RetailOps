@@ -31,6 +31,7 @@ vi.mock('./api/auth', () => ({
 
 vi.mock('./api/stores', () => ({
   getAuthorizedStores: vi.fn(),
+  getOwnerAssignedStores: vi.fn(),
 }))
 
 vi.mock('./api/me', () => ({

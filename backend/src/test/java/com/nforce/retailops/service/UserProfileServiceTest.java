@@ -116,7 +116,7 @@ class UserProfileServiceTest {
     void ownerSeesTheirOwnStores() {
         StoreOwner storeOwner = new StoreOwner();
         storeOwner.setStore(store(9L, "Owned"));
-        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(USER_ID)).thenReturn(Optional.of(storeOwner));
+        when(storeOwnerRepository.findByOwnerId(USER_ID)).thenReturn(List.of(storeOwner));
 
         List<AssignedStoreResponse> stores = userProfileService.listMyStores(user("OWNER_ADMIN"));
 
@@ -170,7 +170,7 @@ class UserProfileServiceTest {
     void updateMeAppliesNameEmailAndPhoneForAnOwner() {
         User owner = user("OWNER_ADMIN");
         owner.setPhone("555-0000");
-        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(USER_ID)).thenReturn(Optional.empty());
+        when(storeOwnerRepository.findByOwnerId(USER_ID)).thenReturn(List.of());
 
         MeResponse updated = userProfileService.updateMe(
             owner, new UpdateMeRequest("New Name", "new@nforce.test", "555-1234"));

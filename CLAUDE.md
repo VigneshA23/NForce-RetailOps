@@ -60,7 +60,9 @@ Open paths: `/api/auth/login`, `/api/auth/session-config`, `/api/auth/forgot-pas
 
 `MeController` has **no class-level role gate**. Store isolation is enforced imperatively by `UserProfileService.requireAssignedStore`, which masks unauthorised stores as 404 rather than 403. Preserve that when adding `/api/me` endpoints.
 
-**One active store per owner** (partial unique index, `V27__enforce_single_store_per_owner`). This supersedes `V7__allow_multiple_stores_per_owner`. Deactivating or deleting an owner releases the store link but records `last_owner_id`, so `StoreOwner.resolveTaskOwnerId()` keeps a vacant store's tasks visible to its employees.
+**An Owner/Admin may hold several stores; a store has at most one active admin** (`V116__allow_multiple_stores_per_admin` drops V27's per-owner index; `store_owners.store_id` is unique, so the link row is reused on reassignment). Assigning a store that already has an active admin is a 409 `StoreAdminConflictException`, serialised with a row lock (`findByStoreIdForUpdate`). Unassigning (`DELETE /api/owners/{ownerId}/stores/{storeId}`), deactivating or deleting an owner soft-releases the link and records `last_owner_id`, so `StoreOwner.resolveTaskOwnerId()` keeps a vacant store's tasks visible to its employees.
+
+**Owner requests are scoped by the `X-Store-Id` header**, which the frontend's `authHeaders()` adds once an admin has picked a store (session-scoped, `/api/owner-stores` drives the picker). Resolve "the owner's store" only through `OwnerStoreScope` (static, repository-taking): header must name an actively linked store, and no header is allowed only for a single-store admin; anything else is a 404 `StoreScopeInvalidException` with `code: STORE_SCOPE_INVALID`. `StoreScopeInterceptor` re-checks the header on every owner request (except `/api/auth/**`, `/api/me/**`, `/api/owner-stores`), and the UI returns to the picker on that code. Code reachable from Super Admin paths (no header) must use `OwnerStoreScope.activeLinks`, not the selected-store methods.
 
 ### The daily checklist has no reset job
 

@@ -62,11 +62,7 @@ public class MonthlyCashSummaryService {
     @Transactional(readOnly = true)
     public MonthlyCashSummaryResponse getForOwner(Long ownerId, String month) {
         YearMonth period = parseMonth(month);
-        Store store = storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
-            .findFirst()
-            .map(StoreOwner::getStore)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        Store store = OwnerStoreScope.requireStore(storeOwnerRepository, ownerId);
         return build(period, List.of(store));
     }
 

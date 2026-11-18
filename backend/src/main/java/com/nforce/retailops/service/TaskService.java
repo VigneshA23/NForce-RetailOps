@@ -187,7 +187,17 @@ public class TaskService {
             .map(so -> StoreOptionResponse.from(so.getStore()))
             .toList();
 
+        // Only the tasks that cover the store the admin has selected. An admin
+        // with no stores at all keeps seeing their task definitions.
+        Long selectedStoreId = OwnerStoreScope.currentLink(storeOwnerRepository, ownerId)
+            .map(so -> so.getStore().getId())
+            .orElse(null);
+
         return tasks.stream()
+            .filter(task -> selectedStoreId == null
+                || task.isAppliesToAllStores()
+                || storesByTaskId.getOrDefault(task.getId(), List.of()).stream()
+                    .anyMatch(store -> selectedStoreId.equals(store.id())))
             .map(task -> TaskResponse.from(
                 task,
                 task.isAppliesToAllStores() ? ownerStores : storesByTaskId.getOrDefault(task.getId(), List.of())))
@@ -215,8 +225,8 @@ public class TaskService {
         task = taskRepository.save(task);
 
         final String taskName = task.getName();
-        storeOwnerRepository.findByOwnerIdAndActiveTrue(ownerId).ifPresent(so -> {
-            Store store = so.getStore();
+        // Every store the task covers, now that an admin may hold several.
+        resolveTaskStoresForLog(task, ownerId).forEach(store -> {
             storeEmployeeRepository
                 .findDistinctByStoresIdInOrderByIdAscFetchEmployee(List.of(store.getId()))
                 .forEach(se -> notificationService.sendForStore(
@@ -1242,8 +1252,9 @@ public class TaskService {
     // A sentinel (-1L) keeps the JPQL "in (:storeIds)" clause valid when the
     // owner currently has no active store.
     private List<Long> ownerStoreIdsOrSentinel(Long ownerId) {
-        List<Long> ids = storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
+        // All of the owner's active stores, not just the selected one: this is
+        // also reached from the Super Admin fan-out, which has no selected store.
+        List<Long> ids = OwnerStoreScope.activeLinks(storeOwnerRepository, ownerId).stream()
             .map(so -> so.getStore().getId())
             .toList();
         return ids.isEmpty() ? List.of(-1L) : ids;

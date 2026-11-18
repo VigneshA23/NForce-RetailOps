@@ -118,10 +118,7 @@ public class ActivityLogService {
 
     @Transactional(readOnly = true)
     public List<ActivityLogEntryResponse> getRecentForOwner(Long ownerId, int limit, LocalDate startDate, LocalDate endDate) {
-        List<Long> storeIds = storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
-            .map(so -> so.getStore().getId())
-            .toList();
+        List<Long> storeIds = OwnerStoreScope.scopedStoreIds(storeOwnerRepository, ownerId);
         if (storeIds.isEmpty()) {
             return List.of();
         }

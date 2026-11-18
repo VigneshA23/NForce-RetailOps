@@ -77,8 +77,8 @@ class MissedEndOfDayServiceTest {
         StoreOwner storeOwner = new StoreOwner();
         storeOwner.setStore(store);
         storeOwner.setOwner(owner);
-        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(2L)).thenReturn(Optional.empty());
-        when(storeOwnerRepository.findByOwnerIdAndActiveTrue(1L)).thenReturn(Optional.of(storeOwner));
+        when(storeOwnerRepository.findByOwnerId(2L)).thenReturn(List.of());
+        when(storeOwnerRepository.findByOwnerId(1L)).thenReturn(List.of(storeOwner));
         when(storeOwnerRepository.findByStoreIdAndActiveTrue(STORE_ID)).thenReturn(Optional.of(storeOwner));
     }
 

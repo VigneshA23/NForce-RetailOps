@@ -32,6 +32,21 @@
   margin: 0 0 40px;
 }
 
+.store-picker-notice {
+  margin: 0 0 20px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 45%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-text-primary);
+  font-size: 14px;
+  text-align: center;
+}
+
+.store-picker-empty-card .store-picker-notice {
+  margin-top: -12px;
+}
+
 .store-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

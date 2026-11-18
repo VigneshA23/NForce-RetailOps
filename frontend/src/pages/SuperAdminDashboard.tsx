@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Building2, CircleCheck, Plus, Store as StoreIcon, UserX } from 'lucide-react';
 import { nfToast } from '../utils/toast';
-import { addOwner, assignStore, deleteOwner, getOwners, setOwnerStatus, setStoreStatus, updateOwner } from '../api/owners';
+import { addOwner, assignStore, deleteOwner, getOwners, setOwnerStatus, setStoreStatus, unassignStore, updateOwner } from '../api/owners';
 import { getAllStores } from '../api/superAdminStores';
 import { getCategories } from '../api/categories';
 import type { AddOwnerValues, AssignStoreValues, OwnerSummary, UpdateOwnerValues } from '../types/owner';
@@ -88,6 +88,9 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
   // Store status toggle
   const [storeStatusTarget, setStoreStatusTarget] = useState<OwnerSummary | null>(null);
   const [storeStatusError, setStoreStatusError] = useState<string | null>(null);
+  // Unassigning a store from an admin (confirm first).
+  const [removeStoreTarget, setRemoveStoreTarget] = useState<OwnerSummary | null>(null);
+  const [removeStoreError, setRemoveStoreError] = useState<string | null>(null);
 
   // Owner detail view
   const [ownerDetailTarget, setOwnerDetailTarget] = useState<GroupedOwner | null>(null);
@@ -387,6 +390,24 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
     }
   }
 
+  async function handleConfirmRemoveStore() {
+    if (!removeStoreTarget || removeStoreTarget.storeId == null) return;
+    setRemoveStoreError(null);
+    const { ownerId, ownerName, storeId } = removeStoreTarget;
+    const storeName = removeStoreTarget.storeName ?? 'Store';
+    try {
+      const updated = await unassignStore(ownerId, storeId);
+      applyOwnerUpdates(ownerId, updated);
+      setRemoveStoreTarget(null);
+      nfToast.success(`"${storeName}" removed from ${ownerName}.`);
+    } catch (error) {
+      setRemoveStoreTarget(null);
+      const msg = error instanceof Error ? error.message : 'Failed to remove store';
+      setRemoveStoreError(msg);
+      nfToast.error(msg);
+    }
+  }
+
   const query = searchValue.trim().toLowerCase();
   const filteredOwners = owners.filter((owner) => {
     if (
@@ -545,6 +566,13 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
             </div>
           )}
 
+          {removeStoreError && (
+            <div className="owners-page__error">
+              <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
+              <span className="owners-page__error-message">{removeStoreError}</span>
+            </div>
+          )}
+
           {loadError ? (
             <div className="owners-page__error">
               <AlertCircle size={18} className="owners-page__error-icon" aria-hidden="true" />
@@ -623,6 +651,10 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
                   setAssignStoreError(null);
                   setAssignStoreTarget(owner);
                 }}
+                onRemoveStore={(_owner, store) => {
+                  setRemoveStoreError(null);
+                  setRemoveStoreTarget(store);
+                }}
                 onView={(owner) => setOwnerDetailTarget(owner)}
               />
               </div>
@@ -696,6 +728,21 @@ function SuperAdminDashboard({ user, onLogout, loggingOut, avatarUrl, onAvatarCh
         danger
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Remove a store from an admin */}
+      <ConfirmDialog
+        isOpen={removeStoreTarget !== null}
+        title="Remove Store"
+        message={
+          removeStoreTarget
+            ? `Remove ${removeStoreTarget.storeName} from ${removeStoreTarget.ownerName}? They will lose access to it straight away. The store will have no admin until you assign one, and its employees keep their checklist.`
+            : ''
+        }
+        confirmLabel="Remove"
+        danger
+        onConfirm={handleConfirmRemoveStore}
+        onCancel={() => setRemoveStoreTarget(null)}
       />
 
       {/* Store status toggle confirm */}

@@ -897,15 +897,9 @@ public class StockCheckService {
 
     // ---- Owner/Admin: history, correction, EOD report -----------------------
 
-    // Picks the caller's active store the same multi-store-safe way
-    // CategoryService.ownerStoreIds does, rather than findByOwnerIdAndActiveTrue
-    // (a single Optional that throws for an owner with more than one active
-    // store link).
+    // The store this Owner/Admin request is about (see OwnerStoreScope).
     private StoreOwner requireActiveStoreOwner(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
-            .findFirst()
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return OwnerStoreScope.requireLink(storeOwnerRepository, ownerId);
     }
 
     @Transactional(readOnly = true)

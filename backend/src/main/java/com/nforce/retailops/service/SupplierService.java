@@ -109,11 +109,7 @@ public class SupplierService {
     }
 
     private Store requireOwnerStore(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
-            .findFirst()
-            .map(StoreOwner::getStore)
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"));
+        return OwnerStoreScope.requireStore(storeOwnerRepository, ownerId);
     }
 
     @Transactional

@@ -94,11 +94,7 @@ public class CashCalculationService {
     /** Owner/Admin: only their own active store; anything else is a 404. */
     @Transactional(readOnly = true)
     public ExpectedCashResponse getExpectedCashForOwner(Long ownerId) {
-        Long storeId = storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
-            .findFirst()
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"))
-            .getStore().getId();
+        Long storeId = OwnerStoreScope.requireStoreId(storeOwnerRepository, ownerId);
         return getExpectedCashForStore(storeId);
     }
 

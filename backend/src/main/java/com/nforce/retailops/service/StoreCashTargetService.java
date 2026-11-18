@@ -132,11 +132,7 @@ public class StoreCashTargetService {
     }
 
     private Store requireActiveStore(Long ownerId) {
-        return storeOwnerRepository.findByOwnerId(ownerId).stream()
-            .filter(StoreOwner::isActive)
-            .findFirst()
-            .orElseThrow(() -> new StoreNotFoundException("Store not found"))
-            .getStore();
+        return OwnerStoreScope.requireStore(storeOwnerRepository, ownerId);
     }
 
     private StoreCashTargetResponse toResponse(StoreCashTarget t) {

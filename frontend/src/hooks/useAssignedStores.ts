@@ -17,8 +17,13 @@ interface AssignedStores {
  * was unassigned from mid-session doesn't linger.
  *
  * Pass `enabled: false` for roles that never pick a store, so no request is made.
+ * `fetchStores` picks the list: an employee's assigned stores (default) or an
+ * Owner/Admin's own stores.
  */
-export function useAssignedStores(enabled: boolean): AssignedStores {
+export function useAssignedStores(
+  enabled: boolean,
+  fetchStores: () => Promise<StoreSummary[]> = getAuthorizedStores,
+): AssignedStores {
   const [stores, setStores] = useState<StoreSummary[]>([]);
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +50,7 @@ export function useAssignedStores(enabled: boolean): AssignedStores {
     if (!isBackgroundReload) setIsLoading(true);
     setError(null);
 
-    getAuthorizedStores()
+    fetchStores()
       .then((result) => {
         if (active) setStores(result);
       })
@@ -65,7 +70,12 @@ export function useAssignedStores(enabled: boolean): AssignedStores {
     return () => {
       active = false;
     };
+    // fetchStores is a module-level function per role, never an inline closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, reloadToken]);
 
-  return { stores, isLoading, error, reload };
+  // Enabled but not fetched yet (the render where `enabled` has just turned
+  // true, before the effect above starts the request) counts as loading too,
+  // so callers never flash their "no stores" state ahead of the first fetch.
+  return { stores, isLoading: isLoading || (enabled && !hasLoadedOnce.current), error, reload };
 }
