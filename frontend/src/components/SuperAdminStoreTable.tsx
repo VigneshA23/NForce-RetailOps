@@ -1,10 +1,17 @@
 import type { ReactNode } from 'react';
 import { Banknote, Eye, Pencil, Store as StoreIcon, Trash2, User, UserRoundCog, Users } from 'lucide-react';
-import type { SuperAdminStore } from '../types/superAdminStore';
+import { DEFAULT_CASH_TARGET, type SuperAdminStore } from '../types/superAdminStore';
+import { formatCurrency } from '../utils/currency';
 import UserAvatar from './UserAvatar';
 import { getInitials } from '../utils/initials';
 import './SuperAdminStoreTable.css';
 import LoadingSkeleton from './LoadingSkeleton';
+
+// The store's cash target as shown in the list (the untouched platform default
+// when nothing is saved yet).
+function cashTargetLabel(store: SuperAdminStore): string {
+  return formatCurrency(store.cashTarget ?? DEFAULT_CASH_TARGET);
+}
 
 const INACTIVE_TITLE = 'Store is inactive - activate it to make changes';
 
@@ -43,6 +50,7 @@ function SuperAdminStoreTable({
               <th scope="col">Store</th>
               <th scope="col">Owner</th>
               <th scope="col">Employees</th>
+              <th scope="col">Cash Target</th>
               <th scope="col">Status</th>
               <th scope="col">Actions</th>
             </tr>
@@ -75,6 +83,7 @@ function SuperAdminStoreTable({
                   )}
                 </td>
                 <td data-label="Employees">{store.employeeCount}</td>
+                <td data-label="Cash Target">{cashTargetLabel(store)}</td>
                 <td data-label="Status">
                   <label
                     className="status-toggle"
@@ -190,6 +199,10 @@ function SuperAdminStoreTable({
                 <span className="sa-store-mobile-card__staff-pill">
                   <Users size={12} aria-hidden="true" />
                   {store.employeeCount} Staff Member{store.employeeCount === 1 ? '' : 's'}
+                </span>
+                <span className="sa-store-mobile-card__staff-pill" title="Cash target">
+                  <Banknote size={12} aria-hidden="true" />
+                  {cashTargetLabel(store)}
                 </span>
                 <div className="table-row-actions sa-store-mobile-card__actions">
                   <button

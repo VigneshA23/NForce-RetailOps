@@ -173,3 +173,62 @@
     max-width: none;
   }
 }
+
+/* Direct correction: reason field and the entry's correction history. */
+.daily-cash-page__reason {
+  margin-top: 16px;
+}
+
+.daily-cash-page__reason-input {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  font: inherit;
+}
+
+.daily-cash-page__history {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.daily-cash-page__history-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.daily-cash-page__history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.daily-cash-page__history-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-surface-card);
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+}
+
+.daily-cash-page__history-meta {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.daily-cash-page__history-reason {
+  margin-top: 4px;
+  color: var(--color-text-secondary);
+}
+
+.daily-cash-page__history-changes {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}

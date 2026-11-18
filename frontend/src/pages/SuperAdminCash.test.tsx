@@ -33,6 +33,7 @@ function store(storeId: number, storeName: string, storeActive = true): SuperAdm
     ownerAccessActive: false,
     employeeCount: 0,
     taskCount: 0,
+    cashTarget: null,
   };
 }
 
@@ -65,7 +66,7 @@ describe('SuperAdminCash', () => {
       id: 9, storeId, ...request,
       enteredByUserId: null, enteredBySuperAdminId: 1, enteredAt: '2026-11-09T18:00:00Z',
       updatedByUserId: null, updatedBySuperAdminId: 1, updatedAt: '2026-11-09T18:00:00Z',
-      history: [],
+      history: [], correctedByName: null, correctedAt: null,
     }));
     render(<SuperAdminCash />);
 

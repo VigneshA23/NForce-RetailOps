@@ -4,6 +4,7 @@ import com.nforce.retailops.dto.SuperAdminStoreResponse;
 import com.nforce.retailops.entity.Store;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
+import com.nforce.retailops.repository.StoreCashTargetRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
@@ -42,6 +43,12 @@ class StoreServiceTest {
     private NotificationService notificationService;
     @Mock
     private UserRepository userRepository;
+
+    // Stores list reads each store's cash target; an empty result means the default.
+    @Mock
+    private StoreCashTargetRepository storeCashTargetRepository;
+    @Mock
+    private StoreCashTargetService storeCashTargetService;
 
     @InjectMocks
     private StoreService storeService;

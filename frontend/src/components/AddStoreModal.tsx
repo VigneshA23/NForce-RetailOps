@@ -6,6 +6,8 @@ import type { CreateStoreValues } from '../types/superAdminStore';
 import Modal from './Modal';
 import FormField from './FormField';
 import ButtonDots from './ButtonDots';
+import StoreCashTargetField, { validateCashTarget } from './StoreCashTargetField';
+import { parseAmount } from '../utils/amountInput';
 import './AssignStoreModal.css';
 import './SupplierFormModal.css';
 
@@ -17,13 +19,20 @@ interface AddStoreModalProps {
   onSubmit: (values: CreateStoreValues) => void;
 }
 
-const EMPTY_VALUES: CreateStoreValues = { name: '', location: '' };
+// The form's own state: the target is kept as typed text until submit.
+interface FormValues {
+  name: string;
+  location: string;
+  cashTarget: string;
+}
+
+const EMPTY_VALUES: FormValues = { name: '', location: '', cashTarget: '' };
 
 // Creates a store with no owner -- it shows up as an "existing store" pick
 // when a new Owner is created later.
 function AddStoreModal({ isOpen, errorMessage, isSubmitting = false, onClose, onSubmit }: AddStoreModalProps) {
-  const [values, setValues] = useState<CreateStoreValues>(EMPTY_VALUES);
-  const [errors, setErrors] = useState<Partial<Record<keyof CreateStoreValues, string>>>({});
+  const [values, setValues] = useState<FormValues>(EMPTY_VALUES);
+  const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({});
   const [nextStoreCode, setNextStoreCode] = useState<number | null>(null);
 
   useEffect(() => {
@@ -37,21 +46,27 @@ function AddStoreModal({ isOpen, errorMessage, isSubmitting = false, onClose, on
     }
   }, [isOpen]);
 
-  function updateField<K extends keyof CreateStoreValues>(field: K, value: CreateStoreValues[K]) {
+  function updateField<K extends keyof FormValues>(field: K, value: FormValues[K]) {
     setValues((current) => ({ ...current, [field]: value }));
   }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const nextErrors: Partial<Record<keyof CreateStoreValues, string>> = {};
+    const nextErrors: Partial<Record<keyof FormValues, string>> = {};
     if (!values.name.trim()) nextErrors.name = 'Store name is required';
     if (!values.location.trim()) nextErrors.location = 'Store location is required';
+    const cashTargetError = validateCashTarget(values.cashTarget);
+    if (cashTargetError) nextErrors.cashTarget = cashTargetError;
     if (Object.keys(nextErrors).length > 0) {
       setErrors(nextErrors);
       return;
     }
 
-    onSubmit({ name: values.name.trim(), location: values.location.trim() });
+    onSubmit({
+      name: values.name.trim(),
+      location: values.location.trim(),
+      cashTarget: parseAmount(values.cashTarget),
+    });
   }
 
   return (
@@ -98,6 +113,13 @@ function AddStoreModal({ isOpen, errorMessage, isSubmitting = false, onClose, on
             />
           </div>
         </FormField>
+
+        <StoreCashTargetField
+          id="add-store-cash-target"
+          value={values.cashTarget}
+          error={errors.cashTarget}
+          onChange={(value) => updateField('cashTarget', value)}
+        />
 
         <p className="assign-store-modal__hint">
           {nextStoreCode != null ? (

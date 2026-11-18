@@ -1,10 +1,12 @@
 package com.nforce.retailops.service;
 
 import com.nforce.retailops.dto.CreateStoreRequest;
+import com.nforce.retailops.dto.StoreCashTargetRequest;
 import com.nforce.retailops.dto.StoreRequest;
 import com.nforce.retailops.dto.StoreResponse;
 import com.nforce.retailops.dto.SuperAdminStoreResponse;
 import com.nforce.retailops.entity.Store;
+import com.nforce.retailops.entity.StoreCashTarget;
 import com.nforce.retailops.entity.StoreOwner;
 import com.nforce.retailops.entity.User;
 import com.nforce.retailops.exception.OwnerNotFoundException;
@@ -12,15 +14,18 @@ import com.nforce.retailops.exception.StoreAdminConflictException;
 import com.nforce.retailops.exception.StoreAlreadyExistsException;
 import com.nforce.retailops.exception.StoreHasHistoryException;
 import com.nforce.retailops.exception.StoreNotFoundException;
+import com.nforce.retailops.repository.StoreCashTargetRepository;
 import com.nforce.retailops.repository.StoreEmployeeRepository;
 import com.nforce.retailops.repository.UserRepository;
 import com.nforce.retailops.repository.StoreOwnerRepository;
 import com.nforce.retailops.repository.StoreRepository;
 import com.nforce.retailops.repository.TaskRepository;
 import com.nforce.retailops.repository.TaskResponseEntryRepository;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -40,6 +45,8 @@ public class StoreService {
     private final StoreCodeGenerator storeCodeGenerator;
     private final NotificationService notificationService;
     private final UserRepository userRepository;
+    private final StoreCashTargetService storeCashTargetService;
+    private final StoreCashTargetRepository storeCashTargetRepository;
 
     public StoreService(
         StoreRepository storeRepository,
@@ -49,7 +56,9 @@ public class StoreService {
         TaskResponseEntryRepository taskResponseEntryRepository,
         StoreCodeGenerator storeCodeGenerator,
         NotificationService notificationService,
-        UserRepository userRepository
+        UserRepository userRepository,
+        StoreCashTargetService storeCashTargetService,
+        StoreCashTargetRepository storeCashTargetRepository
     ) {
         this.storeRepository = storeRepository;
         this.storeOwnerRepository = storeOwnerRepository;
@@ -59,6 +68,23 @@ public class StoreService {
         this.storeCodeGenerator = storeCodeGenerator;
         this.notificationService = notificationService;
         this.userRepository = userRepository;
+        this.storeCashTargetService = storeCashTargetService;
+        this.storeCashTargetRepository = storeCashTargetRepository;
+    }
+
+    // The stored cash target, or null while it is still the untouched column
+    // default (no row yet). Read-only: never creates the row.
+    private BigDecimal cashTargetOf(Long storeId) {
+        return storeCashTargetRepository.findByStoreId(storeId).map(StoreCashTarget::getTargetAmount).orElse(null);
+    }
+
+    // Saves the target as a Super Admin change (with its audit row) inside the
+    // caller's transaction, so a failure here rolls back the store save too.
+    private void saveCashTarget(Long superAdminId, Long storeId, BigDecimal amount) {
+        if (superAdminId == null) {
+            throw new AccessDeniedException("Only a Super Admin can set a store's cash target here");
+        }
+        storeCashTargetService.updateForSuperAdmin(superAdminId, storeId, new StoreCashTargetRequest(amount));
     }
 
     private static Map<Long, Integer> toCountMap(List<Object[]> rows) {
@@ -114,6 +140,10 @@ public class StoreService {
             .map(User::getId)
             .collect(Collectors.toCollection(LinkedHashSet::new));
         Map<Long, Integer> appliesAllCounts = toCountMap(taskRepository.countAppliesToAllGroupedByOwnerIds(ownerIds));
+        Map<Long, BigDecimal> cashTargets = new HashMap<>();
+        for (Object[] targetRow : storeCashTargetRepository.findAmountsByStoreIds(storeIds)) {
+            cashTargets.put((Long) targetRow[0], (BigDecimal) targetRow[1]);
+        }
 
         return rows.stream()
             .map(row -> {
@@ -134,7 +164,8 @@ public class StoreService {
                     owner != null ? owner.isActive() : null,
                     owner != null && storeOwner.isActive(),
                     employeeCounts.getOrDefault(store.getId(), 0),
-                    taskCount
+                    taskCount,
+                    cashTargets.get(store.getId())
                 );
             })
             .sorted(Comparator.comparing(SuperAdminStoreResponse::storeName, String.CASE_INSENSITIVE_ORDER))
@@ -145,7 +176,7 @@ public class StoreService {
     // Location is optional in the request so a name-only rename doesn't wipe
     // out an existing location.
     @Transactional
-    public SuperAdminStoreResponse updateStore(Long storeId, StoreRequest request) {
+    public SuperAdminStoreResponse updateStore(Long superAdminId, Long storeId, StoreRequest request) {
         StoreOwner storeOwner = storeOwnerRepository.findByStoreId(storeId)
             .orElseThrow(() -> new StoreNotFoundException("Store not found"));
 
@@ -158,6 +189,9 @@ public class StoreService {
         store.setName(newName);
         store.setLocation(newLocation);
         store = storeRepository.save(store);
+        if (request.cashTarget() != null) {
+            saveCashTarget(superAdminId, store.getId(), request.cashTarget());
+        }
 
         User owner = storeOwner.getOwner();
         int employeeCount = storeEmployeeRepository.countByStoresIdAndEmployeeActiveTrue(store.getId());
@@ -176,7 +210,8 @@ public class StoreService {
             owner != null ? owner.isActive() : null,
             owner != null && storeOwner.isActive(),
             employeeCount,
-            (int) taskCount
+            (int) taskCount,
+            cashTargetOf(store.getId())
         );
     }
 
@@ -235,7 +270,8 @@ public class StoreService {
             owner != null ? owner.isActive() : null,
             owner != null && storeOwner.isActive(),
             employeeCount,
-            (int) taskCount
+            (int) taskCount,
+            cashTargetOf(store.getId())
         );
     }
 
@@ -250,6 +286,7 @@ public class StoreService {
                 "This store has checklist history and cannot be deleted. Deactivate it instead.");
         }
 
+        storeCashTargetService.deleteForStore(storeId);
         storeOwnerRepository.delete(storeOwner);
         storeRepository.delete(storeOwner.getStore());
     }
@@ -295,7 +332,8 @@ public class StoreService {
             newOwner.isActive(),
             true,
             employeeCount,
-            (int) taskCount
+            (int) taskCount,
+            cashTargetOf(store.getId())
         );
     }
 
@@ -304,7 +342,7 @@ public class StoreService {
     // immediately picked up by the "existing store" list when a new owner is
     // created (OwnerManagementService.listReassignableStores).
     @Transactional
-    public SuperAdminStoreResponse createUnownedStore(CreateStoreRequest request) {
+    public SuperAdminStoreResponse createUnownedStore(Long superAdminId, CreateStoreRequest request) {
         String name = request.name().trim();
         String location = request.location().trim();
         if (storeRepository.existsByNameAndLocationIgnoreCase(name, location)) {
@@ -321,6 +359,10 @@ public class StoreService {
         storeOwner.setActive(false);
         storeOwnerRepository.save(storeOwner);
 
+        // Same transaction as the store: if the target can't be saved, the
+        // store isn't created either.
+        saveCashTarget(superAdminId, store.getId(), request.cashTarget());
+
         return new SuperAdminStoreResponse(
             store.getId(),
             store.getStoreCode(),
@@ -333,7 +375,8 @@ public class StoreService {
             null,
             false,
             0,
-            0
+            0,
+            cashTargetOf(store.getId())
         );
     }
 

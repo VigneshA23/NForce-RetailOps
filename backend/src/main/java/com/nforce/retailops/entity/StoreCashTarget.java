@@ -6,7 +6,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 
 // Per-store target cash-drawer amount, one row per store. The default
-// (150.00) is the DB column default (V109), never set from Java:
+// (100.00, V117; was 150.00 in V109) is the DB column default, never set from Java:
 // targetAmount is excluded from the INSERT and read back afterwards by the
 // service. Do NOT mark it @Generated: Hibernate then also excludes it from
 // UPDATE and saved changes silently never reach the database.
@@ -23,7 +23,7 @@ public class StoreCashTarget {
     private Store store;
 
     @Column(name = "target_amount", nullable = false, insertable = false, updatable = true,
-        columnDefinition = "NUMERIC(12,2) DEFAULT 150.00")
+        columnDefinition = "NUMERIC(12,2) DEFAULT 100.00")
     private BigDecimal targetAmount;
 
     // Both null while the target is still the untouched default.

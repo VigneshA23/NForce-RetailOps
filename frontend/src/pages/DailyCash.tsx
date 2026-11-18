@@ -6,12 +6,12 @@ import {
   saveSuperAdminDailyCashEntry,
 } from '../api/storeCash';
 import { ApiError } from '../api/client';
-import type { CashAmountField, CashAmounts, DailyCashEntry, DailyCashEntryRequest } from '../types/storeCash';
+import type { CashAmountField, CashAmounts, DailyCashCorrection, DailyCashEntry, DailyCashEntryRequest } from '../types/storeCash';
 import FormField from '../components/FormField';
 import PopoverDateField from '../components/PopoverDateField';
 import ButtonDots from '../components/ButtonDots';
 import ExpectedCashStat from '../components/ExpectedCashStat';
-import { formatAmount } from '../utils/currency';
+import { formatAmount, formatCurrency } from '../utils/currency';
 import { parseAmount, validateAmount } from '../utils/amountInput';
 import { nfToast } from '../utils/toast';
 import './DailyCash.css';
@@ -99,6 +99,57 @@ function formatSavedAt(value: string): string {
   return new Date(value).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
+const REASON_MAX = 500;
+const REASON_REQUIRED = 'Enter a reason for this correction';
+
+const capitalise = (key: CashAmountField) => key.charAt(0).toUpperCase() + key.slice(1);
+
+// The figures in a correction that actually changed, as label / old / new.
+function changedFields(correction: DailyCashCorrection) {
+  return FIELDS.flatMap((field) => {
+    const before = correction[`previous${capitalise(field.key)}` as keyof DailyCashCorrection] as number;
+    const after = correction[`new${capitalise(field.key)}` as keyof DailyCashCorrection] as number | null;
+    if (after === null || after === before) return [];
+    return [{ label: field.label, before, after }];
+  });
+}
+
+// Newest first: who corrected the day, when, why, and what changed.
+function CorrectionHistory({ history }: { history: DailyCashCorrection[] }) {
+  if (history.length === 0) return null;
+  return (
+    <section className="daily-cash-page__history" aria-label="Correction history">
+      <h3 className="daily-cash-page__history-title">Correction history</h3>
+      <ol className="daily-cash-page__history-list">
+        {[...history].reverse().map((correction) => {
+          const changes = changedFields(correction);
+          return (
+            <li key={correction.id} className="daily-cash-page__history-item">
+              <div className="daily-cash-page__history-meta">
+                Corrected by {correction.correctedByName ?? 'an admin'} · {formatSavedAt(correction.correctedAt)}
+              </div>
+              {correction.reason && <div className="daily-cash-page__history-reason">Reason: {correction.reason}</div>}
+              {changes.length > 0 && (
+                <ul className="daily-cash-page__history-changes">
+                  {changes.map((change) => (
+                    <li key={change.label}>
+                      {change.label}: {formatCurrency(change.before)} → {formatCurrency(change.after)}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+function figuresChanged(entry: DailyCashEntry, values: Values): boolean {
+  return FIELDS.some((field) => parseAmount(values[field.key]) !== entry[field.key]);
+}
+
 function valuesFrom(entry: DailyCashEntry): Values {
   const values = { ...EMPTY_VALUES };
   for (const field of FIELDS) values[field.key] = formatAmount(entry[field.key]);
@@ -124,8 +175,9 @@ function validateAll(values: Values): Errors {
 // Daily Cash Entry (RTS-292): one form per store + business date, for an
 // Owner/Admin's own store or any store a Super Admin picks. Picking a date
 // loads whatever was saved for it, so reopening a day pre-fills it for review
-// or correction; saving again overwrites the entry and the server keeps the
-// old values as history.
+// or correction. Changing a saved day is a direct correction: it needs a
+// reason, overwrites the entry, and the server keeps who/when/why with the old
+// and new values (shown under the form). No one is notified of a correction.
 function DailyCash({
   storeId,
   storesLoading,
@@ -144,6 +196,8 @@ function DailyCash({
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [reason, setReason] = useState('');
+  const [reasonError, setReasonError] = useState<string | undefined>(undefined);
   // Bumped after each successful save so Expected Cash on Hand refetches.
   const [expectedRefreshKey, setExpectedRefreshKey] = useState(0);
 
@@ -155,6 +209,8 @@ function DailyCash({
     setSaveError(null);
     setErrors({});
     setSubmitAttempted(false);
+    setReason('');
+    setReasonError(undefined);
     // Nothing can be saved for a future day, so there is nothing to load.
     if (isFutureDate(businessDate)) {
       setEntry(null);
@@ -199,19 +255,32 @@ function DailyCash({
     setSaveError(null);
     const nextErrors = validateAll(values);
     setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0 || storeId === null || isFutureDate(businessDate)) return;
+    // A changed figure on a day that is already saved is a correction.
+    const isCorrection = entry !== null && Object.keys(nextErrors).length === 0 && figuresChanged(entry, values);
+    const nextReasonError = isCorrection && !reason.trim() ? REASON_REQUIRED : undefined;
+    setReasonError(nextReasonError);
+    if (Object.keys(nextErrors).length > 0 || nextReasonError || storeId === null || isFutureDate(businessDate)) return;
 
     const amounts = {} as CashAmounts;
     for (const field of FIELDS) amounts[field.key] = parseAmount(values[field.key]);
 
     setIsSaving(true);
     try {
-      const saved = await saveEntry(scope, storeId, { businessDate, ...amounts });
+      const saved = await saveEntry(scope, storeId, {
+        businessDate,
+        ...amounts,
+        ...(isCorrection ? { correctionReason: reason.trim() } : {}),
+      });
       setEntry(saved);
       setExpectedRefreshKey((key) => key + 1);
       setValues(valuesFrom(saved));
       setSubmitAttempted(false);
-      nfToast.success(`Cash entry for ${formatDateLabel(businessDate)} saved.`);
+      setReason('');
+      nfToast.success(
+        isCorrection
+          ? `Cash entry for ${formatDateLabel(businessDate)} corrected.`
+          : `Cash entry for ${formatDateLabel(businessDate)} saved.`,
+      );
     } catch (cause) {
       // The server's own validation (RTS-291) answers with a message per
       // field: put each under its input like the checks above, and surface
@@ -277,7 +346,9 @@ function DailyCash({
                 : loadError || dateIsFuture
                   ? null
                   : entry
-                    ? `Saved · last updated ${formatSavedAt(entry.updatedAt)}`
+                    ? entry.correctedByName && entry.correctedAt
+                      ? `Corrected by ${entry.correctedByName} · ${formatSavedAt(entry.correctedAt)}`
+                      : `Saved · last updated ${formatSavedAt(entry.updatedAt)}`
                     : 'No entry saved for this date yet'}
             </p>
           )}
@@ -336,6 +407,30 @@ function DailyCash({
                   );
                 })}
               </div>
+
+              {entry && (
+                <div className="daily-cash-page__reason">
+                  <FormField
+                    label="Reason for correction"
+                    htmlFor="daily-cash-correction-reason"
+                    description="Required if you change any figure on a saved day. Kept with the entry's history."
+                    error={reasonError}
+                  >
+                    <textarea
+                      id="daily-cash-correction-reason"
+                      className="input daily-cash-page__reason-input"
+                      rows={2}
+                      maxLength={REASON_MAX}
+                      value={reason}
+                      aria-invalid={reasonError ? true : undefined}
+                      onChange={(event) => {
+                        setReason(event.target.value);
+                        if (reasonError && event.target.value.trim()) setReasonError(undefined);
+                      }}
+                    />
+                  </FormField>
+                </div>
+              )}
             </fieldset>
 
             {saveError && (
@@ -352,6 +447,7 @@ function DailyCash({
                 {isSaving ? <ButtonDots label="Saving" /> : entry ? 'Update Entry' : 'Save Entry'}
               </button>
             </div>
+            {entry && <CorrectionHistory history={entry.history} />}
           </form>
         )}
       </section>

@@ -50,6 +50,8 @@ function entry(overrides: Partial<DailyCashEntry> = {}): DailyCashEntry {
     updatedBySuperAdminId: null,
     updatedAt: '2026-11-09T18:00:00Z',
     history: [],
+    correctedByName: null,
+    correctedAt: null,
     ...overrides,
   };
 }
@@ -133,6 +135,57 @@ describe('DailyCash', () => {
     expect(field('Opening drawer cash')).toHaveValue('200.00');
     expect(field('Other adjustments')).toHaveValue('-12.25');
     expect(screen.getByRole('button', { name: 'Update Entry' })).toBeInTheDocument();
+  });
+
+  it('needs a reason to correct a saved day, then sends it and shows who corrected it', async () => {
+    const user = userEvent.setup();
+    vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry());
+    vi.mocked(storeCashApi.saveDailyCashEntry).mockImplementation(async (request) => entry({
+      ...request,
+      correctedByName: 'Priya Admin',
+      correctedAt: '2026-11-10T09:30:00Z',
+      history: [{
+        id: 1,
+        previousTotalCashSales: 1234.5, previousOpeningDrawerCash: 200, previousCashRemoved: 500,
+        previousCashRemaining: 934.5, previousCashExpenses: 0, previousBankDeposits: 500, previousOtherAdjustments: -12.25,
+        newTotalCashSales: 1300, newOpeningDrawerCash: 200, newCashRemoved: 500,
+        newCashRemaining: 934.5, newCashExpenses: 0, newBankDeposits: 500, newOtherAdjustments: -12.25,
+        correctedByName: 'Priya Admin', correctedAt: '2026-11-10T09:30:00Z', reason: 'Sales keyed in wrong',
+      }],
+    }));
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText(/^Saved · last updated/);
+
+    await user.clear(field('Total cash sales'));
+    await user.type(field('Total cash sales'), '1300');
+    await user.click(screen.getByRole('button', { name: 'Update Entry' }));
+
+    expect(screen.getByText('Enter a reason for this correction')).toBeInTheDocument();
+    expect(storeCashApi.saveDailyCashEntry).not.toHaveBeenCalled();
+
+    await user.type(screen.getByRole('textbox', { name: /reason for correction/i }), 'Sales keyed in wrong');
+    await user.click(screen.getByRole('button', { name: 'Update Entry' }));
+
+    const request = vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0];
+    expect(request.totalCashSales).toBe(1300);
+    expect(request.correctionReason).toBe('Sales keyed in wrong');
+    expect((await screen.findAllByText(/^Corrected by Priya Admin ·/)).length).toBe(2); // status line + history
+    const history = screen.getByRole('region', { name: 'Correction history' });
+    expect(history).toHaveTextContent('Reason: Sales keyed in wrong');
+    expect(history).toHaveTextContent('Total cash sales: $1,234.50 → $1,300.00');
+  });
+
+  it('does not ask for a reason when a saved day is re-saved unchanged', async () => {
+    const user = userEvent.setup();
+    vi.mocked(storeCashApi.getDailyCashEntry).mockResolvedValue(entry());
+    vi.mocked(storeCashApi.saveDailyCashEntry).mockImplementation(async (request) => entry({ ...request }));
+    render(<DailyCash storeId={7} storesLoading={false} />);
+    await screen.findByText(/^Saved · last updated/);
+
+    await user.click(screen.getByRole('button', { name: 'Update Entry' }));
+
+    expect(screen.queryByText('Enter a reason for this correction')).not.toBeInTheDocument();
+    expect(vi.mocked(storeCashApi.saveDailyCashEntry).mock.calls[0][0].correctionReason).toBeUndefined();
   });
 
   it('starts blank when nothing is saved and refuses to save until every field is valid', async () => {

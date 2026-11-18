@@ -66,6 +66,7 @@ function store(overrides: Partial<SuperAdminStore> = {}): SuperAdminStore {
     ownerAccessActive: true,
     employeeCount: 2,
     taskCount: 5,
+    cashTarget: null,
     ...overrides,
   };
 }

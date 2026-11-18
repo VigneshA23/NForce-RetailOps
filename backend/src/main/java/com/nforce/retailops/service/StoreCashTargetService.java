@@ -84,6 +84,14 @@ public class StoreCashTargetService {
         return findOrCreate(requireStore(storeId)).getTargetAmount();
     }
 
+    // A store being hard-deleted (StoreService.deleteStore): its target and
+    // change trail go with it, or their FKs to stores would block the delete.
+    @Transactional
+    public void deleteForStore(Long storeId) {
+        changeRepository.deleteByStoreId(storeId);
+        targetRepository.deleteByStoreId(storeId);
+    }
+
     // ---- shared ------------------------------------------------------------
 
     // Exactly one of user / superAdmin is non-null.
