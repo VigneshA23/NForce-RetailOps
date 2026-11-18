@@ -1,3 +1,4 @@
+import { Store as StoreIcon } from 'lucide-react';
 import './StoreChip.css';
 
 // Fixed palette; a store's colour is picked from its name so it stays the same
@@ -24,6 +25,18 @@ function StoreChip({ name }: StoreChipProps) {
         {name.trim().charAt(0).toUpperCase()}
       </span>
       <span className="store-chip__name">{name}</span>
+    </span>
+  );
+}
+
+/** "All Stores" pill: same shape as StoreChip, with a store icon in the circle. */
+export function AllStoresChip() {
+  return (
+    <span className="store-chip">
+      <span className="store-chip__letter" style={{ background: 'var(--color-badge-icon-info-fg, #0ea5e9)' }} aria-hidden="true">
+        <StoreIcon size={12} />
+      </span>
+      <span className="store-chip__name">All Stores</span>
     </span>
   );
 }

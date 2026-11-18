@@ -22,7 +22,7 @@ import StoreInventoryItemFormModal from '../components/StoreInventoryItemFormMod
 import StoreInventoryItemEditPanel from '../components/StoreInventoryItemEditPanel';
 import StoreInventoryCardGrid from '../components/StoreInventoryCardGrid';
 import SupplierFormModal from '../components/SupplierFormModal';
-import StoreChip from '../components/StoreChip';
+import StoreChip, { AllStoresChip } from '../components/StoreChip';
 import '../components/EmployeeTable.css';
 import InventoryCategoriesPanel from '../components/InventoryCategoriesPanel';
 import Toggle from '../components/Toggle';
@@ -785,7 +785,7 @@ function SuperAdminInventory() {
                           </td>
                           <td className="supplier-table__cell-store" data-label="Assigned Store">
                             {supplier.appliesToAllStores ? (
-                              <span className="employee-table__store-badge">All Stores</span>
+                              <AllStoresChip />
                             ) : (supplier.stores ?? []).length === 0 ? (
                               <span className="employee-table__no-stores">—</span>
                             ) : (
