@@ -474,6 +474,7 @@ function SuperAdminChecklist({ nav }: SuperAdminChecklistProps) {
             <div className="sa-checklist__store-select">
               <SearchableSelect
                 id="sa-store-select"
+                variant="toolbar"
                 options={storeSelectOptions}
                 selectedIds={selectedStoreId === null ? [] : [selectedStoreId]}
                 onChange={(ids) => setSelectedStoreId(ids[0] ?? null)}

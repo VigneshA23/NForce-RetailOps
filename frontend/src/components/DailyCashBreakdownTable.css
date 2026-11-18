@@ -32,9 +32,26 @@
   color: var(--color-text-muted);
 }
 
+/* The .table-card shell and its denser cell padding, without .table-card itself:
+   that class turns rows into stacked cards on phones (styles/table.css). These
+   tables keep the same columns on desktop, tablet and phone and scroll sideways
+   through the shared TableScroll. */
 .daily-cash__card {
+  background: var(--color-surface-card);
   border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   overflow: hidden;
+}
+
+.daily-cash .daily-cash__table thead th {
+  padding: 10px var(--space-md);
+  font-size: 11px;
+}
+
+.daily-cash .daily-cash__table tbody td {
+  padding: 10px var(--space-md);
+  font-size: 13px;
 }
 
 .daily-cash .daily-cash__table {
@@ -85,8 +102,8 @@
   color: var(--color-text-muted);
 }
 
-/* The closing day carries the headline figures: a text badge plus an underline
-   rule, so it is not marked by colour alone. */
+/* The closing day carries the headline figures: marked by its "Closing day"
+   badge and bold figures only -- no row tint or coloured rule. */
 .daily-cash__badge {
   color: var(--color-primary);
 }
@@ -94,18 +111,10 @@
 .daily-cash .daily-cash__table tbody tr.daily-cash__row--closing th,
 .daily-cash .daily-cash__table tbody tr.daily-cash__row--closing td {
   font-weight: 600;
-  background: color-mix(in srgb, var(--color-primary) 7%, var(--color-surface-card));
-  border-bottom: 2px solid var(--color-primary);
 }
 
 .daily-cash .daily-cash__table tbody tr:last-child td {
   border-bottom: 1px solid var(--color-border);
-}
-
-/* After the :last-child rule above so the closing row's rule spans every cell. */
-.daily-cash .daily-cash__table tbody tr.daily-cash__row--closing:last-child td,
-.daily-cash .daily-cash__table tbody tr.daily-cash__row--closing:last-child th {
-  border-bottom: 2px solid var(--color-primary);
 }
 
 .daily-cash .daily-cash__table tfoot th,

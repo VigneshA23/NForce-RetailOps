@@ -18,6 +18,13 @@
   text-align: left;
 }
 
+/* Toolbar store pickers match the date navigator beside them
+   (StoreDetail.css .store-detail-page__date-nav): card surface, not the
+   grey form-field fill. */
+.searchable-select--toolbar .searchable-select__trigger {
+  background: var(--color-surface-card);
+}
+
 .searchable-select__trigger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
