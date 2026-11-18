@@ -86,12 +86,16 @@
 /* Headers align with the figures under them (the shared .data-table head is left-aligned). */
 .daily-cash .daily-cash__table thead th {
   text-align: right;
-  background: color-mix(in srgb, var(--color-text-primary) 4%, var(--color-surface-card));
+  color: var(--color-text-primary);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface-card));
 }
 
 .daily-cash .daily-cash__table thead th.daily-cash__date-col {
   text-align: left;
-  background: color-mix(in srgb, var(--color-text-primary) 4%, var(--color-surface-card));
+  color: var(--color-text-primary);
+  font-weight: 700;
+  background: color-mix(in srgb, var(--color-text-primary) 8%, var(--color-surface-card));
 }
 
 .daily-cash__badge,
