@@ -124,6 +124,32 @@
     var(--page-bg-sky);
 }
 
+/* Pink waves: the alternative background picked in Profile > Appearance
+   (<html data-bg="pink">, see hooks/usePageBackground.ts). Same layout as the
+   blue one above, only the colours change; blue stays the default. */
+:root[data-bg='pink'] {
+  --page-bg-sky:
+    radial-gradient(70% 60% at 45% 30%, #fff7f9 0%, rgba(255, 247, 249, 0) 70%) fixed,
+    radial-gradient(55% 70% at 100% 15%, #fbd9e2 0%, rgba(251, 217, 226, 0) 70%) fixed,
+    radial-gradient(45% 60% at 0% 0%, #fde6ec 0%, rgba(253, 230, 236, 0) 70%) fixed,
+    linear-gradient(180deg, #fdf0f3 0%, #fbe3ea 100%) fixed;
+  --page-bg:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 560' preserveAspectRatio='none'%3E%3Cpath d='M0 330 C 260 250 470 420 760 340 S 1220 210 1440 290 L1440 560 L0 560Z' fill='%23fbd5df' fill-opacity='0.45'/%3E%3Cpath d='M0 420 C 300 340 560 500 860 420 S 1260 330 1440 400 L1440 560 L0 560Z' fill='%23f9c6d3' fill-opacity='0.5'/%3E%3Cpath d='M0 490 C 340 440 620 560 940 500 S 1300 450 1440 480 L1440 560 L0 560Z' fill='%23f6b8c8' fill-opacity='0.55'/%3E%3C/svg%3E") center bottom / max(100%, 1440px) 62% no-repeat fixed,
+    var(--page-bg-sky);
+}
+
+/* Pink in dark mode: a deep plum night rather than the light pinks dimmed. */
+:root[data-theme='dark'][data-bg='pink'] {
+  --page-bg-sky:
+    radial-gradient(70% 60% at 45% 30%, #3d2438 0%, rgba(61, 36, 56, 0) 70%) fixed,
+    radial-gradient(55% 70% at 100% 15%, #331d30 0%, rgba(51, 29, 48, 0) 70%) fixed,
+    radial-gradient(45% 60% at 0% 0%, #2a1828 0%, rgba(42, 24, 40, 0) 70%) fixed,
+    linear-gradient(180deg, #1c0f1a 0%, #140a13 100%) fixed;
+  --page-bg:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 560' preserveAspectRatio='none'%3E%3Cpath d='M0 330 C 260 250 470 420 760 340 S 1220 210 1440 290 L1440 560 L0 560Z' fill='%23502c48' fill-opacity='0.5'/%3E%3Cpath d='M0 420 C 300 340 560 500 860 420 S 1260 330 1440 400 L1440 560 L0 560Z' fill='%2340233a' fill-opacity='0.55'/%3E%3Cpath d='M0 490 C 340 440 620 560 940 500 S 1300 450 1440 480 L1440 560 L0 560Z' fill='%23331c2f' fill-opacity='0.6'/%3E%3C/svg%3E") center bottom / max(100%, 1440px) 62% no-repeat fixed,
+    var(--page-bg-sky);
+}
+
 /* Bottom nav padding lives here (was on main; absolute page ignores parent padding) */
 .app-shell__main--bottom-nav .app-shell__page {
   padding-bottom: calc(96px + env(safe-area-inset-bottom));
