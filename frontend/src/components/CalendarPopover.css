@@ -107,6 +107,39 @@
   opacity: 0.4;
 }
 
+/* Header label as a button: click "June 2026" for months, the year for years. */
+.calendar-popover__label-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.calendar-popover__label-button:hover {
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  color: var(--color-accent);
+}
+
+/* Month and year views (CalendarPeriodGrids.tsx): 3 x 4 grids of wider cells,
+   with the day cells' selected / today / disabled states. */
+.calendar-popover__period-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.calendar-popover__cell.calendar-popover__period-cell {
+  aspect-ratio: auto;
+  height: 40px;
+  font-family: inherit;
+}
+
 .calendar-popover__footer {
   display: flex;
   align-items: center;
