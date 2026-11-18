@@ -2,7 +2,10 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
 import App from './App'
+import { applyStoredBackground } from './hooks/usePageBackground'
 import './index.css'
+
+applyStoredBackground()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

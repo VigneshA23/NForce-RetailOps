@@ -14,6 +14,8 @@ import ConfirmDialog from './ConfirmDialog';
 import SpecularButton from './SpecularButton';
 import UserAvatar from './UserAvatar';
 import Toggle from './Toggle';
+import StoreChip, { AllStoresChip } from './StoreChip';
+import './EmployeeTable.css';
 import InventoryCategoryFormModal from './InventoryCategoryFormModal';
 
 interface StoreOption {
@@ -121,6 +123,16 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
   }, [items]);
 
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<number>>(new Set());
+
+  const [expandedStoreIds, setExpandedStoreIds] = useState<Set<number>>(new Set());
+  function toggleStoresExpanded(categoryId: number) {
+    setExpandedStoreIds((current) => {
+      const next = new Set(current);
+      if (next.has(categoryId)) next.delete(categoryId);
+      else next.add(categoryId);
+      return next;
+    });
+  }
 
   function toggleExpanded(categoryId: number) {
     setExpandedCategoryIds((current) => {
@@ -297,14 +309,23 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
                         </td>
                         <td className="supplier-table__cell-store" data-label="Assigned Store">
                           {category.appliesToAllStores ? (
-                            <span className="employee-table__store-badge">All Stores</span>
+                            <AllStoresChip />
                           ) : category.stores.length === 0 ? (
                             <span className="employee-table__no-stores">—</span>
                           ) : (
-                            <div className="employee-table__store-badges">
-                              {category.stores.map((store) => (
-                                <span key={store.id} className="employee-table__store-badge">{store.name}</span>
-                              ))}
+                            <div className="store-summary" onClick={(event) => event.stopPropagation()}>
+                              <StoreChip name={category.stores[0].name} />
+                              {category.stores.length > 1 && (
+                                <button
+                                  type="button"
+                                  className="store-more-toggle"
+                                  aria-expanded={expandedStoreIds.has(category.id)}
+                                  onClick={() => toggleStoresExpanded(category.id)}
+                                >
+                                  +{category.stores.length - 1} more
+                                  <ChevronDown size={14} aria-hidden="true" />
+                                </button>
+                              )}
                             </div>
                           )}
                         </td>
@@ -341,6 +362,20 @@ function InventoryCategoriesPanel({ stores, items, categories, setCategories, is
                           </div>
                         </td>
                       </tr>
+                      {expandedStoreIds.has(category.id) && !category.appliesToAllStores && category.stores.length > 1 && (
+                        <tr className="store-expand-row">
+                          <td colSpan={5}>
+                            <div className="store-expand-panel">
+                              <div className="store-expand-panel__heading">Assigned Stores · {category.stores.length}</div>
+                              <div className="store-expand-panel__list">
+                                {category.stores.map((store) => (
+                                  <StoreChip key={store.id} name={store.name} />
+                                ))}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
                       {isExpanded && (
                         storeBreakdown.length === 0 ? (
                           <tr className="super-admin-inventory-page__breakdown-row">
