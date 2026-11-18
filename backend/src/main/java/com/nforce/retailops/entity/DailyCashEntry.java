@@ -46,6 +46,12 @@ public class DailyCashEntry {
     @Column(name = "other_adjustments", nullable = false)
     private BigDecimal otherAdjustments;
 
+    // cash_remaining + other_adjustments, recomputed and saved on every save
+    // or correction. The running "expected cash on hand" is the SUM of this
+    // across all of the store's entries up to the viewed date (V117).
+    @Column(name = "daily_expected_cash", nullable = false)
+    private BigDecimal dailyExpectedCash;
+
     // Exactly one of each user/super-admin pair is set (Super Admin is not a
     // users row).
     @ManyToOne(fetch = FetchType.LAZY)
@@ -92,6 +98,8 @@ public class DailyCashEntry {
     public void setBankDeposits(BigDecimal v) { this.bankDeposits = v; }
     public BigDecimal getOtherAdjustments() { return otherAdjustments; }
     public void setOtherAdjustments(BigDecimal v) { this.otherAdjustments = v; }
+    public BigDecimal getDailyExpectedCash() { return dailyExpectedCash; }
+    public void setDailyExpectedCash(BigDecimal v) { this.dailyExpectedCash = v; }
     public User getEnteredByUser() { return enteredByUser; }
     public void setEnteredByUser(User v) { this.enteredByUser = v; }
     public SuperAdmin getEnteredBySuperAdmin() { return enteredBySuperAdmin; }
